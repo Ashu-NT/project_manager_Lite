@@ -9,7 +9,15 @@
   begin Phase 0 until it's accepted).
 - Date: 2026-08-05, revised 2026-08-25 alongside ADR-005's revision 6, after a dedicated
   Platform-only architecture audit
-  (`docs/platform_modernization/domain_event/platform_domain_event_audit.md`).
+  (`docs/platform_modernization/domain_event/platform_domain_event_audit.md`); revised again
+  2026-08-25 (same day) alongside ADR-005's revision 7, after a P4A pre-implementation
+  investigation found the original Phase 2A sequencing had no step for making PM/Inventory's
+  apply-handler-backing services session-parameterizable before `ApprovalService` itself migrates
+  — see the new Phase 2A-PRE, below; revised again 2026-08-25 (same day) alongside ADR-005's
+  revision 8, after an explicit user decision that, since this application is pre-release with no
+  backward-compatibility requirement, Phase 2A-PRE should converge the 8 services directly onto
+  session-parameterized participants rather than first building a temporary adapter on the legacy
+  shared session — Phase 2A-PRE's four steps collapse to two.
 
 ## Revision Note (2026-08-25)
 
@@ -33,6 +41,25 @@ Three corrections to this plan, all driven directly by the Platform audit, none 
 Phases are renumbered below to keep a single, unambiguous sequence. Everything else — the
 Non-Negotiable Constraints, the general shape of the per-module discovery-then-migration
 discipline, the Design Guardrails — carries forward, with the additions noted inline.
+
+## Revision Note (2026-08-25, second pass — Phase 2A-PRE inserted)
+
+A pre-implementation investigation, performed before Phase P4 (`ApprovalService` migration, per
+the Platform implementation plan) was allowed to begin writing any code, inventoried all 18 real,
+production approval apply/reject handlers (`src/infra/composition/project_registry.py`,
+`inventory_registry.py`) and found every one calls into an already-constructed, long-lived PM/
+Inventory application service bound to the single process-lifetime `Session` — never a bare
+repository — with every one of the 8 backing services also holding a circular `approval_service=`
+constructor reference. ADR-005 §24 (Round 7) revises the `TDeps` mechanism's shape in response
+(module-supplied `dependencies_factory(session) -> TDeps`, not a repository-shaped dataclass
+resolved from a generic binder registry) — but that revised mechanism still requires each of the 8
+backing services to become constructible fresh, against a supplied session, before `ApprovalService`
+itself can move off the shared session. **That work did not exist as a phase anywhere in this
+plan.** Phase 2A below is split into a new, separately gated **Phase 2A-PRE** (session-decoupling
+prerequisite, business logic unchanged) followed by the original Phase 2A (transaction convergence,
+now able to assume 2A-PRE's output exists). `ApprovalService.request_change()` — the one command
+identified as having no apply-handler dependency at all — is deliberately **not** migrated ahead
+of the others; see 2A-PRE's Step C for why.
 
 ## Non-Negotiable Constraints
 
@@ -235,10 +262,82 @@ Exact file-by-file detail, per-capability discovery tables, and step-by-step tas
 (Phases P0-P8 there map onto this single Phase 2 here, plus Phase 0/1 above). This section states
 only the sequencing and exit gate.
 
+### 2A-PRE — Approval Transaction-Participant Convergence (NEW — gates 2A; revised Round 8)
+
+**Rationale:** the P4A investigation (ADR-005 §24, Round 7) found all 18 real approval apply/reject
+handlers call into 8 long-lived PM/Inventory application services bound to the single
+process-lifetime `Session`, each also holding a circular `approval_service=` reference. Moving
+`ApprovalService` to a fresh per-call session (2A) requires these 8 services' approval-facing logic
+to be constructible fresh, bound to that new session, *first*.
+
+**Revised Round 8, direct — two steps, not four.** Round 7 originally staged this as four steps
+(extract an adapter still on the shared session; separately make it session-parameterizable; cut
+`ApprovalService` over; delete the old path) specifically so a temporary adapter could prove parity
+on the *still-shared* session before transaction mechanics changed — caution appropriate for a live
+system. **This application is pre-release, with no external users and no backward-compatibility
+requirement for the current process-lifetime `Session` architecture** — building an adapter that
+targets the shared session, only to delete it again once its session-parameterized replacement
+exists, is exactly the temporary architecture this revision removes. Steps A and B collapse into
+one direct step; Steps C and D (unchanged in substance, renumbered) remain `ApprovalService`'s own
+cutover and cleanup.
+
+A wider 30-service PM/Inventory audit (ADR-005 §24, Round 8) confirmed this stays correctly scoped:
+~20 services are pure transaction-owning commands (out of scope — their migration is Phase 3/5's
+job, not this prerequisite's); `ProjectCommitmentService` and `StockControlService` have the same
+`commit: bool` pattern as the 8 but no relationship to approval (out of scope, separately tracked,
+same treatment as §22's allowlisted debt); `ResourceMasterUnitOfWork`/`ResourceCapabilityUnitOfWork`
+are pre-existing, unrelated, and themselves not real Units of Work by §9's definition (out of
+scope); `build_repository_bundle(session)` already covers all 69 repositories used by all 30
+services, confirming the repository-construction half of this problem was never the hard part.
+
+**Step 1 — Build `PlatformUnitOfWork`/`Factory`, and port each of the 8 services' approval-facing
+logic directly into standalone, session-parameterized participants.** For each of the 8 backing
+services (`BaselineService`, `TaskService`, `BudgetService`, `ProjectCostEntryService`,
+`FinancialChangeService`, `ProjectBillingPreparationService`, `ProcurementService`,
+`PurchasingService`), the approval-facing logic currently on the long-lived instance
+(`_apply_*_decision`/`apply_submitted_*`) is **ported** into a small, module-owned participant
+(a plain function or thin stateless class) whose repositories/collaborators are constructed fresh,
+per call, from the session `ApprovalService`'s `PlatformUnitOfWork` supplies via
+`dependencies_factory(session) -> TDeps` (ADR-005 §24, Round 7's mechanism, Round 8's construction
+model). A participant is not the whole service object, so it **has no `approval_service=`
+reference to manage** — the **old** service instance keeps its existing reference, unchanged, for
+its own other, non-approval commands. The now-dead old approval-facing methods are deleted from
+the 8 service classes in this same step, not left for a later cleanup pass. *Review gate:* for
+each of the 8, does the ported participant, exercised end-to-end through the *existing* PM/
+Inventory approval regression suite, produce identical staged mutations, `ApprovalHandlerResult`,
+and error behavior to what the deleted method produced? Are the other 22 services and the two
+flagged-but-out-of-scope services provably untouched?
+
+**Step 2 — Cut `ApprovalService` over to the canonical `PlatformUnitOfWork` (formerly Step C).**
+`ApprovalService` gains a `PlatformUnitOfWorkFactory` (closing over `SessionLocal`), and
+`approve_and_apply`/`reject`/`request_change` all construct a fresh `PlatformUnitOfWork` per call
+in the same change — per this plan's no-straddling constraint (Constraint 3), a service should not
+run two live transaction models without a documented transitional reason, and none exists here.
+This step is exactly the original Phase 2A's content (below), now able to assume every registered
+handler already has a working `dependencies_factory` from Step 1.
+
+**Exit criteria (2A-PRE):** all 8 services' approval-facing logic exists only as session-
+parameterized participants (the old methods are deleted, not merely unused); the existing PM/
+Inventory approval regression suite passes unmodified against the new participants;
+`ApprovalService` uses `PlatformUnitOfWork` exclusively for all three of its transaction-owning
+methods; the architecture guardrail test passes; none of the other 22 services,
+`ProjectCommitmentService`/`StockControlService`, or `Resource*UnitOfWork` were touched.
+
+**Explicit non-goal:** this phase does not change what any apply handler's business *rules* do
+(the logic is ported, not rewritten); does not migrate any of the ~22 out-of-scope services listed
+above; does not converge `ProjectCommitmentService`/`StockControlService`; and does not remove the
+process-lifetime `Session` from `app_container`/`build_service_graph` — **that can only happen
+once Phase 3 (`inventory_procurement`) and Phase 5 (`project_management`) have both closed**,
+since every other command in the application still depends on that shared session until those
+already-planned phases migrate their own module's full command surface.
+
 ### 2A — Platform Transaction/UoW Convergence
 
-Reconcile Platform's own competing transaction conventions per ADR-005 §24/§26:
-- `ApprovalService` (ADR-PF-008): **ADAPT** — migrated onto the canonical `UnitOfWork`.
+Reconcile Platform's own competing transaction conventions per ADR-005 §24/§26, per 2A-PRE Step 2
+above (this phase does not begin until 2A-PRE's Step 1 is reviewed and complete for all 8
+apply-handler-backing services):
+- `ApprovalService` (ADR-PF-008): **ADAPT** — migrated onto the canonical `UnitOfWork`, including
+  `request_change()` in the same change (2A-PRE Step 2).
 - `NotificationService`'s caller-controlled `commit: bool` pattern: assessed per call site,
   migrated where it composes with a migrating command, left as-is where it's a standalone
   best-effort feature unrelated to any `UnitOfWork`-owned transaction.
@@ -440,7 +539,7 @@ non-domain-event uses (if any remain) still reference it.
 |---|---|---|---|
 | 0 | Shared event contracts (no `UnitOfWork` yet), incl. `DomainEventContext` and organization-aware `ViewInvalidationHint` | None, additive | ADR-005 accepted |
 | 1 | `UnitOfWork` contract + concrete impl + session-factory lifecycle + `record_event`/`context` | None, additive | Phase 0 |
-| **2** | **Platform Foundation** — transaction convergence (`ApprovalService` et al.), typed events + invalidation for Platform's own 11 signals, Qt adapter consolidation, legacy bridge/cutover | **Large; new phase this revision** | Phase 1; gates every module phase below |
+| **2** | **Platform Foundation** — direct session-parameterized convergence for the 8 approval-backed services (2A-PRE, 2 steps per Round 8), transaction convergence (`ApprovalService` et al., 2A), typed events + invalidation for Platform's own 11 signals, Qt adapter consolidation, legacy bridge/cutover | **Large; new phase this revision; 2A-PRE added in the second 2026-08-25 pass, revised to 2 direct steps in the third** | Phase 1; gates every module phase below |
 | 3 | `inventory_procurement` discovery + migration (pilot module) | Small, real usage | Phase 2's "Platform Domain Event Foundation Ready" |
 | 4 | `hr_management` / `payroll` / `qhse` | No-op until a module needs it | Phase 0/1/2 only |
 | 5 | `project_management` discovery + migration | Large; in-flight PM Collaboration Upgrade — re-verify current state before starting | Phase 3 proven; PM Collaboration Upgrade state re-confirmed |

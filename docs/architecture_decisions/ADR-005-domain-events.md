@@ -1,9 +1,15 @@
 # ADR-005: Domain Events
 
-- Status: proposed (revision 6 — Platform architecture audit incorporated)
+- Status: proposed (revision 8 — pre-release direct-convergence scope decision incorporated)
 - Date: 2026-08-05, revised 2026-08-25 after a dedicated, evidence-based Platform-only
   architecture audit (`docs/platform_modernization/domain_event/platform_domain_event_audit.md`)
-  found this design was not landing on the blank slate its earlier revisions assumed.
+  found this design was not landing on the blank slate its earlier revisions assumed; revised
+  again 2026-08-25 (same day) after a P4A pre-implementation investigation found §24's `TDeps`
+  design, as originally specified, does not match how the real, production apply handlers work
+  (Round 7); revised again 2026-08-25 (same day) after an explicit user decision that, since this
+  application is pre-release with no backward-compatibility requirement, the P4-PRE prerequisite
+  should converge the 8 approval-backed services directly onto session-parameterized participants
+  rather than first building a temporary adapter on the legacy shared session (Round 8, and §24).
 - Companion documents: [ADR-005 Execution Plan](ADR-005-execution-plan.md) (cross-Platform-and-module
   sequencing), [`platform_domain_event_implementation_plan.md`](../platform_modernization/domain_event/platform_domain_event_implementation_plan.md)
   (exact Platform how-to, files, tests, exit criteria).
@@ -67,6 +73,40 @@ The execution plan is revised alongside this ADR (see its own revision note) to 
 explicit Platform-foundation phase before any business module migrates, and to strike the dead
 `maintenance`-module phase the audit found targets a module deleted from this codebase on
 2026-08-20.
+
+**Round 7 (this revision)** is a response to a pre-implementation investigation performed before
+Phase P4 (`ApprovalService` migration, per the Platform implementation plan) was allowed to begin
+writing any code — per that plan's own instruction to stop and report rather than silently
+redesign if current source conflicts with approved architecture. It does conflict, narrowly:
+
+1. **§24's `TDeps` design assumed apply handlers receive raw *repository*-contract dependencies.**
+   An exhaustive inventory of all 18 real, production `register_apply_handler`/
+   `register_reject_handler` registrations (`src/infra/composition/project_registry.py`,
+   `inventory_registry.py`) found every one calls into an already-constructed, long-lived PM/
+   Inventory *application service*, never a bare repository, and every one of the 8 backing
+   services holds a circular `approval_service=` constructor reference. §24 is revised below to
+   resolve `TDeps` as a module-supplied *factory function* producing whatever collaborator (often
+   the module's own existing service, freshly reconstructed against a supplied session) the
+   handler actually needs — not a generic, repository-shaped dataclass resolved from a binder
+   registry keyed by type.
+2. **A new prerequisite phase is required before Phase P4 can migrate `ApprovalService` itself.**
+   The revised `TDeps` mechanism requires each of the 8 backing services to become
+   session-parameterizable first; this is real, non-trivial, per-service work, not something that
+   can be folded silently into Phase P4. See the Execution Plan's revised Phase 2 sequencing.
+
+**Round 8 (this revision, same day)** responds to an explicit user decision: this application is
+pre-release, with no external users and no backward-compatibility requirement for the current
+process-lifetime `Session` architecture. Round 7's prerequisite phase had been designed as four
+steps specifically so a temporary adapter could prove parity on the *still-shared* session before
+anything moved — caution appropriate for a live system, unnecessary here. Round 8 collapses that
+into two direct steps (port the 8 services' approval-facing logic straight into standalone,
+session-parameterized participants; then cut `ApprovalService` over) and, from a wider 30-service
+PM/Inventory audit performed to size this correctly, explicitly confirms what stays out of scope
+(the other ~22 services' full command surfaces, two more services with an identical but unrelated
+`commit: bool` pattern, and the pre-existing `Resource*UnitOfWork` classes) and states plainly that
+the process-lifetime `Session` cannot be removed from `app_container` until Execution Plan Phases 3
+and 5 both close — this correction narrows *how* 2A-PRE converges the 8 services, it does not
+widen *what* 2A-PRE covers. See §24.
 
 ## Context
 
@@ -1088,9 +1128,44 @@ test without faking an entire `UnitOfWork`'s lookup behavior. This directly cont
 principle §9 already states: `UnitOfWork` exposes the transaction boundary; it must not become a
 general application dependency container.
 
-**Final decision: `repository_for` is REMOVED from `UnitOfWork`'s surface entirely (as §9 already
-states) and REPLACED with an explicit, declarative dependency mechanism scoped narrowly to
-`ApprovalService`'s own registration API — not a feature of `UnitOfWork` itself:**
+**`repository_for` is REMOVED from `UnitOfWork`'s surface entirely (as §9 already states).** The
+shape it was replaced with — below — is itself revised this pass (Round 7), after the shape
+originally proposed here was checked against the real apply-handler surface and found not to fit.
+
+**Round 7 finding: the originally-specified `TDeps` (a repository-shaped dataclass resolved from a
+generic binder registry) does not match how any real apply handler works.** A pre-implementation
+investigation (required by the Platform implementation plan's own Phase P4 gate: inspect the
+actual current implementations before writing code; stop and report rather than silently redesign
+if source conflicts with approved architecture) inventoried all 18 real, production
+`register_apply_handler`/`register_reject_handler` registrations:
+
+- 14 in `src/infra/composition/project_registry.py` — `baseline.create`;
+  `dependency.add`/`remove`/`update`; `task.constraint.update`; `scheduling.leveling.apply`;
+  `budget.approve` (apply+reject); `project_cost.approve` (apply+reject); `financial_change.apply`
+  (apply+reject); `project_billing_preparation.approve` (apply+reject).
+- 4 in `src/infra/composition/inventory_registry.py` — `purchase_requisition.submit`
+  (apply+reject); `purchase_order.submit` (apply+reject).
+
+**Every one of the 18, without exception, calls into an already-constructed, long-lived PM/
+Inventory *application service*** (`BaselineService`, `TaskService`, `BudgetService`,
+`ProjectCostEntryService`, `FinancialChangeService`, `ProjectBillingPreparationService`,
+`ProcurementService`, `PurchasingService` — 8 distinct services backing the 18 registrations),
+**never a bare repository**. Each of these 8 services is built exactly once, at composition time,
+bound to the single process-lifetime `Session` every other Platform/PM/Inventory service shares —
+and **every one of the 8 also takes `approval_service=platform_services.approval_service` as a
+constructor argument**, a real, structural, 8-for-8 circular object-graph reference, not an
+isolated case.
+
+A repository-shaped `TDeps` is one layer too low for this surface: forcing an apply handler to
+receive raw repositories instead of the service it actually calls would require re-deriving that
+service's own business orchestration (its staged mutation, its own audit/notification side
+effects, its own multi-repository coordination) directly inside Platform's dispatch code, or
+duplicating it there — exactly the business-logic absorption §1/§25 already forbid Platform from
+doing. **Verdict: KEEP the mechanism's shape — an explicit, per-registration-site, statically
+declared dependency, resolved by `ApprovalService`'s own dispatch logic, never a method on
+`UnitOfWork` — REVISE what that dependency is and how it is produced.**
+
+**Revised decision:**
 
 ```python
 # src/core/platform/contracts/approval.py
@@ -1103,44 +1178,171 @@ def register_apply_handler(
     request_type: str,
     handler: ApprovalApplyHandler[TDeps],
     *,
-    dependencies: type[TDeps],   # e.g. a small, module-owned dataclass/Protocol naming
-                                  #   exactly what this handler needs — nothing more
+    dependencies_factory: Callable[[Session], TDeps],   # module-owned; constructs TDeps fresh,
+                                  #   bound to the CURRENT approve_and_apply/reject call's session
 ) -> None: ...
 ```
 
-`TDeps` is a small, module-owned type (typically a frozen dataclass of named repository-contract
-fields) declared **at the same call site** as `register_apply_handler` — e.g.
-`project_management` declares `class ProjectBaselineApprovalDeps: baselines: ProjectBaselineRepository`
-and registers its handler with `dependencies=ProjectBaselineApprovalDeps`. `ApprovalService`
-resolves `TDeps` internally, at dispatch time, from a small binder registry populated at
-composition time (`platform_registry.py` maps each declared dependency type to a callable
-constructing its concrete repository from the *current* fresh session) — this resolution machinery
-is infrastructure code, and is allowed to know about concrete classes exactly as `RepositoryBundle`
-already does; the handler itself only ever receives a fully-constructed `deps: TDeps`, typed
-against contracts, never a raw `Session` and never an open lookup method it could call with an
-arbitrary type.
+`TDeps` is still a small, module-owned type declared **at the same call site** as
+`register_apply_handler` — the difference from the original design is that it is produced by a
+**module-supplied factory function**, not resolved from a generic, type-keyed binder registry
+populated at startup. *(Round 7 originally described this factory as reconstructing a fresh
+instance of the module's own existing, unmodified service class — Round 8, below, supersedes that
+specific mechanism: given this application is pre-release with no backward-compatibility
+constraint, the factory instead produces a standalone, purpose-built, session-parameterized
+participant with the approval-facing logic ported directly into it, never a whole reconstructed
+service instance. The `dependencies_factory(session) -> TDeps` *shape* is unchanged; what it
+builds is not a resurrected legacy object.)* e.g. `project_management` declares
+`build_budget_approval_deps(session: Session) -> BudgetApprovalDeps`, which constructs whatever
+fresh repositories the participant needs via the already-proven-reusable
+`build_repository_bundle(session)` (`src/infra/composition/repositories.py:202`) and wraps them,
+alongside the ported apply logic, in `BudgetApprovalDeps`.
 
-- **Allowed usage:** only `ApprovalService`'s own internal dispatch logic resolves a handler's
-  declared `TDeps` from the binder registry. A module declares its dependency shape once, at
-  registration.
-- **Forbidden usage:** no handler body calls anything resembling `uow.repository_for(...)`; no
-  such method exists on `UnitOfWork`, base or Platform-extended, after this decision. No other
-  module's `UnitOfWork` extension gains an equivalent open lookup — this mechanism is scoped to
-  `ApprovalService`'s specific cross-module registration shape, not offered as a general pattern.
+**A previously-unconfirmed fact that de-risks this:** `build_repository_bundle(session)` is
+already a pure, stateless, per-session factory — every repository any of the 8 backing services
+uses is already constructible fresh from an arbitrary `Session`, with no startup-only assumption
+in it. The missing piece is one layer up: a per-module, per-request-type factory that reconstructs
+the *service* itself (not just its repositories) bound to a supplied session. This is finite,
+per-service work — 8 services — not an open-ended rewrite, but it is real work that must happen
+*before* `ApprovalService` can move to a fresh session, not as an incidental part of moving it. See
+the Execution Plan's revised Phase 2 sequencing for the gated prerequisite this now requires.
+
+**The circular `approval_service=` reference does not block this** — and, per Round 8 below, does
+not need managing at all for the *new* code path. The investigation confirmed the back-reference
+exists so each of the 8 services can independently call `approval_service.request_change(...)`
+for *its own*, later, unrelated approval flows — it is not a call `approve_and_apply`/`reject`
+makes back into itself during the same apply invocation. Round 7 proposed handling this by keeping
+a freshly-constructed instance's outbound reference pointed at the original `ApprovalService`;
+Round 8 makes the question moot for the apply path specifically — a standalone participant has no
+reason to hold an `approval_service` reference at all, since it isn't the whole service, only the
+apply-facing slice of it. The **old** service instance (unchanged, still used for its own other,
+non-approval commands) keeps its existing `approval_service=` reference exactly as today; only
+collaborators that must land in the *same* transaction as the apply decision (the participant's
+own repositories, and any Platform cross-cutting service that also writes — e.g.
+`enterprise_audit_service`, itself session-bound and required by ADR-PF-008 to commit atomically
+with the mutation) are constructed fresh, bound to the current session.
+
+- **Allowed usage:** only `ApprovalService`'s own internal dispatch logic calls a handler's
+  registered `dependencies_factory` with the current call's session. A module declares its
+  dependency shape and construction once, at registration.
+- **Forbidden usage:** no handler body calls anything resembling `uow.repository_for(...)` or a
+  generic `resolve(TDeps)`; no such method exists on `UnitOfWork`, base or Platform-extended, after
+  this decision. No other module's `UnitOfWork` extension gains an equivalent open lookup — this
+  mechanism is scoped to `ApprovalService`'s specific cross-module registration shape, not offered
+  as a general pattern.
 - **How `ApprovalService` works afterward:** `approve_and_apply` constructs a fresh
-  `PlatformUnitOfWork`, looks up the registered handler and its declared `TDeps` type for the
-  request's `request_type`, resolves `TDeps` from the current session via the binder registry,
+  `PlatformUnitOfWork`, looks up the registered handler and its `dependencies_factory` for the
+  request's `request_type`, calls `dependencies_factory(uow's session)` to obtain `deps: TDeps`,
   calls `handler(request, uow, deps)`.
 - **How module boundaries remain visible:** reading one `register_apply_handler(...,
-  dependencies=ProjectBaselineApprovalDeps)` call site shows exactly what that handler needs,
-  statically, in one place — no runtime lookup calls scattered through a handler's body to trace.
+  dependencies_factory=build_budget_approval_deps)` call site, plus that one factory function's
+  body, shows exactly what that handler needs and how it is built, statically, in one place — no
+  runtime lookup calls scattered through a handler's body to trace, and no generic registry mapping
+  types to constructors that a reviewer has to cross-reference separately.
 - **Testing implications:** a handler is unit-tested by constructing its own `TDeps` directly with
-  fakes — no need to fake an entire `PlatformUnitOfWork` or intercept an open lookup method.
+  fakes — no need to fake an entire `PlatformUnitOfWork`, a binder registry, or intercept an open
+  lookup method.
 
 `ApprovalHandlerResult.post_commit_events` also changes shape in this same phase, from
 `(signal_name: str, payload: str)` string-keyed reflection into the legacy bus, to
 `tuple[DomainEvent, ...]` — typed events, dispatched through the new `PostCommitEventPublisher`,
 per §7/§8.
+
+**Prerequisite phase required before Phase P4 begins.** Making each of the 8 backing services'
+apply-relevant logic session-parameterizable is now a named, separately gated prerequisite
+(Execution Plan Phase 2, sub-phase 2A-PRE) — not something Phase P4 absorbs silently while also
+migrating `ApprovalService`'s own transaction boundary. See the Execution Plan for the staged
+sequencing and its own review gates.
+
+**Round 8 correction — direct convergence, no legacy-session adapter (pre-release scope
+decision).** Round 7 designed 2A-PRE as four steps, the first two of which (Step A: extract an
+adapter that still delegates to the 8 services' existing instances on the shared session; Step B:
+separately make those adapters' dependencies session-parameterizable) existed specifically to
+prove behavioral parity incrementally before touching transaction mechanics — a caution
+appropriate for a system with live users and a backward-compatibility obligation. **This
+application is pre-release: there are no external users and no backward-compatibility requirement
+for the current process-lifetime `Session` architecture.** Building a Step-A adapter that still
+targets the shared session, only to delete it again in Step B/D once its session-parameterized
+replacement exists, is exactly the "temporary architecture that will immediately be deleted" this
+correction removes. **Steps A and B are collapsed into one direct step; Steps C and D are
+unchanged (they are `ApprovalService`'s own cutover and cleanup, not the services' construction
+model).**
+
+A wider audit (beyond the 8 approval-backed services) was performed to size this correctly and
+confirm it does not silently expand into a full module migration:
+
+- **30 PM/Inventory application services are mutation-capable and permanently hold repositories
+  bound to the single process-lifetime `Session`** (22 in `project_management`, 8 in
+  `inventory_procurement`), each built once at composition time in `project_registry.py`/
+  `inventory_registry.py`. Of these, **~20 are "transaction-owning commands"** — they call
+  `self._session.commit()`/`.rollback()` directly and have no caller-composable staging mode at
+  all (`ProjectService`, `PortfolioService`, `CollaborationService`, `RegisterService`,
+  `ProjectResourceService`, `ProjectRateCardService`, `PlannedCostService`,
+  `ProjectBillingProfileService`, `ForecastVersionService`, `ForecastGenerationService`,
+  `FinancialConfigurationService`, `ReservationService`, `InventoryService`,
+  `InventoryFoundationService`, plus the non-approval command surface of the 8 mixed services
+  below, and others). **These are explicitly out of scope for 2A-PRE** — migrating their full
+  command surface onto a per-command `UnitOfWork` is exactly what the Execution Plan's Phase 3
+  (`inventory_procurement` pilot) and Phase 5 (`project_management`) already exist to do, with
+  their own discovery-then-migration discipline and typed-event work (P5). Doing it here would
+  make 2A-PRE swallow those phases prematurely and out of order.
+- **8 services are "caller-owned transaction participants" for their approval-facing methods
+  specifically** (`BaselineService`, `TaskService` — 5 of its 13 command mixins —, `BudgetService`,
+  `ProjectCostEntryService`, `FinancialChangeService`, `ProjectBillingPreparationService`,
+  `ProcurementService`, `PurchasingService`) — these are exactly the 8 already known from the P4A
+  investigation, confirmed unchanged by the wider audit.
+- **Two more services already have an identical, independent `commit: bool` staging surface with
+  no relationship to approval at all** — `ProjectCommitmentService` and `StockControlService`.
+  **These are explicitly out of scope for 2A-PRE too.** They are the same architectural pattern as
+  the 8, but converging them is not required to unblock `ApprovalService`; per this ADR's existing
+  convention of naming adjacent debt without opportunistically fixing it (§22's
+  `SqlAlchemyApprovalRepository`→`ProjectORM` violation is the precedent), they are recorded here
+  as separately-tracked debt for their own future phase, not pulled into this one.
+- **`project_management` already has its own `ResourceMasterUnitOfWork`/
+  `ResourceCapabilityUnitOfWork` classes** (cited in this ADR's Context section as prior art) —
+  confirmed by direct read to be constructed with an *already-created* `Session` (not a session
+  *factory*), built once at composition time, not per-operation. They independently reinvent
+  exactly the commit/rollback-plus-event-emit wrapper this ADR's audit already characterized them
+  as — further, unrelated evidence that "session ownership" is the one dimension nothing in this
+  codebase has gotten right yet, not a reason to fold their own migration into 2A-PRE.
+- **`build_repository_bundle(session)` already returns all 69 repository fields** spanning every
+  PM, Inventory, and Platform repository used by all 30 services above (confirmed by direct read),
+  meaning the repository-construction half of a full convergence is *already done* — the real,
+  remaining work everywhere is only ever "stop holding a service instance across multiple calls,"
+  never "find a way to construct its repositories fresh."
+
+**Revised 2A-PRE design (2 direct steps, not 4):**
+
+1. **Step 1 — `PlatformUnitOfWork`/`Factory`, plus module-owned, session-parameterized approval
+   participants, built directly.** For each of the 8 services, the approval-facing logic currently
+   living as a private method on the long-lived instance (`_apply_approval_decision`,
+   `apply_submitted_requisition_approval`, etc.) is **ported** — not delegated-to-via-a-fresh-copy
+   of the whole service — into a small, standalone, module-owned participant (a plain function or
+   thin stateless class) that takes its repositories/collaborators as explicit parameters,
+   constructed fresh per call from the session `ApprovalService`'s own `PlatformUnitOfWork`
+   supplies via `dependencies_factory(session) -> TDeps`. Because a participant is not the whole
+   service object, **it has no reason to hold an `approval_service=` reference at all** — Round 7's
+   "keep the outbound reference pointed at the original instance" concern doesn't arise for new
+   code; the **old** service instance keeps its existing `approval_service=` reference, unchanged,
+   for its own unrelated, non-approval commands. The now-unused old approval-facing methods are
+   deleted from the 8 service classes in this same step — not left dead until a later cleanup step,
+   since dead code awaiting deletion is itself "temporary architecture."
+2. **Step 2 — `ApprovalService` cutover (this is Phase P4 itself, unchanged in substance).**
+   `request_change`/`approve_and_apply`/`reject` all move onto `PlatformUnitOfWorkFactory` in the
+   same change, dispatching to the participants registered in Step 1.
+
+**Explicit non-goal, stated because it would otherwise be tempting given "pre-release, no
+compatibility constraint":** 2A-PRE does **not** migrate any of the ~20 pure transaction-owning
+PM/Inventory services, does **not** converge `ProjectCommitmentService`/`StockControlService`, does
+**not** touch `ResourceMasterUnitOfWork`/`ResourceCapabilityUnitOfWork`, and does **not** remove the
+process-lifetime `Session` from `app_container`/`build_service_graph`. **The process-lifetime
+`Session` can only be removed once every one of the 30 services above has migrated its full command
+surface onto a per-command `UnitOfWork` — i.e., not before Execution Plan Phase 3
+(`inventory_procurement`) and Phase 5 (`project_management`) have both closed.** 2A-PRE removes
+only the approval-apply path's own dependency on that shared session; every other command in the
+application continues to run against it, unchanged, until those later, already-planned phases
+migrate their own module's command surface. Stating this explicitly prevents 2A-PRE's pre-release
+latitude from being read as license to converge everything at once.
 
 **[ADR-PF-011](ADR-PF-011-durable-integration-outbox-inbox.md) — Durable Integration Outbox and
 Inbox.** Decision: **preserved unchanged**, boundary restated unambiguously in §11. No merge, no
@@ -1205,8 +1407,15 @@ transactions). Added this revision:
   §9/§24, after being proposed and then critically reviewed within this same revision — it would
   let `UnitOfWork` become a general, ambient service locator, weakening dependency visibility,
   static enforcement, and testability exactly as much as any other service locator does. Replaced
-  with an explicit, declarative per-handler `dependencies: type[TDeps]` mechanism scoped to
-  `ApprovalService`'s own registration API (§24), not a feature of `UnitOfWork` itself.
+  with an explicit, declarative per-handler dependency mechanism scoped to `ApprovalService`'s own
+  registration API (§24), not a feature of `UnitOfWork` itself.
+- **A repository-shaped `TDeps` resolved from a generic, type-keyed binder registry (Round 6's
+  original `dependencies: type[TDeps]` design).** Rejected per §24 (Round 7), after being checked
+  against all 18 real apply-handler registrations and found to sit one layer below where every
+  real handler actually operates (a long-lived application service, never a bare repository).
+  Replaced with a module-supplied `dependencies_factory: Callable[[Session], TDeps]` registered
+  per handler, which the module itself uses to reconstruct its own existing service against a
+  supplied session — same visibility/no-service-locator properties, correct granularity.
 - **Five separately-named `ViewInvalidationChannel` subscription methods
   (`subscribe`/`subscribe_tenant_wide`/`subscribe_across_organizations`/`subscribe_across_tenants`/
   `subscribe_to_platform_wide`).** Rejected per §12, after being proposed and then critically
@@ -1240,8 +1449,13 @@ transactions). Added this revision:
 - `UnitOfWork` does **not** gain a general `repository_for(contract)`-style lookup — an
   intermediate draft of this revision proposed one and a critical review found it would make
   `UnitOfWork` a hidden service locator; the one genuine cross-module need
-  (`ApprovalService`'s apply handlers) is met instead by an explicit, declarative
-  `dependencies: type[TDeps]` mechanism scoped to `ApprovalService`'s own registration API (§24).
+  (`ApprovalService`'s apply handlers) is met instead by an explicit, declarative dependency
+  mechanism scoped to `ApprovalService`'s own registration API (§24). **Round 7 revises that
+  mechanism's shape again**, after checking it against all 18 real apply-handler registrations: a
+  module-supplied `dependencies_factory(session) -> TDeps` replaces the originally-specified
+  repository-shaped `TDeps` resolved from a generic binder registry, since every real handler
+  calls into a long-lived application service, never a bare repository. A new prerequisite phase
+  (Execution Plan Phase 2A-PRE) is required before `ApprovalService` itself can migrate.
 - `PostCommitEventHandler`'s signature gains an explicit `context: DomainEventContext` parameter
   — a deliberate, documented change from `(event) -> None` to `(event, context) -> None`.
 - `UnitOfWork` gains `record_event(event)` (the orchestration-fact escape hatch, §6) and a
@@ -1305,11 +1519,12 @@ race is closed; handler-registry snapshots are lock-consistent with concurrent s
   `uow.record_event(...)` by mistake, is caught by the Phase P5 per-event reviewer checklist (§6)
   — demonstrated by one worked aggregate-recorded example and one worked, justified
   orchestration-authored example, not merely asserted.
-- `ApprovalService`'s apply handler receives a fully-constructed `deps: TDeps` matching exactly
-  what it declared via `dependencies=` at registration, bound to the *same* fresh session as the
-  triggering `approve_and_apply` call — and no handler can reach a repository it did not declare
-  (§24) — proven by a test asserting a handler's `TDeps` type is the only way it obtains a
-  repository, not an incidental fact about the current implementation.
+- `ApprovalService`'s apply handler receives a fully-constructed `deps: TDeps`, produced by exactly
+  the `dependencies_factory` it declared at registration, called with the *same* fresh session as
+  the triggering `approve_and_apply` call — and no handler can reach a collaborator (service or
+  repository) it did not obtain through that declared factory (§24) — proven by a test asserting a
+  handler's declared `dependencies_factory` is the only way it obtains its collaborators, not an
+  incidental fact about the current implementation.
 
 ## Implementation Evidence
 
@@ -1339,3 +1554,11 @@ narrower than before:**
 
 All five should be resolved (1-3 before this ADR is marked Accepted; 4-5 before they become
 load-bearing for whatever later work depends on them).
+
+6. **(New, Round 7) Whether the 8 PM/Inventory apply-handler-backing services can be made
+   session-parameterizable without a genuinely invasive change to their own module's composition
+   code** — the investigation found `build_repository_bundle(session)` already de-risks the
+   repository layer, but no equivalent factory exists yet at the service layer, and this has not
+   been attempted for any of the 8 services. **DEFERRED — BLOCKING for Phase P4 specifically**
+   (Execution Plan Phase 2A-PRE must complete and be reviewed first), **not blocking** for this
+   ADR's other phases (P0-P3, P5-P8) or for this ADR being marked Accepted.
