@@ -53,11 +53,6 @@ Item {
         })
 
     // ── Detail sections ──────────────────────────────────────────────────
-    readonly property var detailSections: [
-        "Review Summary",
-        "Decision History"
-    ]
-
     // ── Detail actions ───────────────────────────────────────────────────
     readonly property var detailActions: {
         const st = root.selectedPeriodModel ? (root.selectedPeriodModel.state || {}) : {}

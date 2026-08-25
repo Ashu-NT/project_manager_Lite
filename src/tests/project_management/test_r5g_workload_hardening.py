@@ -103,6 +103,18 @@ def test_r5g_review_queue_runtime_geometry(
         assert filter_popup is not None
         assert 0 < float(queue.property("width")) <= width
         assert 0 < float(queue.property("height")) <= height
+        assert 0 < float(filter_popup.property("width")) <= width
+        assert 0 < float(filter_popup.property("implicitHeight")) <= height
+        filter_content = filter_popup.findChild(QObject, "reviewQueueFilterContent")
+        filter_actions = filter_popup.findChild(QObject, "reviewQueueFilterActions")
+        assert filter_content is not None
+        assert filter_actions is not None
+        assert float(filter_content.property("implicitWidth")) <= float(
+            filter_popup.property("width")
+        )
+        assert float(filter_actions.property("implicitWidth")) <= float(
+            filter_popup.property("width")
+        )
         threshold = int(page.property("_sideInspectorThreshold"))
         assert bool(page.property("_useSideInspector")) is (width >= threshold)
     finally:
@@ -113,3 +125,32 @@ def test_r5g_review_queue_runtime_geometry(
     assert not any("managed by a layout" in message for message in messages), messages
     assert not any("is not a type" in message for message in messages), messages
     assert not any("ReferenceError" in message for message in messages), messages
+
+
+def test_r5g_resources_centered_filter_fits_minimum_viewport(qapp) -> None:
+    engine = create_qml_engine()
+    source = PM_QML / "workspaces/resources/ResourcesWorkspacePage.qml"
+    component = QQmlComponent(engine, QUrl.fromLocalFile(str(source.resolve())))
+    page = component.create()
+    assert page is not None, "\n".join(error.toString() for error in component.errors())
+    try:
+        assert page.setProperty("width", 1024)
+        assert page.setProperty("height", 640)
+        qapp.processEvents()
+
+        filter_popup = page.findChild(QObject, "resourcesFilterPopup")
+        assert filter_popup is not None
+        assert 0 < float(filter_popup.property("width")) <= 1024
+        assert 0 < float(filter_popup.property("implicitHeight")) <= 640
+        filter_content = filter_popup.findChild(QObject, "resourcesFilterContent")
+        filter_actions = filter_popup.findChild(QObject, "resourcesFilterActions")
+        assert filter_content is not None
+        assert filter_actions is not None
+        assert float(filter_content.property("implicitWidth")) <= float(
+            filter_popup.property("width")
+        )
+        assert float(filter_actions.property("implicitWidth")) <= float(
+            filter_popup.property("width")
+        )
+    finally:
+        page.deleteLater()

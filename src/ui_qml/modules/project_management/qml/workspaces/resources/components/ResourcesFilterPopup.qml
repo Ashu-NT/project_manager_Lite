@@ -30,6 +30,7 @@ AppControls.CenteredDialog {
     }
 
     contentItem: ColumnLayout {
+        objectName: "resourcesFilterContent"
         spacing: Theme.AppTheme.spacingMd
 
         Item { Layout.preferredHeight: Theme.AppTheme.spacingXs }
@@ -94,6 +95,7 @@ AppControls.CenteredDialog {
         }
 
         RowLayout {
+            objectName: "resourcesFilterActions"
             Layout.fillWidth: true
             Layout.leftMargin: Theme.AppTheme.dialogPadding
             Layout.rightMargin: Theme.AppTheme.dialogPadding

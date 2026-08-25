@@ -1970,13 +1970,27 @@ the separate dispatch-metadata carrier, exactly as ADR-005 §5 already establish
 same UoW's commit. `UserTenantMembership` was NOT changed to implement `RecordsDomainEvents` --
 it stays a plain aggregate owning only its own state invariants, per P5D-SEM's original decision.
 
-**Event ordering (documented, tested, deliberately not reordered):** both composite
-transactions (acceptance, removal) record the RoleBinding event(s) BEFORE the membership event,
-because that is the actual code execution order (`_ensure_default_role_bindings`/the cascade
-revoke loop run before the membership audit entry and `uow.record_event(TenantMembership...)`
-call) -- this is preserved source semantics, not a chosen reordering for its own sake. Downstream
-correctness does not depend on this order; it is simply what a real post-commit subscriber
-observes.
+**Event ordering (P5D-2A correction, 2026-08-26): event recording follows business-transition
+order, not merely `record_event()` call placement near `commit()`.** The initial P5D-2 pass
+recorded the membership event LAST in each composite command (after the RoleBinding
+mutation participant call), which happened to match where the code was convenient to write but
+did NOT match the actual order the two business facts occur in: `membership.accept_invitation()`
+and `membership.remove()` are the FIRST transition in their respective commands --
+`_ensure_default_role_bindings`/the cascade revoke loop are consequences that run strictly AFTER
+them in the source. P5D-2A moved `uow.record_event(TenantMembershipActivated/Removed(...))` to
+immediately after the membership's own aggregate transition (right after
+`uow.memberships.update(...)`), before the RoleBinding mutation call, so the committed order now
+is:
+
+- Acceptance: `TenantMembershipActivated`, then `RoleBindingAssigned` per default binding created.
+- Removal: `TenantMembershipRemoved`, then `RoleBindingRevoked` per genuinely active binding revoked.
+
+This carries no rollback-safety cost: the canonical UoW never calls `self._session.commit()` or
+publishes anything until `uow.commit()`'s `_drain_and_dispatch()` completes, so an early
+`record_event()` call is observationally identical to a late one whenever the surrounding
+transaction later fails (audit write, the RoleBinding participant, a transactional handler, or
+`commit()` itself) -- re-verified by the full failure-mode test suite after the reorder, with
+identical results.
 
 **Clock:** every `occurred_at` comes from `self._clock.now()` (the same `Clock` P5D-1 wired in) --
 no direct `datetime.now()`/`datetime.utcnow()` call for an event timestamp. `reactivate_member`

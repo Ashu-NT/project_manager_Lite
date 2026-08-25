@@ -98,6 +98,15 @@ class TenantMembershipService:
     is this service's responsibility alone: `UserTenantMembership` stays a plain aggregate that
     owns its own state invariants and does not implement `RecordsDomainEvents` -- one recording
     responsibility, not two.
+
+    P5D-2A: the membership event is recorded immediately after its own aggregate transition
+    succeeds -- BEFORE the consequential RoleBinding mutation that follows it in the same
+    command (`_ensure_default_role_bindings` on acceptance, the cascade revoke on removal) --
+    so the committed event order mirrors actual business-transition order
+    (`TenantMembershipActivated` then `RoleBindingAssigned`; `TenantMembershipRemoved` then
+    `RoleBindingRevoked`), not merely wherever `record_event()` happened to be convenient near
+    `commit()`. This is safe because the canonical UoW never publishes anything until
+    `uow.commit()` succeeds, so recording early carries no rollback-safety cost.
     """
 
     def __init__(
@@ -286,6 +295,25 @@ class TenantMembershipService:
         self._require_active_tenant(uow.tenants, membership.tenant_id)
         accepted = membership.accept_invitation()
         uow.memberships.update(accepted)
+        # P5D-2A: recorded immediately after the membership transition itself -- the ACTUAL
+        # business-fact order is "membership becomes active" first, "a default role is granted
+        # as a consequence" second (`_ensure_default_role_bindings` runs strictly after this
+        # point in the code, never before). Recording here, before that call, makes the
+        # committed event order mirror real transition order rather than merely mirroring
+        # where the audit entry happens to be written. Safe because the canonical UoW never
+        # publishes anything until `uow.commit()` succeeds -- an early `record_event()` call is
+        # observationally identical to a late one for rollback purposes. Never emitted for
+        # `reinvite`/`issue_invitation`: `accept_invitation()` (the aggregate method this event
+        # anchors to) only ever fires on the invited -> active transition, regardless of how
+        # many times this membership was previously removed and reinvited.
+        uow.record_event(
+            TenantMembershipActivated(
+                membership_id=accepted.id,
+                tenant_id=accepted.tenant_id,
+                user_id=accepted.user_id,
+                occurred_at=self._clock.now(),
+            )
+        )
         self._ensure_default_role_bindings(
             uow,
             target,
@@ -302,20 +330,6 @@ class TenantMembershipService:
             old_status=MEMBERSHIP_STATUS_INVITED,
             new_status=MEMBERSHIP_STATUS_ACTIVE,
             metadata={"target_user_id": target.id},
-        )
-        # P5D-2: recorded last, preserving this method's own execution order -- the default
-        # RoleBinding grant above (a distinct business fact) has already recorded its own
-        # `RoleBindingAssigned` event(s) by the time this membership fact is recorded. Never
-        # emitted for `reinvite`/`issue_invitation`: `accept_invitation()` (the aggregate method
-        # this event anchors to) only ever fires on the invited -> active transition, regardless
-        # of how many times this membership was previously removed and reinvited.
-        uow.record_event(
-            TenantMembershipActivated(
-                membership_id=accepted.id,
-                tenant_id=accepted.tenant_id,
-                user_id=accepted.user_id,
-                occurred_at=self._clock.now(),
-            )
         )
         uow.commit()
         return accepted
@@ -473,6 +487,21 @@ class TenantMembershipService:
             )
             now = self._clock.now()
             removed = membership.remove(removed_at=now)
+            uow.memberships.update(removed)
+            # P5D-2A: recorded immediately after the membership transition itself -- the ACTUAL
+            # business-fact order is "membership is removed" first, "each active RoleBinding is
+            # revoked as a cascade consequence" second (the revocation loop runs strictly after
+            # this point in the code, never before). Recording here makes the committed event
+            # order mirror real transition order. Safe for the same reason as acceptance: the
+            # canonical UoW never publishes anything until `uow.commit()` succeeds.
+            uow.record_event(
+                TenantMembershipRemoved(
+                    membership_id=removed.id,
+                    tenant_id=tenant_id,
+                    user_id=target.id,
+                    occurred_at=now,
+                )
+            )
             invalidated_sessions = self._revoke_affected_sessions(
                 uow.auth_sessions,
                 target.id,
@@ -485,7 +514,6 @@ class TenantMembershipService:
                 tenant_id,
                 actor=actor,
             )
-            uow.memberships.update(removed)
             self._record_membership_audit(
                 uow.audit,
                 actor=actor,
@@ -500,18 +528,6 @@ class TenantMembershipService:
                     "invalidated_session_count": invalidated_sessions,
                     "revoked_binding_count": revoked_binding_count,
                 },
-            )
-            # P5D-2: recorded last, preserving this method's own execution order -- the cascade
-            # revocation above has already recorded its own `RoleBindingRevoked` event(s) (one
-            # per genuinely active binding, zero for an already-expired one) by the time this
-            # membership fact is recorded.
-            uow.record_event(
-                TenantMembershipRemoved(
-                    membership_id=removed.id,
-                    tenant_id=tenant_id,
-                    user_id=target.id,
-                    occurred_at=now,
-                )
             )
             uow.commit()
         domain_events.auth_changed.emit(target.id)

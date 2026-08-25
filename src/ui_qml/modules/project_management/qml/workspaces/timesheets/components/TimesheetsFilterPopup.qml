@@ -32,6 +32,7 @@ AppControls.CenteredDialog {
     }
 
     contentItem: ColumnLayout {
+        objectName: "reviewQueueFilterContent"
         spacing: Theme.AppTheme.spacingMd
 
         Item { Layout.preferredHeight: Theme.AppTheme.spacingXs }
@@ -122,6 +123,7 @@ AppControls.CenteredDialog {
             color: Theme.AppTheme.textMuted
         }
         RowLayout {
+            objectName: "reviewQueueFilterActions"
             Layout.fillWidth: true
             spacing: Theme.AppTheme.spacingSm
 

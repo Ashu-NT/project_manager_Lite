@@ -104,12 +104,16 @@ def _issue_and_accept(services, *, username: str):
 # ---------------------------------------------------------------------------
 
 
-def test_acceptance_records_activated_after_role_binding_assigned(services):
+def test_acceptance_records_activated_before_role_binding_assigned(services):
+    """P5D-2A: committed event order mirrors actual business-transition order --
+    `membership.accept_invitation()` (the transition `TenantMembershipActivated` anchors to)
+    happens strictly before the default RoleBinding grant that follows it in the same
+    command."""
     recorder = _Recorder(services)
     target, accepted = _issue_and_accept(services, username=_unique_code("p5d2-activate"))
 
     assert accepted.status == MEMBERSHIP_STATUS_ACTIVE
-    assert recorder.types() == [RoleBindingAssigned, TenantMembershipActivated]
+    assert recorder.types() == [TenantMembershipActivated, RoleBindingAssigned]
     activated = recorder.of(TenantMembershipActivated)[0]
     assert activated.membership_id == accepted.id
     assert activated.tenant_id == accepted.tenant_id
@@ -165,7 +169,7 @@ def test_reinvite_then_accept_records_removed_then_activated_never_reactivated(s
     _set_user_principal(services, target.username)
     accepted = membership_service.accept_invitation(reinvited.token)
 
-    assert recorder.types() == [RoleBindingAssigned, TenantMembershipActivated]
+    assert recorder.types() == [TenantMembershipActivated, RoleBindingAssigned]
     assert TenantMembershipReactivated not in recorder.types()
     assert recorder.of(TenantMembershipActivated)[0].membership_id == accepted.id
 
@@ -199,7 +203,10 @@ def test_suspend_then_reactivate_records_exactly_those_two_events_and_no_role_bi
 # ---------------------------------------------------------------------------
 
 
-def test_removal_records_role_binding_revoked_before_removed(services):
+def test_removal_records_removed_before_role_binding_revoked(services):
+    """P5D-2A: `membership.remove()` (the transition `TenantMembershipRemoved` anchors to)
+    happens strictly before the RoleBinding revocation cascade that follows it in the same
+    command -- the committed event order mirrors that."""
     membership_service = services["tenant_membership_service"]
     target, _accepted = _issue_and_accept(services, username=_unique_code("p5d2-remove"))
     recorder = _Recorder(services)
@@ -207,7 +214,7 @@ def test_removal_records_role_binding_revoked_before_removed(services):
     removed = membership_service.remove_member(target.id)
 
     assert removed.status == MEMBERSHIP_STATUS_REMOVED
-    assert recorder.types() == [RoleBindingRevoked, TenantMembershipRemoved]
+    assert recorder.types() == [TenantMembershipRemoved, RoleBindingRevoked]
     assert recorder.of(TenantMembershipRemoved)[0].membership_id == removed.id
     assert recorder.of(TenantMembershipRemoved)[0].user_id == target.id
 
