@@ -1354,6 +1354,23 @@ effective-permissions computation, not audited further in this pass).
 inside the transaction, so a future P5C-2 event never needs a post-commit re-query. `department`
 has none (unreachable).
 
+**Final resource ownership matrix (every `RESOURCE_ROLE_SCOPE_TYPES` member, plus the two
+non-resource scope kinds):**
+
+| Scope kind | `tenant_id` source | `organization_id` source | Repository method | Active-org-scoped? | Non-active-org administration works? | Organization ownership explicit? |
+|---|---|---|---|---|---|---|
+| `platform` | N/A (no tenant) | N/A (never) | N/A -- no repository read; platform-role assignment is denied outright in `assign_role`/`revoke_role_binding` (`PLATFORM_ROLE_ASSIGNMENT_DENIED`) | N/A | N/A | N/A -- `PlatformBindingScope` carries neither field |
+| `tenant` | The caller's own authenticated active tenant (`require_active_tenant_id`), never ambient-organization-derived | N/A (never) | N/A -- no resource repository involved | N/A | N/A (tenant-wide by definition) | N/A -- `TenantBindingScope` carries only `tenant_id` |
+| `organization` | Resolver parameter (the active tenant) | Identity -- the scope IS the organization | `OrganizationRepository.get_for_tenant(id, tenant_id)` | No -- never was | **Yes**, proven by test | Yes -- identity |
+| `project` | Resolver parameter | `Project.organization_id` (optional in the domain model) | `ProjectRepository.get_for_tenant(id, tenant_id)` (new, P5C-1) | Was yes, now **no** | **Yes**, proven by test (both directions) | Yes -- resolved via `organization_owner_resolver` |
+| `site` | Resolver parameter | `Site.organization_id` (required) | `SiteRepository.get_for_tenant(id, tenant_id)` (new, P5C-1) | Was yes, now **no** | **Yes**, proven by test | Yes -- resolved via `organization_owner_resolver` |
+| `storeroom` | Resolver parameter | `Storeroom.organization_id` (required) | `StoreroomRepository.get_for_tenant(id, tenant_id)` (new, P5C-1) | Was yes, now **no** (the reopened finding) | **Yes**, proven by test (both directions) + cross-tenant rejection | Yes -- resolved via `organization_owner_resolver` |
+| `department` | N/A -- unreachable, no resolver registered | `Department.organization_id` (required; trivially derivable, confirmed directly against a real row) | `DepartmentRepository.get()` only (no `get_for_tenant`) | **Yes**, confirmed by direct repository test -- shares the SAME defect class, unfixed | No -- unreachable regardless (no `scope_exists_resolver`, no catalog role declares `allowed_scope_type == "department"`) | Ownership model itself is NOT a blocker (a plain required column, same shape as `Site`/`Storeroom`) -- what's missing is the whole feature (policy/role/resolver wiring), which is out of P5C-1's transaction/scope-convergence boundary |
+
+No organization-owned resource scope that IS reachable depends on the ambient active
+organization. `department`'s gap is a "never wired up" gap, not an ownership-model gap, and is
+therefore not a `P5C-1 RESOURCE OWNERSHIP MODEL BLOCKER`.
+
 **Session-refresh characterization:** `RoleGovernanceService.assign_role`/`revoke_role_binding`
 themselves never call `refresh_current_session_if_user` -- that is deliberately the calling
 facade's responsibility (`role_assignment_service.py`'s legacy tenant-role functions,
@@ -1366,6 +1383,20 @@ duplicate was fixed to delegate to the canonical helper.
 fires both `auth_changed` (from `RoleGovernanceService`) and `access_changed` (from
 `AccessControlService`) for the same underlying mutation, while the legacy tenant-role facade
 fires only `auth_changed`. Left for P5C-3.
+
+**P5C-2 field readiness (explicit decision, not yet implemented):** at the point `assign_role`/
+`revoke_role_binding` call `uow.commit()`, every field a future `RoleBindingAssigned`/
+`RoleBindingRevoked` event will need is already available without a post-commit re-query:
+`target.id` (principal_id), `role.id`, the resolved scope kind plus its `tenant_id`/
+`scope_type`/`scope_id`/`organization_id` (via `ResolvedRoleBindingScope`), and `binding.id`
+(assigned client-side by `RoleBinding.create()` before the row is even inserted). **Decision:
+`binding_id` SHOULD be included** in the P5C-2 event payload -- `RoleBinding` is a durable
+business identity already referenced by `revoke_role_binding(binding_id)`, by every audit entry
+(`entity_id=binding.id`), and by `AccessControlService`'s `ScopedAccessGrant.id`, so a consumer
+reacting to the event (permission-cache invalidation, audit correlation, a future UI list) can
+reasonably need to correlate back to the specific binding without a second query. This follows
+the recommended default (a durable, externally-referenced identity is included; a purely
+persistence-internal one would be omitted) rather than defaulting to omission.
 
 **Test coverage:** `test_role_governance_unit_of_work_cutover.py` (fresh-session-per-mutation,
 shared-UoW-session repository/audit, no global-Session touch, commit-failure rollback with zero

@@ -650,6 +650,7 @@ def build_platform_service_bundle(
         uow_factory=role_governance_uow_factory,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
+        clock=SystemClock(),
         scope_exists_resolvers=role_governance_scope_exists_resolvers,
         organization_owner_resolvers=role_governance_organization_owner_resolvers,
         allow_platform_customer_context=(

@@ -26,6 +26,12 @@ from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_PLATFORM,
     ROLE_SCOPE_TENANT,
     RoleBinding,
+    RoleBindingAssigned,
+    RoleBindingPlatformScope,
+    RoleBindingResourceScope,
+    RoleBindingRevoked,
+    RoleBindingScope,
+    RoleBindingTenantScope,
     RoleDelegationPolicy,
     normalize_role_scope_type,
 )
@@ -44,6 +50,7 @@ from src.core.platform.application.tenant.tenancy.tenant_context import TenantCo
 from src.core.platform.common.ids import generate_id
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_events import domain_events
+from src.core.shared.time.clock import Clock
 
 
 ROLE_ASSIGN_PERMISSION = "auth.role.assign"
@@ -61,6 +68,7 @@ class RoleGovernanceService:
         uow_factory: RoleGovernanceUnitOfWorkFactory,
         user_session: UserSessionContext,
         tenant_context_service: TenantContextService,
+        clock: Clock,
         scope_exists_resolvers: dict[str, ScopeExistsResolver] | None = None,
         organization_owner_resolvers: dict[str, OrganizationOwnerResolver] | None = None,
         sod_policy: SeparationOfDutiesPolicy | None = None,
@@ -69,6 +77,7 @@ class RoleGovernanceService:
         self._uow_factory = uow_factory
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
+        self._clock = clock
         self._scope_exists_resolvers = {
             normalize_role_scope_type(scope_type): resolver
             for scope_type, resolver in dict(
@@ -373,6 +382,16 @@ class RoleGovernanceService:
                         ),
                     },
                 )
+
+                uow.record_event(
+                    RoleBindingAssigned(
+                        binding_id=binding.id,
+                        principal_id=target.id,
+                        role_id=role.id,
+                        scope=self._to_domain_scope(resolved_scope),
+                        occurred_at=self._clock.now(),
+                    )
+                )
                 uow.commit()
             except IntegrityError:
                 existing = uow.role_bindings.get_active_for_assignment(
@@ -421,6 +440,15 @@ class RoleGovernanceService:
                 scope_id=binding.actual_scope_id,
                 enforce_permission_snapshot=False,
             )
+            # Captured BEFORE mutation (item 13): the authoritative scope identity for the
+            # event must reflect the binding as it was administered, never re-derived from the
+            # current desktop UI scope after the fact.
+            domain_scope = self._resolve_domain_scope_for_binding(
+                session=uow.session,
+                tenant_id=tenant_id,
+                scope_type=binding.actual_scope_type,
+                scope_id=binding.actual_scope_id,
+            )
             revoked_at = datetime.now(timezone.utc)
             uow.role_bindings.revoke(
                 binding.id,
@@ -440,6 +468,17 @@ class RoleGovernanceService:
                     "scope_type": binding.actual_scope_type,
                     "scope_id": binding.actual_scope_id,
                 },
+            )
+            # P5C-2: the ONE canonical RoleBinding revocation fact, mirroring `assign_role`'s
+            # own recording point exactly.
+            uow.record_event(
+                RoleBindingRevoked(
+                    binding_id=binding.id,
+                    principal_id=binding.principal_id,
+                    role_id=binding.role_id,
+                    scope=domain_scope,
+                    occurred_at=self._clock.now(),
+                )
             )
             uow.commit()
         domain_events.auth_changed.emit(binding.principal_id)
@@ -664,6 +703,46 @@ class RoleGovernanceService:
             scope_type=scope_type,
             scope_id=scope_id,
             organization_id=organization_id,
+        )
+
+    @staticmethod
+    def _to_domain_scope(resolved: ResolvedRoleBindingScope) -> RoleBindingScope:
+
+        if isinstance(resolved, ResourceBindingScope):
+            return RoleBindingResourceScope(
+                tenant_id=resolved.tenant_id,
+                organization_id=resolved.organization_id,
+                scope_type=resolved.scope_type,
+                scope_id=resolved.scope_id,
+            )
+        if isinstance(resolved, TenantBindingScope):
+            return RoleBindingTenantScope(tenant_id=resolved.tenant_id)
+        return RoleBindingPlatformScope()
+
+    def _resolve_domain_scope_for_binding(
+        self,
+        *,
+        session: Session,
+        tenant_id: str,
+        scope_type: str,
+        scope_id: str | None,
+    ) -> RoleBindingScope:
+
+        if scope_type == ROLE_SCOPE_TENANT:
+            return RoleBindingTenantScope(tenant_id=tenant_id)
+        if scope_type == ROLE_SCOPE_PLATFORM or scope_id is None:
+            return RoleBindingPlatformScope()
+        organization_owner_resolver = self._organization_owner_resolvers.get(scope_type)
+        organization_id = (
+            organization_owner_resolver(session, tenant_id, scope_id)
+            if organization_owner_resolver is not None
+            else None
+        )
+        return RoleBindingResourceScope(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            scope_type=scope_type,
+            scope_id=scope_id,
         )
 
     def _require_delegation(
