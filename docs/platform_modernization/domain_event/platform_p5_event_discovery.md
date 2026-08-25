@@ -430,6 +430,16 @@ mechanics (a new transaction-agnostic `role_binding_mutation_participant` module
 (not assumed): `suspend_member`/`reactivate_member` never touch RoleBinding rows, so neither
 transition participates in the RoleBinding event stream at all.
 
+**P5D-2 (2026-08-26, implemented): all four events, exactly as listed above.** One event per
+non-trivial aggregate transition method actually invoked (`accept_invitation()` ->
+`TenantMembershipActivated`, `suspend()` -> `Suspended`, `reactivate()` -> `Reactivated`,
+`remove()` -> `Removed`) -- never derived from destination status. `revoke_invitation`
+(`invited -> removed`) was explicitly decided to be a distinct invitation-lifecycle fact, not a
+membership-removal fact, and emits no event at all -- see
+`platform_domain_event_implementation_plan.md`'s P5D-2 section for the full evidence. Event
+shape ended up exactly `membership_id`/`tenant_id`/`user_id`/`occurred_at` as this row
+anticipated, with no `organization_id`. P5D-3 (ViewInvalidation + Qt) remains not started.
+
 ### Approval — explicitly NOT a P5 slice yet
 
 Approval's events (`ApprovalRequested`/`Approved`/`Rejected`) are fully specified above (§3-§9)

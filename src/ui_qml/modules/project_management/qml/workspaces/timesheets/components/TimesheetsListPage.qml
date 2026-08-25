@@ -21,7 +21,9 @@ Item {
     signal filterClicked()
     signal refreshRequested()
 
-    anchors.fill: parent
+    function restoreTableFocus() {
+        reviewTable.forceActiveFocus()
+    }
 
     ColumnLayout {
         anchors.fill: parent

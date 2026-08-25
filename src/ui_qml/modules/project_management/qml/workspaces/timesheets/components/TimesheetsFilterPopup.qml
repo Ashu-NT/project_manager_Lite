@@ -8,6 +8,7 @@ import App.Theme 1.0 as Theme
 
 AppControls.CenteredDialog {
     id: root
+    objectName: "reviewQueueFilterPopup"
 
     property var workspaceController: null
     property var state: null

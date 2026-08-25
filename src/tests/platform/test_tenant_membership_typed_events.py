@@ -252,12 +252,19 @@ def test_revoke_invitation_emits_no_membership_event(services):
 
 
 def test_invalid_transition_records_no_membership_event(services):
+    """`suspend_member` on a membership that is still `invited` (never accepted) hits the
+    aggregate's own `USER_TENANT_MEMBERSHIP_SUSPEND_INVALID_TRANSITION` guard -- command
+    invocation is not the same as a real business transition, so it must record nothing."""
     membership_service = services["tenant_membership_service"]
     target = _register_user(services, _unique_code("p5d2-invalid-transition"))
+    membership_service.issue_invitation(
+        target.id, expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+    )
     recorder = _Recorder(services)
 
-    with pytest.raises(BusinessRuleError):
-        membership_service.suspend_member(target.id)  # no membership row exists at all yet
+    with pytest.raises(BusinessRuleError) as exc:
+        membership_service.suspend_member(target.id)
+    assert exc.value.code == "USER_TENANT_MEMBERSHIP_SUSPEND_INVALID_TRANSITION"
 
     assert recorder.events == []
 
@@ -391,16 +398,16 @@ def test_membership_event_carries_tenant_scope_only_no_organization_id(services)
     assert activated.tenant_id == tenant_id
     assert not hasattr(activated, "organization_id")
 
+    # Switch the ambient active organization -- confirmed unrelated to `TenantMembershipService`
+    # (P5D-1: `_require_tenant_administrator` resolves `tenant_id` only, never touches
+    # organization context) -- the membership event's `tenant_id` must be unaffected.
     tenant_context.set_active_organization(other_org.id)
-    try:
-        removed_recorder = _Recorder(services)
-        membership_service = services["tenant_membership_service"]
-        removed = membership_service.remove_member(target.id)
-        removed_event = removed_recorder.of(TenantMembershipRemoved)[0]
-        assert removed_event.tenant_id == tenant_id  # unaffected by the org switch above
-        assert removed.id == accepted.id
-    finally:
-        tenant_context.set_active_organization(None)
+    removed_recorder = _Recorder(services)
+    membership_service = services["tenant_membership_service"]
+    removed = membership_service.remove_member(target.id)
+    removed_event = removed_recorder.of(TenantMembershipRemoved)[0]
+    assert removed_event.tenant_id == tenant_id
+    assert removed.id == accepted.id
 
 
 def test_cross_tenant_actor_cannot_mutate_another_tenants_membership(services):

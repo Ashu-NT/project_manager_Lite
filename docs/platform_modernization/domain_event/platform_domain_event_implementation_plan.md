@@ -1921,6 +1921,102 @@ regressions.
 **Explicit non-goals:** `TenantMembershipActivated`/`Suspended`/`Reactivated`/`Removed` events
 (P5D-2), membership ViewInvalidation and Qt adapter (P5D-3), Approval events.
 
+### P5D-2 — Tenant Membership Typed DomainEvents (implemented)
+
+**Status:** implemented, reviewed. Four events added --
+`TenantMembershipActivated`/`Suspended`/`Reactivated`/`Removed`, in
+`src/core/platform/domain/tenant/tenancy/events.py`. No ViewInvalidation, no Qt migration, no
+`auth_changed` bridging/removal, no P5C RoleBinding event vocabulary change, no Approval events.
+
+**Transition -> event mapping (exactly one non-trivial aggregate transition method per event,
+never derived from destination status):**
+
+| Command | Aggregate method | Event recorded | RoleBinding events in the same transaction |
+|---|---|---|---|
+| `issue_invitation` (fresh) | `UserTenantMembership.invite()` | none | none |
+| `issue_invitation` (reinvite) | `UserTenantMembership.reinvite()` | none | none |
+| `accept_invitation` / `accept_invitation_for_tenant` | `UserTenantMembership.accept_invitation()` | `TenantMembershipActivated` | `RoleBindingAssigned` per default binding actually created (recorded first) |
+| `revoke_invitation` | `UserTenantMembership.revoke_invitation()` | **none** (see decision below) | none |
+| `suspend_member` | `UserTenantMembership.suspend()` | `TenantMembershipSuspended` | none (verified, P5D-1) |
+| `reactivate_member` | `UserTenantMembership.reactivate()` | `TenantMembershipReactivated` | none (verified, P5D-1) |
+| `remove_member` | `UserTenantMembership.remove()` | `TenantMembershipRemoved` | `RoleBindingRevoked` per genuinely active binding revoked (recorded first) |
+
+Because `accept_invitation()`/`reactivate()` each has exactly one legal source status (`invited`
+and `suspended` respectively, enforced by the aggregate's own guard), the membership's prior
+history never changes which event fires: `removed -> reinvite -> invited -> accept` still
+produces exactly `TenantMembershipActivated` at the final transition, never `Reactivated`.
+
+**`revoke_invitation` decision (documented, not inferred from `status == "removed"`):
+invitation revocation is a distinct invitation-lifecycle fact, not a membership-removal fact, and
+emits NO membership event in P5D-2.** Evidence: (1) an `invited` principal was never an active
+tenant member -- every membership-facing guard (self-lockout, `is_active_member`, the last-admin
+count) gates on ACTIVE status, never INVITED; (2) the audit vocabulary already distinguishes the
+two facts (`tenant.membership.invitation_revoked` vs `tenant.membership.removed`); (3) the
+aggregate method itself sets a field `remove()` never touches (`revoked_at`), and
+`revoke_invitation` never calls `_revoke_affected_sessions` or touches any RoleBinding row --
+there is nothing to invalidate, since acceptance (the only path that ever creates a
+session/binding footprint) never happened. A separate `TenantInvitationRevoked` fact was
+considered and deliberately NOT added -- no concrete consumer needs it yet.
+
+**Event shape:** `membership_id`, `tenant_id`, `user_id`, `occurred_at` -- frozen, `slots=True`,
+keyword-only, mirroring `RoleBindingAssigned`/`RoleBindingRevoked`'s own dataclass shape. No
+`organization_id` (Tenant Membership is tenant-scoped only; an organization switch never affects
+a membership event's identity -- proven directly). No `actor_id`, role IDs, permission snapshot,
+audit action, correlation/causation/command id, or schema version -- `DomainEventContext` stays
+the separate dispatch-metadata carrier, exactly as ADR-005 §5 already established for P5C.
+
+**Recording ownership:** exactly one responsibility, held by `TenantMembershipService` via
+`uow.record_event(...)` at each command's canonical transition boundary, atomically with that
+same UoW's commit. `UserTenantMembership` was NOT changed to implement `RecordsDomainEvents` --
+it stays a plain aggregate owning only its own state invariants, per P5D-SEM's original decision.
+
+**Event ordering (documented, tested, deliberately not reordered):** both composite
+transactions (acceptance, removal) record the RoleBinding event(s) BEFORE the membership event,
+because that is the actual code execution order (`_ensure_default_role_bindings`/the cascade
+revoke loop run before the membership audit entry and `uow.record_event(TenantMembership...)`
+call) -- this is preserved source semantics, not a chosen reordering for its own sake. Downstream
+correctness does not depend on this order; it is simply what a real post-commit subscriber
+observes.
+
+**Clock:** every `occurred_at` comes from `self._clock.now()` (the same `Clock` P5D-1 wired in) --
+no direct `datetime.now()`/`datetime.utcnow()` call for an event timestamp. `reactivate_member`
+was additionally changed to thread its own `now` into `membership.reactivate(reactivated_at=now)`
+(previously relying on the aggregate's own internal default), so the event's `occurred_at` and
+the aggregate's own `updated_at` never diverge by a stray microsecond within one transaction.
+
+**Failure/isolation guarantees (all proven by dedicated tests):** an audit-write failure or a
+`uow.commit()` failure leaves zero observable membership (and zero observable RoleBinding) event
+-- the whole transaction, including any already-called `uow.record_event(...)`, rolls back
+together. A FAIL_FAST pre-commit (`TransactionalEventDispatcher`) handler failure rolls back the
+same way. A post-commit (`PostCommitEventPublisher`) handler failure is isolated
+(ISOLATE_AND_CONTINUE, the existing shared bus semantics, unchanged) -- the DB transaction stays
+committed and a sibling subscriber still receives the event. An invalid aggregate transition
+(e.g. `suspend_member` on a still-`invited` membership) records nothing at all -- command
+invocation is never treated as a business transition.
+
+**Test coverage:** `test_tenant_membership_typed_events.py` (22 tests) -- activation event +
+ordering, `accept_invitation_for_tenant` parity, issue/reinvite eventlessness, the
+reinvite-then-accept never-Reactivated proof, suspend+reactivate zero-RoleBinding-event proof,
+removal event + ordering (both from active and from suspended), `revoke_invitation`'s explicit
+no-event proof, invalid-transition no-event proof, audit/commit/transactional-handler-failure
+rollback, post-commit handler isolation, tenant-scope-only (survives an organization switch) and
+cross-tenant-denial proofs, `DomainEventContext` separation, and five architecture guards (no
+forbidden imports in the events module, exact approved field set on all four events, no
+forbidden fields, no disapproved event names, `issue_invitation`/`revoke_invitation` source never
+records a membership event). `test_tenant_membership_unit_of_work_cutover.py`'s own P5D-1
+"no P5D-2 vocabulary" guard was renamed to `test_tenant_membership_service_adds_no_p5d3_ui_vocabulary`
+and narrowed to the ViewInvalidation/Qt check that is still true, since the four event names it
+previously forbade are now legitimate P5D-2 vocabulary.
+
+**Regression:** full Platform suite and architecture suite both run at the same failure
+identities/counts as the established baseline (15 failed/12 errors in Platform, 13 pre-existing
+failures/142 passed in architecture) -- passing-test count increased by exactly the 22 new P5D-2
+tests, zero regressions. `git rev-parse HEAD` was identical before and after both long suite runs.
+
+**Explicit non-goals:** membership ViewInvalidation and Qt adapter (P5D-3), `auth_changed`
+removal or a new `TenantMembershipActivated -> auth_changed` bridge, any P5C RoleBinding event
+vocabulary change, Approval events.
+
 ## P6 — Qt Invalidation Adapter Consolidation
 
 **Goal:** build the one shared Qt adapter, and migrate the three existing controller bases to

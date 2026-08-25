@@ -24,6 +24,10 @@ Item {
     signal exportRequested()
     signal createRequested()
 
+    function restoreTableFocus() {
+        resourcesTable.forceActiveFocus()
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingSm

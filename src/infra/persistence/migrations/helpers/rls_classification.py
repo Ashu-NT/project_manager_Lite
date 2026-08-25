@@ -7,9 +7,11 @@ from typing import Any
 
 from .postgresql_rls import (
     disable_nullable_tenant_audit_rls,
+    disable_parent_scoped_rls,
     disable_tenant_only_rls,
     disable_tenant_organization_rls,
     enable_nullable_tenant_audit_rls,
+    enable_parent_scoped_rls,
     enable_tenant_only_rls,
     enable_tenant_organization_rls,
 )
@@ -88,6 +90,61 @@ TENANT_ONLY_TABLES = frozenset(
 
 NULLABLE_TENANT_AUDIT_TABLES = frozenset({"audit_entries"})
 
+_TENANT_SETTING = "NULLIF(current_setting('app.tenant_id', true), '')"
+_ORGANIZATION_SETTING = "NULLIF(current_setting('app.organization_id', true), '')"
+
+
+def _resource_child_predicate(child_table: str) -> str:
+    return (
+        "EXISTS (SELECT 1 FROM resources rls_resource "
+        f"WHERE rls_resource.id = {child_table}.resource_id "
+        f"AND rls_resource.tenant_id = {_TENANT_SETTING} "
+        f"AND rls_resource.organization_id = {_ORGANIZATION_SETTING})"
+    )
+
+
+def _project_child_predicate(child_table: str) -> str:
+    return (
+        "EXISTS (SELECT 1 FROM projects rls_project "
+        f"WHERE rls_project.id = {child_table}.project_id "
+        f"AND rls_project.tenant_id = {_TENANT_SETTING} "
+        f"AND rls_project.organization_id = {_ORGANIZATION_SETTING})"
+    )
+
+
+PARENT_SCOPED_RLS_PREDICATES: Mapping[str, str] = {
+    "resource_skills": _resource_child_predicate("resource_skills"),
+    "resource_certifications": _resource_child_predicate("resource_certifications"),
+    "project_resources": (
+        "EXISTS (SELECT 1 FROM projects rls_project "
+        "JOIN resources rls_resource ON rls_resource.id = project_resources.resource_id "
+        "WHERE rls_project.id = project_resources.project_id "
+        f"AND rls_project.tenant_id = {_TENANT_SETTING} "
+        f"AND rls_project.organization_id = {_ORGANIZATION_SETTING} "
+        f"AND rls_resource.tenant_id = {_TENANT_SETTING} "
+        f"AND rls_resource.organization_id = {_ORGANIZATION_SETTING})"
+    ),
+    "tasks": _project_child_predicate("tasks"),
+    "task_assignments": (
+        "EXISTS (SELECT 1 FROM tasks rls_task "
+        "JOIN projects rls_project ON rls_project.id = rls_task.project_id "
+        "JOIN resources rls_resource ON rls_resource.id = task_assignments.resource_id "
+        "WHERE rls_task.id = task_assignments.task_id "
+        f"AND rls_project.tenant_id = {_TENANT_SETTING} "
+        f"AND rls_project.organization_id = {_ORGANIZATION_SETTING} "
+        f"AND rls_resource.tenant_id = {_TENANT_SETTING} "
+        f"AND rls_resource.organization_id = {_ORGANIZATION_SETTING})"
+    ),
+    "task_skill_requirements": (
+        "EXISTS (SELECT 1 FROM tasks rls_task "
+        "JOIN projects rls_project ON rls_project.id = rls_task.project_id "
+        "WHERE rls_task.id = task_skill_requirements.task_id "
+        f"AND rls_project.tenant_id = {_TENANT_SETTING} "
+        f"AND rls_project.organization_id = {_ORGANIZATION_SETTING})"
+    ),
+}
+PARENT_SCOPED_RLS_TABLES = frozenset(PARENT_SCOPED_RLS_PREDICATES)
+
 # These tables are intentionally outside direct RLS. Parent-scoped children are
 # reachable only through repositories that join to an RLS-protected owner.
 INTENTIONAL_RLS_EXCLUSIONS: Mapping[str, str] = {
@@ -113,23 +170,17 @@ INTENTIONAL_RLS_EXCLUSIONS: Mapping[str, str] = {
     "portfolio_project_dependencies": "portfolio child scoped through RLS-protected projects",
     "project_baselines": "project child scoped through RLS-protected projects",
     "project_calendar_assignments": "project/calendar association scoped through protected owners",
-    "project_resources": "project/resource association scoped through protected owners",
     "register_entries": "project child scoped through RLS-protected projects",
     "resource_calendar_assignments": "resource/calendar association scoped through protected owners",
-    "resource_certifications": "resource child scoped through RLS-protected resources",
-    "resource_skills": "resource child scoped through RLS-protected resources",
     "role_bindings": "authorization bootstrap state used to establish tenant context",
     "role_delegation_policies": "authorization bootstrap state used to establish tenant context",
     "role_permissions": "role child scoped through the canonical role owner",
     "roles": "authorization bootstrap state used to establish tenant context",
     "shift_pattern_days": "shift-pattern child scoped through shift_patterns",
     "site_calendar_assignments": "site/calendar association scoped through protected owners",
-    "task_assignments": "task child scoped through RLS-protected projects",
     "task_comments": "task child scoped through RLS-protected projects",
     "task_dependencies": "task child scoped through RLS-protected projects",
     "task_presence": "task child scoped through RLS-protected projects",
-    "task_skill_requirements": "task child scoped through RLS-protected projects",
-    "tasks": "project child scoped through RLS-protected projects",
     "tenants": "global tenant bootstrap root",
     "user_tenants": "membership bootstrap state used to establish tenant context",
     "users": "global identity bootstrap root",
@@ -140,6 +191,7 @@ ALL_CLASSIFIED_TABLES = frozenset().union(
     TENANT_AND_ORGANIZATION_TABLES,
     TENANT_ONLY_TABLES,
     NULLABLE_TENANT_AUDIT_TABLES,
+    PARENT_SCOPED_RLS_TABLES,
     INTENTIONAL_RLS_EXCLUSION_TABLES,
 )
 
@@ -153,6 +205,7 @@ def validate_rls_classification(
         TENANT_AND_ORGANIZATION_TABLES,
         TENANT_ONLY_TABLES,
         NULLABLE_TENANT_AUDIT_TABLES,
+        PARENT_SCOPED_RLS_TABLES,
         INTENTIONAL_RLS_EXCLUSION_TABLES,
     )
     for index, group in enumerate(groups):
@@ -186,9 +239,18 @@ def enable_baseline_rls(operations: Any, bind: Any) -> None:
         enable_tenant_only_rls(operations, bind, table)
     for table in sorted(NULLABLE_TENANT_AUDIT_TABLES):
         enable_nullable_tenant_audit_rls(operations, bind, table)
+    for table in sorted(PARENT_SCOPED_RLS_TABLES):
+        enable_parent_scoped_rls(
+            operations,
+            bind,
+            table,
+            PARENT_SCOPED_RLS_PREDICATES[table],
+        )
 
 
 def disable_baseline_rls(operations: Any, bind: Any) -> None:
+    for table in sorted(PARENT_SCOPED_RLS_TABLES, reverse=True):
+        disable_parent_scoped_rls(operations, bind, table)
     for table in sorted(NULLABLE_TENANT_AUDIT_TABLES, reverse=True):
         disable_nullable_tenant_audit_rls(operations, bind, table)
     for table in sorted(TENANT_ONLY_TABLES, reverse=True):
@@ -202,6 +264,8 @@ __all__ = [
     "INTENTIONAL_RLS_EXCLUSIONS",
     "INTENTIONAL_RLS_EXCLUSION_TABLES",
     "NULLABLE_TENANT_AUDIT_TABLES",
+    "PARENT_SCOPED_RLS_PREDICATES",
+    "PARENT_SCOPED_RLS_TABLES",
     "TENANT_AND_ORGANIZATION_TABLES",
     "TENANT_ONLY_TABLES",
     "disable_baseline_rls",
