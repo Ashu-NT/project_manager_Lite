@@ -89,7 +89,10 @@ def test_shared_master_changed_bridges_specific_shared_master_events():
     ]
 
 
-def test_domain_changed_bridges_platform_and_module_events():
+def test_domain_changed_bridges_module_events():
+    """`modules_changed` (the registry's only "platform"-category bridge entry) was retired in
+    P5B-3 -- Module Entitlement change notification now flows through the typed DomainEvent ->
+    ViewInvalidation -> Qt adapter path instead of this generic legacy bridge."""
     seen: list[DomainChangeEvent] = []
 
     def _handler(event: DomainChangeEvent) -> None:
@@ -98,7 +101,6 @@ def test_domain_changed_bridges_platform_and_module_events():
     domain_events.domain_changed.connect(_handler)
     try:
         domain_events.project_changed.emit("project-1")
-        domain_events.modules_changed.emit("inventory_procurement")
     finally:
         domain_events.domain_changed.disconnect(_handler)
 
@@ -109,13 +111,6 @@ def test_domain_changed_bridges_platform_and_module_events():
             entity_type="project",
             entity_id="project-1",
             source_event="project_changed",
-        ),
-        DomainChangeEvent(
-            category="platform",
-            scope_code="platform",
-            entity_type="module_runtime",
-            entity_id="inventory_procurement",
-            source_event="modules_changed",
         ),
     ]
 

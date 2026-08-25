@@ -18,7 +18,6 @@ from src.core.platform.api.desktop.master_data.org.models.organization import (
 from src.core.platform.api.desktop.platform_runtime.models.runtime import (
     ModuleDto,
     ModuleEntitlementDto,
-    ModuleStatePatchCommand,
     PlatformCapabilityDto,
     PlatformRuntimeContextDto,
 )
@@ -74,17 +73,43 @@ class PlatformRuntimeDesktopApi:
             )
         )
 
-    def patch_module_state(
+    def license_module(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
+        return self._execute(
+            lambda: self._serialize_entitlement(
+                self._platform_runtime_application_service.license_module(module_code)
+            )
+        )
+
+    def revoke_module_license(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
+        return self._execute(
+            lambda: self._serialize_entitlement(
+                self._platform_runtime_application_service.revoke_module_license(module_code)
+            )
+        )
+
+    def enable_module(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
+        return self._execute(
+            lambda: self._serialize_entitlement(
+                self._platform_runtime_application_service.enable_module(module_code)
+            )
+        )
+
+    def disable_module(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
+        return self._execute(
+            lambda: self._serialize_entitlement(
+                self._platform_runtime_application_service.disable_module(module_code)
+            )
+        )
+
+    def transition_module_lifecycle(
         self,
-        command: ModuleStatePatchCommand,
+        module_code: str,
+        lifecycle_status: str,
     ) -> DesktopApiResult[ModuleEntitlementDto]:
         return self._execute(
             lambda: self._serialize_entitlement(
-                self._platform_runtime_application_service.set_module_state(
-                    command.module_code,
-                    licensed=command.licensed,
-                    enabled=command.enabled,
-                    lifecycle_status=command.lifecycle_status,
+                self._platform_runtime_application_service.transition_module_lifecycle(
+                    module_code, lifecycle_status
                 )
             )
         )

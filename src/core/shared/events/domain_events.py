@@ -151,7 +151,10 @@ class DomainEvents:
             "cycle_count",
             "inventory_cycle_counts_changed",
         ),
-        ("modules_changed", "platform", "platform", "module_runtime", "modules_changed"),
+        # P5B-3: `modules_changed` retired -- Module Entitlement change notification now flows
+        # entirely through the typed DomainEvent -> ViewInvalidation -> Qt adapter path (see
+        # `src/core/platform/application/tenant/modules/event_handlers/view_invalidation.py`),
+        # never this legacy bridge.
     )
 
     project_changed: Signal[str] = field(default_factory=Signal)
@@ -191,7 +194,6 @@ class DomainEvents:
     inventory_locations_changed: Signal[str] = field(default_factory=Signal)
     inventory_reorder_policies_changed: Signal[str] = field(default_factory=Signal)
     inventory_cycle_counts_changed: Signal[str] = field(default_factory=Signal)
-    modules_changed: Signal[str] = field(default_factory=Signal)
     shared_master_changed: Signal[DomainChangeEvent] = field(default_factory=Signal)
     domain_changed: Signal[DomainChangeEvent] = field(default_factory=Signal)
 

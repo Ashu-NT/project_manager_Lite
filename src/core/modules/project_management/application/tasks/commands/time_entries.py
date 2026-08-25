@@ -178,38 +178,44 @@ class TaskTimeEntryMixin:
         )
 
     def approve_timesheet_period(
-        self, period_id: str, *, note: str = ""
+        self, period_id: str, *, expected_version: int, note: str = ""
     ) -> TimesheetPeriodAggregate:
-        return self._require_timesheet_service().approve_timesheet_period(period_id, note=note)
+        return self._require_timesheet_service().approve_timesheet_period(
+            period_id, expected_version=expected_version, note=note
+        )
 
     def reject_timesheet_period(
-        self, period_id: str, *, note: str = ""
+        self, period_id: str, *, expected_version: int, note: str
     ) -> TimesheetPeriodAggregate:
-        return self._require_timesheet_service().reject_timesheet_period(period_id, note=note)
+        return self._require_timesheet_service().reject_timesheet_period(
+            period_id, expected_version=expected_version, note=note
+        )
 
     def lock_timesheet_period(
         self,
-        resource_id: str,
+        period_id: str,
         *,
-        period_start: date,
+        expected_version: int,
         note: str = "",
     ) -> TimesheetPeriodAggregate:
         return self._require_timesheet_service().lock_timesheet_period(
-            resource_id,
-            period_start=period_start,
+            period_id,
+            expected_version=expected_version,
             note=note,
         )
 
     def unlock_timesheet_period(
-        self, period_id: str, *, note: str = ""
+        self, period_id: str, *, expected_version: int, note: str = ""
     ) -> TimesheetPeriodAggregate:
-        return self._require_timesheet_service().unlock_timesheet_period(period_id, note=note)
+        return self._require_timesheet_service().unlock_timesheet_period(
+            period_id, expected_version=expected_version, note=note
+        )
 
     def reopen_approved_timesheet_period_for_correction(
-        self, period_id: str, *, note: str
+        self, period_id: str, *, expected_version: int, note: str
     ) -> TimesheetPeriodAggregate:
         return self._require_timesheet_service().reopen_approved_timesheet_period_for_correction(
-            period_id, note=note
+            period_id, expected_version=expected_version, note=note
         )
 
 

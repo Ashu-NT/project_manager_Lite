@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.application.platform_runtime import PlatformRuntimeApplicationService
 from src.core.platform.application.integration import IntegrationInboxService, IntegrationOutboxService
+from src.core.shared.events.view_invalidation import ViewInvalidationChannel
 from src.core.platform.access import AccessControlService
 from src.core.platform.integration.module_registry import ModuleRegistry
 from src.core.platform.integration.resolver import IntegrationResolver
@@ -142,6 +143,7 @@ class ServiceGraph:
     tenant_role_administration_service: TenantRoleAdministrationService
     organization_service: OrganizationService
     tenant_context_service: TenantContextService
+    platform_view_invalidation_channel: ViewInvalidationChannel
     tenant_admin_service: TenantAdminService
     tenant_membership_service: TenantMembershipService
     service_principal_service: ServicePrincipalService
@@ -232,6 +234,7 @@ class ServiceGraph:
             ),
             "organization_service": self.organization_service,
             "tenant_context_service": self.tenant_context_service,
+            "platform_view_invalidation_channel": self.platform_view_invalidation_channel,
             "tenant_admin_service": self.tenant_admin_service,
             "tenant_membership_service": self.tenant_membership_service,
             "service_principal_service": self.service_principal_service,
@@ -403,6 +406,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         ),
         organization_service=platform_services.organization_service,
         tenant_context_service=platform_services.tenant_context_service,
+        platform_view_invalidation_channel=platform_services.platform_view_invalidation_channel,
         tenant_admin_service=platform_services.tenant_admin_service,
         tenant_membership_service=platform_services.tenant_membership_service,
         service_principal_service=platform_services.service_principal_service,

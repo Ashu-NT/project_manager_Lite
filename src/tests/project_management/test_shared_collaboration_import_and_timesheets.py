@@ -238,7 +238,11 @@ def test_timesheet_period_lock_unlock_and_approval_state_transitions(services):
     )
 
     submitted = ts.submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
-    approved = ts.approve_timesheet_period(submitted.period_id, note="Approved for payroll")
+    approved = ts.approve_timesheet_period(
+        submitted.period_id,
+        expected_version=submitted.version,
+        note="Approved for payroll",
+    )
     assert approved.status == TimesheetPeriodStatus.APPROVED
     assert approved.locked_at is None
 
@@ -246,13 +250,17 @@ def test_timesheet_period_lock_unlock_and_approval_state_transitions(services):
         ts.update_time_entry(may_entry.id, hours=7.0)
 
     locked = ts.lock_timesheet_period(
-        resource.id,
-        period_start=date(2026, 5, 20),
+        approved.period_id,
+        expected_version=approved.version,
         note="Payroll closed",
     )
     assert locked.status == TimesheetPeriodStatus.LOCKED
 
-    unlocked = ts.unlock_timesheet_period(locked.period_id, note="Administrative unlock")
+    unlocked = ts.unlock_timesheet_period(
+        locked.period_id,
+        expected_version=locked.version,
+        note="Administrative unlock",
+    )
     assert unlocked.status == TimesheetPeriodStatus.APPROVED
 
 

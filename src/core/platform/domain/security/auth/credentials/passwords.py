@@ -1,53 +1,51 @@
 from __future__ import annotations
 
-import base64
-import hashlib
-import hmac
-import os
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerificationError
+from argon2.low_level import Type
 
 
-_ALGORITHM = "sha256"
-_DEFAULT_ITERATIONS = 390_000
-_SALT_BYTES = 16
-_SUPPORTED_PBKDF2_SCHEMES = {
-    "pbkdf2_sha256": "sha256",
-    "pbkdf2_sha512": "sha512",
-}
+# OWASP's Argon2id baseline. Keep these explicit so a dependency upgrade does
+# not silently change authentication cost across application environments.
+_TIME_COST = 2
+_MEMORY_COST_KIB = 19 * 1024
+_PARALLELISM = 1
+_HASH_LENGTH = 32
+_SALT_LENGTH = 16
+
+_PASSWORD_HASHER = PasswordHasher(
+    time_cost=_TIME_COST,
+    memory_cost=_MEMORY_COST_KIB,
+    parallelism=_PARALLELISM,
+    hash_len=_HASH_LENGTH,
+    salt_len=_SALT_LENGTH,
+    type=Type.ID,
+)
 
 
-def hash_password(raw_password: str, *, iterations: int = _DEFAULT_ITERATIONS) -> str:
-    scheme = f"pbkdf2_{_ALGORITHM}"
-    salt = os.urandom(_SALT_BYTES)
-    digest = hashlib.pbkdf2_hmac(
-        _ALGORITHM,
-        raw_password.encode("utf-8"),
-        salt,
-        iterations,
-    )
-    salt_b64 = base64.b64encode(salt).decode("ascii")
-    digest_b64 = base64.b64encode(digest).decode("ascii")
-    return f"{scheme}${iterations}${salt_b64}${digest_b64}"
+def hash_password(raw_password: str) -> str:
+    """Return a PHC-encoded Argon2id password hash with a random salt."""
+    return _PASSWORD_HASHER.hash(raw_password)
 
 
 def verify_password(raw_password: str, encoded_hash: str) -> bool:
+    """Verify only Argon2id hashes and fail closed for invalid input."""
+    if not isinstance(encoded_hash, str) or not encoded_hash.startswith("$argon2id$"):
+        return False
     try:
-        scheme, iter_s, salt_b64, digest_b64 = encoded_hash.split("$", 3)
-        algorithm = _SUPPORTED_PBKDF2_SCHEMES.get(scheme)
-        if algorithm is None:
-            return False
-        iterations = int(iter_s)
-        salt = base64.b64decode(salt_b64.encode("ascii"))
-        expected = base64.b64decode(digest_b64.encode("ascii"))
-    except Exception:
+        return bool(_PASSWORD_HASHER.verify(encoded_hash, raw_password))
+    except (InvalidHashError, VerificationError, TypeError):
         return False
 
-    actual = hashlib.pbkdf2_hmac(
-        algorithm,
-        raw_password.encode("utf-8"),
-        salt,
-        iterations,
-    )
-    return hmac.compare_digest(actual, expected)
+
+def password_needs_rehash(encoded_hash: str) -> bool:
+    """Report whether a valid hash uses an obsolete Argon2id cost profile."""
+    if not isinstance(encoded_hash, str) or not encoded_hash.startswith("$argon2id$"):
+        return True
+    try:
+        return _PASSWORD_HASHER.check_needs_rehash(encoded_hash)
+    except (InvalidHashError, TypeError):
+        return True
 
 
-__all__ = ["hash_password", "verify_password"]
+__all__ = ["hash_password", "password_needs_rehash", "verify_password"]

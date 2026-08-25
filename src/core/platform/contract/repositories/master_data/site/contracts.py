@@ -15,6 +15,14 @@ class SiteRepository(ABC):
     def get(self, site_id: str) -> Site | None: ...
 
     @abstractmethod
+    def get_for_tenant(self, site_id: str, tenant_id: str) -> Site | None:
+        """Tenant-scoped only -- unlike `get()`, NOT filtered to the ambient active
+        organization. For cross-organization governance reads (e.g. RoleGovernance resolving a
+        site-scoped role assignment against a non-active organization) where `get()`'s
+        active-organization filter would incorrectly return `None`."""
+        ...
+
+    @abstractmethod
     def get_by_code(self, organization_id: str, site_code: str) -> Site | None: ...
 
     @abstractmethod

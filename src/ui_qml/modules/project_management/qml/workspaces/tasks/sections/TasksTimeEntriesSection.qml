@@ -84,6 +84,10 @@ Item {
         root._activeTabIndex = 1
     }
 
+    function resetTimeEntryEditor() {
+        _logTimeEditor.resetForCreate()
+    }
+
     implicitHeight: _contentColumn.implicitHeight
     height: implicitHeight
 
@@ -203,7 +207,10 @@ Item {
                         onAddRequested: function(payload) { root.addRequested(payload) }
                         onUpdateRequested: function(payload) { root.updateRequested(payload) }
                         onDeleteRequested: function(entryId) { root.deleteRequested(entryId) }
-                        onCancelEditRequested: root.entrySelected("")
+                        onCancelEditRequested: {
+                            root.entrySelected("")
+                            _logTimeEditor.resetForCreate()
+                        }
                     }
                 }
 

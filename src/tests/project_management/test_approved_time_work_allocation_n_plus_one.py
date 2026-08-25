@@ -98,7 +98,11 @@ def _approve_n_entries(services, session, *, entry_count: int, suffix: str):
 
     def do_approve():
         submitted = time_service.submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
-        return time_service.approve_timesheet_period(submitted.period_id, note="N+1 guardrail")
+        return time_service.approve_timesheet_period(
+            submitted.period_id,
+            expected_version=submitted.version,
+            note="N+1 guardrail",
+        )
 
     try:
         _, allocation_select_count = _count_allocation_selects(engine, do_approve)

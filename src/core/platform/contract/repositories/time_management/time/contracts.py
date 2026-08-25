@@ -77,6 +77,15 @@ class TimesheetPeriodRepository(ABC):
     def update(self, period: TimesheetPeriod) -> None: ...
 
     @abstractmethod
+    def transition(
+        self,
+        period: TimesheetPeriod,
+        *,
+        expected_status: TimesheetPeriodStatus,
+        expected_version: int,
+    ) -> TimesheetPeriod: ...
+
+    @abstractmethod
     def get_by_resource_period(self, resource_id: str, period_start: date) -> TimesheetPeriod | None: ...
 
     @abstractmethod

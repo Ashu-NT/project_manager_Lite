@@ -122,6 +122,7 @@ class TimesheetPeriodORM(Base):
     decided_by_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     decision_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     locked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
 Index("idx_timesheet_periods_tenant", TimesheetPeriodORM.tenant_id)

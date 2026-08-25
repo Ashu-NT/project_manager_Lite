@@ -233,11 +233,18 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
         return self._has_permission(WORKSPACE_PERMISSIONS["access"])
 
     def _bind_domain_events(self) -> None:
+        # P5B-3: `modules_changed` removed here (not migrated) -- traced end-to-end,
+        # `scope_type_options`' enabled/disabled state (e.g. the storeroom scope type) is gated
+        # purely by whether the Inventory service object was composed into this desktop-API
+        # registry at startup (`inventory_service is not None`, `desktop_api_registry.py`), never
+        # by `module_catalog_service.is_enabled(...)` -- no read model in this workspace actually
+        # depends on live module-entitlement state. The subscription was incidental over-refresh
+        # from the coarse legacy signal, not a genuine dependency (see the P5B-3 report's
+        # consumer-chain trace).
         for signal in (
             domain_events.auth_changed,
             domain_events.access_changed,
             domain_events.project_changed,
-            domain_events.modules_changed,
         ):
             self._subscribe_domain_signal(signal, self._on_domain_event)
 

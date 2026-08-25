@@ -187,6 +187,23 @@ class SqlAlchemyModuleEntitlementRepository(
         )
         self._upsert_in_scope(organization_id, record, tenant_id=tenant_id)
 
+    def get_for_organization_in_tenant(
+        self, organization_id: str, module_code: str
+    ) -> ModuleEntitlementRecord | None:
+        # Tenant-administration/provisioning read: any organization within the authenticated
+        # tenant, not only the currently active one -- mirrors
+        # list_all_for_organization_in_tenant's own scoping exactly.
+        tenant_id = self._require_tenant_scope(
+            organization_id,
+            operation_label="view organization module entitlement during management",
+        )
+        canonical_code = normalize_module_code(module_code)
+        rows = self._list_rows_for_codes_in_scope(organization_id, canonical_code, tenant_id=tenant_id)
+        obj = self._preferred_record(rows, canonical_code)
+        if obj is None:
+            return None
+        return self._to_record(obj, canonical_code)
+
     def get(self, module_code: str) -> ModuleEntitlementRecord | None:
         ctx = self._context(operation_label="view module entitlement")
         return self.get_for_organization(ctx.organization_id, module_code)

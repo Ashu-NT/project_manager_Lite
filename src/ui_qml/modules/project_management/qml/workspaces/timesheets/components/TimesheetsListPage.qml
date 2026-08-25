@@ -1,9 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
-import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
@@ -15,18 +13,13 @@ Item {
     property var overviewModel: ({})
     property var reviewQueueModel: ({})
 
-    readonly property var bulkActionBar: bulkActionBarItem
     readonly property var customizeButtonItem: tableToolbar.customizeButtonItem
 
     signal rowSelected(string rowId)
     signal rowActivated(string rowId)
-    signal rowSelectionToggled(string rowId, bool selected)
-    signal selectAllToggled(bool allSelected)
     signal columnsStateChanged(var columns)
     signal filterClicked()
     signal refreshRequested()
-    signal bulkCancelRequested()
-    signal bulkActionRequested(string actionId)
 
     anchors.fill: parent
 
@@ -106,7 +99,7 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: paginationBar.top
-                multiSelect: true
+                multiSelect: false
                 tableId: root.state ? root.state.tableId : ""
                 columns: root.state ? root.state.columns : []
                 sourceModel: root.workspaceController ? root.workspaceController.reviewQueueTableModel : null
@@ -118,13 +111,10 @@ Item {
                 loading: root.workspaceController ? root.workspaceController.isLoading : false
                 emptyText: root.reviewQueueModel.emptyState || "No timesheet periods available."
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedQueuePeriodId : ""
-                selectedRowIds: root.workspaceController ? (root.workspaceController.selectedQueuePeriodIds || []) : []
 
                 onRowSelected: function(rowId) { root.rowSelected(rowId) }
                 onRowActivated: function(rowId) { root.rowActivated(rowId) }
                 onViewDetailRequested: function(rowId) { root.rowActivated(rowId) }
-                onRowSelectionToggled: function(rowId, selected) { root.rowSelectionToggled(rowId, selected) }
-                onSelectAllToggled: function(allSelected) { root.selectAllToggled(allSelected) }
                 onColumnsStateChanged: function(cols) { root.columnsStateChanged(cols) }
                 onSortRequested: function(key, direction) {
                     if (root.workspaceController !== null)
@@ -149,25 +139,6 @@ Item {
                 onPageSizeRequested: function(pageSize) {
                     if (root.workspaceController !== null)
                         root.workspaceController.setQueuePageSize(pageSize)
-                }
-            }
-
-            AppWidgets.BulkActionBar {
-                id: bulkActionBarItem
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom: paginationBar.top
-                anchors.bottomMargin: Theme.AppTheme.spacingMd
-                z: 10
-                selectedCount: root.workspaceController ? root.workspaceController.selectedQueuePeriodCount : 0
-                busy: root.workspaceController ? root.workspaceController.isBusy : false
-                actions: [
-                    { "id": "approve", "label": "Approve", "icon": "approve", "danger": false, "enabled": true },
-                    { "id": "reject", "label": "Reject", "icon": "close", "danger": true, "enabled": true }
-                ]
-
-                onCancelRequested: root.bulkCancelRequested()
-                onActionTriggered: function(actionId) {
-                    root.bulkActionRequested(actionId)
                 }
             }
         }

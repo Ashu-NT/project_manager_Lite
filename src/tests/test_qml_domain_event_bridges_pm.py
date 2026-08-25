@@ -107,16 +107,19 @@ def test_platform_control_workspace_refreshes_on_control_events(monkeypatch) -> 
 
 
 def test_platform_settings_workspace_refreshes_on_runtime_events(monkeypatch) -> None:
+    """`modules_changed` was retired in P5B-3 -- module-entitlement-triggered refresh now flows
+    through `ModuleEntitlementViewInvalidationAdapter`, tested separately in
+    `test_module_entitlement_view_invalidation_qt_cutover.py`. `organizations_changed` remains
+    the legacy path for update/activation, unchanged."""
     catalog = PlatformWorkspaceCatalog()
     controller = catalog.settingsWorkspace
     controller.ensureLoaded()
     refresh_calls: list[str] = []
     monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
 
-    domain_events.modules_changed.emit("project_management")
     domain_events.organizations_changed.emit("org-1")
 
-    assert refresh_calls == ["refresh", "refresh"]
+    assert refresh_calls == ["refresh"]
 
 
 def test_platform_admin_access_workspace_refreshes_on_access_events(monkeypatch) -> None:

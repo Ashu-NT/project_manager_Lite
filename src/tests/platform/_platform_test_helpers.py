@@ -269,26 +269,49 @@ class FakePlatformRuntimeApi:
         self._rebuild_runtime_context()
         return DesktopApiResult(ok=True, data=updated)
 
-    def patch_module_state(self, command) -> DesktopApiResult[ModuleEntitlementDto]:
+    def license_module(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
+        return self._apply_module_transition(module_code, licensed=True)
+
+    def revoke_module_license(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
+        return self._apply_module_transition(module_code, licensed=False)
+
+    def enable_module(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
+        return self._apply_module_transition(module_code, enabled=True)
+
+    def disable_module(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
+        return self._apply_module_transition(module_code, enabled=False)
+
+    def transition_module_lifecycle(
+        self, module_code: str, lifecycle_status: str
+    ) -> DesktopApiResult[ModuleEntitlementDto]:
+        return self._apply_module_transition(module_code, lifecycle_status=lifecycle_status)
+
+    def _apply_module_transition(
+        self,
+        module_code: str,
+        *,
+        licensed: bool | None = None,
+        enabled: bool | None = None,
+        lifecycle_status: str | None = None,
+    ) -> DesktopApiResult[ModuleEntitlementDto]:
         for index, entitlement in enumerate(self._entitlements):
-            if entitlement.module_code != command.module_code:
+            if entitlement.module_code != module_code:
                 continue
-            licensed = entitlement.licensed if command.licensed is None else command.licensed
-            enabled = entitlement.enabled if command.enabled is None else command.enabled
-            lifecycle_status = (
-                entitlement.lifecycle_status if command.lifecycle_status is None else command.lifecycle_status
-            )
-            if not licensed:
-                enabled = False
-            runtime_enabled = enabled and lifecycle_status not in {"suspended", "expired"}
-            lifecycle_label = lifecycle_status.title()
-            lifecycle_alert = None if lifecycle_status in {"active", "trial", "planned"} else lifecycle_label
+            next_licensed = entitlement.licensed if licensed is None else licensed
+            next_enabled = entitlement.enabled if enabled is None else enabled
+            next_status = entitlement.lifecycle_status if lifecycle_status is None else lifecycle_status
+            if not next_licensed:
+                next_enabled = False
+                next_status = "inactive"
+            runtime_enabled = next_enabled and next_status not in {"suspended", "expired"}
+            lifecycle_label = next_status.title()
+            lifecycle_alert = None if next_status in {"active", "trial", "planned"} else lifecycle_label
             updated = replace(
                 entitlement,
-                licensed=licensed,
-                enabled=enabled,
+                licensed=next_licensed,
+                enabled=next_enabled,
                 runtime_enabled=runtime_enabled,
-                lifecycle_status=lifecycle_status,
+                lifecycle_status=next_status,
                 lifecycle_label=lifecycle_label,
                 lifecycle_alert=lifecycle_alert,
             )
@@ -299,7 +322,7 @@ class FakePlatformRuntimeApi:
             ok=False,
             error=DesktopApiError(
                 code="module_not_found",
-                message=f"Module '{command.module_code}' was not found.",
+                message=f"Module '{module_code}' was not found.",
                 category="not_found",
             ),
         )

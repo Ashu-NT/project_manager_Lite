@@ -28,11 +28,9 @@ def test_inventory_pricing_desktop_api_builds_snapshot_and_exports_reports(
     services,
     tmp_path,
 ) -> None:
-    services["module_catalog_service"].set_module_state(
-        "inventory_procurement",
-        licensed=True,
-        enabled=True,
-    )
+    active_organization_id = services["organization_service"].get_active_organization().id
+    services["module_catalog_service"].license_module(active_organization_id, "inventory_procurement")
+    services["module_catalog_service"].enable_module(active_organization_id, "inventory_procurement")
     services["auth_service"].register_user(
         "inventory-api-pricing-buyer",
         "StrongPass123",

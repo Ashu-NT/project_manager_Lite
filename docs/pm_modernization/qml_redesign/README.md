@@ -5,6 +5,10 @@ the design docs, then use the pattern notes below when implementing.
 
 ## Design docs
 
+- [`../R5F_REVIEW_QUEUE_REDESIGN.md`](../R5F_REVIEW_QUEUE_REDESIGN.md)
+  -- completed authoritative TimesheetPeriod Review Queue workflow, read model,
+  concurrency, security, QML ownership, cleanup, and R5G handoff.
+
 - [`project_management_qml_existing_state_audit.md`](project_management_qml_existing_state_audit.md)
   -- current-state audit of the PM QML surface.
 - [`project_management_qml_target_ui_ux_design.md`](project_management_qml_target_ui_ux_design.md)

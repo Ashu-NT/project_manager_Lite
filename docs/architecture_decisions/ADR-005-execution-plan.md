@@ -1,127 +1,136 @@
 # ADR-005 Execution Plan: Domain Events Migration
 
-- Companion to [ADR-005-domain-events.md](ADR-005-domain-events.md) — that
-  document owns the design decisions and rationale; this document owns
-  sequencing, scope per phase, and exit criteria.
-- Status: draft — no phase started yet (ADR-005 itself is still "proposed,"
-  not "accepted"; do not begin Phase 0 until it's accepted).
-- Date: 2026-08-05, based on a direct codebase survey (module file counts,
-  grep for `DomainChangeEvent(`, `_subscribe_domain_change(`, `unit_of_work`
-  callers) run the same day — see "Current State Snapshot" below. Revised
-  twice the same day after external review: a first pass found four
-  acceptance-blocking issues in ADR-005 itself (now fixed there) and
-  several phase-boundary/scoping issues here (fixed then): repository-
-  contract-typed `UnitOfWork` accessors instead of raw `uow.session`, a
-  session-factory-backed `UnitOfWorkFactory` instead of one closing over
-  an existing process session, a stateless transactional dispatcher
-  instead of a queued bus, and business-fact discovery preceding
-  typed-event definition for every module, not only `maintenance`. A
-  second pass, checking both documents directly against this codebase's
-  actual repository/session code, found three more (now fixed): a real
-  SQLAlchemy identity-map staleness risk during partial migration
-  (Constraint 5, below), a missing "call the repository's `update()`
-  explicitly before `commit()`" task in every module phase (this
-  codebase's `Task.update()` bypasses ORM tracking entirely, confirmed by
-  reading it), and module-specific `UnitOfWork`/factory typing instead of
-  one cross-module concrete class.
+- Companion to [ADR-005-domain-events.md](ADR-005-domain-events.md) — that document owns the
+  design decisions, semantics, and reconciliations; this document owns cross-Platform-and-module
+  sequencing and phase exit criteria. The exact Platform how-to (files, tests, per-phase detail)
+  lives in [`platform_domain_event_implementation_plan.md`](../platform_modernization/domain_event/platform_domain_event_implementation_plan.md) —
+  this document does not duplicate that detail.
+- Status: draft — no phase started yet (ADR-005 itself is still "proposed," not "accepted"; do not
+  begin Phase 0 until it's accepted).
+- Date: 2026-08-05, revised 2026-08-25 alongside ADR-005's revision 6, after a dedicated
+  Platform-only architecture audit
+  (`docs/platform_modernization/domain_event/platform_domain_event_audit.md`); revised again
+  2026-08-25 (same day) alongside ADR-005's revision 7, after a P4A pre-implementation
+  investigation found the original Phase 2A sequencing had no step for making PM/Inventory's
+  apply-handler-backing services session-parameterizable before `ApprovalService` itself migrates
+  — see the new Phase 2A-PRE, below; revised again 2026-08-25 (same day) alongside ADR-005's
+  revision 8, after an explicit user decision that, since this application is pre-release with no
+  backward-compatibility requirement, Phase 2A-PRE should converge the 8 services directly onto
+  session-parameterized participants rather than first building a temporary adapter on the legacy
+  shared session — Phase 2A-PRE's four steps collapse to two.
+
+## Revision Note (2026-08-25)
+
+Three corrections to this plan, all driven directly by the Platform audit, none optional:
+
+1. **A Platform-foundation phase is inserted before any business module migrates** (new Phase 2,
+   below). The audit found Platform itself runs five distinct, unreconciled transaction-boundary
+   conventions and zero tenant/organization-aware invalidation — it is not "infrastructure that's
+   already done," and business modules' own migrations depend on the Platform contracts this
+   phase establishes.
+2. **The old Phase 5 (`maintenance`) is struck entirely.** The audit confirmed the `maintenance`
+   module was deleted from this codebase on 2026-08-20 (git commit `1aa1a589`) — after this plan
+   was first drafted. Zero raw `DomainChangeEvent(...)` construction sites remain anywhere in
+   `src/`. Retaining a phase to migrate a module that no longer exists would be dead-weight
+   sequencing.
+3. **The old, separate "Phase 6: Platform Signals" classification step is folded into the new
+   Phase 2** — it was always about classifying Platform's own 11 named signals, which now happens
+   as part of Platform's own foundation phase rather than as a late, standalone step after every
+   module has already migrated.
+
+Phases are renumbered below to keep a single, unambiguous sequence. Everything else — the
+Non-Negotiable Constraints, the general shape of the per-module discovery-then-migration
+discipline, the Design Guardrails — carries forward, with the additions noted inline.
+
+## Revision Note (2026-08-25, second pass — Phase 2A-PRE inserted)
+
+A pre-implementation investigation, performed before Phase P4 (`ApprovalService` migration, per
+the Platform implementation plan) was allowed to begin writing any code, inventoried all 18 real,
+production approval apply/reject handlers (`src/infra/composition/project_registry.py`,
+`inventory_registry.py`) and found every one calls into an already-constructed, long-lived PM/
+Inventory application service bound to the single process-lifetime `Session` — never a bare
+repository — with every one of the 8 backing services also holding a circular `approval_service=`
+constructor reference. ADR-005 §24 (Round 7) revises the `TDeps` mechanism's shape in response
+(module-supplied `dependencies_factory(session) -> TDeps`, not a repository-shaped dataclass
+resolved from a generic binder registry) — but that revised mechanism still requires each of the 8
+backing services to become constructible fresh, against a supplied session, before `ApprovalService`
+itself can move off the shared session. **That work did not exist as a phase anywhere in this
+plan.** Phase 2A below is split into a new, separately gated **Phase 2A-PRE** (session-decoupling
+prerequisite, business logic unchanged) followed by the original Phase 2A (transaction convergence,
+now able to assume 2A-PRE's output exists). `ApprovalService.request_change()` — the one command
+identified as having no apply-handler dependency at all — is deliberately **not** migrated ahead
+of the others; see 2A-PRE's Step C for why.
 
 ## Non-Negotiable Constraints
 
-These apply to every phase below, not just the ones that mention them
-explicitly.
+These apply to every phase below, not just the ones that mention them explicitly.
 
-1. **Backend-first, UI-second.** Each phase's QML-facing step (updating a
-   `_subscribe_domain_change` call site, wiring a controller to
-   `ViewInvalidationChannel`) is always the *last* task within that phase,
-   done only after that module's domain/application/infra work is fully
-   tested and green. No phase's domain or application design is shaped
-   around what's convenient for QML. UI/UX polish on top of the new
-   mechanism is explicitly out of scope until the backend for that module
-   is solid — QML/UX fixes are a separate follow-on pass per module, not
-   part of this migration.
-2. **Framework-agnostic application layer.** Every application service or
-   transactional/post-commit handler depends only on `UnitOfWork`/
-   `UnitOfWorkFactory` (and, for transactional handlers, a module-specific
-   `UnitOfWork` extension exposing that module's own repository
-   *contracts* — never a concrete repository class or a raw `Session`;
-   see ADR-005 §2.5/§2.6), `Clock`, and repository/domain contracts —
-   never on `src.ui_qml`, any `PySide6`/Qt import, `sqlalchemy`, or
-   `src.infra`. This is what the repo's own `EXECUTION_SPEC.md` already
-   anticipates with its future HTTP call chain (`HTTP router/controller ->
-   module HTTP API -> application handler -> domain + contracts ->
-   infrastructure`) sharing the same `application handler` layer as
-   today's desktop path. A FastAPI adapter, when it arrives, is a new thin
-   module under `src/core/modules/<module>/api/http/` or `src/api/http/`
-   calling the *same* application handlers the desktop presenters call
-   today — not a reason to touch `domain/` or `application/`. Each phase's
-   exit criteria includes a grep check for this (see "Design Guardrails"
-   below). Writing application-service tests directly against
-   `UnitOfWorkFactory`/`Clock`/repository-contract test doubles (no Qt
-   test doubles, no concrete SQLAlchemy classes) is how this gets proven
-   per phase, not just asserted.
-3. **No compatibility facades, no straddling code.** Matches this repo's
-   existing hard rule in `EXECUTION_SPEC.md`: finish one slice, delete the
-   old path for that slice, don't leave both mechanisms live for a module
-   past its own phase's close. This includes **service-level straddling**:
-   a command-side service being migrated in a given phase must stop
-   reading/writing through its old constructor-injected repositories for
-   the operations covered by that phase and use the active `UnitOfWork`'s
-   own repository accessors instead (`uow.tasks`, not a separately
-   injected `task_repo`) — a service that keeps both live for the same
-   command can silently operate through two different sessions, which
-   breaks `register_touched`, transactional dispatch, rollback, and
-   outbox atomicity all at once, even though each half looks correct in
-   isolation. This is an explicit task in every module phase below, not
-   assumed to fall out of the other steps.
-4. **A module phase is one atomic integration unit.** Intermediate
-   backend-only commits may exist locally while a phase is in progress,
-   but the phase is not merged, released, or considered complete until its
-   QML-facing step is done *and* the module's old event path (its
-   `Signal` fields / `DomainChangeEvent` construction sites) is deleted.
-   Otherwise steps 1–6 of a phase (see Phase 2 below) could ship with
-   production still depending on the old UI event path indefinitely,
-   silently doubling the mechanisms a module runs on past the point this
-   plan intends.
-5. **No stale reads after a migrated command commits.** Confirmed
-   codebase-specific risk, not hypothetical: this app builds one
-   process-lifetime `Session` for `RepositoryBundle` (`src/ui_qml/shell/app.py`'s
-   `build_services()`), and existing dashboard/workspace controllers hold
-   their repository/session graph for the controller's entire lifetime,
-   re-running the same `select()`-based read methods on every refresh
-   (`workspace_controller_base.py`). SQLAlchemy does not overwrite an
-   already-identity-mapped instance's attributes from a later `select()`
-   result unless that instance was expired or the query used
-   `populate_existing()` — and a commit on a *different*, fresh
-   `uow_factory.create()` session has no effect on the long-lived
-   session's identity map at all. Concretely: a migrated command can
-   commit successfully, fire `ViewInvalidationHint` correctly, and the
-   existing dashboard can still redisplay the old cached values. Every
-   module phase's exit criteria (Phase 2B, 4B, 5) must include: **after a
-   fresh-`UnitOfWork` command commits, that module's existing UI/query
-   path observes the committed values without an app restart — verified
-   by an actual test, not assumed.** Acceptable mitigations, in order of
-   preference:
-   - **Migrate the read path too.** For the entities a phase's commands
-     touch, give the affected read/query methods (and, if needed, the
-     controllers backing the affected views) their own fresh, short-lived
-     sessions instead of the process-lifetime one — the strongest option,
-     and the only one that doesn't leave the new event path coupled back
-     to the legacy session.
-   - **A narrow, explicit `legacy_session.expire_all()`** (or a targeted
-     `session.expire(instance)` for just the affected rows) called right
-     before the old UI repository re-queries, if migrating the full read
-     path in the same phase isn't practical. This is an explicitly
-     transitional bridge, not the destination — call it out by name in
-     that phase's own notes when used, so it's a deliberate, temporary
-     choice and not a silent workaround left in place indefinitely.
+1. **Backend-first, UI-second.** Unchanged from the original plan: each phase's QML-facing step
+   is always the *last* task within that phase, done only after that phase's domain/application/
+   infra work is fully tested and green.
+2. **Framework-agnostic application layer.** Unchanged: every application service or
+   transactional/post-commit handler depends only on `UnitOfWork`/`UnitOfWorkFactory` (and, for
+   transactional handlers, a module- or capability-specific `UnitOfWork` extension exposing
+   repository *contracts*), `Clock`, `DomainEventContext`, and repository/domain contracts — never
+   on `src.ui_qml`, `PySide6`, `sqlalchemy`, or `src.infra` directly. Each phase's exit criteria
+   includes the AST-based guardrail check (§ Design Guardrails, updated below) for this.
+3. **No compatibility facades, no straddling code.** Unchanged: finish one slice, delete the old
+   path for that slice, don't leave both mechanisms live for a module/capability past its own
+   phase's close. Includes service-level straddling — a command-side service migrated in a given
+   phase stops reading/writing through its old constructor-injected repositories for the
+   operations that phase covers.
+4. **A phase is one atomic integration unit.** Unchanged: intermediate backend-only commits may
+   exist locally, but a phase is not complete until its QML-facing step is done *and* its old
+   event path is deleted for the operations it covers.
+5. **No stale reads after a migrated command commits.** Unchanged from the original plan — this
+   app's process-lifetime `Session` and long-lived controller/session graphs mean a migrated
+   command's committed change is not automatically visible to an already-open read path.
+   Mitigation options (migrate the read path, or an explicit, called-out `expire_all()`/
+   `populate_existing()` bridge) are unchanged; every phase's exit criteria requires an actual
+   test proving the chosen mitigation works, not an assumption.
+6. **NEW — Tenant AND organization scope is explicit everywhere, never assumed 1:1.** No phase may
+   ship a `DomainEvent` or `ViewInvalidationHint` that omits `organization_id` for a fact that is
+   organization-scoped, and no phase may substitute the desktop session's currently-active
+   organization for an event's actual `organization_id`. Every phase's exit criteria includes the
+   tenant/organization isolation test matrix (ADR-005 Test Impact; implementation plan §
+   "Tenant + Organization Test Matrix").
+7. **NEW — The architecture guardrail test is green before and after every phase.** The one new
+   AST-based test ADR-005 §21 adds (`platform → business module` import boundary, with the two
+   explicitly-cited governed exceptions) must pass at every phase boundary. A phase that needs a
+   new exception must cite a governing ADR in the same commit that adds it — an uncited exception
+   fails review.
 
-## Current State Snapshot (codebase survey, 2026-08-05)
+## Current State Snapshot (revised 2026-08-25 against actual repository/session code)
 
-The dual-purpose file is `src/core/shared/events/domain_events.py`: a
-`DomainChangeEvent(category, scope_code, entity_type, entity_id,
-source_event)` dataclass plus a `DomainEvents` dataclass with **31**
-`Signal` fields (29 module-named + 2 generic bridge signals
+The dual-purpose file remains `src/core/shared/events/domain_events.py`: a
+`DomainChangeEvent(category, scope_code, entity_type, entity_id, source_event)` dataclass plus a
+`DomainEvents` dataclass with **31** `Signal` fields (29 module-named + 2 generic bridge signals
 `shared_master_changed`/`domain_changed`), auto-wired via `_wire_bridges()`.
+
+**Corrected/added facts (2026-08-25), superseding the 2026-08-05 snapshot below where they
+conflict:**
+
+- **The real coupling surface is measured by import sites, not named-`Signal`-field counts.** 66
+  application-layer files import the `domain_events` singleton directly and call `.emit(...)` —
+  **25 of these are inside `src/core/platform/` itself**, 41 across business modules. The
+  per-module named-field table below undercounts Platform's own migration scope for this reason;
+  Phase 2 (below) is sized against the 25-in-Platform figure, not the 11-named-Platform-signals
+  figure alone.
+- **`maintenance` no longer exists.** Deleted 2026-08-20 (commit `1aa1a589`), after this plan's
+  original 2026-08-05 draft. The row for it in the table below is struck; the corresponding phase
+  is removed (§ Phase 6, below).
+- **The transaction/event-coordination *concept* is not greenfield anywhere in this codebase**,
+  even though Platform's own *typed-event vocabulary* is (zero typed `DomainEvent` classes exist
+  under `src/core/platform/` today). `ApprovalService` (ADR-PF-008, accepted, implemented) already
+  runs an outer-transaction-owns-commit, post-commit-isolated discipline over the single
+  process-lifetime `Session`; `project_management`'s `Resource*UnitOfWork` classes (module-owned,
+  cited for contrast) independently reinvent a typed-event + commit/rollback + isolate-and-continue
+  pattern. Phase 2 (below) exists specifically because Platform is not exempt from this
+  convergence problem.
+- **Real AST-based architecture-enforcement tests already exist**
+  (`src/tests/architecture/test_qml_architecture_guardrails_layers.py`,
+  `test_pm_inventory_module_boundary.py`) — earlier assumptions that no such tooling exists are
+  corrected. ADR-005 §21 adds one new test using the same technique rather than a new framework.
 
 | Module | Files (approx.) | Named `Signal` fields | Raw `DomainChangeEvent(` construction sites | `_subscribe_domain_change(` sites |
 |---|---|---|---|---|
@@ -130,479 +139,409 @@ source_event)` dataclass plus a `DomainEvents` dataclass with **31**
 | qhse | 21 | 0 | 0 | 0 |
 | inventory_procurement | 127 | 12 | 0 | 1 |
 | project_management | 626 | 9 | 0 | 2 |
-| maintenance | 145 | 0 | 25 | 6 |
-| platform/shell (cross-cutting) | — | 11 (+2 bridge) | 1 (in the file itself) | 2 |
+| ~~maintenance~~ | ~~145~~ | ~~0~~ | ~~25~~ | ~~6~~ |
+| platform/shell (cross-cutting) | — | 11 (+2 bridge) | 1 (in the file itself) | 2 (**understates Platform's real scope — see the 25-import-sites figure above**) |
 
-Other confirmed facts:
+**MODULE DELETED 2026-08-20 — the `maintenance` row above is struck; no migration work is
+needed for it (see the Revision Note above and the struck Phase 6, below).**
 
-- `src/infra/persistence/db/unit_of_work.py` is exactly `session_scope()`
-  (25 lines) with **zero callers** anywhere in `src/` — safe to reclaim per
-  ADR-005 §2.6.1.
-- `src/infra/persistence/db/session_factory.py` defines `SessionLocal =
-  sessionmaker(bind=engine, ...)` — a genuine session *factory* callable,
-  confirmed to exist and usable as the thing `UnitOfWorkFactory` closes
-  over (ADR-005 §2.6.1's round-four correction), not the single `Session`
-  instance `app.py` creates from it.
-- Repository *contracts* (as `ABC`s, e.g. `EmployeeRepository`) already
-  exist separately from concrete repository implementations under each
-  module's own `contracts/repositories/` (or platform's
-  `contract/<capability>/<entity>/contracts.py`) — confirmed for
-  `project_management` (`contracts/repositories/task.py`,
-  `.../project.py`, etc.) and platform modules. This is what a
-  module-specific `UnitOfWork` extension's repository accessors are typed
-  against — no new contract layer needs inventing.
-- `src/infra/composition/app_container.py`'s `build_service_graph(session)`
-  and `src/ui_qml/shell/app.py`'s `build_services()` are the two places a
-  `UnitOfWorkFactory` needs to be constructed and threaded through — the
-  existing single `session` keeps backing today's `RepositoryBundle`
-  unchanged; the new `UnitOfWorkFactory` is built alongside it, closing
-  over `SessionLocal` instead.
-- No `domain/events.py` or `RecordsDomainEvents` pattern exists anywhere —
-  this is fully greenfield.
-- No FastAPI/Flask/web framework is present in `requirements*.txt` or
-  `pyproject.toml` yet — confirmed clean slate, nothing to integrate
-  against today.
-- **Two persistence mechanisms coexist in this codebase, confirmed by
-  reading `SqlAlchemyTaskRepository`.** `Task.update()` persists through
-  `update_with_version_check` (`src/infra/persistence/db/optimistic.py`)
-  — a raw, parameterized `UPDATE ... WHERE id = ? AND version = ?` that
-  bypasses SQLAlchemy's ORM attribute tracking entirely. `TaskAssignment`/
-  `TaskDependency`, in the same module, instead mutate a tracked ORM
-  row's attributes directly and rely on SQLAlchemy's own flush. Neither
-  is assumed uniformly by this plan — every repository's existing
-  `update`/`add` must be called explicitly by whatever mutates an
-  aggregate, regardless of which mechanism that repository happens to use
-  underneath (ADR-005 §2.6, §2.7).
-- `src/infra/composition/repositories.py`'s `RepositoryBundle` is already
-  one large flat dataclass with ~55 repository attributes spanning every
-  module (`task_repo`, `project_repo`, `employee_repo`, ... all siblings).
-  The module-specific `UnitOfWork`/concrete-class split (ADR-005 §2.6,
-  §2.6.1) deliberately does **not** mirror this shape for the new
-  per-transaction object — see Phase 1 below for why the same flatness at
-  per-transaction granularity was rejected.
-- No `mypy.ini`/`pyrightconfig.json`/`[tool.mypy]` exists anywhere in this
-  repo, and no CI workflow runs a static type checker (the only workflow,
-  `.github/workflows/release.yml`, only packages the app). Type hints are
-  present throughout but not enforced by tooling today — the
-  module-specific `UnitOfWork`/factory typing fix (Phase 1) is still worth
-  doing for IDE correctness and documentation value, but is not fixing an
-  active CI failure.
+Other confirmed facts (unchanged from the original snapshot unless noted):
+
+- `src/infra/persistence/db/unit_of_work.py` is exactly `session_scope()` (25 lines) with **zero
+  callers** anywhere in `src/` — re-confirmed by the Platform audit, safe to reclaim per ADR-005 §20.
+- `src/infra/persistence/db/session_factory.py`'s `SessionLocal` has **exactly three references in
+  this codebase's entire history**: its own definition, the dead `session_scope()`, and one call
+  at process startup — confirmed by the Platform audit. This plan's `UnitOfWorkFactory` closing
+  over it (Phase 1) would be the first genuine per-transaction use, ever.
+- Repository *contracts* (as `ABC`s/`Protocol`s) already exist separately from concrete
+  implementations under each module's/capability's own `contracts/repositories/` — unchanged,
+  confirmed for `project_management` and for several Platform capabilities.
+- `src/infra/composition/app_container.py`'s `build_service_graph(session)` and
+  `src/ui_qml/shell/app.py`'s `build_services()` remain the two places a `UnitOfWorkFactory` needs
+  to be constructed and threaded through.
+- **Two persistence mechanisms coexist**, confirmed again by the Platform audit reading
+  `SqlAlchemyTaskRepository`: `Task.update()`'s raw, version-checked `UPDATE` bypasses ORM
+  attribute tracking entirely; `TaskAssignment`/`TaskDependency` rely on tracked-ORM-attribute
+  flush. Every phase must call the mutated repository's `update()`/`add()` explicitly before
+  `uow.commit()`, regardless of which mechanism that repository uses.
+- No `mypy.ini`/`pyrightconfig.json`/CI type-checker exists; the pytest-based AST guardrails
+  (above) are the only automated enforcement, confirmed still true.
 
 ## Phase 0 — Foundational Contracts (Zero Behavior Change)
 
-**Scope:** `src/core/shared/events/*`, `src/core/shared/time/*`,
-`src/infra/events/*`, `src/infra/time/*` only. No existing file touched, no
-module wired in, **no `UnitOfWork` implementation yet** — that's Phase 1,
-deliberately separated below.
+**Scope:** `src/core/shared/events/*`, `src/core/shared/time/*`, `src/infra/events/*`,
+`src/infra/time/*` only. No existing file touched, no module or Platform capability wired in, no
+`UnitOfWork` implementation yet (Phase 1).
 
 Tasks:
 
-- Create `domain_event.py`, `aggregate_events.py`, `domain_event_publisher.py`
-  (`TransactionalEventDispatcher` + `PostCommitEventPublisher` protocols),
-  `domain_event_subscriber.py`, `subscription.py`, `view_invalidation.py`
-  under `src/core/shared/events/` per ADR-005 §2.1–§2.5, §2.10. (The
-  `UnitOfWork`/`UnitOfWorkFactory` protocols do **not** live here — they
-  move to `src/core/shared/persistence/unit_of_work.py` in Phase 1, per
-  ADR-005 §2.6.1's round-four correction; this package is events-only.)
+- Create `domain_event.py`, `domain_event_context.py` (**new** — `DomainEventContext`, ADR-005
+  §5), `aggregate_events.py`, `domain_event_publisher.py` (`TransactionalEventDispatcher` +
+  `PostCommitEventPublisher` protocols — the latter's handler shape now takes `(event, context)`,
+  ADR-005 §8), `domain_event_subscriber.py`, `subscription.py`, `view_invalidation.py`
+  (`EventScope`/`PlatformScope`/`TenantScope`/`OrganizationScope`, one `ViewInvalidationHint` type
+  carrying a `scope: EventScope` field, `ScopeFilter` and its five concrete filter dataclasses
+  (`ExactOrganization`/`TenantWide`/`AnyOrganizationInTenant`/`AllTenants`/`PlatformWide`), and the
+  **single-`notify`/single-`subscribe`** channel contract — ADR-005 §12, revised after a targeted
+  design review that replaced an earlier five-method channel API with this typed-scope-plus-filter
+  design) under `src/core/shared/events/`. `UnitOfWork`/`UnitOfWorkFactory` protocols do not live
+  here — Phase 1.
 - Create `src/core/shared/time/clock.py` (protocol only).
 - Create `src/infra/events/{in_process_transactional_event_dispatcher.py,
-  in_process_post_commit_event_bus.py, in_process_view_invalidation_channel.py}`
-  per ADR-005 §2.9/§2.10:
-  - The transactional side is the **stateless** `InProcessTransactionalEventDispatcher`
-    (`dispatch(event, uow)`, no queue, no `_dispatching` flag — see §2.9's
-    round-four correction for why the previous queued design was an actual
-    cross-transaction bug, not just unnecessary).
-  - The post-commit side is the **queued** `InProcessPostCommitEventBus`,
-    with the race-free empty-queue/`_dispatching`-flip drain loop *and* a
-    lock-held handler-registry snapshot before iterating in
-    `_dispatch_one` (§2.9's snapshot-semantics correction).
-  - `PlatformViewInvalidationHint` + `notify_platform_wide`/
-    `subscribe_to_platform_wide` on `ViewInvalidationChannel`, alongside
-    the tenant-scoped `ViewInvalidationHint`/`subscribe`/
-    `subscribe_across_tenants` (§2.10's tenant-less-event reconciliation).
+  in_process_post_commit_event_bus.py, in_process_view_invalidation_channel.py}` per ADR-005 §8/§12:
+  - The transactional side is the stateless `InProcessTransactionalEventDispatcher`.
+  - The post-commit side is the queued `InProcessPostCommitEventBus`, race-free, with a
+    lock-held handler-registry snapshot, and breadth-first dispatch **stated explicitly as a
+    deliberate behavior change** from the legacy `Signal`'s accidental depth-first-under-recursion
+    behavior (ADR-005 §8) — a unit test must assert this explicitly, not merely assert "it
+    dispatches correctly."
+  - `InProcessViewInvalidationChannel` implements the single `notify`/`subscribe` contract with no
+    per-filter-kind branching logic of its own — routing is `filter.matches(hint.scope)` for every
+    registered subscription, per ADR-005 §12 exactly. The five distinct filtering behaviors from
+    earlier drafts (exact-organization, tenant-wide, any-organization-in-tenant, all-tenants,
+    platform-wide) are exercised as five separate `ScopeFilter` dataclasses in the test suite, not
+    as five channel methods.
 - Create `src/infra/time/system_clock.py`.
-- Unit test coverage for everything above in isolation: post-commit bus
-  thread-safety, its empty-queue/`_dispatching` race fix, its handler-
-  snapshot-under-lock semantics; the transactional dispatcher's
-  statelessness under concurrent `dispatch()` calls with different `uow`s;
-  tenant isolation and the platform-wide/tenant-scoped channel split on
-  `ViewInvalidationChannel`. **No aggregate-tracking or rollback tests
-  here** — there is no `UnitOfWork` yet to test them against; those move
-  to Phase 1.
+- Unit test coverage for everything above in isolation, **including the full tenant/organization
+  test matrix from ADR-005's Test Impact section** — this is new relative to the original Phase 0
+  scope, and is not deferred to a later phase, since the channel's routing logic is exactly what
+  Phase 0 introduces.
 
-**Exit criteria:** every new file has unit tests passing in isolation;
-`git diff` touches nothing outside these four new directory trees; the app
-boots unchanged (nothing imports these yet).
+**Exit criteria:** every new file has unit tests passing in isolation, including the full
+tenant/organization routing matrix; `git diff` touches nothing outside these four new directory
+trees; the app boots unchanged (nothing imports these yet); the new architecture-guardrail test
+(ADR-005 §21) passes.
 
 ## Phase 1 — `UnitOfWork`: Contract, Concrete Implementation, Session Lifecycle
 
-**Scope:** `src/core/shared/persistence/unit_of_work.py` (new — protocols),
-`src/infra/persistence/db/unit_of_work.py` (reclaimed — concrete),
-`src/infra/composition/app_container.py`.
+**Scope:** `src/core/shared/persistence/unit_of_work.py` (new — protocols), unchanged from the
+original plan's `src/infra/persistence/db/unit_of_work.py` reclamation, `src/infra/composition/app_container.py`.
 
-Tasks:
+Tasks (unchanged from the original plan except where noted):
 
-1. Create `src/core/shared/persistence/unit_of_work.py` with the
-   `UnitOfWork`/`UnitOfWorkFactory` protocols (ADR-005 §2.6, corrected):
-   `__enter__`/`__exit__`, `register_touched`, `tracked_aggregates`,
-   `commit` — **no `session` field, no repository accessors** on the
-   shared protocol. Module-specific extensions (e.g.
-   `ProjectManagementUnitOfWork` with `projects`/`tasks` typed against
-   that module's existing repository contracts, plus a matching
-   `ProjectManagementUnitOfWorkFactory`) are added per module, in that
-   module's own `contracts/` package, as each module phase needs them —
-   not invented speculatively here for modules not yet migrated.
-2. Replace `session_scope()`'s body in
-   `src/infra/persistence/db/unit_of_work.py` with `SqlAlchemyUnitOfWorkBase`
-   per §2.6.1/§2.7/§2.9 — fold the existing try/commit/rollback/close
-   shape in as a private helper used by `__enter__`/`__exit__`. Nothing
-   imports `session_scope` today, so nothing else changes. **This is a
-   base class only** — module-agnostic session lifecycle, aggregate
-   tracking, and dispatch/outbox coordination. It declares no repository
-   accessors; each module phase (2, 4, 5) adds its own thin
-   `SqlAlchemy<Module>UnitOfWork(SqlAlchemyUnitOfWorkBase)` subclass under
-   that module's own `infrastructure/persistence/`, not here — one
-   cross-module concrete class would import every module's repository
-   vocabulary into a single per-transaction object, and would also
-   duplicate `RepositoryBundle`'s existing flat, all-modules-together
-   shape at a granularity (per-transaction) where that cost is much less
-   justified than it is for `RepositoryBundle`'s one-time construction
-   (ADR-005 §2.6.1).
-3. **Identity-map aggregate tracking lives here, on `SqlAlchemyUnitOfWorkBase`**
-   (`self._tracked_aggregates: dict[int, RecordsDomainEvents]`,
-   `id()`-keyed, per ADR-005 §2.7) — not in `src/infra/events/`, and not
-   duplicated per module. It's a property of the base, not of either
-   event dispatcher/bus, and not of any one module's repository
-   vocabulary.
-4. Each module's `SqlAlchemy<Module>UnitOfWorkFactory` (added in that
-   module's own phase, not here) closes over `SessionLocal` (the existing
-   `sessionmaker` in `src/infra/persistence/db/session_factory.py`) — a
-   session *factory* — plus the transactional dispatcher and post-commit
-   bus from Phase 0. `create()` calls `self._session_factory()` and
-   returns a fresh `SqlAlchemy<Module>UnitOfWork` backed by a brand-new
-   `Session` every time. **This is not the same `session` instance
-   `build_service_graph` already threads through to `RepositoryBundle`**
-   — that single process-lifetime session keeps backing every
-   not-yet-migrated service exactly as today; each module's factory is a
-   second, independent thing built alongside it, closing over
-   `SessionLocal` directly rather than over `build_service_graph`'s
-   `session` parameter. Phase 1 itself only proves this shape works
-   end-to-end with a throwaway test subclass — the first *real* module
-   subclass is added in Phase 2.
-5. `build_service_graph` gains the plumbing to build a
-   `SqlAlchemy<Module>UnitOfWorkFactory` per migrated module and add it
-   as a new field on `ServiceGraph` — additive only, no existing field
-   changes shape. (No real module factory exists until Phase 2 adds one.)
-6. Tests (moved here from Phase 0, since they need a concrete class —
-   using a throwaway test subclass of `SqlAlchemyUnitOfWorkBase` with no
-   real repository accessors, since no module has one yet):
-   - Two separate `uow_factory.create()` calls open two genuinely
-     independent `Session`s — committing/rolling back one has no effect
-     on the other (proves the session-factory fix, not just the absence
-     of a bug).
-   - Rollback discards the unit of work's tracked aggregate instances —
-     a rolled-back `UnitOfWork`'s aggregates must not be reusable in a
-     later one, and rollback must not affect a separately-created
-     `UnitOfWork` (§2.8).
-   - `register_touched` accepts a small test aggregate that subclasses
-     `RecordsDomainEvents` but defines `__eq__` without `__hash__` (i.e.
-     is unhashable) without raising, and registering the *same* instance
-     twice does not double-count it, while two distinct equal instances
-     are tracked separately (§2.7's identity-map fix). **Use a real
-     `RecordsDomainEvents` subclass for this test, not a plain unrelated
-     object** — the contract is typed against `RecordsDomainEvents`, and
-     testing against something outside that contract doesn't exercise it.
+1. Create `src/core/shared/persistence/unit_of_work.py` with the `UnitOfWork`/`UnitOfWorkFactory`
+   protocols per ADR-005 §9 — `__enter__`/`__exit__`, `register_touched`, **`record_event`
+   (new — ADR-005 §6's orchestration-fact escape hatch)**, `tracked_aggregates`, `commit`, and a
+   **`context: DomainEventContext` property (new — ADR-005 §5)**. `UnitOfWorkFactory.create()`
+   now takes `*, context: DomainEventContext`. No `session` field, no repository accessors on the
+   shared protocol.
+2. Replace `session_scope()`'s body in `src/infra/persistence/db/unit_of_work.py` with
+   `SqlAlchemyUnitOfWorkBase` — unchanged mechanics from the original plan, now also threading the
+   constructor-supplied `context` through to `.context`.
+3. Identity-map aggregate tracking lives here, unchanged (`id()`-keyed dict, `tuple` return).
+4. Each module's/capability's `SqlAlchemy<Name>UnitOfWorkFactory` closes over `SessionLocal` — a
+   session *factory* — plus the dispatcher and bus from Phase 0, plus whatever the caller passes
+   as `context`. `create()` calls `self._session_factory()` for a genuinely new `Session` every
+   call.
+5. `build_service_graph` gains the plumbing to build a `SqlAlchemy<Name>UnitOfWorkFactory` per
+   migrated module/capability and add it as a new field on `ServiceGraph` — additive only.
+6. Tests (using a throwaway test subclass, since no real module/capability subclass exists yet):
+   two independent `create()` calls open genuinely independent sessions; rollback discards
+   tracked aggregate instances without affecting a separately-created `UnitOfWork`;
+   `register_touched` accepts an unhashable `RecordsDomainEvents` subclass without raising and
+   dedups by identity, not equality; **`record_event(event)` stages an application-authored event
+   that the next collection round picks up alongside aggregate-recorded ones (new test, proving
+   ADR-005 §6's escape hatch works end-to-end)**; `uow.context` returns exactly what
+   `UnitOfWorkFactory.create(context=...)` was given.
 
-**Exit criteria:** app boots; `SqlAlchemyUnitOfWorkBase` is constructible
-(via a throwaway test subclass) and produces a genuinely fresh session per
-`create()` call (tested, not assumed); zero application services
-reference it yet; no real module-specific subclass exists yet (that's
-Phase 2's job).
+**Exit criteria:** unchanged from the original plan, plus: `record_event` and `.context` are
+exercised by the tests above.
 
-## Phase 2 — Pilot Module: `inventory_procurement`
+## Phase 2 — Platform Foundation (NEW — must complete before any business module migrates)
 
-**Rationale:** fewest real touch points among modules that actually use
-the mechanism (1 subscribe site, 0 raw `DomainChangeEvent` constructions,
-12 named Signals to retire) — enough real usage to prove the pattern
-end-to-end without the blast radius of `project_management` or
-`maintenance`.
+**Rationale:** the Platform audit found Platform itself runs five distinct, unreconciled
+transaction-boundary conventions and has zero tenant/organization-aware invalidation — it is not
+"infrastructure that's already done" merely because it sits below business modules
+architecturally. Every subsequent module phase depends on the contracts and adapters this phase
+produces (the shared Qt invalidation adapter in particular). **No module migration (Phase 3
+onward) may begin until this phase's exit criteria are met and "Platform Domain Event Foundation
+Ready" is declared.**
 
-### Phase 2A — Discovery (before writing any event class)
+Exact file-by-file detail, per-capability discovery tables, and step-by-step tasks live in
+[`platform_domain_event_implementation_plan.md`](../platform_modernization/domain_event/platform_domain_event_implementation_plan.md)
+(Phases P0-P8 there map onto this single Phase 2 here, plus Phase 0/1 above). This section states
+only the sequencing and exit gate.
 
-A named `Signal` field is a UI-refresh category, not a business fact —
-one signal (e.g. `inventory_items_changed`) can legitimately be emitted by
-several distinct operations (item created, renamed, deactivated,
-recategorized, deleted, ...), and collapsing it back into one
-identically-shaped typed event class would just rename the coarse model
-without fixing it. Before writing `domain/events.py`:
+### 2A-PRE — Approval Transaction-Participant Convergence (NEW — gates 2A; revised Round 8)
 
-1. Inventory every current emitter of each of the 12 inventory Signals
-   (grep the `.emit(...)`/construction call sites feeding each named
-   Signal field, not just the field declarations).
-2. For each emitter, record the actual business operation it represents,
-   which aggregate raises it, and which existing view(s) it currently
-   refreshes. A table shaped like:
+**Rationale:** the P4A investigation (ADR-005 §24, Round 7) found all 18 real approval apply/reject
+handlers call into 8 long-lived PM/Inventory application services bound to the single
+process-lifetime `Session`, each also holding a circular `approval_service=` reference. Moving
+`ApprovalService` to a fresh per-call session (2A) requires these 8 services' approval-facing logic
+to be constructible fresh, bound to that new session, *first*.
 
-   | Current emitter | Business operation | Proposed typed event | UI hint(s) affected |
-   |---|---|---|---|
-   | `ItemService.create_item` | Item created | `InventoryItemCreated` | item collection view |
-   | `ItemService.rename_item` | Item renamed | `InventoryItemRenamed` | item detail/list |
-   | `StockService.reserve` | Reservation created | `StockReserved` | balances + reservations |
-   | `StockService.release` | Reservation released | `StockReservationReleased` | balances + reservations |
+**Revised Round 8, direct — two steps, not four.** Round 7 originally staged this as four steps
+(extract an adapter still on the shared session; separately make it session-parameterizable; cut
+`ApprovalService` over; delete the old path) specifically so a temporary adapter could prove parity
+on the *still-shared* session before transaction mechanics changed — caution appropriate for a live
+system. **This application is pre-release, with no external users and no backward-compatibility
+requirement for the current process-lifetime `Session` architecture** — building an adapter that
+targets the shared session, only to delete it again once its session-parameterized replacement
+exists, is exactly the temporary architecture this revision removes. Steps A and B collapse into
+one direct step; Steps C and D (unchanged in substance, renumbered) remain `ApprovalService`'s own
+cutover and cleanup.
 
-3. Define `domain/events.py`'s typed events **from this table**, not from
-   the 12 Signal *names* directly — a single old Signal may map to several
-   typed events (as above), and a single typed event's post-commit
-   handler may need to raise more than one `ViewInvalidationHint` (see the
-   "UI hint(s) affected" column) if it was previously refreshing more than
-   one view.
+A wider 30-service PM/Inventory audit (ADR-005 §24, Round 8) confirmed this stays correctly scoped:
+~20 services are pure transaction-owning commands (out of scope — their migration is Phase 3/5's
+job, not this prerequisite's); `ProjectCommitmentService` and `StockControlService` have the same
+`commit: bool` pattern as the 8 but no relationship to approval (out of scope, separately tracked,
+same treatment as §22's allowlisted debt); `ResourceMasterUnitOfWork`/`ResourceCapabilityUnitOfWork`
+are pre-existing, unrelated, and themselves not real Units of Work by §9's definition (out of
+scope); `build_repository_bundle(session)` already covers all 69 repositories used by all 30
+services, confirming the repository-construction half of this problem was never the hard part.
 
-This discovery step is checked in as part of the phase's own working
-notes before any code changes, the same discipline Phase 5 already
-requires for `maintenance`'s 25 raw construction sites — applied here too,
-since named Signals hide the same granularity problem, just less visibly.
+**Step 1 — Build `PlatformUnitOfWork`/`Factory`, and port each of the 8 services' approval-facing
+logic directly into standalone, session-parameterized participants.** For each of the 8 backing
+services (`BaselineService`, `TaskService`, `BudgetService`, `ProjectCostEntryService`,
+`FinancialChangeService`, `ProjectBillingPreparationService`, `ProcurementService`,
+`PurchasingService`), the approval-facing logic currently on the long-lived instance
+(`_apply_*_decision`/`apply_submitted_*`) is **ported** into a small, module-owned participant
+(a plain function or thin stateless class) whose repositories/collaborators are constructed fresh,
+per call, from the session `ApprovalService`'s `PlatformUnitOfWork` supplies via
+`dependencies_factory(session) -> TDeps` (ADR-005 §24, Round 7's mechanism, Round 8's construction
+model). A participant is not the whole service object, so it **has no `approval_service=`
+reference to manage** — the **old** service instance keeps its existing reference, unchanged, for
+its own other, non-approval commands. The now-dead old approval-facing methods are deleted from
+the 8 service classes in this same step, not left for a later cleanup pass. *Review gate:* for
+each of the 8, does the ported participant, exercised end-to-end through the *existing* PM/
+Inventory approval regression suite, produce identical staged mutations, `ApprovalHandlerResult`,
+and error behavior to what the deleted method produced? Are the other 22 services and the two
+flagged-but-out-of-scope services provably untouched?
 
-### Phase 2B — Migration (backend first, QML step deliberately last)
+**Step 2 — Cut `ApprovalService` over to the canonical `PlatformUnitOfWork` (formerly Step C).**
+`ApprovalService` gains a `PlatformUnitOfWorkFactory` (closing over `SessionLocal`), and
+`approve_and_apply`/`reject`/`request_change` all construct a fresh `PlatformUnitOfWork` per call
+in the same change — per this plan's no-straddling constraint (Constraint 3), a service should not
+run two live transaction models without a documented transitional reason, and none exists here.
+This step is exactly the original Phase 2A's content (below), now able to assume every registered
+handler already has a working `dependencies_factory` from Step 1.
 
-1. Add `src/core/modules/inventory_procurement/contracts/unit_of_work.py`
-   with `InventoryUnitOfWork(UnitOfWork, Protocol)` (`items`/`balances`/
-   `reservations`/... accessors typed against this module's existing
-   repository contracts) and `InventoryUnitOfWorkFactory`; add the
-   concrete `SqlAlchemyInventoryUnitOfWork(SqlAlchemyUnitOfWorkBase)` and
-   `SqlAlchemyInventoryUnitOfWorkFactory` under
-   `infrastructure/persistence/unit_of_work.py`, closing over `SessionLocal`
-   (ADR-005 §2.6, §2.6.1 — this is the first *real* module subclass;
-   Phase 1 only proved the base class shape).
-2. Add `src/core/modules/inventory_procurement/domain/events.py` with the
-   typed events from the Phase 2A table.
-3. Adopt `RecordsDomainEvents` + injected `Clock` on the aggregates that
-   raise these.
-4. Repository `register_touched` calls on load/add for inventory
-   repositories (automatic via the module's `InventoryUnitOfWork`
-   repository accessors, per ADR-005 §2.6).
-5. **Migrate the command-side services covered by this phase off their
-   old constructor-injected repositories and onto the active `UnitOfWork`'s
-   own repository accessors** (Constraint 3) — a service must not keep
-   both an old injected `ItemRepository` *and* `uow.items` live for the
-   same command; whichever operations this phase covers switch fully.
-6. **Call the mutated repository's `update(aggregate)`/`add(aggregate)`
-   explicitly after every aggregate mutation, before `uow.commit()`**
-   (Constraint 5 does not cover this — this is ADR-005 §2.6/§2.7's
-   round-five correction: `commit()` alone does not persist a mutation).
-   Confirm per aggregate whether its repository persists through tracked
-   ORM attribute mutation or an explicit optimistic-concurrency call (this
-   module hasn't been read yet the way `project_management`'s `Task` was —
-   check `inventory_procurement`'s own repositories for the same
-   raw-`UPDATE`-vs-tracked-ORM split before assuming either one).
-7. Add `application/event_handlers/view_invalidation.py` with
-   module-owned constants (mirroring ADR-005 §2.11's
-   `ProjectManagementInvalidation` example); add a `transactional.py` only
-   if the Phase 2A table surfaced a real cross-aggregate case (none is
-   evident from the initial survey — confirm against the table before
-   writing one speculatively).
-8. Wire `register_post_commit_handlers` into the composition root's
-   `SubscriptionRegistry`.
-9. Full test pass on 1–8 before touching anything QML-facing.
-10. **Only now:** update the one existing `_subscribe_domain_change` call
-    site (the dashboard) to consume `ViewInvalidationChannel` instead —
-    and apply Constraint 5's staleness mitigation for whichever entities
-    this phase's commands touch (migrate the dashboard's read path to a
-    fresh session, or an explicit, called-out `expire_all()`/
-    `expire(instance)` bridge).
-11. Delete the 12 inventory-owned fields out of the old `DomainEvents`
-    dataclass, and their now-dead emitters, in the same phase close
-    (Constraint 4 — no straddling past this point).
+**Exit criteria (2A-PRE):** all 8 services' approval-facing logic exists only as session-
+parameterized participants (the old methods are deleted, not merely unused); the existing PM/
+Inventory approval regression suite passes unmodified against the new participants;
+`ApprovalService` uses `PlatformUnitOfWork` exclusively for all three of its transaction-owning
+methods; the architecture guardrail test passes; none of the other 22 services,
+`ProjectCommitmentService`/`StockControlService`, or `Resource*UnitOfWork` were touched.
 
-**Exit criteria:** inventory module tests green; dashboard refresh behavior
-unchanged from a user's perspective; **a real test confirms the dashboard
-observes a fresh-`UnitOfWork` command's committed change without an app
-restart** (Constraint 5 — not merely "the hint fired"); zero
-inventory-owned fields left in the old `DomainEvents` dataclass; grep
-confirms no `ui_qml`/`PySide6`/
-`sqlalchemy`/`src.infra` import in `inventory_procurement/domain/` or
-`/application/`; no inventory command-side service still holds both an
-old injected repository and the new `UnitOfWork` for the same operation.
+**Explicit non-goal:** this phase does not change what any apply handler's business *rules* do
+(the logic is ported, not rewritten); does not migrate any of the ~22 out-of-scope services listed
+above; does not converge `ProjectCommitmentService`/`StockControlService`; and does not remove the
+process-lifetime `Session` from `app_container`/`build_service_graph` — **that can only happen
+once Phase 3 (`inventory_procurement`) and Phase 5 (`project_management`) have both closed**,
+since every other command in the application still depends on that shared session until those
+already-planned phases migrate their own module's full command surface.
 
-## Phase 3 — `hr_management`, `payroll`, `qhse`: No Migration Needed Yet
+### 2A — Platform Transaction/UoW Convergence
 
-These three have **zero** current domain-event usage — there is nothing to
-migrate and no old Signal fields to retire. Do not manufacture events for
-them speculatively. When one of these modules first needs a domain event
-for a real feature, it adopts the Phase 0/1 contracts directly as a new
-consumer — it never touches the old `DomainEvents` dataclass at all, since
-it never used it.
+Reconcile Platform's own competing transaction conventions per ADR-005 §24/§26, per 2A-PRE Step 2
+above (this phase does not begin until 2A-PRE's Step 1 is reviewed and complete for all 8
+apply-handler-backing services):
+- `ApprovalService` (ADR-PF-008): **ADAPT** — migrated onto the canonical `UnitOfWork`, including
+  `request_change()` in the same change (2A-PRE Step 2).
+- `NotificationService`'s caller-controlled `commit: bool` pattern: assessed per call site,
+  migrated where it composes with a migrating command, left as-is where it's a standalone
+  best-effort feature unrelated to any `UnitOfWork`-owned transaction.
+- `ServiceBase.commit()`'s lone real subclass: assessed, migrated or left as an isolated legacy
+  primitive depending on whether that subclass's operations are in scope for this phase.
 
-## Phase 4 — `project_management` (Coordinate With PM Collaboration Upgrade First)
+### 2B — Platform Typed Events + View Invalidation (Per-Capability Discovery)
 
-**Risk flag:** this is the largest module in the codebase (626 files, 9
-named Signals, 2 subscribe sites) *and*, per current project tracking, the
-PM Collaboration Upgrade is mid-flight here with backend Phases 0/1/4 done
-and a large uncommitted diff, QML UI + Phases 2/3 still pending. **Do not
-start this phase until that upgrade's own backend work is committed and
-stable** — migrating the event mechanism underneath an in-flight,
-uncommitted backend change risks conflicts neither piece of work can see
-coming. Confirm with the user before starting this phase specifically.
+Same discovery-before-typing discipline the original plan already required for
+`inventory_procurement`/`project_management`/the deleted `maintenance` module — applied here to
+Platform's own 11 named signals (`auth_changed`, `employees_changed`, `organizations_changed`,
+`sites_changed`, `departments_changed`, `calendars_changed`, `documents_changed`,
+`parties_changed`, `access_changed`, `modules_changed`, `approvals_changed`). **This subsumes and
+replaces the original plan's separate, later "Phase 6: Platform Signals" classification step** —
+the same classification work, just performed as part of Platform's own foundation phase rather
+than after every module has already migrated. Each signal is classified independently (typed
+business fact vs. genuinely UI-only invalidation with no underlying domain event), per a
+per-emitter discovery table — not a mechanical 1:1 rename — exactly as the original Phase 6 already
+specified. Every newly-typed Platform event carries `organization_id` explicitly per ADR-005 §3.
 
-### Phase 4A — Discovery
+### 2C — Qt Invalidation Adapter Consolidation
 
-Same discipline as Phase 2A, applied to the 9 named signals
-(`project_changed`, `tasks_changed`, `timesheet_periods_changed`,
-`costs_changed`, `resources_changed`, `baseline_changed`,
-`register_changed`, `collaboration_changed`, `portfolio_changed`): inventory
-every emitter feeding each signal, map each to its actual business
-operation/aggregate/affected view(s), and define typed events from that
-table — not from the 9 signal names directly. Given this module's size,
-expect several typed events per signal, not a 1:1 rename.
+Build the one shared `qt_view_invalidation_channel.py` (ADR-005 §13/§20). Migrate the three
+existing `workspace_controller_base.py` copies (Platform, `project_management`,
+`inventory_procurement`) to delegate their invalidation slice to it — **their other
+responsibilities are explicitly untouched, per ADR-005 §25's non-goal.**
 
-### Phase 4B — Migration
+### 2D — Platform Legacy Bridge, Cutover, and Validation
 
-Same shape as Phase 2B's steps 1–11, scaled to the Phase 4A table and the
-2 subscribe sites (dashboard, financials refresh mixins) — including
-step 1's `ProjectManagementUnitOfWork`/`ProjectManagementUnitOfWorkFactory`
-+ `SqlAlchemyProjectManagementUnitOfWork` (this is the module ADR-005's
-own worked examples already use, §2.5/§2.6 — reuse those, don't redefine
-them differently here), the explicit command-side-service migration off
-old injected repositories (Constraint 3), the explicit
-`update`/`add`-before-`commit()` call on every mutated aggregate (step 6 —
-check whether `project_management`'s other repositories share `Task`'s
-raw-`UPDATE`-via-`update_with_version_check` pattern or the tracked-ORM
-pattern `TaskAssignment`/`TaskDependency` use, per-repository, before
-assuming either one), and the staleness mitigation for the dashboard and
-financials refresh mixins (Constraint 5).
+Bridge Platform's migrated signals onto the new mechanism; retire `admin_console/domain_event_binder.py`
+(completing its own already-self-scheduled "R2" removal) once every consumer it served has moved
+to the new channel. Delete the 11 Platform-owned fields from the old `DomainEvents` dataclass only
+once every consumer has migrated (Constraint 3/4 — no straddling past this phase's close).
 
-**Exit criteria:** same shape as Phase 2, plus: no regression in the
-PM Collaboration Upgrade's own in-flight work (run its existing test
-suite, not just the new event tests).
+**Exit criteria — "Platform Domain Event Foundation Ready":**
+- No Platform producer depends on the legacy `domain_events` bus except an explicitly-approved,
+  time-boxed compatibility edge (if any remains, it is named and dated).
+- Tenant **and organization** isolation proven by the full test matrix (ADR-005 Test Impact),
+  run against real Platform signals, not only the Phase 0 synthetic tests.
+- Rollback behavior, post-commit failure isolation, and integration-outbox semantics
+  (unchanged, ADR-PF-011) all proven for `ApprovalService`'s migrated path specifically.
+- Qt refresh behavior for every migrated Platform signal is unchanged from a user's perspective
+  (a real test, not an assumption — Constraint 5).
+- The architecture guardrail test (ADR-005 §21) passes, including its two explicitly-cited
+  exceptions and no uncited additions.
+- Zero Platform-owned fields remain in the old `DomainEvents` dataclass for anything migrated in
+  this phase.
 
-## Phase 5 — `maintenance` (Highest Risk — Do Last)
+Only once all of the above hold does Phase 3 begin.
 
-**Rationale for going last:** this module has the heaviest actual abuse of
-the old pattern — 25 raw `DomainChangeEvent(...)` constructions scattered
-directly across `application/*_service.py` files, plus 6 subscribe sites —
-despite having *zero* dedicated Signal fields (it rides the generic
-`domain_changed`/`shared_master_changed` bridge entirely). Deliberately
-scheduled after Phases 2 and 4 so the pattern — including the discovery-
-before-typing discipline now required for every module (Phases 2A/4A) —
-has been proven twice on modules with cleaner starting points first.
+## Phase 3 — Pilot Module: `inventory_procurement`
 
-Tasks: same shape as Phase 2B (steps 1–11 — including its own
-`MaintenanceUnitOfWork`/`MaintenanceUnitOfWorkFactory` +
-`SqlAlchemyMaintenanceUnitOfWork`, the explicit `update`/`add`-before-
-`commit()` call per aggregate, and the staleness mitigation for this
-module's 6 subscribe sites), preceded by the construction-site-to-typed-
-event mapping table this phase already required (all 25 raw
-`DomainChangeEvent(...)` sites, before touching any of them) — the same
-table shape as Phase 2A/4A, just starting from raw construction call
-sites instead of named Signal fields.
+(Renumbered from the original plan's Phase 2; content unchanged except where noted, and now
+explicitly gated on Phase 2's "Platform Domain Event Foundation Ready.")
 
-## Phase 6 — Platform Signals: Bridge Artifacts Are Deleted, Named Signals Are Classified Individually
+**Rationale:** fewest real touch points among modules that actually use the mechanism (1
+subscribe site, 0 raw `DomainChangeEvent` constructions, 12 named Signals to retire) — enough real
+usage to prove the pattern end-to-end without the blast radius of `project_management`, now also
+benefiting from a Qt adapter and `UnitOfWork` foundation already proven inside Platform itself in
+Phase 2.
 
-**Correction from the initial draft of this phase:** the 2 generic bridge
-signals (`shared_master_changed`, `domain_changed`) are **not** platform
-business facts alongside the 11 named ones — they are transport/bridge
-artifacts of the *old* mechanism itself (the generic
-`DomainChangeEvent`-carrying fields `_wire_bridges()` wires up). They have
-no independent meaning to classify; they simply cease to exist when
-`src/core/shared/events/domain_events.py` — `DomainEvents`, `_wire_bridges()`,
-`_BRIDGE_SPECS` — is deleted in Phase 7. Nothing needs deciding about
-them specifically; they're folded into Phase 7's retirement, not this
-phase's decision.
+### 3A — Discovery (unchanged in method from the original Phase 2A)
 
-**What this phase actually decides** is the 11 named platform-wide
-signals not owned by any business module: `auth_changed`,
-`employees_changed`, `organizations_changed`, `sites_changed`,
-`departments_changed`, `calendars_changed`, `documents_changed`,
-`parties_changed`, `access_changed`, `modules_changed`,
-`approvals_changed`. **Each is classified independently, not decided as
-one all-or-nothing group** — some may be real business facts (a typed
-platform domain event under `src/core/platform/domain/events.py`, e.g.
-`employees_changed` covering `EmployeeHired`/`EmployeeTransferred`-shaped
-facts), others may be purely UI-invalidation with no underlying domain
-event at all (e.g. `modules_changed`, if its only emitters are
-configuration/feature-flag toggles with no domain meaning beyond "refresh
-this view"). A worked classification table, built from each signal's
-actual emitters (same discovery discipline as Phases 2A/4A/5), precedes
-any code change here:
+Inventory every current emitter of each of the 12 inventory Signals; for each, record the actual
+business operation, the raising aggregate, and the affected view(s), before writing any typed
+event. Every typed event includes `organization_id` explicitly (ADR-005 §3) — `inventory_procurement`'s
+own tenant/organization data shape must be confirmed against real emitters here, not assumed
+from Platform's shape.
 
-| Signal | Likely classification | Notes |
-|---|---|---|
-| `auth_changed` | Split — some emitters may be typed events (e.g. `UserSignedIn`, `RoleAssignmentsChanged`), others pure UI/session invalidation | Needs its emitters inventoried before deciding |
-| `employees_changed` | Typed business facts, where emitters represent real HR operations | |
-| `sites_changed` | Typed business facts, where emitters represent real operations | |
-| `modules_changed` | Likely UI/config invalidation only | Confirm no domain-meaningful emitter exists before settling this |
-| *(remaining 7 signals)* | To be classified the same way | Not yet surveyed at this level of detail |
+### 3B — Migration (unchanged in shape from the original Phase 2B)
 
-This phase is blocked on completing that classification and getting user
-sign-off on each row, not on engineering effort.
+1. Add `InventoryUnitOfWork`/`InventoryUnitOfWorkFactory` + concrete
+   `SqlAlchemyInventoryUnitOfWork`/`SqlAlchemyInventoryUnitOfWorkFactory`, closing over
+   `SessionLocal` and accepting a `DomainEventContext`.
+2. Add `domain/events.py` with the typed events from the 3A table, each carrying
+   `organization_id: str | None` explicitly per its own business shape.
+3. Adopt `RecordsDomainEvents` + injected `Clock` on aggregate-recorded events; use
+   `uow.record_event(...)` for any genuinely orchestration-level fact identified in 3A, per
+   ADR-005 §6's explicit criteria — not applied blanket to every mutation.
+4. Repository `register_touched` calls on load/add (automatic via `InventoryUnitOfWork`'s
+   accessors).
+5. Migrate command-side services off old constructor-injected repositories onto the active
+   `UnitOfWork`'s own accessors (Constraint 3) — no straddling.
+6. Call the mutated repository's `update()`/`add()` explicitly after every mutation, before
+   `uow.commit()` (confirm per aggregate whether this module shares `Task`'s raw-`UPDATE` pattern
+   or the tracked-ORM pattern before assuming either).
+7. Add `application/event_handlers/view_invalidation.py` with module-owned constants; add
+   `transactional.py` only if 3A surfaced a real cross-aggregate case.
+8. Wire `register_post_commit_handlers` into the composition root's `SubscriptionRegistry`.
+9. Full test pass on 1-8 before touching anything QML-facing.
+10. Update the one existing `_subscribe_domain_change` call site (the dashboard) to consume the
+    now-consolidated Qt invalidation adapter (built in Phase 2C) instead of the legacy bus — and
+    apply Constraint 5's staleness mitigation.
+11. Delete the 12 inventory-owned fields out of the old `DomainEvents` dataclass, and their
+    now-dead emitters, in the same phase close.
+
+**Exit criteria:** unchanged in shape from the original Phase 2, plus the tenant/organization test
+matrix passes for every newly-typed inventory event, and the architecture guardrail test remains
+green.
+
+## Phase 4 — `hr_management`, `payroll`, `qhse`: No Migration Needed Yet
+
+(Renumbered from the original Phase 3; unchanged.) These three have zero current domain-event
+usage. Do not manufacture events speculatively. When one first needs a domain event for a real
+feature, it adopts the Phase 0/1 contracts directly — never touching the old `DomainEvents`
+dataclass, since it never used it.
+
+## Phase 5 — `project_management` (Coordinate With PM Collaboration Upgrade First)
+
+(Renumbered from the original Phase 4; content unchanged in shape, with one correction.)
+
+**Risk flag, corrected:** the original plan (2026-08-05) flagged this phase as blocked on "the PM
+Collaboration Upgrade's backend work being committed and stable," citing a large uncommitted diff
+at that time. **As of this revision, the working tree is clean** — whatever uncommitted diff
+existed on 2026-08-05 is no longer present. This is not evidence the upgrade is *done*, only that
+its state has changed since the original snapshot. **Re-confirm the actual current state of the
+PM Collaboration Upgrade (and get explicit user sign-off) immediately before starting this phase**
+— do not carry the stale 2026-08-05 blocking condition forward as still-true without checking.
+
+### 5A — Discovery (unchanged in method)
+
+Same discipline applied to the 9 named signals (`project_changed`, `tasks_changed`,
+`timesheet_periods_changed`, `costs_changed`, `resources_changed`, `baseline_changed`,
+`register_changed`, `collaboration_changed`, `portfolio_changed`). **Additionally**, this
+discovery step must reconcile with `project_management`'s own already-existing
+`Resource*UnitOfWork`/`ResourceMasterChanged`/`ResourceCapabilityChanged` classes (which already
+partially cover the `resources_changed` signal) — treat these as found-in-place precedent to
+generalize onto the module's new `ProjectManagementUnitOfWork`, not as undiscovered territory to
+design from scratch.
+
+### 5B — Migration (unchanged in shape from the original Phase 4B)
+
+Same shape as Phase 3B's steps 1-11, scaled to the 5A table and the 2 subscribe sites, including
+`organization_id` on every newly-typed event, the explicit `update()`/`add()`-before-`commit()`
+rule, and the staleness mitigation for the dashboard and financials refresh mixins.
+
+**Exit criteria:** same shape as Phase 3, plus no regression in the PM Collaboration Upgrade's own
+test suite, plus explicit confirmation that the `Resource*UnitOfWork` reconciliation from 5A was
+actually carried out (not left as two live mechanisms for `resources_changed`).
+
+## Phase 6 — `maintenance`: Struck (Module Deleted)
+
+**This phase is intentionally removed, not renumbered forward.** The original plan's Phase 5
+targeted `maintenance` (145 files, 25 raw `DomainChangeEvent(...)` constructions, 6 subscribe
+sites) as the highest-risk module, scheduled last. The Platform audit confirmed `maintenance` was
+deleted from this codebase in its entirety on 2026-08-20 (git commit `1aa1a589`), after this
+plan's original draft. Zero raw `DomainChangeEvent(...)` construction sites remain anywhere in
+`src/`. **No migration work is needed for this module.** If a `maintenance`-equivalent module is
+reintroduced in the future, it adopts the Phase 0/1/2 contracts directly as a new consumer — it
+never touches the old `DomainEvents` dataclass at all, since a newly-written module never used it,
+exactly like Phase 4's treatment of `hr_management`/`payroll`/`qhse`.
 
 ## Phase 7 — Retire the Old Mechanism
 
-Once every module and the platform layer have migrated (Phase 6's
-classification fully applied, with each platform signal either promoted
-to a typed event or explicitly kept as plain UI invalidation on purpose),
-delete `src/core/shared/events/domain_events.py` in full — the
-`DomainEvents` dataclass, `_wire_bridges()`, `_BRIDGE_SPECS`, and the 2
-bridge signals along with it. No facade, no re-export shim, per this
-repo's existing no-facade rule.
+(Renumbered from the original Phase 7; the original's separate "Phase 6: Platform Signals"
+classification step no longer exists as a distinct phase — it is now Phase 2B, completed as part
+of Platform's own foundation work.) Once every module has migrated (Phases 3-5 closed; Phase 6 is
+a no-op per above), delete `src/core/shared/events/domain_events.py` in full — the `DomainEvents`
+dataclass, `_wire_bridges()`, `_BRIDGE_SPECS`, and the 2 bridge signals along with it. No facade,
+no re-export shim, per this repo's existing no-facade rule. **Additionally, per ADR-005 §19**:
+rename `src/core/shared/events/signal.py`'s `Signal` class to `CallbackSignal`, since by this
+phase every real caller has migrated off it for domain-event purposes and only its narrower,
+non-domain-event uses (if any remain) still reference it.
 
 ## Design Guardrails Enforced Every Phase
 
-- The QML-facing step is always the *last* task within a phase (see
-  Constraint 1) — never a co-requisite of the domain/application design
-  for that phase.
-- Before closing any phase: grep that module's `domain/` and
-  `application/` for `PySide6`/`ui_qml`/`sqlalchemy`/`src.infra` imports —
-  must be zero of all four. This is the same discipline that makes a
-  future FastAPI HTTP adapter a pure addition alongside `src/ui_qml/`,
-  sharing the same application-handler layer, rather than a rewrite (see
-  Constraint 2). A transactional handler reaching a concrete repository
-  class or a raw `Session` is exactly the bug round four found in
-  ADR-005 §2.5 — this grep is what would have caught it.
-- No command-side service migrated in a given phase keeps both an old
-  constructor-injected repository *and* the new `UnitOfWork`'s repository
-  accessors live for the same operation (Constraint 3) — check this
-  explicitly per phase, not assumed from "the new mechanism was added."
+- The QML-facing step is always the *last* task within a phase (Constraint 1).
+- Before closing any phase: the AST-based architecture guardrail test (ADR-005 §21) passes,
+  including the two explicitly-cited exceptions and no uncited new ones. **This replaces the
+  original plan's "manually grep before closing" instruction** — the audit found real AST-based
+  tooling already exists in this codebase; use it, don't grep by hand.
+- No command-side service migrated in a given phase keeps both an old constructor-injected
+  repository *and* the new `UnitOfWork`'s accessors live for the same operation (Constraint 3).
 - Application-service tests for the phase are written directly against
-  `UnitOfWorkFactory`/`Clock`/repository-contract test doubles — no
-  Qt/QML test doubles, no concrete SQLAlchemy classes — as the concrete
-  proof of Constraint 2, not just a design claim.
-- Every module phase's typed events come from a discovery/mapping table
-  over that module's actual emitters (Phases 2A/4A, and Phase 5's
-  construction-site table) — never a mechanical rename of old Signal
-  field names to same-shaped class names.
-- A phase is not complete until its old event path is deleted and its
-  QML step lands (Constraint 4) — no phase ships with two live mechanisms
-  for the same module past its own close.
-- Every mutated aggregate is persisted through its repository's explicit
-  `update`/`add`, called before `uow.commit()` — never assumed to be
-  captured by `commit()` alone (round five; this codebase's own
-  `Task.update()`, a raw version-checked `UPDATE` bypassing ORM tracking
-  entirely, is why this can't be assumed uniformly).
-- A phase is not closed until a real test confirms the module's existing
-  UI/query path observes a fresh-`UnitOfWork` command's committed change
-  without an app restart (Constraint 5) — "the `ViewInvalidationHint`
-  fired" is not sufficient evidence on its own; SQLAlchemy's identity map
-  can leave a long-lived session's cached instance stale even after a
-  correct hint is delivered.
-- Each migrated module gets its own `<Module>UnitOfWork`/
-  `<Module>UnitOfWorkFactory` protocol pair and thin
-  `SqlAlchemy<Module>UnitOfWork(SqlAlchemyUnitOfWorkBase)` concrete class
-  — never one shared cross-module concrete `UnitOfWork` accumulating
-  every migrated module's repository accessors.
-- No silent scope drift: if a phase's module turns out to need something
-  ADR-005 didn't anticipate (e.g. a real cross-aggregate transactional
-  handler in `inventory_procurement`), that's a correction to ADR-005
-  itself, raised before the phase closes — not a local workaround.
+  `UnitOfWorkFactory`/`Clock`/repository-contract test doubles — no Qt/QML test doubles, no
+  concrete SQLAlchemy classes.
+- Every module's/capability's typed events come from a discovery/mapping table over actual
+  emitters — never a mechanical rename of old Signal field names to same-shaped class names.
+- A phase is not complete until its old event path is deleted and its QML step lands
+  (Constraint 4).
+- Every mutated aggregate is persisted through its repository's explicit `update`/`add`, called
+  before `uow.commit()` — never assumed captured by `commit()` alone.
+- A phase is not closed until a real test confirms the module's/capability's existing UI/query
+  path observes a fresh-`UnitOfWork` command's committed change without an app restart
+  (Constraint 5).
+- **NEW:** a phase is not closed until the tenant/organization isolation test matrix (ADR-005 Test
+  Impact) passes for every event/hint type that phase introduced (Constraint 6) — "the tenant
+  filter works" is not sufficient evidence on its own once organization scoping exists.
+- Each migrated module/capability gets its own `<Name>UnitOfWork`/`<Name>UnitOfWorkFactory`
+  protocol pair and thin concrete subclass — never one shared cross-module/cross-capability
+  concrete `UnitOfWork`.
+- No silent scope drift: if a phase's module/capability needs something ADR-005 didn't
+  anticipate, that's a correction to ADR-005 itself, raised before the phase closes — not a local
+  workaround.
 
 ## Sequencing Summary
 
 | Phase | Scope | Size / Risk | Blocking dependency |
 |---|---|---|---|
-| 0 | Shared event contracts (no `UnitOfWork` yet) | None, additive | ADR-005 accepted |
-| 1 | `UnitOfWork` contract + concrete impl + session-factory lifecycle | None, additive | Phase 0 |
-| 2A/2B | `inventory_procurement` discovery + migration (pilot) | Small, real usage | Phase 1 |
-| 3 | `hr_management` / `payroll` / `qhse` | No-op until a module needs it | Phase 0/1 only |
-| 4A/4B | `project_management` discovery + migration | Large; in-flight PM Collaboration Upgrade | Phase 2 proven; PM Collaboration Upgrade backend stable + user confirmation |
-| 5 | `maintenance` | Large; most tangled call sites (25 raw constructions) | Phases 2 and 4 proven |
-| 6 | Platform signals — per-signal classification | Blocked on a decision, not effort | User sign-off on classification table |
-| 7 | Retire old mechanism (incl. bridge signals) | — | All prior phases closed |
+| 0 | Shared event contracts (no `UnitOfWork` yet), incl. `DomainEventContext` and organization-aware `ViewInvalidationHint` | None, additive | ADR-005 accepted |
+| 1 | `UnitOfWork` contract + concrete impl + session-factory lifecycle + `record_event`/`context` | None, additive | Phase 0 |
+| **2** | **Platform Foundation** — direct session-parameterized convergence for the 8 approval-backed services (2A-PRE, 2 steps per Round 8), transaction convergence (`ApprovalService` et al., 2A), typed events + invalidation for Platform's own 11 signals, Qt adapter consolidation, legacy bridge/cutover | **Large; new phase this revision; 2A-PRE added in the second 2026-08-25 pass, revised to 2 direct steps in the third** | Phase 1; gates every module phase below |
+| 3 | `inventory_procurement` discovery + migration (pilot module) | Small, real usage | Phase 2's "Platform Domain Event Foundation Ready" |
+| 4 | `hr_management` / `payroll` / `qhse` | No-op until a module needs it | Phase 0/1/2 only |
+| 5 | `project_management` discovery + migration | Large; in-flight PM Collaboration Upgrade — re-verify current state before starting | Phase 3 proven; PM Collaboration Upgrade state re-confirmed |
+| 6 | ~~`maintenance`~~ | **Struck — module deleted 2026-08-20** | — |
+| 7 | Retire old mechanism (incl. bridge signals, `Signal` → `CallbackSignal` rename) | — | All prior phases closed |

@@ -324,11 +324,8 @@ def test_reporting_api_populates_optional_contexts(monkeypatch, tmp_path):
 def test_reporting_api_requires_report_export_permission_from_live_session(services, tmp_path):
     tenant_id = services["user_session"].stored_active_tenant_id()
     organization_id = services["user_session"].stored_active_organization_id()
-    services["module_catalog_service"].set_module_state(
-        "project_management",
-        licensed=True,
-        enabled=True,
-    )
+    services["module_catalog_service"].license_module(organization_id, "project_management")
+    services["module_catalog_service"].enable_module(organization_id, "project_management")
     services["user_session"].set_principal(
         UserSessionPrincipal(
             user_id="u-report",

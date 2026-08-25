@@ -76,7 +76,6 @@ caught, the item below reflects the verified-against-code status, not just the d
 **Detail:** `docs/ARCHITECTURE.md` (§4–7), `docs/architecture/enterprise-platform-architecture.md`, `docs/architecture_decisions/ADR-001*`, `docs/platform_alignment_followup/auth_access_scaling/README.md`
 
 - **MFA is non-functional end-to-end** — TOTP backend is correct, but the QML login form never presents a code-entry field, so any account with MFA enabled becomes unreachable through the UI.
-- Password hashing is custom PBKDF2-SHA256 (390k iterations) — recommended migration to Argon2id (memory-hard, current NIST/OWASP recommendation), with a re-hash-on-login migration path.
 - Replace the custom TOTP implementation with `pyotp`.
 - `is_platform_admin()` is dead code — `"platform.admin"` permission is never seeded or assigned to any role; always returns `False`.
 - `user_roles` table's `UNIQUE(user_id, role_id)` constraint is missing `organization_id` — makes it impossible to assign the same role to a user in two different organizations.

@@ -530,17 +530,15 @@ Construction steps:
 
 ### 4.4 Password Hashing
 
-Location: `src/core/platform/auth/passwords.py`
+Location: `src/core/platform/domain/security/auth/credentials/passwords.py`
 
-The implementation uses **custom PBKDF2-SHA256** with 390,000 iterations and a 16-byte random salt. The stored format is:
+The implementation uses **Argon2id** through `argon2-cffi`, with explicit costs of 19 MiB memory, 2 iterations, parallelism 1, a 16-byte random salt, and a 32-byte hash. The stored value uses standard PHC encoding:
 
 ```
-pbkdf2_sha256$390000$<base64-salt>$<base64-digest>
+$argon2id$v=19$m=19456,t=2,p=1$<salt>$<hash>
 ```
 
-Also supports `pbkdf2_sha512` for verification of legacy hashes.
-
-**Security note:** PBKDF2 at 390,000 iterations is acceptable but not state-of-the-art. The recommended replacement is **argon2id** (memory-hard KDF). The constant `_DEFAULT_ITERATIONS = 390_000` is not configurable at runtime.
+PBKDF2 and non-Argon2id hashes are rejected because the product is pre-release. Valid Argon2id hashes with obsolete costs are upgraded after password and MFA verification and persisted atomically with successful authentication.
 
 ### 4.5 Multi-Factor Authentication
 
@@ -1194,7 +1192,6 @@ Optimistic locking updates (`update_with_version_check()` from `infra/persistenc
 | # | Risk | Location | Impact |
 |---|---|---|---|
 | H-1 | `is_platform_admin()` checks `"platform.admin"` permission that is never seeded. Always returns `False`. Dead code. | `UserSessionContext.is_platform_admin()` | Future code relying on this will silently grant no access |
-| H-2 | Custom PBKDF2-SHA256 password hashing. State-of-the-art is argon2id. | `src/core/platform/auth/passwords.py` | Weaker resistance to GPU-accelerated cracking |
 | H-3 | MFA is implemented in the backend but the UI login screen never collects a TOTP code. MFA is non-functional. | UI login screen | MFA provides no actual protection |
 | H-4 | `user_roles` unique constraint is on `(user_id, role_id)` only. Prevents multi-org role assignment. | `user_roles` table schema | Broken RBAC for multi-org users |
 | H-5 | No `tenant_admin` or `org_admin` role. The only role with management permissions is `admin`, which is a global superuser. | `DEFAULT_ROLE_PERMISSIONS` in `policy.py` | No delegated administration within a tenant |
@@ -2423,9 +2420,9 @@ The method currently deactivates organizations across all tenants for a user rat
 
 MFA is non-functional: the UI never collects a TOTP code and `mfa_service.py` exists but is not called in the authentication path for platform-level or tenant-admin accounts. Platform Admin accounts must enforce MFA as a prerequisite to role activation.
 
-**14. Password hashing upgrade (MEDIUM)**
+**14. Password hashing upgrade (COMPLETE)**
 
-Current implementation uses custom PBKDF2 (`passwords.py`). Platform Admin and Tenant Admin accounts should require argon2id before those roles are provisioned.
+All password creation and verification paths use Argon2id. PBKDF2 compatibility was intentionally removed before release, and platform/tenant administrators use the same canonical password primitive.
 
 **15. Tenant creation API (MISSING)**
 
@@ -2649,7 +2646,7 @@ A "context" in this architecture is a piece of session-bound state that scopes a
 
 **Known gaps:**
 - MFA is non-functional: the UI never collects a TOTP code. `auth_sessions.mfa_verified` is never set to True via a real TOTP check.
-- Password hashing uses a custom PBKDF2 implementation rather than argon2id. This should be treated as a security gap.
+- Password hashing uses canonical Argon2id with explicit OWASP baseline costs; the former PBKDF2 gap is closed.
 - The 60-second re-validation window means a revoked session (e.g. after role change) remains valid for up to 60 seconds.
 
 ---
@@ -2761,7 +2758,7 @@ The table below assesses whether the current codebase fully supports each contex
 | Project Context | Navigation-only | Acceptable | No session persistence is by design; `project_memberships` handles project-level grants correctly |
 | Permission Context | Yes | Complete | `is_platform_admin()` dead code (checks unseeded `"platform.admin"` code); otherwise fully functional |
 | Role Context | Yes | Partial | Missing `tenant_admin` and `org_admin` roles; `user_roles` unique constraint bug breaks multi-org assignments |
-| Session Context | Yes | Partial | MFA non-functional; password hashing suboptimal (PBKDF2, not argon2id); 60s re-validation window leaves revoked sessions briefly active |
+| Session Context | Yes | Partial | Argon2id password hashing is complete; MFA and the 60s session re-validation window remain separate concerns |
 
 ---
 
@@ -2779,7 +2776,7 @@ The table below assesses whether the current codebase fully supports each contex
 
 **What it does:** Normalises username to lowercase, optionally validates email, validates password, checks for duplicate username and duplicate federated identity, applies SoD enforcement on the requested role set, creates a `UserAccount` domain object via `UserAccount.create()`, persists it via `_user_role_repo.add()`, assigns initial roles, and commits. Emits `domain_events.auth_changed` and writes an audit entry (`operation="create"`, `severity="high"`, `compliance_tag="SOC2"`).
 
-**Table/columns set:** `users.id`, `users.username` (normalised lower), `users.password_hash` (PBKDF2-SHA256 via `hash_password()`), `users.display_name`, `users.email` (nullable), `users.is_active` (default True), `users.must_change_password`, `users.session_revision=1`, `users.password_changed_at=now`, `users.created_at`, `users.updated_at`, `users.version=1`. Identity-provider fields populated if federated.
+**Table/columns set:** `users.id`, `users.username` (normalised lower), `users.password_hash` (Argon2id PHC string via `hash_password()`), `users.display_name`, `users.email` (nullable), `users.is_active` (default True), `users.must_change_password`, `users.session_revision=1`, `users.password_changed_at=now`, `users.created_at`, `users.updated_at`, `users.version=1`. Identity-provider fields populated if federated.
 
 **What is present that the outline assumed missing:**
 - `email` column exists on `UserORM` and `UserAccount` (`String(256), nullable=True`).
@@ -2883,7 +2880,7 @@ Three methods exist in `password_service.py`, all exposed via `AuthService`:
 
 3. `reset_user_password(user_id, new_password)` — requires `auth.manage`. Admin directly sets a new password hash, forces `must_change_password=True`, rotates session, revokes persisted sessions. Audit: `severity="high"`, `action="password.reset"`.
 
-**What is present and correct:** `must_change_password` column on `users` table is populated and respected. Session revocation on password change is implemented. Password hashing uses PBKDF2-SHA256 with 390,000 iterations and a 16-byte random salt — secure by current NIST SP 800-132 guidance, though argon2id is preferred for new systems.
+**What is present and correct:** `must_change_password` column on `users` table is populated and respected. Session revocation on password change is implemented. Password hashing uses Argon2id with the explicit OWASP baseline profile; PBKDF2 hashes are rejected.
 
 **What is missing:**
 - No token-based self-service reset flow. There is no `password_reset_tokens` table, no token generation, no email delivery, and no token-acceptance endpoint. The only way a user can reset a forgotten password is for an admin to call `reset_user_password()` directly.
@@ -3037,7 +3034,7 @@ Columns currently tracking state on `users` table:
 |---|---|---|---|
 | `id` | `String` PK | No | Platform-generated UUID-style |
 | `username` | `String(128)` UNIQUE | No | Normalised to lowercase |
-| `password_hash` | `String` | No | PBKDF2-SHA256 encoded string |
+| `password_hash` | `String` | No | Argon2id PHC-encoded string |
 | `display_name` | `String(256)` | Yes | |
 | `email` | `String(256)` | Yes | Not unique; not verified |
 | `identity_provider` | `String(128)` | Yes | Federated SSO provider key |
@@ -3098,7 +3095,7 @@ Every lifecycle operation that exists produces an `audit_entries` row. The audit
 MFA has no enforcement policy. It is optional per user with no per-tenant or per-role mandate. A tenant administrator cannot require MFA for their members. There is no grace period concept because MFA cannot be mandated. The planned fix (per the context note) would require a `tenant_mfa_policy` or `organization_mfa_policy` table and enforcement at the `authenticate()` path.
 
 ### 7. Password Hashing
-PBKDF2-SHA256 with 390,000 iterations and a 16-byte salt. Meets NIST SP 800-132 minimum requirements for 2024. Argon2id (via the `argon2-cffi` library) is preferred for new systems as it provides memory hardness against GPU-based attacks. Migration to argon2id would require a hash-format migration: detect the `pbkdf2_sha256$` prefix in `verify_password()`, re-hash on successful verification.
+Argon2id via `argon2-cffi`, using 19 MiB memory, 2 iterations, parallelism 1, a 16-byte random salt, and a 32-byte hash. Only Argon2id PHC strings authenticate. Valid hashes with obsolete Argon2id costs are rehashed after complete credential verification; PBKDF2 migration code is intentionally absent because the product is pre-release.
 
 ---
 
@@ -3491,7 +3488,7 @@ When `TenantAdminService.create_tenant()` runs with `auto_provision=True`, the f
 
 2. **Admin User**
    - `username` = caller-supplied `admin_username`
-   - `password_hash` = hashed `admin_password` (current PBKDF2; target argon2id per D10)
+   - `password_hash` = Argon2id-hashed `admin_password`
    - `is_active` = True
    - `must_change_password` = True (force password change on first login)
    - A `user_roles` row: `role_id = admin role id`, `organization_id = default org id`
@@ -4522,11 +4519,9 @@ Evaluate the current architecture's readiness for each deployment model.
 
 **Risks:**
 - MFA non-functional (MEDIUM)
-- Custom PBKDF2 password hashing (LOW for single-user desktop)
 
 **Required changes for full 100:**
 - Fix MFA UI to collect and validate TOTP code
-- Replace custom PBKDF2 with argon2id
 
 ---
 
@@ -5434,7 +5429,7 @@ Individual callers pass arbitrary strings. There is no canonical enum, no valida
 No domain events, activity entries, or audit entries are defined for: `TenantCreated`, `TenantSuspended`, `OrganizationCreated`, `OrganizationDeactivated`. These are the highest-severity events in a multi-tenant system and should be the first entries in all three systems.
 
 ### Gap 12 — Cross-system: MFA and password events are structurally incomplete
-MFA is non-functional (UI never collects the TOTP code). Password hashing uses custom PBKDF2 rather than argon2id. Auth audit events for MFA (`mfa.enabled`, `mfa.disabled`, `mfa.challenge_failed`) exist as code paths but produce no verified audit trail because the flows are never exercised. When MFA is fixed, the audit path must be validated end-to-end.
+MFA is non-functional (UI never collects the TOTP code). Password hashing now uses canonical Argon2id. Auth audit events for MFA (`mfa.enabled`, `mfa.disabled`, `mfa.challenge_failed`) exist as code paths but produce no verified audit trail because the flows are never exercised. When MFA is fixed, the audit path must be validated end-to-end.
 
 ---
 
@@ -6012,7 +6007,7 @@ This report evaluates readiness to execute each major architectural change ident
 | P5 | Scope `list_all()` `UserRepository` to tenant | LOW | HIGH | 1 |
 | P5 | Add `@requires_module` decorator | LOW | LOW | 1 |
 | P5 | Add `site_admin` + `department_manager` roles | MEDIUM | LOW | 2 |
-| P6 | Replace PBKDF2 with argon2id | LOW | MEDIUM | 1 |
+| P6 | Argon2id password hashing | COMPLETE | COMPLETE | 0 |
 | P6 | Fix MFA UI (collect TOTP code) | LOW | HIGH | 1 |
 | P6 | Replace custom TOTP with pyotp | LOW | LOW | 1 |
 | P7 | Harden nullable `org_id` columns (employees, time_entries) | LOW | MEDIUM | 1 |
@@ -6196,12 +6191,12 @@ Cross-tenant guard added: if `organization.tenant_id` is set and does not match 
 
 ## Phase 3 — Auth Hardening (Weeks 11-12)
 
-1. Replace PBKDF2 with argon2id in `password_service.py`. Use a transparent migration strategy: re-hash on successful login so that existing passwords are upgraded without requiring a password reset.
+1. **Complete:** Argon2id is canonical in `domain/security/auth/credentials/passwords.py`. This is a clean pre-release PBKDF2 cutover; only obsolete Argon2id cost profiles are rehashed after successful credential verification.
 2. Fix MFA UI to collect the TOTP code at login time. The current implementation stores the TOTP secret but never validates it during authentication.
 3. Replace the custom TOTP implementation with `pyotp` to reduce maintenance surface and align with RFC 6238.
 4. Add `organizations.status` enum (`active`, `suspended`, `archived`) to replace the `is_active` boolean. Retain `is_active` as a computed property for backward compatibility during the transition period.
 
-**Exit criteria:** Existing password hashes verified to still authenticate (upgrade path working). MFA enrollment and login verified end-to-end with a TOTP app. No auth regressions.
+**Exit criteria:** Argon2id creation/verification and cost-profile rehash are covered end-to-end. PBKDF2 fails closed by design. MFA enrollment and login still require their independent exit-gate validation.
 
 ---
 

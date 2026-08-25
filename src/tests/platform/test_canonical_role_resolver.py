@@ -16,6 +16,9 @@ from src.core.platform.domain.security.auth import (
     RolePermissionBinding,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
+    SqlAlchemyRoleBindingRepository,
+)
 
 
 def _resolver(services, *, owned_scopes=None) -> CanonicalRoleResolver:
@@ -38,11 +41,13 @@ def _resolver(services, *, owned_scopes=None) -> CanonicalRoleResolver:
 
 
 def _role_repositories(services):
+    # P5C-1: RoleGovernanceService no longer holds its own `_role_binding_repo` (it opens a
+    # fresh UoW-bound one per mutation) -- a freshly-constructed repository bound to the same
+    # shared test `session` reads/writes the identical underlying data for setup/assertion
+    # purposes, exactly like `auth._role_repo`/etc. below already do.
     auth = services["auth_service"]
     return SimpleNamespace(
-        role_binding_repo=(
-            services["role_governance_service"]._role_binding_repo
-        ),
+        role_binding_repo=SqlAlchemyRoleBindingRepository(services["session"]),
         role_repo=auth._role_repo,
         role_permission_repo=auth._role_permission_repo,
         permission_repo=auth._permission_repo,

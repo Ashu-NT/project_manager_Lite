@@ -25,6 +25,7 @@ from src.core.platform.application.platform_runtime import (
     PlatformRuntimeApplicationService,
     resolve_platform_runtime_application_service,
 )
+from src.core.shared.events.view_invalidation import ViewInvalidationChannel
 from src.core.modules.inventory_procurement.api.desktop import (
     InventoryProcurementCatalogDesktopApi,
     InventoryProcurementDashboardDesktopApi,
@@ -94,6 +95,11 @@ from src.core.platform.application.master_data.site.site_service import SiteServ
 class DesktopApiRegistry:
     integration_capability: IntegrationCapabilityDesktopApi
     platform_runtime: PlatformRuntimeDesktopApi
+    # P5A + Organization-specific P6A cutover: the transport-independent ViewInvalidationChannel,
+    # exposed here (not a Qt type) so the ui_qml layer can build its own Qt adapter
+    # (OrganizationViewInvalidationAdapter) on top of it. No Qt/PySide6 dependency belongs in this
+    # file -- see src/ui_qml/platform/adapters/ for the actual Qt-facing translation.
+    platform_view_invalidation_channel: ViewInvalidationChannel | None
     platform_calendar: None  # removed â€” use platform_enterprise_calendar instead
     platform_enterprise_calendar: EnterpriseCalendarDesktopApi | None
     platform_site: PlatformSiteDesktopApi
@@ -294,6 +300,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     )
     return DesktopApiRegistry(
         integration_capability=integration_capability,
+        platform_view_invalidation_channel=services.get("platform_view_invalidation_channel"),
         platform_runtime=PlatformRuntimeDesktopApi(
             platform_runtime_application_service=platform_runtime_application_service,
         ),

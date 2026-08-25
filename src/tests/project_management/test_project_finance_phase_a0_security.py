@@ -91,11 +91,8 @@ def test_finance_permissions_are_registered_and_granted_only_to_intended_roles()
 def test_finance_export_requires_distinct_export_permission(services):
     tenant_id = services["user_session"].stored_active_tenant_id()
     organization_id = services["user_session"].stored_active_organization_id()
-    services["module_catalog_service"].set_module_state(
-        "project_management",
-        licensed=True,
-        enabled=True,
-    )
+    services["module_catalog_service"].license_module(organization_id, "project_management")
+    services["module_catalog_service"].enable_module(organization_id, "project_management")
     user_session = services["user_session"]
     user_session.set_principal(
         UserSessionPrincipal(

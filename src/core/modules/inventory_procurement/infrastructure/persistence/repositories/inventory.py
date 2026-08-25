@@ -123,6 +123,14 @@ class SqlAlchemyStoreroomRepository(StoreroomRepository, InventoryTenantScopedRe
         )
         return storeroom_from_orm(obj) if obj else None
 
+    def get_for_tenant(self, storeroom_id: str, tenant_id: str) -> Storeroom | None:
+        stmt = select(StoreroomORM).where(
+            StoreroomORM.id == storeroom_id,
+            StoreroomORM.tenant_id == tenant_id,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return storeroom_from_orm(obj) if obj else None
+
     def get_by_code(self, organization_id: str, storeroom_code: str) -> Storeroom | None:
         ctx = self._context(operation_label="get storeroom by code")
         if not self._organization_in_scope(ctx, organization_id):

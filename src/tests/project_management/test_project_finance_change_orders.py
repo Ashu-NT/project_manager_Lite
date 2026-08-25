@@ -394,7 +394,7 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
 
     _login(services, "admin", "ChangeMe123!")
     monkeypatch.setattr(
-        changes,
+        type(changes),
         "_audit_change",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
             RuntimeError("audit unavailable")

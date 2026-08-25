@@ -1,0 +1,79 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import date
+
+
+@dataclass(frozen=True, slots=True)
+class OwnerTimesheetPeriodDesktopDto:
+    period_id: str
+    resource_id: str
+    resource_name: str
+    period_start: date
+    period_end: date
+    period_label: str
+    status: str
+    status_label: str
+    version: int
+    total_hours: float
+    total_hours_label: str
+    entry_count: int
+    project_count: int
+    task_count: int
+    submitted_at_label: str
+    decided_at_label: str
+    return_reason: str
+    can_add_entry: bool
+    can_edit_entry: bool
+    can_delete_entry: bool
+    can_submit: bool
+    can_resubmit: bool
+    can_view_return_reason: bool
+
+
+@dataclass(frozen=True, slots=True)
+class OwnerTimesheetEntryDesktopDto:
+    entry_id: str
+    assignment_id: str
+    work_date: date
+    work_date_label: str
+    hours: float
+    hours_label: str
+    description: str
+    project_id: str
+    project_code: str
+    project_name: str
+    task_id: str
+    task_code: str
+    task_name: str
+    activity_type: str
+    can_edit: bool
+    can_delete: bool
+
+
+@dataclass(frozen=True, slots=True)
+class OwnerTimesheetEntryPageDesktopDto:
+    items: tuple[OwnerTimesheetEntryDesktopDto, ...] = ()
+    total: int = 0
+    page: int = 1
+    page_size: int = 25
+    sort_key: str = "date"
+    sort_direction: str = "desc"
+
+
+@dataclass(frozen=True, slots=True)
+class OwnerTimesheetHistoryPageDesktopDto:
+    items: tuple[OwnerTimesheetPeriodDesktopDto, ...] = ()
+    total: int = 0
+    page: int = 1
+    page_size: int = 12
+    sort_key: str = "period"
+    sort_direction: str = "desc"
+
+
+__all__ = [
+    "OwnerTimesheetEntryDesktopDto",
+    "OwnerTimesheetEntryPageDesktopDto",
+    "OwnerTimesheetHistoryPageDesktopDto",
+    "OwnerTimesheetPeriodDesktopDto",
+]

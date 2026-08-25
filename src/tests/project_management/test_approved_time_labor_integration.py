@@ -12,6 +12,7 @@ from src.core.modules.project_management.domain.financials.rate_cards import Rat
 from src.core.modules.project_management.infrastructure.persistence.orm.labor_posting import ApprovedTimeLaborPostingORM
 from src.core.platform.integration import InboxProcessingStatus, OutboxDeliveryStatus
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
+from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.platform.infrastructure.persistence.orm.time_management.time_financial_outbox import TimeFinancialOutboxORM
 from src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox import ProjectFinanceInboxORM
 from src.core.shared.events.domain_events import domain_events
@@ -62,7 +63,9 @@ def test_approved_time_posts_once_and_correction_reverses_and_replaces(services)
         assignment.id, entry_date=date(2026, 5, 4), hours=Decimal("4"), note="Initial"
     )
     submitted = time.submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
-    approved = time.approve_timesheet_period(submitted.period_id, note="Approved")
+    approved = time.approve_timesheet_period(
+        submitted.period_id, expected_version=submitted.version, note="Approved"
+    )
     assert approved.locked_at is None
 
     rows, total = services["cost_entry_service"].list_for_project(project.id)
@@ -81,18 +84,30 @@ def test_approved_time_posts_once_and_correction_reverses_and_replaces(services)
     assert session.execute(select(TimeFinancialOutboxORM.status)).scalar_one() == OutboxDeliveryStatus.PUBLISHED.value
     assert session.execute(select(ProjectFinanceInboxORM.status)).scalar_one() == InboxProcessingStatus.PROCESSED.value
 
-    locked = time.lock_timesheet_period(resource.id, period_start=date(2026, 5, 1))
+    locked = time.lock_timesheet_period(
+        approved.period_id, expected_version=approved.version
+    )
     assert locked.status.value == "LOCKED"
     _, unchanged_total = services["cost_entry_service"].list_for_project(project.id)
     assert unchanged_total == 1
-    time.unlock_timesheet_period(locked.period_id, note="Unlock correction control")
+    unlocked = time.unlock_timesheet_period(
+        locked.period_id,
+        expected_version=locked.version,
+        note="Unlock correction control",
+    )
     reopened = time.reopen_approved_timesheet_period_for_correction(
-        locked.period_id, note="Correct entered hours"
+        unlocked.period_id,
+        expected_version=unlocked.version,
+        note="Correct entered hours",
     )
     assert reopened.status.value == "OPEN"
     tasks.update_time_entry(entry.id, hours=Decimal("5"), note="Corrected")
     resubmitted = time.submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
-    time.approve_timesheet_period(resubmitted.period_id, note="Correction approved")
+    time.approve_timesheet_period(
+        resubmitted.period_id,
+        expected_version=resubmitted.version,
+        note="Correction approved",
+    )
 
     rows, total = services["cost_entry_service"].list_for_project(project.id)
     assert total == 3
@@ -113,7 +128,11 @@ def test_rejected_time_creates_no_financial_delivery(services) -> None:
         assignment.id, entry_date=date(2026, 5, 5), hours=Decimal("2")
     )
     submitted = time.submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
-    time.reject_timesheet_period(submitted.period_id, note="Needs correction")
+    time.reject_timesheet_period(
+        submitted.period_id,
+        expected_version=submitted.version,
+        note="Needs correction",
+    )
     assert services["session"].execute(select(TimeFinancialOutboxORM)).scalars().all() == []
 
 
@@ -130,9 +149,65 @@ def test_approval_rolls_back_when_atomic_outbox_write_fails(services, monkeypatc
 
     monkeypatch.setattr(services["time_financial_outbox_service"], "enqueue", _fail)
     with pytest.raises(RuntimeError, match="outbox unavailable"):
-        time.approve_timesheet_period(submitted.period_id)
+        time.approve_timesheet_period(
+            submitted.period_id, expected_version=submitted.version
+        )
     persisted = services["timesheet_service"]._timesheet_period_repo.get(submitted.period_id)
     assert persisted.status is TimesheetPeriodStatus.SUBMITTED
+    assert services["session"].execute(select(TimeFinancialOutboxORM)).scalars().all() == []
+
+
+def test_stale_reviewer_cannot_overwrite_an_approved_period(services) -> None:
+    _, _, resource, _, assignment = _setup(services)
+    time = services["timesheet_service"]
+    services["task_service"].add_time_entry(
+        assignment.id, entry_date=date(2026, 5, 9), hours=Decimal("3")
+    )
+    submitted = time.submit_timesheet_period(
+        resource.id, period_start=date(2026, 5, 1)
+    )
+    approved = time.approve_timesheet_period(
+        submitted.period_id, expected_version=submitted.version
+    )
+
+    with pytest.raises(ConcurrencyError) as error:
+        time.reject_timesheet_period(
+            submitted.period_id,
+            expected_version=submitted.version,
+            note="Stale return attempt",
+        )
+
+    assert error.value.code == "TIMESHEET_PERIOD_STALE"
+    persisted = time._timesheet_period_repo.get(submitted.period_id)
+    assert persisted.status is TimesheetPeriodStatus.APPROVED
+    assert persisted.version == approved.version
+
+
+def test_audit_failure_rolls_back_transition_version_and_outbox(services, monkeypatch) -> None:
+    _, _, resource, _, assignment = _setup(services)
+    time = services["timesheet_service"]
+    services["task_service"].add_time_entry(
+        assignment.id, entry_date=date(2026, 5, 10), hours=Decimal("3")
+    )
+    submitted = time.submit_timesheet_period(
+        resource.id, period_start=date(2026, 5, 1)
+    )
+
+    def fail_audit(*_args, **_kwargs):
+        raise RuntimeError("audit unavailable")
+
+    monkeypatch.setattr(
+        "src.core.platform.application.time_management.time.timesheet_periods.record_audit_entry",
+        fail_audit,
+    )
+    with pytest.raises(RuntimeError, match="audit unavailable"):
+        time.approve_timesheet_period(
+            submitted.period_id, expected_version=submitted.version
+        )
+
+    persisted = time._timesheet_period_repo.get(submitted.period_id)
+    assert persisted.status is TimesheetPeriodStatus.SUBMITTED
+    assert persisted.version == submitted.version
     assert services["session"].execute(select(TimeFinancialOutboxORM)).scalars().all() == []
 
 
@@ -149,7 +224,9 @@ def test_closed_financial_period_keeps_approved_time_retryable_without_posting(s
         resource.id, period_start=date(2026, 5, 1)
     )
     approved = services["timesheet_service"].approve_timesheet_period(
-        submitted.period_id, note="Approved source fact"
+        submitted.period_id,
+        expected_version=submitted.version,
+        note="Approved source fact",
     )
 
     assert approved.status is TimesheetPeriodStatus.APPROVED
@@ -177,7 +254,9 @@ def test_post_commit_ui_refresh_failure_does_not_retry_financial_delivery(servic
 
     domain_events.cost_entries_changed.connect(_fail_refresh)
     try:
-        services["timesheet_service"].approve_timesheet_period(submitted.period_id)
+        services["timesheet_service"].approve_timesheet_period(
+            submitted.period_id, expected_version=submitted.version
+        )
     finally:
         domain_events.cost_entries_changed.disconnect(_fail_refresh)
 

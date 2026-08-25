@@ -155,6 +155,20 @@ class _FakeTimesheetPeriodRepo:
     def update(self, period: TimesheetPeriod) -> None:
         self._rows[period.id] = period
 
+    def transition(
+        self,
+        period: TimesheetPeriod,
+        *,
+        expected_status: TimesheetPeriodStatus,
+        expected_version: int,
+    ) -> TimesheetPeriod:
+        del expected_status
+        if period.version != expected_version:
+            raise AssertionError("stale test period")
+        period.version += 1
+        self._rows[period.id] = period
+        return period
+
     def get_by_resource_period(self, resource_id: str, period_start: date) -> TimesheetPeriod | None:
         for row in self._rows.values():
             if row.resource_id == resource_id and row.period_start == period_start:
@@ -341,6 +355,7 @@ def test_time_service_uses_entity_validation_for_entries_and_periods(monkeypatch
 
     approved = service.approve_timesheet_period(
         submitted.period_id,
+        expected_version=submitted.version,
         note="  Approved  ",
     )
 

@@ -12,15 +12,11 @@ from src.core.modules.project_management.api.desktop.timesheets.formatters.time_
 from src.core.modules.project_management.api.desktop.timesheets.models.periods import (
     TimesheetPeriodSummaryDesktopDto,
 )
-from src.core.modules.project_management.api.desktop.timesheets.models.review import (
-    TimesheetReviewDetailDesktopDto,
-    TimesheetReviewEntryDesktopDto,
+from src.core.modules.project_management.api.desktop.timesheets.models.review import TimesheetReviewDetailDesktopDto
+from src.core.modules.project_management.api.desktop.timesheets.services.project_lookup_service import project_names_from_ids
+from src.core.modules.project_management.contracts.reads.timesheets import (
+    TimesheetReviewInspectorFact,
 )
-from src.core.modules.project_management.api.desktop.timesheets.services.project_lookup_service import (
-    project_name_for_id,
-    project_names_from_ids,
-)
-from src.core.platform.application.time_management.time import TimesheetReviewDetail
 
 
 def serialize_review_summary(
@@ -48,11 +44,19 @@ def serialize_review_summary(
         project_names=tuple(
             project_names_from_ids(row.project_ids, project_service=project_service)
         ),
+        version=int(getattr(row, "version", 1)),
+        project_count=int(getattr(row, "project_count", len(row.project_ids))),
+        task_count=int(getattr(row, "task_count", 0)),
+        generic_entry_count=int(getattr(row, "generic_entry_count", 0)),
+        can_approve=bool(getattr(row, "can_approve", False)),
+        can_reject=bool(getattr(row, "can_reject", False)),
+        can_lock=bool(getattr(row, "can_lock", False)),
+        can_unlock=bool(getattr(row, "can_unlock", False)),
     )
 
 
 def serialize_review_detail(
-    detail: TimesheetReviewDetail,
+    detail: TimesheetReviewInspectorFact,
     *,
     project_service,
 ) -> TimesheetReviewDetailDesktopDto:
@@ -60,21 +64,6 @@ def serialize_review_detail(
         summary=serialize_review_summary(
             detail.summary,
             project_service=project_service,
-        ),
-        entries=tuple(
-            TimesheetReviewEntryDesktopDto(
-                entry_id=entry.entry_id,
-                entry_date_label=entry.entry_date.isoformat(),
-                project_name=project_name_for_id(
-                    entry.project_id,
-                    project_service=project_service,
-                ),
-                task_name=entry.task_name or "-",
-                hours_label=format_hours(entry.hours),
-                author_username=entry.author_username or "unknown",
-                note=entry.note or "",
-            )
-            for entry in detail.entries
         ),
     )
 

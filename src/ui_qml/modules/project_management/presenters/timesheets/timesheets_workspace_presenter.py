@@ -11,16 +11,7 @@ from src.ui_qml.modules.project_management.view_models.timesheets import (
     TimesheetsWorkspaceViewModel,
 )
 
-from .command_handler import (
-    add_time_entry,
-    approve_period,
-    delete_time_entry,
-    lock_period,
-    reject_period,
-    submit_period,
-    unlock_period,
-    update_time_entry,
-)
+from .command_handler import approve_period, lock_period, reject_period, unlock_period
 from .review_builder import build_review_detail
 from .workspace_builder import build_workspace_state
 
@@ -35,9 +26,6 @@ class ProjectTimesheetsWorkspacePresenter:
     def build_workspace_state(
         self,
         *,
-        project_id: str = "all",
-        assignment_id: str | None = None,
-        period_start: str = "",
         queue_status: str = "SUBMITTED",
         queue_search_text: str = "",
         queue_project_id: str = "all",
@@ -46,16 +34,12 @@ class ProjectTimesheetsWorkspacePresenter:
         queue_period_start_to: str = "",
         queue_sort_key: str = "submittedAt",
         queue_sort_direction: str = "desc",
-        selected_entry_id: str | None = None,
         selected_queue_period_id: str | None = None,
         queue_page: int = 1,
         queue_page_size: int = 25,
     ) -> TimesheetsWorkspaceViewModel:
         return build_workspace_state(
             self._desktop_api,
-            project_id=project_id,
-            assignment_id=assignment_id,
-            period_start=period_start,
             queue_status=queue_status,
             queue_search_text=queue_search_text,
             queue_project_id=queue_project_id,
@@ -64,7 +48,6 @@ class ProjectTimesheetsWorkspacePresenter:
             queue_period_start_to=queue_period_start_to,
             queue_sort_key=queue_sort_key,
             queue_sort_direction=queue_sort_direction,
-            selected_entry_id=selected_entry_id,
             selected_queue_period_id=selected_queue_period_id,
             queue_page=queue_page,
             queue_page_size=queue_page_size,
@@ -72,18 +55,6 @@ class ProjectTimesheetsWorkspacePresenter:
 
     def build_review_period_detail(self, period_id: str) -> TimesheetDetailViewModel:
         return build_review_detail(self._desktop_api, period_id)
-
-    def add_time_entry(self, payload: dict[str, Any]) -> None:
-        add_time_entry(self._desktop_api, payload)
-
-    def update_time_entry(self, payload: dict[str, Any]) -> None:
-        update_time_entry(self._desktop_api, payload)
-
-    def delete_time_entry(self, entry_id: str) -> None:
-        delete_time_entry(self._desktop_api, entry_id)
-
-    def submit_period(self, payload: dict[str, Any]) -> None:
-        submit_period(self._desktop_api, payload)
 
     def approve_period(self, payload: dict[str, Any]) -> None:
         approve_period(self._desktop_api, payload)

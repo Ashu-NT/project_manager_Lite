@@ -114,6 +114,46 @@ class _FakeOrganizationRepo:
         return sorted(rows, key=lambda row: row.display_name)
 
 
+class _FakeOrganizationUnitOfWork:
+    """P4B: a minimal stand-in for `SqlAlchemyOrganizationUnitOfWork` -- this file tests
+    `OrganizationService`'s domain-validation/final-state logic against fully in-memory fakes
+    with no real SQLAlchemy Session, so it cannot construct a real
+    `SqlAlchemyOrganizationUnitOfWork`. Wraps the SAME `organization_repo`/
+    `enterprise_audit_service` instances passed to `OrganizationService`'s constructor (not a
+    fresh repo per call) since this fake world has no session-per-call concept -- callers assert
+    against `service._organization_repo` directly across sequential calls."""
+
+    def __init__(self, organization_repo: "_FakeOrganizationRepo", enterprise_audit_service) -> None:
+        self.organizations = organization_repo
+        self._enterprise_audit_service = enterprise_audit_service
+
+    def __enter__(self) -> "_FakeOrganizationUnitOfWork":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        return None
+
+    def commit(self) -> None:
+        return None
+
+    def record_event(self, event) -> None:
+        return None
+
+
+class _FakeOrganizationUnitOfWorkFactory:
+    def __init__(self, organization_repo: "_FakeOrganizationRepo", enterprise_audit_service) -> None:
+        self._organization_repo = organization_repo
+        self._enterprise_audit_service = enterprise_audit_service
+
+    def create(self, *, context) -> _FakeOrganizationUnitOfWork:
+        return _FakeOrganizationUnitOfWork(self._organization_repo, self._enterprise_audit_service)
+
+
+class _FakeClock:
+    def now(self) -> datetime:
+        return datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+
 class _FakeTenantContext:
     def __init__(self, organization_repo: _FakeOrganizationRepo, organization_id: str) -> None:
         self._organization_repo = organization_repo
@@ -166,11 +206,15 @@ def _make_organization_service(monkeypatch: pytest.MonkeyPatch) -> OrganizationS
         "src.core.platform.application.master_data.org.organization_service.require_permission",
         lambda *args, **kwargs: None,
     )
+    organization_repo = _FakeOrganizationRepo()
+    enterprise_audit_service = _FakeEnterpriseAuditService()
     return OrganizationService(
         session=_FakeSession(),
-        organization_repo=_FakeOrganizationRepo(),
+        organization_repo=organization_repo,
+        uow_factory=_FakeOrganizationUnitOfWorkFactory(organization_repo, enterprise_audit_service),
+        clock=_FakeClock(),
         user_session=_FakeUserSession(),
-        enterprise_audit_service=_FakeEnterpriseAuditService(),
+        enterprise_audit_service=enterprise_audit_service,
     )
 
 

@@ -50,11 +50,3 @@ class PlatformRuntimeContextDto:
     licensed_modules: tuple[ModuleDto, ...]
     available_modules: tuple[ModuleDto, ...]
     planned_modules: tuple[ModuleDto, ...]
-
-
-@dataclass(frozen=True)
-class ModuleStatePatchCommand:
-    module_code: str
-    licensed: bool | None = None
-    enabled: bool | None = None
-    lifecycle_status: str | None = None

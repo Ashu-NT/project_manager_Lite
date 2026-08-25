@@ -133,14 +133,23 @@ def test_approval_apply_rolls_back_handler_when_decision_update_fails(
     request = services["approval_service"].list_pending(project_id=project.id)[0]
 
     approvals = services["approval_service"]
-    original_update = approvals._approval_repo.update
+    approval_repo_class = type(approvals._approval_repo)
+    original_update = approval_repo_class.update
 
-    def _fail_decision_update(candidate):
+    # P4 Step 2 (ADR-005 Section 24, Round 7/8): approve_and_apply's actual decision-update now
+    # runs against a fresh PlatformUnitOfWork's own `uow.approvals` -- an independently
+    # constructed ApprovalRepository instance, distinct from `approvals._approval_repo` (kept on
+    # ApprovalService only for read paths and the caller-owned-transaction request_change mode).
+    # An instance-level monkeypatch on `approvals._approval_repo` would no longer reach the fresh
+    # instance, so this patches the class method instead -- every instance shares it, preserving
+    # this test's actual intent (proving decision-update failure rolls back atomically) without
+    # depending on instance identity.
+    def _fail_decision_update(self, candidate):
         if candidate.id == request.id:
             raise RuntimeError("simulated decision persistence failure")
-        return original_update(candidate)
+        return original_update(self, candidate)
 
-    monkeypatch.setattr(approvals._approval_repo, "update", _fail_decision_update)
+    monkeypatch.setattr(approval_repo_class, "update", _fail_decision_update)
     _login(services, "admin", "ChangeMe123!")
 
     emitted_cost_changes: list[str] = []
@@ -180,17 +189,22 @@ def test_approval_apply_rolls_back_handler_when_required_audit_fails(
     request = services["approval_service"].list_pending(project_id=project.id)[0]
 
     approvals = services["approval_service"]
-    audit_service = approvals._enterprise_audit_service
-    original_record = audit_service.record
+    audit_service_class = type(approvals._enterprise_audit_service)
+    original_record = audit_service_class.record
 
-    def _fail_approval_audit(**kwargs):
+    # P4 Step 2 (ADR-005 Section 24, Round 7/8): approve_and_apply's same-transaction audit write
+    # now runs against a fresh PlatformUnitOfWork's own `uow._enterprise_audit_service` --
+    # distinct from `approvals._enterprise_audit_service` (kept on ApprovalService only for the
+    # caller-owned-transaction request_change mode). Patch the class method so the fresh instance
+    # is affected too.
+    def _fail_approval_audit(self, **kwargs):
         if kwargs.get("entity_type") == "approval_request" and (
             kwargs.get("metadata") or {}
         ).get("action") == "governance.approve":
             raise RuntimeError("simulated audit failure")
-        return original_record(**kwargs)
+        return original_record(self, **kwargs)
 
-    monkeypatch.setattr(audit_service, "record", _fail_approval_audit)
+    monkeypatch.setattr(audit_service_class, "record", _fail_approval_audit)
     _login(services, "admin", "ChangeMe123!")
 
     with pytest.raises(RuntimeError, match="simulated audit failure"):

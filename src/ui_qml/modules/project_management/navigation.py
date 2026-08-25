@@ -19,8 +19,9 @@ _INTENT_BY_WORKSPACE_KEY: dict[str, PMWorkspaceIntent] = {
     "projects": PMWorkspaceIntent("work", "projects", "projects"),
     "tasks": PMWorkspaceIntent("work", "tasks", "tasks"),
     "scheduling": PMWorkspaceIntent("work", "scheduling", "planning"),
+    "timesheets": PMWorkspaceIntent("work", "timesheets", "timesheets"),
     "resources": PMWorkspaceIntent("workload", "resources", "resources"),
-    "timesheets": PMWorkspaceIntent("workload", "timesheets", "review_queue"),
+    "review_queue": PMWorkspaceIntent("workload", "review_queue", "review_queue"),
     "financials": PMWorkspaceIntent("finance", "financials"),
     "register": PMWorkspaceIntent("governance", "register", "register"),
     "collaboration": PMWorkspaceIntent("governance", "collaboration", "collaboration"),
@@ -28,7 +29,9 @@ _INTENT_BY_WORKSPACE_KEY: dict[str, PMWorkspaceIntent] = {
 
 PM_WORKSPACE_KEYS = tuple(_INTENT_BY_WORKSPACE_KEY)
 PM_COMPATIBILITY_ROUTE_IDS = tuple(
-    f"project_management.{workspace_key}" for workspace_key in PM_WORKSPACE_KEYS
+    f"project_management.{workspace_key}"
+    for workspace_key in PM_WORKSPACE_KEYS
+    if workspace_key != "review_queue"
 )
 
 

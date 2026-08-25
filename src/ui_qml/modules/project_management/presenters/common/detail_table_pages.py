@@ -98,7 +98,8 @@ def task_assignments_page(page) -> dict[str, object]:
 
 def task_dependencies_page(page) -> dict[str, object]:
     rows = [{
-        "id": item.id, "direction": item.direction_label,
+        "id": item.id, "title": item.linked_task_name,
+        "direction": item.direction_label,
         "taskCode": item.linked_task_code or "--", "linkedTask": item.linked_task_name,
         "dependencyType": item.dependency_type_label,
         "lagDays": (f"+{item.lag_days}d" if item.lag_days > 0 else

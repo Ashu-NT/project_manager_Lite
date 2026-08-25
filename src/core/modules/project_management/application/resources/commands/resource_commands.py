@@ -179,38 +179,39 @@ class ResourceCommandMixin:
         organization_id = self._active_organization_id(operation_label="validate resource scope")
         employee = None
 
-        if resolved_kind == ResourceKind.PERSON and resolved_worker_type == WorkerType.EMPLOYEE:
-            if not employee_id:
+        if resolved_kind == ResourceKind.PERSON:
+            if resolved_worker_type == WorkerType.EMPLOYEE and not employee_id:
                 raise ValidationError(
                     "Employee resources require an employee selection.",
                     code="RESOURCE_EMPLOYEE_REQUIRED",
                 )
-            if self._employee_repo is None:
-                raise BusinessRuleError(
-                    "The employee directory is not configured.",
-                    code="EMPLOYEE_DIRECTORY_REQUIRED",
-                )
-            employee = self._employee_repo.get(employee_id)
-            if employee is None or getattr(employee, "organization_id", None) != organization_id:
-                raise ValidationError(
-                    "Selected employee was not found in the active organization.",
-                    code="EMPLOYEE_NOT_FOUND",
-                )
-            if not getattr(employee, "is_active", True):
-                raise ValidationError("Selected employee is inactive.", code="EMPLOYEE_INACTIVE")
-            if self._resource_repo.employee_link_exists(
-                employee.id,
-                exclude_id=exclude_resource_id,
-            ):
-                raise ValidationError(
-                    "The selected employee is already linked to another resource.",
-                    code="RESOURCE_EMPLOYEE_DUPLICATE",
-                )
-            department_id = getattr(employee, "department_id", None)
-            site_id = getattr(employee, "site_id", None)
+            if employee_id:
+                if self._employee_repo is None:
+                    raise BusinessRuleError(
+                        "The employee directory is not configured.",
+                        code="EMPLOYEE_DIRECTORY_REQUIRED",
+                    )
+                employee = self._employee_repo.get(employee_id)
+                if employee is None or getattr(employee, "organization_id", None) != organization_id:
+                    raise ValidationError(
+                        "Selected employee was not found in the active organization.",
+                        code="EMPLOYEE_NOT_FOUND",
+                    )
+                if not getattr(employee, "is_active", True):
+                    raise ValidationError("Selected employee is inactive.", code="EMPLOYEE_INACTIVE")
+                if self._resource_repo.employee_link_exists(
+                    employee.id,
+                    exclude_id=exclude_resource_id,
+                ):
+                    raise ValidationError(
+                        "The selected employee is already linked to another resource.",
+                        code="RESOURCE_EMPLOYEE_DUPLICATE",
+                    )
+                department_id = getattr(employee, "department_id", None)
+                site_id = getattr(employee, "site_id", None)
         elif employee_id:
             raise ValidationError(
-                "Only employee-engaged person resources may link to an employee.",
+                "Only person resources may link to a directory identity.",
                 code="RESOURCE_EMPLOYEE_LINK_INVALID",
             )
 

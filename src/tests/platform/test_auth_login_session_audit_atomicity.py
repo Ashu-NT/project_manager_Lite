@@ -3,9 +3,15 @@ from __future__ import annotations
 import json
 
 import pytest
+from argon2 import PasswordHasher
+from argon2.low_level import Type
 from sqlalchemy import select
 
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
+from src.core.platform.domain.security.auth.credentials.passwords import (
+    password_needs_rehash,
+    verify_password,
+)
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
     AuditEntryORM,
 )
@@ -57,6 +63,17 @@ def test_successful_login_rolls_back_user_and_session_when_audit_fails(
 ) -> None:
     auth = services["auth_service"]
     target = auth.register_user("atomic-login-success-target", _PASSWORD)
+    target.password_hash = PasswordHasher(
+        time_cost=1,
+        memory_cost=8 * 1024,
+        parallelism=1,
+        hash_len=32,
+        salt_len=16,
+        type=Type.ID,
+    ).hash(_PASSWORD)
+    auth._user_repo.update(target)
+    services["session"].commit()
+    original_hash = target.password_hash
     _fail_tenant_audit(services, monkeypatch)
 
     with pytest.raises(BusinessRuleError) as exc_info:
@@ -70,6 +87,8 @@ def test_successful_login_rolls_back_user_and_session_when_audit_fails(
     assert persisted is not None
     assert persisted.last_login_at is None
     assert persisted.last_login_auth_method is None
+    assert persisted.password_hash == original_hash
+    assert password_needs_rehash(persisted.password_hash) is True
     assert auth._auth_session_repo.list_by_user(target.id) == []
 
 
@@ -226,6 +245,30 @@ def test_successful_login_audit_is_scoped_and_redacted(services) -> None:
     assert "password_hash" not in serialized
     assert _PASSWORD.lower() not in serialized
     assert "federated_subject" not in serialized
+
+
+def test_successful_login_upgrades_obsolete_argon2id_profile(services) -> None:
+    auth = services["auth_service"]
+    target = auth.register_user("argon2-rehash-target", _PASSWORD)
+    target.password_hash = PasswordHasher(
+        time_cost=1,
+        memory_cost=8 * 1024,
+        parallelism=1,
+        hash_len=32,
+        salt_len=16,
+        type=Type.ID,
+    ).hash(_PASSWORD)
+    auth._user_repo.update(target)
+    services["session"].commit()
+
+    assert password_needs_rehash(target.password_hash) is True
+
+    auth.authenticate(target.username, _PASSWORD)
+
+    persisted = auth._user_repo.get(target.id)
+    assert persisted is not None
+    assert verify_password(_PASSWORD, persisted.password_hash) is True
+    assert password_needs_rehash(persisted.password_hash) is False
 
 
 def test_session_policy_rolls_back_user_and_live_sessions_on_audit_failure(

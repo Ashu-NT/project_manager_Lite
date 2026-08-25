@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
-from src.core.platform.api.desktop.platform_runtime.models.runtime import (
-    ModuleEntitlementDto,
-    ModuleStatePatchCommand,
-)
+from src.core.platform.api.desktop.platform_runtime.models.runtime import ModuleEntitlementDto
 from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
 from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionItemViewModel,
@@ -163,13 +160,9 @@ class PlatformSettingsCatalogPresenter:
             return self._validation_error(
                 f"{entitlement.label} is still planned and cannot be licensed yet."
             )
-        return self._runtime_api.patch_module_state(
-            ModuleStatePatchCommand(
-                module_code=entitlement.module_code,
-                licensed=not entitlement.licensed,
-                enabled=entitlement.enabled if entitlement.licensed else False,
-            )
-        )
+        if entitlement.licensed:
+            return self._runtime_api.revoke_module_license(entitlement.module_code)
+        return self._runtime_api.license_module(entitlement.module_code)
 
     def toggle_module_enabled(self, module_code: str) -> DesktopApiResult[object]:
         entitlement_result = self._find_entitlement(module_code)
@@ -188,12 +181,9 @@ class PlatformSettingsCatalogPresenter:
             return self._validation_error(
                 f"{entitlement.label} is {entitlement.lifecycle_label.lower()}. Change its lifecycle status before enabling it."
             )
-        return self._runtime_api.patch_module_state(
-            ModuleStatePatchCommand(
-                module_code=entitlement.module_code,
-                enabled=not entitlement.enabled,
-            )
-        )
+        if entitlement.enabled:
+            return self._runtime_api.disable_module(entitlement.module_code)
+        return self._runtime_api.enable_module(entitlement.module_code)
 
     def change_module_lifecycle_status(
         self,
@@ -218,12 +208,7 @@ class PlatformSettingsCatalogPresenter:
             return self._validation_error(
                 f"Lifecycle status '{lifecycle_status}' is not supported for {entitlement.label}."
             )
-        return self._runtime_api.patch_module_state(
-            ModuleStatePatchCommand(
-                module_code=entitlement.module_code,
-                lifecycle_status=normalized_status,
-            )
-        )
+        return self._runtime_api.transition_module_lifecycle(entitlement.module_code, normalized_status)
 
     def _find_entitlement(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
         if self._runtime_api is None:

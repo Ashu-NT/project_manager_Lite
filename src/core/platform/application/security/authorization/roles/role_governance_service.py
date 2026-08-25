@@ -9,20 +9,14 @@ import json
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.repositories.history.audit.contracts import AuditRepository
 from src.core.platform.domain.history.audit import AuditEntry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     authorization_denied,
     record_authorization_denial,
     require_permission,
 )
-from src.core.platform.contract.repositories.security.auth import (
-    PermissionRepository,
-    RoleBindingRepository,
-    RoleDelegationPolicyRepository,
-    RolePermissionRepository,
-    RoleRepository,
-    UserRepository,
+from src.core.platform.contract.persistence.role_governance_unit_of_work import (
+    RoleGovernanceUnitOfWorkFactory,
 )
 from src.core.platform.domain.security.auth import (
     Role,
@@ -35,22 +29,27 @@ from src.core.platform.domain.security.authorization.roles import (
     RoleDelegationPolicy,
     normalize_role_scope_type,
 )
+from src.core.platform.application.security.authorization.roles.role_binding_scope import (
+    ResolvedRoleBindingScope,
+    ResourceBindingScope,
+    TenantBindingScope,
+)
 from src.core.platform.domain.security.authorization.enforcement.sod import SeparationOfDutiesPolicy
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     NotFoundError,
     ValidationError,
 )
-from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
-    TenantRepository,
-    UserTenantMembershipRepository,
-)
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.common.ids import generate_id
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_events import domain_events
 
 
-ScopeExistsResolver = Callable[[str, str], bool]
 ROLE_ASSIGN_PERMISSION = "auth.role.assign"
+
+ScopeExistsResolver = Callable[[Session, str, str], bool]
+OrganizationOwnerResolver = Callable[[Session, str, str], "str | None"]
 
 
 class RoleGovernanceService:
@@ -59,38 +58,27 @@ class RoleGovernanceService:
     def __init__(
         self,
         *,
-        session: Session,
-        role_repo: RoleRepository,
-        role_binding_repo: RoleBindingRepository,
-        delegation_repo: RoleDelegationPolicyRepository,
-        role_permission_repo: RolePermissionRepository,
-        permission_repo: PermissionRepository,
-        user_repo: UserRepository,
-        tenant_repo: TenantRepository,
-        membership_repo: UserTenantMembershipRepository,
-        audit_repo: AuditRepository,
+        uow_factory: RoleGovernanceUnitOfWorkFactory,
         user_session: UserSessionContext,
         tenant_context_service: TenantContextService,
         scope_exists_resolvers: dict[str, ScopeExistsResolver] | None = None,
+        organization_owner_resolvers: dict[str, OrganizationOwnerResolver] | None = None,
         sod_policy: SeparationOfDutiesPolicy | None = None,
         allow_platform_customer_context: bool = False,
     ) -> None:
-        self._session = session
-        self._role_repo = role_repo
-        self._role_binding_repo = role_binding_repo
-        self._delegation_repo = delegation_repo
-        self._role_permission_repo = role_permission_repo
-        self._permission_repo = permission_repo
-        self._user_repo = user_repo
-        self._tenant_repo = tenant_repo
-        self._membership_repo = membership_repo
-        self._audit_repo = audit_repo
+        self._uow_factory = uow_factory
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
         self._scope_exists_resolvers = {
             normalize_role_scope_type(scope_type): resolver
             for scope_type, resolver in dict(
                 scope_exists_resolvers or {}
+            ).items()
+        }
+        self._organization_owner_resolvers = {
+            normalize_role_scope_type(scope_type): resolver
+            for scope_type, resolver in dict(
+                organization_owner_resolvers or {}
             ).items()
         }
         self._sod_policy = sod_policy or SeparationOfDutiesPolicy()
@@ -106,6 +94,22 @@ class RoleGovernanceService:
         self._scope_exists_resolvers[
             normalize_role_scope_type(scope_type)
         ] = resolver
+
+    def register_organization_owner_resolver(
+        self,
+        scope_type: str,
+        resolver: OrganizationOwnerResolver,
+    ) -> None:
+        """P5C-1: resolves a RESOURCE-scoped binding's authoritative organization owner
+        (never the ambient active organization) -- so a future P5C-2 `RoleBindingAssigned`/
+        `Revoked` event can carry `organization_id` without a post-commit re-query. Returns
+        `None` only when the specific resource instance genuinely has no organization owner."""
+        self._organization_owner_resolvers[
+            normalize_role_scope_type(scope_type)
+        ] = resolver
+
+    def _new_context(self) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id())
 
     def create_delegation_policy(
         self,
@@ -123,60 +127,65 @@ class RoleGovernanceService:
         actor = self._require_principal()
         normalized_tenant_id = str(tenant_id or "").strip() or None
         normalized_scope_type = normalize_role_scope_type(target_scope_type)
-        actor_role = self._require_role(actor_role_id)
-        assignable_role = self._require_assignable_role(
-            assignable_role_id,
-            tenant_id=normalized_tenant_id,
-            target_scope_type=normalized_scope_type,
-        )
-        self._validate_delegation_namespace(
-            actor_role,
-            assignable_role,
-            tenant_id=normalized_tenant_id,
-        )
-        if normalized_tenant_id is not None:
-            self._require_active_tenant(normalized_tenant_id)
 
-        permission_hash = self._permission_set_hash(assignable_role.id)
-        existing = self._delegation_repo.get_active_exact(
-            actor_role_id=actor_role.id,
-            assignable_role_id=assignable_role.id,
-            tenant_id=normalized_tenant_id,
-            target_scope_type=normalized_scope_type,
-        )
-        if existing is not None:
-            if (
-                existing.assignable_role_policy_version
-                == assignable_role.policy_version
-                and existing.assignable_permission_set_hash
-                == permission_hash
-            ):
-                return existing
-            authorization_denied(
-                self._user_session,
-                message=(
-                    "The active delegation policy no longer matches the role "
-                    "definition and must be explicitly replaced."
-                ),
-                code="ROLE_DELEGATION_POLICY_REVIEW_REQUIRED",
-                operation_label="create role delegation policy",
-                target_scope_type="role",
-                target_scope_id=assignable_role.id,
-                operation="authorization.delegation.denied",
+        with self._uow_factory.create(context=self._new_context()) as uow:
+            actor_role = self._require_role(uow.roles, actor_role_id)
+            assignable_role = self._require_assignable_role(
+                uow.roles,
+                assignable_role_id,
+                tenant_id=normalized_tenant_id,
+                target_scope_type=normalized_scope_type,
             )
+            self._validate_delegation_namespace(
+                actor_role,
+                assignable_role,
+                tenant_id=normalized_tenant_id,
+            )
+            if normalized_tenant_id is not None:
+                self._require_active_tenant(uow.tenants, normalized_tenant_id)
 
-        policy = RoleDelegationPolicy.create(
-            tenant_id=normalized_tenant_id,
-            actor_role_id=actor_role.id,
-            assignable_role_id=assignable_role.id,
-            target_scope_type=normalized_scope_type,
-            assignable_role_policy_version=assignable_role.policy_version,
-            assignable_permission_set_hash=permission_hash,
-            created_by=actor.user_id,
-        )
-        try:
-            self._delegation_repo.add(policy)
+            permission_hash = self._permission_set_hash(
+                uow.permissions, uow.role_permissions, assignable_role.id
+            )
+            existing = uow.role_delegation_policies.get_active_exact(
+                actor_role_id=actor_role.id,
+                assignable_role_id=assignable_role.id,
+                tenant_id=normalized_tenant_id,
+                target_scope_type=normalized_scope_type,
+            )
+            if existing is not None:
+                if (
+                    existing.assignable_role_policy_version
+                    == assignable_role.policy_version
+                    and existing.assignable_permission_set_hash
+                    == permission_hash
+                ):
+                    return existing
+                authorization_denied(
+                    self._user_session,
+                    message=(
+                        "The active delegation policy no longer matches the role "
+                        "definition and must be explicitly replaced."
+                    ),
+                    code="ROLE_DELEGATION_POLICY_REVIEW_REQUIRED",
+                    operation_label="create role delegation policy",
+                    target_scope_type="role",
+                    target_scope_id=assignable_role.id,
+                    operation="authorization.delegation.denied",
+                )
+
+            policy = RoleDelegationPolicy.create(
+                tenant_id=normalized_tenant_id,
+                actor_role_id=actor_role.id,
+                assignable_role_id=assignable_role.id,
+                target_scope_type=normalized_scope_type,
+                assignable_role_policy_version=assignable_role.policy_version,
+                assignable_permission_set_hash=permission_hash,
+                created_by=actor.user_id,
+            )
+            uow.role_delegation_policies.add(policy)
             self._record_audit(
+                uow.audit,
                 actor=actor,
                 tenant_id=normalized_tenant_id,
                 operation="create",
@@ -193,10 +202,7 @@ class RoleGovernanceService:
                     "assignable_permission_set_hash": permission_hash,
                 },
             )
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
+            uow.commit()
         return policy
 
     def revoke_delegation_policy(
@@ -209,18 +215,20 @@ class RoleGovernanceService:
             operation_label="revoke role delegation policy",
         )
         actor = self._require_principal()
-        policy = self._delegation_repo.get(str(policy_id or "").strip())
-        if policy is None:
-            raise NotFoundError(
-                "Role delegation policy not found.",
-                code="ROLE_DELEGATION_POLICY_NOT_FOUND",
-            )
-        if policy.revoked_at is not None:
-            return policy
-        revoked_at = datetime.now(timezone.utc)
-        try:
-            self._delegation_repo.revoke(policy.id, revoked_at=revoked_at)
+
+        with self._uow_factory.create(context=self._new_context()) as uow:
+            policy = uow.role_delegation_policies.get(str(policy_id or "").strip())
+            if policy is None:
+                raise NotFoundError(
+                    "Role delegation policy not found.",
+                    code="ROLE_DELEGATION_POLICY_NOT_FOUND",
+                )
+            if policy.revoked_at is not None:
+                return policy
+            revoked_at = datetime.now(timezone.utc)
+            uow.role_delegation_policies.revoke(policy.id, revoked_at=revoked_at)
             self._record_audit(
+                uow.audit,
                 actor=actor,
                 tenant_id=policy.tenant_id,
                 operation="delete",
@@ -233,10 +241,7 @@ class RoleGovernanceService:
                     "target_scope_type": policy.target_scope_type,
                 },
             )
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
+            uow.commit()
         return replace(policy, revoked_at=revoked_at)
 
     def assign_role(
@@ -247,116 +252,84 @@ class RoleGovernanceService:
         actual_scope_id: str | None = None,
         expires_at: datetime | None = None,
     ) -> RoleBinding:
-        actor, tenant_id = self._require_tenant_actor(
-            operation_label="assign a canonical role"
-        )
-        target = self._user_repo.get(str(target_user_id or "").strip())
-        if target is None:
-            raise NotFoundError("User not found.", code="USER_NOT_FOUND")
-        if not target.is_active:
-            raise BusinessRuleError(
-                "Canonical roles cannot be assigned to an inactive user.",
-                code="ROLE_TARGET_USER_INACTIVE",
+        with self._uow_factory.create(context=self._new_context()) as uow:
+            actor, tenant_id = self._require_tenant_actor(
+                uow.tenants, uow.memberships, operation_label="assign a canonical role"
             )
-        self._require_active_membership(
-            target.id,
-            tenant_id,
-            code="ROLE_TARGET_TENANT_DENIED",
-        )
-
-        role = self._require_role(role_id)
-        scope_type = role.allowed_scope_type
-        if scope_type == ROLE_SCOPE_PLATFORM:
-            authorization_denied(
-                self._user_session,
-                message=(
-                    "Platform roles cannot be assigned through a customer "
-                    "tenant operation."
-                ),
-                code="PLATFORM_ROLE_ASSIGNMENT_DENIED",
-                operation_label="assign a canonical role",
-                target_scope_type="role",
-                target_scope_id=role.id,
-                operation="authorization.permission_ceiling.denied",
+            target = uow.users.get(str(target_user_id or "").strip())
+            if target is None:
+                raise NotFoundError("User not found.", code="USER_NOT_FOUND")
+            if not target.is_active:
+                raise BusinessRuleError(
+                    "Canonical roles cannot be assigned to an inactive user.",
+                    code="ROLE_TARGET_USER_INACTIVE",
+                )
+            self._require_active_membership(
+                uow.memberships,
+                target.id,
+                tenant_id,
+                code="ROLE_TARGET_TENANT_DENIED",
             )
-        role = self._require_assignable_role(
-            role.id,
-            tenant_id=tenant_id,
-            target_scope_type=scope_type,
-        )
-        normalized_scope_id = str(actual_scope_id or "").strip() or None
-        self._validate_target_scope(
-            tenant_id=tenant_id,
-            scope_type=scope_type,
-            scope_id=normalized_scope_id,
-        )
-        self._require_delegation(
-            actor_user_id=actor.user_id,
-            role=role,
-            tenant_id=tenant_id,
-            scope_type=scope_type,
-            scope_id=normalized_scope_id,
-            enforce_permission_snapshot=True,
-        )
-        self._enforce_target_separation_of_duties(
-            target.id,
-            tenant_id=tenant_id,
-            additional_role_id=role.id,
-        )
 
-        now = datetime.now(timezone.utc)
-        self._role_binding_repo.revoke_expired_for_assignment(
-            principal_id=target.id,
-            role_id=role.id,
-            tenant_id=tenant_id,
-            actual_scope_type=scope_type,
-            actual_scope_id=normalized_scope_id,
-            as_of=now,
-        )
-        existing = self._role_binding_repo.get_active_for_assignment(
-            principal_id=target.id,
-            role_id=role.id,
-            tenant_id=tenant_id,
-            actual_scope_type=scope_type,
-            actual_scope_id=normalized_scope_id,
-        )
-        if existing is not None:
-            return existing
-
-        binding = RoleBinding.create(
-            principal_id=target.id,
-            role_id=role.id,
-            tenant_id=tenant_id,
-            actual_scope_type=scope_type,
-            actual_scope_id=normalized_scope_id,
-            assigned_by=actor.user_id,
-            expires_at=expires_at,
-        )
-        try:
-            self._role_binding_repo.add(binding)
-            self._record_audit(
-                actor=actor,
-                tenant_id=tenant_id,
-                operation="permission_change",
-                entity_type="role_binding",
-                entity_id=binding.id,
-                action="auth.role.binding.assigned",
-                metadata={
-                    "target_user_id": target.id,
-                    "role_id": role.id,
-                    "scope_type": scope_type,
-                    "scope_id": normalized_scope_id,
-                    "expires_at": (
-                        binding.expires_at.isoformat()
-                        if binding.expires_at is not None
-                        else None
+            role = self._require_role(uow.roles, role_id)
+            scope_type = role.allowed_scope_type
+            if scope_type == ROLE_SCOPE_PLATFORM:
+                authorization_denied(
+                    self._user_session,
+                    message=(
+                        "Platform roles cannot be assigned through a customer "
+                        "tenant operation."
                     ),
-                },
+                    code="PLATFORM_ROLE_ASSIGNMENT_DENIED",
+                    operation_label="assign a canonical role",
+                    target_scope_type="role",
+                    target_scope_id=role.id,
+                    operation="authorization.permission_ceiling.denied",
+                )
+            role = self._require_assignable_role(
+                uow.roles,
+                role.id,
+                tenant_id=tenant_id,
+                target_scope_type=scope_type,
             )
-            self._session.commit()
-        except IntegrityError as exc:
-            self._session.rollback()
-            existing = self._role_binding_repo.get_active_for_assignment(
+            normalized_scope_id = str(actual_scope_id or "").strip() or None
+            resolved_scope = self._validate_target_scope(
+                session=uow.session,
+                tenant_id=tenant_id,
+                scope_type=scope_type,
+                scope_id=normalized_scope_id,
+            )
+            self._require_delegation(
+                uow.role_bindings,
+                uow.role_delegation_policies,
+                uow.permissions,
+                uow.role_permissions,
+                actor_user_id=actor.user_id,
+                role=role,
+                tenant_id=tenant_id,
+                scope_type=scope_type,
+                scope_id=normalized_scope_id,
+                enforce_permission_snapshot=True,
+            )
+            self._enforce_target_separation_of_duties(
+                uow.role_bindings,
+                uow.permissions,
+                uow.role_permissions,
+                target_user_id=target.id,
+                tenant_id=tenant_id,
+                additional_role_id=role.id,
+            )
+
+            now = datetime.now(timezone.utc)
+            uow.role_bindings.revoke_expired_for_assignment(
+                principal_id=target.id,
+                role_id=role.id,
+                tenant_id=tenant_id,
+                actual_scope_type=scope_type,
+                actual_scope_id=normalized_scope_id,
+                as_of=now,
+            )
+            existing = uow.role_bindings.get_active_for_assignment(
                 principal_id=target.id,
                 role_id=role.id,
                 tenant_id=tenant_id,
@@ -364,45 +337,97 @@ class RoleGovernanceService:
                 actual_scope_id=normalized_scope_id,
             )
             if existing is not None:
+                # No-op: an identical active binding already exists -- no write, no audit.
+                # P5C-2 rule (already true here): no transition -> no event.
                 return existing
-            raise BusinessRuleError(
-                "The canonical role was assigned concurrently.",
-                code="ROLE_BINDING_CONCURRENT_ASSIGNMENT",
-            ) from exc
-        except Exception:
-            self._session.rollback()
-            raise
+
+            binding = RoleBinding.create(
+                principal_id=target.id,
+                role_id=role.id,
+                tenant_id=tenant_id,
+                actual_scope_type=scope_type,
+                actual_scope_id=normalized_scope_id,
+                assigned_by=actor.user_id,
+                expires_at=expires_at,
+            )
+            try:
+                uow.role_bindings.add(binding)
+                self._record_audit(
+                    uow.audit,
+                    actor=actor,
+                    tenant_id=tenant_id,
+                    operation="permission_change",
+                    entity_type="role_binding",
+                    entity_id=binding.id,
+                    action="auth.role.binding.assigned",
+                    metadata={
+                        "target_user_id": target.id,
+                        "role_id": role.id,
+                        "scope_type": scope_type,
+                        "scope_id": normalized_scope_id,
+                        "organization_id": _resolved_organization_id(resolved_scope),
+                        "expires_at": (
+                            binding.expires_at.isoformat()
+                            if binding.expires_at is not None
+                            else None
+                        ),
+                    },
+                )
+                uow.commit()
+            except IntegrityError:
+                existing = uow.role_bindings.get_active_for_assignment(
+                    principal_id=target.id,
+                    role_id=role.id,
+                    tenant_id=tenant_id,
+                    actual_scope_type=scope_type,
+                    actual_scope_id=normalized_scope_id,
+                )
+                if existing is not None:
+                    return existing
+                raise BusinessRuleError(
+                    "The canonical role was assigned concurrently.",
+                    code="ROLE_BINDING_CONCURRENT_ASSIGNMENT",
+                )
+        # Post-commit, outside the `with` block (the UoW is already closed): the legacy
+        # notification and the current-principal runtime-authorization refresh, in that order.
+        # Never before commit -- a rolled-back transaction must never be observable here.
         domain_events.auth_changed.emit(target.id)
         return binding
 
     def revoke_role_binding(self, binding_id: str) -> RoleBinding:
-        actor, tenant_id = self._require_tenant_actor(
-            operation_label="revoke a canonical role"
-        )
-        binding = self._role_binding_repo.get(str(binding_id or "").strip())
-        if binding is None or binding.tenant_id != tenant_id:
-            raise NotFoundError(
-                "Role binding not found.",
-                code="ROLE_BINDING_NOT_FOUND",
+        with self._uow_factory.create(context=self._new_context()) as uow:
+            actor, tenant_id = self._require_tenant_actor(
+                uow.tenants, uow.memberships, operation_label="revoke a canonical role"
             )
-        if binding.revoked_at is not None:
-            return binding
-        role = self._require_role(binding.role_id)
-        self._require_delegation(
-            actor_user_id=actor.user_id,
-            role=role,
-            tenant_id=tenant_id,
-            scope_type=binding.actual_scope_type,
-            scope_id=binding.actual_scope_id,
-            enforce_permission_snapshot=False,
-        )
-        revoked_at = datetime.now(timezone.utc)
-        try:
-            self._role_binding_repo.revoke(
+            binding = uow.role_bindings.get(str(binding_id or "").strip())
+            if binding is None or binding.tenant_id != tenant_id:
+                raise NotFoundError(
+                    "Role binding not found.",
+                    code="ROLE_BINDING_NOT_FOUND",
+                )
+            if binding.revoked_at is not None:
+                # No-op: already revoked -- no write, no audit. Same P5C-2 rule as above.
+                return binding
+            role = self._require_role(uow.roles, binding.role_id)
+            self._require_delegation(
+                uow.role_bindings,
+                uow.role_delegation_policies,
+                uow.permissions,
+                uow.role_permissions,
+                actor_user_id=actor.user_id,
+                role=role,
+                tenant_id=tenant_id,
+                scope_type=binding.actual_scope_type,
+                scope_id=binding.actual_scope_id,
+                enforce_permission_snapshot=False,
+            )
+            revoked_at = datetime.now(timezone.utc)
+            uow.role_bindings.revoke(
                 binding.id,
                 revoked_at=revoked_at,
             )
             self._record_audit(
+                uow.audit,
                 actor=actor,
                 tenant_id=tenant_id,
                 operation="delete",
@@ -416,10 +441,7 @@ class RoleGovernanceService:
                     "scope_id": binding.actual_scope_id,
                 },
             )
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
+            uow.commit()
         domain_events.auth_changed.emit(binding.principal_id)
         return replace(
             binding,
@@ -436,7 +458,7 @@ class RoleGovernanceService:
             )
         return principal
 
-    def _require_tenant_actor(self, *, operation_label: str):
+    def _require_tenant_actor(self, tenant_repo, membership_repo, *, operation_label: str):
         require_permission(
             self._user_session,
             ROLE_ASSIGN_PERMISSION,
@@ -461,16 +483,17 @@ class RoleGovernanceService:
         tenant_id = self._tenant_context_service.require_active_tenant_id(
             operation_label=operation_label
         )
-        self._require_active_tenant(tenant_id)
+        self._require_active_tenant(tenant_repo, tenant_id)
         self._require_active_membership(
+            membership_repo,
             actor.user_id,
             tenant_id,
             code="TENANT_ACCESS_DENIED",
         )
         return actor, tenant_id
 
-    def _require_active_tenant(self, tenant_id: str) -> None:
-        tenant = self._tenant_repo.get(tenant_id)
+    def _require_active_tenant(self, tenant_repo, tenant_id: str) -> None:
+        tenant = tenant_repo.get(tenant_id)
         if tenant is None:
             raise NotFoundError("Tenant not found.", code="TENANT_NOT_FOUND")
         if not tenant.is_active:
@@ -481,12 +504,13 @@ class RoleGovernanceService:
 
     def _require_active_membership(
         self,
+        membership_repo,
         user_id: str,
         tenant_id: str,
         *,
         code: str,
     ) -> None:
-        if self._membership_repo.is_active_member(user_id, tenant_id):
+        if membership_repo.is_active_member(user_id, tenant_id):
             return
         authorization_denied(
             self._user_session,
@@ -498,20 +522,21 @@ class RoleGovernanceService:
             operation="authorization.membership.denied",
         )
 
-    def _require_role(self, role_id: str) -> Role:
-        role = self._role_repo.get(str(role_id or "").strip())
+    def _require_role(self, role_repo, role_id: str) -> Role:
+        role = role_repo.get(str(role_id or "").strip())
         if role is None:
             raise NotFoundError("Role not found.", code="ROLE_NOT_FOUND")
         return role
 
     def _require_assignable_role(
         self,
+        role_repo,
         role_id: str,
         *,
         tenant_id: str | None,
         target_scope_type: str,
     ) -> Role:
-        role = self._require_role(role_id)
+        role = self._require_role(role_repo, role_id)
         if role.status != "active" or not role.is_assignable:
             authorization_denied(
                 self._user_session,
@@ -591,17 +616,18 @@ class RoleGovernanceService:
     def _validate_target_scope(
         self,
         *,
+        session: Session,
         tenant_id: str,
         scope_type: str,
         scope_id: str | None,
-    ) -> None:
+    ) -> ResolvedRoleBindingScope:
         if scope_type == ROLE_SCOPE_TENANT:
             if scope_id is not None:
                 raise ValidationError(
                     "Tenant role assignments cannot carry a resource id.",
                     code="AUTH_ROLE_BINDING_SCOPE_INVALID",
                 )
-            return
+            return TenantBindingScope(tenant_id=tenant_id)
         if scope_type == ROLE_SCOPE_PLATFORM or scope_id is None:
             raise ValidationError(
                 "Resource role assignments require a resource id.",
@@ -621,14 +647,31 @@ class RoleGovernanceService:
                 target_scope_id=scope_id,
                 operation="authorization.infrastructure.denied",
             )
-        if not resolver(tenant_id, scope_id):
+
+        if not resolver(session, tenant_id, scope_id):
             raise NotFoundError(
                 f"{scope_type.title()} not found.",
                 code=f"{scope_type.upper()}_NOT_FOUND",
             )
+        organization_owner_resolver = self._organization_owner_resolvers.get(scope_type)
+        organization_id = (
+            organization_owner_resolver(session, tenant_id, scope_id)
+            if organization_owner_resolver is not None
+            else None
+        )
+        return ResourceBindingScope(
+            tenant_id=tenant_id,
+            scope_type=scope_type,
+            scope_id=scope_id,
+            organization_id=organization_id,
+        )
 
     def _require_delegation(
         self,
+        role_binding_repo,
+        delegation_repo,
+        permission_repo,
+        role_permission_repo,
         *,
         actor_user_id: str,
         role: Role,
@@ -644,7 +687,7 @@ class RoleGovernanceService:
             and self._allow_platform_customer_context
         ):
             return None
-        actor_bindings = self._role_binding_repo.list_active_for_principal(
+        actor_bindings = role_binding_repo.list_active_for_principal(
             actor_user_id,
             tenant_id=tenant_id,
         )
@@ -657,7 +700,7 @@ class RoleGovernanceService:
                 scope_id=scope_id,
             )
         }
-        policy = self._delegation_repo.find_active(
+        policy = delegation_repo.find_active(
             actor_role_ids=applicable_actor_role_ids,
             assignable_role_id=role.id,
             tenant_id=tenant_id,
@@ -676,7 +719,7 @@ class RoleGovernanceService:
         if enforce_permission_snapshot and (
             policy.assignable_role_policy_version != role.policy_version
             or policy.assignable_permission_set_hash
-            != self._permission_set_hash(role.id)
+            != self._permission_set_hash(permission_repo, role_permission_repo, role.id)
         ):
             authorization_denied(
                 self._user_session,
@@ -703,36 +746,39 @@ class RoleGovernanceService:
             and binding.actual_scope_id == scope_id
         )
 
-    def _permission_codes_for_role(self, role_id: str) -> set[str]:
+    def _permission_codes_for_role(self, permission_repo, role_permission_repo, role_id: str) -> set[str]:
         permission_codes_by_id = {
             permission.id: permission.code
-            for permission in self._permission_repo.list_all()
+            for permission in permission_repo.list_all()
         }
         return {
             permission_codes_by_id[permission_id]
-            for permission_id in self._role_permission_repo.list_permission_ids(
+            for permission_id in role_permission_repo.list_permission_ids(
                 role_id
             )
             if permission_id in permission_codes_by_id
         }
 
-    def _permission_set_hash(self, role_id: str) -> str:
+    def _permission_set_hash(self, permission_repo, role_permission_repo, role_id: str) -> str:
         canonical = json.dumps(
-            sorted(self._permission_codes_for_role(role_id)),
+            sorted(self._permission_codes_for_role(permission_repo, role_permission_repo, role_id)),
             separators=(",", ":"),
         )
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
     def _enforce_target_separation_of_duties(
         self,
-        target_user_id: str,
+        role_binding_repo,
+        permission_repo,
+        role_permission_repo,
         *,
+        target_user_id: str,
         tenant_id: str,
         additional_role_id: str,
     ) -> None:
         role_ids = {
             binding.role_id
-            for binding in self._role_binding_repo.list_active_for_principal(
+            for binding in role_binding_repo.list_active_for_principal(
                 target_user_id,
                 tenant_id=tenant_id,
             )
@@ -741,7 +787,9 @@ class RoleGovernanceService:
         permission_codes = {
             permission_code
             for role_id in role_ids
-            for permission_code in self._permission_codes_for_role(role_id)
+            for permission_code in self._permission_codes_for_role(
+                permission_repo, role_permission_repo, role_id
+            )
         }
         conflicts = self._sod_policy.find_conflicts(permission_codes)
         if conflicts:
@@ -762,6 +810,7 @@ class RoleGovernanceService:
 
     def _record_audit(
         self,
+        audit_repo,
         *,
         actor,
         tenant_id: str | None,
@@ -785,13 +834,18 @@ class RoleGovernanceService:
             metadata={"action": action, **metadata},
         )
         if tenant_id is None:
-            self._audit_repo.add_platform(entry)
+            audit_repo.add_platform(entry)
         else:
-            self._audit_repo.add_for_tenant(entry, tenant_id)
+            audit_repo.add_for_tenant(entry, tenant_id)
+
+
+def _resolved_organization_id(resolved_scope: ResolvedRoleBindingScope) -> str | None:
+    return getattr(resolved_scope, "organization_id", None)
 
 
 __all__ = [
     "ROLE_ASSIGN_PERMISSION",
     "RoleGovernanceService",
     "ScopeExistsResolver",
+    "OrganizationOwnerResolver",
 ]

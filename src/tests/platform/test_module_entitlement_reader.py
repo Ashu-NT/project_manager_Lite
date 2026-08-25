@@ -140,13 +140,14 @@ def test_reader_empty_snapshot_when_no_rows(reader_session):
 
 def test_module_catalog_read_path_reflects_writes_through_the_reader(services):
     module_catalog = services["module_catalog_service"]
+    active_org = services["organization_service"].get_active_organization()
 
     baseline = module_catalog.get_entitlement("project_management")
     assert baseline is not None
     assert baseline.licensed is True  # default-enabled per DEFAULT_ENTERPRISE_MODULES
     assert baseline.enabled is True
 
-    module_catalog.set_module_state("project_management", enabled=False)
+    module_catalog.disable_module(active_org.id, "project_management")
 
     updated = module_catalog.get_entitlement("project_management")
     assert updated.licensed is True
@@ -165,7 +166,7 @@ def test_module_catalog_read_path_reflects_writes_through_the_reader(services):
     assert entitlements_by_code["project_management"].label not in enabled_section.split(", ")
     assert entitlements_by_code["project_management"].label in licensed_section.split(", ")
 
-    module_catalog.set_module_state("project_management", licensed=False, enabled=False)
+    module_catalog.revoke_module_license(active_org.id, "project_management")
     catalog_snapshot = module_catalog.snapshot()
     assert "project_management" not in {m.code for m in catalog_snapshot.licensed_modules}
     assert "project_management" not in {m.code for m in catalog_snapshot.enabled_modules}
@@ -187,7 +188,7 @@ def test_module_catalog_read_path_is_isolated_per_organization(services):
 
     # Disable on the default organization only. project_management defaults
     # to licensed=True/enabled=True (DEFAULT_ENTERPRISE_MODULES.default_enabled).
-    module_catalog.set_module_state("project_management", enabled=False)
+    module_catalog.disable_module(default_organization.id, "project_management")
     assert module_catalog.is_enabled("project_management") is False
 
     organization_service.set_active_organization(second_organization.id)

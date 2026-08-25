@@ -239,10 +239,16 @@ def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
     assert submitted.status.value == "SUBMITTED"
 
     with pytest.raises(BusinessRuleError, match="timesheet.approve"):
-        ts.approve_timesheet_period(submitted.period_id)
+        ts.approve_timesheet_period(
+            submitted.period_id,
+            expected_version=submitted.version,
+        )
 
     with pytest.raises(BusinessRuleError, match="timesheet.lock"):
-        ts.lock_timesheet_period(resource.id, period_start=date(2026, 7, 1))
+        ts.lock_timesheet_period(
+            submitted.period_id,
+            expected_version=submitted.version,
+        )
 
     _login_as(services, "viewer-timesheet", "StrongPass123")
     with pytest.raises(BusinessRuleError, match="timesheet.submit"):
