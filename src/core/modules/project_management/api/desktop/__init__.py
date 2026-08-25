@@ -234,10 +234,10 @@ from src.core.modules.project_management.api.desktop.tasks import (
     build_project_management_tasks_desktop_api,
 )
 from src.core.modules.project_management.api.desktop.timesheets import (
-    OwnerTimesheetEntryDesktopDto,
-    OwnerTimesheetEntryPageDesktopDto,
-    OwnerTimesheetHistoryPageDesktopDto,
-    OwnerTimesheetPeriodDesktopDto,
+    ResourceTimesheetEntryDesktopDto,
+    ResourceTimesheetEntryPageDesktopDto,
+    ResourceTimesheetHistoryPageDesktopDto,
+    ResourceTimesheetPeriodDesktopDto,
     ProjectManagementTimesheetsDesktopApi,
     TimesheetAssignmentOptionDescriptor,
     TimesheetAssignmentSnapshotDesktopDto,
@@ -258,10 +258,10 @@ from src.core.modules.project_management.api.desktop.workspaces import (
 )
 
 __all__ = [
-    "OwnerTimesheetEntryDesktopDto",
-    "OwnerTimesheetEntryPageDesktopDto",
-    "OwnerTimesheetHistoryPageDesktopDto",
-    "OwnerTimesheetPeriodDesktopDto",
+    "ResourceTimesheetEntryDesktopDto",
+    "ResourceTimesheetEntryPageDesktopDto",
+    "ResourceTimesheetHistoryPageDesktopDto",
+    "ResourceTimesheetPeriodDesktopDto",
     "CollaborationInboxDesktopDto",
     "CollaborationCommentPageDto",
     "CollaborationContextOptionsDto",

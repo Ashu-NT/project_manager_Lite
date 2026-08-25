@@ -19,11 +19,14 @@ from src.core.modules.project_management.api.desktop.timesheets.models.options i
     TimesheetPeriodOptionDescriptor,
     TimesheetProjectOptionDescriptor,
 )
-from src.core.modules.project_management.api.desktop.timesheets.models.owner import (
-    OwnerTimesheetEntryDesktopDto,
-    OwnerTimesheetEntryPageDesktopDto,
-    OwnerTimesheetHistoryPageDesktopDto,
-    OwnerTimesheetPeriodDesktopDto,
+from src.core.modules.project_management.api.desktop.timesheets.models.workspace import (
+    ResourceTimesheetEntryDesktopDto,
+    ResourceTimesheetEntryPageDesktopDto,
+    ResourceTimesheetHistoryPageDesktopDto,
+    ResourceTimesheetPeriodDesktopDto,
+    TimesheetResourceDesktopDto,
+    TimesheetResourcePageDesktopDto,
+    TimesheetWorkspaceAccessDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.timesheets.models.periods import (
     TimesheetPeriodSummaryDesktopDto,
@@ -37,10 +40,10 @@ from src.core.modules.project_management.api.desktop.timesheets.models.snapshots
 )
 
 __all__ = [
-    "OwnerTimesheetEntryDesktopDto",
-    "OwnerTimesheetEntryPageDesktopDto",
-    "OwnerTimesheetHistoryPageDesktopDto",
-    "OwnerTimesheetPeriodDesktopDto",
+    "ResourceTimesheetEntryDesktopDto",
+    "ResourceTimesheetEntryPageDesktopDto",
+    "ResourceTimesheetHistoryPageDesktopDto",
+    "ResourceTimesheetPeriodDesktopDto",
     "ProjectManagementTimesheetsDesktopApi",
     "TimesheetAssignmentOptionDescriptor",
     "TimesheetAssignmentSnapshotDesktopDto",
@@ -53,5 +56,8 @@ __all__ = [
     "TimesheetProjectOptionDescriptor",
     "TimesheetReviewDetailDesktopDto",
     "TimesheetReviewPageDesktopDto",
+    "TimesheetResourceDesktopDto",
+    "TimesheetResourcePageDesktopDto",
+    "TimesheetWorkspaceAccessDesktopDto",
     "build_project_management_timesheets_desktop_api",
 ]

@@ -14,7 +14,7 @@ from src.core.platform.common.exceptions import (
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 
 
-def _build_owner_timesheet(services):
+def _build_resource_timesheet(services):
     principal = services["user_session"].principal
     employee = services["employee_service"].create_employee(
         employee_code="R5F1-OWNER",
@@ -38,8 +38,8 @@ def _build_owner_timesheet(services):
     return employee, resource, project, task, assignment
 
 
-def test_owner_timesheet_read_is_scoped_paged_sorted_and_backend_aggregated(services) -> None:
-    _, resource, project, task, assignment = _build_owner_timesheet(services)
+def test_resource_timesheet_read_is_scoped_paged_sorted_and_backend_aggregated(services) -> None:
+    _, resource, project, task, assignment = _build_resource_timesheet(services)
     timesheets = services["timesheet_service"]
     for work_date, hours in (
         (date(2026, 8, 3), 7.5),
@@ -53,15 +53,21 @@ def test_owner_timesheet_read_is_scoped_paged_sorted_and_backend_aggregated(serv
             note=f"Work on {work_date.isoformat()}",
         )
 
-    period = timesheets.get_owner_timesheet_period(period_start=date(2026, 8, 18))
-    first = timesheets.query_owner_time_entries(
+    period = timesheets.get_timesheet_period(
+        scope=TimesheetScope.MINE, resource_id=resource.id, period_start=date(2026, 8, 18)
+    )
+    first = timesheets.query_timesheet_entries(
+        scope=TimesheetScope.MINE,
+        resource_id=resource.id,
         period_start=date(2026, 8, 1),
         page=1,
         page_size=2,
         sort_key="hours",
         sort_direction="asc",
     )
-    second = timesheets.query_owner_time_entries(
+    second = timesheets.query_timesheet_entries(
+        scope=TimesheetScope.MINE,
+        resource_id=resource.id,
         period_start=date(2026, 8, 1),
         page=2,
         page_size=2,
@@ -83,8 +89,8 @@ def test_owner_timesheet_read_is_scoped_paged_sorted_and_backend_aggregated(serv
     assert all(row.task_id == task.id for row in (*first.items, *second.items))
 
 
-def test_owner_mutations_deny_another_resource_and_enforce_selected_period(services) -> None:
-    _, _, _, _, owner_assignment = _build_owner_timesheet(services)
+def test_resource_mutations_deny_another_resource_and_enforce_selected_period(services) -> None:
+    _, owner_resource, _, _, owner_assignment = _build_resource_timesheet(services)
     other = services["resource_service"].create_resource(
         name="Another Resource",
         role="Engineer",
@@ -94,25 +100,29 @@ def test_owner_mutations_deny_another_resource_and_enforce_selected_period(servi
     other_assignment = services["task_service"].assign_resource(task.id, other.id)
     timesheets = services["timesheet_service"]
 
-    with pytest.raises(BusinessRuleError, match="owner"):
-        timesheets.add_owner_time_entry(
+    with pytest.raises(BusinessRuleError, match="does not belong"):
+        timesheets.add_timesheet_entry(
             other_assignment.id,
+            scope=TimesheetScope.MINE,
+            resource_id=owner_resource.id,
             period_start=date(2026, 8, 1),
             entry_date=date(2026, 8, 5),
             hours=4,
         )
 
     with pytest.raises(Exception, match="selected reporting period"):
-        timesheets.add_owner_time_entry(
+        timesheets.add_timesheet_entry(
             owner_assignment.id,
+            scope=TimesheetScope.MINE,
+            resource_id=owner_resource.id,
             period_start=date(2026, 8, 1),
             entry_date=date(2026, 9, 1),
             hours=4,
         )
 
 
-def test_owner_submit_is_versioned_and_populates_review_queue(services) -> None:
-    _, _, _, _, assignment = _build_owner_timesheet(services)
+def test_resource_submit_is_versioned_and_populates_review_queue(services) -> None:
+    _, resource, _, _, assignment = _build_resource_timesheet(services)
     timesheets = services["timesheet_service"]
     timesheets.add_time_entry(
         assignment.id,
@@ -120,18 +130,26 @@ def test_owner_submit_is_versioned_and_populates_review_queue(services) -> None:
         hours=8,
         note="Ready for review",
     )
-    before = timesheets.get_owner_timesheet_period(period_start=date(2026, 8, 1))
+    before = timesheets.get_timesheet_period(
+        scope=TimesheetScope.MINE, resource_id=resource.id, period_start=date(2026, 8, 1)
+    )
 
-    submitted = timesheets.submit_owner_timesheet_period(
+    submitted = timesheets.submit_resource_timesheet_period(
+        scope=TimesheetScope.MINE,
+        resource_id=resource.id,
         period_start=date(2026, 8, 1),
         expected_version=before.version,
         note="Owner submission",
     )
-    after = timesheets.get_owner_timesheet_period(period_start=date(2026, 8, 1))
+    after = timesheets.get_timesheet_period(
+        scope=TimesheetScope.MINE, resource_id=resource.id, period_start=date(2026, 8, 1)
+    )
     queue = timesheets.query_review_queue_page(
         status=TimesheetPeriodStatus.SUBMITTED
     )
-    history = timesheets.query_owner_timesheet_history(page=1, page_size=12)
+    history = timesheets.query_timesheet_history(
+        scope=TimesheetScope.MINE, resource_id=resource.id, page=1, page_size=12
+    )
 
     assert submitted.status is TimesheetPeriodStatus.SUBMITTED
     assert after.status is TimesheetPeriodStatus.SUBMITTED
@@ -144,7 +162,9 @@ def test_owner_submit_is_versioned_and_populates_review_queue(services) -> None:
     assert history.items[0].period_id == after.period_id
 
     with pytest.raises(ConcurrencyError):
-        timesheets.submit_owner_timesheet_period(
+        timesheets.submit_resource_timesheet_period(
+            scope=TimesheetScope.MINE,
+            resource_id=resource.id,
             period_start=date(2026, 8, 1),
             expected_version=before.version,
         )
@@ -169,7 +189,7 @@ def test_r5f1_navigation_keeps_timesheets_and_review_queue_distinct() -> None:
 
 
 def test_resource_timesheet_scopes_enforce_target_and_eligibility(services) -> None:
-    _, owner, _, _, _ = _build_owner_timesheet(services)
+    _, owner, _, _, _ = _build_resource_timesheet(services)
     external = services["resource_service"].create_resource(
         name="External Without Login",
         role="Consultant",
@@ -221,7 +241,7 @@ def test_resource_timesheet_scopes_enforce_target_and_eligibility(services) -> N
 
 
 def test_reviewer_permission_does_not_grant_timesheet_edit_other(services) -> None:
-    _, _, _, _, assignment = _build_owner_timesheet(services)
+    _, _, _, _, assignment = _build_resource_timesheet(services)
     original = services["user_session"].principal
     services["user_session"].set_principal(
         replace(
