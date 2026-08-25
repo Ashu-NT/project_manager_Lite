@@ -11,6 +11,9 @@ from src.ui_qml.platform.adapters.module_entitlement_view_invalidation_adapter i
 from src.ui_qml.platform.adapters.organization_view_invalidation_adapter import (
     OrganizationViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.role_binding_view_invalidation_adapter import (
+    RoleBindingViewInvalidationAdapter,
+)
 from src.ui_qml.platform.controllers.admin_console import PlatformAdminWorkspaceController
 from src.ui_qml.platform.controllers.identity_access.access import (
     PlatformAdminAccessWorkspaceController,
@@ -183,19 +186,6 @@ class PlatformWorkspaceCatalog(QObject):
         # organization-collection invalidations (or, with the earlier AllTenants() subscription,
         # every tenant's), never correctly following the switch.
         self._tenant_switcher.tenantSwitched.connect(self._on_tenant_switched)
-
-        # P5B-3: direct Qt cutover for Module Entitlements, mirroring the Organization precedent
-        # above -- no legacy `modules_changed` bridge. Organization-scoped
-        # (`ExactOrganization(tenant_id, organization_id)`, never tenant-wide), so it must follow
-        # BOTH a tenant switch and an organization switch -- re-scoped via
-        # `refreshCurrentPermissions()`, the existing hook the QML shell already calls
-        # immediately after either (`PlatformWorkspacePage.qml`'s `ContextBar.onTenantSelected`/
-        # `onOrganizationSelected`), since this desktop shell has no separate, dedicated
-        # "organization switched" Qt signal the way `TenantSwitcherController.tenantSwitched`
-        # exists for tenants. Only the settings workspace's `moduleEntitlements` list is a real
-        # consumer here -- tracing the other two former `modules_changed` subscribers (control,
-        # access) end-to-end found neither reads any module-entitlement-derived state, so neither
-        # is migrated (see the P5B-3 report).
         self._module_entitlement_view_invalidation_adapter = ModuleEntitlementViewInvalidationAdapter(
             channel=view_invalidation_channel,
             tenant_id=self._tenant_switcher.activeTenantId,
@@ -204,6 +194,15 @@ class PlatformWorkspaceCatalog(QObject):
         )
         self._module_entitlement_view_invalidation_adapter.moduleEntitlementsStale.connect(
             self._settings_workspace.refresh_module_entitlements
+        )
+        self._role_binding_view_invalidation_adapter = RoleBindingViewInvalidationAdapter(
+            channel=view_invalidation_channel,
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+            parent=self,
+        )
+        self._role_binding_view_invalidation_adapter.roleBindingsStale.connect(
+            self._admin_access_workspace.refresh_role_bindings
         )
 
     def _on_tenant_switched(self) -> None:
@@ -368,17 +367,12 @@ class PlatformWorkspaceCatalog(QObject):
 
     @Slot()
     def refreshCurrentPermissions(self) -> None:
-        """Call after a tenant/organization switch or re-authentication so
-        nav/action visibility reflects the new session's actual authority.
-
-        P5B-3: also the re-scoping hook for `ModuleEntitlementViewInvalidationAdapter` -- this
-        desktop shell has no dedicated "organization switched" Qt signal the way
-        `TenantSwitcherController.tenantSwitched` exists for tenants, but the QML shell already
-        calls this method immediately after BOTH a tenant switch and an organization switch
-        (`PlatformWorkspacePage.qml`'s `ContextBar.onTenantSelected`/`onOrganizationSelected`), so
-        re-scoping here correctly follows either kind of switch."""
         self._reload_current_permissions()
         self._module_entitlement_view_invalidation_adapter.set_active_scope(
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+        )
+        self._role_binding_view_invalidation_adapter.set_active_scope(
             tenant_id=self._tenant_switcher.activeTenantId,
             organization_id=self._active_organization_id(),
         )

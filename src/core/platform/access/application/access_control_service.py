@@ -9,7 +9,6 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.core.shared.events.domain_events import domain_events
 from src.core.platform.access.domain import (
     ScopedAccessGrant,
     ScopedRolePolicy,
@@ -196,7 +195,7 @@ class AccessControlService:
             role_name=role_name,
             permissions=permissions,
         )
-        domain_events.access_changed.emit(normalized_scope_id)
+
         self._refresh_current_session_if_needed(normalized_user_id)
         return grant
 
@@ -228,7 +227,7 @@ class AccessControlService:
             user_id=normalized_user_id,
             tenant_id=tenant_id,
         )
-        domain_events.access_changed.emit(normalized_scope_id)
+        # P5C-3: `access_changed` retired -- see `assign_scope_grant`'s own comment above.
         self._refresh_current_session_if_needed(user_id)
 
     def _require_canonical_services(self):

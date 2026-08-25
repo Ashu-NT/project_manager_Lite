@@ -390,6 +390,22 @@ adapter design.
 - Tests: correct organization derivation from the grant itself, not the active-session organization (this is the direct regression test for the fix); tenant-scoped role events never leak across tenants; legacy `access_changed`/`auth_changed` (partial) bridged during migration.
 - Exit criteria: scope-derivation fix proven by a real cross-organization grant test; guardrail green.
 
+**Superseded (2026-08-25, P5C prerequisite audit + P5C-1 + P5C-2): the event vocabulary above
+was this discovery pass's preliminary guess, made before confirming that Access and RBAC are
+ONE persistence/business-fact capability, not two.** `AccessControlService.assign_scope_grant`/
+`remove_scope_grant` and every tenant-role assignment facade were confirmed to converge entirely
+on `RoleGovernanceService.assign_role`/`revoke_role_binding` -- there is no separate
+`ScopedAccessGrant` persistence table, so `ScopeAccessGranted`/`ScopeAccessRevoked`/
+`RoleAssignmentGranted`/`RoleAssignmentRevoked` would have been four names for the same one
+underlying fact. **Final vocabulary: exactly `RoleBindingAssigned`/`RoleBindingRevoked`**,
+implemented in P5C-2 (see `platform_domain_event_implementation_plan.md`'s P5C-2 section). The
+scope-derivation prerequisite this row anticipated was real, but ran deeper and reopened once
+(see item 7 above): the P5C prerequisite pass's own storeroom fix was itself incomplete, fully
+closed only in P5C-1, alongside the same defect confirmed in `project`/`site`. The payload the
+final events carry is `binding_id`/`principal_id`/`role_id`/`scope` (a typed
+`RoleBindingScope` union), not the flattened `user_id`/`scope_type`/`role_name` this row
+originally sketched.
+
 ### P5D — Tenant Membership
 
 - Events: `TenantMembershipActivated`, `TenantMembershipSuspended`, `TenantMembershipReactivated`, `TenantMembershipRemoved`.

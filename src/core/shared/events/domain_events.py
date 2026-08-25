@@ -71,7 +71,6 @@ class DomainEvents:
         ("calendars_changed", "shared_master", "platform", "working_calendar", "calendars_changed"),
         ("documents_changed", "shared_master", "platform", "document", "documents_changed"),
         ("parties_changed", "shared_master", "platform", "party", "parties_changed"),
-        ("access_changed", "platform", "platform", "project_access", "access_changed"),
         (
             "collaboration_changed",
             "module",
@@ -180,7 +179,6 @@ class DomainEvents:
     calendars_changed: Signal[str] = field(default_factory=Signal)
     documents_changed: Signal[str] = field(default_factory=Signal)
     parties_changed: Signal[str] = field(default_factory=Signal)
-    access_changed: Signal[str] = field(default_factory=Signal)
     collaboration_changed: Signal[str] = field(default_factory=Signal)
     portfolio_changed: Signal[str] = field(default_factory=Signal)
     inventory_items_changed: Signal[str] = field(default_factory=Signal)

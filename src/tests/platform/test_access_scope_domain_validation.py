@@ -87,10 +87,6 @@ def _make_service(monkeypatch: pytest.MonkeyPatch) -> AccessControlService:
         "src.core.platform.access.application.access_control_service.require_permission",
         lambda *args, **kwargs: None,
     )
-    monkeypatch.setattr(
-        "src.core.platform.access.application.access_control_service.domain_events.access_changed.emit",
-        lambda *args, **kwargs: None,
-    )
     return AccessControlService(
         session=_FakeSession(),
         user_repo=_FakeUserRepo(),

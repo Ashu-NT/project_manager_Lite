@@ -61,6 +61,13 @@ from src.core.platform.domain.tenant.modules.events import (
     ModuleLicensed,
     ModuleLifecycleTransitioned,
 )
+from src.core.platform.application.security.authorization.roles.event_handlers.view_invalidation import (
+    build_role_binding_view_invalidation_handler,
+)
+from src.core.platform.domain.security.authorization.roles.events import (
+    RoleBindingAssigned,
+    RoleBindingRevoked,
+)
 from src.core.platform.infrastructure.persistence.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWorkFactory,
 )
@@ -340,6 +347,14 @@ def build_platform_service_bundle(
     ):
         platform_post_commit_bus.subscribe(
             _module_entitlement_event_type, _module_entitlement_view_invalidation_handler
+        )
+
+    _role_binding_view_invalidation_handler = build_role_binding_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _role_binding_event_type in (RoleBindingAssigned, RoleBindingRevoked):
+        platform_post_commit_bus.subscribe(
+            _role_binding_event_type, _role_binding_view_invalidation_handler
         )
 
     approval_uow_session_factory = sessionmaker(bind=session.bind, future=True)

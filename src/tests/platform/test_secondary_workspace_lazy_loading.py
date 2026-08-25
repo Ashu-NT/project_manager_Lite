@@ -49,17 +49,13 @@ def _restricted_principal(original_principal):
         permissions=frozenset(),
     )
 
-
-# Each entry: (controller attribute on the catalog, presenter class whose
-# unconditionally-called refresh() method we count fetches by, that
-# method's name, a domain event signal the controller listens to, and the
-# permission code(s) that gate it -- None for Support, which has no gate).
 _CASES = [
     (
+
         "adminAccessWorkspace",
         PlatformAccessWorkspacePresenter,
         "build_security_users",
-        domain_events.access_changed,
+        domain_events.auth_changed,
         ("access.manage",),
     ),
     (

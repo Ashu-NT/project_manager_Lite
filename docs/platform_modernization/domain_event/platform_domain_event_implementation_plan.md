@@ -1418,6 +1418,244 @@ the very first commit of this working session, unrelated to any P5C-1 change).
 and Qt migration (P5C-3), `access_changed`/`auth_changed` removal, custom-role CRUD, Tenant
 Membership (P5D), and enabling `department` as a new role-assignment scope.
 
+### P5C-2 — RoleBinding Typed DomainEvents (implemented)
+
+**Status:** implemented, reviewed. `RoleGovernanceService.assign_role`/`revoke_role_binding`
+now record exactly ONE canonical business fact per real transition -- `RoleBindingAssigned`/
+`RoleBindingRevoked` -- via `uow.record_event(...)`, before `uow.commit()`, mirroring
+`OrganizationCreated`/`ModuleLicensed`'s own application-authored precedent (`RoleBinding` has
+no transition methods to record itself on). No ViewInvalidation, no Qt migration, no
+`access_changed`/`auth_changed` removal, no delegation-policy or custom-role events -- all still
+explicitly deferred to P5C-3 (or, for custom-role CRUD, indefinitely out of RoleBinding's own
+event family).
+
+**Event vocabulary and location:** `RoleBindingAssigned`/`RoleBindingRevoked`
+(`src/core/platform/domain/security/authorization/roles/events.py`) -- Platform's RBAC domain
+capability owns them, matching Organization/Module's own package-per-capability convention. Pure
+business vocabulary: no ViewInvalidation/Qt/SQLAlchemy import, no dispatch/execution metadata
+(`correlation_id`/`causation_id`/`command_id` stay on `DomainEventContext`, never duplicated).
+
+**Fields (both events):** `binding_id`, `principal_id`, `role_id`, `scope`, `occurred_at`.
+`binding_id` is included deliberately (the P5C-1 review's explicit decision, confirmed again
+here) -- `RoleBinding.id` is a durable identity already referenced by
+`revoke_role_binding(binding_id)`, every audit entry, and `ScopedAccessGrant.id`. The acting
+administrator is never a field -- audit already records that separately; the event's subject is
+the affected principal.
+
+**Typed scope, not flattened nullable IDs:** a new domain-facing union,
+`RoleBindingScope = RoleBindingPlatformScope | RoleBindingTenantScope | RoleBindingResourceScope`
+(`role_binding_scope.py`, same package). Deliberately NOT a reuse of P5C-1's own
+`ResolvedRoleBindingScope` (`PlatformBindingScope`/`TenantBindingScope`/`ResourceBindingScope`)
+-- that is application/orchestration terminology resolved mid-transaction against UoW-bound
+repositories, and importing it into a domain event would have the domain layer depend on the
+application layer, backwards. Also deliberately NOT a reuse of
+`src/core/shared/events/view_invalidation.py`'s own `PlatformScope`/`TenantScope`/
+`OrganizationScope` names (ViewInvalidation targeting infrastructure, P5C-3's concern) --
+distinct names (`RoleBindingPlatformScope`/etc.) make the two families impossible to confuse.
+`RoleGovernanceService._to_domain_scope()` converts its resolved `ResolvedRoleBindingScope` into
+the domain-facing type when recording `RoleBindingAssigned`; `revoke_role_binding` has no
+pre-resolved scope on hand (the binding already exists), so a sibling
+`_resolve_domain_scope_for_binding()` re-resolves the authoritative organization ownership from
+the binding's own recorded `actual_scope_type`/`actual_scope_id` (captured BEFORE the revoke
+mutation, never re-derived from the current desktop UI scope after the fact) via the same
+session-bound `organization_owner_resolver`.
+
+**Recording points:** exactly one per method, staged inside the same transaction as the binding
+mutation and audit entry, immediately before `uow.commit()` -- never from
+`AccessControlService`, never from `role_assignment_service.py`'s tenant-role facade, never
+after commit, never twice. Both facades converge on `RoleGovernanceService.assign_role`/
+`revoke_role_binding`, so exactly one `RoleBindingAssigned`/`RoleBindingRevoked` is produced
+regardless of which facade the caller used (proven by test; `access_changed`/`auth_changed`
+still additionally fire per the pre-existing, documented legacy duplication -- unchanged by this
+phase).
+
+**No-op semantics preserved exactly:** assigning an identical already-active binding and
+revoking an already-revoked binding both still short-circuit before any write/audit/event --
+zero `RoleBindingAssigned`/`RoleBindingRevoked` for a no-op, matching P5C-1's own established
+rule ("no transition -> no event").
+
+**Clock:** `RoleGovernanceService` now takes an injected `clock: Clock` (`SystemClock()` from
+composition, mirroring Organization/Module) for `occurred_at` -- never a direct
+`datetime.now()`/`utcnow()` call for the event's own timestamp (pre-existing `revoked_at`/audit
+timestamps elsewhere in the service are unchanged, out of this phase's narrow scope).
+
+**Non-active-organization / cross-tenant proof:** the event's `scope.organization_id` is proven,
+by test, to carry the resource's OWN authoritative organization (via the P5C-1-corrected
+`get_for_tenant` repository reads) for storeroom/project/site even while a different
+organization is ambiently active -- never the ambient one. A cross-tenant storeroom target
+produces zero events (rejected before any resolution succeeds). Platform-scope assignment is
+proven to still be denied by the pre-existing business rule (never weakened to manufacture a
+platform-scoped event).
+
+**Failure/rollback/isolation proofs:** delegation-denied and SoD-conflict failures produce zero
+mutation/audit/event; audit-staging failure and commit failure both roll back the binding and
+leave zero event observable to a post-commit subscriber; one failing post-commit handler does
+not block another subscriber or the underlying commit (ISOLATE_AND_CONTINUE, unchanged); a
+post-commit subscriber receives the command's own `DomainEventContext`, with no execution
+metadata duplicated onto the event itself.
+
+**Current-principal refresh remains independent of event subscribers:** proven by test -- a
+RoleBindingRevoked subscriber that raises does not prevent the existing, explicit post-commit
+self-refresh flow (established in P5C-1) from running; fail-closed semantics on refresh failure
+are unaffected by this phase (unchanged, not moved behind event dispatch).
+
+**Test coverage:** `test_role_binding_events.py` (32 tests) -- event contract/architecture
+guards (dataclass shape, frozen, approved-fields-only, no UI/ViewInvalidation/SQLAlchemy import
+in the two new domain modules, shared `domain_event.py` does not import RoleBinding events,
+neither facade records events, no P5C-3 production code, no new arbitrary Session usage in
+`RoleGovernanceService`), Clock injection, assign/revoke recording + no-op, platform/tenant/
+resource scope variants (storeroom/project/site, non-active-org and cross-tenant), delegation-
+denied/SoD-conflict/audit-failure/commit-failure/handler-failure isolation, context propagation,
+current-principal-refresh independence, legacy-signal coexistence, delegation-policy
+eventlessness, and committed-order sequencing.
+
+**Regression:** focused Access/RBAC suite 117 passed / 1 pre-existing failure; architecture
+suite 142 passed / 13 pre-existing failures (identical identities to P5C-1's own run); full
+Platform suite 1015 passed / 15 failures / 12 errors (identical identities to P5C-1's own run).
+PM/Inventory not re-run -- no repository code changed in this phase (P5C-2 only added domain
+events and wired `RoleGovernanceService`; the P5C-1 `get_for_tenant` repository additions are
+unchanged).
+
+**Explicit non-goals:** ViewInvalidation and Qt migration (P5C-3), `access_changed`/
+`auth_changed` removal, delegation-policy events, custom-role CRUD events, Tenant Membership
+(P5D).
+
+### P5C-3 — RoleBinding ViewInvalidation + Direct UI Cutover (implemented; P5C now complete)
+
+**Status:** implemented, reviewed. Both RoleBinding events map onto ONE `ViewInvalidationHint`
+target (`role_binding`/`role_binding_assignments`); the real UI consumer (Access workspace's
+`scopeGrants` list) is migrated directly onto `RoleBindingViewInvalidationAdapter` --
+`access_changed` is retired entirely (no bridge), and `auth_changed` is kept but narrowed (see
+below). P5C's three sub-phases (prerequisite audit, P5C-1 transaction/scope convergence, P5C-2
+typed events, P5C-3 this section) are now all complete.
+
+**`auth_changed`/`access_changed` full producer/consumer trace (mandatory first step):**
+`access_changed` had exactly two producers, both in `AccessControlService.assign_scope_grant`/
+`remove_scope_grant` -- both delegating to the SAME canonical `RoleGovernanceService.assign_role`/
+`revoke_role_binding` mutation `auth_changed` (and now `RoleBindingAssigned`/`RoleBindingRevoked`)
+already covers, and exactly one real consumer (`access_workspace_controller.py`'s coarse
+`refresh()` reaction). `auth_changed` has TWELVE producer files: `RoleGovernanceService` (now
+redundant with the typed event for that ONE fact) plus eleven genuinely unrelated,
+still-untyped security facts -- session/authentication lifecycle, MFA, password changes,
+federated identity, user registration/bootstrap, user admin actions, policy reconciliation, and
+tenant membership. It has TWO real consumers: the Access workspace (migrating here) and the
+temporary Admin Console composite (`admin_console/domain_event_binder.py`, explicitly documented
+as removed wholesale in the already-planned R2 migration, decomposing 9 sub-controllers into
+independent ones) -- whose user-catalog sub-controller genuinely displays `role_names` and calls
+the legacy tenant-role facade's own `assign_role`/`revoke_role`, so it is a real, currently-live
+RoleBinding-derived consumer, not dead code.
+
+**Producer classification:**
+
+| Producer | Classification | Disposition |
+|---|---|---|
+| `RoleGovernanceService.assign_role`/`revoke_role_binding` | A -- now covered by `RoleBindingAssigned`/`RoleBindingRevoked` | **Kept, not deleted** -- the Admin Console user-catalog consumer (Category B relative to this producer, since it is NOT the Access workspace and is out of P5C-3's own boundary) still needs it. Removing it would silently break a real, currently-shipping feature for an unrelated, already-planned migration this phase does not own. |
+| Session/authentication, MFA, password, federated identity, registration/bootstrap, user admin, policy reconciliation, tenant membership (11 files) | B -- real, distinct, still-untyped security facts | Retained unchanged -- each is its own future event slice, not RoleBinding's. |
+
+**Consumer classification and disposition:**
+
+- **Access workspace `scopeGrants`** (Category A, RoleBinding-derived): migrated to
+  `RoleBindingViewInvalidationAdapter` -> `refresh_role_bindings()` (narrow: only
+  `_refresh_scope_grants()`/`_refresh_empty_state()`).
+- **Access workspace `security_users`** (Category B, genuinely depends on the OTHER
+  `auth_changed` producers -- lockout/session state can change for any user in the tenant):
+  kept on `auth_changed`, but re-routed from the old coarse `_on_domain_event` (-> full
+  `refresh()`) to a new narrow `_on_auth_changed` (-> `_refresh_after_security_change()` only).
+- **Access workspace `scope_type_options`/`user_options`/`role_options`/`scope_options`**
+  (Category C, incidental over-refresh -- traced end-to-end, none of these ever depended on
+  `auth_changed`/`access_changed` at all): no longer reloaded on either signal -- the single
+  largest concrete benefit of this cutover.
+- **Admin Console user catalog** (Category B, real, but not this phase's workspace):
+  untouched, out of P5C-3's boundary.
+
+**ViewInvalidation target:** one category, `role_binding`, one scope code,
+`role_binding_assignments` (`src/core/platform/application/security/authorization/roles/
+event_handlers/view_invalidation.py`), reused for both events -- the real consumer re-reads via
+one call (`AccessControlService.list_scope_grants(scope_type, scope_id)`) regardless of
+assignment vs. revocation.
+
+**Scope routing, faithful to the typed union, never collapsed:** `RoleBindingPlatformScope` ->
+`PlatformScope()`; `RoleBindingTenantScope(tenant_id)` -> `TenantScope(tenant_id)`;
+`RoleBindingResourceScope(tenant_id, organization_id, ...)` -> `OrganizationScope(tenant_id,
+organization_id)` when `organization_id` is present, else `TenantScope(tenant_id)` -- never a
+fabricated organization for a genuinely ownerless resource. The authoritative `organization_id`
+always comes from the event itself (resolved inside the RoleGovernance transaction per
+P5C-1/P5C-2), never the desktop's ambient active organization.
+
+**Qt adapter -- two subscriptions, not one:** `RoleBindingViewInvalidationAdapter`
+(`src/ui_qml/platform/adapters/`) deliberately differs from `ModuleEntitlementViewInvalidationAdapter`'s
+single-`ExactOrganization` shape: it holds BOTH a `TenantWide(tenant_id)` subscription (catches
+tenant-scoped RoleBinding facts regardless of which organization is active -- the Access
+workspace's `scopeGrants` list is not confined to one organization) AND an
+`ExactOrganization(tenant_id, organization_id)` subscription (catches resource-scoped facts for
+the currently active organization only). Neither `AllTenants()` nor
+`AnyOrganizationInTenant(...)` is ever used. Re-scoped via the SAME `refreshCurrentPermissions()`
+hook the module entitlement adapter uses, since a resource-scoped RoleBinding fact must follow
+an organization switch exactly like module entitlements do, while a tenant-scoped fact must
+survive it.
+
+**Non-active-organization isolation, proven both ways:** a resource-scoped mutation for a
+non-active organization produces no callback while a different organization is active, and
+exactly one callback once switched to the matching organization -- and, symmetrically, a
+tenant-scoped mutation produces a callback regardless of which organization happens to be
+active (the `TenantWide` subscription is organization-independent by design).
+
+**Facade audit (`AccessControlService`, mandatory before wiring consumers):** every
+responsibility was classified. Categories A/genuine-application-policy (kept): the "Access" UI's
+own `access.manage` permission gate (distinct from RoleGovernance's `auth.role.assign`), its
+`_CANONICAL_SCOPE_TYPES` restriction to `{project, site, storeroom}` (a UI/use-case scope,
+narrower than RoleGovernance's own broader support), the `scope_role` <-> canonical-role-name
+<-> permission-set translation vocabulary, and the `ScopedAccessGrant` read-model DTO shape.
+Category D (duplication, now retired): `domain_events.access_changed.emit(...)` -- the only
+actual business-event duplication found; removed. The pre-existing `_assert_scope_exists`/
+`_require_target_membership`/`_require_active_tenant_id` validation helpers are NOT pure
+duplication despite overlapping with RoleGovernance's own internal checks -- `list_scope_grants`/
+`list_user_scope_grants` (read paths) have no RoleGovernance mutation call to lean on and need
+their own validation regardless; removing them from the write paths purely for minimalism risked
+changing observable error-code behavior for existing consumers/tests for no correctness benefit,
+so they were left in place.
+
+**Decision: `AccessControlService` KEPT, not renamed.** It retains a real, non-redundant
+responsibility (above) and remains thin, non-transaction-owning (delegates every mutation to
+`RoleGovernanceService.assign_role`/`revoke_role_binding`), and now non-event-owning (the one
+event-owning line was the retired `access_changed.emit`). A rename was considered (12 non-test
+call sites) but not pursued -- "strongly consider if safe" is not "must," and the mechanical
+rename cost was not justified by a correctness or clarity gain proportionate to this phase's
+narrow mandate.
+
+**Legacy signal final status:** `access_changed` -- **fully deleted** (Signal field,
+`_BRIDGE_SPECS` entry, both producers, the one real consumer's subscription, and the one
+test-only producer/consumer reference, all removed; confirmed zero remaining references
+repository-wide). `auth_changed` -- **kept**, RoleGovernance's own two producer call sites
+retained (a real remaining non-Access consumer still needs them), routed through a narrower
+consumer-side handler for the one migrated workspace. No new typed-event -> legacy bridge was
+created for either signal, per instruction.
+
+**Test coverage:** `test_role_binding_view_invalidation_qt_cutover.py` (mapper contract and
+scope routing including the ownerless-resource case, no Qt dependency in the mapper module,
+real end-to-end Access-workspace-refresh-on-real-mutation, coarse-refresh retirement proof,
+pre-commit/commit-failure/no-op non-observability, non-active-org isolation both directions,
+tenant-scope organization-independence, cross-tenant no-invalidation, adapter dual-subscription
+shape with no `AllTenants`/`AnyOrganizationInTenant`, tenant- and organization-switch lifecycle
+through the real `refreshCurrentPermissions()`/`switchToTenant()` hooks with no subscription
+accumulation, platform-scope denial with no fabricated hint) plus updated coverage in
+`test_qml_domain_event_bridges_pm.py`, `test_secondary_workspace_lazy_loading.py`, and
+`test_access_scope_domain_validation.py` for the retired `access_changed`/narrowed `auth_changed`
+paths. One pre-existing, unrelated test (`test_organization_view_invalidation_qt_cutover.py`'s
+own real-tenant-switch proof) needed a narrow fix: it scanned the WHOLE channel for any
+`TenantWide` subscription, which the new RoleBinding adapter's own (independent) `TenantWide`
+subscription now also satisfies -- fixed to resolve the Organization adapter's own tracked
+subscription by id instead of a channel-wide type scan.
+
+**Regression:** focused Access/RBAC + Qt cutover suite 154 passed / 1 pre-existing failure;
+architecture suite 142 passed / 13 pre-existing failures (identical identities); full Platform
+suite 1037 passed / 15 failures / 12 errors (identical identities to P5C-2's own run, after
+fixing the one collision described above). PM/Inventory not re-run -- no shared/resource
+repository behavior changed in this phase.
+
+**Explicit non-goals:** delegation-policy events, custom-role lifecycle events, Tenant
+Membership events, P5D.
+
 ## P6 — Qt Invalidation Adapter Consolidation
 
 **Goal:** build the one shared Qt adapter, and migrate the three existing controller bases to

@@ -122,17 +122,21 @@ def test_platform_settings_workspace_refreshes_on_runtime_events(monkeypatch) ->
     assert refresh_calls == ["refresh"]
 
 
-def test_platform_admin_access_workspace_refreshes_on_access_events(monkeypatch) -> None:
+def test_platform_admin_access_workspace_reacts_to_auth_changed_narrowly(monkeypatch) -> None:
+
     catalog = PlatformWorkspaceCatalog()
     controller = catalog.adminAccessWorkspace
     controller.ensureLoaded()
-    refresh_calls: list[str] = []
-    monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
+    narrow_calls: list[str] = []
+    full_refresh_calls: list[str] = []
+    monkeypatch.setattr(controller, "_refresh_after_security_change", lambda: narrow_calls.append("security"))
+    monkeypatch.setattr(controller, "refresh", lambda: full_refresh_calls.append("refresh"))
 
     domain_events.auth_changed.emit("user-1")
-    domain_events.access_changed.emit("project-1")
 
-    assert refresh_calls == ["refresh", "refresh"]
+    assert narrow_calls == ["security"]
+    assert full_refresh_calls == []
+    assert not hasattr(domain_events, "access_changed")
 
 
 def test_platform_admin_workspace_refreshes_on_master_data_events(monkeypatch) -> None:

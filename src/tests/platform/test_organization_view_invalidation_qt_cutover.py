@@ -241,15 +241,23 @@ def test_real_tenant_switch_through_the_catalog_rewires_the_adapter_end_to_end(s
     organization yet, which `record_audit_entry`'s tenant/org scoping requires regardless of this
     cutover, and bootstrapping one collides on the DEFAULT organization_code's cross-tenant
     unique constraint in this shared test database -- both pre-existing, unrelated to this
-    hardening pass and to the adapter's own wiring, which is what this test actually verifies."""
-    from src.core.shared.events.view_invalidation import TenantWide
+    hardening pass and to the adapter's own wiring, which is what this test actually verifies.
+
+    P5C-3 note: `_current_filters()` now resolves THIS adapter's own tracked subscription by id,
+    rather than scanning the whole channel for any `TenantWide` instance -- `RoleBindingViewInvalidationAdapter`
+    also holds a `TenantWide` subscription (P5C-3), so a channel-wide scan would conflate the two
+    independent adapters' subscriptions."""
 
     catalog = _catalog(services)
     channel = services["platform_view_invalidation_channel"]
     adapter = catalog._organization_view_invalidation_adapter
 
     def _current_filters():
-        return [filt for filt, _handler in channel._subscriptions.values() if isinstance(filt, TenantWide)]
+        subscription = adapter._subscription
+        if subscription is None:
+            return []
+        entry = channel._subscriptions.get(subscription._subscription_id)
+        return [entry[0]] if entry is not None else []
 
     tenant_a = services["tenant_context_service"].get_active_tenant_id()
     assert any(f.tenant_id == tenant_a for f in _current_filters())

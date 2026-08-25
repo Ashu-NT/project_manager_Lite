@@ -220,10 +220,13 @@ def test_shared_events_package_does_not_import_role_binding_events():
 
 
 def test_access_facade_does_not_record_role_binding_events():
+    """The facade's own comments legitimately MENTION `RoleBindingAssigned` (documenting why
+    `access_changed` was retired, per P5C-3) -- what must never exist is an actual construction
+    of the event or a call to `record_event`/`uow.record_event`."""
     import src.core.platform.access.application.access_control_service as access_module
 
     source = inspect.getsource(access_module)
-    for forbidden in ("RoleBindingAssigned", "RoleBindingRevoked", "record_event", "uow.record_event"):
+    for forbidden in ("RoleBindingAssigned(", "RoleBindingRevoked(", "record_event", "uow.record_event"):
         assert forbidden not in source
 
 
