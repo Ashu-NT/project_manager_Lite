@@ -165,6 +165,7 @@ class PlatformWorkspaceCatalog(QObject):
         )
         self._organization_view_invalidation_adapter = OrganizationViewInvalidationAdapter(
             channel=view_invalidation_channel,
+            tenant_id=self._tenant_switcher.activeTenantId,
             parent=self,
         )
         self._organization_view_invalidation_adapter.organizationCollectionStale.connect(
@@ -172,6 +173,17 @@ class PlatformWorkspaceCatalog(QObject):
         )
         self._organization_view_invalidation_adapter.organizationCollectionStale.connect(
             self._settings_workspace.refresh_organization_profiles
+        )
+        # Tenant-scope hardening: a single adapter instance persists across a tenant switch (the
+        # QML controller tree is never reconstructed), so it must be re-scoped to whichever
+        # tenant is now active -- otherwise it would keep matching the PREVIOUS tenant's
+        # organization-collection invalidations (or, with the earlier AllTenants() subscription,
+        # every tenant's), never correctly following the switch.
+        self._tenant_switcher.tenantSwitched.connect(self._on_tenant_switched)
+
+    def _on_tenant_switched(self) -> None:
+        self._organization_view_invalidation_adapter.set_active_tenant(
+            self._tenant_switcher.activeTenantId
         )
 
     @Property(PlatformAdminWorkspaceController, constant=True)
