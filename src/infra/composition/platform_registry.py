@@ -80,6 +80,9 @@ from src.core.platform.infrastructure.persistence.module_entitlement_unit_of_wor
 from src.core.platform.infrastructure.persistence.role_governance_unit_of_work import (
     SqlAlchemyRoleGovernanceUnitOfWorkFactory,
 )
+from src.core.platform.infrastructure.persistence.tenant_membership_unit_of_work import (
+    SqlAlchemyTenantMembershipUnitOfWorkFactory,
+)
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
     SqlAlchemyOrganizationRepository,
@@ -477,19 +480,6 @@ def build_platform_service_bundle(
         user_session=user_session,
         platform_event_repo=repositories.platform_event_repo,
     )
-    tenant_membership_service = TenantMembershipService(
-        session=session,
-        tenant_repo=repositories.tenant_repo,
-        membership_repo=repositories.user_tenant_repo,
-        user_repo=repositories.user_repo,
-        role_repo=repositories.role_repo,
-        role_binding_repo=repositories.role_binding_repo,
-        auth_session_repo=repositories.auth_session_repo,
-        audit_repo=repositories.audit_entry_repo,
-        user_session=user_session,
-        tenant_context_service=tenant_context_service,
-        notification_service=notification_service,
-    )
     document_service = DocumentService(
         session=session,
         document_repo=repositories.document_repo,
@@ -674,6 +664,23 @@ def build_platform_service_bundle(
         ),
     )
     auth_service.set_role_governance_service(role_governance_service)
+    tenant_membership_uow_session_factory = sessionmaker(bind=session.bind, future=True)
+    tenant_membership_uow_factory = SqlAlchemyTenantMembershipUnitOfWorkFactory(
+        session_factory=tenant_membership_uow_session_factory,
+        transactional_dispatcher=platform_transactional_dispatcher,
+        post_commit_bus=platform_post_commit_bus,
+    )
+    tenant_membership_service = TenantMembershipService(
+        uow_factory=tenant_membership_uow_factory,
+        clock=SystemClock(),
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+        notification_service=notification_service,
+        # P5D-1: the SAME resolver dict `RoleGovernanceService` uses -- membership's own
+        # removal cascade can revoke resource-scoped bindings too, so it needs the same
+        # organization-ownership derivation, not just the tenant-wide default grant's.
+        organization_owner_resolvers=role_governance_organization_owner_resolvers,
+    )
     service_principal_service = ServicePrincipalService(
         session=session,
         principal_repo=repositories.service_principal_repo,

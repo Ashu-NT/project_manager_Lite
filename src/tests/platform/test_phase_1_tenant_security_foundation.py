@@ -198,7 +198,10 @@ def test_user_tenant_repo_deactivate(session):
     session.flush()
 
     assert repo.is_active_member("u-deact-1", "t-deact-1") is True
-    repo.deactivate("u-deact-1", "t-deact-1")
+    # P5D-1: the dead, zero-production-caller `deactivate()` convenience method was removed
+    # (it bypassed all authorization/audit/session-revocation logic) -- the equivalent direct
+    # repository sequence for test setup is `get()` + `update(membership.suspend())`.
+    repo.update(repo.get("u-deact-1", "t-deact-1").suspend())
     session.flush()
     assert repo.is_active_member("u-deact-1", "t-deact-1") is False
     membership = repo.get("u-deact-1", "t-deact-1")

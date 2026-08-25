@@ -1656,6 +1656,172 @@ repository behavior changed in this phase.
 **Explicit non-goals:** delegation-policy events, custom-role lifecycle events, Tenant
 Membership events, P5D.
 
+## P5D — Tenant Membership
+
+### P5D-SEM / Prerequisite Audit (complete; design decision required)
+
+**Status:** investigation/design only, no code changes. Traced the complete real capability
+(`UserTenantMembership` domain model, `TenantMembershipService`,
+`SqlAlchemyUserTenantMembershipRepository`) before proposing any event.
+
+**Real state machine (`src/core/platform/domain/tenant/tenancy/user_tenant_membership.py`):**
+four persisted statuses -- `invited`/`active`/`suspended`/`removed` (`MEMBERSHIP_STATUSES`).
+Unlike every prior P5 capability (Organization/Module/RoleBinding), `UserTenantMembership` is a
+REAL aggregate with its own genuine transition methods encoding real invariants (not a plain
+projection): `create()` (direct, no invitation), `invite()`, `accept_invitation()`, `suspend()`,
+`reactivate()` (suspended -> active ONLY), `remove()` (active/suspended -> removed),
+`revoke_invitation()` (invited -> removed, never accepted), `reinvite()` (invited/removed ->
+invited). Membership identity is durable across the entire lifecycle -- confirmed at the
+repository layer: `SqlAlchemyUserTenantMembershipRepository` has no delete method at all,
+`update()` is an in-place, version-checked UPDATE on the same row/id (never a new one), and
+`add()` explicitly rejects a second row for the same `(user_id, tenant_id)` pair
+(`USER_TENANT_MEMBERSHIP_EXISTS`). "Removed" is a genuine soft-delete/tombstone status, never
+physical deletion.
+
+**Real mutation command inventory (`TenantMembershipService`):** `issue_invitation` (creates OR
+reinvites), `accept_invitation`/`accept_invitation_for_tenant` (self-service, invited -> active,
+also creates a default RoleBinding), `revoke_invitation` (invited -> removed, never accepted),
+`suspend_member` (active -> suspended; guards last-tenant-admin, revokes affected sessions),
+`reactivate_member` (suspended -> active only), `remove_member` (active/suspended -> removed;
+guards last-tenant-admin, revokes affected sessions, AND bulk-revokes every active RoleBinding
+for that principal in that tenant). A `deactivate(user_id, tenant_id)` convenience method exists
+on the repository CONTRACT itself but has zero production callers anywhere in the repository --
+a latent, currently-inert bypass of all authorization/audit/session-revocation logic (item 9's
+"generic update API" concern, confirmed present but dormant; P5D-1 should either wire it
+properly or remove it -- not decided here).
+
+**Transaction ownership: CONFIRMED LEGACY -- this is the decisive finding.**
+`TenantMembershipService` is constructed with the SAME shared, process-lifetime `session` object
+`platform_registry.py` threads through the whole composition graph, and every mutation method
+uses inline `self._session.commit()`/`self._session.rollback()` (`issue_invitation`,
+`_accept_membership`, `_persist_administrative_transition` -- the shared helper behind
+`revoke_invitation`/`suspend_member`/`reactivate_member`/`remove_member`), exactly the pattern
+P5C-1 had to converge `RoleGovernanceService` away from. Per the mandatory gate: **no
+TenantMembership DomainEvents may be implemented before this capability converges to a narrow
+canonical UoW** (a `TenantMembershipUnitOfWork`, mirroring `RoleGovernanceUnitOfWork`'s own
+shape) -- this is P5D-1's real, non-optional job, not a decision this audit can approve past.
+
+**Cross-cutting architectural gap discovered (not caused by P5D, pre-existing since before
+P5C):** `TenantMembershipService` owns TWO of its own direct RoleBinding mutations that bypass
+`RoleGovernanceService` entirely -- `_ensure_default_role_bindings` (called from
+`_accept_membership`) calls `role_binding_repo.add(RoleBinding.create(...))` directly, and
+`remove_member` calls `role_binding_repo.revoke_active_for_principal_tenant(...)`, a raw bulk
+SQL `UPDATE` -- neither ever goes through `RoleGovernanceService.assign_role`/
+`revoke_role_binding`, so neither can currently produce a `RoleBindingAssigned`/
+`RoleBindingRevoked` event even though each is a genuine RoleBinding mutation. This predates and
+was not caught by any P5C audit (which only traced the Access/RBAC-facade paths). P5D-1/P5D-2
+must explicitly decide whether to route these through the canonical RoleGovernance path (letting
+membership-driven RoleBinding changes participate in the typed RoleBinding event stream) or
+document them as a permanently-separate, event-less persistence-level cascade -- **not**
+resolved by bulk-generating events from the cascade rows without semantic evidence (item 18's
+explicit prohibition; heeded here, not violated).
+
+**Current-user membership removal: NOT a security blocker.** `_require_manageable_target`
+explicitly forbids `target.id == actor.user_id` for every admin-initiated mutation (invite,
+suspend, reactivate, remove) -- `TENANT_MEMBERSHIP_SELF_LOCKOUT`. It is structurally impossible,
+via any code path, for an actor to change their own membership through these commands (only
+`accept_invitation`/`accept_invitation_for_tenant`, both self-service and both `active`-going
+transitions, ever act on the CURRENT principal). In this desktop architecture (one process, one
+live `UserSessionContext`/principal per user, no server pushing state across processes), the
+"another live session for the same user" scenario the prompt worried about cannot arise within
+a single process, and cross-process propagation (an admin on one machine revoking a user active
+on a different machine) is an inherent, pre-existing characteristic of this desktop app
+unrelated to eventing -- already equally true for every other security-sensitive mutation
+(password changes, RoleBinding changes) and not something P5D introduces or must solve.
+`suspend_member`/`remove_member` DO correctly revoke the target's persisted `AuthSession` rows
+(`_revoke_affected_sessions`), so a NEW action from that user's own process (after their session
+is revoked) fails closed via the already-established `AuthSession.revoked_at` check --
+consistent with P5C-1's own established fail-closed precedent, not a new mechanism.
+
+**Activated vs. Reactivated -- evidence-based decision, correcting the original proposal:**
+the domain model itself answers this. The "removed member comes back" path
+(`remove()` -> `reinvite()` -> `accept_invitation()`) terminates in the EXACT SAME method
+(`accept_invitation()`, invited -> active) as first-time activation -- the model draws no
+distinction between "never was a member" and "was removed, now re-invited and accepted." Both
+are the SAME business fact: an invitation was accepted. `reactivate()` (suspended -> active), by
+contrast, IS a genuinely distinct method with its own precondition (must be suspended), its own
+administrator-invoked command (`reactivate_member`, not self-service), and its own audit action
+(`"tenant.membership.reactivated"`, distinct from `"tenant.membership.invitation_accepted"`).
+**Decision: `TenantMembershipActivated`** covers `accept_invitation()`/
+`accept_invitation_for_tenant()` regardless of whether the membership is brand new or was
+previously removed-then-reinvited (Option A's INSERT-vs-UPDATE framing was the wrong axis;
+method identity is the right one). **`TenantMembershipReactivated`** covers `reactivate_member()`
+only. Direct `create()` (registration-time, no invitation -- `AuthService.register_user` with a
+`tenant_id`) is bootstrap materialization, not a business activation -- mirrors Organization/
+Module's own provisioning-is-not-a-licensing-fact precedent; no event for it.
+
+**Removed vs. Deactivated -- and a genuine gap in the original 3-event proposal:**
+`remove()` (a tombstone requiring re-invitation to return) and `suspend()` (a temporary,
+directly-reversible-via-`reactivate()` state) are two DIFFERENT, already-distinctly-named,
+already-distinctly-audited business facts, and the service's own vocabulary
+(`"tenant.membership.removed"` vs. `"tenant.membership.suspended"`) already uses "Removed"
+correctly for `remove()`. But **the original three-event proposal has no event at all for
+`suspend_member`'s own transition** -- `TenantMembershipSuspended` is a real, missing fourth
+event name, not an oversight to paper over with `Removed`. Recommended final vocabulary is FOUR
+events, not three: `TenantMembershipActivated`, `TenantMembershipSuspended`,
+`TenantMembershipReactivated`, `TenantMembershipRemoved`. Invitation issuance/revocation
+(`issue_invitation`/`revoke_invitation`, both on `invited`, never yet a granted membership) are
+real, distinct facts too but lower priority -- a secondary decision for P5D-2, not blocking.
+
+**No-op semantics (from the aggregate's own transition guards, already enforced):**
+`accept_invitation()` raises `USER_TENANT_MEMBERSHIP_ACCEPT_INVALID_TRANSITION` if not
+`invited`; `suspend()` raises `..._SUSPEND_INVALID_TRANSITION` if not `active`; `reactivate()`
+raises `..._REACTIVATE_INVALID_TRANSITION` if not `suspended`; `remove()` raises
+`..._REMOVE_INVALID_TRANSITION` if not `active`/`suspended`. Every "invalid state for this
+transition" case is already a hard validation error, not a silent no-op -- there is no existing
+"idempotent success" case to preserve; a future P5D-2 event only needs the ordinary
+"exception raised -> zero event" rule already established for every other P5 capability.
+
+**Legacy signal inventory:** no dedicated membership signal exists -- `auth_changed` is the ONLY
+legacy signal touching tenant membership (`_accept_membership`/`suspend_member`/
+`reactivate_member`/`remove_member` each emit it; `issue_invitation`/`revoke_invitation` emit
+nothing at all today). Two real consumers, BOTH already inventoried in P5C-3
+(`access_workspace_controller.py`'s `security_users` list, Admin Console's user catalog) --
+and BOTH have a genuine, newly-confirmed dependency on membership status specifically:
+`AuthService.list_users()`'s tenant branch calls `UserRepository.list_for_tenant(tenant_id)`,
+which filters `UserTenantORM.status == MEMBERSHIP_STATUS_ACTIVE` -- a suspended or removed
+member genuinely disappears from both lists. This is Category A (real dependency), not the
+Category C incidental over-refresh P5C-3 found for the OTHER `auth_changed` producers relative
+to those same two consumers.
+
+**UI consumer trace -- there is currently no admin membership-management UI at all.**
+`PlatformTenantDesktopApi` (the only desktop-API surface touching `TenantMembershipService`)
+exposes exactly `list_pending_invitations`/`accept_invitation` (self-service only).
+`issue_invitation`/`revoke_invitation`/`suspend_member`/`reactivate_member`/`remove_member` have
+**zero callers anywhere outside `TenantMembershipService` itself and tests** -- no desktop API,
+no controller, no QML. A future P5D-3 Qt cutover has no existing admin-side consumer to migrate
+for those five commands; only the two `auth_changed`-driven list refreshes (Category A, above)
+would need a ViewInvalidation-based replacement, symmetrical to P5C-3's own `scopeGrants`
+migration but smaller in surface area.
+
+**ViewInvalidation candidates (documented, not implemented):** `tenant_memberships` (a future
+membership-administration list, once one exists) and, per the confirmed Category A dependency
+above, the SAME `security_users`/user-catalog read models P5C-3 already serves for RoleBinding
+-- membership status changes are a second, independent reason those two lists go stale, not
+covered by `role_binding_assignments`. Both would be `TenantScope(tenant_id)` -- never
+`organization_id`, confirmed nothing in the membership model or its mutation commands derives
+from or depends on the ambient active organization (verified: `_require_tenant_administrator`
+resolves `tenant_id` via `tenant_context_service.require_active_tenant_id()` only, never touches
+organization context at all). An organization switch inside the same tenant must not, and
+structurally cannot, affect a future membership ViewInvalidation subscription.
+
+**Recommended subphases:** **P5D-1** (mandatory, not optional) -- converge
+`TenantMembershipService` onto a canonical `TenantMembershipUnitOfWork`; resolve the
+RoleGovernance-bypass question for the default-role-grant-on-accept and the bulk-revoke-on-remove
+cascades; decide the `deactivate()` dead-code question. **P5D-2** -- implement
+`TenantMembershipActivated`/`TenantMembershipSuspended`/`TenantMembershipReactivated`/
+`TenantMembershipRemoved` (plus, if approved, invitation issuance/revocation) via
+`uow.record_event(...)` (service-controlled; `UserTenantMembership` is a real aggregate with
+genuine transition methods, but does not implement `RecordsDomainEvents`, and forcing that
+protocol onto it is not required to record correctly -- P5C's own established application-
+authored pattern applies unchanged). **P5D-3** -- ViewInvalidation + the two existing
+`auth_changed` consumers' membership-dependent portions migrated; no Qt adapter/consumer exists
+yet for the admin mutation commands themselves, so this phase is narrower than P5C-3.
+
+**No code changes made in this audit** (investigation/design only, per instruction) -- no
+TenantMembership DomainEvents, no ViewInvalidation, no Qt migration, no legacy signal removal,
+no `deactivate()` decision executed.
+
 ## P6 — Qt Invalidation Adapter Consolidation
 
 **Goal:** build the one shared Qt adapter, and migrate the three existing controller bases to
