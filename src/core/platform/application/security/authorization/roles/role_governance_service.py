@@ -50,7 +50,6 @@ from src.core.platform.common.exceptions import (
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.platform.common.ids import generate_id
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.time.clock import Clock
 
 
@@ -364,10 +363,6 @@ class RoleGovernanceService:
                     scope_type=scope_type,
                     scope_id=normalized_scope_id,
                 )
-        # Post-commit, outside the `with` block (the UoW is already closed): the legacy
-        # notification and the current-principal runtime-authorization refresh, in that order.
-        # Never before commit -- a rolled-back transaction must never be observable here.
-        domain_events.auth_changed.emit(target.id)
         return binding
 
     def revoke_role_binding(self, binding_id: str) -> RoleBinding:
@@ -419,7 +414,6 @@ class RoleGovernanceService:
                 actor=actor,
             )
             uow.commit()
-        domain_events.auth_changed.emit(binding.principal_id)
         return binding
 
     def _require_principal(self):

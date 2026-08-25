@@ -1,17 +1,4 @@
-"""P5C-2: `RoleBindingAssigned`/`RoleBindingRevoked` -- the canonical RoleBinding capability's own
-business event vocabulary, their recording lifecycle inside `RoleGovernanceService.assign_role`/
-`revoke_role_binding`, and the no-event/exactly-once guarantees this phase decided.
 
-Mirrors `test_module_entitlement_events.py`/`test_organization_created_event.py`'s own patterns
-(`_spy_recorded_events`, `_FixedClock`, post-commit-bus subscription for observability/rollback
-proofs). Complements `test_role_governance_unit_of_work_cutover.py` (P5C-1's transaction/scope
-mechanics, unchanged here).
-
-This phase adds ONLY `RoleBindingAssigned`/`RoleBindingRevoked` -- no ViewInvalidation, no Qt
-migration, no `access_changed`/`auth_changed` removal, no delegation-policy or custom-role
-events. `test_no_p5c3_production_code_exists_for_role_binding_events` and the "facade does not
-record" tests enforce that phase boundary.
-"""
 
 from __future__ import annotations
 
@@ -809,11 +796,15 @@ def test_current_principal_self_refresh_unaffected_by_a_broken_role_binding_even
 
 
 # ---------------------------------------------------------------------------
-# Legacy signals unchanged; delegation-policy remains eventless
+# Legacy signal retired for RoleBinding (P5 closeout); delegation-policy remains eventless
 # ---------------------------------------------------------------------------
 
 
-def test_legacy_auth_changed_still_fires_alongside_the_new_typed_event(services, monkeypatch):
+def test_legacy_auth_changed_no_longer_fires_for_role_binding_mutations(services, monkeypatch):
+    """P5 closeout (2026-08-26): `assign_role`/`revoke_role_binding`'s own `auth_changed.emit(...)`
+    calls were removed -- confirmed pure legacy duplicates of the already-implemented
+    `RoleBindingAssigned`/`RoleBindingRevoked` -> ViewInvalidation -> narrow-consumer path, with
+    no independent responsibility. Only the typed event fires now."""
     target, target_role = _tenant_scoped_binding_setup(services, suffix="legacy-signal")
     role_governance_service = services["role_governance_service"]
     recorded = _spy_recorded_events(role_governance_service, monkeypatch)
@@ -828,7 +819,7 @@ def test_legacy_auth_changed_still_fires_alongside_the_new_typed_event(services,
         domain_events.auth_changed.disconnect(seen_signals.append)
 
     assert len(recorded) == 1
-    assert seen_signals == [target.id]
+    assert seen_signals == []
 
 
 def test_delegation_policy_lifecycle_emits_no_role_binding_events(services, monkeypatch):

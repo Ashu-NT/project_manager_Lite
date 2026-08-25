@@ -1,17 +1,3 @@
-"""P5C-1 (Role Governance Transaction & Scope Convergence): `RoleGovernanceService` cut over from
-the shared, process-lifetime `Session` and inline `commit()`/`rollback()` onto a canonical,
-fresh-session `RoleGovernanceUnitOfWork` for all four mutation methods
-(`assign_role`/`revoke_role_binding`/`create_delegation_policy`/`revoke_delegation_policy`).
-Mirrors `test_organization_service_unit_of_work_cutover.py`/
-`test_module_entitlement_transaction_convergence.py` (P4B/P5B's own equivalents).
-
-This phase was transaction/scope convergence only -- no ViewInvalidation, no Qt migration, no
-`access_changed`/`auth_changed` removal (still true). P5C-2 (`test_role_binding_events.py`)
-subsequently added the `RoleBindingAssigned`/`RoleBindingRevoked` DomainEvents this file's own
-`test_role_governance_p5c1_does_not_add_p5c2_event_vocabulary` guard was written before --
-that guard has been renamed/narrowed accordingly (see its own docstring) to keep asserting what
-still must never exist (ViewInvalidation/Qt) without asserting something now false.
-"""
 
 from __future__ import annotations
 
@@ -173,20 +159,12 @@ def test_commit_failure_rolls_back_binding_and_audit_together(services, monkeypa
 
     monkeypatch.setattr(SqlAlchemyRoleGovernanceUnitOfWork, "commit", _fail_commit)
 
-    seen_signals = []
-    from src.core.shared.events.domain_events import domain_events
-
-    domain_events.auth_changed.connect(seen_signals.append)
-    try:
-        with pytest.raises(RuntimeError, match="simulated role governance commit failure"):
-            role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
-    finally:
-        domain_events.auth_changed.disconnect(seen_signals.append)
+    with pytest.raises(RuntimeError, match="simulated role governance commit failure"):
+        role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
 
     uow = captured_uow["uow"]
     assert uow._committed is False
     assert uow._closed is True
-    assert seen_signals == []  # no legacy notification for a rolled-back mutation
     persisted = SqlAlchemyRoleBindingRepository(services["session"]).get_active_for_assignment(
         principal_id=target.id,
         role_id=target_role.id,
@@ -759,13 +737,17 @@ def test_role_governance_service_has_no_inline_commit_or_rollback_or_global_sess
         assert forbidden not in source
 
 
-def test_role_governance_does_not_add_view_invalidation_or_qt_vocabulary():
+def test_role_governance_emits_no_legacy_signal_and_no_view_invalidation_or_qt_vocabulary():
     """P5C-2 legitimately added `RoleBindingAssigned`/`RoleBindingRevoked` (see
-    `test_role_binding_events.py`) -- this guard now asserts what P5C-2 was still explicitly
-    told NOT to add: no new legacy Signal emission beyond the single retained `auth_changed`,
-    and no ViewInvalidation/Qt dependency (P5C-3's concern)."""
+    `test_role_binding_events.py`); this guard asserts what must still never exist -- any legacy
+    Signal emission at all (P5 closeout, 2026-08-26: `auth_changed.emit(...)` removed from both
+    `assign_role`/`revoke_role_binding` as a confirmed pure legacy duplicate of the
+    already-implemented RoleBinding ViewInvalidation path), and no ViewInvalidation/Qt dependency
+    (P5C-3's concern -- RoleGovernanceService itself stays a pure DomainEvent recorder, never a
+    ViewInvalidation producer or Qt-aware component)."""
     source = _role_governance_service_source()
     emitted_signals = set(re.findall(r"domain_events\.(\w+)\.emit\(", source))
-    assert emitted_signals == {"auth_changed"}
+    assert emitted_signals == set()
+    assert "domain_events" not in source
     for forbidden in ("ViewInvalidation", "PySide6", "ui_qml"):
         assert forbidden not in source
