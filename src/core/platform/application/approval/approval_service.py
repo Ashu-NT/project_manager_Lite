@@ -7,6 +7,9 @@ from typing import Any, Callable
 from sqlalchemy.orm import Session
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.ids import generate_id
+from src.core.platform.contract.persistence.unit_of_work import PlatformUnitOfWorkFactory
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_events import domain_events
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.contract.models.approval.contracts import ApprovalHandlerResult
@@ -20,7 +23,13 @@ from src.core.shared.notifications import safe_dispatch_notification
 
 logger = logging.getLogger(__name__)
 
-ApplyHandler = Callable[[ApprovalRequest], ApprovalHandlerResult | None]
+# P4 Step 2 (ADR-005 §24, Round 7/8): a registered apply/reject handler is now the participant's
+# own bound method -- `(request, deps) -> ApprovalHandlerResult` -- called by ApprovalService's
+# own dispatch logic with `deps` freshly built, per call, by the handler's own registered
+# `dependencies_factory`. Neither ever receives the `UnitOfWork` itself (a participant never
+# commits/rolls back/registers touched aggregates -- see each Step 1 participant's own docstring).
+ApplyHandler = Callable[[ApprovalRequest, Any], ApprovalHandlerResult | None]
+DependenciesFactory = Callable[[Session], Any]
 
 
 class ApprovalService:
@@ -28,6 +37,7 @@ class ApprovalService:
         self,
         session: Session,
         approval_repo: ApprovalRepository,
+        uow_factory: PlatformUnitOfWorkFactory,
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
@@ -37,8 +47,15 @@ class ApprovalService:
         permission_repo: Any = None,
         role_binding_repo: Any = None,
     ):
+        # `session`/`approval_repo`/`enterprise_audit_service` are kept -- NOT for mutation
+        # transaction ownership (that is `_uow_factory`'s job now) -- but for: (a) read-only
+        # query methods (list_requests/list_pending/list_recent), which this phase deliberately
+        # leaves alone (ADR-005 Section 24/P4 Step 2 scope: "Step 2 is primarily mutation
+        # transaction ownership"); (b) `request_change(commit=False)`'s caller-owned-transaction
+        # mode, a documented, still-valid exception -- see `request_change`'s own docstring.
         self._session = session
         self._approval_repo = approval_repo
+        self._uow_factory = uow_factory
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
@@ -47,14 +64,29 @@ class ApprovalService:
         self._role_permission_repo = role_permission_repo
         self._permission_repo = permission_repo
         self._role_binding_repo = role_binding_repo
-        self._apply_handlers: dict[str, ApplyHandler] = {}
-        self._reject_handlers: dict[str, ApplyHandler] = {}
+        self._apply_handlers: dict[str, tuple[ApplyHandler, DependenciesFactory]] = {}
+        self._reject_handlers: dict[str, tuple[ApplyHandler, DependenciesFactory]] = {}
 
-    def register_apply_handler(self, request_type: str, handler: ApplyHandler) -> None:
-        self._apply_handlers[request_type.strip().lower()] = handler
+    def register_apply_handler(
+        self,
+        request_type: str,
+        handler: ApplyHandler,
+        *,
+        dependencies_factory: DependenciesFactory,
+    ) -> None:
+        self._apply_handlers[request_type.strip().lower()] = (handler, dependencies_factory)
 
-    def register_reject_handler(self, request_type: str, handler: ApplyHandler) -> None:
-        self._reject_handlers[request_type.strip().lower()] = handler
+    def register_reject_handler(
+        self,
+        request_type: str,
+        handler: ApplyHandler,
+        *,
+        dependencies_factory: DependenciesFactory,
+    ) -> None:
+        self._reject_handlers[request_type.strip().lower()] = (handler, dependencies_factory)
+
+    def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
 
     def request_change(
         self,
@@ -75,32 +107,44 @@ class ApprovalService:
         organization_id = self._active_organization_id(
             operation_label="request governed change"
         )
-        self._assert_project_in_active_organization(project_id, operation_label="request governed change")
-        existing_pending = self._list_approval_rows(
-            status=ApprovalStatus.PENDING,
-            limit=1,
-            project_id=project_id,
-            entity_type=entity_type,
-            entity_id=entity_id,
-        )
-        if existing_pending:
-            raise BusinessRuleError(
-                f"A pending approval already exists for this {entity_type.replace('_', ' ')}. "
-                f"Request {existing_pending[0].id} is still pending.",
-                code="APPROVAL_DUPLICATE_ENTITY",
-            )
         principal = self._user_session.principal if self._user_session else None
-        request = ApprovalRequest.create(
-            request_type=request_type,
-            entity_type=entity_type,
-            entity_id=entity_id,
-            project_id=project_id,
-            organization_id=organization_id,
-            payload=payload,
-            requested_by_user_id=principal.user_id if principal else None,
-            requested_by_username=principal.username if principal else None,
-        )
-        try:
+
+        if not commit:
+            # Caller-owned transaction (ADR-005 Section 24, Round 8) -- a still-valid, documented
+            # exception, not a leftover. `ProjectBillingPreparationService.submit_preparation()`
+            # and `FinancialChangeService.submit_change()` both call `request_change(commit=False)`
+            # to stage the approval-request row inside their OWN already-open transaction (on the
+            # shared, process-lifetime Session), so it commits atomically with their own prior
+            # mutation. This branch is intentionally byte-for-byte unchanged from before Step 2 --
+            # migrating it onto an independent fresh UnitOfWork would split that atomicity across
+            # two physical transactions, and migrating those two callers' own transaction
+            # ownership is out of Step 2's scope (their own future migration phase).
+            self._assert_project_in_active_organization(
+                project_id, operation_label="request governed change"
+            )
+            existing_pending = self._list_approval_rows(
+                status=ApprovalStatus.PENDING,
+                limit=1,
+                project_id=project_id,
+                entity_type=entity_type,
+                entity_id=entity_id,
+            )
+            if existing_pending:
+                raise BusinessRuleError(
+                    f"A pending approval already exists for this {entity_type.replace('_', ' ')}. "
+                    f"Request {existing_pending[0].id} is still pending.",
+                    code="APPROVAL_DUPLICATE_ENTITY",
+                )
+            request = ApprovalRequest.create(
+                request_type=request_type,
+                entity_type=entity_type,
+                entity_id=entity_id,
+                project_id=project_id,
+                organization_id=organization_id,
+                payload=payload,
+                requested_by_user_id=principal.user_id if principal else None,
+                requested_by_username=principal.username if principal else None,
+            )
             self._approval_repo.add(request)
             record_audit_entry(
                 self,
@@ -113,20 +157,58 @@ class ApprovalService:
                 commit=False,
                 fail_closed=True,
             )
-            if commit:
-                self._session.commit()
-            else:
-                self._session.flush()
-        except Exception:
-            if commit:
-                self._session.rollback()
-            raise
-        if commit:
-            self.publish_requested(request)
+            self._session.flush()
+            return request
+
+        # Transaction-owning (the default -- every real caller except the two documented above
+        # uses this mode): fresh PlatformUnitOfWork, per ADR-005 Section 9/24.
+        with self._uow_factory.create(context=self._new_context()) as uow:
+            self._assert_project_in_active_organization_using(
+                uow.approvals, project_id, operation_label="request governed change"
+            )
+            existing_pending = self._list_approval_rows_using(
+                uow.approvals,
+                status=ApprovalStatus.PENDING,
+                limit=1,
+                project_id=project_id,
+                entity_type=entity_type,
+                entity_id=entity_id,
+            )
+            if existing_pending:
+                raise BusinessRuleError(
+                    f"A pending approval already exists for this {entity_type.replace('_', ' ')}. "
+                    f"Request {existing_pending[0].id} is still pending.",
+                    code="APPROVAL_DUPLICATE_ENTITY",
+                )
+            request = ApprovalRequest.create(
+                request_type=request_type,
+                entity_type=entity_type,
+                entity_id=entity_id,
+                project_id=project_id,
+                organization_id=organization_id,
+                payload=payload,
+                requested_by_user_id=principal.user_id if principal else None,
+                requested_by_username=principal.username if principal else None,
+            )
+            uow.approvals.add(request)
+            record_audit_entry(
+                uow,
+                operation="create",
+                entity_type="approval_request",
+                entity_id=request.id,
+                module="platform",
+                severity="medium",
+                metadata={"action": "governance.request", **self._build_request_audit_details(request)},
+                commit=False,
+                fail_closed=True,
+            )
+            uow.commit()
+        self.publish_requested(request)
         return request
 
     def publish_requested(self, request: ApprovalRequest) -> None:
-        """Publish post-commit effects for a caller-owned approval transaction."""
+        """Publish post-commit effects for a caller-owned or now-committed fresh-UoW
+        approval-request transaction."""
         self._emit_signal_safely("approvals_changed", request.id)
         self._notify_approval_requested(request)
 
@@ -175,22 +257,25 @@ class ApprovalService:
             "approval.decide",
             operation_label="reject approval request",
         )
-        request = self._require_pending(request_id)
-        self._ensure_not_self_decision(request)
-        principal = self._user_session.principal if self._user_session else None
-        request.status = ApprovalStatus.REJECTED
-        request.decided_at = datetime.now(timezone.utc)
-        request.decided_by_user_id = principal.user_id if principal else None
-        request.decided_by_username = principal.username if principal else None
-        request.decision_note = note
-        handler_result = ApprovalHandlerResult()
-        try:
-            reject_handler = self._reject_handlers.get(request.request_type)
-            if reject_handler is not None:
-                handler_result = self._normalize_handler_result(reject_handler(request))
-            self._approval_repo.update(request)
+        with self._uow_factory.create(context=self._new_context(causation_id=request_id)) as uow:
+            request = self._require_pending_using(uow.approvals, request_id)
+            self._ensure_not_self_decision(request)
+            principal = self._user_session.principal if self._user_session else None
+            request.status = ApprovalStatus.REJECTED
+            request.decided_at = datetime.now(timezone.utc)
+            request.decided_by_user_id = principal.user_id if principal else None
+            request.decided_by_username = principal.username if principal else None
+            request.decision_note = note
+            handler_result = ApprovalHandlerResult()
+            handler, dependencies_factory = self._reject_handlers.get(
+                request.request_type, (None, None)
+            )
+            if handler is not None:
+                deps = dependencies_factory(uow._session)
+                handler_result = self._normalize_handler_result(handler(request, deps))
+            uow.approvals.update(request)
             record_audit_entry(
-                self,
+                uow,
                 operation="update",
                 entity_type="approval_request",
                 entity_id=request.id,
@@ -200,10 +285,7 @@ class ApprovalService:
                 commit=False,
                 fail_closed=True,
             )
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
+            uow.commit()
         self._emit_handler_events(handler_result)
         self._emit_signal_safely("approvals_changed", request.id)
         self._notify_approval_decided(request, decided="rejected")
@@ -215,26 +297,28 @@ class ApprovalService:
             "approval.decide",
             operation_label="approve approval request",
         )
-        request = self._require_pending(request_id)
-        self._ensure_not_self_decision(request)
-        handler = self._apply_handlers.get(request.request_type)
-        if handler is None:
-            raise BusinessRuleError(
-                f"No apply handler registered for '{request.request_type}'.",
-                code="APPROVAL_HANDLER_MISSING",
+        with self._uow_factory.create(context=self._new_context(causation_id=request_id)) as uow:
+            request = self._require_pending_using(uow.approvals, request_id)
+            self._ensure_not_self_decision(request)
+            handler, dependencies_factory = self._apply_handlers.get(
+                request.request_type, (None, None)
             )
-
-        try:
-            handler_result = self._normalize_handler_result(handler(request))
+            if handler is None:
+                raise BusinessRuleError(
+                    f"No apply handler registered for '{request.request_type}'.",
+                    code="APPROVAL_HANDLER_MISSING",
+                )
+            deps = dependencies_factory(uow._session)
+            handler_result = self._normalize_handler_result(handler(request, deps))
             principal = self._user_session.principal if self._user_session else None
             request.status = ApprovalStatus.APPROVED
             request.decided_at = datetime.now(timezone.utc)
             request.decided_by_user_id = principal.user_id if principal else None
             request.decided_by_username = principal.username if principal else None
             request.decision_note = note
-            self._approval_repo.update(request)
+            uow.approvals.update(request)
             record_audit_entry(
-                self,
+                uow,
                 operation="update",
                 entity_type="approval_request",
                 entity_id=request.id,
@@ -244,20 +328,18 @@ class ApprovalService:
                 commit=False,
                 fail_closed=True,
             )
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
+            uow.commit()
         self._emit_handler_events(handler_result)
         self._emit_signal_safely("approvals_changed", request.id)
         self._notify_approval_decided(request, decided="approved")
         return request
 
-    def _require_pending(self, request_id: str) -> ApprovalRequest:
-        request = self._approval_repo.get(request_id)
+    def _require_pending_using(self, approval_repo, request_id: str) -> ApprovalRequest:
+        request = approval_repo.get(request_id)
         if request is None:
             raise NotFoundError("Approval request not found.", code="APPROVAL_NOT_FOUND")
-        self._assert_project_in_active_organization(
+        self._assert_project_in_active_organization_using(
+            approval_repo,
             request.project_id,
             operation_label="view approval request",
         )
@@ -426,9 +508,30 @@ class ApprovalService:
         entity_type: str | list[str] | None,
         entity_id: str | None,
     ) -> list[ApprovalRequest]:
+        """Standalone read path -- uses the long-lived `self._approval_repo` (ADR-005 Section 24
+        Round 8/P4 Step 2 Section 9: read-only methods are out of this phase's scope)."""
+        return self._list_approval_rows_using(
+            self._approval_repo,
+            status=status,
+            limit=limit,
+            project_id=project_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
+        )
+
+    def _list_approval_rows_using(
+        self,
+        approval_repo,
+        *,
+        status: ApprovalStatus | None,
+        limit: int,
+        project_id: str | None,
+        entity_type: str | list[str] | None,
+        entity_id: str | None,
+    ) -> list[ApprovalRequest]:
         organization_id = self._active_organization_id(operation_label="view governance requests")
-        if organization_id and hasattr(self._approval_repo, "list_by_status_for_organization"):
-            return self._approval_repo.list_by_status_for_organization(
+        if organization_id and hasattr(approval_repo, "list_by_status_for_organization"):
+            return approval_repo.list_by_status_for_organization(
                 organization_id,
                 status,
                 limit=limit,
@@ -436,7 +539,7 @@ class ApprovalService:
                 entity_type=entity_type,
                 entity_id=entity_id,
             )
-        return self._approval_repo.list_by_status(
+        return approval_repo.list_by_status(
             status,
             limit=limit,
             project_id=project_id,
@@ -450,11 +553,24 @@ class ApprovalService:
         *,
         operation_label: str,
     ) -> None:
+        """Standalone/caller-owned-transaction read path -- uses the long-lived
+        `self._approval_repo` (see `_list_approval_rows`'s docstring)."""
+        self._assert_project_in_active_organization_using(
+            self._approval_repo, project_id, operation_label=operation_label
+        )
+
+    def _assert_project_in_active_organization_using(
+        self,
+        approval_repo,
+        project_id: str | None,
+        *,
+        operation_label: str,
+    ) -> None:
         organization_id = self._active_organization_id(operation_label=operation_label)
         if not organization_id or not project_id:
             return
-        if hasattr(self._approval_repo, "project_in_different_organization") and self._approval_repo.project_in_different_organization(project_id, organization_id):
+        if hasattr(approval_repo, "project_in_different_organization") and approval_repo.project_in_different_organization(project_id, organization_id):
             raise NotFoundError("Approval request not found.", code="APPROVAL_NOT_FOUND")
 
 
-__all__ = ["ApplyHandler", "ApprovalService"]
+__all__ = ["ApplyHandler", "DependenciesFactory", "ApprovalService"]

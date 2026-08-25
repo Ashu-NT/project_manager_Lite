@@ -71,7 +71,14 @@ def test_platform_access_desktop_api_manages_project_scope_grants(services):
 def test_platform_approval_desktop_api_lists_and_approves_requests(services):
     api = _approval_api(services)
     project = services["project_service"].create_project("Desktop Approval Project")
-    services["approval_service"].register_apply_handler("baseline.create", lambda _request: None)
+    # P4 Step 2 (ADR-005 Section 24, Round 7/8): overrides the real baseline.create participant
+    # with a no-op stub for this desktop-API-surface test -- the registered handler now takes
+    # (request, deps), and a dependencies_factory(session) must be supplied alongside it.
+    services["approval_service"].register_apply_handler(
+        "baseline.create",
+        lambda _request, _deps: None,
+        dependencies_factory=lambda _session: None,
+    )
     services["auth_service"].register_user(
         "approval-requester-desktop",
         "StrongPass123",

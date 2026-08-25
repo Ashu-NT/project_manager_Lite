@@ -724,29 +724,31 @@ def _register_project_management_approval_handlers(
     calendar_assignment_service=None,
     financial_period_service=None,
 ) -> None:
-    """P4-PRE Step 1 (ADR-005 Section 24, Round 8): every request type below is now backed by a
-    module-owned, session-parameterized approval transaction participant, built once here (at
-    composition time, against the current shared `session` -- Step 2 will call each
-    `build_*_approval_deps` per `approve_and_apply`/`reject` call instead, against a fresh
-    `PlatformUnitOfWork` Session) rather than a closure capturing a long-lived service instance.
+    """P4 Step 2 (ADR-005 Section 24, Round 7/8): every request type below is now backed by a
+    module-owned, session-parameterized approval transaction participant, whose bound
+    apply/reject method is registered directly, alongside a `dependencies_factory(session)`
+    closure over this call site's ambient collaborators. `ApprovalService` itself now calls
+    `dependencies_factory(uow_session)` once per `approve_and_apply`/`reject` call, against its
+    own fresh `PlatformUnitOfWork` Session -- never a Session fixed at composition time.
     See src/core/modules/project_management/infrastructure/approval/ and
     src/infra/composition/approval_apply_dependencies/ for each family's participant/deps-factory.
     """
-    baseline_deps = build_baseline_approval_deps(
-        session,
-        user_session=user_session,
-        tenant_context_service=tenant_context_service,
-        module_catalog_service=module_catalog_service,
-        calendar=work_calendar_engine,
-    )
     baseline_participant = BaselineApprovalParticipant()
     approval_service.register_apply_handler(
         "baseline.create",
-        lambda req: baseline_participant.apply(req, baseline_deps),
+        baseline_participant.apply,
+        dependencies_factory=lambda uow_session: build_baseline_approval_deps(
+            uow_session,
+            user_session=user_session,
+            tenant_context_service=tenant_context_service,
+            module_catalog_service=module_catalog_service,
+            calendar=work_calendar_engine,
+        ),
     )
 
-    task_deps = build_task_approval_deps(
-        session,
+    task_participant = TaskApprovalParticipant()
+    task_dependencies_factory = lambda uow_session: build_task_approval_deps(
+        uow_session,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
         module_catalog_service=module_catalog_service,
@@ -754,92 +756,106 @@ def _register_project_management_approval_handlers(
         enterprise_calendar_resolver=enterprise_calendar_resolver,
         calendar_assignment_service=calendar_assignment_service,
     )
-    task_participant = TaskApprovalParticipant()
     approval_service.register_apply_handler(
         "dependency.add",
-        lambda req: task_participant.apply_dependency_add(req, task_deps),
+        task_participant.apply_dependency_add,
+        dependencies_factory=task_dependencies_factory,
     )
     approval_service.register_apply_handler(
         "dependency.remove",
-        lambda req: task_participant.apply_dependency_remove(req, task_deps),
+        task_participant.apply_dependency_remove,
+        dependencies_factory=task_dependencies_factory,
     )
     approval_service.register_apply_handler(
         "dependency.update",
-        lambda req: task_participant.apply_dependency_update(req, task_deps),
+        task_participant.apply_dependency_update,
+        dependencies_factory=task_dependencies_factory,
     )
     approval_service.register_apply_handler(
         "task.constraint.update",
-        lambda req: task_participant.apply_task_constraint_update(req, task_deps),
+        task_participant.apply_task_constraint_update,
+        dependencies_factory=task_dependencies_factory,
     )
     approval_service.register_apply_handler(
         "scheduling.leveling.apply",
-        lambda req: task_participant.apply_resource_leveling_plan(req, task_deps),
+        task_participant.apply_resource_leveling_plan,
+        dependencies_factory=task_dependencies_factory,
     )
 
-    budget_deps = build_budget_approval_deps(
-        session,
+    budget_participant = BudgetApprovalParticipant()
+    budget_dependencies_factory = lambda uow_session: build_budget_approval_deps(
+        uow_session,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
         module_catalog_service=module_catalog_service,
     )
-    budget_participant = BudgetApprovalParticipant()
     approval_service.register_apply_handler(
         "budget.approve",
-        lambda req: budget_participant.apply(req, budget_deps),
+        budget_participant.apply,
+        dependencies_factory=budget_dependencies_factory,
     )
     approval_service.register_reject_handler(
         "budget.approve",
-        lambda req: budget_participant.reject(req, budget_deps),
+        budget_participant.reject,
+        dependencies_factory=budget_dependencies_factory,
     )
 
-    project_cost_deps = build_project_cost_approval_deps(
-        session,
+    project_cost_participant = ProjectCostApprovalParticipant()
+    project_cost_dependencies_factory = lambda uow_session: build_project_cost_approval_deps(
+        uow_session,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
         financial_period_service=financial_period_service,
         module_catalog_service=module_catalog_service,
     )
-    project_cost_participant = ProjectCostApprovalParticipant()
     approval_service.register_apply_handler(
         "project_cost.approve",
-        lambda req: project_cost_participant.apply(req, project_cost_deps),
+        project_cost_participant.apply,
+        dependencies_factory=project_cost_dependencies_factory,
     )
     approval_service.register_reject_handler(
         "project_cost.approve",
-        lambda req: project_cost_participant.reject(req, project_cost_deps),
+        project_cost_participant.reject,
+        dependencies_factory=project_cost_dependencies_factory,
     )
 
-    financial_change_deps = build_financial_change_approval_deps(
-        session,
+    financial_change_participant = FinancialChangeApprovalParticipant()
+    financial_change_dependencies_factory = lambda uow_session: build_financial_change_approval_deps(
+        uow_session,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
         work_calendar_engine=work_calendar_engine,
         module_catalog_service=module_catalog_service,
     )
-    financial_change_participant = FinancialChangeApprovalParticipant()
     approval_service.register_apply_handler(
         "financial_change.apply",
-        lambda req: financial_change_participant.apply(req, financial_change_deps),
+        financial_change_participant.apply,
+        dependencies_factory=financial_change_dependencies_factory,
     )
     approval_service.register_reject_handler(
         "financial_change.apply",
-        lambda req: financial_change_participant.reject(req, financial_change_deps),
+        financial_change_participant.reject,
+        dependencies_factory=financial_change_dependencies_factory,
     )
 
-    billing_preparation_deps = build_billing_preparation_approval_deps(
-        session,
-        user_session=user_session,
-        tenant_context_service=tenant_context_service,
-        module_catalog_service=module_catalog_service,
-    )
     billing_preparation_participant = BillingPreparationApprovalParticipant()
+    billing_preparation_dependencies_factory = (
+        lambda uow_session: build_billing_preparation_approval_deps(
+            uow_session,
+            user_session=user_session,
+            tenant_context_service=tenant_context_service,
+            module_catalog_service=module_catalog_service,
+        )
+    )
     approval_service.register_apply_handler(
         "project_billing_preparation.approve",
-        lambda req: billing_preparation_participant.apply(req, billing_preparation_deps),
+        billing_preparation_participant.apply,
+        dependencies_factory=billing_preparation_dependencies_factory,
     )
     approval_service.register_reject_handler(
         "project_billing_preparation.approve",
-        lambda req: billing_preparation_participant.reject(req, billing_preparation_deps),
+        billing_preparation_participant.reject,
+        dependencies_factory=billing_preparation_dependencies_factory,
     )
 
 

@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass
 from time import perf_counter
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.platform.application.platform_runtime import PlatformRuntimeApplicationService
 from src.core.platform.domain.tenant.modules import (
@@ -17,6 +17,13 @@ from src.core.platform.application.tenant.modules import ModuleCatalogService
 from src.core.platform.access import AccessControlService, ScopedRolePolicy, ScopedRolePolicyRegistry
 from src.core.platform.application.history.activity import ActivityService
 from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.infrastructure.persistence.unit_of_work import (
+    SqlAlchemyPlatformUnitOfWorkFactory,
+)
+from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+from src.infra.events.in_process_transactional_event_dispatcher import (
+    InProcessTransactionalEventDispatcher,
+)
 from src.core.platform.application.history.audit import EnterpriseAuditService
 from src.core.platform.application.finance import FinancialPeriodService
 from src.core.platform.application.events.notifications.notification_service import NotificationService
@@ -259,9 +266,30 @@ def build_platform_service_bundle(
         user_session=user_session,
         tenant_context_service=tenant_context_service,
     )
+    # P4 Step 2 (ADR-005 Section 24, Round 7/8): ApprovalService's own mutation-transaction
+    # ownership (request_change's transaction-owning mode, approve_and_apply, reject) now uses a
+    # genuinely fresh Session per call via this factory -- never the shared, process-lifetime
+    # `session` every other, not-yet-migrated Platform/PM/Inventory service still uses.
+    #
+    # Deliberately derived from `session.bind` (this composition root's own engine) rather than
+    # importing the global `SessionLocal` directly: in production `session` itself was built from
+    # `SessionLocal()` (src/ui_qml/shell/app.py's `build_services()`), so `session.bind` IS the
+    # same engine `SessionLocal` uses -- but in tests, `session` is bound to a throwaway
+    # per-test engine, never `SessionLocal`'s real, persistent one. Hardcoding `SessionLocal`
+    # here would make every approval mutation test open a real, on-disk database connection
+    # instead of the test's isolated in-memory one.
+    approval_uow_session_factory = sessionmaker(bind=session.bind, future=True)
+    approval_uow_factory = SqlAlchemyPlatformUnitOfWorkFactory(
+        session_factory=approval_uow_session_factory,
+        transactional_dispatcher=InProcessTransactionalEventDispatcher(),
+        post_commit_bus=InProcessPostCommitEventBus(),
+        tenant_context_service=tenant_context_service,
+        user_session=user_session,
+    )
     approval_service = ApprovalService(
         session=session,
         approval_repo=repositories.approval_repo,
+        uow_factory=approval_uow_factory,
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,

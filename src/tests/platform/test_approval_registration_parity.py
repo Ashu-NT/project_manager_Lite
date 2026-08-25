@@ -1,7 +1,8 @@
-"""P4-PRE Step 1 (ADR-005 Section 24, Round 8): proves the 18 real approval apply/reject
-registrations survive the switch from long-lived-service closures to module-owned,
-session-parameterized transaction participants -- no registration missing, none duplicated,
-none pointed at the wrong module's participant.
+"""P4-PRE Step 1 / P4 Step 2 (ADR-005 Section 24, Round 8): proves the 18 real approval
+apply/reject registrations survive the switch from long-lived-service closures (Step 1) to
+module-owned, session-parameterized transaction participants registered directly, alongside a
+`dependencies_factory` (Step 2) -- no registration missing, none duplicated, none pointed at the
+wrong module's participant.
 """
 
 from __future__ import annotations
@@ -57,20 +58,20 @@ EXPECTED_REJECT_REGISTRATIONS = {
 }
 
 
-def _bound_participant_class(handler):
-    # every registered handler is `lambda req: participant.<method>(req, deps)` -- the
-    # participant instance is closed over as a free variable named "participant" (its exact
-    # per-family local name at the registration call site, e.g. "budget_participant",
-    # "task_participant") in `_register_project_management_approval_handlers`/
-    # `build_inventory_procurement_service_bundle`. Recover it via the closure cell rather than
-    # asserting one hardcoded name, since each family's local variable name legitimately differs.
-    closure = handler.__closure__
-    assert closure, f"expected {handler} to be a closure wrapping a participant instance"
-    for cell in closure:
-        value = cell.cell_contents
-        if type(value).__name__.endswith("ApprovalParticipant"):
-            return type(value)
-    raise AssertionError(f"no *ApprovalParticipant instance found in {handler}'s closure")
+def _bound_participant_class(entry):
+    # P4 Step 2: each registered entry is now `(handler, dependencies_factory)`, where `handler`
+    # is the participant's own bound method (e.g. `budget_participant.apply`), registered
+    # directly -- no lambda/closure indirection to unwrap any more. `handler.__self__` is the
+    # participant instance itself.
+    handler, dependencies_factory = entry
+    assert callable(dependencies_factory), (
+        f"expected a callable dependencies_factory alongside {handler}, got {dependencies_factory!r}"
+    )
+    participant = getattr(handler, "__self__", None)
+    assert participant is not None and type(participant).__name__.endswith("ApprovalParticipant"), (
+        f"expected {handler} to be a bound *ApprovalParticipant method"
+    )
+    return type(participant)
 
 
 def test_exactly_eighteen_registrations_exist(services):
@@ -113,6 +114,27 @@ def test_every_expected_reject_request_type_is_registered_to_the_right_participa
             f"expected {expected_class.__name__}"
         )
     assert set(reject_handlers) == set(EXPECTED_REJECT_REGISTRATIONS)
+
+
+def test_every_dependencies_factory_produces_deps_bound_to_the_supplied_session(tmp_path, services):
+    """The Step-2 acceptance criterion: every registered `dependencies_factory` genuinely
+    accepts an arbitrary Session, not just the one Session it happened to be built alongside."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from src.infra.persistence.orm.base import Base
+
+    approval_service = services["approval_service"]
+    engine = create_engine(f"sqlite:///{tmp_path}/registration_parity_probe.db", future=True)
+    Base.metadata.create_all(engine)
+    probe_session = sessionmaker(bind=engine, future=True)()
+    try:
+        for registrations in (approval_service._apply_handlers, approval_service._reject_handlers):
+            for request_type, (_handler, dependencies_factory) in registrations.items():
+                deps = dependencies_factory(probe_session)
+                assert deps is not None, f"{request_type!r}'s dependencies_factory returned None"
+    finally:
+        probe_session.close()
 
 
 def test_no_request_type_has_both_a_missing_and_duplicate_registration(services):
