@@ -6,14 +6,14 @@ import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
 import ProjectManagement.Controllers 1.0 as PMControllers
-import "OwnerTimesheetsColumnConfig.js" as ColumnConfig
+import "ResourceTimesheetsColumnConfig.js" as ColumnConfig
 import "components" as Components
 
 Item {
     id: root
 
     property PMControllers.ProjectManagementWorkspaceCatalog pmCatalog
-    readonly property PMControllers.ProjectManagementOwnerTimesheetsController workspaceController:
+    readonly property PMControllers.ProjectManagementResourceTimesheetsController workspaceController:
         root.pmCatalog ? root.pmCatalog.timesheetsWorkspace : null
     readonly property var period: root.workspaceController ? root.workspaceController.period : ({})
     property var selectedEntry: ({})
@@ -30,6 +30,13 @@ Item {
         root.selectedEntry = row || ({})
         entryDialog.prepare(root.selectedEntry)
         entryDialog.open()
+    }
+
+    function optionIndex(model, value) {
+        for (let i = 0; i < model.length; i += 1) {
+            if (String(model[i].value || "") === String(value || "")) return i
+        }
+        return -1
     }
 
     Rectangle {
@@ -53,7 +60,7 @@ Item {
             AppControls.SecondaryButton {
                 text: "History"
                 iconName: "history"
-                enabled: root.period.ownerAvailable !== false
+                enabled: root.period.canViewHistory === true
                     && (!root.workspaceController || !root.workspaceController.isBusy)
                 onClicked: historyDialog.open()
             }
@@ -71,6 +78,78 @@ Item {
                 visible: root.period.canSubmit === true
                 enabled: root.workspaceController && !root.workspaceController.isBusy
                 onClicked: submitConfirmation.open()
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            visible: root.workspaceController
+                && (root.workspaceController.canSelectScope || root.workspaceController.canSelectResource)
+            implicitHeight: selectorLayout.implicitHeight + Theme.AppTheme.spacingMd * 2
+            radius: Theme.AppTheme.radiusMd
+            color: Theme.AppTheme.surfaceRaised
+            border.color: Theme.AppTheme.subtleBorder
+
+            ColumnLayout {
+                id: selectorLayout
+                anchors.fill: parent
+                anchors.margins: Theme.AppTheme.spacingMd
+                spacing: Theme.AppTheme.spacingSm
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: root.workspaceController && root.workspaceController.canSelectScope
+                    AppControls.Label { text: "View"; font.bold: true }
+                    AppControls.ComboBox {
+                        Layout.preferredWidth: 190
+                        model: root.workspaceController ? root.workspaceController.scopeOptions : []
+                        textRole: "label"
+                        currentIndex: root.optionIndex(model, root.workspaceController ? root.workspaceController.selectedScope : "")
+                        onActivated: function(index) {
+                            const option = model[index]
+                            if (root.workspaceController && option)
+                                root.workspaceController.setTimesheetScope(String(option.value || ""))
+                        }
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: root.workspaceController && root.workspaceController.canSelectResource
+                    AppControls.Label { text: "Resource"; font.bold: true }
+                    AppControls.SearchField {
+                        Layout.preferredWidth: 240
+                        placeholderText: "Search name or code..."
+                        text: root.workspaceController ? root.workspaceController.resourceSearchText : ""
+                        onTextEdited: function(value) {
+                            if (root.workspaceController) root.workspaceController.setResourceSearchText(value)
+                        }
+                    }
+                    AppControls.ComboBox {
+                        Layout.fillWidth: true
+                        model: root.workspaceController ? root.workspaceController.resourceOptions : []
+                        textRole: "label"
+                        currentIndex: root.optionIndex(model, root.workspaceController ? root.workspaceController.selectedResourceId : "")
+                        onActivated: function(index) {
+                            const option = model[index]
+                            if (root.workspaceController && option)
+                                root.workspaceController.selectTimesheetResource(String(option.value || ""))
+                        }
+                    }
+                    AppControls.SecondaryButton {
+                        text: "Prev"
+                        enabled: root.workspaceController && root.workspaceController.resourcePage > 1
+                        onClicked: root.workspaceController.setResourcePage(root.workspaceController.resourcePage - 1)
+                    }
+                    AppControls.SecondaryButton {
+                        text: "Next"
+                        enabled: root.workspaceController
+                            && root.workspaceController.resourcePage * root.workspaceController.resourcePageSize
+                                < root.workspaceController.resourceTotal
+                        onClicked: root.workspaceController.setResourcePage(root.workspaceController.resourcePage + 1)
+                    }
+                }
             }
         }
 
@@ -125,7 +204,7 @@ Item {
 
         AppWidgets.InlineMessage {
             Layout.fillWidth: true
-            visible: root.period.ownerAvailable === false
+            visible: root.period.ownerAvailable === false || root.period.resourceSelected === false
             tone: "info"
             message: String(root.period.setupMessage || "Resource setup is required before time can be recorded.")
         }
@@ -243,7 +322,7 @@ Item {
         }
     }
 
-    Components.OwnerTimeEntryDialog {
+    Components.TimeEntryDialog {
         id: entryDialog
         assignmentOptions: root.workspaceController ? root.workspaceController.assignmentOptions : []
         defaultDate: root.period.periodStart || ""
@@ -283,7 +362,7 @@ Item {
         onConfirmed: if (root.workspaceController) root.workspaceController.submitPeriod("")
     }
 
-    Components.OwnerTimesheetHistoryDialog {
+    Components.TimesheetHistoryDialog {
         id: historyDialog
         workspaceController: root.workspaceController
     }

@@ -13,7 +13,7 @@ from src.ui_qml.modules.project_management.controllers import (
     ProjectManagementDashboardWorkspaceController,
     ProjectManagementFinancialsWorkspaceController,
     ProjectManagementPortfolioWorkspaceController,
-    ProjectManagementOwnerTimesheetsController,
+    ProjectManagementResourceTimesheetsController,
     ProjectManagementProjectsWorkspaceController,
     ProjectManagementRegisterWorkspaceController,
     ProjectManagementResourcesWorkspaceController,
@@ -43,8 +43,8 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectTimesheetsWorkspacePresenter,
     build_project_management_workspace_presenters,
 )
-from src.ui_qml.modules.project_management.presenters.owner_timesheets import (
-    OwnerTimesheetsPresenter,
+from src.ui_qml.modules.project_management.presenters.resource_timesheets import (
+    ResourceTimesheetsPresenter,
 )
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
@@ -145,7 +145,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self._tasks_workspace: ProjectManagementTasksWorkspaceController | None = None
         self._dashboard_workspace: ProjectManagementDashboardWorkspaceController | None = None
         self._collaboration_workspace: ProjectManagementCollaborationWorkspaceController | None = None
-        self._timesheets_workspace: ProjectManagementOwnerTimesheetsController | None = None
+        self._timesheets_workspace: ProjectManagementResourceTimesheetsController | None = None
         self._review_queue_workspace: ProjectManagementTimesheetsWorkspaceController | None = None
 
     def _active_organization_id(self) -> str | None:
@@ -264,10 +264,10 @@ class ProjectManagementWorkspaceCatalog(QObject):
             )
         return self._collaboration_workspace
 
-    def _get_timesheets_workspace(self) -> ProjectManagementOwnerTimesheetsController:
+    def _get_timesheets_workspace(self) -> ProjectManagementResourceTimesheetsController:
         if self._timesheets_workspace is None:
-            self._timesheets_workspace = ProjectManagementOwnerTimesheetsController(
-                presenter=OwnerTimesheetsPresenter(desktop_api=self._timesheets_api),
+            self._timesheets_workspace = ProjectManagementResourceTimesheetsController(
+                presenter=ResourceTimesheetsPresenter(desktop_api=self._timesheets_api),
                 parent=self,
             )
         return self._timesheets_workspace
@@ -318,8 +318,8 @@ class ProjectManagementWorkspaceCatalog(QObject):
     def collaborationWorkspace(self) -> ProjectManagementCollaborationWorkspaceController:
         return self._get_collaboration_workspace()
 
-    @Property(ProjectManagementOwnerTimesheetsController, constant=True)
-    def timesheetsWorkspace(self) -> ProjectManagementOwnerTimesheetsController:
+    @Property(ProjectManagementResourceTimesheetsController, constant=True)
+    def timesheetsWorkspace(self) -> ProjectManagementResourceTimesheetsController:
         return self._get_timesheets_workspace()
 
     @Property(ProjectManagementTimesheetsWorkspaceController, constant=True)

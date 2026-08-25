@@ -1822,6 +1822,105 @@ yet for the admin mutation commands themselves, so this phase is narrower than P
 TenantMembership DomainEvents, no ViewInvalidation, no Qt migration, no legacy signal removal,
 no `deactivate()` decision executed.
 
+### P5D-1 — Tenant Membership Transaction Convergence (implemented)
+
+**Status:** implemented, reviewed. `TenantMembershipService`'s six real mutation commands
+(`issue_invitation`, `accept_invitation`/`accept_invitation_for_tenant` via the shared
+`_accept_membership`, `revoke_invitation`, `suspend_member`, `reactivate_member`,
+`remove_member`) cut over from the shared process-lifetime `Session` and inline
+`commit()`/`rollback()` onto a canonical `TenantMembershipUnitOfWork` -- one fresh `Session` per
+call, matching the established `OrganizationUnitOfWork`/`ModuleEntitlementUnitOfWork`/
+`RoleGovernanceUnitOfWork` pattern. No `TenantMembership*` DomainEvents (P5D-2's job), no
+membership ViewInvalidation, no membership Qt adapter, no Approval events.
+
+**Dead API removed:** `UserTenantMembershipRepository.deactivate()` -- confirmed zero production
+callers (P5D-SEM), bypassed authorization/audit/session-revocation entirely. Deleted from the
+contract and the SqlAlchemy implementation; its two test-only call sites now use the equivalent
+direct `get()` + `update(membership.suspend())` sequence.
+
+**The transaction-agnostic mutation participant (new pattern, first reuse across two transaction
+owners in this whole ADR-005 migration):** P5D-SEM found two RoleGovernance-bypassing RoleBinding
+mutations inside `TenantMembershipService` -- `_ensure_default_role_bindings` (on accept)
+directly called `role_binding_repo.add(RoleBinding.create(...))`, and `remove_member` called a
+raw bulk-SQL `revoke_active_for_principal_tenant` UPDATE. Both are real business facts and must
+emit the SAME P5C `RoleBindingAssigned`/`RoleBindingRevoked` events `RoleGovernanceService`
+emits -- but `TenantMembershipUnitOfWork` calling `RoleGovernanceService.assign_role(...)` would
+nest two independent transactions, and duplicating the identity/no-op/audit/event mechanics would
+diverge from the canonical behavior over time. Resolved by extracting `RoleGovernanceService`'s
+own binding mutation mechanics into a new shared, transaction-agnostic module,
+`role_binding_mutation_participant.py` (`create_role_binding_using`/`revoke_role_binding_using`/
+`resolve_domain_scope_for_binding`/`resolved_scope_to_domain_scope`/
+`record_role_binding_audit_entry`/`recover_from_concurrent_assignment`) -- pure functions that
+take the calling UoW's own `role_bindings`/`audit` repos, `clock`, and `record_event` callback as
+parameters, and never open a Session, commit, or roll back. `RoleGovernanceService.assign_role`/
+`revoke_role_binding` were refactored onto this SAME module (no behavior change; 71+68 tests
+re-verified passing before `TenantMembershipService` itself was touched), then
+`TenantMembershipService` was wired onto it too. Both callers own their own transaction and their
+own repos; the participant module owns neither.
+
+**Explicit policy distinction (documented, not just implemented):** the default-role grant on
+self-service acceptance and the cascade revoke on removal are system/membership-lifecycle
+operations, not an admin interactively delegating a role to someone else -- so neither goes
+through `RoleGovernanceService.assign_role`/`revoke_role_binding`'s delegation-namespace or
+permission-snapshot SoD checks. They reuse ONLY the canonical identity/no-op/revocation/audit/
+event mechanics, never the interactive-admin authorization policy layered on top of it in
+`RoleGovernanceService` itself.
+
+**Removal cascade — a real (minor, correct) semantic tightening, not a behavior-preserving
+port:** the old `revoke_active_for_principal_tenant` bulk UPDATE matched every non-revoked
+binding row for the tenant regardless of expiry, so an already-expired-but-not-yet-revoked row
+would silently get `revoked_at` stamped with no audit entry and no event. The new cascade
+iterates `role_bindings.list_active_for_principal(target_id, tenant_id=tenant_id)` (excludes
+already-expired rows) and calls `revoke_role_binding_using` once per genuinely active binding --
+one real `RoleBindingRevoked` per real transition, never a bulk-generated event for a row that
+had already lapsed on its own.
+
+**Verified (not assumed), per explicit instruction: `suspend_member`/`reactivate_member` never
+touch RoleBinding rows.** Read directly from the pre-refactor source before converting: both
+commands only transition the membership's own status and (`suspend_member` only) revoke the
+target's affected `AuthSession` rows via `_revoke_affected_sessions`. Neither calls any
+RoleBinding repository method, so neither emits (and neither should ever emit) a
+`RoleBindingAssigned`/`RoleBindingRevoked` event -- confirmed by a dedicated test asserting zero
+observable events across a suspend+reactivate cycle, not inferred from the absence of a call.
+
+**Correcting prior documentation (per explicit instruction): P5C did not have complete
+RoleBinding producer coverage before this phase.** The P5C-1/P5C-2/P5C-3 passes converged and
+instrumented `RoleGovernanceService`'s own two mutation methods, but did not audit
+`TenantMembershipService`, which held its own independent, unaudited RoleBinding-mutating code
+path (the two bypasses above) the whole time. P5D-SEM discovered this gap and P5D-1 closed it --
+every RoleBinding mutation in the codebase now goes through the one canonical mechanics module,
+and every genuine RoleBinding business fact (however triggered) now emits the P5C event
+vocabulary consistently.
+
+**Composition wiring:** `platform_registry.py` builds a `TenantMembershipUnitOfWorkFactory`
+(fresh `sessionmaker` bound to the same engine, the same `platform_transactional_dispatcher`/
+`platform_post_commit_bus` every other Platform UoW factory shares) and constructs
+`TenantMembershipService` with `uow_factory`, `clock=SystemClock()`, and the SAME
+`organization_owner_resolvers` dict already built for `RoleGovernanceService` -- the removal
+cascade can revoke resource-scoped bindings too, so it needs the same organization-ownership
+derivation the default tenant-wide grant does not.
+
+**Test coverage:** `test_tenant_membership_unit_of_work_cutover.py` (fresh-session-per-command,
+shared-UoW-session repository/audit, no global-Session touch, exactly-one
+`RoleBindingAssigned`/`RoleBindingRevoked` per real acceptance/removal, audit-failure and
+commit-failure rollback with zero observable event, suspend+reactivate emitting zero RoleBinding
+events, last-tenant-admin guard atomicity, architecture guards for no inline commit/rollback, no
+direct RoleBinding repository bypass, no nested `RoleGovernanceService` call, no P5D-2 event
+vocabulary, and the participant module owning no transaction) plus the existing
+`test_tenant_membership_orchestration.py` (updated to read persisted state via a fresh repository
+on the shared test session, mirroring the established post-cutover pattern from
+`test_role_governance_unit_of_work_cutover.py`, since the service no longer exposes
+per-repository instance attributes).
+
+**Regression:** full Platform suite (`src/tests/platform`) and the architecture suite both run at
+the same failure identities/counts as the established baseline (15 failed/12 errors in Platform,
+none touching security/tenancy/role-governance; 13 pre-existing failures/142 passed in
+architecture) -- passing-test count increased by exactly the 15 new P5D-1 tests, zero
+regressions.
+
+**Explicit non-goals:** `TenantMembershipActivated`/`Suspended`/`Reactivated`/`Removed` events
+(P5D-2), membership ViewInvalidation and Qt adapter (P5D-3), Approval events.
+
 ## P6 — Qt Invalidation Adapter Consolidation
 
 **Goal:** build the one shared Qt adapter, and migrate the three existing controller bases to

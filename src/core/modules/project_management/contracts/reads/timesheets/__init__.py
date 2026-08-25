@@ -29,6 +29,7 @@ from .workspace_reader import (
     TimesheetResourceSelectorCriteria,
     TimesheetScope,
     TimesheetWorkspaceReader,
+    TimesheetWorkspaceAccessFact,
 )
 
 __all__ = [
@@ -58,4 +59,5 @@ __all__ = [
     "TimesheetResourceSelectorCriteria",
     "TimesheetScope",
     "TimesheetWorkspaceReader",
+    "TimesheetWorkspaceAccessFact",
 ]

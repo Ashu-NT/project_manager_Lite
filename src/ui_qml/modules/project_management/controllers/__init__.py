@@ -32,8 +32,8 @@ from src.ui_qml.modules.project_management.controllers.tasks import (
 from src.ui_qml.modules.project_management.controllers.timesheets import (
     ProjectManagementTimesheetsWorkspaceController,
 )
-from src.ui_qml.modules.project_management.controllers.owner_timesheets import (
-    ProjectManagementOwnerTimesheetsController,
+from src.ui_qml.modules.project_management.controllers.resource_timesheets import (
+    ProjectManagementResourceTimesheetsController,
 )
 
 __all__ = [
@@ -41,7 +41,7 @@ __all__ = [
     "ProjectManagementCollaborationWorkspaceController",
     "ProjectManagementDashboardWorkspaceController",
     "ProjectManagementFinancialsWorkspaceController",
-    "ProjectManagementOwnerTimesheetsController",
+    "ProjectManagementResourceTimesheetsController",
     "ProjectManagementPortfolioWorkspaceController",
     "ProjectManagementProjectsWorkspaceController",
     "ProjectManagementRegisterWorkspaceController",

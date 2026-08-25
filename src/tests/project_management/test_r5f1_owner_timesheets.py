@@ -1,19 +1,17 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 
 import pytest
 
-from src.core.modules.project_management.domain.enums import WorkerType
+from src.core.modules.project_management.contracts.reads.timesheets import TimesheetScope
+from src.core.modules.project_management.domain.enums import ResourceKind, WorkerType
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
-    NotFoundError,
 )
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
-from src.ui_qml.modules.project_management.presenters.owner_timesheets import (
-    OwnerTimesheetsPresenter,
-)
 
 
 def _build_owner_timesheet(services):
@@ -170,30 +168,154 @@ def test_r5f1_navigation_keeps_timesheets_and_review_queue_distinct() -> None:
     } == {"Resources", "Review Queue"}
 
 
-def test_owner_presenter_returns_setup_state_when_principal_has_no_resource() -> None:
-    class MissingOwnerApi:
-        def get_owner_period(self, *, period_start):
-            raise NotFoundError(
-                "No active project resource is linked to the signed-in user.",
-                code="TIMESHEET_OWNER_RESOURCE_NOT_FOUND",
-            )
+def test_resource_timesheet_scopes_enforce_target_and_eligibility(services) -> None:
+    _, owner, _, _, _ = _build_owner_timesheet(services)
+    external = services["resource_service"].create_resource(
+        name="External Without Login",
+        role="Consultant",
+        kind=ResourceKind.PERSON,
+        worker_type=WorkerType.EXTERNAL,
+    )
+    crew = services["resource_service"].create_resource(
+        name="Field Crew",
+        role="Crew",
+        kind=ResourceKind.CREW,
+        worker_type=WorkerType.EXTERNAL,
+    )
+    timesheets = services["timesheet_service"]
 
-    state = OwnerTimesheetsPresenter(desktop_api=MissingOwnerApi()).build_state(
-        period_start=date(2026, 8, 1),
-        search_text="",
-        project_id="all",
-        task_id="all",
-        page=1,
-        page_size=25,
-        sort_key="date",
-        sort_direction="desc",
-        history_page=1,
-        history_page_size=12,
+    access = timesheets.get_timesheet_workspace_access()
+    all_page = timesheets.query_timesheet_resources(
+        scope=TimesheetScope.ALL, page=1, page_size=20
     )
 
-    assert state["period"]["ownerAvailable"] is False
-    assert state["period"]["canAddEntry"] is False
-    assert state["period"]["canSubmit"] is False
-    assert state["entries"] == []
-    assert state["history"] == []
-    assert "administrator" in state["period"]["setupMessage"]
+    assert access.available_scopes == (
+        TimesheetScope.MINE,
+        TimesheetScope.TEAM,
+        TimesheetScope.ALL,
+    )
+    assert access.mine_resource.resource_id == owner.id
+    assert external.id in {item.resource_id for item in all_page.items}
+    assert crew.id not in {item.resource_id for item in all_page.items}
+
+    original = services["user_session"].principal
+    services["user_session"].set_principal(
+        replace(
+            original,
+            role_names=frozenset({"team_member"}),
+            permissions=frozenset(
+                {"timesheet.read_own", "timesheet.edit_own", "timesheet.submit"}
+            ),
+            scoped_access={},
+            project_access={},
+        )
+    )
+    with pytest.raises(Exception, match="not available"):
+        timesheets.get_timesheet_period(
+            scope=TimesheetScope.MINE,
+            resource_id=external.id,
+            period_start=date(2026, 8, 1),
+        )
+    with pytest.raises(BusinessRuleError, match="Permission denied"):
+        timesheets.query_timesheet_resources(scope=TimesheetScope.ALL)
+
+
+def test_reviewer_permission_does_not_grant_timesheet_edit_other(services) -> None:
+    _, _, _, _, assignment = _build_owner_timesheet(services)
+    original = services["user_session"].principal
+    services["user_session"].set_principal(
+        replace(
+            original,
+            role_names=frozenset({"reviewer"}),
+            permissions=frozenset({"timesheet.approve"}),
+            scoped_access={},
+            project_access={},
+        )
+    )
+    with pytest.raises(BusinessRuleError, match="Permission denied"):
+        services["timesheet_service"].add_timesheet_entry(
+            assignment.id,
+            scope=TimesheetScope.ALL,
+            resource_id=assignment.resource_id,
+            period_start=date(2026, 8, 1),
+            entry_date=date(2026, 8, 4),
+            hours=4,
+        )
+
+
+def test_external_without_login_supports_governed_delegated_lifecycle(services) -> None:
+    external = services["resource_service"].create_resource(
+        name="Delegated Contractor",
+        role="Consultant",
+        kind=ResourceKind.PERSON,
+        worker_type=WorkerType.EXTERNAL,
+    )
+    project = services["project_service"].create_project("Delegated Delivery")
+    task = services["task_service"].create_task(project.id, "Consulting")
+    assignment = services["task_service"].assign_resource(task.id, external.id)
+    timesheets = services["timesheet_service"]
+
+    entry = timesheets.add_timesheet_entry(
+        assignment.id,
+        scope=TimesheetScope.ALL,
+        resource_id=external.id,
+        period_start=date(2026, 8, 1),
+        entry_date=date(2026, 8, 7),
+        hours=6,
+        note="Entered by timekeeper",
+    )
+    before = timesheets.get_timesheet_period(
+        scope=TimesheetScope.ALL,
+        resource_id=external.id,
+        period_start=date(2026, 8, 1),
+    )
+    submitted = timesheets.submit_resource_timesheet_period(
+        scope=TimesheetScope.ALL,
+        resource_id=external.id,
+        period_start=date(2026, 8, 1),
+        expected_version=before.version,
+        note="Submitted on behalf",
+    )
+
+    assert entry.author_user_id == services["user_session"].principal.user_id
+    assert submitted.resource_id == external.id
+    assert submitted.submitted_by_user_id == services["user_session"].principal.user_id
+    assert submitted.status is TimesheetPeriodStatus.SUBMITTED
+
+
+def test_team_selector_uses_explicit_project_scope(services) -> None:
+    in_team = services["resource_service"].create_resource(
+        name="In Team", role="Engineer", kind=ResourceKind.PERSON
+    )
+    out_team = services["resource_service"].create_resource(
+        name="Out Team", role="Engineer", kind=ResourceKind.PERSON
+    )
+    team_project = services["project_service"].create_project("Team Project")
+    other_project = services["project_service"].create_project("Other Project")
+    team_task = services["task_service"].create_task(team_project.id, "Team Task")
+    other_task = services["task_service"].create_task(other_project.id, "Other Task")
+    services["task_service"].assign_resource(team_task.id, in_team.id)
+    services["task_service"].assign_resource(other_task.id, out_team.id)
+    original = services["user_session"].principal
+    scoped = {"project": {team_project.id: frozenset({"timesheet.read_team"})}}
+    services["user_session"].set_principal(
+        replace(
+            original,
+            role_names=frozenset({"project_timekeeper"}),
+            permissions=frozenset({"timesheet.read_team"}),
+            scoped_access=scoped,
+            project_access=scoped["project"],
+        )
+    )
+
+    page = services["timesheet_service"].query_timesheet_resources(
+        scope=TimesheetScope.TEAM
+    )
+
+    assert {item.resource_id for item in page.items} == {in_team.id}
+    with pytest.raises(Exception, match="not available"):
+        services["timesheet_service"].get_timesheet_period(
+            scope=TimesheetScope.TEAM,
+            resource_id=out_team.id,
+            period_start=date(2026, 8, 1),
+        )

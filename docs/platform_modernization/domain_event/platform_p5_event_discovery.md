@@ -416,6 +416,20 @@ originally sketched.
 - Legacy compatibility: bridge the relevant slice of `auth_changed` until P6.
 - Exit criteria: all 4 transitions proven distinct and correctly scoped; guardrail green.
 
+**P5D-1 (2026-08-26, implemented): transaction convergence only, per this row's own
+sub-phasing.** `TenantMembershipService` now owns a canonical `TenantMembershipUnitOfWork`; the
+four events above are still unimplemented (P5D-2's job). P5D-1 additionally discovered and
+repaired a pre-existing P5C coverage gap: `TenantMembershipService` held two RoleGovernance-
+bypassing RoleBinding mutations (a direct `add()` on acceptance, a raw bulk-SQL revoke on
+removal) that P5C's own convergence/instrumentation passes never audited, since they only traced
+`RoleGovernanceService`'s own two mutation methods. Both now go through the same canonical
+mechanics (a new transaction-agnostic `role_binding_mutation_participant` module, reused by both
+`RoleGovernanceService` and `TenantMembershipService`) and correctly emit the existing P5C
+`RoleBindingAssigned`/`RoleBindingRevoked` events -- see
+`platform_domain_event_implementation_plan.md`'s P5D-1 section for the full writeup. Confirmed
+(not assumed): `suspend_member`/`reactivate_member` never touch RoleBinding rows, so neither
+transition participates in the RoleBinding event stream at all.
+
 ### Approval — explicitly NOT a P5 slice yet
 
 Approval's events (`ApprovalRequested`/`Approved`/`Rejected`) are fully specified above (§3-§9)

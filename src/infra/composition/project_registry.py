@@ -121,6 +121,7 @@ from src.core.modules.project_management.infrastructure.persistence.reads.regist
 from src.core.modules.project_management.infrastructure.persistence.reads.timesheets import (
     SqlAlchemyOwnerTimesheetReader,
     SqlAlchemyTimesheetReviewReader,
+    SqlAlchemyTimesheetWorkspaceReader,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.tasks import (
     SqlAlchemyTaskWorkspaceReader,
@@ -273,6 +274,7 @@ def build_project_management_service_bundle(
         scope_organization_resolver=_time_scope_organization_id,
         approved_time_outbox_service=approved_time_outbox_service,
         owner_timesheet_reader=SqlAlchemyOwnerTimesheetReader(session=session),
+        timesheet_workspace_reader=SqlAlchemyTimesheetWorkspaceReader(session=session),
         timesheet_review_reader=SqlAlchemyTimesheetReviewReader(session=session),
     )
     time_service: TimeService = timesheet_service

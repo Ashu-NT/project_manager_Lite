@@ -10,7 +10,6 @@ from src.core.modules.project_management.api.desktop import (
     TimesheetEntryUpdateCommand,
     build_project_management_timesheets_desktop_api,
 )
-from src.core.platform.common.exceptions import NotFoundError
 
 
 _WORKSPACE = {
@@ -75,9 +74,13 @@ def _owner_setup_state(
 def _period_map(period) -> dict[str, object]:
     return {
         "ownerAvailable": True,
+        "resourceSelected": True,
         "periodId": period.period_id,
         "resourceId": period.resource_id,
         "resourceName": period.resource_name,
+        "resourceCode": period.resource_code,
+        "resourceKind": period.resource_kind,
+        "workerType": period.worker_type,
         "periodStart": period.period_start.isoformat(),
         "periodEnd": period.period_end.isoformat(),
         "periodLabel": period.period_label,
@@ -98,6 +101,7 @@ def _period_map(period) -> dict[str, object]:
         "canSubmit": period.can_submit,
         "canResubmit": period.can_resubmit,
         "canViewReturnReason": period.can_view_return_reason,
+        "canViewHistory": period.can_view_history,
     }
 
 
@@ -123,7 +127,7 @@ def _entry_map(entry) -> dict[str, object]:
     }
 
 
-class OwnerTimesheetsPresenter:
+class ResourceTimesheetsPresenter:
     def __init__(
         self,
         *,
@@ -134,6 +138,11 @@ class OwnerTimesheetsPresenter:
     def build_state(
         self,
         *,
+        scope: str,
+        resource_id: str,
+        resource_search_text: str,
+        resource_page: int,
+        resource_page_size: int,
         period_start: date,
         search_text: str,
         project_id: str,
@@ -145,19 +154,76 @@ class OwnerTimesheetsPresenter:
         history_page: int,
         history_page_size: int,
     ) -> dict[str, object]:
-        try:
-            period = self._desktop_api.get_owner_period(period_start=period_start)
-        except NotFoundError as exc:
-            if exc.code != "TIMESHEET_OWNER_RESOURCE_NOT_FOUND":
-                raise
-            return _owner_setup_state(
+        access = self._desktop_api.get_timesheet_workspace_access()
+        available = tuple(access.available_scopes)
+        resolved_scope = scope if scope in available else access.default_scope
+        target_resource_id = access.mine_resource_id if resolved_scope == "mine" else resource_id
+        resource_page_result = None
+        if resolved_scope in {"team", "all"}:
+            resource_page_result = self._desktop_api.list_timesheet_resources_page(
+                scope=resolved_scope,
+                search_text=resource_search_text,
+                page=resource_page,
+                page_size=resource_page_size,
+            )
+        scope_options = [
+            {"value": value, "label": {"mine": "Mine", "team": "My Team", "all": "All Resources"}[value]}
+            for value in available
+        ]
+        resources = [
+            {
+                "value": item.resource_id,
+                "label": item.resource_name,
+                "code": item.resource_code,
+                "kind": item.kind,
+                "workerType": item.worker_type,
+            }
+            for item in (resource_page_result.items if resource_page_result else ())
+        ]
+        common = {
+            "selectedScope": resolved_scope,
+            "availableScopes": list(available),
+            "scopeOptions": scope_options,
+            "canSelectScope": len(available) > 1,
+            "canSelectResource": resolved_scope in {"team", "all"},
+            "selectedResourceId": target_resource_id,
+            "resourceOptions": resources,
+            "resourceTotal": resource_page_result.total if resource_page_result else 0,
+            "resourcePage": resource_page_result.page if resource_page_result else 1,
+            "resourcePageSize": resource_page_result.page_size if resource_page_result else resource_page_size,
+        }
+        if not target_resource_id:
+            state = _owner_setup_state(
                 period_start=period_start,
                 page_size=page_size,
                 sort_key=sort_key,
                 sort_direction=sort_direction,
                 history_page_size=history_page_size,
             )
-        entries = self._desktop_api.list_owner_entries_page(
+            state["period"].update(
+                {
+                    "ownerAvailable": resolved_scope != "mine",
+                    "resourceSelected": False,
+                    "statusLabel": (
+                        "Resource setup required" if resolved_scope == "mine" else "Select a Resource"
+                    ),
+                    "setupMessage": (
+                        state["period"]["setupMessage"]
+                        if resolved_scope == "mine"
+                        else "Search for and select an eligible Resource to view its Timesheet."
+                    ),
+                }
+            )
+            state.update(common)
+            return state
+        period = self._desktop_api.get_resource_timesheet_period(
+            scope=resolved_scope,
+            resource_id=target_resource_id,
+            period_start=period_start,
+        )
+        entries = self._desktop_api.list_resource_timesheet_entries_page(
+            scope=resolved_scope,
+            resource_id=target_resource_id,
             period_start=period_start,
             search_text=search_text,
             project_id=None if project_id == "all" else project_id,
@@ -167,13 +233,15 @@ class OwnerTimesheetsPresenter:
             sort_key=sort_key,
             sort_direction=sort_direction,
         )
-        history = self._desktop_api.list_owner_history_page(
+        history = self._desktop_api.list_resource_timesheet_history_page(
+            scope=resolved_scope,
+            resource_id=target_resource_id,
             page=history_page,
             page_size=history_page_size,
         )
-        owner_assignments = self._desktop_api.list_owner_assignments()
-        project_options = {option.project_id: option.project_name for option in owner_assignments}
-        return {
+        assignments = self._desktop_api.list_resource_assignments(resource_id=target_resource_id)
+        project_options = {option.project_id: option.project_name for option in assignments}
+        result = {
             "workspace": dict(_WORKSPACE),
             "period": _period_map(period),
             "entries": [_entry_map(item) for item in entries.items],
@@ -195,7 +263,7 @@ class OwnerTimesheetsPresenter:
                     "taskId": option.task_id,
                     "taskName": option.task_name,
                 }
-                for option in owner_assignments
+                for option in assignments
             ],
             "projectOptions": [
                 {"value": "all", "label": "All projects"},
@@ -207,58 +275,79 @@ class OwnerTimesheetsPresenter:
                 ),
             ],
         }
+        result.update(common)
+        return result
 
     def save_entry(self, payload: dict[str, Any]) -> None:
+        scope = str(payload.get("scope", "mine") or "mine").strip()
+        resource_id = str(payload.get("resourceId", "") or "").strip() or None
         entry_id = str(payload.get("entryId", "") or "").strip()
         entry_date = date.fromisoformat(str(payload.get("entryDate", "") or "").strip())
         period_start = date.fromisoformat(str(payload.get("periodStart", "") or "").strip())
         hours = float(payload.get("hours", 0) or 0)
         note = str(payload.get("note", "") or "").strip()
         if entry_id:
-            self._desktop_api.update_owner_time_entry(
+            self._desktop_api.update_resource_time_entry(
                 TimesheetEntryUpdateCommand(
                     entry_id=entry_id,
                     entry_date=entry_date,
                     hours=hours,
                     note=note,
                 ),
+                scope=scope,
+                resource_id=resource_id,
                 period_start=period_start,
             )
             return
         assignment_id = str(payload.get("assignmentId", "") or "").strip()
         if not assignment_id:
             raise ValueError("Choose a task assignment before logging time.")
-        self._desktop_api.add_owner_time_entry(
+        self._desktop_api.add_resource_time_entry(
             TimesheetEntryCreateCommand(
                 assignment_id=assignment_id,
                 entry_date=entry_date,
                 hours=hours,
                 note=note,
             ),
+            scope=scope,
+            resource_id=resource_id,
             period_start=period_start,
         )
 
-    def delete_entry(self, entry_id: str, *, period_start: date) -> None:
+    def delete_entry(
+        self,
+        entry_id: str,
+        *,
+        scope: str,
+        resource_id: str | None,
+        period_start: date,
+    ) -> None:
         normalized = str(entry_id or "").strip()
         if not normalized:
             raise ValueError("Choose a time entry to delete.")
-        self._desktop_api.delete_owner_time_entry(
+        self._desktop_api.delete_resource_time_entry(
             normalized,
+            scope=scope,
+            resource_id=resource_id,
             period_start=period_start,
         )
 
     def submit_period(
         self,
         *,
+        scope: str,
+        resource_id: str | None,
         period_start: date,
         expected_version: int,
         note: str,
     ) -> None:
-        self._desktop_api.submit_owner_period(
+        self._desktop_api.submit_resource_timesheet_period(
+            scope=scope,
+            resource_id=resource_id,
             period_start=period_start,
             expected_version=expected_version,
             note=note,
         )
 
 
-__all__ = ["OwnerTimesheetsPresenter"]
+__all__ = ["ResourceTimesheetsPresenter"]
