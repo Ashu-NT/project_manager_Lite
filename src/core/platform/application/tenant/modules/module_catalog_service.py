@@ -20,6 +20,7 @@ from src.core.platform.contract.repositories.tenant.modules.contracts import Mod
 from src.core.platform.contract.read.tenant.modules.module_entitlement_reader import ModuleEntitlementReader
 from src.core.platform.common.ids import generate_id
 from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.time.clock import Clock
 from src.core.platform.domain.tenant.modules import (
     DEFAULT_ENTERPRISE_MODULES,
     DEFAULT_PLATFORM_CAPABILITIES,
@@ -60,6 +61,7 @@ class ModuleCatalogService(
         enterprise_audit_service: Any = None,
         organization_context_provider: Callable[[], Organization | None] | None = None,
         uow_factory: ModuleEntitlementUnitOfWorkFactory | None = None,
+        clock: Clock | None = None,
     ) -> None:
         known_modules = tuple(modules)
         known_codes = {module.code for module in known_modules}
@@ -89,6 +91,7 @@ class ModuleCatalogService(
         self._enterprise_audit_service = enterprise_audit_service
         self._organization_context_provider = organization_context_provider
         self._uow_factory = uow_factory
+        self._clock = clock
 
     def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
         return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)

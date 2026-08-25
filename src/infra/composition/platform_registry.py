@@ -538,6 +538,7 @@ def build_platform_service_bundle(
         enterprise_audit_service=enterprise_audit_service,
         organization_context_provider=_active_organization,
         uow_factory=module_entitlement_uow_factory,
+        clock=SystemClock(),
     )
     logger.debug("Platform module catalog service created; bootstrapping defaults")
     module_catalog_service.bootstrap_defaults()

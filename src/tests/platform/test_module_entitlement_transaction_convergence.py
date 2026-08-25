@@ -11,10 +11,12 @@ P5B-SEM/P5B-1 then retired `set_module_state` itself in favor of five explicit b
 `transition_module_lifecycle`) -- this file now exercises the same transaction/scope guarantees
 through those commands (using `disable_module` as the representative single-field mutation).
 
-This phase is transaction/scope convergence only -- no `ModuleLicensed`/`ModuleEnabled`/
-`ModuleDisabled`/`ModuleLicenseGranted`/`ModuleLicenseRevoked`/`ModuleLifecycleTransitioned`
-DomainEvent, no ViewInvalidation producer, per the P5B/P5B-SEM reports' own findings.
-`test_module_entitlement_prerequisite_does_not_add_event_vocabulary` enforces that phase boundary.
+P5B-2 then added the five typed `ModuleLicensed`/`ModuleLicenseRevoked`/`ModuleEnabled`/
+`ModuleDisabled`/`ModuleLifecycleTransitioned` DomainEvents at these same command boundaries (see
+`test_module_entitlement_events.py`) -- still no ViewInvalidation producer, no Qt adapter, no
+`modules_changed` removal, per the P5B-2 report.
+`test_module_entitlement_p5b2_does_not_add_p5b3_view_invalidation_or_qt` enforces that phase
+boundary.
 """
 
 from __future__ import annotations
@@ -163,22 +165,30 @@ def test_non_active_organization_mutation_affects_only_that_organization(service
     assert a2_record.enabled is False
 
 
-def test_module_entitlement_prerequisite_does_not_add_event_vocabulary():
-    """Phase-boundary guard: transaction/scope convergence (P5B) and the semantic command
-    refactor (P5B-SEM/P5B-1) are both event-free. No DomainEvent class name, no `uow.record_event(`
-    call, exists anywhere in the Module Entitlement capability yet."""
+def test_module_entitlement_p5b2_does_not_add_p5b3_view_invalidation_or_qt():
+    """Phase-boundary guard (superseding the old pre-P5B-2 guard, which correctly started
+    failing once P5B-2 legitimately added the five Module DomainEvents -- see
+    `test_p5a_does_not_add_p5b_plus_event_vocabulary`-style precedent from the Organization
+    slice). P5B-2 is DomainEvent implementation only: no ViewInvalidation producer/handler, no Qt
+    adapter, no legacy `modules_changed` removal, anywhere in the Module Entitlement capability."""
     for module_name in ("module_catalog_service", "module_catalog_mutation", "module_catalog_context"):
         module = __import__(
             f"src.core.platform.application.tenant.modules.{module_name}", fromlist=[module_name]
         )
         source = inspect.getsource(module)
         for forbidden in (
-            "ModuleLicensed",
-            "ModuleLicenseGranted",
-            "ModuleLicenseRevoked",
-            "ModuleEnabled",
-            "ModuleDisabled",
-            "ModuleLifecycleTransitioned",
-            "record_event(",
+            "ViewInvalidation",
+            "ViewInvalidationHint",
+            "ViewInvalidationChannel",
+            "PySide6",
+            "ui_qml",
         ):
             assert forbidden not in source
+    # The legacy signal must still be emitted -- P5B-2 does not remove or bridge it.
+    mutation_source = inspect.getsource(
+        __import__(
+            "src.core.platform.application.tenant.modules.module_catalog_mutation",
+            fromlist=["module_catalog_mutation"],
+        )
+    )
+    assert "domain_events.modules_changed.emit(" in mutation_source

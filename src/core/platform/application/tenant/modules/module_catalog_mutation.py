@@ -12,6 +12,13 @@ from src.core.platform.domain.tenant.modules.defaults import (
     default_lifecycle_status,
     normalize_lifecycle_status,
 )
+from src.core.platform.domain.tenant.modules.events import (
+    ModuleDisabled,
+    ModuleEnabled,
+    ModuleLicenseRevoked,
+    ModuleLicensed,
+    ModuleLifecycleTransitioned,
+)
 from src.core.platform.domain.tenant.modules.module_definition import EnterpriseModule
 from src.core.platform.domain.tenant.modules.module_entitlement import ModuleEntitlement
 from src.core.platform.domain.tenant.modules.subscription import ModuleEntitlementRecord
@@ -23,6 +30,9 @@ from src.core.platform.domain.tenant.modules.subscription import ModuleEntitleme
 _USER_SELECTABLE_LIFECYCLE_STATUSES = frozenset({"active", "trial", "suspended", "expired"})
 
 _Transition = Callable[[EnterpriseModule, ModuleEntitlement], tuple[bool, bool, str]]
+# (tenant_id, organization_id, module_code, current-before-transition, occurred_at) -> DomainEvent.
+# Called only when the transition actually changed persisted state (P5B-2: no event on a no-op).
+_EventFactory = Callable[..., object]
 
 
 class ModuleCatalogMutationMixin:
@@ -36,23 +46,26 @@ class ModuleCatalogMutationMixin:
     def license_module(self, organization_id: str, module_code: str) -> ModuleEntitlement:
         """LICENSE_MODULE: grants a license. Idempotent -- licensing an already-licensed module
         is a business no-op that preserves its current `enabled`/`lifecycle_status` (never resets
-        an active trial back to `active`)."""
+        an active trial back to `active`) and records no `ModuleLicensed` event."""
         return self._run_module_transition(
             organization_id,
             module_code,
             transition=self._license_module_transition,
             audit_action="module.entitlement.license_granted",
+            event_factory=self._license_module_event,
         )
 
     def revoke_module_license(self, organization_id: str, module_code: str) -> ModuleEntitlement:
         """REVOKE_MODULE_LICENSE: one compound business fact. Forcing `enabled=False` and
         `lifecycle_status=inactive` is an implementation consequence of revocation, not a
-        separate disablement/lifecycle business action."""
+        separate disablement/lifecycle business action -- exactly one `ModuleLicenseRevoked`,
+        never also `ModuleDisabled`/`ModuleLifecycleTransitioned`."""
         return self._run_module_transition(
             organization_id,
             module_code,
             transition=self._revoke_module_license_transition,
             audit_action="module.entitlement.license_revoked",
+            event_factory=self._revoke_module_license_event,
         )
 
     def enable_module(self, organization_id: str, module_code: str) -> ModuleEntitlement:
@@ -63,6 +76,7 @@ class ModuleCatalogMutationMixin:
             module_code,
             transition=self._enable_module_transition,
             audit_action="module.entitlement.enabled",
+            event_factory=self._enable_module_event,
         )
 
     def disable_module(self, organization_id: str, module_code: str) -> ModuleEntitlement:
@@ -73,6 +87,7 @@ class ModuleCatalogMutationMixin:
             module_code,
             transition=self._disable_module_transition,
             audit_action="module.entitlement.disabled",
+            event_factory=self._disable_module_event,
         )
 
     def transition_module_lifecycle(
@@ -84,7 +99,8 @@ class ModuleCatalogMutationMixin:
         """TRANSITION_MODULE_LIFECYCLE: explicit user-selected lifecycle move among
         active/trial/suspended/expired (`inactive` is never a valid target here -- it is only
         reached via `revoke_module_license`). Moving into suspended/expired forces
-        `enabled=False` as an implementation consequence of that one transition; moving into
+        `enabled=False` as an implementation consequence of that one transition (recorded as
+        exactly one `ModuleLifecycleTransitioned`, never also `ModuleDisabled`); moving into
         active/trial never silently re-enables the module -- enablement remains its own command."""
         normalized_status = normalize_lifecycle_status(lifecycle_status)
         if normalized_status not in _USER_SELECTABLE_LIFECYCLE_STATUSES:
@@ -100,6 +116,7 @@ class ModuleCatalogMutationMixin:
             ),
             audit_action="module.entitlement.lifecycle_transitioned",
             audit_extra={"lifecycle_status": normalized_status},
+            event_factory=self._transition_module_lifecycle_event,
         )
 
     # -- shared transaction/audit plumbing (transaction-owning; internal only) -----------------
@@ -111,6 +128,7 @@ class ModuleCatalogMutationMixin:
         *,
         transition: _Transition,
         audit_action: str,
+        event_factory: _EventFactory,
         audit_extra: dict | None = None,
     ) -> ModuleEntitlement:
         require_permission(
@@ -136,6 +154,7 @@ class ModuleCatalogMutationMixin:
                 transition=transition,
                 audit_action=audit_action,
                 audit_extra=audit_extra,
+                event_factory=event_factory,
             )
             uow.commit()
         domain_events.modules_changed.emit(module_code)
@@ -151,14 +170,17 @@ class ModuleCatalogMutationMixin:
         transition: _Transition,
         audit_action: str,
         audit_extra: dict | None,
+        event_factory: _EventFactory,
     ) -> ModuleEntitlement:
         """Transaction-agnostic: does not open or commit a transaction itself -- that remains the
         caller's responsibility. `uow` is duck-typed against `_enterprise_audit_service`
-        (`record_audit_entry`'s existing contract), never a concrete UoW class import. Always
-        persists (even a value-for-value no-op call) -- this is what normalizes a legacy storage
-        code (e.g. `payroll` -> `hr_management`) onto any real mutation, exactly as the retired
-        generic `set_module_state` did; P5B-2 (not this phase) is responsible for suppressing a
-        DomainEvent when nothing business-observable actually changed."""
+        (`record_audit_entry`'s existing contract) plus the canonical `record_event` (P5B-2),
+        never a concrete UoW class import. Always persists (even a value-for-value no-op call) --
+        this is what normalizes a legacy storage code (e.g. `payroll` -> `hr_management`) onto any
+        real mutation, exactly as the retired generic `set_module_state` did -- but records a
+        DomainEvent only when the transition actually changed persisted state (P5B-2: no event on
+        a no-op), using authoritative before/after state from the transition function itself, not
+        a guess from caller input."""
         module = self._require_module(module_code)
         current_record = entitlement_repo.get_for_organization_in_tenant(organization_id, module.code)
         current = self._build_entitlement(
@@ -166,6 +188,12 @@ class ModuleCatalogMutationMixin:
         )
 
         next_licensed, next_enabled, next_status = transition(module, current)
+        changed = (next_licensed, next_enabled, next_status) != (
+            current.licensed,
+            current.enabled,
+            current.lifecycle_status,
+        )
+
         record = ModuleEntitlementRecord(
             module_code=module.code,
             licensed=next_licensed,
@@ -197,7 +225,72 @@ class ModuleCatalogMutationMixin:
             metadata=metadata,
             commit=False,
         )
+        if changed:
+            if self._clock is None:
+                raise RuntimeError("Module entitlement Clock is not configured.")
+            # Recorded before `uow.commit()` (P5B-2, ADR-005 Section 6's application-authored
+            # escape hatch -- ModuleEntitlement has no aggregate transition methods to record
+            # itself on) so it participates in the canonical UoW event lifecycle: transactional
+            # dispatch, then only-on-successful-commit post-commit publication. `tenant_id` comes
+            # from the caller's own authenticated tenant (never the active organization).
+            uow.record_event(
+                event_factory(
+                    tenant_id=self._active_tenant_id(),
+                    organization_id=organization_id,
+                    module_code=module.code,
+                    current=current,
+                    next_status=next_status,
+                    occurred_at=self._clock.now(),
+                )
+            )
         return self._build_entitlement(module, {record.module_code: record})
+
+    @staticmethod
+    def _license_module_event(*, tenant_id, organization_id, module_code, current, next_status, occurred_at):
+        return ModuleLicensed(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            module_code=module_code,
+            occurred_at=occurred_at,
+        )
+
+    @staticmethod
+    def _revoke_module_license_event(*, tenant_id, organization_id, module_code, current, next_status, occurred_at):
+        return ModuleLicenseRevoked(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            module_code=module_code,
+            occurred_at=occurred_at,
+        )
+
+    @staticmethod
+    def _enable_module_event(*, tenant_id, organization_id, module_code, current, next_status, occurred_at):
+        return ModuleEnabled(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            module_code=module_code,
+            occurred_at=occurred_at,
+        )
+
+    @staticmethod
+    def _disable_module_event(*, tenant_id, organization_id, module_code, current, next_status, occurred_at):
+        return ModuleDisabled(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            module_code=module_code,
+            occurred_at=occurred_at,
+        )
+
+    @staticmethod
+    def _transition_module_lifecycle_event(*, tenant_id, organization_id, module_code, current, next_status, occurred_at):
+        return ModuleLifecycleTransitioned(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            module_code=module_code,
+            previous_lifecycle_status=current.lifecycle_status,
+            lifecycle_status=next_status,
+            occurred_at=occurred_at,
+        )
 
     # -- individual business transitions (pure -- no I/O, no transaction) ----------------------
 
