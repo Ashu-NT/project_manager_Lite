@@ -685,6 +685,65 @@ how it obtains repositories and how it returns post-commit reactions. Does not t
 mechanical revert since the business logic inside handlers is unchanged, only their
 repository-access and result-construction code.
 
+## P4B — Organization Capability Transaction Convergence (implemented)
+
+**Status:** implemented. Discovered as a hard prerequisite during the P5A (`OrganizationCreated`)
+attempt: `OrganizationService`'s mutation methods were still on the shared, process-lifetime
+`Session`, so `uow.record_event()` had no `uow` to call. P5A stopped and reported "P5A
+TRANSACTION-BOUNDARY PREREQUISITE" rather than faking the event via a post-commit Signal
+callback; this phase resolves that prerequisite. P5A itself remains unimplemented — no
+`OrganizationCreated` class, no `record_event(` call, and no ViewInvalidation producer exist as of
+this phase (enforced by `test_p4b_does_not_add_p5a_event_vocabulary`).
+
+**Goal:** migrate `OrganizationService`'s own competing transaction convention onto the canonical
+`UnitOfWork`, mirroring P4's `ApprovalService` cutover but scoped to the Organization capability
+only — the same "one business operation → one transaction owner" principle, applied to
+Organization's own mutations rather than Approval's.
+
+**Architectural decision:** a new, narrow `OrganizationUnitOfWork(UnitOfWork, Protocol)` —
+`organizations: OrganizationRepository` and `_enterprise_audit_service: EnterpriseAuditService` —
+sibling to `PlatformUnitOfWork`, not a growth of it (ADR-005 §9/§24 rejects one Platform-wide UoW
+accumulating a named accessor per capability). Concrete: `SqlAlchemyOrganizationUnitOfWork`
+(`src/core/platform/infrastructure/persistence/organization_unit_of_work.py`), built on the same
+P3 `SqlAlchemyUnitOfWorkBase` foundation Approval uses, wired through
+`platform_registry.py`'s `organization_uow_factory` (derived from `session.bind`, same reasoning
+as `approval_uow_session_factory`).
+
+**Migrated (fresh `OrganizationUnitOfWork` per call, default/`commit=True` mode):**
+`create_organization`, `update_organization` (no bifurcation needed — no caller composes it into
+a larger transaction), `set_active_organization`, `bootstrap_defaults`. `update_organization`'s
+audit entry is now staged *before* `uow.commit()` (previously staged after `session.commit()` via
+a second, non-atomic commit — a pre-existing gap against ADR-003's own atomicity invariant; fixing
+the ordering is a necessary consequence of the UoW's commit-then-close lifecycle, not opportunistic
+cleanup).
+
+**Grandfathered caller-owned exception (mirrors P4-PRE/P4's `request_change(commit=False)`
+precedent exactly):** `create_organization(commit=False)` and `set_active_organization(commit=False)`
+remain on the shared, process-lifetime Session, byte-for-byte unchanged. Sole real caller:
+`PlatformRuntimeService.provision_organization`, which composes organization creation + module
+entitlement provisioning + optional activation into one outer transaction, committed once. Forcing
+this onto an independent fresh UoW would break that real cross-capability atomicity requirement.
+
+**P5A readiness confirmed:** `organization_id`/`tenant_id` are both known before any flush
+(application-side `generate_id()` in `Organization.create()`; tenant resolved from
+`UserSessionContext` before the domain object is even constructed) — no database round-trip is
+needed before a future `uow.record_event(OrganizationCreated(...))` call in `create_organization`'s
+`commit=True` branch.
+
+**Exit criteria met:** fresh Session per transaction-owning Organization command (proven);
+Organization repository/audit service session-identical to the active UoW's session (proven); no
+partial state / no legacy signal on validation or commit failure (proven); shared legacy Session
+untouched by the migrated path (proven); `provision_organization`'s real caller-owned atomicity
+unaffected (proven); tenant isolation preserved through the new UoW-based mutation path (proven);
+architecture guardrail and full P0-P4/Approval/legacy-signal regression suites show no new failures
+(same pre-existing, unrelated failure set as before this phase — calendar/site/department/access
+tests, none of which touch Organization).
+
+**Explicit non-goals:** no `OrganizationCreated`/`OrganizationUpdated`/etc. DomainEvent, no
+`uow.record_event()` call, no ViewInvalidation producer, no other Platform capability's
+transaction migrated, no removal of the global process-lifetime Session (still required by every
+other, not-yet-migrated Platform/PM/Inventory service).
+
 ## P5 — Platform Typed Events / Platform Invalidation (Per-Capability Discovery)
 
 **Goal:** classify Platform's 11 named signals per-capability, exactly as the (now-struck)
@@ -700,7 +759,7 @@ phase — seeded here with the audit's findings as a starting point, not a final
 
 | Signal | Emitting capability | Confirmed emitter count (audit) | Likely classification | Event-recording model (§6 criteria) |
 |---|---|---|---|---|
-| `organizations_changed` | `master_data` (organization) | 3 sites across 2 services (`organization_service.py`, `platform_runtime_service.py`) | Split — at least `OrganizationCreated`/`OrganizationRenamed`/`OrganizationDeactivated` as real business facts | Aggregate-recorded (`Organization.rename()` etc. are genuine state transitions) |
+| `organizations_changed` | `master_data` (organization) | 3 sites across 2 services (`organization_service.py`, `platform_runtime_service.py`) | Split — at least `OrganizationCreated`/`OrganizationRenamed`/`OrganizationDeactivated` as real business facts | **Corrected by the P5 discovery pass and P4B:** `Organization` (`src/core/platform/domain/master_data/org/organization.py`) is a plain validated dataclass with no `.rename()`/`.archive()`/state-transition methods — not aggregate-shaped. Application-authored via `uow.record_event()` inside `OrganizationService`, not aggregate-recorded. **P4B (implemented, see above) gives `create_organization`'s transaction-owning mode a real `uow` to call `record_event()` on** — the transaction-boundary prerequisite P5A originally stopped on is resolved. |
 | `employees_changed` | `master_data` (employee) | 2 sites (`employee_service.py` create/update) | Likely `EmployeeHired`/`EmployeeUpdated` — narrower emitter already, closest to 1:1 | Aggregate-recorded |
 | `documents_changed` | `master_data` (documents) | 9 sites across 2 services — confirmed coarsest Platform signal | Split into ≥4-5 distinct facts (`DocumentStructureCreated`, `DocumentMetadataUpdated`, `DocumentUploaded`, `DocumentDeleted`, integration-link facts) — do not collapse back to one event | Aggregate-recorded for document lifecycle; the integration-link facts may be orchestration-level (assess during discovery) |
 | `sites_changed`, `departments_changed`, `calendars_changed`, `parties_changed` | `master_data`/`time_management` | Not yet inventoried by the audit (Platform-scope only; emitter counts not sampled) | To be discovered fresh in this phase — do not assume 1:1 with the signal name | To be determined per-emitter |
@@ -1026,3 +1085,22 @@ since nothing is left to delete afterward). This document's own P4-PRE and P4 se
 Human Approval Gates table, are updated to match. This third pass was, again, documentation/design
 only: no file under `src/` was modified, no test was added, no production code changed, no commit
 was made — confirmed by `git status` showing only these three documents changed.
+
+**Fourth pass (2026-08-25, same day) — P4B (Organization Capability Transaction Convergence),
+discovered mid-P5A.** P5A (`OrganizationCreated`) began per its own instruction to inspect the
+real Organization mutation path before writing any event code. `OrganizationService.create_organization`
+was confirmed still on the shared, process-lifetime `Session` (`self._session.commit()`, wired
+from `platform_registry.py`'s shared `session`), with no Organization-specific or reusable
+general-purpose Platform UnitOfWork anywhere in the codebase, and `SqlAlchemyUnitOfWorkBase.commit()`
+confirmed to close its Session unconditionally — so wrapping the shared Session in a UoW as a
+stopgap would have closed it out from under every other unmigrated Platform service. P5A stopped
+per its own explicit gate and reported "P5A TRANSACTION-BOUNDARY PREREQUISITE" rather than faking
+the event via a post-commit Signal callback or silently migrating Organization's transaction
+architecture inside P5A's own scope. A new, separately gated Phase P4B is inserted between P4 and
+P5 to resolve exactly this prerequisite, mirroring P4's own `ApprovalService`/`PlatformUnitOfWork`
+cutover pattern but scoped to the Organization capability only. P4B has since been implemented (see
+the P4B section above) and reviewed; P5A remains not started — no `OrganizationCreated` class, no
+`record_event(` call, and no ViewInvalidation producer exist anywhere in the codebase as of this
+pass, enforced by `test_p4b_does_not_add_p5a_event_vocabulary`. This pass's own documentation edit
+(this section plus the new P4B section and the `organizations_changed` discovery-table row above)
+is separate from, and follows, the P4B implementation itself.
