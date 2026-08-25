@@ -436,7 +436,7 @@ organization_module_entitlements
 4. If locked_until expired → auto-clear lockout and save
 5. If still locked → raise ValidationError(AUTH_LOCKED)
 6. verify_password(raw_password, user.password_hash)
-   → uses PBKDF2-SHA256 with 390,000 iterations
+   → accepts Argon2id only (19 MiB memory, 2 iterations, parallelism 1)
    → If fails: increment failed_login_attempts, apply lockout at threshold
 7. If user.mfa_enabled → verify_totp_code(user.mfa_secret, mfa_code)
    → If code absent: raise AUTH_MFA_REQUIRED
@@ -482,15 +482,13 @@ Lockout thresholds are configurable via environment variables:
 
 ### 4.4 Password Hashing
 
-Located at `src/core/platform/auth/passwords.py`.
+Located at `src/core/platform/domain/security/auth/credentials/passwords.py`.
 
-Algorithm: custom **PBKDF2-SHA256**, 390,000 iterations, 16-byte random salt, Base64-encoded.
+Algorithm: **Argon2id** via `argon2-cffi`, with explicit costs of 19 MiB memory, 2 iterations, parallelism 1, a 16-byte random salt, and a 32-byte hash.
 
-Hash format: `pbkdf2_sha256$390000$<salt_b64>$<digest_b64>`
+Hash format: `$argon2id$v=19$m=19456,t=2,p=1$<salt>$<hash>` (standard PHC encoding).
 
-Both `pbkdf2_sha256` and `pbkdf2_sha512` schemes are supported for verification (for hash migration).
-
-**Recommendation:** Migrate to **Argon2id** (via `argon2-cffi`). PBKDF2 is acceptable but Argon2id is the current NIST-recommended password hashing algorithm, providing memory-hardness that PBKDF2 lacks.
+PBKDF2 and other Argon2 variants are rejected. Valid Argon2id hashes with obsolete parameters are upgraded only after password and MFA verification and committed atomically with successful authentication.
 
 ### 4.5 Multi-Factor Authentication
 
@@ -1116,7 +1114,6 @@ Optimistic-lock updates accept an `extra_filters` parameter that can add additio
 | ID | Risk | Location | Description |
 |---|---|---|---|
 | HR-1 | `is_platform_admin()` is dead code | `UserSessionContext.is_platform_admin()` | Checks for `"platform.admin"` permission which is never seeded. Always returns False. Any code path gated on this check is permanently disabled. |
-| HR-2 | Custom PBKDF2 instead of Argon2id | `src/core/platform/auth/passwords.py` | PBKDF2-SHA256 at 390,000 iterations is acceptable but lacks memory-hardness. Argon2id is the current NIST/OWASP recommendation and should be adopted. |
 | HR-3 | MFA non-functional | QML login form | Backend TOTP implementation is correct. The QML login form never collects the TOTP code. If MFA is enabled on an account, that account cannot be accessed through the UI. |
 | HR-4 | `user_roles` unique constraint missing `organization_id` | `user_roles` table | `UNIQUE(user_id, role_id)` prevents assigning the same role in different organizations. The constraint must include `organization_id` to support org-scoped role assignments. |
 | HR-5 | No `tenant_admin` or `org_admin` role | `policy.py`, `roles` table | The only privileged role is `admin` (superuser). No intermediate administrative roles exist for delegated tenant or organization management. |

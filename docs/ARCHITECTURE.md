@@ -510,17 +510,15 @@ Construction steps:
 
 ### 4.4 Password Hashing
 
-Location: `src/core/platform/auth/passwords.py`
+Location: `src/core/platform/domain/security/auth/credentials/passwords.py`
 
-The implementation uses **custom PBKDF2-SHA256** with 390,000 iterations and a 16-byte random salt. The stored format is:
+The implementation uses **Argon2id** through `argon2-cffi`, with explicit OWASP baseline costs: 19 MiB memory, 2 iterations, parallelism 1, a 16-byte random salt, and a 32-byte hash. The stored value uses the standard PHC format:
 
 ```
-pbkdf2_sha256$390000$<base64-salt>$<base64-digest>
+$argon2id$v=19$m=19456,t=2,p=1$<salt>$<hash>
 ```
 
-Also supports `pbkdf2_sha512` for verification of legacy hashes.
-
-**Security note:** PBKDF2 at 390,000 iterations is acceptable but not state-of-the-art. The recommended replacement is **argon2id** (memory-hard KDF). The constant `_DEFAULT_ITERATIONS = 390_000` is not configurable at runtime.
+This is a clean pre-release cutover: PBKDF2 and non-Argon2id hashes fail closed and do not have compatibility code. A valid Argon2id hash using an obsolete cost profile is rehashed only after password and MFA verification, then persisted atomically with the successful-login session and audit transaction.
 
 ### 4.5 Multi-Factor Authentication
 
@@ -1174,7 +1172,6 @@ Optimistic locking updates (`update_with_version_check()` from `infra/persistenc
 | # | Risk | Location | Impact |
 |---|---|---|---|
 | H-1 | `is_platform_admin()` checks `"platform.admin"` permission that is never seeded. Always returns `False`. Dead code. | `UserSessionContext.is_platform_admin()` | Future code relying on this will silently grant no access |
-| H-2 | Custom PBKDF2-SHA256 password hashing. State-of-the-art is argon2id. | `src/core/platform/auth/passwords.py` | Weaker resistance to GPU-accelerated cracking |
 | H-3 | MFA is implemented in the backend but the UI login screen never collects a TOTP code. MFA is non-functional. | UI login screen | MFA provides no actual protection |
 | H-4 | `user_roles` unique constraint is on `(user_id, role_id)` only. Prevents multi-org role assignment. | `user_roles` table schema | Broken RBAC for multi-org users |
 | H-5 | No `tenant_admin` or `org_admin` role. The only role with management permissions is `admin`, which is a global superuser. | `DEFAULT_ROLE_PERMISSIONS` in `policy.py` | No delegated administration within a tenant |

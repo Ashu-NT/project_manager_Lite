@@ -246,7 +246,7 @@ class ModuleCatalogMutationMixin:
         return self._build_entitlement(module, {record.module_code: record})
 
     @staticmethod
-    def _license_module_event(*, tenant_id, organization_id, module_code, current, next_status, occurred_at):
+    def _license_module_event(*, tenant_id, organization_id, module_code, current=None, next_status=None, occurred_at):
         return ModuleLicensed(
             tenant_id=tenant_id,
             organization_id=organization_id,
@@ -255,7 +255,7 @@ class ModuleCatalogMutationMixin:
         )
 
     @staticmethod
-    def _revoke_module_license_event(*, tenant_id, organization_id, module_code, current, next_status, occurred_at):
+    def _revoke_module_license_event(*, tenant_id, organization_id, module_code, current=None, next_status=None, occurred_at):
         return ModuleLicenseRevoked(
             tenant_id=tenant_id,
             organization_id=organization_id,
@@ -264,7 +264,7 @@ class ModuleCatalogMutationMixin:
         )
 
     @staticmethod
-    def _enable_module_event(*, tenant_id, organization_id, module_code, current, next_status, occurred_at):
+    def _enable_module_event(*, tenant_id, organization_id, module_code, current=None, next_status=None, occurred_at):
         return ModuleEnabled(
             tenant_id=tenant_id,
             organization_id=organization_id,
@@ -273,7 +273,7 @@ class ModuleCatalogMutationMixin:
         )
 
     @staticmethod
-    def _disable_module_event(*, tenant_id, organization_id, module_code, current, next_status, occurred_at):
+    def _disable_module_event(*, tenant_id, organization_id, module_code, current=None, next_status=None, occurred_at):
         return ModuleDisabled(
             tenant_id=tenant_id,
             organization_id=organization_id,

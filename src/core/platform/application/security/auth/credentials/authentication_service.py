@@ -5,7 +5,11 @@ from typing import TYPE_CHECKING
 
 from src.core.platform.domain.security.auth import ACCOUNT_TYPE_HUMAN
 from src.core.platform.domain.security.auth.credentials.mfa import verify_totp_code
-from src.core.platform.domain.security.auth.credentials.passwords import verify_password
+from src.core.platform.domain.security.auth.credentials.passwords import (
+    hash_password,
+    password_needs_rehash,
+    verify_password,
+)
 from src.core.platform.common.exceptions import ValidationError
 
 from .authentication_transactions import (
@@ -100,6 +104,12 @@ def authenticate(
                 else "AUTH_MFA_FAILED"
             )
             raise ValidationError(message, code=code)
+    if user.password_hash.startswith("$argon2id$") and password_needs_rehash(
+        user.password_hash
+    ):
+        # Persist the upgraded cost profile together with the successful-login
+        # session and audit transaction. An MFA denial never mutates the hash.
+        user.password_hash = hash_password(raw_password)
     complete_successful_authentication(
         service,
         user,

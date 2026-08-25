@@ -1107,6 +1107,76 @@ passed), full Platform suite (13 failed/12 errors/912 passed), and PM/Inventory 
 failed/1481 passed) all show the same pre-existing failure identities as the established baseline
 -- no new regression.
 
+### P5B-2 — Module Entitlement Typed DomainEvents (implemented)
+
+**Status:** implemented, reviewed. Adds the five business events at P5B-1's now-unambiguous
+command boundaries. Still no ViewInvalidation, no Qt adapter, no `modules_changed` removal --
+P5B-3 owns that consumer/invalidation cutover, exactly mirroring how P5A's event work preceded
+P6A's Qt cutover for Organization.
+
+**Events** (`src/core/platform/domain/tenant/modules/events.py`): `ModuleLicensed`,
+`ModuleLicenseRevoked`, `ModuleEnabled`, `ModuleDisabled` (each `tenant_id`, `organization_id`,
+`module_code`, `occurred_at`), and `ModuleLifecycleTransitioned` (adds
+`previous_lifecycle_status`/`lifecycle_status`). All frozen/slots/kw-only dataclasses, no
+ViewInvalidation/Qt/legacy-signal import, no execution metadata (that stays on
+`DomainEventContext`).
+
+**Recording location:** application-authored via `uow.record_event(...)` inside
+`ModuleCatalogMutationMixin._apply_module_transition_using` (the same shared transaction/audit
+helper P5B-1 introduced) -- `ModuleEntitlement` remains a plain projection with no transition
+methods, so this is the same application-recorded escape hatch `OrganizationCreated` established
+in P5A, not aggregate-recording.
+
+**No-op/transition detection:** authoritative, not guessed from caller input -- the shared helper
+compares the transition function's returned `(licensed, enabled, lifecycle_status)` tuple against
+the entitlement's state *before* the transition ran; an event is recorded only when that tuple
+actually changed. This single check correctly implements every P5B-SEM no-op/cascade rule at once
+(idempotent license/revoke/enable/disable, same-target lifecycle transitions) without a separate
+per-command no-op flag, because each transition function itself already encodes the correct
+cascade/no-op behavior in what it returns.
+
+**License idempotency confirmed, not reopened:** licensing an already-licensed module (e.g.
+`licensed=True, lifecycle_status=trial`) is a true no-op -- `_license_module_transition` returns
+the entitlement completely unchanged in that case, preserving `trial` rather than resetting to
+`active`. No `ModuleLicensed` is recorded. Verified by source inspection and a dedicated
+regression test before any event code was trusted to depend on it.
+
+**Cascade single-fact policy, protected by tests:** `revoke_module_license` records exactly one
+`ModuleLicenseRevoked`, never also `ModuleDisabled`/`ModuleLifecycleTransitioned`, even though it
+forces `enabled=False`/`lifecycle_status=inactive`. `transition_module_lifecycle` into
+suspended/expired records exactly one `ModuleLifecycleTransitioned`, never also `ModuleDisabled`,
+even though it forces `enabled=False`.
+
+**Clock:** `ModuleCatalogService` gained an optional `clock: Clock | None = None` constructor
+parameter (composition passes `SystemClock()`); the shared transaction helper raises
+`RuntimeError` if a real transition needs to record an event but no Clock is configured -- mirrors
+the existing `_uow_factory is None` guard pattern, checked only where actually needed so the
+`build_default_module_catalog`/provisioning-throwaway construction sites (which never reach event
+code) don't need a Clock at all.
+
+**Explicitly excluded from event semantics (tested):** `provision_organization_entitlements`
+(bootstrap/default-row materialization) and `ModuleCatalogContextMixin._ensure_context_defaults`
+(silent read-time seeding, remaining tracked debt, unchanged) both bypass the semantic command
+pipeline entirely and therefore structurally cannot emit any of the five events -- proven, not
+just asserted.
+
+**Legacy `modules_changed` unchanged:** every semantic command still emits it unconditionally
+after a successful commit (never on rollback/commit-failure), exactly as before P5B-2 -- no bridge
+built, no rewiring, per the explicit "keep it for one more review phase" instruction.
+
+**Exit criteria met:** all 5 events implemented and tested (contract/architecture guards,
+exactly-one-event-per-real-transition, zero-events-on-no-op for every command, cascade
+single-fact protection, non-active-organization and foreign-tenant-rejection scoping, Clock
+determinism, DomainEventContext carries execution metadata separately from the event,
+rollback/commit-failure produces zero observable events, one failing post-commit handler doesn't
+block another or the commit); the retired P5B-1 phase-boundary guard was replaced with a
+P5B-2→P5B-3 boundary guard (no ViewInvalidation/Qt vocabulary yet); architecture guardrail suite
+(13 failed/160 passed), full Platform suite, and PM/Inventory suite all show the same pre-existing
+failure identities as the established baseline -- no new regression.
+
+**Explicit non-goals:** ViewInvalidation, Qt module adapter, `modules_changed` removal/bridge,
+P5C. All deferred to P5B-3.
+
 ## P6 — Qt Invalidation Adapter Consolidation
 
 **Goal:** build the one shared Qt adapter, and migrate the three existing controller bases to

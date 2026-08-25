@@ -1,5 +1,6 @@
 alembic==1.17.2
 altgraph==0.17.5
+argon2-cffi==25.1.0
 asttokens==3.0.1
 charset-normalizer==3.4.4
 colorama==0.4.6
