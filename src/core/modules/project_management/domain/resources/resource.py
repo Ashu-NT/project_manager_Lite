@@ -171,11 +171,6 @@ class Resource:
                 "An employee Resource requires an employee selection.",
                 code="RESOURCE_EMPLOYEE_REQUIRED",
             )
-        elif self.worker_type != WorkerType.EMPLOYEE and self.employee_id:
-            raise ValidationError(
-                "Only an employee-engaged person Resource may link to an employee.",
-                code="RESOURCE_EMPLOYEE_LINK_INVALID",
-            )
         return self
 
     @staticmethod

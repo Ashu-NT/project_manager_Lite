@@ -48,7 +48,14 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "portfolio.manage": "Manage portfolio intake and scenarios",
     "collaboration.read": "View team collaboration activity",
     "collaboration.manage": "Post team collaboration updates",
+    "timesheet.read_own": "View the signed-in resource's timesheets",
+    "timesheet.edit_own": "Prepare the signed-in resource's timesheets",
     "timesheet.submit": "Submit timesheet periods",
+    "timesheet.read_team": "View authorized project-team timesheets",
+    "timesheet.edit_team": "Prepare authorized project-team timesheets",
+    "timesheet.read_all": "View organization-wide resource timesheets",
+    "timesheet.edit_all": "Prepare organization-wide resource timesheets",
+    "timesheet.submit_on_behalf": "Submit another resource's timesheet period",
     "timesheet.approve": "Approve or reject timesheet periods",
     "timesheet.lock": "Lock or unlock timesheet periods",
     "audit.read": "View audit history",
@@ -85,6 +92,8 @@ _VIEWER = {
 
 _TEAM_MEMBER = _VIEWER | {
     "collaboration.manage",
+    "timesheet.read_own",
+    "timesheet.edit_own",
     "timesheet.submit",
 }
 
@@ -115,6 +124,9 @@ _PROJECT_MANAGER = _PLANNER | {
     "finance.read",
     "finance.export",
     "timesheet.approve",
+    "timesheet.read_team",
+    "timesheet.edit_team",
+    "timesheet.submit_on_behalf",
 }
 
 _RESOURCE_MANAGER = {
@@ -130,6 +142,11 @@ _RESOURCE_MANAGER = {
     "report.view",
     "report.export",
     "collaboration.read",
+    "timesheet.read_team",
+    "timesheet.edit_team",
+    "timesheet.read_all",
+    "timesheet.edit_all",
+    "timesheet.submit_on_behalf",
     "timesheet.approve",
     "timesheet.lock",
 }
@@ -190,6 +207,7 @@ _PAYROLL_MANAGER = {
     "payroll.manage",
     "payroll.approve",
     "payroll.export",
+    "timesheet.read_all",
     "timesheet.approve",
     "timesheet.lock",
     "audit.read",
@@ -308,6 +326,8 @@ _PROJECT_VIEWER = {
 _PROJECT_CONTRIBUTOR = _PROJECT_VIEWER | {
     "task.manage",
     "collaboration.manage",
+    "timesheet.read_own",
+    "timesheet.edit_own",
     "timesheet.submit",
 }
 
@@ -323,6 +343,9 @@ _PROJECT_LEAD = _PROJECT_CONTRIBUTOR | {
     "project_cost.create",
     "project_cost.update_draft",
     "project_cost.submit",
+    "timesheet.read_team",
+    "timesheet.edit_team",
+    "timesheet.submit_on_behalf",
 }
 
 _PROJECT_OWNER = _PROJECT_LEAD | {
@@ -397,7 +420,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
 }
 
 SYSTEM_ROLE_POLICY_NAME = "system-role-permissions"
-SYSTEM_ROLE_POLICY_VERSION = 10
+SYSTEM_ROLE_POLICY_VERSION = 11
 
 __all__ = [
     "DEFAULT_PERMISSIONS",

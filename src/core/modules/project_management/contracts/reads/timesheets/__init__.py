@@ -17,6 +17,19 @@ from .review_reader import (
     TimesheetReviewReadPage,
     TimesheetReviewReader,
 )
+from .workspace_reader import (
+    TimesheetEntryCriteria,
+    TimesheetEntryFact,
+    TimesheetEntryReadPage,
+    TimesheetHistoryCriteria,
+    TimesheetHistoryReadPage,
+    TimesheetPeriodFact,
+    TimesheetResourceFact,
+    TimesheetResourceReadPage,
+    TimesheetResourceSelectorCriteria,
+    TimesheetScope,
+    TimesheetWorkspaceReader,
+)
 
 __all__ = [
     "OwnerTimesheetEntryCriteria",
@@ -34,4 +47,15 @@ __all__ = [
     "TimesheetReviewQueueFact",
     "TimesheetReviewReadPage",
     "TimesheetReviewReader",
+    "TimesheetEntryCriteria",
+    "TimesheetEntryFact",
+    "TimesheetEntryReadPage",
+    "TimesheetHistoryCriteria",
+    "TimesheetHistoryReadPage",
+    "TimesheetPeriodFact",
+    "TimesheetResourceFact",
+    "TimesheetResourceReadPage",
+    "TimesheetResourceSelectorCriteria",
+    "TimesheetScope",
+    "TimesheetWorkspaceReader",
 ]

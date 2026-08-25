@@ -1,6 +1,9 @@
 """Resource domain."""
 
 from src.core.modules.project_management.domain.resources.resource import Resource
+from src.core.modules.project_management.domain.resources.time_reporting_policy import (
+    TimeReportingEligibilityPolicy,
+)
 from src.core.modules.project_management.domain.resources.skills import (
     CertificationStatus,
     ResourceCertification,
@@ -18,4 +21,5 @@ __all__ = [
     "SkillProficiencyLevel",
     "SkillValidationMode",
     "TaskSkillRequirement",
+    "TimeReportingEligibilityPolicy",
 ]

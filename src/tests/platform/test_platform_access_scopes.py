@@ -209,6 +209,65 @@ def test_access_service_supports_storeroom_scope_grants_and_principal_hydration(
     )
 
 
+def test_storeroom_scope_grant_targets_a_non_active_organization(services):
+    """P5C prerequisite: confirmed ambient-scope bug (the same class of defect already fixed for
+    Organization in P4B and Module Entitlements in the P5B prerequisite pass) -- the storeroom
+    `scope_exists_resolver` used to compare `storeroom.organization_id` against the CURRENTLY
+    ACTIVE organization, making it structurally impossible to grant/revoke storeroom-scoped
+    access (or assign a canonical role at storeroom scope) for a storeroom belonging to any
+    non-active organization within the caller's own tenant. Mandatory scenario: active org A1,
+    grant/revoke targets a storeroom that belongs to org A2 -- must succeed, and must not affect
+    or require switching the active organization."""
+    access = services["access_service"]
+    organization_service = services["organization_service"]
+
+    org_a1 = organization_service.get_active_organization()
+    site_a1 = services["site_service"].create_site(
+        site_code="STR-A1-SITE",
+        name="Org A1 Site",
+        city="Berlin",
+        currency_code="EUR",
+    )
+    storeroom_a1 = services["inventory_service"].create_storeroom(
+        storeroom_code="STR-A1-ROOM",
+        name="Org A1 Storeroom",
+        site_id=site_a1.id,
+        status="ACTIVE",
+        storeroom_type="MAIN",
+    )
+    assert storeroom_a1.organization_id == org_a1.id
+
+    org_a2 = organization_service.create_organization(
+        organization_code="STR-SCOPE-A2", display_name="Storeroom Scope Org A2", is_active=True
+    )
+    assert organization_service.get_active_organization().id == org_a2.id
+
+    user = _register_active_tenant_user(
+        services,
+        "storeroom-nonactive-org-user",
+        role_names=["inventory_manager"],
+    )
+
+    # Active organization is now A2, but the storeroom being granted belongs to A1 -- must
+    # succeed without switching back.
+    grant = access.assign_scope_grant(
+        scope_type="storeroom",
+        scope_id=storeroom_a1.id,
+        user_id=user.id,
+        scope_role="editor",
+    )
+    assert organization_service.get_active_organization().id == org_a2.id  # never switched
+    assert grant.scope_id == storeroom_a1.id
+
+    access.remove_scope_grant(
+        scope_type="storeroom",
+        scope_id=storeroom_a1.id,
+        user_id=user.id,
+    )
+    assert organization_service.get_active_organization().id == org_a2.id  # still never switched
+    assert access.list_scope_grants("storeroom", storeroom_a1.id) == []
+
+
 def test_access_service_supports_site_scope_grants_and_site_filtering(services):
     auth = services["auth_service"]
     access = services["access_service"]
