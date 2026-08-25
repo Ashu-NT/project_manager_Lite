@@ -1,0 +1,38 @@
+Component {
+    name: "ProjectManagementOwnerTimesheetsController"
+    accessSemantics: "reference"
+    prototype: "ProjectManagementWorkspaceControllerBase"
+    exports: ["ProjectManagement.Controllers/ProjectManagementOwnerTimesheetsController 1.0"]
+    Property { name: "period"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "entries"; type: "QVariantList"; isReadonly: true }
+    Property { name: "entryTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "entryPage"; type: "int"; isReadonly: true }
+    Property { name: "entryPageSize"; type: "int"; isReadonly: true }
+    Property { name: "entryTotal"; type: "int"; isReadonly: true }
+    Property { name: "entrySearchText"; type: "QString"; isReadonly: true }
+    Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedTaskId"; type: "QString"; isReadonly: true }
+    Property { name: "entrySortKey"; type: "QString"; isReadonly: true }
+    Property { name: "entrySortDirection"; type: "int"; isReadonly: true }
+    Property { name: "assignmentOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "history"; type: "QVariantList"; isReadonly: true }
+    Property { name: "historyTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "historyPage"; type: "int"; isReadonly: true }
+    Property { name: "historyPageSize"; type: "int"; isReadonly: true }
+    Property { name: "historyTotal"; type: "int"; isReadonly: true }
+    Property { name: "selectedPeriodStart"; type: "QString"; isReadonly: true }
+    Method { name: "refresh" }
+    Method { name: "shiftPeriod"; Parameter { name: "offset"; type: "int" } }
+    Method { name: "selectCurrentPeriod" }
+    Method { name: "selectPeriod"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "setEntryPage"; Parameter { name: "value"; type: "int" } }
+    Method { name: "setEntryPageSize"; Parameter { name: "value"; type: "int" } }
+    Method { name: "setEntrySearchText"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "setProjectFilter"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "setEntrySort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setHistoryPage"; Parameter { name: "value"; type: "int" } }
+    Method { name: "saveEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deleteEntry"; type: "QVariantMap"; Parameter { name: "entry_id"; type: "QString" } }
+    Method { name: "submitPeriod"; type: "QVariantMap"; Parameter { name: "note"; type: "QString" } }
+}

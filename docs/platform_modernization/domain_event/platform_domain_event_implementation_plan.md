@@ -1177,6 +1177,92 @@ failure identities as the established baseline -- no new regression.
 **Explicit non-goals:** ViewInvalidation, Qt module adapter, `modules_changed` removal/bridge,
 P5C. All deferred to P5B-3.
 
+### P5B-3 — Module Entitlement ViewInvalidation + Direct Qt Consumer Cutover (implemented)
+
+**Status:** implemented, reviewed. Direct pre-release convergence -- no
+`ModuleEnabled -> modules_changed` bridge. `modules_changed` is retired completely (Signal field
+and bridge-spec entry both removed from `domain_events.py`).
+
+**Producer inventory (before cutover):** exactly two, both in `module_catalog_mutation.py` --
+the shared `_run_module_transition` helper (fired for all five semantic commands, unconditional
+post-commit) and `provision_organization_entitlements`'s conditional emit (only when the
+provisioned organization was already the active one, and only when called with `commit=True`).
+
+**Consumer inventory and end-to-end trace (before cutover) -- three subscribers, one real:**
+
+- **Settings workspace** (`refresh()` -> `build_module_entitlements()`): **Category A, real.**
+  Directly displays the module entitlement collection. Migrated.
+- **Control workspace** (`refresh()` -> approval queue + audit feed only): **Category C,
+  unrelated.** Traced end-to-end -- never reads any module-entitlement state. Subscription
+  dropped, not migrated.
+- **Access workspace** (`refresh()` -> `scope_type_options`/user/role/scope-grant/security-user
+  lists): initially suspected **Category A** (the fake QML-preview test helper crafts a
+  storeroom-scope-type-disabled-when-inventory-off example), but tracing the REAL desktop-API
+  wiring (`desktop_api_registry.py`'s `access_scope_type_choices`/`access_scope_option_loaders`)
+  found the storeroom scope type is gated purely by whether the Inventory service object was
+  composed at startup (`inventory_service is not None`), never by live
+  `module_catalog_service.is_enabled(...)` state. **Corrected to Category C.** Subscription
+  dropped, not migrated. (This correction is recorded explicitly because the fake test data's
+  crafted example was initially mistaken for real behavior -- a caution for any future consumer
+  trace that leans on `_platform_test_helpers.py`'s fakes instead of the real composition wiring.)
+
+**ViewInvalidation target:** one category, `module_entitlement`, one scope code,
+`module_entitlements`, `OrganizationScope(tenant_id, organization_id)` -- never
+`TenantWide`/`AllTenants` (Organization P6A's hardening rule applied from the start this time).
+All five events collapse onto the SAME mapping handler
+(`src/core/platform/application/tenant/modules/event_handlers/view_invalidation.py`) -- one
+function, five `post_commit_bus.subscribe(...)` registrations in `platform_registry.py`, never
+five copies.
+
+**Provisioning invalidation decision:** `provision_organization_entitlements` itself never
+actually reaches its own `commit=True` branch in production -- its one real caller
+(`PlatformRuntimeApplicationService.provision_organization`) always passes `commit=False` and
+commits everything together via its own outer UoW (this was already true of the retired legacy
+`modules_changed` emit in the exact same spot -- not a P5B-3 regression, a pre-existing dead
+branch now documented rather than silently carried forward). The REAL provisioning-activation
+invalidation is wired in `provision_organization` itself: when `is_active=True`, immediately
+after `self._tenant_context_service.set_active_organization(...)` succeeds (post-commit), it
+calls the new public `ModuleCatalogService.notify_module_entitlements_stale(organization_id)` --
+direct ViewInvalidation, never one of the five DomainEvents, since materializing default rows for
+a new organization is not a licensing fact. Provisioning a non-active organization (`is_active=
+False`, the overwhelmingly common case) produces neither an event nor an invalidation, proven by
+test.
+
+**Read-time default seeding:** unchanged, still silent (no event, no invalidation) -- the read
+that triggers `_ensure_context_default_rows` returns the freshly materialized rows directly, so
+no other already-loaded view needs a nudge. Remains tracked debt, not resolved here.
+
+**Qt adapter:** `ModuleEntitlementViewInvalidationAdapter`
+(`src/ui_qml/platform/adapters/module_entitlement_view_invalidation_adapter.py`), mirroring
+`OrganizationViewInvalidationAdapter`'s shape exactly (`set_active_scope(tenant_id=...,
+organization_id=...)` disposes-then-resubscribes, `dispose()`), emitting
+`moduleEntitlementsStale`. Connected only to `PlatformSettingsWorkspaceController`'s new narrow
+`refresh_module_entitlements()` (re-reads the module entitlement list and its derived metrics,
+not organization profiles/integration capabilities).
+
+**Tenant AND organization switch lifecycle:** re-scoped via
+`PlatformWorkspaceCatalog.refreshCurrentPermissions()` -- the existing hook the QML shell already
+calls immediately after BOTH a tenant switch and an organization switch
+(`PlatformWorkspacePage.qml`'s `ContextBar.onTenantSelected`/`onOrganizationSelected`), since this
+desktop shell has no dedicated "organization switched" Qt signal the way
+`TenantSwitcherController.tenantSwitched` exists for tenants. Proven structurally (live
+subscription's `ExactOrganization` filter correctly follows both switch kinds, old scope disposed
+before the new one is added, never two live at once).
+
+**Exit criteria met:** all five events map to exactly one `ViewInvalidationHint` with the correct
+`OrganizationScope`/category/scope_code; no-op commands produce zero invalidation (inherited
+directly from P5B-2's zero-event guarantee); rollback/commit-failure produces zero invalidation;
+non-active-organization mutation does not refresh the active organization's UI; a foreign-tenant
+organization is rejected before any invalidation; real end-to-end proof through
+`PlatformWorkspaceCatalog` that the settings workspace refreshes after a real mutation and does
+not refresh after a no-op/rolled-back one; Control and Access workspaces proven to no longer react
+at all; tenant-switch and organization-switch lifecycle proven with no stale/duplicate
+subscription; provisioning's two branches (active/non-active) proven correct; architecture
+guardrail suite (13 failed/160 passed), full Platform suite, and PM/Inventory suite all show the
+same pre-existing failure identities as the established baseline -- no new regression.
+
+**Explicit non-goals:** P5C not started. Organization slice untouched.
+
 ## P6 — Qt Invalidation Adapter Consolidation
 
 **Goal:** build the one shared Qt adapter, and migrate the three existing controller bases to

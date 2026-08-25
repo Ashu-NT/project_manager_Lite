@@ -196,7 +196,7 @@ class _FakeTimesheetsDesktopApi:
         )
 
 
-def test_project_management_workspace_catalog_exposes_typed_timesheets_controller() -> None:
+def test_project_management_workspace_catalog_exposes_typed_review_queue_controller() -> None:
     desktop_api = _FakeTimesheetsDesktopApi()
     catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=SimpleNamespace(
@@ -204,7 +204,7 @@ def test_project_management_workspace_catalog_exposes_typed_timesheets_controlle
         )
     )
 
-    controller = catalog.timesheetsWorkspace
+    controller = catalog.reviewQueueWorkspace
 
     assert controller.workspace["routeId"] == "project_management.timesheets"
     assert controller.overview["title"] == "Review Queue"

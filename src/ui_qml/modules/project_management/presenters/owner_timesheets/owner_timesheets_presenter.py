@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import calendar
 from datetime import date
 from typing import Any
 
@@ -9,10 +10,71 @@ from src.core.modules.project_management.api.desktop import (
     TimesheetEntryUpdateCommand,
     build_project_management_timesheets_desktop_api,
 )
+from src.core.platform.common.exceptions import NotFoundError
+
+
+_WORKSPACE = {
+    "routeId": "project_management.timesheets",
+    "title": "Timesheets",
+    "summary": "Review, correct, and submit your monthly time.",
+}
+
+
+def _owner_setup_state(
+    *,
+    period_start: date,
+    page_size: int,
+    sort_key: str,
+    sort_direction: str,
+    history_page_size: int,
+) -> dict[str, object]:
+    _, last_day = calendar.monthrange(period_start.year, period_start.month)
+    period_end = period_start.replace(day=last_day)
+    return {
+        "workspace": dict(_WORKSPACE),
+        "period": {
+            "ownerAvailable": False,
+            "periodStart": period_start.isoformat(),
+            "periodEnd": period_end.isoformat(),
+            "periodLabel": period_start.strftime("%B %Y"),
+            "status": "UNAVAILABLE",
+            "statusLabel": "Resource setup required",
+            "setupMessage": (
+                "Your user account is not linked to an active employee and project resource "
+                "in this organization. Ask an administrator to complete that link before "
+                "recording time."
+            ),
+            "totalHours": 0.0,
+            "totalHoursLabel": "0.00 h",
+            "entryCount": 0,
+            "projectCount": 0,
+            "taskCount": 0,
+            "version": 0,
+            "canAddEntry": False,
+            "canEditEntry": False,
+            "canDeleteEntry": False,
+            "canSubmit": False,
+            "canResubmit": False,
+            "canViewReturnReason": False,
+        },
+        "entries": [],
+        "entryTotal": 0,
+        "entryPage": 1,
+        "entryPageSize": page_size,
+        "entrySortKey": sort_key,
+        "entrySortDirection": sort_direction,
+        "history": [],
+        "historyTotal": 0,
+        "historyPage": 1,
+        "historyPageSize": history_page_size,
+        "assignmentOptions": [],
+        "projectOptions": [{"value": "all", "label": "All projects"}],
+    }
 
 
 def _period_map(period) -> dict[str, object]:
     return {
+        "ownerAvailable": True,
         "periodId": period.period_id,
         "resourceId": period.resource_id,
         "resourceName": period.resource_name,
@@ -83,7 +145,18 @@ class OwnerTimesheetsPresenter:
         history_page: int,
         history_page_size: int,
     ) -> dict[str, object]:
-        period = self._desktop_api.get_owner_period(period_start=period_start)
+        try:
+            period = self._desktop_api.get_owner_period(period_start=period_start)
+        except NotFoundError as exc:
+            if exc.code != "TIMESHEET_OWNER_RESOURCE_NOT_FOUND":
+                raise
+            return _owner_setup_state(
+                period_start=period_start,
+                page_size=page_size,
+                sort_key=sort_key,
+                sort_direction=sort_direction,
+                history_page_size=history_page_size,
+            )
         entries = self._desktop_api.list_owner_entries_page(
             period_start=period_start,
             search_text=search_text,
@@ -101,11 +174,7 @@ class OwnerTimesheetsPresenter:
         owner_assignments = self._desktop_api.list_owner_assignments()
         project_options = {option.project_id: option.project_name for option in owner_assignments}
         return {
-            "workspace": {
-                "routeId": "project_management.timesheets",
-                "title": "Timesheets",
-                "summary": "Review, correct, and submit your monthly time.",
-            },
+            "workspace": dict(_WORKSPACE),
             "period": _period_map(period),
             "entries": [_entry_map(item) for item in entries.items],
             "entryTotal": entries.total,

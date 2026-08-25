@@ -12,7 +12,8 @@ Component {
     Property { name: "schedulingWorkspace"; type: "ProjectManagementSchedulingWorkspaceController"; isReadonly: true }
     Property { name: "tasksWorkspace"; type: "ProjectManagementTasksWorkspaceController"; isReadonly: true }
     Property { name: "dashboardWorkspace"; type: "ProjectManagementDashboardWorkspaceController"; isReadonly: true }
-    Property { name: "timesheetsWorkspace"; type: "ProjectManagementTimesheetsWorkspaceController"; isReadonly: true }
+    Property { name: "timesheetsWorkspace"; type: "ProjectManagementOwnerTimesheetsController"; isReadonly: true }
+    Property { name: "reviewQueueWorkspace"; type: "ProjectManagementTimesheetsWorkspaceController"; isReadonly: true }
     Property { name: "pmCapabilityController"; type: "PMCapabilityController"; isReadonly: true }
     Method { name: "workspace"; type: "QVariantMap"; Parameter { name: "routeId"; type: "QString" } }
     Method { name: "dashboardOverview"; type: "QVariantMap" }

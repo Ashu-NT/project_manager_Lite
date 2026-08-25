@@ -53,7 +53,8 @@ Item {
             AppControls.SecondaryButton {
                 text: "History"
                 iconName: "history"
-                enabled: !root.workspaceController || !root.workspaceController.isBusy
+                enabled: root.period.ownerAvailable !== false
+                    && (!root.workspaceController || !root.workspaceController.isBusy)
                 onClicked: historyDialog.open()
             }
 
@@ -88,7 +89,7 @@ Item {
 
                 AppControls.SecondaryButton {
                     text: "Previous"
-                    iconName: "back"
+                    iconName: "chevron_left"
                     onClicked: if (root.workspaceController) root.workspaceController.shiftPeriod(-1)
                 }
 
@@ -120,6 +121,13 @@ Item {
                     onClicked: if (root.workspaceController) root.workspaceController.selectCurrentPeriod()
                 }
             }
+        }
+
+        AppWidgets.InlineMessage {
+            Layout.fillWidth: true
+            visible: root.period.ownerAvailable === false
+            tone: "info"
+            message: String(root.period.setupMessage || "Resource setup is required before time can be recorded.")
         }
 
         AppWidgets.InlineMessage {

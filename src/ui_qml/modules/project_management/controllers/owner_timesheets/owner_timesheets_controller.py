@@ -59,6 +59,13 @@ class ProjectManagementOwnerTimesheetsController(ProjectManagementWorkspaceContr
     ) -> None:
         super().__init__(parent)
         self._presenter = presenter or OwnerTimesheetsPresenter()
+        self._set_workspace(
+            {
+                "routeId": "project_management.timesheets",
+                "title": "Timesheets",
+                "summary": "Review, correct, and submit your monthly time.",
+            }
+        )
         self._period: dict[str, object] = {}
         self._entries: list[dict[str, object]] = []
         self._entry_model = DynamicTableModel(self)
@@ -154,6 +161,13 @@ class ProjectManagementOwnerTimesheetsController(ProjectManagementWorkspaceContr
             self._assign("_history_page", state["historyPage"], self.historyPageChanged)
             self._assign("_history_page_size", state["historyPageSize"], self.historyPageSizeChanged)
         except Exception as exc:
+            self._assign("_period", {}, self.periodChanged)
+            self._assign("_entries", [], self.entriesChanged)
+            self._assign("_entry_total", 0, self.entryTotalChanged)
+            self._assign("_assignment_options", [], self.assignmentOptionsChanged)
+            self._assign("_project_options", [], self.projectOptionsChanged)
+            self._assign("_history", [], self.historyChanged)
+            self._assign("_history_total", 0, self.historyTotalChanged)
             self._entry_model.set_rows([])
             self._history_model.set_rows([])
             self._set_error_message(str(exc))
