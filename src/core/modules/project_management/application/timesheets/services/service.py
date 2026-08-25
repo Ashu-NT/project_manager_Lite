@@ -36,7 +36,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
     require_any_permission,
 )
 from src.core.platform.application.security.authorization import get_authorization_engine
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 
 
@@ -144,6 +144,12 @@ class TimesheetService(
                 code="TIMESHEET_OWNER_RESOURCE_NOT_FOUND",
             )
         return identity, scope.tenant_id, scope.organization_id
+
+    def get_owner_timesheet_identity(self) -> OwnerTimesheetIdentityFact:
+        identity, _, _ = self._owner_context(
+            operation_label="resolve own timesheet identity"
+        )
+        return identity
 
     def _owner_allowed_project_ids(self) -> tuple[str, ...] | None:
         session = self._user_session
@@ -318,12 +324,19 @@ class TimesheetService(
         self,
         assignment_id: str,
         *,
+        period_start: date,
         entry_date: date,
         hours: float,
         note: str = "",
     ):
         allocation, _, _ = self._load_work_allocation_context(assignment_id)
         self._require_current_principal_resource(str(allocation.resource_id))
+        start, end = self._timesheet_period_bounds(period_start)
+        if not start <= entry_date <= end:
+            raise ValidationError(
+                "The time entry date must be inside the selected reporting period.",
+                code="TIME_ENTRY_OUTSIDE_SELECTED_PERIOD",
+            )
         return self.add_time_entry(
             assignment_id,
             entry_date=entry_date,
@@ -335,6 +348,7 @@ class TimesheetService(
         self,
         entry_id: str,
         *,
+        period_start: date,
         entry_date: date | None = None,
         hours: float | None = None,
         note: str | None = None,
@@ -342,6 +356,13 @@ class TimesheetService(
         entry = self._require_time_entry(entry_id)
         allocation, _, _ = self._load_work_allocation_context(entry.work_allocation_id)
         self._require_current_principal_resource(str(allocation.resource_id))
+        start, end = self._timesheet_period_bounds(period_start)
+        target_date = entry_date or entry.entry_date
+        if not (start <= entry.entry_date <= end and start <= target_date <= end):
+            raise ValidationError(
+                "The time entry belongs to a different reporting period.",
+                code="TIME_ENTRY_OUTSIDE_SELECTED_PERIOD",
+            )
         return self.update_time_entry(
             entry_id,
             entry_date=entry_date,
@@ -349,10 +370,16 @@ class TimesheetService(
             note=note,
         )
 
-    def delete_owner_time_entry(self, entry_id: str) -> None:
+    def delete_owner_time_entry(self, entry_id: str, *, period_start: date) -> None:
         entry = self._require_time_entry(entry_id)
         allocation, _, _ = self._load_work_allocation_context(entry.work_allocation_id)
         self._require_current_principal_resource(str(allocation.resource_id))
+        start, end = self._timesheet_period_bounds(period_start)
+        if not start <= entry.entry_date <= end:
+            raise ValidationError(
+                "The time entry belongs to a different reporting period.",
+                code="TIME_ENTRY_OUTSIDE_SELECTED_PERIOD",
+            )
         self.delete_time_entry(entry_id)
 
     def submit_owner_timesheet_period(

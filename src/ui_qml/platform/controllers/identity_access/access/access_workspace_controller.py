@@ -233,7 +233,14 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
         return self._has_permission(WORKSPACE_PERMISSIONS["access"])
 
     def _bind_domain_events(self) -> None:
-
+        # P5B-3: `modules_changed` removed here (not migrated) -- traced end-to-end,
+        # `scope_type_options`' enabled/disabled state (e.g. the storeroom scope type) is gated
+        # purely by whether the Inventory service object was composed into this desktop-API
+        # registry at startup (`inventory_service is not None`, `desktop_api_registry.py`), never
+        # by `module_catalog_service.is_enabled(...)` -- no read model in this workspace actually
+        # depends on live module-entitlement state. The subscription was incidental over-refresh
+        # from the coarse legacy signal, not a genuine dependency (see the P5B-3 report's
+        # consumer-chain trace).
         for signal in (
             domain_events.auth_changed,
             domain_events.access_changed,
@@ -243,14 +250,6 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
 
     def _on_domain_event(self, _payload: object) -> None:
         self._request_domain_refresh()
-
-    def refresh_scope_type_options(self) -> None:
-        """Narrow reaction to the module-entitlement-collection ViewInvalidation target (P5B-3
-        cutover) -- re-reads only the scope-type options (whose enabled/disabled state depends on
-        module enablement, e.g. the storeroom scope type requires `inventory_procurement`),
-        unlike `refresh()`'s full-workspace reload (user/role/scope-grant/security-user lists
-        too), none of which are stale after a module entitlement change."""
-        self._refresh_scope_type_options()
 
     def _refresh_after_access_change(self) -> None:
         self._refresh_scope_grants()

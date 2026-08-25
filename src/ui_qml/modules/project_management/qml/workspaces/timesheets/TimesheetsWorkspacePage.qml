@@ -12,7 +12,7 @@ AppLayouts.WorkspaceFrame {
 
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
     property ProjectManagementControllers.ProjectManagementTimesheetsWorkspaceController workspaceController: root.pmCatalog
-        ? root.pmCatalog.timesheetsWorkspace
+        ? root.pmCatalog.reviewQueueWorkspace
         : null
 
     // ── State management ──────────────────────────────────────────────────

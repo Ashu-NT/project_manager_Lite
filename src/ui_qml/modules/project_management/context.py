@@ -13,6 +13,7 @@ from src.ui_qml.modules.project_management.controllers import (
     ProjectManagementDashboardWorkspaceController,
     ProjectManagementFinancialsWorkspaceController,
     ProjectManagementPortfolioWorkspaceController,
+    ProjectManagementOwnerTimesheetsController,
     ProjectManagementProjectsWorkspaceController,
     ProjectManagementRegisterWorkspaceController,
     ProjectManagementResourcesWorkspaceController,
@@ -41,6 +42,9 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectTasksWorkspacePresenter,
     ProjectTimesheetsWorkspacePresenter,
     build_project_management_workspace_presenters,
+)
+from src.ui_qml.modules.project_management.presenters.owner_timesheets import (
+    OwnerTimesheetsPresenter,
 )
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
@@ -141,7 +145,8 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self._tasks_workspace: ProjectManagementTasksWorkspaceController | None = None
         self._dashboard_workspace: ProjectManagementDashboardWorkspaceController | None = None
         self._collaboration_workspace: ProjectManagementCollaborationWorkspaceController | None = None
-        self._timesheets_workspace: ProjectManagementTimesheetsWorkspaceController | None = None
+        self._timesheets_workspace: ProjectManagementOwnerTimesheetsController | None = None
+        self._review_queue_workspace: ProjectManagementTimesheetsWorkspaceController | None = None
 
     def _active_organization_id(self) -> str | None:
         runtime_api = self._platform_runtime_api
@@ -259,15 +264,23 @@ class ProjectManagementWorkspaceCatalog(QObject):
             )
         return self._collaboration_workspace
 
-    def _get_timesheets_workspace(self) -> ProjectManagementTimesheetsWorkspaceController:
+    def _get_timesheets_workspace(self) -> ProjectManagementOwnerTimesheetsController:
         if self._timesheets_workspace is None:
-            self._timesheets_workspace = ProjectManagementTimesheetsWorkspaceController(
+            self._timesheets_workspace = ProjectManagementOwnerTimesheetsController(
+                presenter=OwnerTimesheetsPresenter(desktop_api=self._timesheets_api),
+                parent=self,
+            )
+        return self._timesheets_workspace
+
+    def _get_review_queue_workspace(self) -> ProjectManagementTimesheetsWorkspaceController:
+        if self._review_queue_workspace is None:
+            self._review_queue_workspace = ProjectManagementTimesheetsWorkspaceController(
                 timesheets_workspace_presenter=ProjectTimesheetsWorkspacePresenter(
                     desktop_api=self._timesheets_api
                 ),
                 parent=self,
             )
-        return self._timesheets_workspace
+        return self._review_queue_workspace
 
     @Property(ProjectManagementProjectsWorkspaceController, constant=True)
     def projectsWorkspace(self) -> ProjectManagementProjectsWorkspaceController:
@@ -305,9 +318,13 @@ class ProjectManagementWorkspaceCatalog(QObject):
     def collaborationWorkspace(self) -> ProjectManagementCollaborationWorkspaceController:
         return self._get_collaboration_workspace()
 
-    @Property(ProjectManagementTimesheetsWorkspaceController, constant=True)
-    def timesheetsWorkspace(self) -> ProjectManagementTimesheetsWorkspaceController:
+    @Property(ProjectManagementOwnerTimesheetsController, constant=True)
+    def timesheetsWorkspace(self) -> ProjectManagementOwnerTimesheetsController:
         return self._get_timesheets_workspace()
+
+    @Property(ProjectManagementTimesheetsWorkspaceController, constant=True)
+    def reviewQueueWorkspace(self) -> ProjectManagementTimesheetsWorkspaceController:
+        return self._get_review_queue_workspace()
 
     @Property(PMCapabilityController, constant=True)
     def pmCapabilityController(self) -> PMCapabilityController:
@@ -348,6 +365,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
             self._dashboard_workspace,
             self._collaboration_workspace,
             self._timesheets_workspace,
+            self._review_queue_workspace,
         ):
             if controller is None:
                 continue

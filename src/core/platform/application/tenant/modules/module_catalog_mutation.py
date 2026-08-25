@@ -454,15 +454,25 @@ class ModuleCatalogMutationMixin:
             if active_organization is not None and active_organization.id == normalized_organization_id:
                 # P5B-3: provisioning is bootstrap/default-row materialization, never one of the
                 # five Module DomainEvents (P5B-SEM's own decision, unchanged) -- but when the
-                # organization it just provisioned turns out to BE the active one (e.g.
-                # `provision_organization(is_active=True)`), the module entitlement collection any
-                # currently-open UI is showing just became stale, exactly as if a real mutation had
-                # happened. Direct ViewInvalidation, no DomainEvent -- mirrors the same
-                # activeness check the retired `modules_changed` emit used.
-                self._notify_module_entitlements_stale(normalized_organization_id)
+                # organization it just provisioned turns out to BE the active one, the module
+                # entitlement collection any currently-open UI is showing just became stale,
+                # exactly as if a real mutation had happened. Direct ViewInvalidation, no
+                # DomainEvent -- mirrors the same activeness check the retired `modules_changed`
+                # emit used. In practice `provision_organization`'s own orchestration (see
+                # `PlatformRuntimeApplicationService.provision_organization`) always calls this
+                # method with `commit=False` and performs the real `is_active=True` notification
+                # itself, post-commit, via the public `notify_module_entitlements_stale(...)`
+                # below -- this branch only fires for a direct, non-orchestrated
+                # `commit=True` caller.
+                self.notify_module_entitlements_stale(normalized_organization_id)
         return self._entitlement_repo.list_all_for_organization_in_tenant(normalized_organization_id)
 
-    def _notify_module_entitlements_stale(self, organization_id: str) -> None:
+    def notify_module_entitlements_stale(self, organization_id: str) -> None:
+        """Direct ViewInvalidation for a non-DomainEvent-worthy operation that nonetheless makes
+        the module entitlement collection stale for `organization_id` -- e.g.
+        `PlatformRuntimeApplicationService.provision_organization`'s `is_active=True` path, called
+        here post-commit. Public: legitimately called across the Platform Runtime/Module
+        Entitlement boundary, unlike the transaction-owning semantic commands above."""
         channel = self._view_invalidation_channel
         if channel is None:
             return

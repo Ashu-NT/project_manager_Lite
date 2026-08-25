@@ -184,6 +184,18 @@ class PlatformWorkspaceCatalog(QObject):
         # every tenant's), never correctly following the switch.
         self._tenant_switcher.tenantSwitched.connect(self._on_tenant_switched)
 
+        # P5B-3: direct Qt cutover for Module Entitlements, mirroring the Organization precedent
+        # above -- no legacy `modules_changed` bridge. Organization-scoped
+        # (`ExactOrganization(tenant_id, organization_id)`, never tenant-wide), so it must follow
+        # BOTH a tenant switch and an organization switch -- re-scoped via
+        # `refreshCurrentPermissions()`, the existing hook the QML shell already calls
+        # immediately after either (`PlatformWorkspacePage.qml`'s `ContextBar.onTenantSelected`/
+        # `onOrganizationSelected`), since this desktop shell has no separate, dedicated
+        # "organization switched" Qt signal the way `TenantSwitcherController.tenantSwitched`
+        # exists for tenants. Only the settings workspace's `moduleEntitlements` list is a real
+        # consumer here -- tracing the other two former `modules_changed` subscribers (control,
+        # access) end-to-end found neither reads any module-entitlement-derived state, so neither
+        # is migrated (see the P5B-3 report).
         self._module_entitlement_view_invalidation_adapter = ModuleEntitlementViewInvalidationAdapter(
             channel=view_invalidation_channel,
             tenant_id=self._tenant_switcher.activeTenantId,
@@ -192,9 +204,6 @@ class PlatformWorkspaceCatalog(QObject):
         )
         self._module_entitlement_view_invalidation_adapter.moduleEntitlementsStale.connect(
             self._settings_workspace.refresh_module_entitlements
-        )
-        self._module_entitlement_view_invalidation_adapter.moduleEntitlementsStale.connect(
-            self._admin_access_workspace.refresh_scope_type_options
         )
 
     def _on_tenant_switched(self) -> None:

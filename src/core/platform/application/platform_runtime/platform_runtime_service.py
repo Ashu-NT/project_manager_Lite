@@ -314,6 +314,12 @@ class PlatformRuntimeApplicationService:
             if self._tenant_context_service is None:
                 raise RuntimeError("Tenant context service is not configured.")
             self._tenant_context_service.set_active_organization(organization.id)
+            # P5B-3: provisioning is bootstrap/default-row materialization, never one of the five
+            # Module DomainEvents (P5B-SEM's own decision) -- but activating the just-provisioned
+            # organization in the same call makes its module entitlement collection the new
+            # authoritative one, which is a real staleness fact for any currently-open UI. Direct
+            # ViewInvalidation, post-commit, no DomainEvent.
+            self._module_catalog_service.notify_module_entitlements_stale(organization.id)
         return organization
 
     def set_active_organization(self, organization_id: str) -> Organization:

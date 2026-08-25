@@ -27,6 +27,11 @@ from src.core.modules.project_management.api.desktop.timesheets.models.periods i
     TimesheetPeriodSummaryDesktopDto,
     TimesheetReviewPageDesktopDto,
 )
+from src.core.modules.project_management.api.desktop.timesheets.models.owner import (
+    OwnerTimesheetEntryPageDesktopDto,
+    OwnerTimesheetHistoryPageDesktopDto,
+    OwnerTimesheetPeriodDesktopDto,
+)
 from src.core.modules.project_management.api.desktop.timesheets.models.review import (
     TimesheetReviewDetailDesktopDto,
 )
@@ -38,6 +43,10 @@ from src.core.modules.project_management.api.desktop.timesheets.serializers.entr
 )
 from src.core.modules.project_management.api.desktop.timesheets.serializers.period_serializer import (
     serialize_period_aggregate,
+)
+from src.core.modules.project_management.api.desktop.timesheets.serializers.owner_serializer import (
+    serialize_owner_entry,
+    serialize_owner_period,
 )
 from src.core.modules.project_management.api.desktop.timesheets.serializers.review_serializer import (
     serialize_review_detail,
@@ -93,6 +102,138 @@ class ProjectManagementTimesheetsDesktopApi:
             project_id=project_id,
             task_service=self._task_service,
         )
+
+    def list_owner_assignments(
+        self,
+        *,
+        project_id: str | None = None,
+    ) -> tuple[TimesheetAssignmentOptionDescriptor, ...]:
+        owner = self._require_timesheet_service().get_owner_timesheet_identity()
+        return tuple(
+            option
+            for option in self.list_assignments(project_id=project_id)
+            if option.resource_id == owner.resource_id
+        )
+
+    def get_owner_period(self, *, period_start: date) -> OwnerTimesheetPeriodDesktopDto:
+        return serialize_owner_period(
+            self._require_timesheet_service().get_owner_timesheet_period(
+                period_start=period_start
+            )
+        )
+
+    def list_owner_entries_page(
+        self,
+        *,
+        period_start: date,
+        search_text: str = "",
+        project_id: str | None = None,
+        task_id: str | None = None,
+        work_date_from: date | None = None,
+        work_date_to: date | None = None,
+        page: int = 1,
+        page_size: int = 25,
+        sort_key: str = "date",
+        sort_direction: str = "desc",
+    ) -> OwnerTimesheetEntryPageDesktopDto:
+        result = self._require_timesheet_service().query_owner_time_entries(
+            period_start=period_start,
+            search_text=search_text,
+            project_id=project_id,
+            task_id=task_id,
+            work_date_from=work_date_from,
+            work_date_to=work_date_to,
+            page=page,
+            page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
+        )
+        return OwnerTimesheetEntryPageDesktopDto(
+            items=tuple(serialize_owner_entry(item) for item in result.items),
+            total=result.total,
+            page=result.page,
+            page_size=result.page_size,
+            sort_key=result.sort.key,
+            sort_direction=result.sort.direction.value,
+        )
+
+    def list_owner_history_page(
+        self,
+        *,
+        status: TimesheetPeriodStatus | None = None,
+        page: int = 1,
+        page_size: int = 12,
+        sort_key: str = "period",
+        sort_direction: str = "desc",
+    ) -> OwnerTimesheetHistoryPageDesktopDto:
+        result = self._require_timesheet_service().query_owner_timesheet_history(
+            status=status,
+            page=page,
+            page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
+        )
+        return OwnerTimesheetHistoryPageDesktopDto(
+            items=tuple(serialize_owner_period(item) for item in result.items),
+            total=result.total,
+            page=result.page,
+            page_size=result.page_size,
+            sort_key=result.sort.key,
+            sort_direction=result.sort.direction.value,
+        )
+
+    def add_owner_time_entry(
+        self,
+        command: TimesheetEntryCreateCommand,
+        *,
+        period_start: date,
+    ) -> TimesheetEntryDesktopDto:
+        entry = self._require_timesheet_service().add_owner_time_entry(
+            str(command.assignment_id or "").strip(),
+            period_start=period_start,
+            entry_date=command.entry_date,
+            hours=float(command.hours),
+            note=command.note,
+        )
+        return serialize_entry(entry, str(command.assignment_id or "").strip())
+
+    def update_owner_time_entry(
+        self,
+        command: TimesheetEntryUpdateCommand,
+        *,
+        period_start: date,
+    ) -> TimesheetEntryDesktopDto:
+        entry = self._require_timesheet_service().update_owner_time_entry(
+            str(command.entry_id or "").strip(),
+            period_start=period_start,
+            entry_date=command.entry_date,
+            hours=command.hours,
+            note=command.note,
+        )
+        return serialize_entry(
+            entry,
+            str(getattr(entry, "assignment_id", "") or entry.work_allocation_id),
+        )
+
+    def delete_owner_time_entry(self, entry_id: str, *, period_start: date) -> None:
+        self._require_timesheet_service().delete_owner_time_entry(
+            str(entry_id or "").strip(),
+            period_start=period_start,
+        )
+
+    def submit_owner_period(
+        self,
+        *,
+        period_start: date,
+        expected_version: int,
+        note: str = "",
+    ) -> OwnerTimesheetPeriodDesktopDto:
+        self._require_timesheet_service().submit_owner_timesheet_period(
+            period_start=period_start,
+            expected_version=expected_version,
+            note=note,
+        )
+        return self.get_owner_period(period_start=period_start)
 
     def list_review_resources(
         self,
