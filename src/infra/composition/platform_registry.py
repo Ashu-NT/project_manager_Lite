@@ -64,6 +64,15 @@ from src.core.platform.domain.tenant.modules.events import (
 from src.core.platform.application.security.authorization.roles.event_handlers.view_invalidation import (
     build_role_binding_view_invalidation_handler,
 )
+from src.core.platform.application.tenant.tenancy.event_handlers.view_invalidation import (
+    build_tenant_membership_view_invalidation_handler,
+)
+from src.core.platform.domain.tenant.tenancy.events import (
+    TenantMembershipActivated,
+    TenantMembershipReactivated,
+    TenantMembershipRemoved,
+    TenantMembershipSuspended,
+)
 from src.core.platform.domain.security.authorization.roles.events import (
     RoleBindingAssigned,
     RoleBindingRevoked,
@@ -358,6 +367,23 @@ def build_platform_service_bundle(
     for _role_binding_event_type in (RoleBindingAssigned, RoleBindingRevoked):
         platform_post_commit_bus.subscribe(
             _role_binding_event_type, _role_binding_view_invalidation_handler
+        )
+
+    # P5D-3: direct Qt cutover for Tenant Membership, mirroring the Organization/RoleBinding
+    # precedent above -- no legacy `auth_changed` bridge. All four membership events collapse
+    # onto the SAME single mapping handler (every real UI consumer re-reads the whole
+    # membership-backed user list/rollup, never one membership row at a time).
+    _tenant_membership_view_invalidation_handler = build_tenant_membership_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _tenant_membership_event_type in (
+        TenantMembershipActivated,
+        TenantMembershipSuspended,
+        TenantMembershipReactivated,
+        TenantMembershipRemoved,
+    ):
+        platform_post_commit_bus.subscribe(
+            _tenant_membership_event_type, _tenant_membership_view_invalidation_handler
         )
 
     approval_uow_session_factory = sessionmaker(bind=session.bind, future=True)

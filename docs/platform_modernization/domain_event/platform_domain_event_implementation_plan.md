@@ -2031,6 +2031,156 @@ tests, zero regressions. `git rev-parse HEAD` was identical before and after bot
 removal or a new `TenantMembershipActivated -> auth_changed` bridge, any P5C RoleBinding event
 vocabulary change, Approval events.
 
+### P5D-3 — Tenant Membership ViewInvalidation + Direct UI/Consumer Cutover (implemented; P5D now complete)
+
+**Status:** implemented, reviewed. All four membership events now reach their real UI consumers
+through `TenantMembership* -> ViewInvalidationHint -> TenantMembershipViewInvalidationAdapter`,
+never the legacy `auth_changed` signal -- which the five membership-lifecycle emit sites
+(`accept_invitation`, `accept_invitation_for_tenant`, `suspend_member`, `reactivate_member`,
+`remove_member`) no longer call at all.
+
+**`auth_changed` re-audit (full repository inventory, post-P5C-3):** 27 `.emit(...)` call sites
+existed before this phase. Classified:
+
+- **Category A (Tenant Membership lifecycle) -- removed, 5 sites:** all five in
+  `tenant_membership_service.py`, listed above.
+- **Category B (legitimate non-membership security facts) -- retained, 22 sites, unchanged:**
+  `role_governance_service.py` (2 -- P5C's own retained legacy duplication, unchanged by this
+  phase), `tenant_role_administration_service.py` (2, custom-role policy create/retire),
+  `role_policy_reconciliation_service.py` (1, permission-set reconciliation),
+  `session_service.py` (2, login/session lifecycle), `user_admin_service.py` (3, platform-level
+  `UserAccount.is_active` toggle / profile update -- a DIFFERENT flag from
+  `UserTenantMembership.status`), `registration_service.py` (1, new-account creation),
+  `bootstrap_service.py` (1, initial platform-admin bootstrap), `password_service.py` (3),
+  `mfa_service.py` (3), `federated_identity_service.py` (1), `authentication_transactions.py`
+  (2). None of these touch `UserTenantMembership` -- confirmed by reading each site, not
+  inferred from filenames alone.
+- **Category C (obsolete/coarse legacy signal) -- none found.** No producer was purely
+  vestigial; every remaining site serves a real, currently-consumed, non-membership fact.
+
+**`auth_changed` deletion verdict: NOT deleted -- 22 legitimate non-membership producers remain,
+each with a real consumer.** Exactly two production subscribers exist in the whole codebase
+(confirmed by grep, not assumed): `AccessWorkspaceController._on_auth_changed` and the Admin
+Console's coarse composite `domain_event_binder.py`. Both are RETAINED for the 22 Category-B
+producers, and BOTH gained a second, independent wiring to the new membership adapter for the
+membership-driven case -- never a bridge from the new event to the old signal, two genuinely
+separate presentation-invalidation paths for two genuinely separate sets of business facts.
+
+**Real membership-status-dependent consumers -- re-traced from current source, not assumed from
+the P5D-SEM prior finding (which named exactly two; this pass found a third):**
+
+1. `AccessWorkspaceController._refresh_security_users()` -> `PlatformAccessWorkspacePresenter.
+   build_security_users()` -> `PlatformUserDesktopApi.list_users()` -> `AuthService.list_users()`
+   -> (tenant branch) `UserRepository.list_for_tenant(tenant_id)`, filtered on
+   `UserTenantORM.status == ACTIVE`.
+2. `PlatformAdminWorkspaceController`'s user catalog -> `PlatformUserCatalogPresenter.
+   build_catalog()` -> the SAME `list_users()` call path as (1).
+3. **Newly confirmed this phase:** `PlatformAdminWorkspacePresenter.build_overview()`'s
+   `user_summary` metric -> `AuthService.get_user_rollup_summary()` -> (tenant branch)
+   `SqlAlchemyPlatformOverviewRollupReader.get_user_summary(tenant_id=...)`, which joins
+   `UserTenantORM` and filters `status == ACTIVE` directly in SQL -- same membership dependency,
+   independently verified at the query level, not by resemblance to (1)/(2).
+
+All three ultimately read the SAME underlying membership-status-filtered fact -- per item 5,
+ONE invalidation target (`tenant_memberships`) covers all three; they are not over-split into
+per-consumer targets.
+
+**Invalidation target and event mapping:** `tenant_memberships`
+(`TENANT_MEMBERSHIP_CATEGORY = "tenant_membership"`, `TENANT_MEMBERSHIPS_SCOPE_CODE =
+"tenant_memberships"`), `src/core/platform/application/tenant/tenancy/event_handlers/
+view_invalidation.py`. One handler, reused for all four event types (mirrors
+`build_role_binding_view_invalidation_handler`'s own one-handler-four-call-sites shape). Scope is
+always `TenantScope(event.tenant_id)` -- never `OrganizationScope`/`AllTenants()`: membership has
+no organization dimension (P5D-1/P5D-2 already confirmed no mutation command derives from or
+depends on the active organization).
+
+**Adapter:** `TenantMembershipViewInvalidationAdapter`
+(`src/ui_qml/platform/adapters/tenant_membership_view_invalidation_adapter.py`), mirroring
+`OrganizationViewInvalidationAdapter`'s shape exactly (tenant-only, `set_active_tenant(...)`,
+single `membershipDataStale` Signal, `dispose()`) rather than
+`RoleBindingViewInvalidationAdapter`/`ModuleEntitlementViewInvalidationAdapter`'s
+tenant-plus-organization shape -- there is no organization axis to track. Re-scoped ONLY on a
+real tenant switch (`context.py`'s `_on_tenant_switched`); deliberately NOT re-scoped on
+`refreshCurrentPermissions()` (the organization-switch hook that DOES re-scope the RoleBinding/
+Module adapters) -- proven directly: an organization switch within the same tenant leaves the
+adapter's live subscription object identical (`is` comparison), and a subsequent membership
+event for that tenant still fires exactly once.
+
+**Controller wiring (narrow, mirroring `refresh_organizations()`'s existing precedent, never
+the coarse `do_refresh()`/`refresh()` cascade):**
+
+- `PlatformAdminAccessWorkspaceController.refresh_security_users()` (new) -- narrows to
+  `_refresh_security_users()` + `_refresh_empty_state()`, exactly like the existing
+  `refresh_role_bindings()`.
+- `PlatformAdminWorkspaceController.refresh_users()` (new) -- delegates to
+  `self._user_controller.refresh()` AND `refresh_overview(self)` (both genuinely
+  membership-status-dependent per consumers (2) and (3) above), never the other 7 entity
+  sub-controllers.
+
+`context.py` connects `membershipDataStale` to both narrow methods -- the same one-signal,
+multiple-narrow-consumer pattern already used for `organizationCollectionStale`.
+
+**Invitation lifecycle (`issue_invitation`/`reinvite`/`revoke_invitation`) -- no direct
+invalidation added, evidence-based:** traced every QML/presenter reference to
+`list_pending_invitations`/`accept_invitation`/`PlatformTenantDesktopApi` -- **zero** current UI
+consumers exist (`TenantSwitcherPresenter` holds a reference to the same desktop API only for
+unrelated tenant-list/switch methods). Per item 17/18's option A ("current UI does not consume
+that data: no invalidation needed"), none of the three eventless commands got a direct
+`ViewInvalidationChannel.notify(...)` call. No `TenantInvitationRevoked`/`TenantMembershipInvited`
+event was added either, per explicit instruction.
+
+**RoleBinding invalidation stays separate, proven directly:** a `remove_member` call commits
+`TenantMembershipRemoved` + one `RoleBindingRevoked` (the default binding) in the SAME
+transaction -- `refresh_users()` (membership) and `refresh_role_bindings()` (RoleBinding) each
+fire exactly once, for their own reason, never merged into one generic invalidation and never
+duplicated.
+
+**No coarse over-refresh reproduced:** a pure membership transition (suspend, in isolation) was
+proven to touch none of the admin console's other seven entity sub-controllers
+(organization/calendar/site/department/employee/party/document) -- the OLD coarse `auth_changed`
+composite binder's over-refresh is not reproduced by the new narrow wiring. (The coarse binder
+itself remains, unchanged, for the 22 retained Category-B producers -- e.g. registering a new
+user or authenticating legitimately still cascades the full admin-console reload today, exactly
+as before this phase; that pre-existing behavior is untouched, not expanded.)
+
+**AuthSession revocation stays a persistence/security concern, confirmed unchanged:**
+`suspend_member`/`remove_member`'s `_revoke_affected_sessions` call remains inside the canonical
+transaction, never moved behind ViewInvalidation or the Qt adapter.
+
+**Test coverage:** `test_tenant_membership_view_invalidation_qt_cutover.py` (16 tests) -- mapper
+unit tests (all four event types map to the identical tenant-scoped hint), architecture guards
+(mapper has no Qt/SQLAlchemy import, adapter has no DomainEvent/postcommit-bus/organization-axis
+dependency, controllers import no event infrastructure), tenant-scope-only isolation, tenant
+switch lifecycle (dispose-then-resubscribe, no leak, proven both behaviorally and via the
+channel's own subscription count), a real end-to-end tenant switch through
+`TenantSwitcherController.switchToTenant()`, the organization-switch non-effect proof, two
+genuine end-to-end content proofs (activation/removal actually changing what a tenant-scoped
+caller's `list_users()` returns -- using a real registered `tenant_admin` actor, since the
+default test principal is a platform operator and bypasses the membership filter entirely),
+invalid-transition/audit-failure/commit-failure/transactional-handler-failure zero-refresh
+proofs, post-commit handler isolation, the RoleBinding-stays-separate proof, and the
+no-coarse-over-refresh proof.
+
+**Regression:** full Platform suite and architecture suite both run at the same failure
+identities/counts as the established baseline (15 failed/12 errors in Platform, 13 pre-existing
+failures/142 passed in architecture) -- passing-test count increased by exactly the new P5D-3
+tests, zero regressions. `git rev-parse HEAD` was identical before and after the long suite runs.
+The pre-existing `test_secondary_workspace_lazy_loading.py`/`test_qml_domain_event_bridges_pm.py`
+tests (which synthetically emit `auth_changed` directly to test the UNCHANGED
+`_on_auth_changed`/coarse-binder wiring itself) were re-verified passing, confirming that wiring
+is untouched.
+
+**Remaining Tenant Membership debt (explicit, not resolved by P5D-3):** no admin
+membership-management UI exists yet (unchanged from P5D-SEM's finding) -- if one is ever built,
+it is the first real consumer of `issue_invitation`/`revoke_invitation`'s own data and would need
+its own direct-invalidation or event decision at that time, not before. The Admin Console's own
+composite `auth_changed` binder (`domain_event_binder.py`) remains coarse for its 22 retained
+Category-B producers -- explicitly out of P5D's scope, deferred to R2's own controller-hierarchy
+work per that file's existing docstring.
+
+**Explicit non-goals:** Approval events, any P5C RoleBinding event/ViewInvalidation change, any
+change to the four membership events' fields or semantics.
+
 ## P6 — Qt Invalidation Adapter Consolidation
 
 **Goal:** build the one shared Qt adapter, and migrate the three existing controller bases to

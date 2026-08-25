@@ -14,6 +14,9 @@ from src.ui_qml.platform.adapters.organization_view_invalidation_adapter import 
 from src.ui_qml.platform.adapters.role_binding_view_invalidation_adapter import (
     RoleBindingViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.tenant_membership_view_invalidation_adapter import (
+    TenantMembershipViewInvalidationAdapter,
+)
 from src.ui_qml.platform.controllers.admin_console import PlatformAdminWorkspaceController
 from src.ui_qml.platform.controllers.identity_access.access import (
     PlatformAdminAccessWorkspaceController,
@@ -205,8 +208,23 @@ class PlatformWorkspaceCatalog(QObject):
             self._admin_access_workspace.refresh_role_bindings
         )
 
+        self._tenant_membership_view_invalidation_adapter = TenantMembershipViewInvalidationAdapter(
+            channel=view_invalidation_channel,
+            tenant_id=self._tenant_switcher.activeTenantId,
+            parent=self,
+        )
+        self._tenant_membership_view_invalidation_adapter.membershipDataStale.connect(
+            self._admin_workspace.refresh_users
+        )
+        self._tenant_membership_view_invalidation_adapter.membershipDataStale.connect(
+            self._admin_access_workspace.refresh_security_users
+        )
+
     def _on_tenant_switched(self) -> None:
         self._organization_view_invalidation_adapter.set_active_tenant(
+            self._tenant_switcher.activeTenantId
+        )
+        self._tenant_membership_view_invalidation_adapter.set_active_tenant(
             self._tenant_switcher.activeTenantId
         )
 

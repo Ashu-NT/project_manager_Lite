@@ -252,6 +252,16 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
         self._refresh_scope_grants()
         self._refresh_empty_state()
 
+    def refresh_security_users(self) -> None:
+        """Narrow reaction to the tenant-membership ViewInvalidation target (P5D-3 direct
+        cutover) -- unlike `_on_auth_changed`'s coarse legacy signal (still wired, for the
+        several other, non-membership `auth_changed` producers: password/MFA/session/custom-role
+        changes), this only ever fires for a real membership transition."""
+        if not self._loaded or self._is_loading or self._is_busy:
+            return
+        self._refresh_security_users()
+        self._refresh_empty_state()
+
     def _refresh_after_access_change(self) -> None:
         self._refresh_scope_grants()
         self._refresh_security_users()

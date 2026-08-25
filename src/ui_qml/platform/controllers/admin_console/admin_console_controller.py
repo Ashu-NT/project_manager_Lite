@@ -117,7 +117,7 @@ from src.ui_qml.platform.controllers.common import PlatformWorkspaceControllerBa
 
 from .domain_event_binder import bind_domain_events
 from .entity_code_dispatch import generate_entity_code
-from .refresh_coordinator import do_refresh
+from .refresh_coordinator import do_refresh, refresh_overview
 from .signal_binder import bind_child_signals
 
 QML_IMPORT_NAME = "Platform.Controllers"
@@ -317,6 +317,10 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         (calendars/sites/departments/etc.), none of which are stale after an organization
         creation."""
         self._organization_controller.refresh_organizations()
+
+    def refresh_users(self) -> None:
+        self._user_controller.refresh()
+        refresh_overview(self)
 
     @Slot(str, "QVariantMap", result=str)
     def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:

@@ -51,7 +51,6 @@ from src.core.platform.domain.tenant.tenancy import (
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.time.clock import Clock
 
 logger = logging.getLogger(__name__)
@@ -256,7 +255,6 @@ class TenantMembershipService:
                     operation="authorization.membership.denied",
                 )
             accepted = self._accept_membership(uow, membership, actor=actor)
-        domain_events.auth_changed.emit(accepted.user_id)
         return accepted
 
     def accept_invitation_for_tenant(self, tenant_id: str) -> UserTenantMembership:
@@ -280,7 +278,6 @@ class TenantMembershipService:
                     operation="authorization.invitation.denied",
                 )
             accepted = self._accept_membership(uow, membership, actor=actor)
-        domain_events.auth_changed.emit(accepted.user_id)
         return accepted
 
     def _accept_membership(
@@ -426,7 +423,6 @@ class TenantMembershipService:
                 )
             )
             uow.commit()
-        domain_events.auth_changed.emit(target.id)
         return suspended
 
     def reactivate_member(self, target_user_id: str) -> UserTenantMembership:
@@ -467,7 +463,6 @@ class TenantMembershipService:
                 )
             )
             uow.commit()
-        domain_events.auth_changed.emit(target.id)
         return reactivated
 
     def remove_member(self, target_user_id: str) -> UserTenantMembership:
@@ -530,7 +525,6 @@ class TenantMembershipService:
                 },
             )
             uow.commit()
-        domain_events.auth_changed.emit(target.id)
         return removed
 
     @staticmethod

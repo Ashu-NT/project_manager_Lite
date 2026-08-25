@@ -430,6 +430,17 @@ mechanics (a new transaction-agnostic `role_binding_mutation_participant` module
 (not assumed): `suspend_member`/`reactivate_member` never touch RoleBinding rows, so neither
 transition participates in the RoleBinding event stream at all.
 
+**P5D-3 (2026-08-26, implemented; P5D now complete): ViewInvalidation + direct UI cutover, one
+target (`tenant_memberships`).** Re-tracing the real consumers post-P5C-3 found a THIRD
+membership-status-dependent read this row's own prior finding missed -- the admin overview's
+`user_summary` rollup metric, alongside the two originally-named lists -- all three now migrate
+onto `TenantMembershipViewInvalidationAdapter`. `auth_changed` was NOT deleted: 22 legitimate
+non-membership producers remain (password/MFA/session/registration/bootstrap/custom-role/
+federated-identity/user-account-activation facts), each still consumed by the same two
+pre-existing subscribers, which now also carry the new narrow membership wiring alongside the
+unchanged legacy one. See `platform_domain_event_implementation_plan.md`'s P5D-3 section for the
+full producer/consumer inventory and evidence.
+
 **P5D-2 (2026-08-26, implemented): all four events, exactly as listed above.** One event per
 non-trivial aggregate transition method actually invoked (`accept_invitation()` ->
 `TenantMembershipActivated`, `suspend()` -> `Suspended`, `reactivate()` -> `Reactivated`,
