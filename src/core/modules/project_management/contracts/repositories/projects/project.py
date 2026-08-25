@@ -19,6 +19,14 @@ class ProjectRepository(ABC):
     def get(self, project_id: str) -> Project | None: ...
 
     @abstractmethod
+    def get_for_tenant(self, project_id: str, tenant_id: str) -> Project | None:
+        """Tenant-scoped only -- unlike `get()`, NOT filtered to the ambient active
+        organization. For cross-organization governance reads (e.g. RoleGovernance resolving a
+        project-scoped role assignment against a non-active organization) where `get()`'s
+        active-organization filter would incorrectly return `None`."""
+        ...
+
+    @abstractmethod
     def list(self) -> list[Project]: ...
 
 

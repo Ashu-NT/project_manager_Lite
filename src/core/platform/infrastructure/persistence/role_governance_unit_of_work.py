@@ -50,6 +50,7 @@ class SqlAlchemyRoleGovernanceUnitOfWork(SqlAlchemyUnitOfWorkBase, RoleGovernanc
             post_commit_bus=post_commit_bus,
             context=context,
         )
+        self.session = session
         self.role_bindings = SqlAlchemyRoleBindingRepository(session)
         self.roles = SqlAlchemyRoleRepository(session)
         self.role_delegation_policies = SqlAlchemyRoleDelegationPolicyRepository(session)

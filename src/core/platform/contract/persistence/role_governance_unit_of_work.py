@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from sqlalchemy.orm import Session
+
 from src.core.platform.contract.repositories.history.audit.contracts import AuditRepository
 from src.core.platform.contract.repositories.security.auth.auth_repository import (
     PermissionRepository,
@@ -29,6 +31,7 @@ class RoleGovernanceUnitOfWork(UnitOfWork, Protocol):
     tenants: TenantRepository
     memberships: UserTenantMembershipRepository
     audit: AuditRepository
+    session: Session
 
 
 class RoleGovernanceUnitOfWorkFactory(UnitOfWorkFactory, Protocol):

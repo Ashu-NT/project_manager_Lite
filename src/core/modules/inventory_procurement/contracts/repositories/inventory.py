@@ -26,6 +26,14 @@ class StoreroomRepository(ABC):
     def get(self, storeroom_id: str) -> Storeroom | None: ...
 
     @abstractmethod
+    def get_for_tenant(self, storeroom_id: str, tenant_id: str) -> Storeroom | None:
+        """Tenant-scoped only -- unlike `get()`, NOT filtered to the ambient active
+        organization. For cross-organization governance reads (e.g. RoleGovernance resolving a
+        storeroom-scoped role assignment against a non-active organization) where `get()`'s
+        active-organization filter would incorrectly return `None`."""
+        ...
+
+    @abstractmethod
     def get_by_code(self, organization_id: str, storeroom_code: str) -> Storeroom | None: ...
 
     @abstractmethod

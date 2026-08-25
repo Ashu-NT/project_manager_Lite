@@ -4,7 +4,12 @@ import logging
 from dataclasses import dataclass
 from time import perf_counter
 
+from sqlalchemy.orm import Session
+
 from src.core.platform.access import ScopedRolePolicy
+from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
+    SqlAlchemyOrganizationRepository,
+)
 from src.core.modules.inventory_procurement import (
     InventoryDataExchangeService,
     InventoryReferenceService,
@@ -333,8 +338,7 @@ def build_inventory_procurement_service_bundle(
     logger.debug("Inventory/Procurement core services built")
 
     def _storeroom_exists(tenant_id: str, storeroom_id: str) -> bool:
-
-        storeroom = storeroom_repo.get(storeroom_id)
+        storeroom = storeroom_repo.get_for_tenant(storeroom_id, tenant_id)
         return bool(
             storeroom is not None
             and storeroom.organization_id
@@ -345,11 +349,42 @@ def build_inventory_procurement_service_bundle(
         )
 
     platform_services.access_service.register_scope_exists_resolver("storeroom", _storeroom_exists)
-    platform_services.role_governance_service.register_scope_exists_resolver(
-        "storeroom", _storeroom_exists
-    )
     platform_services.auth_service.register_canonical_scope_tenant_resolver(
         "storeroom", _storeroom_exists
+    )
+
+    def _storeroom_exists_for_role_governance(
+        session: Session, tenant_id: str, storeroom_id: str
+    ) -> bool:
+        # P5C-1 (reopened storeroom finding): a FRESH repository bound to the calling
+        # RoleGovernanceUnitOfWork's own Session, never the legacy shared one -- the existence
+        # check must read within the same transaction as the binding mutation and audit it
+        # gates. See `ScopeExistsResolver` in `role_governance_service.py`.
+        storeroom = SqlAlchemyStoreroomRepository(
+            session, tenant_context_service=platform_services.tenant_context_service
+        ).get_for_tenant(storeroom_id, tenant_id)
+        if storeroom is None or not storeroom.organization_id:
+            return False
+        return (
+            SqlAlchemyOrganizationRepository(session).get_for_tenant(
+                storeroom.organization_id, tenant_id
+            )
+            is not None
+        )
+
+    def _storeroom_organization_owner_for_role_governance(
+        session: Session, tenant_id: str, storeroom_id: str
+    ) -> str | None:
+        storeroom = SqlAlchemyStoreroomRepository(
+            session, tenant_context_service=platform_services.tenant_context_service
+        ).get_for_tenant(storeroom_id, tenant_id)
+        return getattr(storeroom, "organization_id", None)
+
+    platform_services.role_governance_service.register_scope_exists_resolver(
+        "storeroom", _storeroom_exists_for_role_governance
+    )
+    platform_services.role_governance_service.register_organization_owner_resolver(
+        "storeroom", _storeroom_organization_owner_for_role_governance
     )
 
     logger.debug(

@@ -99,6 +99,14 @@ class SqlAlchemyProjectRepository(ProjectRepository):
         row = self.session.execute(stmt).scalar_one_or_none()
         return project_from_orm(row) if row else None
 
+    def get_for_tenant(self, project_id: str, tenant_id: str) -> Project | None:
+        stmt = select(ProjectORM).where(
+            ProjectORM.id == project_id,
+            ProjectORM.tenant_id == tenant_id,
+        )
+        row = self.session.execute(stmt).scalar_one_or_none()
+        return project_from_orm(row) if row else None
+
     def list(self) -> list[Project]:
         rows = self.session.execute(self._base_stmt()).scalars().all()
         return [project_from_orm(row) for row in rows]

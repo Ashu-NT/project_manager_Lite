@@ -9,6 +9,9 @@ from time import perf_counter
 from sqlalchemy.orm import Session
 
 from src.core.platform.access import ScopedRolePolicy
+from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
+    SqlAlchemyProjectRepository,
+)
 from src.core.modules.project_management.infrastructure.approval.baseline_apply_participant import (
     BaselineApprovalParticipant,
 )
@@ -192,25 +195,35 @@ def build_project_management_service_bundle(
         )
     )
     def _project_belongs_to_tenant(tenant_id: str, project_id: str) -> bool:
-        return (
-            platform_services.tenant_context_service.require_active_tenant_id(
-                operation_label="validate project access scope"
-            )
-            == tenant_id
-            and repositories.project_repo.get(project_id) is not None
-        )
+        # Legacy-signature resolver -- `AccessControlService`'s own pre-flight check and
+        # `AuthService`'s effective-permissions read, both outside the RoleGovernance
+        # transaction. Uses the tenant-scoped `get_for_tenant` (P5C-1 reopened-storeroom fix),
+        # not the ambient-active-organization `get()`.
+        return repositories.project_repo.get_for_tenant(project_id, tenant_id) is not None
 
     platform_services.access_service.register_scope_exists_resolver(
-        "project",
-        _project_belongs_to_tenant,
-    )
-    platform_services.role_governance_service.register_scope_exists_resolver(
         "project",
         _project_belongs_to_tenant,
     )
     platform_services.auth_service.register_canonical_scope_tenant_resolver(
         "project",
         _project_belongs_to_tenant,
+    )
+
+    def _project_exists_for_role_governance(session: Session, tenant_id: str, project_id: str) -> bool:
+        return SqlAlchemyProjectRepository(session).get_for_tenant(project_id, tenant_id) is not None
+
+    def _project_organization_owner(session: Session, tenant_id: str, project_id: str) -> str | None:
+        project = SqlAlchemyProjectRepository(session).get_for_tenant(project_id, tenant_id)
+        return getattr(project, "organization_id", None)
+
+    platform_services.role_governance_service.register_scope_exists_resolver(
+        "project",
+        _project_exists_for_role_governance,
+    )
+    platform_services.role_governance_service.register_organization_owner_resolver(
+        "project",
+        _project_organization_owner,
     )
     logger.debug("Project Management platform registrations complete")
     logger.debug("Project Management core services build begin")

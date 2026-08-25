@@ -7,6 +7,7 @@ import hashlib
 import json
 
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from src.core.platform.domain.history.audit import AuditEntry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
@@ -45,19 +46,14 @@ from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_events import domain_events
 
 
-ScopeExistsResolver = Callable[[str, str], bool]
-OrganizationOwnerResolver = Callable[[str, str], "str | None"]
 ROLE_ASSIGN_PERMISSION = "auth.role.assign"
+
+ScopeExistsResolver = Callable[[Session, str, str], bool]
+OrganizationOwnerResolver = Callable[[Session, str, str], "str | None"]
 
 
 class RoleGovernanceService:
-    """Fail-closed canonical role delegation and binding mutations.
-
-    P5C-1: every transaction-owning mutation (`assign_role`/`revoke_role_binding`/
-    `create_delegation_policy`/`revoke_delegation_policy`) now opens its own fresh
-    `RoleGovernanceUnitOfWork` -- no process-lifetime `Session`, no inline `commit()`/
-    `rollback()`. Static configuration (`scope_exists_resolvers`, `organization_owner_resolvers`,
-    `sod_policy`) remains instance-level, unrelated to any one transaction."""
+    """Fail-closed canonical role delegation and binding mutations."""
 
     def __init__(
         self,
@@ -298,6 +294,7 @@ class RoleGovernanceService:
             )
             normalized_scope_id = str(actual_scope_id or "").strip() or None
             resolved_scope = self._validate_target_scope(
+                session=uow.session,
                 tenant_id=tenant_id,
                 scope_type=scope_type,
                 scope_id=normalized_scope_id,
@@ -619,6 +616,7 @@ class RoleGovernanceService:
     def _validate_target_scope(
         self,
         *,
+        session: Session,
         tenant_id: str,
         scope_type: str,
         scope_id: str | None,
@@ -649,14 +647,15 @@ class RoleGovernanceService:
                 target_scope_id=scope_id,
                 operation="authorization.infrastructure.denied",
             )
-        if not resolver(tenant_id, scope_id):
+
+        if not resolver(session, tenant_id, scope_id):
             raise NotFoundError(
                 f"{scope_type.title()} not found.",
                 code=f"{scope_type.upper()}_NOT_FOUND",
             )
         organization_owner_resolver = self._organization_owner_resolvers.get(scope_type)
         organization_id = (
-            organization_owner_resolver(tenant_id, scope_id)
+            organization_owner_resolver(session, tenant_id, scope_id)
             if organization_owner_resolver is not None
             else None
         )

@@ -76,6 +76,14 @@ class SqlAlchemySiteRepository(TenantScopedRepositorySupport, SiteRepository):
         obj = self.session.execute(stmt).scalar_one_or_none()
         return site_from_orm(obj) if obj else None
 
+    def get_for_tenant(self, site_id: str, tenant_id: str) -> Site | None:
+        stmt = select(SiteORM).where(
+            SiteORM.id == site_id,
+            SiteORM.tenant_id == tenant_id,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return site_from_orm(obj) if obj else None
+
     def get_by_code(self, organization_id: str, site_code: str) -> Site | None:
         ctx = self._context(operation_label="access sites")
         if not self._organization_in_scope(ctx, organization_id):

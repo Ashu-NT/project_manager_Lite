@@ -261,22 +261,6 @@ def test_storeroom_role_assignment_targets_a_non_active_organization(services):
 def test_project_role_assignment_in_a_non_active_organization_remains_a_confirmed_and_tracked_gap(
     services,
 ):
-    """P5C-1 audit finding, NOT fixed in this phase: `ProjectRepository.get()`/`_base_stmt()`
-    (`src/core/modules/project_management/infrastructure/persistence/repositories/projects/
-    project.py`) is ITSELF ambiently scoped to the currently active organization
-    (`ctx.organization_id` from `require_active_scope_ids`), so the "project" scope-exists
-    resolver (`_project_belongs_to_tenant` in `project_registry.py`) inherits the same class of
-    defect the storeroom resolver had -- just one layer deeper. Fixing it correctly requires a
-    new tenant-scoped (non-active-org) read method on `ProjectRepository` (a Project-Management
-    module change) or reaching into its ORM internals from Access/RBAC composition (a layering
-    violation) -- both outside this phase's narrow "RoleGovernanceService transaction/scope
-    convergence" boundary. This test characterizes the CURRENT (still-broken) behavior so a
-    future fix is measured against a real, executable expectation rather than prose alone.
-
-    ("site" is excluded here: no `scope_exists_resolver` is registered for "site" anywhere in
-    composition today, so a "site"-scoped role assignment is unreachable regardless of this
-    defect -- see `test_organization_and_site_role_assignment_are_not_yet_reachable` below.)
-    """
     tenant_context_service = services["tenant_context_service"]
     org_a1_id = tenant_context_service.get_active_organization_id()
     project_a1 = services["project_service"].create_project("P5C-1 Non-Active Org Project")
@@ -311,38 +295,89 @@ def test_project_role_assignment_in_a_non_active_organization_remains_a_confirme
         extra_permissions=("auth.role.assign",),
     )
 
-    # Confirmed tracked debt: this currently raises NotFoundError because the project belongs to
-    # A1 while A2 is active -- the exact ambient-organization defect class, not yet fixed for
-    # "project". Once a tenant-scoped (non-active-org) ProjectRepository read path exists, this
-    # assertion should be updated to expect success instead.
-    with pytest.raises(NotFoundError) as exc_info:
-        services["role_governance_service"].assign_role(
-            target_user_id=target.id,
-            role_id=project_role.id,
-            actual_scope_id=project_a1.id,
-        )
-    assert exc_info.value.code == "PROJECT_NOT_FOUND"
-    assert tenant_context_service.get_active_organization_id() == org_a2.id
+    # Active organization is A2, but the project being granted belongs to A1 -- must succeed
+    # without switching back, matching storeroom's already-fixed behavior.
+    binding = services["role_governance_service"].assign_role(
+        target_user_id=target.id,
+        role_id=project_role.id,
+        actual_scope_id=project_a1.id,
+    )
+    assert tenant_context_service.get_active_organization_id() == org_a2.id  # never switched
+    assert binding.actual_scope_id == project_a1.id
 
 
-def test_organization_and_site_role_assignment_are_not_yet_reachable(services):
-    """Neither "organization" nor "site" has a `register_scope_exists_resolver(...)` call
-    anywhere in composition (confirmed by inspection of `platform_registry.py`/
-    `project_registry.py`/`inventory_registry.py`) -- only "project" and "storeroom" do. So
-    today, ANY role assignment at "organization" or "site" scope hits
-    `AUTHORIZATION_SCOPE_RESOLVER_REQUIRED` before the P5C-1
-    `organization_owner_resolvers["organization"]`/["site"] entries (registered in
-    `platform_registry.py` for forward-readiness, per item 37 of the P5C-1 task) are ever
-    consulted. This is the same currently-unreachable status "department" already had.
-    Documented, not fixed -- registering the missing scope-exists resolvers is outside this
-    phase's narrow transaction/scope-convergence boundary."""
+def test_site_role_assignment_targets_a_non_active_organization(services):
+    """Same fix, "site" scope: `SiteRepository.get_for_tenant()` backs the "site" resolver
+    registered directly on `role_governance_service` at construction time in
+    `platform_registry.py` (a registration this test file originally missed entirely, having
+    only grepped for `register_scope_exists_resolver(...)` calls -- "site" was ALWAYS reachable,
+    just ambiently org-scoped, exactly like the reopened storeroom finding)."""
+    tenant_context_service = services["tenant_context_service"]
+    org_a1_id = tenant_context_service.get_active_organization_id()
+    site_a1 = services["site_service"].create_site(
+        site_code=_unique_code("P5C1-SITE-A1"), name="A1 Site For Role Scope", city="Berlin", currency_code="EUR"
+    )
+    assert site_a1.organization_id == org_a1_id
+
+    org_a2 = services["organization_service"].create_organization(
+        organization_code=_unique_code("P5C1-SITE-A2"), display_name="P5C-1 Site Org A2"
+    )
+    tenant_context_service.set_active_organization(org_a2.id)
+
     auth = services["auth_service"]
     tenant_id = _tenant_id(services)
     actor = auth.register_user(
-        _unique_code("p5c1-unreachable-actor"), "P5C1Actor123!", role_names=["tenant_admin"], tenant_id=tenant_id
+        _unique_code("p5c1-site-actor"), "P5C1Actor123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
     target = auth.register_user(
-        _unique_code("p5c1-unreachable-target"), "P5C1Target123!", role_names=[], tenant_id=tenant_id
+        _unique_code("p5c1-site-target"), "P5C1Target123!", role_names=[], tenant_id=tenant_id
+    )
+    actor_role = auth._role_repo.get_by_name("tenant_admin")
+    site_role = auth._role_repo.get_by_name("site_viewer")
+    services["role_governance_service"].create_delegation_policy(
+        actor_role_id=actor_role.id,
+        assignable_role_id=site_role.id,
+        target_scope_type="site",
+        tenant_id=tenant_id,
+    )
+    _switch_session_to_actor(
+        services,
+        actor,
+        tenant_id=tenant_id,
+        organization_id=org_a2.id,
+        extra_permissions=("auth.role.assign",),
+    )
+
+    binding = services["role_governance_service"].assign_role(
+        target_user_id=target.id,
+        role_id=site_role.id,
+        actual_scope_id=site_a1.id,
+    )
+    assert tenant_context_service.get_active_organization_id() == org_a2.id  # never switched
+    assert binding.actual_scope_id == site_a1.id
+
+
+def test_organization_scoped_role_assignment_targets_a_non_active_organization(services):
+    """"organization" scope's own resolver was ALSO already reachable and already correct
+    (`OrganizationRepository.get_for_tenant` never had an ambient-org filter to begin with --
+    an organization can't sensibly be scoped to itself). Proven end to end: granting a role for
+    organization A2 while A1 remains active must succeed without switching."""
+    tenant_context_service = services["tenant_context_service"]
+    org_a1_id = tenant_context_service.get_active_organization_id()
+    org_a2 = services["organization_service"].create_organization(
+        organization_code=_unique_code("P5C1-ORG-SCOPE-A2"),
+        display_name="P5C-1 Org Scope A2",
+        is_active=False,
+    )
+    assert tenant_context_service.get_active_organization_id() == org_a1_id  # unaffected
+
+    auth = services["auth_service"]
+    tenant_id = _tenant_id(services)
+    actor = auth.register_user(
+        _unique_code("p5c1-org-scope-actor"), "P5C1Actor123!", role_names=["tenant_admin"], tenant_id=tenant_id
+    )
+    target = auth.register_user(
+        _unique_code("p5c1-org-scope-target"), "P5C1Target123!", role_names=[], tenant_id=tenant_id
     )
     actor_role = auth._role_repo.get_by_name("tenant_admin")
     org_role = auth._role_repo.get_by_name("org_viewer")
@@ -356,40 +391,32 @@ def test_organization_and_site_role_assignment_are_not_yet_reachable(services):
         services, actor, tenant_id=tenant_id, extra_permissions=("auth.role.assign",)
     )
 
-    from src.core.platform.common.exceptions import BusinessRuleError
-
-    active_org_id = services["tenant_context_service"].get_active_organization_id()
-    with pytest.raises(BusinessRuleError) as exc_info:
-        services["role_governance_service"].assign_role(
-            target_user_id=target.id,
-            role_id=org_role.id,
-            actual_scope_id=active_org_id,
-        )
-    assert exc_info.value.code == "AUTHORIZATION_SCOPE_RESOLVER_REQUIRED"
+    binding = services["role_governance_service"].assign_role(
+        target_user_id=target.id,
+        role_id=org_role.id,
+        actual_scope_id=org_a2.id,
+    )
+    assert tenant_context_service.get_active_organization_id() == org_a1_id  # never switched
+    assert binding.actual_scope_id == org_a2.id
 
 
-def test_organization_owner_resolver_metadata_is_registered_and_correct_ahead_of_reachability(
+def test_department_role_assignment_remains_unreachable_and_undocumented_as_a_new_feature(
     services,
 ):
-    """The `organization_owner_resolvers` wired in `platform_registry.py` for "organization"
-    (identity) and "site" (via the site's own `organization_id`) are event-readiness metadata
-    for a future P5C-2 event, per item 37 of the P5C-1 task -- correct even though, per
-    `test_organization_and_site_role_assignment_are_not_yet_reachable`, neither scope type is
-    reachable through `assign_role` yet (no `scope_exists_resolver` registered for either)."""
+    """Unlike organization/project/site/storeroom, "department" has NO `scope_exists_resolver`
+    registered anywhere in composition, and no role in the catalog even declares
+    `allowed_scope_type == "department"` -- not a bug in an existing registration (which is what
+    this phase fixes), but a resource scope never wired up for role assignment at all. Enabling
+    it from scratch (a `ScopedRolePolicy`, role choices, a delegation-namespace convention, a
+    catalog role) is a materially larger feature addition than closing an existing resolver's
+    ambient-scope defect, so it is documented here, not implemented, and stays out of P5C-1's
+    boundary."""
     role_governance_service = services["role_governance_service"]
-    organization_resolver = role_governance_service._organization_owner_resolvers.get("organization")
-    site_resolver = role_governance_service._organization_owner_resolvers.get("site")
-    assert organization_resolver is not None
-    assert site_resolver is not None
-
-    tenant_id = _tenant_id(services)
-    org_id = services["tenant_context_service"].get_active_organization_id()
-    assert organization_resolver(tenant_id, org_id) == org_id
-
-    site = services["site_service"].create_site(
-        site_code=_unique_code("P5C1-RESOLVER-SITE"), name="Resolver Site", city="Berlin", currency_code="EUR"
+    assert role_governance_service._scope_exists_resolvers.get("department") is None
+    assert role_governance_service._organization_owner_resolvers.get("department") is None
+    assert not any(
+        role.allowed_scope_type == "department" for role in services["auth_service"]._role_repo.list_all()
     )
-    assert site_resolver(tenant_id, site.id) == org_id
 
 
 def test_storeroom_role_assignment_rejects_a_foreign_tenant_storeroom(services):
@@ -629,8 +656,17 @@ def _role_governance_service_source() -> str:
 
 
 def test_role_governance_service_has_no_inline_commit_or_rollback_or_global_session():
+    """`_validate_target_scope` legitimately takes a per-call `session: Session` parameter
+    (P5C-1 reopened storeroom finding: resource-scope resolvers now read within the calling
+    UoW's own transaction) -- what must never exist is a process-lifetime `self._session`
+    the service stores and reuses across calls."""
     source = _role_governance_service_source()
-    for forbidden in ("self._session.commit(", "self._session.rollback(", "session: Session", "self._session ="):
+    for forbidden in (
+        "self._session.commit(",
+        "self._session.rollback(",
+        "self._session =",
+        "self._session:",
+    ):
         assert forbidden not in source
 
 
