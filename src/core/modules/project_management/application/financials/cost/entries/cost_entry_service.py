@@ -70,7 +70,6 @@ from src.core.platform.common.exceptions import (
 from src.core.platform.domain.approval.policy import is_governance_required
 from src.core.platform.finance import EXCHANGE_RATE_STORAGE, Money, MoneyPayload
 from src.core.shared.audit import record_audit_entry
-from src.core.shared.events.domain_events import domain_events
 
 
 class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
@@ -473,7 +472,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
                 code="PROJECT_COST_ENTRY_SOURCE_CONFLICT",
             ) from exc
         self._record_audit("create", entry)
-        self._commit_and_emit(entry.project_id)
+        self._commit(entry.project_id)
         return entry
 
     def update_draft(
@@ -530,7 +529,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         )
         self._entry_repo.update(entry, expected_row_version=expected_version)
         self._record_audit("update_draft", entry)
-        self._commit_and_emit(entry.project_id)
+        self._commit(entry.project_id)
         return entry
 
     def delete_draft(self, entry_id: str, *, expected_version: int) -> None:
@@ -546,7 +545,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             )
         self._entry_repo.delete_draft(entry.id, expected_row_version=expected_version)
         self._record_audit("delete_draft", entry)
-        self._commit_and_emit(entry.project_id)
+        self._commit(entry.project_id)
 
     def submit(self, entry_id: str, *, expected_version: int) -> ProjectCostEntry:
         entry = self._require_entry(entry_id)
@@ -555,7 +554,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         entry.submit(actor_id=self._actor_id(), occurred_at=self._clock.now())
         self._entry_repo.update(entry, expected_row_version=expected_version)
         self._record_audit("submit", entry)
-        self._commit_and_emit(entry.project_id)
+        self._commit(entry.project_id)
         return entry
 
     def approve(
@@ -671,7 +670,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         )
         self._entry_repo.update(entry, expected_row_version=expected_version)
         self._record_audit("post", entry)
-        self._commit_and_emit(entry.project_id)
+        self._commit(entry.project_id)
         return entry
 
     def reverse(
@@ -734,7 +733,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             ) from exc
         self._record_audit("reverse_original", entry)
         self._record_audit("create_reversal", reversal)
-        self._commit_and_emit(entry.project_id)
+        self._commit(entry.project_id)
         return reversal
 
     def _apply_approval_decision(
@@ -751,7 +750,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         self._entry_repo.update(entry, expected_row_version=expected_version)
         self._record_audit("approve", entry)
         if commit:
-            self._commit_and_emit(entry.project_id)
+            self._commit(entry.project_id)
         else:
             self._session.flush()
         return entry
@@ -771,7 +770,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         self._entry_repo.update(entry, expected_row_version=expected_version)
         self._record_audit("reject", entry)
         if commit:
-            self._commit_and_emit(entry.project_id)
+            self._commit(entry.project_id)
         else:
             self._session.flush()
         return entry
@@ -1060,13 +1059,12 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             self._session.rollback()
             raise
 
-    def _commit_and_emit(self, project_id: str) -> None:
+    def _commit(self, project_id: str) -> None:
         try:
             self._session.commit()
         except Exception:
             self._session.rollback()
             raise
-        domain_events.cost_entries_changed.emit(project_id)
 
 
 __all__ = ["ProjectCostEntryService"]

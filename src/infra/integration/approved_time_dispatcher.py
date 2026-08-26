@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import ApprovedTimeLaborCostConsumer
 from src.core.platform.application.integration import InboxDeliveryDisposition, IntegrationInboxService, IntegrationOutboxService
-from src.core.shared.events.domain_events import domain_events
 
 
 logger = logging.getLogger(__name__)
@@ -42,10 +41,8 @@ class ApprovedTimeFinancialDispatcher:
         for record in claimed:
             try:
                 decision = self._inbox_service.begin_delivery(record.envelope)
-                project_id = None
                 if decision.disposition is InboxDeliveryDisposition.READY:
-                    entry = self._consumer.consume(record.envelope)
-                    project_id = entry.project_id
+                    self._consumer.consume(record.envelope)
                     self._inbox_service.mark_processed(decision.receipt.id)
                 self._session.commit()
                 if decision.disposition is InboxDeliveryDisposition.QUARANTINED:
@@ -59,16 +56,6 @@ class ApprovedTimeFinancialDispatcher:
                     self._outbox_service.mark_published(record.id, lease_token=lease_token)
                     published += 1
                 self._session.commit()
-                if project_id:
-                    try:
-                        domain_events.cost_entries_changed.emit(project_id)
-                    except Exception:
-                        logger.warning(
-                            "Approved Time posting committed but local cost refresh failed "
-                            "project_id=%s",
-                            project_id,
-                            exc_info=True,
-                        )
             except Exception as exc:
                 self._session.rollback()
                 error_code = str(

@@ -202,7 +202,6 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         except Exception:
             self._session.rollback()
             raise
-        domain_events.financial_changes_changed.emit(project_id)
         return change
 
     def add_impact(
@@ -288,7 +287,6 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         except Exception:
             self._session.rollback()
             raise
-        domain_events.financial_changes_changed.emit(change.project_id)
         return impact
 
     def _new_submission_context(self) -> DomainEventContext:
@@ -404,7 +402,6 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
             self._audit_change_using(uow, "submit", change)
             uow.commit()
         self._approval_service.publish_requested(approval)
-        domain_events.financial_changes_changed.emit(change.project_id)
         return change
 
     def _apply_approval_decision(
@@ -485,8 +482,6 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
             if commit:
                 self._session.rollback()
             raise
-        if commit:
-            domain_events.financial_changes_changed.emit(change.project_id)
         return change
 
     def _apply_budget_successor(
@@ -1033,21 +1028,10 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
             fail_closed=True,
         )
 
-    def _commit_and_emit(self, project_id: str) -> None:
-        try:
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.financial_changes_changed.emit(project_id)
-
     @staticmethod
     def _emit_applied(change: FinancialChangeRequest) -> None:
-        domain_events.financial_changes_changed.emit(change.project_id)
         if change.applied_budget_id:
             domain_events.budgets_changed.emit(change.project_id)
-        if change.applied_forecast_id:
-            domain_events.forecasts_changed.emit(change.project_id)
         if change.applied_schedule_count:
             domain_events.tasks_changed.emit(change.project_id)
 

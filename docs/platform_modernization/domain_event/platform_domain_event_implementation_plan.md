@@ -3456,9 +3456,60 @@ now direct-wired with no generic routing of any kind -- there is no third archit
 codebase. The seven auth-adjacent capabilities (Custom Role Definition, Authentication/Session,
 User Account, Password, MFA, Federated Identity, Registration/Bootstrap) and every PM/Inventory
 business-module signal remain un-migrated to typed DomainEvents -- that is genuinely separate,
-future, per-capability modernization work, not a P7A gap. The four dead-producer PM financial
+future, per-capability modernization work, not a P7A gap. ~~The four dead-producer PM financial
 signals (`cost_entries_changed`/`commitments_changed`/`forecasts_changed`/`financial_changes_changed`)
-remain a distinct, pre-existing, out-of-scope PM-module UI-reaction gap, unchanged by P7A.
+remain a distinct, pre-existing, out-of-scope PM-module UI-reaction gap, unchanged by P7A.~~
+**Corrected in P7B below: these four signals are NOT dead-producer -- see P7B's audit.**
+
+### P7B implementation report: deleting the two genuinely zero-producer signals
+
+P7A's own closing report imprecisely characterized `cost_entries_changed`/`commitments_changed`/
+`forecasts_changed`/`financial_changes_changed` as "dead-producer" PM financial signals. P7B
+re-audited from current source, per its own explicit instruction not to trust that summary, and
+found this was wrong: a repo-wide search for BOTH direct `domain_events.X.emit(...)` call sites
+AND the reflective `ApprovalPostCommitEvent(signal_name, payload)` ->
+`ApprovalService._emit_signal_safely` -> `getattr(domain_events, signal_name).emit(...)` mechanism
+(used by 6 apply participants across PM and Inventory/Procurement, running after every real
+approve/reject decision) shows all four have real, active production producers. Their actual
+problem -- confirmed unchanged, still correctly out of scope -- is zero UI consumers, the
+*opposite* of what P7B targets.
+
+The two signals that genuinely have zero producers of any kind, direct or reflective, are
+**`costs_changed`** and **`calendars_changed`** -- both had several real, live UI consumers
+(Control workspace, PM dashboard/financials/portfolio/scheduling/resources workspaces, the admin
+console binder) that could structurally never have fired, since nothing in production ever emits
+either signal. Both deleted entirely: the `Signal[str]` field, and every one of their 7 combined
+consumer subscriptions (`dashboard_refresh_mixin.py`, `financials_refresh_mixin.py`,
+`portfolio/domain_event_binder.py`, `control_workspace_controller.py` for `costs_changed`;
+`resources/resource_domain_event_binder.py`, `scheduling/domain_event_binder.py`,
+`admin_console/domain_event_binder.py` for `calendars_changed`). No replacement signal or event
+was introduced; each consumer's *other* real subscriptions were preserved exactly and verified via
+regression.
+
+**Behavior lost: NONE.** Neither signal ever had a production emission path, so no consumer's
+reaction could ever have fired in production regardless of this deletion -- removing the dead
+subscription changes nothing an end user could ever have observed.
+
+**New tests:** `test_p7b_dead_signal_cleanup.py` -- absence guards for both deleted signals
+(zero production references anywhere, word-boundary-matched to avoid a false positive against the
+still-alive `planned_costs_changed`); a correction test proving the four named PM financial
+signals are NOT dead (real direct + reflective producers, confirmed by source); a
+no-replacement-signal guard; regression proofs that every *other* subscription on the six touched
+consumer files still fires correctly; `admin_console/domain_event_binder.py` re-confirmed
+unchanged in responsibility (still real, still 7 signals instead of 8); `organizations_changed`
+re-confirmed untouched.
+
+**Explicit non-goals honored:** no new DomainEvent or replacement signal introduced; PM Finance
+business semantics untouched (no emission site added, no transaction boundary touched, no signal
+renamed); Organization's legacy signal untouched; `admin_console/domain_event_binder.py` kept,
+unchanged in responsibility; no generic bridge reintroduced.
+
+**Final signal invariant.** Every remaining `DomainEvents` `Signal` field now has at least one
+real production producer. `cost_entries_changed`/`commitments_changed`/`forecasts_changed`/
+`financial_changes_changed` remain the one documented, deliberate exception to "producer AND
+consumer both > 0" -- real producers, zero consumers, a pre-existing PM financial-module
+UI-reaction gap explicitly left for a future, separate PM Finance semantic migration (P7B forbids
+inventing replacement events to close this gap prematurely).
 
 ## P8 — Platform Cutover Validation
 

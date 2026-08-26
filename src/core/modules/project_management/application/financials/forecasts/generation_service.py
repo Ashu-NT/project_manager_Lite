@@ -78,7 +78,6 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
 )
 from src.core.shared.audit import record_audit_entry
-from src.core.shared.events.domain_events import domain_events
 
 
 _PAGE_SIZE = 200
@@ -233,7 +232,6 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
         except Exception:
             self._session.rollback()
             raise
-        domain_events.forecasts_changed.emit(project_id)
         return ForecastGenerationResult(
             forecast=forecast,
             lines=tuple(lines),
