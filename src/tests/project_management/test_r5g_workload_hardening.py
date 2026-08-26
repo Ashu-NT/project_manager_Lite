@@ -3,8 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from PySide6.QtCore import QObject, QUrl, qInstallMessageHandler
+from PySide6.QtCore import QMetaObject, QObject, QUrl, qInstallMessageHandler
 from PySide6.QtQml import QQmlComponent
+from PySide6.QtQuick import QQuickWindow
 
 from src.ui_qml.shell.qml_engine import create_qml_engine
 
@@ -85,6 +86,7 @@ def test_r5g_review_queue_runtime_geometry(
 
     previous_handler = qInstallMessageHandler(capture_message)
     page = None
+    window = None
     try:
         engine = create_qml_engine()
         source = PM_QML / "workspaces/timesheets/TimesheetsWorkspacePage.qml"
@@ -93,14 +95,23 @@ def test_r5g_review_queue_runtime_geometry(
         assert page is not None, "\n".join(
             error.toString() for error in component.errors()
         )
+        window = QQuickWindow()
+        window.setWidth(width)
+        window.setHeight(height)
+        page.setParentItem(window.contentItem())
         assert page.setProperty("width", width)
         assert page.setProperty("height", height)
+        window.show()
         qapp.processEvents()
 
         queue = page.findChild(QObject, "timesheetReviewQueueListPage")
+        review_table = page.findChild(QObject, "reviewQueueTable")
         filter_popup = page.findChild(QObject, "reviewQueueFilterPopup")
+        decision_dialog = page.findChild(QObject, "reviewQueueDecisionDialog")
         assert queue is not None
+        assert review_table is not None
         assert filter_popup is not None
+        assert decision_dialog is not None
         assert 0 < float(queue.property("width")) <= width
         assert 0 < float(queue.property("height")) <= height
         assert 0 < float(filter_popup.property("width")) <= width
@@ -117,9 +128,30 @@ def test_r5g_review_queue_runtime_geometry(
         )
         threshold = int(page.property("_sideInspectorThreshold"))
         assert bool(page.property("_useSideInspector")) is (width >= threshold)
+
+        assert QMetaObject.invokeMethod(filter_popup, "open")
+        qapp.processEvents()
+        assert bool(filter_popup.property("opened"))
+        assert QMetaObject.invokeMethod(filter_popup, "close")
+        qapp.processEvents()
+        qapp.processEvents()
+        assert bool(review_table.property("activeFocus"))
+
+        assert QMetaObject.invokeMethod(decision_dialog, "open")
+        qapp.processEvents()
+        assert bool(decision_dialog.property("opened"))
+        assert float(decision_dialog.property("width")) <= width
+        assert float(decision_dialog.property("height")) <= height
+        assert QMetaObject.invokeMethod(decision_dialog, "close")
+        qapp.processEvents()
+        qapp.processEvents()
+        assert bool(review_table.property("activeFocus"))
     finally:
         if page is not None:
             page.deleteLater()
+        if window is not None:
+            window.close()
+            window.deleteLater()
         qInstallMessageHandler(previous_handler)
 
     assert not any("managed by a layout" in message for message in messages), messages
@@ -127,21 +159,34 @@ def test_r5g_review_queue_runtime_geometry(
     assert not any("ReferenceError" in message for message in messages), messages
 
 
-def test_r5g_resources_centered_filter_fits_minimum_viewport(qapp) -> None:
+@pytest.mark.parametrize(
+    ("width", "height"),
+    [(1024, 640), (1280, 720), (1366, 768), (1440, 900), (1920, 1080)],
+)
+def test_r5g_resources_centered_filter_fits_viewport_and_restores_focus(
+    qapp, width: int, height: int
+) -> None:
     engine = create_qml_engine()
     source = PM_QML / "workspaces/resources/ResourcesWorkspacePage.qml"
     component = QQmlComponent(engine, QUrl.fromLocalFile(str(source.resolve())))
     page = component.create()
     assert page is not None, "\n".join(error.toString() for error in component.errors())
+    window = QQuickWindow()
     try:
-        assert page.setProperty("width", 1024)
-        assert page.setProperty("height", 640)
+        window.setWidth(width)
+        window.setHeight(height)
+        page.setParentItem(window.contentItem())
+        assert page.setProperty("width", width)
+        assert page.setProperty("height", height)
+        window.show()
         qapp.processEvents()
 
+        resources_table = page.findChild(QObject, "resourcesCatalogTable")
         filter_popup = page.findChild(QObject, "resourcesFilterPopup")
+        assert resources_table is not None
         assert filter_popup is not None
-        assert 0 < float(filter_popup.property("width")) <= 1024
-        assert 0 < float(filter_popup.property("implicitHeight")) <= 640
+        assert 0 < float(filter_popup.property("width")) <= width
+        assert 0 < float(filter_popup.property("implicitHeight")) <= height
         filter_content = filter_popup.findChild(QObject, "resourcesFilterContent")
         filter_actions = filter_popup.findChild(QObject, "resourcesFilterActions")
         assert filter_content is not None
@@ -152,5 +197,15 @@ def test_r5g_resources_centered_filter_fits_minimum_viewport(qapp) -> None:
         assert float(filter_actions.property("implicitWidth")) <= float(
             filter_popup.property("width")
         )
+
+        assert QMetaObject.invokeMethod(filter_popup, "open")
+        qapp.processEvents()
+        assert bool(filter_popup.property("opened"))
+        assert QMetaObject.invokeMethod(filter_popup, "close")
+        qapp.processEvents()
+        qapp.processEvents()
+        assert bool(resources_table.property("activeFocus"))
     finally:
         page.deleteLater()
+        window.close()
+        window.deleteLater()

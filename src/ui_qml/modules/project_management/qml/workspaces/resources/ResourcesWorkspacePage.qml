@@ -220,6 +220,7 @@ AppLayouts.WorkspaceFrame {
                 id: filterPopup
                 workspaceController: root.workspaceController
                 state: state
+                onClosed: Qt.callLater(listPage.restoreTableFocus)
             }
 
         }

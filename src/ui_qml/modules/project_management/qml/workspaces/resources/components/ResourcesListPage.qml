@@ -101,6 +101,7 @@ Item {
 
             AppWidgets.DataTable {
                 id: resourcesTable
+                objectName: "resourcesCatalogTable"
                 anchors.top: parent.top
                 anchors.left: parent.left
                 anchors.right: parent.right

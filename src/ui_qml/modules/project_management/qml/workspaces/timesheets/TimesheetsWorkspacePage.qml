@@ -116,6 +116,7 @@ AppLayouts.WorkspaceFrame {
         id: filterPopup
         workspaceController: root.workspaceController
         state: state
+        onClosed: Qt.callLater(listPage.restoreTableFocus)
     }
 
     Popup {
@@ -154,8 +155,10 @@ AppLayouts.WorkspaceFrame {
 
     Components.TimesheetReviewDecisionDialog {
         id: reviewDecisionDialog
+        objectName: "reviewQueueDecisionDialog"
         reviewData: root.selectedPeriodModel
         busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onClosed: Qt.callLater(listPage.restoreTableFocus)
 
         onSubmitted: function(payload) {
             if (root.workspaceController === null) return

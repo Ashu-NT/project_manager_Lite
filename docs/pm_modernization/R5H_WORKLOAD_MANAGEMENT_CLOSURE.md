@@ -6,8 +6,8 @@ R5 implementation and the R5H.1 PostgreSQL security/scale gate are complete,
 but the final R5 exit gate is not closed. The final code audit found one
 authority per workload concept, removed verified dead paths, restored TimeEntry
 optimistic concurrency, and passed the focused R5H regression. Remaining open
-evidence is the integrated runtime interaction matrix and final PM regression
-reconciliation; neither is inferred from source-only tests.
+evidence is the manual visual/repeated route-lifecycle observation and final PM
+regression reconciliation; neither is inferred from source-only tests.
 
 ## 2. Final Product IA
 
@@ -236,11 +236,13 @@ PostgreSQL RLS exit gate is closed.
 ## 25. Responsive Results
 
 Automated integrated QML geometry covers 1024x640, 1280x720, 1366x768,
-1440x900, and 1920x1080 for Resources and Review Queue. It verifies bounded
-centralized filter dialogs and responsive side/overlay Inspector behavior. The
-Resources/Resource Detail/Timesheets/Review Queue full manual keyboard,
-focus-return, dialog interaction, rapid-switch, and visual clipping matrix is
-not fully recorded; broad R8 accessibility certification remains outside R5.
+1440x900, and 1920x1080 for Resources, Resource Detail, and Review Queue; the
+Resource catalog additionally covers 800x640. The runtime tests open and close
+both centralized filters and the Review Queue decision dialog at every approved
+viewport, prove bounded sizing, verify responsive side/overlay Inspector
+behavior, and prove keyboard focus returns to the originating DataTable. The
+full manual visual-clipping and repeated rapid route/open-close observation is
+not recorded; broad R8 accessibility certification remains outside R5.
 
 ## 26. Performance Results
 
@@ -268,11 +270,13 @@ no speculative index was required. The PostgreSQL performance matrix is closed.
 
 Resource Catalog, capability, Projects, Assignments, Activity, Timesheets, and
 Review Queue models are page bounded. Resource asynchronous detail requests use
-generation/request IDs so stale selection results are discarded. Timesheets
-and Review Queue currently execute synchronously on the Qt main thread, so they
-cannot accept a late worker result, but their selected IDs and models are reset
-on scope changes. Source/subscription audits found no unbounded R5 collection;
-the full repeated route/open-close runtime memory observation remains unrecorded.
+generation/request IDs so stale selection results are discarded; focused tests
+prove stale Inspector and Activity responses cannot replace a newer selection.
+Timesheets and Review Queue currently execute synchronously on the Qt main
+thread, so they cannot accept a late worker result, and presenter tests prove
+selected IDs/models reset on scope changes. Organization-switch reads fail
+closed. Source/subscription audits found no unbounded R5 collection; the full
+repeated route/open-close runtime memory observation remains unrecorded.
 
 ## 28. End-to-End Workflow Results
 
@@ -322,6 +326,12 @@ R5H.1 adds 18 live PostgreSQL tests: 14 security/concurrency checks plus 10k/50k
 reader measurements and runtime-role query plans. The focused Review
 Queue/Timesheets compatibility set adds 13 passed.
 
+This continuation adds an 82-test focused R5 workload/presenter run and a
+57-test targeted boundary run covering canonical/deep-link routes, Task Detail
+Time, R4.4 leveling, and R4.5 Gantt closure. The R5G subset is 13 passed and now
+executes real popup/dialog open-close and focus-return behavior at all five
+approved viewports.
+
 ## 32. Static Tool Results
 
 R5-owned Python `compileall` passed. R5 QML `qmllint`, run with all application
@@ -336,7 +346,7 @@ commit; the user committed concurrent work during the audit.
 |---|---|
 | CLOSED BY R5H.1 | PostgreSQL runtime-role RLS negatives, child bypass, and catalog inspection evidence |
 | CLOSED BY R5H.1 | PostgreSQL 10k/50k reader matrix and runtime-role plans for Catalog, selector, Review Queue, Availability demand, Timesheets, and Inspectors |
-| BLOCKER | Incomplete manual keyboard/dialog/rapid-switch runtime evidence matrix |
+| BLOCKER | Manual visual-clipping and repeated route/open-close runtime observation remains unrecorded |
 | R6 | Finance implementation and any Finance-owned regression |
 | R8 | Broad accessibility certification and non-blocking visual polish |
 | PLATFORM | Unrelated Platform test/cache/workspace hygiene |
@@ -354,8 +364,10 @@ TimeEntry semantics must not be repurposed as financial amounts.
 
 Actual remediation required before closure:
 
-1. Complete and record the five-viewport keyboard/focus/dialog/rapid-selection/
-   route-and-organization-switch runtime matrix.
+1. Complete and record the remaining manual visual-clipping and repeated
+   route/open-close runtime observation. Five-viewport geometry, bounded dialog
+   interaction, focus return, stale-selection rejection, and organization
+   fail-closed behavior are now automated and green.
 2. Obtain final PM regression reconciliation. The former Finance pagination
    blocker is fixed and its focused set is green; the broad suite was not rerun
    under the targeted-test-only instruction.
