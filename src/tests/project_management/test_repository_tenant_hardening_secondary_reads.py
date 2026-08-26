@@ -4,7 +4,6 @@ from datetime import date, datetime, timezone
 
 import pytest
 
-from src.core.platform.common.exceptions import NotFoundError
 from src.core.modules.project_management.domain.enums import (
     CostType,
     DependencyType,
@@ -53,6 +52,7 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryStatus,
     RegisterEntryType,
 )
+from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.infrastructure.persistence.orm.time_management.calendar.enterprise_calendar import PlatformCalendarORM
 
 

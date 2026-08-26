@@ -9,6 +9,9 @@ from time import perf_counter
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.platform.access import ScopedRolePolicy
+from src.core.modules.project_management.infrastructure.persistence.billing_preparation_submission_unit_of_work import (
+    SqlAlchemyBillingPreparationSubmissionUnitOfWorkFactory,
+)
 from src.core.modules.project_management.infrastructure.persistence.financial_change_submission_unit_of_work import (
     SqlAlchemyFinancialChangeSubmissionUnitOfWorkFactory,
 )
@@ -586,6 +589,16 @@ def build_project_management_service_bundle(
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,
     )
+    billing_preparation_submission_uow_session_factory = sessionmaker(
+        bind=platform_services.session.bind, future=True
+    )
+    billing_preparation_submission_uow_factory = SqlAlchemyBillingPreparationSubmissionUnitOfWorkFactory(
+        session_factory=billing_preparation_submission_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
     billing_preparation_service = ProjectBillingPreparationService(
         session=session,
         billing_repo=repositories.project_billing_repo,
@@ -597,6 +610,7 @@ def build_project_management_service_bundle(
         approval_service=platform_services.approval_service,
         tenant_context_service=platform_services.tenant_context_service,
         clock=system_clock,
+        submission_uow_factory=billing_preparation_submission_uow_factory,
         user_session=platform_services.user_session,
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,

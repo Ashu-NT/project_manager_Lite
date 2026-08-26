@@ -220,7 +220,12 @@ timesheet_periods, activity_entries, audit entries, and applicable outbox rows.
 R5G requires a non-superuser/non-BYPASSRLS PostgreSQL role, runtime session
 context, direct SELECT/INSERT/UPDATE/DELETE negatives, child-table bypass tests,
 and recorded `pg_class`/`pg_policy` evidence. ORM scoping tests do not close this
-gate.
+gate. Fresh-schema PostgreSQL classification now gives direct forced
+SELECT/INSERT/UPDATE/DELETE policies to `resource_skills`,
+`resource_certifications`, `project_resources`, `tasks`, `task_assignments`, and
+`task_skill_requirements`, using parent-correlated tenant/organization
+predicates. Generated-policy/classification tests pass, but this does not replace
+runtime-role direct-SQL and `pg_policy` evidence.
 
 ## 23. Concurrency
 
@@ -284,9 +289,9 @@ silently ignored.
 
 | Tool | Result |
 |---|---|
-| Python compile | Open |
-| Targeted qmllint | Open |
-| git diff --check | Open |
+| Python compile | Pass for changed Python/RLS helpers |
+| Targeted qmllint | Pass for all touched Resources/Review Queue QML |
+| git diff --check | Pending final worktree check |
 | Repository lint/type tooling | Open/availability not yet checked |
 
 ## 33. Performance Evidence Table
@@ -315,20 +320,29 @@ database, fixture size, warm-up, repetitions, and machine context.
 
 | Gate | Evidence | Status |
 |---|---|---|
-| Resource permission matrix | Existing targeted tests; integrated rerun required | Open |
-| Review Queue permission matrix | Existing R5F tests; integrated rerun required | Open |
-| Tenant/org application scope | Scoped readers/repository tests present | Partial |
-| Hidden Project behavior | Reader policy/tests present | Partial |
+| Resource permission matrix | Integrated resource/domain/API hardening rerun | Pass |
+| Review Queue permission matrix | R5F/R5F.1/API isolation rerun | Pass |
+| Tenant/org application scope | PM secondary read/write/no-context suite | Pass |
+| Hidden Project behavior | Reader policy and scoped integration tests | Pass |
 | PostgreSQL runtime role | No current evidence recorded | Open |
 | PostgreSQL tenant/org RLS negatives | No current direct-SQL evidence recorded | Open |
-| Child-table bypass | No current direct-SQL evidence recorded | Open |
+| Child-table bypass | Direct forced policies generated for R5 children; runtime SQL pending | Partial |
 | pg_class / pg_policy inspection | No current evidence recorded | Open |
 
 ## 35. Issues Fixed
 
-R5G-UI-001 tracks the Review Queue bounded Inspector correction. The initial
-anchored-filter proposal was superseded by the approved application-standard
-centered filter decision and is not an open defect.
+Fixed issues:
+
+- `R5G-UI-001`: replaced the Review Queue full-page detail flow with one
+  responsive bounded/overlay Inspector while preserving the server table.
+- `R5G-UI-002`: widened both centralized workload filter dialogs to 440 px after
+  runtime tests proved their content exceeded the old 340/360 px widths.
+- Added focus restoration and removed the obsolete Review Queue detail QML and
+  metadata; no compatibility/dead panel remains.
+- Added direct parent-correlated PostgreSQL RLS policy generation for the R5
+  child tables that previously relied only on parent ownership.
+- Updated the tenant-hardening regression to use current versioned, fail-closed
+  skill/certification deletion semantics.
 
 ## 36. Explicit Deferred Scope
 
@@ -356,17 +370,32 @@ implementation is active:
 
 | Group | Gate range | Current state |
 |---|---:|---|
-| Responsive/dialog | 1-20 | In progress; two defects confirmed |
+| Responsive/dialog | 1-20 | Viewport/filter/Inspector pass; full dialog interaction matrix remains |
 | Keyboard | 21-29 | Open |
 | Resource performance | 30-49 | Partial prior SQLite evidence |
 | Review performance | 50-59 | Open |
 | Query plans/indexes | 60-72 | PostgreSQL evidence open |
 | Memory/async | 73-81 | Partial code guards; runtime evidence open |
-| Security | 82-96 | Partial application tests; PostgreSQL evidence open |
-| Concurrency/transactions | 97-105 | Prior targeted evidence; integrated rerun open |
+| Security | 82-96 | Application matrix passes; PostgreSQL runtime evidence open |
+| Concurrency/transactions | 97-105 | Targeted resource/review suites pass; injected-failure matrix partial |
 | Events/integration | 106-114 | Partial implementation; integrated tests open |
 | ResourceKind | 115-119 | Prior implementation; integrated matrix open |
 | States/errors | 120-134 | Open integrated matrix |
 | Cross-feature | 135-144 | Open integrated scenarios |
-| QML/regression | 145-158 | Open |
-| Tooling/docs | 159-168 | In progress |
+| QML/regression | 145-158 | QML, R4.4 leveling, and R4.5 Gantt targets pass |
+| Tooling/docs | 159-168 | Targeted tooling passes; final diff check pending |
+
+Targeted validation recorded in this pass:
+
+- R5G QML/runtime geometry: 9 passed.
+- Workload architecture, Availability, Resource context, Review Queue,
+  permission-aware Timesheets, and API isolation: 59 passed.
+- Resource/Inspector/detail performance: 7 passed.
+- Resource/capability/API concurrency and platform permission/RLS helpers: 51
+  passed.
+- PM repository tenant hardening: 10 passed.
+- R4.4 Resource Leveling regression: 14 passed.
+- R4.5 Gantt hardening/closure regression: 23 passed.
+
+No commit was created by the R5G implementation agent. R5H and R6 have not
+started.

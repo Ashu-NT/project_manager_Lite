@@ -110,6 +110,7 @@ def _make_request(**overrides) -> ApprovalRequest:
         request_type="baseline.create",
         entity_type="project_baseline",
         entity_id="baseline-1",
+        tenant_id="tenant-1",
         project_id="proj-1",
         organization_id="org-1",
         requested_by_user_id="user-requester",
