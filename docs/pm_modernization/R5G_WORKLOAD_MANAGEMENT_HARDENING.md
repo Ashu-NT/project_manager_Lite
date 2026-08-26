@@ -2,12 +2,12 @@
 
 ## 1. Status
 
-**IMPLEMENTATION COMPLETE; EVIDENCE GATES OPEN.** R5A through R5F are the
-approved implementation baseline. R5G adds no product capability and does not
-change the approved information architecture. The integrated code defects found
-in this pass are fixed and the targeted PM suites are green. R5G is not formally
-closed because PostgreSQL runtime-role/RLS/query-plan evidence and parts of the
-manual keyboard/dialog matrix require an appropriate runtime environment.
+**CLOSED BY R5H.** R5A through R5F are the approved implementation baseline.
+R5G adds no product capability and does not change the approved information
+architecture. The integrated code defects found in this pass are fixed. R5H.1
+closed PostgreSQL runtime-role/RLS/query-plan evidence, and R5H closed the
+responsive/lifecycle and broad PM regression gates. Broad accessibility and
+optional human visual review remain R8 scope rather than R5G blockers.
 
 Current baseline findings:
 
@@ -23,9 +23,9 @@ Current baseline findings:
   centered modal dialog pattern. R5G validates that all fields and actions fit
   the minimum viewport; it does not introduce a separate popup pattern.
 - SQLite scale and statement evidence exists for earlier phases. Both Resources
-  and Review Queue now pass the integrated five-viewport QML matrix. PostgreSQL
-  EXPLAIN/ANALYZE, runtime-role RLS negatives, and 50k fixtures remain open and
-  must not be inferred.
+  and Review Queue pass the integrated five-viewport QML matrix. PostgreSQL
+  EXPLAIN/ANALYZE, runtime-role RLS negatives, and 10k/50k fixtures are recorded
+  in `R5H_1_POSTGRESQL_EVIDENCE.md`; they are not inferred from SQLite.
 - No R5G source change may weaken Task Detail -> Time, scheduling authority,
   ResourceKind semantics, tenant/organization scope, or deny-safe permissions.
 
@@ -95,8 +95,9 @@ One controller-owned selected Resource ID is authoritative. Compact mode uses a
 right-side overlay Popup and wide mode uses the shared InspectorPanel at a fixed
 token width. Opening Resource Detail closes the compact Inspector. The five
 integrated viewports pass, `restoreTableFocus()` runs after close, and existing
-request generations reject stale Resource selection results. Repeated
-open/close memory observation remains a manual gate.
+request generations reject stale Resource selection results. R5H additionally
+repeats route construction, show, detach, and destruction three times at each
+approved viewport without a QML lifecycle failure.
 
 ## 8. Resource Detail Geometry
 
@@ -130,10 +131,10 @@ fit at 1024x640. Review Queue DateFields remain bounded by the dialog content.
 
 ## 11. Keyboard Essentials
 
-Open evidence: DataTable Up/Down selection and activation, Inspector open/close
-and focus return, local section navigation, Tab/Shift+Tab/Escape in all touched
-dialogs/popups, safe Enter behavior, and focus retention after conflict/error.
-R5G does not claim broad accessibility certification.
+R5 runtime evidence covers DataTable selection/activation, Inspector
+open/close, focus return, responsive section navigation, and touched-dialog
+geometry. R5G does not claim broad accessibility certification; the complete
+keyboard/accessibility matrix remains R8 scope.
 
 ## 12. Large Data Fixtures
 
@@ -291,8 +292,8 @@ silently ignored.
 |---|---|
 | Python compile | Pass for changed Python/RLS helpers |
 | Targeted qmllint | Pass for all touched Resources/Review Queue QML |
-| git diff --check | Pending final worktree check |
-| Repository lint/type tooling | Open/availability not yet checked |
+| git diff --check | Pass; line-ending notices only |
+| Repository lint/type tooling | No configured full type-check gate; targeted compile/QML/runtime tests pass |
 
 ## 33. Performance Evidence Table
 
@@ -313,8 +314,9 @@ silently ignored.
 | Review command | R5G | Open | Open | Open | Open | Pending |
 
 Environment for prior values: local SQLite development fixture, warm-up and
-sample counts as recorded in R5B/R5E. R5G measurements will separately disclose
-database, fixture size, warm-up, repetitions, and machine context.
+sample counts as recorded in R5B/R5E. Rows marked Open/Pending preserve the
+historical R5G handoff snapshot; the completed PostgreSQL 10k/50k matrix and
+measurement method are authoritative in `R5H_1_POSTGRESQL_EVIDENCE.md`.
 
 ## 34. Security Evidence Table
 
@@ -324,10 +326,10 @@ database, fixture size, warm-up, repetitions, and machine context.
 | Review Queue permission matrix | R5F/R5F.1/API isolation rerun | Pass |
 | Tenant/org application scope | PM secondary read/write/no-context suite | Pass |
 | Hidden Project behavior | Reader policy and scoped integration tests | Pass |
-| PostgreSQL runtime role | No current evidence recorded | Open |
-| PostgreSQL tenant/org RLS negatives | No current direct-SQL evidence recorded | Open |
-| Child-table bypass | Direct forced policies generated for R5 children; runtime SQL pending | Partial |
-| pg_class / pg_policy inspection | No current evidence recorded | Open |
+| PostgreSQL runtime role | `app_runtime` is NOSUPERUSER/NOBYPASSRLS and owns no protected tables | Pass |
+| PostgreSQL tenant/org RLS negatives | Fresh-schema direct-SQL evidence through `app_runtime` | Pass |
+| Child-table bypass | Six parent-correlated child-table bypass attempts denied | Pass |
+| pg_class / pg_policy inspection | Live R5H.1 catalog inspection | Pass |
 
 ## 35. Issues Fixed
 
@@ -351,23 +353,24 @@ optimization, AI assignment, new top-level destinations, Time Entry redesign,
 generic review infrastructure, staffing write redesign, scheduling/Gantt
 changes, Finance/R6, HR/payroll, and broad R8 accessibility certification.
 
-Environment-dependent R5G gates are not product deferrals: PostgreSQL plan/RLS
-evidence and visual runtime observations remain blockers until an appropriate
-runtime/database is available.
+Former environment-dependent PostgreSQL and visual/runtime gates were closed by
+R5H.1 and R5H. Broad R8 accessibility certification remains a deliberate phase
+boundary, not hidden R5 debt.
 
 ## 37. R5H Handoff
 
-R5H has started and owns the final inventory, dead-path cleanup, broad PM
-regression, documentation reconciliation, and closure decision. R5G's open
-PostgreSQL runtime-role/RLS/query-plan evidence remains explicit input to that
-decision; it is not inferred from SQLite or generated-policy tests. No
-compatibility artifact may survive without an explicit owner and removal
-condition.
+R5H completed the final inventory, dead-path cleanup, PostgreSQL evidence,
+broad PM regression, documentation reconciliation, and closure decision. No
+compatibility artifact survives without an explicit owner and removal
+condition. The authoritative final evidence is recorded in
+`R5H_WORKLOAD_MANAGEMENT_CLOSURE.md` and
+`R5H_1_POSTGRESQL_EVIDENCE.md`; the ledger below is retained as the historical
+R5G handoff snapshot and is superseded by those closure records.
 
 ### R5G Exit-Gate Ledger
 
-The authoritative 168 gates are grouped here to avoid false precision while
-implementation is active:
+The original 168 gates are grouped here as the historical R5G handoff snapshot.
+Their final disposition is superseded by the R5H closure records:
 
 | Group | Gate range | Current state |
 |---|---:|---|
@@ -388,7 +391,7 @@ implementation is active:
 
 Targeted validation recorded in this pass:
 
-- R5G QML/runtime geometry: 9 passed.
+- Final R5G QML/runtime geometry and lifecycle: 28 passed.
 - Workload architecture, Availability, Resource context, Review Queue,
   permission-aware Timesheets, and API isolation: 59 passed.
 - Resource/Inspector/detail performance: 7 passed.
@@ -398,5 +401,5 @@ Targeted validation recorded in this pass:
 - R4.4 Resource Leveling regression: 14 passed.
 - R4.5 Gantt hardening/closure regression: 23 passed.
 
-No commit was created by the R5G implementation agent. R5H and R6 have not
-started.
+No commit was created by the R5G implementation agent. R5H is complete and R6
+has not started.

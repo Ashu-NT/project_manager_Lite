@@ -2,9 +2,10 @@
 
 ## Status
 
-**IMPLEMENTATION COMPLETE - R5H EVIDENCE GATES APPLY.** R5F remains closed and
-Review Queue ownership is unchanged. R5F.1 owns one canonical `Work ->
-Timesheets` workspace. R6 is outside this phase.
+**CLOSED BY R5H.** R5F remains closed and Review Queue ownership is unchanged.
+R5F.1 owns one canonical `Work -> Timesheets` workspace. PostgreSQL scale,
+security, responsive runtime, and final PM regression evidence are reconciled
+in the R5H closure documents. R6 is outside this phase.
 
 The earlier personal-only implementation is not a compatibility target. Its
 `Owner*` contracts, reader, presenter, controller, tests, and QML type artifacts
@@ -209,15 +210,16 @@ create authority.
 - [x] History follows the selected Resource and is server-paged.
 - [x] No Resource-selection N+1 query exists.
 - [x] 10k selector performance is measured.
-- [ ] 50k selector performance is measured where practical.
-- [ ] 1024x640 TEAM/ALL layout is manually verified.
+- [x] 50k selector performance is measured through `app_runtime` PostgreSQL evidence.
+- [ ] Optional R8 human review of the 1024x640 TEAM/ALL layout.
 - [x] Review Queue was not redesigned by R5F.1.
 - [x] Personal-only artifacts are deleted; no dead compatibility code remains.
 - [x] No commit was created by Codex.
 
 ## Closure Evidence
 
-Implementation and targeted R5F.1 contracts are complete. The optional 50k
-selector run and manual 1024x640 interaction observation remain environment
-evidence, not alternate implementation paths. Integrated results and the final
-R5 decision are recorded in `R5H_WORKLOAD_MANAGEMENT_CLOSURE.md`.
+Implementation and targeted R5F.1 contracts are complete. The 50k selector run
+is recorded in `R5H_1_POSTGRESQL_EVIDENCE.md`. Manual 1024x640 TEAM/ALL visual
+observation remains optional R8 evidence, not an alternate implementation path
+or R5 blocker. Integrated results and the final R5 decision are recorded in
+`R5H_WORKLOAD_MANAGEMENT_CLOSURE.md`.

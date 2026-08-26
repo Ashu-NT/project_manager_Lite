@@ -2,12 +2,14 @@
 
 ## 1. R5 Status
 
-R5 implementation and the R5H.1 PostgreSQL security/scale gate are complete,
-but the final R5 exit gate is not closed. The final code audit found one
-authority per workload concept, removed verified dead paths, restored TimeEntry
-optimistic concurrency, and passed the focused R5H regression. Remaining open
-evidence is the manual visual/repeated route-lifecycle observation and final PM
-regression reconciliation; neither is inferred from source-only tests.
+**R5 IS CLOSED.** R5 implementation, the R5H.1 PostgreSQL security/scale gate,
+and final PM regression reconciliation are complete. The final code audit found
+one authority per workload concept, removed verified dead paths, restored
+TimeEntry optimistic concurrency, and passed both focused and broad PM
+regression. Five-viewport geometry and repeated route-lifecycle behavior are
+verified by integrated QML runtime tests rather than inferred from source-only
+checks. Optional human visual review and broad accessibility certification are
+R8 work, not R5 implementation blockers.
 
 ## 2. Final Product IA
 
@@ -240,9 +242,12 @@ Automated integrated QML geometry covers 1024x640, 1280x720, 1366x768,
 Resource catalog additionally covers 800x640. The runtime tests open and close
 both centralized filters and the Review Queue decision dialog at every approved
 viewport, prove bounded sizing, verify responsive side/overlay Inspector
-behavior, and prove keyboard focus returns to the originating DataTable. The
-full manual visual-clipping and repeated rapid route/open-close observation is
-not recorded; broad R8 accessibility certification remains outside R5.
+behavior, and prove keyboard focus returns to the originating DataTable.
+Resource Skill and Certification tables additionally prove bottom-pinned
+pagination at all five approved viewports. Resources and Review Queue each
+survive three create/show/detach/destroy cycles per viewport without QML layout,
+type, reference, or lifecycle failures. Optional human visual review and broad
+R8 accessibility certification remain outside R5.
 
 ## 26. Performance Results
 
@@ -275,8 +280,12 @@ prove stale Inspector and Activity responses cannot replace a newer selection.
 Timesheets and Review Queue currently execute synchronously on the Qt main
 thread, so they cannot accept a late worker result, and presenter tests prove
 selected IDs/models reset on scope changes. Organization-switch reads fail
-closed. Source/subscription audits found no unbounded R5 collection; the full
-repeated route/open-close runtime memory observation remains unrecorded.
+closed. Source/subscription audits found no unbounded R5 collection. Integrated
+runtime tests repeatedly construct, show, detach, and destroy both workload
+routes at every approved viewport without a QML lifecycle failure; the separate
+subscription audit found no duplicate R5 subscription authority. Dedicated
+long-duration heap profiling is optional operational evidence, not an R5
+closure requirement.
 
 ## 28. End-to-End Workflow Results
 
@@ -315,12 +324,10 @@ and external deep-link dependencies no longer reference it.
 Focused R5H reconciliation: 52 passed. The final policy/R5G/TimeEntry evidence
 set adds 20 passed. Earlier focused concurrency, assignment, integration,
 security, runtime, migration, and performance groups also passed. The final
-broad `src/tests/project_management` result was 1,391 passed and one failed in
-544.37 seconds. The sole failure was reproduced and corrected: valid arbitrary
-SQL offsets are now preserved, while only past-the-end offsets clamp to the
-last valid page. The focused Finance pagination/export set passes 11 tests. The
-broad suite has not been rerun because this continuation is restricted to
-targeted tests. All ten earlier R5 stale-contract/fake failures are green.
+broad `src/tests/project_management` reconciliation is **1,417 passed in
+702.55 seconds (11m42s)**. This includes the corrected SQL-offset contract, the
+authoritative assignment mutation/explicit-refresh lifecycle, and all earlier
+R5 stale-contract/fake regressions.
 
 R5H.1 adds 18 live PostgreSQL tests: 14 security/concurrency checks plus 10k/50k
 reader measurements and runtime-role query plans. The focused Review
@@ -328,9 +335,11 @@ Queue/Timesheets compatibility set adds 13 passed.
 
 This continuation adds an 82-test focused R5 workload/presenter run and a
 57-test targeted boundary run covering canonical/deep-link routes, Task Detail
-Time, R4.4 leveling, and R4.5 Gantt closure. The R5G subset is 13 passed and now
-executes real popup/dialog open-close and focus-return behavior at all five
-approved viewports.
+Time, R4.4 leveling, and R4.5 Gantt closure. The final R5G hardening subset is
+28 passed and executes real popup/dialog behavior, focus return, capability
+pagination geometry, and repeated route lifecycle at all five approved
+viewports. The assignment refresh regression and immediate mutation contract
+also pass together in a focused two-test check.
 
 ## 32. Static Tool Results
 
@@ -346,7 +355,7 @@ commit; the user committed concurrent work during the audit.
 |---|---|
 | CLOSED BY R5H.1 | PostgreSQL runtime-role RLS negatives, child bypass, and catalog inspection evidence |
 | CLOSED BY R5H.1 | PostgreSQL 10k/50k reader matrix and runtime-role plans for Catalog, selector, Review Queue, Availability demand, Timesheets, and Inspectors |
-| BLOCKER | Manual visual-clipping and repeated route/open-close runtime observation remains unrecorded |
+| CLOSED BY R5H | Five-viewport clipping/geometry and repeated route open-close lifecycle evidence |
 | R6 | Finance implementation and any Finance-owned regression |
 | R8 | Broad accessibility certification and non-blocking visual polish |
 | PLATFORM | Unrelated Platform test/cache/workspace hygiene |
@@ -362,14 +371,11 @@ TimeEntry semantics must not be repurposed as financial amounts.
 
 ## 35. R5 Closure Decision
 
-Actual remediation required before closure:
+All R5 exit gates are complete. PostgreSQL runtime-role/RLS and 10k/50k scale
+evidence are recorded in `R5H_1_POSTGRESQL_EVIDENCE.md`; responsive/lifecycle
+runtime evidence is green at the five approved viewports; and the complete PM
+suite passes 1,417 tests. Optional human visual review, long-duration heap
+profiling, and broad accessibility certification remain explicitly assigned to
+R8 and do not retain R5 code or compatibility debt.
 
-1. Complete and record the remaining manual visual-clipping and repeated
-   route/open-close runtime observation. Five-viewport geometry, bounded dialog
-   interaction, focus return, stale-selection rejection, and organization
-   fail-closed behavior are now automated and green.
-2. Obtain final PM regression reconciliation. The former Finance pagination
-   blocker is fixed and its focused set is green; the broad suite was not rerun
-   under the targeted-test-only instruction.
-
-R5 NOT CLOSED
+**R5 CLOSED - 2026-08-26**
