@@ -127,26 +127,21 @@ def test_participant_apply_applies_change_on_the_supplied_session_with_budget_on
     assert applied.applied_budget_id
     assert applied.applied_forecast_id is None
     assert not applied.applied_schedule_count
-    # Conditional event-building: only "financial_changes_changed" + "budgets_changed" fire for
-    # a BUDGET-only change -- "forecasts_changed"/"tasks_changed" must NOT appear.
     assert result.post_commit_events == (
-        ApprovalPostCommitEvent("financial_changes_changed", project.id),
         ApprovalPostCommitEvent("budgets_changed", project.id),
     )
 
 
 def test_participant_reject_rejects_change_on_the_supplied_session(services, session):
     _login(services, "admin", "ChangeMe123!")
-    project, change, request = _submitted_change(services, session)
+    _, change, request = _submitted_change(services, session)
     deps = _deps(services, session)
 
     result = FinancialChangeApprovalParticipant().reject(request, deps)
 
     rejected = deps.financial_change_service._change_repo.get(change.id)
     assert rejected.status is FinancialChangeStatus.REJECTED
-    assert result.post_commit_events == (
-        ApprovalPostCommitEvent("financial_changes_changed", project.id),
-    )
+    assert result.post_commit_events == ()
 
 
 def test_participant_never_calls_commit_or_rollback(services, session, monkeypatch):

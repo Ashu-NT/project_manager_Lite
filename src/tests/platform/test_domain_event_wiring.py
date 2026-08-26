@@ -1,5 +1,4 @@
 from datetime import date
-from decimal import Decimal
 
 import pytest
 
@@ -90,35 +89,6 @@ def test_task_update_emits_tasks_changed(services):
     assert seen == [project.id]
 
 
-def test_manual_actual_draft_emits_cost_entries_changed(services):
-    ps = services["project_service"]
-    cs = services["cost_entry_service"]
-
-    project = ps.create_project("Event Cost", "")
-    organization = services["organization_service"].get_active_organization()
-    cost_code = services["financial_configuration_service"].create_cost_code(
-        code="EVENT-ACTUAL", name="Event actual"
-    )
-    seen: list[str] = []
-
-    def _on_costs_changed(project_id: str) -> None:
-        seen.append(project_id)
-
-    domain_events.cost_entries_changed.connect(_on_costs_changed)
-    try:
-        cs.create_manual_entry(
-            project_id=project.id,
-            command_id="event-manual-actual",
-            description="Capex",
-            amount=Decimal("100"),
-            currency_code=organization.base_currency,
-            transaction_date=date(2026, 1, 1),
-            cost_code_id=cost_code.id,
-        )
-    finally:
-        domain_events.cost_entries_changed.disconnect(_on_costs_changed)
-
-    assert seen == [project.id]
 
 
 def test_resource_create_update_delete_emit_resources_changed(services):

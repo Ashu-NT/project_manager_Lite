@@ -6,7 +6,6 @@ from decimal import Decimal
 import pytest
 
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.shared.events.domain_events import domain_events
 
 
 def _login(services, username: str, password: str):
@@ -152,22 +151,12 @@ def test_approval_apply_rolls_back_handler_when_decision_update_fails(
     monkeypatch.setattr(approval_repo_class, "update", _fail_decision_update)
     _login(services, "admin", "ChangeMe123!")
 
-    emitted_cost_changes: list[str] = []
-
-    def _on_costs_changed(project_id: str) -> None:
-        emitted_cost_changes.append(project_id)
-
-    domain_events.cost_entries_changed.connect(_on_costs_changed)
-    try:
-        with pytest.raises(RuntimeError, match="simulated decision persistence failure"):
-            approvals.approve_and_apply(request.id, note="Should roll back")
-    finally:
-        domain_events.cost_entries_changed.disconnect(_on_costs_changed)
+    with pytest.raises(RuntimeError, match="simulated decision persistence failure"):
+        approvals.approve_and_apply(request.id, note="Should roll back")
 
     services["cost_entry_service"]._session.expire_all()
     unchanged = services["cost_entry_service"].get_entry(item.id)
     assert unchanged.status.value == "submitted"
-    assert emitted_cost_changes == []
 
 
 def test_approval_apply_rolls_back_handler_when_required_audit_fails(

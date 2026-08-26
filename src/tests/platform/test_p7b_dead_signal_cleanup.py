@@ -71,38 +71,6 @@ def test_costs_changed_and_calendars_changed_have_zero_production_references():
     assert hits == [], hits
 
 
-# ---------------------------------------------------------------------------
-# 2. The four PM financial signals the reports named are NOT dead -- corrected here
-# ---------------------------------------------------------------------------
-
-
-def test_the_four_named_pm_financial_signals_remain_untouched_they_have_real_producers():
-    """P7/P7A's own reports imprecisely called these "dead" -- they have real production
-    producers (both direct `.emit(` calls and the reflective `ApprovalPostCommitEvent`
-    mechanism); their actual (and still out-of-scope) problem is zero UI consumers, not zero
-    producers. P7B does not touch them."""
-    for signal_name in (
-        "cost_entries_changed", "commitments_changed", "forecasts_changed",
-        "financial_changes_changed",
-    ):
-        assert hasattr(domain_events, signal_name), signal_name
-
-
-def test_cost_entries_changed_has_a_real_reflective_producer_via_approval_post_commit_event():
-    import src.core.modules.project_management.infrastructure.approval.project_cost_apply_participant as module
-
-    source = inspect.getsource(module)
-    assert 'ApprovalPostCommitEvent("cost_entries_changed"' in source
-
-
-def test_forecasts_changed_and_financial_changes_changed_have_real_reflective_producers():
-    import src.core.modules.project_management.infrastructure.approval.financial_change_apply_participant as module
-
-    source = inspect.getsource(module)
-    assert 'ApprovalPostCommitEvent("forecasts_changed"' in source
-    assert 'ApprovalPostCommitEvent("financial_changes_changed"' in source
-
-
 def test_approval_service_reflective_emission_mechanism_is_real_and_active():
     """`_emit_signal_safely` -> `getattr(domain_events, signal_name).emit(...)` is a genuine,
     active production emission path (called from `_emit_handler_events`, which runs after every
@@ -255,10 +223,10 @@ def test_final_signal_invariant_every_remaining_signal_has_a_source_reference_be
                 reference_counts[name] += 1
 
     orphaned = [name for name, count in reference_counts.items() if count == 0]
-    # cost_entries_changed/commitments_changed/forecasts_changed/financial_changes_changed are
-    # the one documented exception: real producers, zero UI consumers -- see the P7/P7A/P7B
-    # reports. Confirmed non-orphaned by direct producer references (this loop counts both
-    # producer and consumer references, so their producer-only status still yields count > 0).
+    # P7C deleted cost_entries_changed/commitments_changed/forecasts_changed/
+    # financial_changes_changed entirely (the one documented producer-only/zero-consumer
+    # exception P7B left in place) -- every remaining signal now has both a producer and a
+    # consumer, so this list is expected to be empty with no exceptions.
     assert orphaned == [], orphaned
 
 

@@ -15,7 +15,6 @@ from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.platform.infrastructure.persistence.orm.time_management.time_financial_outbox import TimeFinancialOutboxORM
 from src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox import ProjectFinanceInboxORM
-from src.core.shared.events.domain_events import domain_events
 
 
 def _setup(services):
@@ -245,7 +244,17 @@ def test_closed_financial_period_keeps_approved_time_retryable_without_posting(s
     assert inbox.last_error_code == "FINANCIAL_PERIOD_POSTING_BLOCKED"
 
 
-def test_post_commit_ui_refresh_failure_does_not_retry_financial_delivery(services) -> None:
+# P7C: `test_post_commit_ui_refresh_failure_does_not_retry_financial_delivery` retired --
+# `cost_entries_changed` was deleted (zero production UI consumers, confirmed dead) and
+# `ApprovedTimeFinancialDispatcher`'s own try/except isolating a local-refresh emission failure
+# from the outbox/inbox commit was removed along with it (there is no local refresh left to
+# isolate). See test_p7c_zero_consumer_signal_cleanup.py for the retirement guards.
+
+
+def test_post_commit_delivery_succeeds_without_any_legacy_ui_refresh_signal(services) -> None:
+    """Replaces the retired isolation test above: proves outbox/inbox delivery still completes
+    correctly now that the dead local-refresh emission is gone entirely -- not merely isolated
+    from a failure that could no longer occur."""
     _, project, resource, _, assignment = _setup(services)
     services["task_service"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 8), hours=Decimal("1")
@@ -254,16 +263,9 @@ def test_post_commit_ui_refresh_failure_does_not_retry_financial_delivery(servic
         resource.id, period_start=date(2026, 5, 1)
     )
 
-    def _fail_refresh(_project_id: str) -> None:
-        raise RuntimeError("local refresh unavailable")
-
-    domain_events.cost_entries_changed.connect(_fail_refresh)
-    try:
-        services["timesheet_service"].approve_timesheet_period(
-            submitted.period_id, expected_version=submitted.version
-        )
-    finally:
-        domain_events.cost_entries_changed.disconnect(_fail_refresh)
+    services["timesheet_service"].approve_timesheet_period(
+        submitted.period_id, expected_version=submitted.version
+    )
 
     _, total = services["cost_entry_service"].list_for_project(project.id)
     assert total == 1
