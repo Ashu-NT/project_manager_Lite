@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -17,6 +16,22 @@ ColumnLayout {
     signal checkUpdatesRequested(string channel, bool autoCheck, string manifestSource)
     signal installUpdateRequested(string channel, bool autoCheck, string manifestSource)
     signal openDownloadRequested()
+
+    function syncFromController() {
+        const channel = String(root.supportSettings.updateChannel || "stable")
+        const options = root.supportSettings.channelOptions || []
+        for (let i = 0; i < options.length; i++) {
+            if (String((options[i] || {}).value || "") === channel) {
+                channelCombo.currentIndex = i
+                break
+            }
+        }
+        autoCheckBox.checked = Boolean(root.supportSettings.updateAutoCheck)
+        manifestField.text = String(root.supportSettings.updateManifestSource || "")
+    }
+
+    onSupportSettingsChanged: Qt.callLater(root.syncFromController)
+    Component.onCompleted: root.syncFromController()
 
     Layout.fillWidth:  true
     Layout.fillHeight: true
