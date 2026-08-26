@@ -62,7 +62,7 @@ class _CommitmentService:
                 expected_delivery_date=None,
                 source_revision=3,
             )
-        ], 1
+        ], 50
 
 
 def _api(**dependencies) -> ProjectManagementFinancialsDesktopApi:
@@ -102,7 +102,7 @@ def test_financial_desktop_maps_paged_canonical_commitment_lines() -> None:
         "project-1", offset=10, limit=20
     )
 
-    assert page.total == 1
+    assert page.total == 50
     assert page.offset == 10
     assert page.limit == 20
     assert page.sort_key == "metaText"

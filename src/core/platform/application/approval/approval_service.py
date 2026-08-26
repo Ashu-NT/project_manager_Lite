@@ -20,10 +20,12 @@ from src.core.platform.contract.models.approval.contracts import ApprovalHandler
 from src.core.platform.contract.repositories.approval.contracts import ApprovalRepository
 from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission, require_permission
+from src.core.platform.domain.approval import ApprovalApproved, ApprovalRejected
 from src.core.platform.domain.security.authorization.roles.role_binding import ROLE_PRINCIPAL_USER
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.shared.notifications import safe_dispatch_notification
+from src.core.shared.time.clock import Clock
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +52,7 @@ class ApprovalService:
         role_permission_repo: Any = None,
         permission_repo: Any = None,
         role_binding_repo: Any = None,
+        clock: Clock | None = None,
     ):
         self._session = session
         self._approval_repo = approval_repo
@@ -62,8 +65,17 @@ class ApprovalService:
         self._role_permission_repo = role_permission_repo
         self._permission_repo = permission_repo
         self._role_binding_repo = role_binding_repo
+        self._clock = clock
         self._apply_handlers: dict[str, tuple[ApplyHandler, DependenciesFactory]] = {}
         self._reject_handlers: dict[str, tuple[ApplyHandler, DependenciesFactory]] = {}
+
+    def _require_clock(self) -> Clock:
+        if self._clock is None:
+            raise BusinessRuleError(
+                "Approval event recording requires a configured Clock.",
+                code="APPROVAL_CLOCK_REQUIRED",
+            )
+        return self._clock
 
     def register_apply_handler(
         self,
@@ -123,6 +135,7 @@ class ApprovalService:
             operation_label="request governed change"
         )
         principal = self._user_session.principal if self._user_session else None
+        clock = self._require_clock()
 
         with self._uow_factory.create(context=self._new_context()) as uow:
             self._assert_project_in_active_organization_using(
@@ -131,6 +144,8 @@ class ApprovalService:
             request = request_approval_using(
                 approval_repo=uow.approvals,
                 enterprise_audit_service=uow._enterprise_audit_service,
+                clock=clock,
+                record_event=uow.record_event,
                 request_type=request_type,
                 entity_type=entity_type,
                 entity_id=entity_id,
@@ -196,6 +211,7 @@ class ApprovalService:
             "approval.decide",
             operation_label="reject approval request",
         )
+        clock = self._require_clock()
         with self._uow_factory.create(context=self._new_context(causation_id=request_id)) as uow:
             request = self._require_pending_using(uow.approvals, request_id)
             self._ensure_not_self_decision(request)
@@ -212,7 +228,20 @@ class ApprovalService:
             if handler is not None:
                 deps = dependencies_factory(uow._session)
                 handler_result = self._normalize_handler_result(handler(request, deps))
+
             uow.approvals.update(request)
+            uow.record_event(
+                ApprovalRejected(
+                    approval_id=request.id,
+                    tenant_id=request.tenant_id,
+                    organization_id=request.organization_id,
+                    approval_type=request.request_type,
+                    entity_type=request.entity_type,
+                    entity_id=request.entity_id,
+                    decided_by_user_id=request.decided_by_user_id,
+                    occurred_at=clock.now(),
+                )
+            )
             record_audit_entry(
                 uow,
                 operation="update",
@@ -236,6 +265,7 @@ class ApprovalService:
             "approval.decide",
             operation_label="approve approval request",
         )
+        clock = self._require_clock()
         with self._uow_factory.create(context=self._new_context(causation_id=request_id)) as uow:
             request = self._require_pending_using(uow.approvals, request_id)
             self._ensure_not_self_decision(request)
@@ -248,6 +278,10 @@ class ApprovalService:
                     code="APPROVAL_HANDLER_MISSING",
                 )
             deps = dependencies_factory(uow._session)
+            # Approval-P2 (§2/§18): the apply participant MUST finish successfully before any
+            # `ApprovalApproved` recording -- if `handler(...)` raises, execution never reaches
+            # the status transition, `uow.record_event(...)`, or `uow.commit()` below; the whole
+            # transaction rolls back and the request remains PENDING.
             handler_result = self._normalize_handler_result(handler(request, deps))
             principal = self._user_session.principal if self._user_session else None
             request.status = ApprovalStatus.APPROVED
@@ -256,6 +290,18 @@ class ApprovalService:
             request.decided_by_username = principal.username if principal else None
             request.decision_note = note
             uow.approvals.update(request)
+            uow.record_event(
+                ApprovalApproved(
+                    approval_id=request.id,
+                    tenant_id=request.tenant_id,
+                    organization_id=request.organization_id,
+                    approval_type=request.request_type,
+                    entity_type=request.entity_type,
+                    entity_id=request.entity_id,
+                    decided_by_user_id=request.decided_by_user_id,
+                    occurred_at=clock.now(),
+                )
+            )
             record_audit_entry(
                 uow,
                 operation="update",

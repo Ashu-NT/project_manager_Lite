@@ -2662,6 +2662,67 @@ events, Approval ViewInvalidation, Qt consumer migration, `approvals_changed` re
 change to `approve_and_apply`/`reject`'s own (already-canonical) atomicity beyond reusing
 `build_request_audit_details(...)` from the participant module instead of a private duplicate.
 
+### Approval-P1A — Verification Closure (implemented)
+
+A follow-up pass closing the two verification gaps the Approval-P1 report explicitly flagged as
+incomplete: same-tenant cross-organization authorization coverage, and audit-failure rollback
+coverage for all four converged outer request workflows. No production redesign; two real,
+narrow production fixes surfaced and applied along the way (below). No DomainEvents/ViewInvalidation/
+Qt migration/`approvals_changed` removal -- still P1/P1A scope only.
+
+**Same-tenant, cross-organization authorization semantics (clarified, not changed).**
+`ApprovalService.approve_and_apply`/`reject` require only the GLOBAL role permission
+`approval.decide` -- there is no per-organization-scoped "decide" grant for Approval anywhere in
+this codebase. The organization boundary is enforced entirely by
+`SqlAlchemyApprovalRepository.get()`'s ambient `TenantScopedRepositorySupport._context()` filter,
+which requires the SESSION's active organization (`TenantContextService`, driven by
+`UserSessionContext.active_organization_id()` -- a different, unrelated concept from
+`OrganizationService.get_active_organization()`'s DB-level "single business-active organization
+per tenant" flag) to match the request's own `organization_id` (or its project's organization).
+`OrganizationService.set_active_organization` itself requires only the global `settings.manage`
+permission, with no per-organization membership check -- switching which organization is active
+is the ONLY mechanism that changes which organization's Approval requests are visible.
+
+Proven in `test_approval_same_tenant_cross_org_authorization.py`:
+- **Negative case:** an actor holding `approval.decide`, with Org A2 active, cannot
+  `approve_and_apply`/`reject` an Approval belonging to Org A1 in the same tenant -- `NotFoundError`,
+  before any apply/reject handler, decision-audit write, notification, or `approvals_changed`
+  signal runs (the request is invisible to `uow.approvals.get(...)`, not merely permission-denied).
+- **§3 (explicit cross-org authority while a different org remains active) is N/A:** nothing in
+  this authorization model grants decide authority over a non-active organization's request while
+  a different organization is active. Evidence: the SAME actor, holding the SAME permission,
+  fails against Org A1's request while Org A2 is active and succeeds against the IDENTICAL
+  request once Org A1 becomes active -- proving decide authority tracks the active organization
+  matching the request's authoritative `organization_id`, with no simultaneous multi-org decide
+  capability to test as a distinct code path.
+- **Cross-tenant isolation (§4) is unchanged** and re-verified via the existing
+  `test_platform_unit_of_work.py::test_cross_tenant_context_cannot_read_another_tenants_approval_
+  request` -- not duplicated here.
+
+**Audit-failure rollback, all five request-creation paths.** Forcing the Approval audit write
+itself to fail (distinct from a commit failure) rolls back the WHOLE owning transaction in every
+case -- no `ApprovalRequest`, no host mutation, no notification/`approvals_changed`:
+- Standalone `ApprovalService.request_change` (`test_approval_service_unit_of_work_cutover.py::
+  test_request_change_fails_closed_when_the_approval_audit_write_fails`).
+- `submit_requisition`/`submit_purchase_order`: each has exactly ONE in-transaction audit write
+  today (the Approval request's own, inside `request_approval_using`) -- neither has a separate
+  host-level audit entry yet (tracked debt, unchanged by this pass). Forcing that one write to
+  fail is the full atomicity proof available for these two paths.
+- `submit_change`/`submit_preparation`: each has TWO in-transaction audit writes (the Approval
+  request's own, then a separate, later host-level audit entry --
+  `_audit_change_using`/`_audit_using`). The tests force failure specifically on the SECOND call,
+  proving atomicity even when the failure occurs strictly after both the host mutation and the
+  ApprovalRequest have already been staged in the same transaction.
+
+**Two narrow production fixes surfaced by this pass (test-exposed, not scope creep):**
+1. A duplicate `resource_id: str | None = None,` parameter in
+   `TaskQueryMixin.query_workspace_page` (`task_query.py`) made the ENTIRE test suite fail to
+   collect (`SyntaxError: duplicate argument`). Unrelated to Approval; resolved independently by
+   the user's own concurrent work before this pass needed to touch it -- noted here only because
+   it briefly blocked running the regression suite this verification pass depends on.
+2. None found inside Approval-P1/P1A's own code paths themselves -- all gaps closed were test
+   coverage gaps, not production defects.
+
 ## P6 — Qt Invalidation Adapter Consolidation
 
 **Goal:** build the one shared Qt adapter, and migrate the three existing controller bases to

@@ -9,15 +9,15 @@ def normalize_page_for_total(*, page: int, page_size: int, total: int) -> int:
 
 
 def normalize_offset_for_total(*, offset: int, limit: int, total: int) -> int:
-    """Clamp an offset request to the first row of its final valid page."""
+    """Preserve a valid SQL offset and clamp only past-the-end requests."""
     normalized_limit = max(1, int(limit))
-    requested_page = (max(0, int(offset)) // normalized_limit) + 1
-    normalized_page = normalize_page_for_total(
-        page=requested_page,
-        page_size=normalized_limit,
-        total=total,
-    )
-    return (normalized_page - 1) * normalized_limit
+    normalized_offset = max(0, int(offset))
+    normalized_total = max(0, int(total))
+    if normalized_total == 0:
+        return 0
+    if normalized_offset < normalized_total:
+        return normalized_offset
+    return ((normalized_total - 1) // normalized_limit) * normalized_limit
 
 
 __all__ = ["normalize_offset_for_total", "normalize_page_for_total"]

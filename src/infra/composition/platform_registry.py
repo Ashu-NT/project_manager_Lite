@@ -416,6 +416,7 @@ def build_platform_service_bundle(
         role_permission_repo=repositories.role_permission_repo,
         permission_repo=repositories.permission_repo,
         role_binding_repo=repositories.role_binding_repo,
+        clock=SystemClock(),
     )
     overview_rollup_reader = SqlAlchemyPlatformOverviewRollupReader(session)
     auth_service = AuthService(

@@ -333,6 +333,8 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             request = request_approval_using(
                 approval_repo=uow.approvals,
                 enterprise_audit_service=uow._enterprise_audit_service,
+                clock=self._clock,
+                record_event=uow.record_event,
                 request_type="project_billing_preparation.approve",
                 entity_type="project_billing_preparation",
                 entity_id=preparation.id,

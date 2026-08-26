@@ -37,12 +37,13 @@ _DELAYED_FOREIGN_KEYS = (
     ('fk_employees_site_id_sites', 'employees', 'sites', ['site_id'], ['id'], 'SET NULL'),
     ('fk_employees_tenant_id_tenants', 'employees', 'tenants', ['tenant_id'], ['id'], 'RESTRICT'),
     ('fk_employees_user_id_users', 'employees', 'users', ['user_id'], ['id'], 'SET NULL'),
+    ('fk_resources_site_id_sites', 'resources', 'sites', ['site_id'], ['id'], 'SET NULL'),
 )
 
 
 def _create_delayed_foreign_keys(bind) -> None:
     if bind.dialect.name == 'sqlite':
-        for table_name in ('departments', 'employees'):
+        for table_name in ('departments', 'employees', 'resources'):
             with op.batch_alter_table(table_name, schema=None) as batch_op:
                 for name, source, target, local, remote, ondelete in _DELAYED_FOREIGN_KEYS:
                     if source == table_name:
@@ -54,7 +55,7 @@ def _create_delayed_foreign_keys(bind) -> None:
 
 def _drop_delayed_foreign_keys(bind) -> None:
     if bind.dialect.name == 'sqlite':
-        for table_name in ('employees', 'departments'):
+        for table_name in ('resources', 'employees', 'departments'):
             with op.batch_alter_table(table_name, schema=None) as batch_op:
                 for name, source, _target, _local, _remote, _ondelete in reversed(_DELAYED_FOREIGN_KEYS):
                     if source == table_name:
@@ -809,7 +810,7 @@ def upgrade() -> None:
     sa.Column('external_reference', sa.String(length=128), nullable=True),
     sa.Column('effective_from', sa.Date(), nullable=True),
     sa.Column('effective_to', sa.Date(), nullable=True),
-    sa.Column('is_active', sa.Boolean(), server_default=sa.text('1'), nullable=False),
+    sa.Column('is_active', sa.Boolean(), server_default=sa.true(), nullable=False),
     sa.Column('version', sa.Integer(), server_default='1', nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
@@ -854,7 +855,6 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['department_id'], ['departments.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['employee_id'], ['employees.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['site_id'], ['sites.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['tenant_id'], ['tenants.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -1917,8 +1917,8 @@ def upgrade() -> None:
     sa.Column('cost_code_policy', sa.String(length=16), server_default='all_active', nullable=False),
     sa.Column('financial_start_date', sa.Date(), nullable=True),
     sa.Column('financial_end_date', sa.Date(), nullable=True),
-    sa.Column('is_funded', sa.Boolean(), server_default=sa.text('0'), nullable=False),
-    sa.Column('is_billable', sa.Boolean(), server_default=sa.text('0'), nullable=False),
+    sa.Column('is_funded', sa.Boolean(), server_default=sa.false(), nullable=False),
+    sa.Column('is_billable', sa.Boolean(), server_default=sa.false(), nullable=False),
     sa.Column('default_cost_code_id', sa.String(), nullable=True),
     sa.Column('version', sa.Integer(), server_default='1', nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
@@ -1948,7 +1948,7 @@ def upgrade() -> None:
     sa.Column('name', sa.String(length=256), nullable=False),
     sa.Column('card_kind', sa.String(length=16), nullable=True),
     sa.Column('version', sa.Integer(), server_default='1', nullable=False),
-    sa.Column('is_active', sa.Boolean(), server_default=sa.text('1'), nullable=False),
+    sa.Column('is_active', sa.Boolean(), server_default=sa.true(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.CheckConstraint("card_kind IS NULL OR card_kind = 'legacy'", name='ck_pf_rate_cards_card_kind'),
@@ -2646,7 +2646,7 @@ def upgrade() -> None:
     sa.Column('department_id', sa.String(), nullable=True),
     sa.Column('effective_from', sa.Date(), nullable=True),
     sa.Column('effective_to', sa.Date(), nullable=True),
-    sa.Column('is_active', sa.Boolean(), server_default=sa.text('1'), nullable=False),
+    sa.Column('is_active', sa.Boolean(), server_default=sa.true(), nullable=False),
     sa.Column('unit', sa.String(length=32), nullable=False),
     sa.Column('rate_amount', sa.Numeric(precision=19, scale=8), nullable=False),
     sa.Column('rate_currency', sa.String(length=8), nullable=False),

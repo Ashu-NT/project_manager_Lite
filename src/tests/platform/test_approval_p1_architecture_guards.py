@@ -92,6 +92,6 @@ def test_participant_module_never_imports_a_concrete_sqlalchemy_unit_of_work():
     """§19: the participant must not be coupled to a concrete SQLAlchemy UoW merely to prepare
     for P2's event recording -- it takes already-constructed repo/audit-service collaborators as
     plain parameters."""
-    source = inspect.getsource(approval_mutation_participant)
+    source = _strip_strings_and_comments(inspect.getsource(approval_mutation_participant))
     for forbidden in ("SqlAlchemyUnitOfWork", "sqlalchemy", "Session"):
         assert forbidden not in source

@@ -50,6 +50,7 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
 )
 from src.core.modules.inventory_procurement.application.common.support import normalize_optional_text
 from src.core.shared.events.domain_events import domain_events
+from src.core.shared.time.clock import Clock
 
 
 class PurchasingService(
@@ -79,6 +80,7 @@ class PurchasingService(
         stock_service: StockControlService,
         approval_service: ApprovalService,
         purchase_order_submission_uow_factory: PurchaseOrderSubmissionUnitOfWorkFactory | None = None,
+        clock: Clock | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
         activity_service=None,
@@ -109,6 +111,12 @@ class PurchasingService(
         # stays backward-compatible for any test double that never calls `submit_purchase_order`;
         # production composition always supplies it.
         self._purchase_order_submission_uow_factory = purchase_order_submission_uow_factory
+        # Approval-P2: `occurred_at` on the `ApprovalRequested` recorded by
+        # `submit_purchase_order` comes from this Clock, never `datetime.now()`. Optional only so
+        # this constructor stays backward-compatible for the apply-participant's own fresh,
+        # submission-unrelated `PurchasingService` instance; production composition always
+        # supplies a real `SystemClock()`.
+        self._clock = clock
         self._user_session = user_session
         self._activity_service = activity_service
         self._document_integration_service: DocumentIntegrationService | None = document_integration_service

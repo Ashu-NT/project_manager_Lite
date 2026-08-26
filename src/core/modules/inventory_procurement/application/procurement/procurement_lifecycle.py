@@ -200,6 +200,11 @@ class ProcurementLifecycleMixin:
                 "Purchase requisition submission requires a configured transaction owner.",
                 code="INVENTORY_REQUISITION_SUBMISSION_UOW_REQUIRED",
             )
+        if self._clock is None:
+            raise BusinessRuleError(
+                "Purchase requisition submission requires a configured Clock.",
+                code="INVENTORY_REQUISITION_CLOCK_REQUIRED",
+            )
         self._require_manage("submit purchase requisition")
         requisition = self._require_draft_requisition(requisition_id)
         lines = self._requisition_line_repo.list_for_requisition(requisition.id)
@@ -235,6 +240,8 @@ class ProcurementLifecycleMixin:
             request = request_approval_using(
                 approval_repo=uow.approvals,
                 enterprise_audit_service=uow._enterprise_audit_service,
+                clock=self._clock,
+                record_event=uow.record_event,
                 request_type="purchase_requisition.submit",
                 entity_type="purchase_requisition",
                 entity_id=requisition.id,

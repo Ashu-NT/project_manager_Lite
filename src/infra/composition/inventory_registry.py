@@ -6,6 +6,7 @@ from time import perf_counter
 
 from sqlalchemy.orm import Session, sessionmaker
 
+from src.infra.time.system_clock import SystemClock
 from src.core.platform.access import ScopedRolePolicy
 from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
     SqlAlchemyOrganizationRepository,
@@ -225,6 +226,7 @@ def build_inventory_procurement_service_bundle(
         party_service=platform_services.party_service,
         approval_service=platform_services.approval_service,
         requisition_submission_uow_factory=requisition_submission_uow_factory,
+        clock=SystemClock(),
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
@@ -268,6 +270,7 @@ def build_inventory_procurement_service_bundle(
         stock_service=inventory_stock_service,
         approval_service=platform_services.approval_service,
         purchase_order_submission_uow_factory=purchase_order_submission_uow_factory,
+        clock=SystemClock(),
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         document_integration_service=platform_services.document_integration_service,

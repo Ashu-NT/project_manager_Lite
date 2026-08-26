@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
+from src.core.platform.domain.approval import ApprovalRequest, ApprovalRequested, ApprovalStatus
 from src.core.shared.audit import record_audit_entry
+from src.core.shared.time.clock import Clock
 
 
 class _EnterpriseAuditServiceOwner:
@@ -58,6 +60,8 @@ def request_approval_using(
     *,
     approval_repo,
     enterprise_audit_service: Any,
+    clock: Clock,
+    record_event: Callable[[object], None],
     request_type: str,
     entity_type: str,
     entity_id: str,
@@ -69,13 +73,22 @@ def request_approval_using(
     requested_by_username: str | None = None,
 ) -> ApprovalRequest:
     """Stages a new `ApprovalRequest` (duplicate-pending guard, construction, `repo.add()`,
-    fail-closed audit entry) inside the caller's OWN already-open transaction. Never commits;
-    the caller calls `uow.commit()` (or equivalent) itself, after this returns.
+    fail-closed audit entry) and records the ONE `ApprovalRequested` fact for it (Approval-P2),
+    inside the caller's OWN already-open transaction. Never commits; the caller calls
+    `uow.commit()` (or equivalent) itself, after this returns.
 
     `tenant_id` is REQUIRED and never derived here -- the caller resolves it once, from its own
     authoritative context, before calling this function (ADR-005 Section 3's rule: never
     re-derive ambient state after construction). `organization_id` is likewise supplied by the
     caller, never read from ambient `TenantContextService` state inside this module.
+
+    `record_event` is a narrow, transaction-provided callback (conceptually `owning_uow.
+    record_event`) -- never a concrete UnitOfWork/Session import here, so this module stays
+    transaction-agnostic and reusable by every owning transaction (ADR-005 Section 24's
+    "narrow transaction-provided recording capability" rule, mirroring `role_binding_mutation_
+    participant.py`'s own `record_event: Callable[[object], None]` parameter). `clock` is
+    likewise supplied by the caller (never `datetime.now()` here), so `ApprovalRequested.
+    occurred_at` is deterministic under a fixed-clock test.
     """
     if (
         organization_id
@@ -130,6 +143,18 @@ def request_approval_using(
         metadata={"action": "governance.request", **build_request_audit_details(request)},
         commit=False,
         fail_closed=True,
+    )
+    record_event(
+        ApprovalRequested(
+            approval_id=request.id,
+            tenant_id=request.tenant_id,
+            organization_id=request.organization_id,
+            approval_type=request.request_type,
+            entity_type=request.entity_type,
+            entity_id=request.entity_id,
+            requested_by_user_id=request.requested_by_user_id,
+            occurred_at=clock.now(),
+        )
     )
     return request
 

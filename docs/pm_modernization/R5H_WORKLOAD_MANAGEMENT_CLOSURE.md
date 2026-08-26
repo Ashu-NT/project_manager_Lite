@@ -2,12 +2,12 @@
 
 ## 1. R5 Status
 
-R5 implementation is complete, but the R5 exit gate is not closed. The final
-code audit found one authority per workload concept, removed verified dead
-paths, restored TimeEntry optimistic concurrency, and passed the focused R5H
-regression. Required PostgreSQL runtime-role/RLS/query-plan evidence and parts
-of the integrated runtime evidence matrix are not available and are not
-inferred from SQLite or source tests.
+R5 implementation and the R5H.1 PostgreSQL security/scale gate are complete,
+but the final R5 exit gate is not closed. The final code audit found one
+authority per workload concept, removed verified dead paths, restored TimeEntry
+optimistic concurrency, and passed the focused R5H regression. Remaining open
+evidence is the integrated runtime interaction matrix and final PM regression
+reconciliation; neither is inferred from source-only tests.
 
 ## 2. Final Product IA
 
@@ -218,18 +218,20 @@ MINE/TEAM/ALL target validation blocks manual cross-Resource IDs; TEAM and ALL
 do not broaden tenant/org scope. Project names/task identity are returned only
 under source visibility while authorized hours remain truthful. Application
 tenant/org, cross-resource, cross-team, ALL-without-permission, hidden-project,
-and organization-switch tests pass. Database defense-in-depth remains subject
-to the RLS evidence gap below.
+and organization-switch tests pass. Database defense-in-depth is now covered by
+the live R5H.1 PostgreSQL evidence below.
 
 ## 24. RLS
 
 The fresh PostgreSQL baseline classifies direct scoped R5 tables and generates
 forced parent-correlated policies for ResourceSkill, ResourceCertification,
-ProjectResource, Task, TaskAssignment, and TaskSkillRequirement. Generated
-policy/classification tests pass. This is not runtime proof. No configured
-non-superuser/non-BYPASSRLS PostgreSQL role, direct cross-tenant/org
-SELECT/INSERT/UPDATE/DELETE negatives, child-table bypass run, or recorded
-`pg_class`/`pg_policy` inspection was available. The RLS exit gate is open.
+ProjectResource, Task, TaskAssignment, and TaskSkillRequirement. R5H.1 runs
+Alembic from a fresh schema under a separate migration owner and executes live
+checks through `app_runtime`, which is NOSUPERUSER, NOBYPASSRLS, and owns no
+application tables. `pg_class` and `pg_policies` inspection, absent-context
+denial, cross-tenant and same-tenant/cross-organization CRUD negatives, and all
+six child-table bypass attempts pass. See `R5H_1_POSTGRESQL_EVIDENCE.md`. The
+PostgreSQL RLS exit gate is closed.
 
 ## 25. Responsive Results
 
@@ -254,10 +256,13 @@ Measured local SQLite engineering evidence, not PostgreSQL production claims:
 | Resource Activity | 10k 30.08 ms | 3 |
 
 Availability is date-range bounded and paged detail models retain only the
-current page. Review Queue statement-count tests prove bounded query count, but
-final 100/1k/10k/50k queue, selector, Timesheets, Availability, and queue
-Inspector p50/p95 evidence is incomplete. PostgreSQL EXPLAIN ANALYZE and index
-decisions are open.
+current page. Live PostgreSQL 10k/50k p95 is 43.27/132.38 ms for Resource
+Catalog, 24.21/63.06 ms for the Timesheets Resource selector, and 49.53/179.03
+ms for Review Queue. At 50k, Resource Inspector is 9.22 ms, Availability demand
+5.63 ms, Timesheet entries 40.92 ms, Timesheet history 42.07 ms, and Review
+Queue Inspector 48.48 ms p95. Catalog/selector/queue statement budgets are
+3/2/2. Runtime-role `EXPLAIN (ANALYZE, BUFFERS)` covers every listed surface;
+no speculative index was required. The PostgreSQL performance matrix is closed.
 
 ## 27. Memory / Async Results
 
@@ -306,10 +311,16 @@ and external deep-link dependencies no longer reference it.
 Focused R5H reconciliation: 52 passed. The final policy/R5G/TimeEntry evidence
 set adds 20 passed. Earlier focused concurrency, assignment, integration,
 security, runtime, migration, and performance groups also passed. The final
-broad `src/tests/project_management` result is 1,391 passed and one failed in
-544.37 seconds. The sole failure is the Finance desktop commitment pagination
-contract: requested `offset=10` is delegated as `offset=0`. All ten earlier R5
-stale-contract/fake failures are fixed and green.
+broad `src/tests/project_management` result was 1,391 passed and one failed in
+544.37 seconds. The sole failure was reproduced and corrected: valid arbitrary
+SQL offsets are now preserved, while only past-the-end offsets clamp to the
+last valid page. The focused Finance pagination/export set passes 11 tests. The
+broad suite has not been rerun because this continuation is restricted to
+targeted tests. All ten earlier R5 stale-contract/fake failures are green.
+
+R5H.1 adds 18 live PostgreSQL tests: 14 security/concurrency checks plus 10k/50k
+reader measurements and runtime-role query plans. The focused Review
+Queue/Timesheets compatibility set adds 13 passed.
 
 ## 32. Static Tool Results
 
@@ -323,8 +334,8 @@ commit; the user committed concurrent work during the audit.
 
 | Classification | Item |
 |---|---|
-| BLOCKER | PostgreSQL runtime-role RLS negatives, child bypass, and catalog inspection evidence |
-| BLOCKER | PostgreSQL plans/index evidence and incomplete final selector/Timesheets/Review Queue 50k performance matrix |
+| CLOSED BY R5H.1 | PostgreSQL runtime-role RLS negatives, child bypass, and catalog inspection evidence |
+| CLOSED BY R5H.1 | PostgreSQL 10k/50k reader matrix and runtime-role plans for Catalog, selector, Review Queue, Availability demand, Timesheets, and Inspectors |
 | BLOCKER | Incomplete manual keyboard/dialog/rapid-switch runtime evidence matrix |
 | R6 | Finance implementation and any Finance-owned regression |
 | R8 | Broad accessibility certification and non-blocking visual polish |
@@ -343,16 +354,10 @@ TimeEntry semantics must not be repurposed as financial amounts.
 
 Actual remediation required before closure:
 
-1. Run PostgreSQL with the configured non-superuser/non-BYPASSRLS application
-   role; record `pg_class`/`pg_policy` and direct tenant/org CRUD negatives for
-   all R5 parent and child tables, including child-table bypass attempts.
-2. Record PostgreSQL EXPLAIN ANALYZE/query budgets and representative
-   100/1k/10k/50k results for the remaining Resource selector, Availability,
-   Timesheets, Review Queue, and queue Inspector reads; add indexes only where
-   those plans justify them.
-3. Complete and record the five-viewport keyboard/focus/dialog/rapid-selection/
+1. Complete and record the five-viewport keyboard/focus/dialog/rapid-selection/
    route-and-organization-switch runtime matrix.
-4. Obtain a green final broad PM regression, including the existing Finance
-   pagination-contract test required by the integrated PM exit gate.
+2. Obtain final PM regression reconciliation. The former Finance pagination
+   blocker is fixed and its focused set is green; the broad suite was not rerun
+   under the targeted-test-only instruction.
 
 R5 NOT CLOSED

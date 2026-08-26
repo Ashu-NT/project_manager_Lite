@@ -382,6 +382,8 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
             approval = request_approval_using(
                 approval_repo=uow.approvals,
                 enterprise_audit_service=uow._enterprise_audit_service,
+                clock=self._clock,
+                record_event=uow.record_event,
                 request_type="financial_change.apply",
                 entity_type="financial_change_request",
                 entity_id=change.id,
