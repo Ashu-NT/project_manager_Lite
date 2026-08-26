@@ -119,6 +119,11 @@ from src.core.platform.domain.master_data.site.access_policy import (
     normalize_site_scope_role,
     resolve_site_scope_permissions,
 )
+from src.core.platform.domain.master_data.org.access_policy import (
+    ORGANIZATION_SCOPE_ROLE_CHOICES,
+    normalize_organization_scope_role,
+    resolve_organization_scope_permissions,
+)
 from src.core.platform.domain.tenant.tenancy import Tenant, UserTenantMembership
 from src.core.platform.application.tenant.tenancy import (
     TenantAdminService,
@@ -763,6 +768,12 @@ def build_platform_service_bundle(
                     role_choices=SITE_SCOPE_ROLE_CHOICES,
                     normalize_role=normalize_site_scope_role,
                     resolve_permissions=resolve_site_scope_permissions,
+                ),
+                ScopedRolePolicy(
+                    scope_type="organization",
+                    role_choices=ORGANIZATION_SCOPE_ROLE_CHOICES,
+                    normalize_role=normalize_organization_scope_role,
+                    resolve_permissions=resolve_organization_scope_permissions,
                 ),
             )
         ),

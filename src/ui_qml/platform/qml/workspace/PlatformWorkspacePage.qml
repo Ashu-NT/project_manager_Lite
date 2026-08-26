@@ -56,12 +56,7 @@ Item {
     readonly property bool _isMultiTenant: root.platformCatalog
         ? root.platformCatalog.tenantSwitcher.isMultiTenant
         : false
-
-    // R4/R5: every Platform capability (Organizations/Sites/Departments/
-    // Employees/Parties/Calendars in R4; Users/Access/Documents/Structures
-    // in R5) is its own standalone page, hosted here as a persistent
-    // sibling gated purely by destination id -- the Admin Console facade
-    // that used to compose these has been fully retired (R5.9).
+ 
     readonly property var _directSurfaceDestinations: [
         "organizations", "sites", "departments", "employees", "parties", "calendars",
         "users", "access", "documents", "structures"
@@ -99,19 +94,19 @@ Item {
     }
 
     // -- Active organization (for ContextBar) ------------------------
-    // Reuses the same "find the row with state.isActive" pattern
-    // AdminDialogHost.qml's _activeOrganizationName() already uses in
-    // production -- no new backend state invented for this.
     readonly property var _organizationItems: root.platformCatalog
-        ? ((root.platformCatalog.adminWorkspace.organizations || {}).items || [])
+        ? (root.platformCatalog.organizationSwitcher.organizations || [])
         : []
 
     readonly property string _activeOrganizationName: {
+        if (!root.platformCatalog) {
+            return ""
+        }
+        const activeId = root.platformCatalog.organizationSwitcher.activeOrganizationId
         for (let i = 0; i < root._organizationItems.length; i += 1) {
             const item = root._organizationItems[i] || {}
-            const state = item.state || {}
-            if (state.isActive === true) {
-                return String(state.displayName || item.title || "")
+            if (item.id === activeId) {
+                return String(item.displayName || item.organizationCode || "")
             }
         }
         return ""
@@ -121,12 +116,11 @@ Item {
         const options = []
         for (let i = 0; i < root._organizationItems.length; i += 1) {
             const item = root._organizationItems[i] || {}
-            const state = item.state || {}
-            const id = String(state.organizationId || state.id || item.id || "")
+            const id = String(item.id || "")
             if (id.length === 0) {
                 continue
             }
-            options.push({ "id": id, "label": String(state.displayName || item.title || id) })
+            options.push({ "id": id, "label": String(item.displayName || id) })
         }
         return options
     }
@@ -269,7 +263,7 @@ Item {
             }
             onOrganizationSelected: function(organizationId) {
                 if (root.platformCatalog) {
-                    root.platformCatalog.adminWorkspace.setActiveOrganization(organizationId)
+                    root.platformCatalog.organizationSwitcher.switchToOrganization(organizationId)
                     root.platformCatalog.refreshCurrentPermissions()
                 }
             }

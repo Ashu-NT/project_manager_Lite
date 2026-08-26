@@ -10,9 +10,10 @@ from .common import (
 )
 from .control import PlatformControlWorkspaceController
 from .settings import PlatformSettingsWorkspaceController
-from .tenants import TenantSwitcherController
+from .tenants import OrganizationSwitcherController, TenantSwitcherController
 
 __all__ = [
+    "OrganizationSwitcherController",
     "PlatformAdminAccessWorkspaceController",
     "PlatformAdminWorkspaceController",
     "PlatformControlWorkspaceController",

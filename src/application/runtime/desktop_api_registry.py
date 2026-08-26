@@ -201,6 +201,18 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     access_scope_type_choices: list[tuple[str, str]] = []
     access_scope_option_loaders: dict[str, object] = {}
     access_scope_disabled_hints: dict[str, str] = {}
+    organization_service = services.get("organization_service")
+    if organization_service is not None and hasattr(organization_service, "list_organizations"):
+        access_scope_type_choices.append(("Organization", "organization"))
+        access_scope_option_loaders["organization"] = lambda: [
+            (
+                organization.display_name
+                if organization.is_enabled
+                else f"{organization.display_name} (disabled)",
+                organization.id,
+            )
+            for organization in organization_service.list_organizations(enabled_only=None)
+        ]
     if project_service is not None and hasattr(project_service, "list_projects"):
         access_scope_type_choices.append(("Project", "project"))
         access_scope_option_loaders["project"] = lambda: [

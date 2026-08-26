@@ -27,8 +27,12 @@ from src.ui_qml.platform.controllers.identity_access.access import (
 from src.ui_qml.platform.controllers.support import PlatformSupportWorkspaceController
 from src.ui_qml.platform.controllers.control import PlatformControlWorkspaceController
 from src.ui_qml.platform.controllers.settings import PlatformSettingsWorkspaceController
-from src.ui_qml.platform.controllers.tenants import TenantSwitcherController
+from src.ui_qml.platform.controllers.tenants import (
+    OrganizationSwitcherController,
+    TenantSwitcherController,
+)
 from src.ui_qml.platform.presenters import (
+    OrganizationSwitcherPresenter,
     PlatformAccessWorkspacePresenter,
     PlatformAdminWorkspacePresenter,
     PlatformControlQueuePresenter,
@@ -163,13 +167,17 @@ class PlatformWorkspaceCatalog(QObject):
             self,
         )
         self._tenant_switcher.refresh()
+        # P10C: sibling of the tenant switcher, not a merged concept -- a tenant switch rebuilds
+        # the whole authority context, an organization switch only rescopes the
+        # organization-owned adapters below. Reuses the same `platform_tenant` desktop API (P10C
+        # added its organization-switcher methods there, alongside the pre-existing tenant ones).
+        self._organization_switcher = OrganizationSwitcherController(
+            OrganizationSwitcherPresenter(tenant_api=tenant_api),
+            self,
+        )
+        self._organization_switcher.refresh()
         self._route_by_id = {route.route_id: route for route in build_platform_routes()}
 
-        # P5A + Organization-specific P6A cutover: the two real Organization-creation UI
-        # consumers (admin console organization list, settings organization profiles list) react
-        # to the typed OrganizationCreated event via this Qt adapter, never the legacy
-        # organizations_changed signal -- which remains wired, unchanged, for
-        # update/activation-triggered refreshes only.
         view_invalidation_channel = (
             getattr(desktop_api_registry, "platform_view_invalidation_channel", None)
             if desktop_api_registry is not None
@@ -186,11 +194,6 @@ class PlatformWorkspaceCatalog(QObject):
         self._organization_view_invalidation_adapter.organizationCollectionStale.connect(
             self._settings_workspace.refresh_organization_profiles
         )
-        # Tenant-scope hardening: a single adapter instance persists across a tenant switch (the
-        # QML controller tree is never reconstructed), so it must be re-scoped to whichever
-        # tenant is now active -- otherwise it would keep matching the PREVIOUS tenant's
-        # organization-collection invalidations (or, with the earlier AllTenants() subscription,
-        # every tenant's), never correctly following the switch.
         self._tenant_switcher.tenantSwitched.connect(self._on_tenant_switched)
         self._module_entitlement_view_invalidation_adapter = ModuleEntitlementViewInvalidationAdapter(
             channel=view_invalidation_channel,
@@ -240,6 +243,7 @@ class PlatformWorkspaceCatalog(QObject):
         self._tenant_membership_view_invalidation_adapter.set_active_tenant(
             self._tenant_switcher.activeTenantId
         )
+        self._organization_switcher.refresh()
 
     def _active_organization_id(self) -> str:
         if self._runtime_api is None:
@@ -272,6 +276,10 @@ class PlatformWorkspaceCatalog(QObject):
     @Property(TenantSwitcherController, constant=True)
     def tenantSwitcher(self) -> TenantSwitcherController:
         return self._tenant_switcher
+
+    @Property(OrganizationSwitcherController, constant=True)
+    def organizationSwitcher(self) -> OrganizationSwitcherController:
+        return self._organization_switcher
 
     @Slot(str, result="QVariantMap")
     def workspace(self, route_id: str) -> dict[str, str]:
@@ -317,6 +325,7 @@ class PlatformWorkspaceCatalog(QObject):
     def refreshAllWorkspaces(self) -> None:
         for controller in (
             self._tenant_switcher,
+            self._organization_switcher,
             self._admin_workspace,
             self._admin_access_workspace,
             self._admin_support_workspace,

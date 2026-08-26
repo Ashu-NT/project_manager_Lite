@@ -290,6 +290,12 @@ class OrganizationService:
             )
             uow.commit()
         domain_events.organizations_changed.emit(candidate.id)
+        if (
+            not is_enabled
+            and self._user_session is not None
+            and self._user_session.active_organization_id() == candidate.id
+        ):
+            self._user_session.set_active_organization_id(None)
         return candidate
 
 

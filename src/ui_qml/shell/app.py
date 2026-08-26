@@ -201,6 +201,9 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
     platform_workspace_catalog.tenantSwitcher.tenantSwitched.connect(
         pm_workspace_catalog.refreshCapabilities
     )
+    platform_workspace_catalog.organizationSwitcher.organizationSwitched.connect(
+        pm_workspace_catalog.refreshCapabilities
+    )
     platform_workspace_catalog.adminWorkspace.organizationsChanged.connect(
         pm_workspace_catalog.refreshCapabilities
     )
