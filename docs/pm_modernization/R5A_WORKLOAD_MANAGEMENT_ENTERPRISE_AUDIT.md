@@ -18,7 +18,7 @@ Evidence was traced through QML, controllers, presenters, desktop APIs, applicat
 
 ## 2. Executive Summary
 
-The approved two-destination IA is correct and is already represented by the canonical PM workspace route. The product should not add Workload, Capacity, My Time, Time Entries, or Timesheets as additional top-level destinations.
+The approved Workload Management IA is correct and is already represented by the canonical PM workspace route. Resources and Review Queue remain its only destinations. R5F.1 subsequently approved one separate `Work -> Timesheets` destination; the product must not add Workload, Capacity, My Time, or Time Entries as additional destinations.
 
 The current Resource catalog has a strong scalable base: authoritative SQL paging, filtering, sorting, deterministic ordering, tenant/organization scoping, and bounded statement tests. It is not yet an enterprise Resource experience. The read contract leaks a mutable domain entity, there is no lightweight Inspector, detail sections use service fan-out and pseudo-history, capabilities are incomplete, skill/certification writes lack reliable authorization/transaction/event behavior, and editing can silently reset capacity to 100 percent.
 
@@ -505,7 +505,7 @@ Project Management
         `-- Source Activity / Decision History
 ```
 
-No other top-level Workload Management destination is approved. My Time/Time Entry remains outside this R5 IA. Compatibility route IDs may continue resolving to the canonical PM workspace until separately retired.
+No other Workload Management destination is approved. R5F.1 subsequently approved one `Work -> Timesheets` destination with MINE/TEAM/ALL as query scopes; My Time and Time Entry remain non-destinations. Compatibility route IDs may continue resolving to the canonical PM workspace until separately retired.
 
 ## 53. Recommended Resource Detail IA
 
@@ -701,7 +701,7 @@ Resource and queue usability at the five required viewports is an R5 exit condit
 
 ## 72. Explicit Deferred Scope
 
-The following are not part of R5 unless separately approved:
+The following are not part of R5 unless separately approved. R5F.1 supplied that later approval for one `Work -> Timesheets` destination only:
 
 - HR/payroll, leave, performance management, recruitment, and employee master redesign.
 - Automatic skill-based assignment, candidate ranking, AI recommendations, and opaque matching scores.
@@ -709,7 +709,7 @@ The following are not part of R5 unless separately approved:
 - Financial budgeting, rate architecture, billing, invoicing, accounting, and Finance workspace redesign.
 - Broad document management or certificate document repository.
 - Generic multi-workflow Review Queue or persisted queue aggregate.
-- A new My Time, Time Entries, Timesheets, Workload, or Capacity top-level destination.
+- Additional My Time, Time Entries, Workload, or Capacity destinations, or any Timesheets destination beyond the single R5F.1 workspace.
 - Enterprise skill/certification taxonomy administration beyond the R5 foundations.
 - Resource-by-time portfolio heatmap unless later evidence proves catalog/detail summaries insufficient.
 

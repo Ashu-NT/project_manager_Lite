@@ -357,11 +357,12 @@ runtime/database is available.
 
 ## 37. R5H Handoff
 
-R5H has not started. After all R5G critical/high defects and evidence gates are
-closed, R5H will inventory R5 files/contracts/routes/QML, remove proven dead or
-legacy artifacts, establish one authority per concept, run final broad suites,
-reconcile documents, and produce final R5 closure. No compatibility artifact is
-to survive without an explicit owner and removal condition.
+R5H has started and owns the final inventory, dead-path cleanup, broad PM
+regression, documentation reconciliation, and closure decision. R5G's open
+PostgreSQL runtime-role/RLS/query-plan evidence remains explicit input to that
+decision; it is not inferred from SQLite or generated-policy tests. No
+compatibility artifact may survive without an explicit owner and removal
+condition.
 
 ### R5G Exit-Gate Ledger
 

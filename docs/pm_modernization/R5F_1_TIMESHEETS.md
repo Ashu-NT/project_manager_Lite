@@ -2,9 +2,9 @@
 
 ## Status
 
-**IN PROGRESS - corrected design approved 2026-08-25.** R5F remains closed and
+**IMPLEMENTATION COMPLETE - R5H EVIDENCE GATES APPLY.** R5F remains closed and
 Review Queue ownership is unchanged. R5F.1 owns one canonical `Work ->
-Timesheets` workspace. R5G and R6 are not started by this phase.
+Timesheets` workspace. R6 is outside this phase.
 
 The earlier personal-only implementation is not a compatibility target. Its
 `Owner*` contracts, reader, presenter, controller, tests, and QML type artifacts
@@ -186,37 +186,38 @@ create authority.
 
 ## Mandatory Exit Gate
 
-- [ ] One Timesheets workspace exists under Work.
-- [ ] No My Time, Team Time, or All Timesheets top-level destination exists.
-- [ ] MINE/TEAM/ALL are typed query scopes.
-- [ ] MINE-only users see no unnecessary scope controls.
-- [ ] MINE Resource is resolved server-side and cannot be impersonated.
-- [ ] TEAM population is server-authorized; out-of-team targets are denied.
-- [ ] ALL requires explicit permission and never crosses tenant/organization.
-- [ ] Resource selection is bounded, searched, counted, paged, and sorted in SQL.
-- [ ] PERSON Employee and PERSON External are eligible under central policy.
-- [ ] External with login supports MINE; without login supports governed delegation.
-- [ ] CREW and EQUIPMENT are not automatically eligible.
-- [ ] Owner and actor remain distinct audit facts.
-- [ ] Read-other, edit-other, delegated submit, and review are separate permissions.
-- [ ] Direct target IDs never grant authorization.
-- [ ] Period totals remain truthful under project identity redaction.
-- [ ] TimeEntry and TimesheetPeriod remain authoritative.
-- [ ] Task Detail -> Time and Timesheets reuse the same mutation path.
-- [ ] On-behalf entry and submission are explicitly authorized.
-- [ ] Submission remains atomic and version-aware.
-- [ ] Review Queue refreshes through post-commit invalidation only.
-- [ ] History follows the selected Resource and is server-paged.
-- [ ] No Resource-selection N+1 query exists.
-- [ ] 10k selector performance is measured.
+- [x] One Timesheets workspace exists under Work.
+- [x] No My Time, Team Time, or All Timesheets top-level destination exists.
+- [x] MINE/TEAM/ALL are typed query scopes.
+- [x] MINE-only users see no unnecessary scope controls.
+- [x] MINE Resource is resolved server-side and cannot be impersonated.
+- [x] TEAM population is server-authorized; out-of-team targets are denied.
+- [x] ALL requires explicit permission and never crosses tenant/organization.
+- [x] Resource selection is bounded, searched, counted, paged, and sorted in SQL.
+- [x] PERSON Employee and PERSON External are eligible under central policy.
+- [x] External with login supports MINE; without login supports governed delegation.
+- [x] CREW and EQUIPMENT are not automatically eligible.
+- [x] Owner and actor remain distinct audit facts.
+- [x] Read-other, edit-other, delegated submit, and review are separate permissions.
+- [x] Direct target IDs never grant authorization.
+- [x] Period totals remain truthful under project identity redaction.
+- [x] TimeEntry and TimesheetPeriod remain authoritative.
+- [x] Task Detail -> Time and Timesheets reuse the same mutation path.
+- [x] On-behalf entry and submission are explicitly authorized.
+- [x] Submission remains atomic and version-aware.
+- [x] Review Queue refreshes through post-commit invalidation only.
+- [x] History follows the selected Resource and is server-paged.
+- [x] No Resource-selection N+1 query exists.
+- [x] 10k selector performance is measured.
 - [ ] 50k selector performance is measured where practical.
 - [ ] 1024x640 TEAM/ALL layout is manually verified.
-- [ ] Review Queue was not redesigned.
-- [ ] Personal-only artifacts are deleted; no dead compatibility code remains.
-- [ ] No commit was created by Codex.
+- [x] Review Queue was not redesigned by R5F.1.
+- [x] Personal-only artifacts are deleted; no dead compatibility code remains.
+- [x] No commit was created by Codex.
 
 ## Closure Evidence
 
-Not yet closed. Targeted test results, selector query counts and benchmarks,
-QML lint, viewport evidence, exact deleted artifacts, and final git status will
-be appended here after implementation.
+Implementation and targeted R5F.1 contracts are complete. The optional 50k
+selector run and manual 1024x640 interaction observation remain environment
+evidence, not alternate implementation paths. Integrated results and the final
+R5 decision are recorded in `R5H_WORKLOAD_MANAGEMENT_CLOSURE.md`.

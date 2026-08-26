@@ -171,6 +171,48 @@ def test_submit_requisition_uses_a_fresh_uow_session_shared_by_the_approval_requ
     assert submitted.status.value == "SUBMITTED"
 
 
+def test_submit_requisition_audit_failure_rolls_back_requisition_and_approval_request_together(
+    services, monkeypatch
+):
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
+
+    auth = services["auth_service"]
+    auth.register_user("inventory-requester-auditfail", "StrongPass123", role_names=["inventory_manager"])
+    site, storeroom, item, supplier = _create_requisition_context(services)
+    login_as(services, "inventory-requester-auditfail", "StrongPass123")
+
+    procurement = services["inventory_procurement_service"]
+    requisition = procurement.create_requisition(
+        requesting_site_id=site.id,
+        requesting_storeroom_id=storeroom.id,
+        purpose="Audit-failure probe",
+    )
+    procurement.add_requisition_line(
+        requisition.id,
+        stock_item_id=item.id,
+        quantity_requested=1,
+        suggested_supplier_party_id=supplier.id,
+    )
+
+    def _fail_record(self, **kwargs):
+        raise RuntimeError("simulated approval audit failure")
+
+    monkeypatch.setattr(EnterpriseAuditService, "record", _fail_record)
+
+    with pytest.raises(RuntimeError, match="simulated approval audit failure"):
+        procurement.submit_requisition(requisition.id)
+
+    monkeypatch.undo()
+    reloaded = procurement.get_requisition(requisition.id)
+    assert reloaded.status.value == "DRAFT"
+    assert reloaded.approval_request_id is None
+    lines = procurement.list_requisition_lines(requisition.id)
+    assert all(line.status.value == "DRAFT" for line in lines)
+    assert services["approval_service"].list_pending() == []
+
+
 def test_requisition_service_validates_draft_and_line_rules(services):
     site, storeroom, item, _supplier = _create_requisition_context(services)
     procurement = services["inventory_procurement_service"]

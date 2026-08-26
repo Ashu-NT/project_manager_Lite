@@ -193,6 +193,58 @@ def test_submit_change_commit_failure_rolls_back_change_and_approval_request_tog
     assert len(pending_after) == pending_count_before
 
 
+def test_submit_change_audit_failure_rolls_back_change_and_approval_request_together(
+    services, monkeypatch
+) -> None:
+
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
+
+    _login(services, "admin", "ChangeMe123!")
+    project, code, budget, budget_line, _forecast, _forecast_line = _seed_approved_finance(
+        services
+    )
+    changes = services["financial_change_service"]
+    change = _draft_change(services, project)
+    changes.add_impact(
+        change.id,
+        impact_type=FinancialChangeImpactType.BUDGET,
+        description="Increase approved scope",
+        amount=Decimal("10"),
+        cost_code_id=code.id,
+        target_line_id=budget_line.id,
+        expected_change_version=change.row_version,
+    )
+    change = changes.get_change(change.id)
+    pending_count_before = len(services["approval_service"].list_pending(project_id=project.id))
+
+    call_count = {"n": 0}
+    original_record = EnterpriseAuditService.record
+
+    def _fail_on_second_call(self, **kwargs):
+        call_count["n"] += 1
+        if call_count["n"] >= 2:
+            raise RuntimeError("simulated host audit failure after mutation and staging")
+        return original_record(self, **kwargs)
+
+    monkeypatch.setattr(EnterpriseAuditService, "record", _fail_on_second_call)
+
+    with pytest.raises(RuntimeError, match="simulated host audit failure after mutation and staging"):
+        changes.submit_change(
+            change.id,
+            submitted_by=services["user_session"].principal.user_id,
+            expected_version=change.row_version,
+        )
+
+    assert call_count["n"] >= 2
+    monkeypatch.undo()
+    reloaded = changes.get_change(change.id)
+    assert reloaded.status is FinancialChangeStatus.DRAFT
+    pending_after = services["approval_service"].list_pending(project_id=project.id)
+    assert len(pending_after) == pending_count_before
+
+
 def test_negative_financial_delta_requires_an_exact_target() -> None:
     with pytest.raises(ValidationError):
         FinancialChangeImpact.create(

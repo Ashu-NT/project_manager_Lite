@@ -154,6 +154,40 @@ def test_actor_with_decide_permission_cannot_reach_org_a1_approval_while_org_a2_
     assert matching[0].decided_at is None
 
 
+def _submitted_budget_in_org_a1(services, *, org_a1_id: str):
+
+    assert _session_active_organization_id(services) == org_a1_id
+    project = services["project_service"].create_project(
+        _unique("XORG-Budget-Project"), financial_currency_code="USD"
+    )
+    cost_code = services["financial_configuration_service"].create_cost_code(
+        code=_unique("XORG-CC"), name="Cross-org cost code"
+    )
+    budgets = services["budget_service"]
+    budget = budgets.create_budget(project.id, "Cross-org budget")
+    budgets.add_line(
+        budget.id,
+        cost_code_id=cost_code.id,
+        description="Line 1",
+        amount=1000,
+        expected_budget_version=budget.row_version,
+    )
+    budget = budgets.get_budget(budget.id)
+    budget = budgets.submit_budget(budget.id, "admin", expected_version=budget.row_version)
+    # `submit_budget` only transitions the budget itself -- the governed `ApprovalRequest` is a
+    # separate `request_change(...)` call (mirrors `test_approval_service_unit_of_work_cutover.py
+    # ::_request_budget_approval_as_a_different_user`'s exact shape).
+    request = services["approval_service"].request_change(
+        request_type="budget.approve",
+        entity_type="project_budget",
+        entity_id=budget.id,
+        project_id=budget.project_id,
+        payload={"budget_id": budget.id, "expected_version": budget.row_version, "notes": ""},
+    )
+    assert request.organization_id == org_a1_id
+    return request
+
+
 def test_actor_gains_authority_only_after_switching_active_organization_to_the_target_org(
     services,
 ):
@@ -166,20 +200,15 @@ def test_actor_gains_authority_only_after_switching_active_organization_to_the_t
     complementary "succeeds while A2 remains active" test does not apply."""
     _login(services, "admin", "ChangeMe123!")
     org_a1, org_a2 = _create_second_org_in_same_tenant(services)
+    request = _submitted_budget_in_org_a1(services, org_a1_id=org_a1.id)
 
-    requester_username = _unique("xorg2-requester")
-    services["auth_service"].register_user(requester_username, "StrongPass123", role_names=["planner"])
-    _login(services, requester_username, "StrongPass123")
-    request = _request_pending_approval_in_org_a1(services, org_a1_id=org_a1.id)
-
-    _login(services, "admin", "ChangeMe123!")
     approver_username = _unique("xorg2-approver")
     services["auth_service"].register_user(approver_username, "StrongPass123", role_names=["approver"])
     services["organization_service"].set_active_organization(org_a2.id)
 
     _login(services, approver_username, "StrongPass123")
     approvals = services["approval_service"]
-    with pytest.raises(NotFoundError):
+    with pytest.raises(NotFoundError, match="Approval request not found"):
         approvals.approve_and_apply(request.id)
 
     _login(services, "admin", "ChangeMe123!")

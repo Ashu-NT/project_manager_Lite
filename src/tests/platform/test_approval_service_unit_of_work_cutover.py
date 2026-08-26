@@ -232,6 +232,34 @@ def test_request_change_default_mode_uses_a_fresh_uow_session(services, session,
     assert request.status == ApprovalStatus.PENDING
 
 
+def test_request_change_fails_closed_when_the_approval_audit_write_fails(services, monkeypatch):
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
+
+    _login_as_fresh_requester(services)
+    approvals = services["approval_service"]
+
+    def _fail_record(self, **kwargs):
+        raise RuntimeError("simulated standalone request_change audit failure")
+
+    monkeypatch.setattr(EnterpriseAuditService, "record", _fail_record)
+
+    entity_id = f"probe-entity-audit-fail-{_REQUESTER_COUNTER['n']}"
+    with pytest.raises(RuntimeError, match="simulated standalone request_change audit failure"):
+        approvals.request_change(
+            request_type="baseline.create",
+            entity_type="project_baseline",
+            entity_id=entity_id,
+            project_id=None,
+            payload={"name": "Probe audit failure"},
+        )
+
+    monkeypatch.undo()
+    matching = [row for row in approvals.list_pending() if row.entity_id == entity_id]
+    assert matching == []
+
+
 def test_request_change_has_no_commit_parameter(services):
     """Approval-P1 (§13/§38): `request_change(commit=False)` no longer exists -- every former
     caller-owned-transaction path now calls `request_approval_using(...)` directly inside its own

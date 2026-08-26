@@ -20,6 +20,8 @@ from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.contracts.reads.tasks import (
     TaskAssignmentReadItem,
     TaskAssignmentReadPage,
+    TaskDependencyReadItem,
+    TaskDependencyReadPage,
 )
 from src.core.platform.domain.master_data.documents import DocumentStorageKind
 from src.tests.project_management._fake_task_workspace_query import (
@@ -283,6 +285,88 @@ class _FakeTaskService:
             d for d in self._dependencies.values()
             if d.predecessor_task_id == task_id or d.successor_task_id == task_id
         ]
+
+    def query_task_dependencies_page(
+        self,
+        task_id: str,
+        *,
+        search_text: str = "",
+        direction: str = "all",
+        dependency_type: str = "all",
+        page: int = 1,
+        page_size: int = 25,
+        sort_key: str = "linkedTask",
+        sort_direction: str = "asc",
+    ) -> TaskDependencyReadPage:
+        facts: list[TaskDependencyReadItem] = []
+        for dependency in self.list_dependencies_for_task(task_id):
+            is_predecessor = dependency.successor_task_id == task_id
+            row_direction = "PREDECESSOR" if is_predecessor else "SUCCESSOR"
+            linked_id = (
+                dependency.predecessor_task_id
+                if is_predecessor
+                else dependency.successor_task_id
+            )
+            linked = self._tasks[linked_id]
+            facts.append(
+                TaskDependencyReadItem(
+                    dependency_id=dependency.id,
+                    direction=row_direction,
+                    linked_task_id=linked.id,
+                    linked_task_code=str(
+                        getattr(linked, "code", getattr(linked, "task_code", ""))
+                    ),
+                    linked_task_name=linked.name,
+                    linked_task_status=linked.status.value,
+                    linked_task_start=linked.start_date,
+                    linked_task_end=linked.end_date,
+                    dependency_type=dependency.dependency_type.value,
+                    lag_days=dependency.lag_days,
+                    version=int(getattr(dependency, "version", 1)),
+                )
+            )
+        predecessor_total = sum(row.direction == "PREDECESSOR" for row in facts)
+        successor_total = sum(row.direction == "SUCCESSOR" for row in facts)
+        if direction.upper() in {"PREDECESSOR", "SUCCESSOR"}:
+            facts = [row for row in facts if row.direction == direction.upper()]
+        if dependency_type.upper() in {"FS", "FF", "SS", "SF"}:
+            facts = [row for row in facts if row.dependency_type == dependency_type.upper()]
+        if search_text:
+            needle = search_text.casefold()
+            facts = [
+                row
+                for row in facts
+                if needle in row.linked_task_name.casefold()
+                or needle in row.linked_task_code.casefold()
+            ]
+        facts.sort(key=lambda row: (row.linked_task_name.casefold(), row.dependency_id))
+        if sort_direction == "desc":
+            facts.reverse()
+        total = len(facts)
+        start = (page - 1) * page_size
+        return TaskDependencyReadPage(
+            items=tuple(facts[start : start + page_size]),
+            filtered_total=total,
+            predecessor_total=predecessor_total,
+            successor_total=successor_total,
+            page=page,
+            page_size=page_size,
+            sort=ReadSort.normalize(
+                key=sort_key,
+                direction=sort_direction,
+                allowed_keys={
+                    "direction",
+                    "linkedTask",
+                    "taskCode",
+                    "dependencyType",
+                    "lagDays",
+                    "startDate",
+                    "endDate",
+                    "statusLabel",
+                },
+                default_key="linkedTask",
+            ),
+        )
 
 
 class _FakeTaskTimesheetsDesktopApi:

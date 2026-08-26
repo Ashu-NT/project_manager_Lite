@@ -179,6 +179,70 @@ def test_submit_preparation_uses_a_fresh_uow_session_shared_by_the_approval_requ
     assert submitted.status == BillingPreparationStatus.SUBMITTED
 
 
+def test_submit_preparation_audit_failure_rolls_back_preparation_and_approval_request_together(
+    services, monkeypatch
+):
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
+
+    _login(services, "admin", "ChangeMe123!")
+    project = _setup_billable_project(services, suffix="AUDITFAIL")
+    billing_profile_service = services["billing_profile_service"]
+    profile = billing_profile_service.create_profile(
+        project.id,
+        contract_reference="CONTRACT-AUDITFAIL",
+        contract_value=Decimal("50000"),
+        customer_party_id="party-1",
+    )
+    profile = billing_profile_service.activate_profile(
+        project.id, expected_row_version=profile.row_version
+    )
+    line = billing_profile_service.add_schedule_line(
+        project.id, name="Milestone 1", amount=Decimal("24000"), due_date=date(2026, 8, 20)
+    )
+    line = billing_profile_service.mark_schedule_line_ready(
+        line.id, expected_row_version=line.row_version
+    )
+    billing_preparation_service = services["billing_preparation_service"]
+    preparation = billing_preparation_service.create_preparation(
+        project.id,
+        preparation_number="BP-APPROVAL-AUDITFAIL",
+        period_start=date(2026, 8, 1),
+        period_end=date(2026, 8, 31),
+        idempotency_key="billing-approval-key-auditfail",
+    )
+    billing_preparation_service.add_fixed_price_source(
+        preparation.id, schedule_line_id=line.id, expected_row_version=preparation.row_version
+    )
+    preparation = billing_preparation_service.get_preparation(preparation.id)
+    pending_count_before = len(services["approval_service"].list_pending(project_id=project.id))
+
+    call_count = {"n": 0}
+    original_record = EnterpriseAuditService.record
+
+    def _fail_on_second_call(self, **kwargs):
+        call_count["n"] += 1
+        if call_count["n"] >= 2:
+            raise RuntimeError("simulated host audit failure after mutation and staging")
+        return original_record(self, **kwargs)
+
+    monkeypatch.setattr(EnterpriseAuditService, "record", _fail_on_second_call)
+
+    with pytest.raises(RuntimeError, match="simulated host audit failure after mutation and staging"):
+        billing_preparation_service.submit_preparation(
+            preparation.id, expected_row_version=preparation.row_version
+        )
+
+    assert call_count["n"] >= 2
+    monkeypatch.undo()
+    reloaded = billing_preparation_service.get_preparation(preparation.id)
+    assert reloaded.status == BillingPreparationStatus.DRAFT
+    assert reloaded.approval_request_id is None
+    pending_after = services["approval_service"].list_pending(project_id=project.id)
+    assert len(pending_after) == pending_count_before
+
+
 def test_participant_apply_approves_preparation_on_the_supplied_session(services, session):
     _login(services, "admin", "ChangeMe123!")
     project, preparation, request = _submitted_preparation(services, session, suffix="A")
