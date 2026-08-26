@@ -743,7 +743,7 @@ def test_cross_org_decision_denial_emits_zero_approval_approved_or_rejected(serv
     organization_service = services["organization_service"]
     org_a1 = organization_service.get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique("EVT-XORG-A2"), display_name="Events Org A2", is_active=False
+        organization_code=_unique("EVT-XORG-A2"), display_name="Events Org A2", is_enabled=False
     )
 
     _, budget = _submitted_budget(services, services["session"])
@@ -752,7 +752,8 @@ def test_cross_org_decision_denial_emits_zero_approval_approved_or_rejected(serv
 
     approver_username = _unique("evt-xorg-approver")
     services["auth_service"].register_user(approver_username, "StrongPass123", role_names=["approver"])
-    organization_service.set_active_organization(org_a2.id)
+    organization_service.enable_organization(org_a2.id)
+    tenant_context_service.set_active_organization(org_a2.id)
 
     _login(services, approver_username, "StrongPass123")
     approvals = services["approval_service"]

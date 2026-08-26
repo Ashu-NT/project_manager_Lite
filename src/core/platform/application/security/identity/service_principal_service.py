@@ -303,7 +303,7 @@ class ServicePrincipalService:
             principal_record.organization_id,
             principal_record.tenant_id,
         )
-        if organization is None or not organization.is_active:
+        if organization is None or not organization.is_enabled:
             raise ValidationError("Organization is inactive.", code="ORGANIZATION_INACTIVE")
         user = self._user_repo.get(principal_record.user_id)
         if (

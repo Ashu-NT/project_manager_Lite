@@ -127,17 +127,19 @@ def test_inventory_foundation_rejects_out_of_scope_shared_references(services):
         display_name="Inventory Operations",
         timezone_name="Europe/Berlin",
         base_currency="EUR",
-        is_active=False,
+        is_enabled=False,
     )
 
-    organization_service.set_active_organization(other_org.id)
+    organization_service.enable_organization(other_org.id)
+    services["tenant_context_service"].set_active_organization(other_org.id)
     foreign_site = services["site_service"].create_site(site_code="EXT", name="External Site")
     foreign_party = services["party_service"].create_party(
         party_code="SUP-EXT",
         party_name="External Supply",
         party_type=PartyType.SUPPLIER,
     )
-    organization_service.set_active_organization(default_org.id)
+    organization_service.enable_organization(default_org.id)
+    services["tenant_context_service"].set_active_organization(default_org.id)
 
     auth.register_user("inventory-scope-user", "StrongPass123", role_names=["inventory_manager"])
     login_as(services, "inventory-scope-user", "StrongPass123")

@@ -88,7 +88,7 @@ from src.ui_qml.platform.controllers.organization.organizations.organization_con
 )
 from src.ui_qml.platform.controllers.organization.organizations.actions import (
     create_organization,
-    set_active_organization,
+    enable_organization,
     update_organization,
 )
 from src.ui_qml.platform.controllers.organization.parties.party_controller import (
@@ -337,8 +337,8 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         return update_organization(self, payload)
 
     @Slot(str, result="QVariantMap")
-    def setActiveOrganization(self, organization_id: str) -> dict[str, object]:
-        return set_active_organization(self, organization_id)
+    def enableOrganization(self, organization_id: str) -> dict[str, object]:
+        return enable_organization(self, organization_id)
 
     # ── Calendar slots ────────────────────────────────────────────────────
 

@@ -314,7 +314,8 @@ def _seed_pm_secondary_scope_rows(services):
         dependency_a, dependency_b,
     ])
     session.commit()
-    organization_service.set_active_organization(default_org.id)
+    organization_service.enable_organization(default_org.id)
+    services["tenant_context_service"].set_active_organization(default_org.id)
 
     return {
         **seeded,

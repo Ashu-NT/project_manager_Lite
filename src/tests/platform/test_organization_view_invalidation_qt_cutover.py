@@ -2,7 +2,8 @@
 the two real UI consumers (admin console organization list, settings organization profiles list)
 through `OrganizationCreated -> ViewInvalidationHint -> OrganizationViewInvalidationAdapter`,
 never the legacy `organizations_changed` signal -- and that `update_organization`/
-`set_active_organization` still reach them through the unchanged legacy path.
+`enable_organization` (P10A: replaces the deleted `set_active_organization`) still reach them
+through the unchanged legacy path.
 
 Uses the real `services` fixture (real Session, real UnitOfWorks, real composition-owned
 `ViewInvalidationChannel`) plus the real `build_desktop_api_registry`/`PlatformWorkspaceCatalog`
@@ -53,7 +54,7 @@ def test_provisioning_create_organization_refreshes_both_ui_consumers_identicall
     code = _unique_code("QTCUT-PROV")
     app_service.provision_organization(
         organization_code=code, display_name="Qt Cutover Provisioned Org",
-        timezone_name="UTC", base_currency="EUR", is_active=False, initial_module_codes=[],
+        timezone_name="UTC", base_currency="EUR", is_enabled=False, initial_module_codes=[],
     )
 
     admin_titles = [row["title"] for row in catalog.adminWorkspace.organizations["items"]]
@@ -84,14 +85,16 @@ def test_no_refresh_signal_before_commit_and_none_on_rollback(services):
     assert refresh_calls == ["admin"]
 
 
-def test_update_and_activate_still_use_the_unchanged_legacy_signal_path(services):
-    """P5A implements only OrganizationCreated -- update/activation must keep working exactly as
-    before, via the legacy `organizations_changed` signal, untouched by this cutover."""
+def test_update_and_enable_still_use_the_unchanged_legacy_signal_path(services):
+    """P5A implements only OrganizationCreated -- update/enable must keep working exactly as
+    before, via the legacy `organizations_changed` signal, untouched by this cutover. P10A deleted
+    `set_active_organization` (its persisted mutual-exclusion designation was legacy scaffolding)
+    in favor of the narrower `enable_organization`, which still emits the same unchanged signal."""
     from src.core.shared.events.domain_events import domain_events
 
     organization_service = services["organization_service"]
     organization = organization_service.create_organization(
-        organization_code=_unique_code("QTCUT-UPDATE"), display_name="Before Update"
+        organization_code=_unique_code("QTCUT-UPDATE"), display_name="Before Update", is_enabled=False
     )
 
     signal_calls = []
@@ -103,8 +106,8 @@ def test_update_and_activate_still_use_the_unchanged_legacy_signal_path(services
     assert signal_calls == [updated.id]
 
     signal_calls.clear()
-    activated = organization_service.set_active_organization(organization.id)
-    assert signal_calls == [activated.id]
+    enabled = organization_service.enable_organization(organization.id)
+    assert signal_calls == [enabled.id]
 
 
 def test_adapter_only_reacts_to_the_currently_active_tenant(services):
@@ -295,7 +298,7 @@ def test_admin_console_own_mutation_still_self_refreshes_via_existing_direct_pat
             "displayName": "Self Refresh Org",
             "timezoneName": "UTC",
             "baseCurrency": "USD",
-            "isActive": False,
+            "isEnabled": False,
             "initialModuleCodes": [],
         }
     )

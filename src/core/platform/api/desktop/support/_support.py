@@ -46,6 +46,6 @@ def serialize_organization(organization: Organization) -> OrganizationDto:
         display_name=organization.display_name,
         timezone_name=organization.timezone_name,
         base_currency=organization.base_currency,
-        is_active=organization.is_active,
+        is_enabled=organization.is_enabled,
         version=organization.version,
     )

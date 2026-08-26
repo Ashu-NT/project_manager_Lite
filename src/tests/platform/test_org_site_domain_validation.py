@@ -308,14 +308,14 @@ def test_organization_service_uses_entity_validation_and_final_state(monkeypatch
         display_name="  Default Organization  ",
         timezone_name="  UTC  ",
         base_currency=" eur ",
-        is_active=True,
+        is_enabled=True,
     )
     second = service.create_organization(
         organization_code=" north ",
         display_name="  North Division  ",
         timezone_name=" Europe/Berlin ",
         base_currency=" usd ",
-        is_active=False,
+        is_enabled=False,
     )
 
     assert created.organization_code == "DEFAULT"
@@ -327,7 +327,7 @@ def test_organization_service_uses_entity_validation_and_final_state(monkeypatch
         second.id,
         expected_version=second.version,
         display_name="  North Ops  ",
-        is_active=True,
+        is_enabled=True,
     )
 
     assert activated.display_name == "North Ops"

@@ -333,7 +333,7 @@ def test_non_active_organization_resource_mutation_does_not_refresh_the_active_o
     catalog.adminAccessWorkspace.refresh()
     org_a1_id = tenant_context_service.get_active_organization_id()
     site_a2_org = services["organization_service"].create_organization(
-        organization_code=_unique_code("P5C3-NONACTIVE-A2"), display_name="P5C-3 Non-Active A2", is_active=True
+        organization_code=_unique_code("P5C3-NONACTIVE-A2"), display_name="P5C-3 Non-Active A2", is_enabled=True
     )
     tenant_context_service.set_active_organization(site_a2_org.id)
     site_a2 = services["site_service"].create_site(
@@ -343,7 +343,7 @@ def test_non_active_organization_resource_mutation_does_not_refresh_the_active_o
         storeroom_code=_unique_code("P5C3-NONACTIVE-ROOM"), name="A2 Storeroom", site_id=site_a2.id,
         status="ACTIVE", storeroom_type="MAIN",
     )
-    services["organization_service"].update_organization(org_a1_id, is_active=True)
+    services["organization_service"].update_organization(org_a1_id, is_enabled=True)
     tenant_context_service.set_active_organization(org_a1_id)
     assert tenant_context_service.get_active_organization_id() == org_a1_id
 
@@ -371,7 +371,7 @@ def test_switching_to_the_non_active_org_then_repeating_the_mutation_refreshes_e
     catalog.adminAccessWorkspace.refresh()
     org_a1_id = tenant_context_service.get_active_organization_id()
     org_a2 = services["organization_service"].create_organization(
-        organization_code=_unique_code("P5C3-SWITCH-A2"), display_name="P5C-3 Switch A2", is_active=True
+        organization_code=_unique_code("P5C3-SWITCH-A2"), display_name="P5C-3 Switch A2", is_enabled=True
     )
     tenant_context_service.set_active_organization(org_a2.id)
     catalog.refreshCurrentPermissions()
@@ -396,7 +396,7 @@ def test_switching_to_the_non_active_org_then_repeating_the_mutation_refreshes_e
 
     assert refresh_calls == ["refresh"]
 
-    services["organization_service"].update_organization(org_a1_id, is_active=True)
+    services["organization_service"].update_organization(org_a1_id, is_enabled=True)
     tenant_context_service.set_active_organization(org_a1_id)
 
 
@@ -407,7 +407,7 @@ def test_tenant_scope_mutation_refreshes_regardless_of_which_organization_is_act
     catalog = _catalog(services)
     catalog.adminAccessWorkspace.refresh()
     org_a2 = services["organization_service"].create_organization(
-        organization_code=_unique_code("P5C3-TENANTSCOPE-A2"), display_name="P5C-3 Tenant Scope A2", is_active=True
+        organization_code=_unique_code("P5C3-TENANTSCOPE-A2"), display_name="P5C-3 Tenant Scope A2", is_enabled=True
     )
     tenant_context_service.set_active_organization(org_a2.id)
     catalog.refreshCurrentPermissions()
@@ -506,7 +506,7 @@ def test_adapter_only_reacts_to_its_exact_active_organization_for_resource_scope
     tenant_id = _active_tenant(services)
     org_a1 = organization_service.get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique_code("P5C3-ADAPTER-A2"), display_name="Adapter Scope A2", is_active=False
+        organization_code=_unique_code("P5C3-ADAPTER-A2"), display_name="Adapter Scope A2", is_enabled=False
     )
 
     adapter = RoleBindingViewInvalidationAdapter(channel=channel, tenant_id=tenant_id, organization_id=org_a1.id)
@@ -559,7 +559,7 @@ def test_real_organization_switch_through_refresh_current_permissions_rewires_th
 
     org_a1 = organization_service.get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique_code("P5C3-REALSWITCH-A2"), display_name="Real Switch A2", is_active=False
+        organization_code=_unique_code("P5C3-REALSWITCH-A2"), display_name="Real Switch A2", is_enabled=False
     )
 
     def _exact_org_filters():
@@ -567,7 +567,8 @@ def test_real_organization_switch_through_refresh_current_permissions_rewires_th
 
     assert any(f.organization_id == org_a1.id for f in _exact_org_filters())
 
-    organization_service.set_active_organization(org_a2.id)
+    organization_service.enable_organization(org_a2.id)
+    tenant_context_service.set_active_organization(org_a2.id)
     catalog.refreshCurrentPermissions()
 
     filters_after = _exact_org_filters()
@@ -606,14 +607,16 @@ def test_switching_does_not_accumulate_subscriptions(services):
     channel = services["platform_view_invalidation_channel"]
     org_a1 = organization_service.get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique_code("P5C3-NOACCUMULATE-A2"), display_name="No Accumulate A2", is_active=False
+        organization_code=_unique_code("P5C3-NOACCUMULATE-A2"), display_name="No Accumulate A2", is_enabled=False
     )
     subscription_count_before = len(channel._subscriptions)
 
-    organization_service.set_active_organization(org_a2.id)
+    organization_service.enable_organization(org_a2.id)
+    tenant_context_service.set_active_organization(org_a2.id)
     catalog.refreshCurrentPermissions()
-    organization_service.update_organization(org_a1.id, is_active=True)
-    organization_service.set_active_organization(org_a1.id)
+    organization_service.update_organization(org_a1.id, is_enabled=True)
+    organization_service.enable_organization(org_a1.id)
+    tenant_context_service.set_active_organization(org_a1.id)
     catalog.refreshCurrentPermissions()
 
     assert len(channel._subscriptions) == subscription_count_before

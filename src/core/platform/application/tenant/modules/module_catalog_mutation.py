@@ -27,25 +27,13 @@ from src.core.platform.domain.tenant.modules.module_definition import Enterprise
 from src.core.platform.domain.tenant.modules.module_entitlement import ModuleEntitlement
 from src.core.platform.domain.tenant.modules.subscription import ModuleEntitlementRecord
 
-# P5B-SEM: the only lifecycle_status values a caller may explicitly select. `inactive` is
-# deliberately excluded -- it is reached only as an automatic consequence of
-# `revoke_module_license`, never as a direct lifecycle command target (matches the settings
-# workspace's own lifecycle dropdown, which never offers "Inactive").
 _USER_SELECTABLE_LIFECYCLE_STATUSES = frozenset({"active", "trial", "suspended", "expired"})
 
 _Transition = Callable[[EnterpriseModule, ModuleEntitlement], tuple[bool, bool, str]]
-# (tenant_id, organization_id, module_code, current-before-transition, occurred_at) -> DomainEvent.
-# Called only when the transition actually changed persisted state (P5B-2: no event on a no-op).
 _EventFactory = Callable[..., object]
 
 
 class ModuleCatalogMutationMixin:
-    """P5B-SEM: the generic `set_module_state(licensed=..., enabled=..., lifecycle_status=...)`
-    patch API is retired. Every real caller (the three settings-workspace presenter actions)
-    already expressed exactly one business intention per call -- licensing terminology, dedicated
-    business commands below make that intention explicit and let each command enforce its own
-    invariants, instead of a shared method inferring what changed from an arbitrary field
-    combination."""
 
     def license_module(self, organization_id: str, module_code: str) -> ModuleEntitlement:
         """LICENSE_MODULE: grants a license. Idempotent -- licensing an already-licensed module
@@ -60,10 +48,6 @@ class ModuleCatalogMutationMixin:
         )
 
     def revoke_module_license(self, organization_id: str, module_code: str) -> ModuleEntitlement:
-        """REVOKE_MODULE_LICENSE: one compound business fact. Forcing `enabled=False` and
-        `lifecycle_status=inactive` is an implementation consequence of revocation, not a
-        separate disablement/lifecycle business action -- exactly one `ModuleLicenseRevoked`,
-        never also `ModuleDisabled`/`ModuleLifecycleTransitioned`."""
         return self._run_module_transition(
             organization_id,
             module_code,
@@ -100,12 +84,6 @@ class ModuleCatalogMutationMixin:
         module_code: str,
         lifecycle_status: str,
     ) -> ModuleEntitlement:
-        """TRANSITION_MODULE_LIFECYCLE: explicit user-selected lifecycle move among
-        active/trial/suspended/expired (`inactive` is never a valid target here -- it is only
-        reached via `revoke_module_license`). Moving into suspended/expired forces
-        `enabled=False` as an implementation consequence of that one transition (recorded as
-        exactly one `ModuleLifecycleTransitioned`, never also `ModuleDisabled`); moving into
-        active/trial never silently re-enables the module -- enablement remains its own command."""
         normalized_status = normalize_lifecycle_status(lifecycle_status)
         if normalized_status not in _USER_SELECTABLE_LIFECYCLE_STATUSES:
             raise ValidationError(
@@ -175,15 +153,6 @@ class ModuleCatalogMutationMixin:
         audit_extra: dict | None,
         event_factory: _EventFactory,
     ) -> ModuleEntitlement:
-        """Transaction-agnostic: does not open or commit a transaction itself -- that remains the
-        caller's responsibility. `uow` is duck-typed against `_enterprise_audit_service`
-        (`record_audit_entry`'s existing contract) plus the canonical `record_event` (P5B-2),
-        never a concrete UoW class import. Always persists (even a value-for-value no-op call) --
-        this is what normalizes a legacy storage code (e.g. `payroll` -> `hr_management`) onto any
-        real mutation, exactly as the retired generic `set_module_state` did -- but records a
-        DomainEvent only when the transition actually changed persisted state (P5B-2: no event on
-        a no-op), using authoritative before/after state from the transition function itself, not
-        a guess from caller input."""
         module = self._require_module(module_code)
         current_record = entitlement_repo.get_for_organization_in_tenant(organization_id, module.code)
         current = self._build_entitlement(
@@ -231,11 +200,6 @@ class ModuleCatalogMutationMixin:
         if changed:
             if self._clock is None:
                 raise RuntimeError("Module entitlement Clock is not configured.")
-            # Recorded before `uow.commit()` (P5B-2, ADR-005 Section 6's application-authored
-            # escape hatch -- ModuleEntitlement has no aggregate transition methods to record
-            # itself on) so it participates in the canonical UoW event lifecycle: transactional
-            # dispatch, then only-on-successful-commit post-commit publication. `tenant_id` comes
-            # from the caller's own authenticated tenant (never the active organization).
             uow.record_event(
                 event_factory(
                     tenant_id=self._active_tenant_id(),
@@ -364,10 +328,6 @@ class ModuleCatalogMutationMixin:
         enabled_module_codes: Iterable[str] | None = None,
         commit: bool = True,
     ) -> list[ModuleEntitlementRecord]:
-        # P5B-SEM: this remains a separate bootstrap/materialization operation, deliberately not
-        # decomposed into per-module `license_module` calls -- provisioning writes rows (most
-        # unlicensed) for every catalog module on a brand-new organization, which is not the same
-        # business fact as an administrator licensing one module. See the P5B-SEM design report.
         require_permission(
             self._user_session,
             "settings.manage",
@@ -404,13 +364,6 @@ class ModuleCatalogMutationMixin:
                     code="MODULE_NOT_AVAILABLE",
                 )
 
-        # Tenant-administration/provisioning write: this seeds a *specified*
-        # organization's entitlements, which is explicitly allowed to target an
-        # organization other than the currently active one (e.g. a
-        # newly-created, not-yet-active organization) as long as it belongs to
-        # the authenticated tenant. Ordinary runtime entitlement changes
-        # (the semantic commands, above) keep using the active-organization-only
-        # upsert_for_organization.
         for module in self._modules:
             licensed = module.code in licensed_codes
             enabled = module.code in enabled_codes and licensed
@@ -425,9 +378,6 @@ class ModuleCatalogMutationMixin:
                 ),
             )
 
-        # Audit is staged in the same transaction as the entitlement writes
-        # (ADR-003: business mutation and audit intent commit atomically for
-        # platform provisioning) — never a second, separate commit.
         record_audit_entry(
             self,
             operation="update",
@@ -452,27 +402,10 @@ class ModuleCatalogMutationMixin:
         if commit:
             active_organization = self._current_organization()
             if active_organization is not None and active_organization.id == normalized_organization_id:
-                # P5B-3: provisioning is bootstrap/default-row materialization, never one of the
-                # five Module DomainEvents (P5B-SEM's own decision, unchanged) -- but when the
-                # organization it just provisioned turns out to BE the active one, the module
-                # entitlement collection any currently-open UI is showing just became stale,
-                # exactly as if a real mutation had happened. Direct ViewInvalidation, no
-                # DomainEvent -- mirrors the same activeness check the retired `modules_changed`
-                # emit used. In practice `provision_organization`'s own orchestration (see
-                # `PlatformRuntimeApplicationService.provision_organization`) always calls this
-                # method with `commit=False` and performs the real `is_active=True` notification
-                # itself, post-commit, via the public `notify_module_entitlements_stale(...)`
-                # below -- this branch only fires for a direct, non-orchestrated
-                # `commit=True` caller.
                 self.notify_module_entitlements_stale(normalized_organization_id)
         return self._entitlement_repo.list_all_for_organization_in_tenant(normalized_organization_id)
 
     def notify_module_entitlements_stale(self, organization_id: str) -> None:
-        """Direct ViewInvalidation for a non-DomainEvent-worthy operation that nonetheless makes
-        the module entitlement collection stale for `organization_id` -- e.g.
-        `PlatformRuntimeApplicationService.provision_organization`'s `is_active=True` path, called
-        here post-commit. Public: legitimately called across the Platform Runtime/Module
-        Entitlement boundary, unlike the transaction-owning semantic commands above."""
         channel = self._view_invalidation_channel
         if channel is None:
             return

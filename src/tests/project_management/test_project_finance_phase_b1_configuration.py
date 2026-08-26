@@ -203,15 +203,17 @@ def test_financial_configuration_repositories_isolate_active_organization(servic
         organization_code="PF-B1-OTHER",
         display_name="Project Finance Other",
         base_currency="USD",
-        is_active=False,
+        is_enabled=False,
     )
 
-    organization_service.set_active_organization(other_organization.id)
+    organization_service.enable_organization(other_organization.id)
+    services["tenant_context_service"].set_active_organization(other_organization.id)
     try:
         assert configuration_service._cost_code_repo.get(code.id) is None
         assert configuration_service._profile_repo.get_by_project(project.id) is None
     finally:
-        organization_service.set_active_organization(original_organization.id)
+        organization_service.enable_organization(original_organization.id)
+        services["tenant_context_service"].set_active_organization(original_organization.id)
 
     assert configuration_service._cost_code_repo.get(code.id).id == code.id
     assert configuration_service._profile_repo.get_by_project(project.id).project_id == project.id

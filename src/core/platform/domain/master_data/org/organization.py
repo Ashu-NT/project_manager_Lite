@@ -19,7 +19,7 @@ class Organization:
     display_name: str
     timezone_name: str = "UTC"
     base_currency: str = "EUR"
-    is_active: bool = True
+    is_enabled: bool = True
     version: int = 1
     tenant_id: str | None = None
 
@@ -90,7 +90,7 @@ class Organization:
         display_name: str,
         timezone_name: str = "UTC",
         base_currency: str = "EUR",
-        is_active: bool = True,
+        is_enabled: bool = True,
         tenant_id: str | None = None,
     ) -> "Organization":
         return Organization(
@@ -99,7 +99,7 @@ class Organization:
             display_name=display_name,
             timezone_name=timezone_name,
             base_currency=base_currency,
-            is_active=is_active,
+            is_enabled=is_enabled,
             version=1,
             tenant_id=tenant_id,
         )

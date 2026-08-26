@@ -220,7 +220,7 @@ def test_storeroom_scope_grant_targets_a_non_active_organization(services):
     or require switching the active organization.
 
     P5C-1 CORRECTION (reopened finding): this test originally only flipped `Organization
-    .is_active` in the DB via `create_organization(is_active=True)` -- a completely different
+    .is_active` in the DB via `create_organization(is_enabled=True)` -- a completely different
     mechanism from the SESSION-level active organization
     (`tenant_context_service`/`user_session.active_organization_id()`) that
     `require_active_scope_ids()` (and therefore every ambient-org-scoped repository read)
@@ -254,7 +254,7 @@ def test_storeroom_scope_grant_targets_a_non_active_organization(services):
     assert storeroom_a1.organization_id == org_a1.id
 
     org_a2 = organization_service.create_organization(
-        organization_code="STR-SCOPE-A2", display_name="Storeroom Scope Org A2", is_active=True
+        organization_code="STR-SCOPE-A2", display_name="Storeroom Scope Org A2", is_enabled=True
     )
     # The actual ambient SESSION-level switch -- what `require_active_scope_ids()` reads, and
     # therefore what `StoreroomRepository.get()`'s (now bypassed) active-org filter keys off.
@@ -303,7 +303,7 @@ def test_storeroom_scope_grant_targets_the_active_organization_while_a_different
 
     org_a1_id = tenant_context_service.get_active_organization_id()
     org_a2 = organization_service.create_organization(
-        organization_code="STR-SCOPE-INV-A2", display_name="Storeroom Scope Inverse Org A2", is_active=True
+        organization_code="STR-SCOPE-INV-A2", display_name="Storeroom Scope Inverse Org A2", is_enabled=True
     )
     # Creating A2 as `is_active=True` deactivates A1's own DB flag as a side effect (a separate,
     # unrelated mechanism from the ambient session org this test manipulates directly).
@@ -323,7 +323,7 @@ def test_storeroom_scope_grant_targets_the_active_organization_while_a_different
 
     # Reactivate A1 (deactivating A2 in turn -- fine, A2 has already served its purpose as the
     # ambient org for setup) so the switch back to A1 succeeds.
-    organization_service.update_organization(org_a1_id, is_active=True)
+    organization_service.update_organization(org_a1_id, is_enabled=True)
     tenant_context_service.set_active_organization(org_a1_id)
     assert tenant_context_service.get_active_organization_id() == org_a1_id
 

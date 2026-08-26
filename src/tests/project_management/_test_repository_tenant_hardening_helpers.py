@@ -113,7 +113,7 @@ def _seed_priority_pm_rows(services):
         display_name="Operations Hub",
         timezone_name="UTC",
         base_currency="USD",
-        is_active=False,
+        is_enabled=False,
     )
     assert default_org is not None
     assert other_org is not None
@@ -140,7 +140,8 @@ def _seed_priority_pm_rows(services):
     session.commit()
     session.add_all([baseline_task_a, baseline_task_b, variance_a, variance_b])
     session.commit()
-    organization_service.set_active_organization(default_org.id)
+    organization_service.enable_organization(default_org.id)
+    services["tenant_context_service"].set_active_organization(default_org.id)
 
     return {
         "default_org": default_org,

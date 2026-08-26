@@ -72,7 +72,7 @@ def _session_active_organization_id(services) -> str | None:
     """The SESSION-scoped active organization -- what `ApprovalService`/`SqlAlchemyApprovalRepository`
     actually use for scoping. Deliberately NOT `OrganizationService.get_active_organization()`,
     which reads a different, DB-level "single business-active organization per tenant" flag that
-    `create_organization(is_active=True)` (the default) flips independently of session state."""
+    `create_organization(is_enabled=True)` (the default) flips independently of session state."""
     return services["tenant_context_service"].get_active_organization_id()
 
 
@@ -86,7 +86,7 @@ def _create_second_org_in_same_tenant(services):
     org_a1 = organization_service.get_active_organization()
     assert org_a1.id == org_a1_session_id
     org_a2 = organization_service.create_organization(
-        organization_code=_unique("XORG-A2"), display_name="Same-Tenant Org A2", is_active=False
+        organization_code=_unique("XORG-A2"), display_name="Same-Tenant Org A2", is_enabled=False
     )
     assert _session_active_organization_id(services) == org_a1_session_id
     return org_a1, org_a2

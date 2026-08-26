@@ -203,7 +203,7 @@ def _bootstrap_local_single_tenant_context(
 
     organizations = repositories.organization_repo.list_for_tenant(
         default_tenant.id,
-        active_only=True,
+        enabled_only=True,
     )
     if not organizations:
         organizations = repositories.organization_repo.list_for_tenant(

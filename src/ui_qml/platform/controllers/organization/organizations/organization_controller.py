@@ -143,13 +143,13 @@ class PlatformOrganizationController(QObject):
             return ""
 
     @Slot(str, result="QVariantMap")
-    def setActiveOrganization(self, organization_id: str) -> dict[str, object]:
+    def enableOrganization(self, organization_id: str) -> dict[str, object]:
         normalized_id = organization_id.strip()
         if not normalized_id:
             return dict(self.operationResult)
         return run_mutation(
-            operation=lambda: self._presenter.set_active_organization(normalized_id),
-            success_message="Organization activated.",
+            operation=lambda: self._presenter.enable_organization(normalized_id),
+            success_message="Organization enabled.",
             on_success=self.refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,

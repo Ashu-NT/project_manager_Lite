@@ -44,13 +44,13 @@ class PlatformRuntimeDesktopApi:
     def list_organizations(
         self,
         *,
-        active_only: bool | None = None,
+        enabled_only: bool | None = None,
     ) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
         return self._execute(
             lambda: tuple(
                 self._serialize_organization(row)
                 for row in self._platform_runtime_application_service.list_organizations(
-                    active_only=active_only
+                    enabled_only=enabled_only
                 )
             )
         )
@@ -125,7 +125,7 @@ class PlatformRuntimeDesktopApi:
                     display_name=command.display_name,
                     timezone_name=command.timezone_name,
                     base_currency=command.base_currency,
-                    is_active=command.is_active,
+                    is_enabled=command.is_enabled,
                     initial_module_codes=command.initial_module_codes,
                 )
             )
@@ -143,16 +143,16 @@ class PlatformRuntimeDesktopApi:
                     display_name=command.display_name,
                     timezone_name=command.timezone_name,
                     base_currency=command.base_currency,
-                    is_active=command.is_active,
+                    is_enabled=command.is_enabled,
                     expected_version=command.expected_version,
                 )
             )
         )
 
-    def set_active_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+    def enable_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
         return self._execute(
             lambda: self._serialize_organization(
-                self._platform_runtime_application_service.set_active_organization(organization_id)
+                self._platform_runtime_application_service.enable_organization(organization_id)
             )
         )
 
@@ -257,7 +257,7 @@ class PlatformRuntimeDesktopApi:
             display_name=organization.display_name,
             timezone_name=organization.timezone_name,
             base_currency=organization.base_currency,
-            is_active=organization.is_active,
+            is_enabled=organization.is_enabled,
             version=organization.version,
         )
 

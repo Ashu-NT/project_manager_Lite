@@ -135,11 +135,6 @@ class PlatformRuntimeApplicationService:
         )
 
     def _require_active_organization_for_module_mutation(self):
-        # P5B-SEM: `ModuleCatalogService`'s semantic commands require an explicit
-        # organization_id (never ambient) -- this orchestrator resolves "whichever organization
-        # is currently active" itself, exactly preserving every existing caller's observable
-        # behavior, while the mutation methods themselves never reconstruct that from session
-        # state internally.
         active_organization = self.get_active_organization()
         if active_organization is None:
             raise RuntimeError("Active organization is required to manage module entitlements.")
@@ -158,10 +153,10 @@ class PlatformRuntimeApplicationService:
             module_snapshot=module_snapshot,
         )
 
-    def list_organizations(self, *, active_only: bool | None = None) -> list[Organization]:
+    def list_organizations(self, *, enabled_only: bool | None = None) -> list[Organization]:
         if self._organization_service is None:
             return []
-        return self._organization_service.list_organizations(active_only=active_only)
+        return self._organization_service.list_organizations(enabled_only=enabled_only)
 
     def get_organization_count(self) -> int:
         if self._organization_service is None:
@@ -180,7 +175,7 @@ class PlatformRuntimeApplicationService:
         display_name: str,
         timezone_name: str,
         base_currency: str,
-        is_active: bool,
+        is_enabled: bool,
     ) -> Organization:
         if self._organization_service is None:
             raise RuntimeError("Organization service is not configured.")
@@ -189,7 +184,7 @@ class PlatformRuntimeApplicationService:
             display_name=display_name,
             timezone_name=timezone_name,
             base_currency=base_currency,
-            is_active=is_active,
+            is_enabled=is_enabled,
         )
 
     def update_organization(
@@ -200,7 +195,7 @@ class PlatformRuntimeApplicationService:
         display_name: str | None = None,
         timezone_name: str | None = None,
         base_currency: str | None = None,
-        is_active: bool | None = None,
+        is_enabled: bool | None = None,
         expected_version: int | None = None,
     ) -> Organization:
         if self._organization_service is None:
@@ -211,7 +206,7 @@ class PlatformRuntimeApplicationService:
             display_name=display_name,
             timezone_name=timezone_name,
             base_currency=base_currency,
-            is_active=is_active,
+            is_enabled=is_enabled,
             expected_version=expected_version,
         )
 
@@ -222,7 +217,7 @@ class PlatformRuntimeApplicationService:
         display_name: str,
         timezone_name: str,
         base_currency: str,
-        is_active: bool,
+        is_enabled: bool,
         initial_module_codes: list[str] | tuple[str, ...] | set[str] | None = None,
     ) -> Organization:
         if self._organization_service is None:
@@ -230,22 +225,11 @@ class PlatformRuntimeApplicationService:
         if self._provisioning_uow_factory is None:
             raise RuntimeError("Provisioning UnitOfWork factory is not configured.")
 
-        # P4C (Platform Runtime Organization Provisioning Transaction Convergence): organization
-        # creation, module entitlement provisioning, and (if requested) activation now all
-        # participate in ONE fresh `PlatformProvisioningUnitOfWork` -- never the shared,
-        # process-lifetime Session, and never a nested UnitOfWork inside `OrganizationService`.
-        # `create_organization()`/`set_active_organization()` are not called here (each opens its
-        # OWN fresh `OrganizationUnitOfWork`, which would split this transaction in two); instead
-        # this method calls the same shared, transaction-agnostic business operations those
-        # methods themselves call (`_create_organization_using`/`_activate_organization_using`),
-        # passing this provisioning UnitOfWork's own repository/audit-owner -- one implementation
-        # of each business rule, two different transaction owners (ADR-005 Section 9/24's "one
-        # business operation, one transaction owner" principle, applied to provisioning).
         require_permission(self._user_session, "settings.manage", operation_label="provision organization")
         tenant_id = self._organization_service.require_current_tenant_id(
             operation_label="provision organization"
         )
-        if is_active:
+        if is_enabled:
             self._require_settings_manage("set active organization context")
 
         selected_module_codes = (
@@ -268,17 +252,9 @@ class PlatformRuntimeApplicationService:
                     display_name=display_name,
                     timezone_name=timezone_name,
                     base_currency=base_currency,
-                    is_active=False,
+                    is_enabled=is_enabled,
                     tenant_id=tenant_id,
                 )
-                # A throwaway `ModuleCatalogService` instance bound to this provisioning UoW's own
-                # fresh Session -- reuses `provision_organization_entitlements`'s existing,
-                # unmodified business logic (module catalog metadata is read-only ambient data,
-                # safely shared from the long-lived instance) without duplicating it, mirroring
-                # the same "fresh instance of the same service class" pattern used for the 8
-                # approval-backed PM/Inventory services (P4-PRE Step 1). Never touches the
-                # long-lived `module_catalog_service`'s own in-memory
-                # licensed/enabled-module-code state -- that instance is untouched by this call.
                 provisioning_module_catalog_service = ModuleCatalogService(
                     modules=self._module_catalog_service.list_modules(),
                     enabled_codes=None,
@@ -295,43 +271,26 @@ class PlatformRuntimeApplicationService:
                     enabled_module_codes=selected_module_codes,
                     commit=False,
                 )
-                if is_active:
-                    organization = self._organization_service._activate_organization_using(
-                        uow.organizations, uow, organization_id=organization.id, tenant_id=tenant_id
-                    )
                 uow.commit()
             except IntegrityError as exc:
                 raise ValidationError(
                     "Organization code already exists.", code="ORGANIZATION_CODE_EXISTS"
                 ) from exc
-        # Runtime context change follows commit, never precedes or survives a rolled-back
-        # provisioning transaction. (P5A: the legacy `organizations_changed` reaction is now
-        # driven post-commit from the committed `OrganizationCreated` fact recorded inside
-        # `_create_organization_using`, via the registered legacy-compatibility handler -- never
-        # emitted directly here, so standalone creation and provisioning both produce exactly one
-        # legacy reaction from the same business fact.)
-        if is_active:
+        if is_enabled:
             if self._tenant_context_service is None:
                 raise RuntimeError("Tenant context service is not configured.")
             self._tenant_context_service.set_active_organization(organization.id)
-            # P5B-3: provisioning is bootstrap/default-row materialization, never one of the five
-            # Module DomainEvents (P5B-SEM's own decision) -- but activating the just-provisioned
-            # organization in the same call makes its module entitlement collection the new
-            # authoritative one, which is a real staleness fact for any currently-open UI. Direct
-            # ViewInvalidation, post-commit, no DomainEvent.
             self._module_catalog_service.notify_module_entitlements_stale(organization.id)
         return organization
 
-    def set_active_organization(self, organization_id: str) -> Organization:
+    def enable_organization(self, organization_id: str) -> Organization:
+        # P10A: availability mutation only -- routes to `OrganizationService.enable_organization`,
+        # which never touches session/tenant context. Selecting this organization as the acting
+        # user's own current working context is a separate action
+        # (`TenantContextService.set_active_organization`), not a side effect of enabling it.
         if self._organization_service is None:
             raise RuntimeError("Organization service is not configured.")
-        # Routes through OrganizationService so activation is actually
-        # persisted (is_active=True, other organizations deactivated, audited)
-        # before the in-memory tenant context is rebuilt — calling
-        # tenant_context_service directly here previously skipped persistence
-        # entirely, which also made this the root cause of provision_organization's
-        # is_active=True branch always raising ORGANIZATION_INACTIVE.
-        return self._organization_service.set_active_organization(organization_id)
+        return self._organization_service.enable_organization(organization_id)
 
     def _require_settings_manage(self, operation_label: str) -> None:
         require_permission(

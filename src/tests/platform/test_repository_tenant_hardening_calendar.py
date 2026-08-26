@@ -25,7 +25,7 @@ def _seed_calendar_scope_rows(services) -> dict[str, str]:
     cur_org = org_svc.get_active_organization()
     oth_org = org_svc.create_organization(
         organization_code="OPS", display_name="Operations Hub",
-        timezone_name="UTC", base_currency="USD", is_active=False,
+        timezone_name="UTC", base_currency="USD", is_enabled=False,
     )
     assert cur_org is not None and oth_org is not None
     ct = getattr(cur_org, "tenant_id", None)

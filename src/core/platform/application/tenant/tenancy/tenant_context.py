@@ -106,7 +106,7 @@ class TenantContextService:
     def initial_organization_id_for_tenant(self, tenant_id: str) -> str | None:
         organizations = self._organization_repo.list_for_tenant(
             tenant_id,
-            active_only=True,
+            enabled_only=True,
         )
         return organizations[0].id if len(organizations) == 1 else None
 
@@ -252,7 +252,7 @@ class TenantContextService:
                 "Organization does not belong to the requested tenant.",
                 code="ORGANIZATION_TENANT_MISMATCH",
             )
-        if not getattr(organization, "is_active", True):
+        if not getattr(organization, "is_enabled", True):
             raise BusinessRuleError(
                 "Cannot restore an inactive organization.",
                 code="ORGANIZATION_INACTIVE",
@@ -311,7 +311,7 @@ class TenantContextService:
         organization = self._organization_repo.get(normalized_id)
         if organization is None:
             raise NotFoundError("Organization not found.", code="ORGANIZATION_NOT_FOUND")
-        if not getattr(organization, "is_active", True):
+        if not getattr(organization, "is_enabled", True):
             raise BusinessRuleError(
                 "Cannot switch to an inactive organization.",
                 code="ORGANIZATION_INACTIVE",
@@ -398,7 +398,7 @@ class TenantContextService:
         )
         organizations = self._organization_repo.list_for_tenant(
             tenant.id,
-            active_only=True,
+            enabled_only=True,
         )
         organization_id = organizations[0].id if len(organizations) == 1 else None
         if self._principal_rebuilder is None:

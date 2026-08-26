@@ -251,7 +251,7 @@ def test_organization_switch_success_is_tenant_scoped(services) -> None:
     target = organization_service.create_organization(
         organization_code="AUDIT-ORG",
         display_name="Audited Organization",
-        is_active=True,
+        is_enabled=True,
     )
 
     tenant_context.set_active_organization(target.id)

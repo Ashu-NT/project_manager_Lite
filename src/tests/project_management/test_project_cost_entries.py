@@ -395,15 +395,17 @@ def test_cost_entry_repository_isolates_active_organization(services) -> None:
         display_name="Second cost organization",
         timezone_name="UTC",
         base_currency="EUR",
-        is_active=True,
+        is_enabled=True,
     )
-    organization_service.set_active_organization(other.id)
+    organization_service.enable_organization(other.id)
+    services["tenant_context_service"].set_active_organization(other.id)
     try:
         with pytest.raises(NotFoundError) as hidden:
             services["cost_entry_service"].get_entry(draft.id)
         assert getattr(hidden.value, "code", None) == "PROJECT_COST_ENTRY_NOT_FOUND"
     finally:
-        organization_service.set_active_organization(original.id)
+        organization_service.enable_organization(original.id)
+        services["tenant_context_service"].set_active_organization(original.id)
 
     assert services["cost_entry_service"].get_entry(draft.id).id == draft.id
 

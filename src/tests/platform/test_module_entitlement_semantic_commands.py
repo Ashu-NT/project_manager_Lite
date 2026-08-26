@@ -28,7 +28,7 @@ def _non_active_organization(services):
     organization_service = services["organization_service"]
     active = organization_service.get_active_organization()
     other = organization_service.create_organization(
-        organization_code=_unique_code("SEM"), display_name="Semantic Command Org", is_active=False
+        organization_code=_unique_code("SEM"), display_name="Semantic Command Org", is_enabled=False
     )
     assert organization_service.get_active_organization().id == active.id
     return active, other

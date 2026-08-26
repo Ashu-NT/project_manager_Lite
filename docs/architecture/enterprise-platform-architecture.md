@@ -348,39 +348,29 @@ organizations
   display_name      VARCHAR(256)
   timezone_name     VARCHAR(64)
   base_currency     VARCHAR(8)
-  is_active         BOOLEAN NOT NULL
+  is_enabled        BOOLEAN NOT NULL  (P10A: independent per-organization availability; renamed
+                                        from is_active, which carried legacy mutual-exclusion
+                                        designation semantics -- see §3.6)
   version           INTEGER NOT NULL  (optimistic lock)
 ```
 
 ### 3.2 OrganizationService
 
-Location: `src/core/platform/org/application/organization_service.py`
+Location: `src/core/platform/application/master_data/org/organization_service.py`
 
 Key methods:
 
 | Method | Permission Required | Description |
 |---|---|---|
 | `bootstrap_defaults()` | None | Seeds a default org if none exist; no `tenant_id` param |
-| `list_organizations()` | `settings.manage` | Returns all orgs (unscoped by tenant) |
-| `get_active_organization()` | `settings.manage` | Returns the single active org; auto-bootstraps |
-| `create_organization()` | `settings.manage` | Creates org; deactivates all others |
-| `update_organization()` | `settings.manage` | Updates org fields; deactivates others if set active |
-| `set_active_organization()` | `settings.manage` | Flips active flag; writes to session context |
+| `list_organizations()` | `settings.manage` | Returns all orgs for the current tenant |
+| `create_organization()` | `settings.manage` | Creates org; never changes any other organization's availability |
+| `update_organization()` | `settings.manage` | Updates org fields, including `is_enabled`; never touches sibling organizations |
+| `enable_organization()` / `disable_organization()` | `settings.manage` | Availability-only mutation of exactly this organization; no-op (no write) if already in the requested state |
 
-### 3.3 The `_deactivate_other_organizations()` Critical Bug
+### 3.3 (Historical) The `_deactivate_other_organizations()` Mutual-Exclusion Invariant — Removed in P10A
 
-```python
-def _deactivate_other_organizations(self, *, exclude_id: str | None) -> None:
-    for organization in self._organization_repo.list_all(active_only=True):
-        if exclude_id and organization.id == exclude_id:
-            continue
-        if not organization.is_active:
-            continue
-        organization.is_active = False
-        self._organization_repo.update(organization)
-```
-
-**Bug:** `list_all()` on the organization repository is **not scoped by `tenant_id`**. In a multi-tenant deployment this would deactivate active organizations belonging to other tenants whenever any organization is activated. This function is called from `create_organization()`, `update_organization()`, and `set_active_organization()`.
+Earlier revisions of this codebase enforced a single-active-organization invariant: activating one organization deactivated every other organization in the tenant, via a `_deactivate_other_organizations()` helper. That helper (and the invariant it enforced) has been **deleted, not fixed in place** — the target SaaS domain model requires multiple organizations under one tenant to be usable simultaneously, so mutual exclusion was never the correct model to begin with (see §3.6). `create_organization()`/`update_organization()`/`enable_organization()`/`disable_organization()` never mutate any organization row other than the one they were called for.
 
 ### 3.4 Organization Context Resolution
 
@@ -390,7 +380,7 @@ def _deactivate_other_organizations(self, *, exclude_id: str | None) -> None:
 1. Read _session_organization_id()
      └── UserSessionContext._active_organization_id
 2. If found: call organization_repo.get(id)
-3. If org is active AND _can_access(org.id) → return org
+3. If org is enabled AND _can_access(org.id) → return org
 4. If not: clear _active_organization_id in session, return None
 ```
 
@@ -404,24 +394,31 @@ def _deactivate_other_organizations(self, *, exclude_id: str | None) -> None:
 organization_ids = sorted(self.organization_ids())
 return organization_ids[0] if len(organization_ids) == 1 else None
 ```
-If the principal has exactly one organization in its `scoped_access["organization"]` map, it is auto-selected.
+If the principal has exactly one organization in its `scoped_access["organization"]` map, it is auto-selected. This auto-select is a per-user session convenience, unrelated to `Organization.is_enabled` — it reads only from RBAC-derived `scoped_access`.
 
-### 3.5 `get_active()` Unscoped Bug
+### 3.5 (Historical) `get_active()` Unscoped Bug — Method Removed in P10A
 
-The `OrganizationRepository.get_active()` call inside `OrganizationService.get_active_organization()` returns the first active organization across all tenants. In a multi-tenant context, this will return a foreign tenant's organization if the current tenant has none.
+`OrganizationRepository.get_active()` (and `get_active_for_tenant()`, and `OrganizationService.get_active_organization()`, which called it) represented "the one tenant-wide active organization" — a concept the corrected multi-org model has no room for, since more than one organization may be enabled per tenant at once. All three were deleted rather than merely tenant-scoped; the real runtime "current organization" resolution has always gone through `TenantContextService.get_active_organization()` (§3.4), which was never affected by this bug.
 
-### 3.6 Single-Active Invariant
+### 3.6 Multi-Organization Model (P10A)
 
-The system enforces a **single-active-organization invariant**: at any given time, at most one organization is `is_active = True`. This invariant is maintained by `_deactivate_other_organizations()`. This is a single-tenant desktop holdover — multi-tenant operation requires relaxing it to: one active organization per tenant, per user session.
+One Tenant may contain multiple Organizations, and multiple Organizations under the same Tenant may be `is_enabled = True` (usable) simultaneously — there is no mutual-exclusion invariant. Three previously-conflated concepts are now kept structurally independent:
 
-### 3.7 Organization Switching (Admin Console)
+- **`Organization.is_enabled`** — persisted, independent per-organization availability (§3.1). Enabling or disabling one organization never touches any other.
+- **`UserSessionContext.active_organization_id`** — per-user, per-session selection of which (enabled, authorized) organization this user is currently working in. Two users in the same tenant may have their sessions pointed at two different organizations at the same time; selecting one never mutates any `Organization` row.
+- **Organization access authorization** — `RoleBinding(actual_scope_type="organization", actual_scope_id=<org>)` → `Principal.scoped_access["organization"]` (a set, not a scalar — one user may be authorized for multiple organizations). `TenantMembership` alone grants tenant entry only, never organization-specific access.
 
-The Admin Console UI allows switching the active organization:
-1. User selects an organization from the list.
-2. `OrganizationService.set_active_organization(org_id)` is called.
-3. All other organizations are deactivated (cross-tenant bug applies here).
-4. `UserSessionContext.set_active_organization_id(org.id)` updates the in-memory session.
-5. `domain_events.organizations_changed.emit(org.id)` triggers UI refresh.
+`TenantContextService.set_active_organization(...)` is the sole canonical mechanism for changing a user's current organization; it validates same-tenant, RBAC access, and `is_enabled`, then updates session/principal state only — it never persists an `Organization` row.
+
+### 3.7 Organization Availability (Admin Console)
+
+The Admin Console UI allows enabling/disabling an organization:
+1. User selects an organization from the list and triggers the availability action.
+2. `OrganizationService.enable_organization(org_id)` / `disable_organization(org_id)` is called.
+3. No other organization is affected.
+4. `domain_events.organizations_changed.emit(org.id)` triggers UI refresh (unchanged legacy presentation signal, pending a future DomainEvent/ViewInvalidation cutover).
+
+Selecting which organization a user is currently working in is a separate action, routed through `TenantContextService.set_active_organization(...)` (§3.6) — never through the availability mutation above.
 
 ### 3.8 Organization Module Entitlements
 
@@ -1206,7 +1203,7 @@ Optimistic locking updates (`update_with_version_check()` from `infra/persistenc
 | M-2 | Session validation is throttled to once per 60 seconds. Revoked sessions remain valid for up to 60 seconds. | `_SESSION_VALIDATION_THROTTLE_SECONDS = 60` in `session_service.py` | Short window of access after session revocation |
 | M-3 | `_apply_scope()` uses `getattr(orm_model, column_name, None)`. A misspelled or missing attribute silently disables the scope filter. | `ProjectManagementTenantScopedRepositorySupport._apply_scope()` | Silent data leakage across tenants |
 | M-4 | `get_default()` on `TenantRepository` returns the first active tenant by `tenant_code ASC`. Used as fallback. In a multi-tenant DB this returns an arbitrary tenant. | `TenantContextService.get_active_tenant()` | Context set to wrong tenant silently |
-| M-5 | `OrganizationRepository.get_active()` is not scoped by tenant. Returns any organization with `is_active=True`. | `OrganizationService.get_active_organization()` | Returns foreign tenant's organization |
+| M-5 | *(Resolved, P10A)* `OrganizationRepository.get_active()`/`get_active_for_tenant()` and `OrganizationService.get_active_organization()` — the unscoped/singular-designation lookups — were deleted entirely, not merely tenant-scoped. See §3.5. | — | — |
 | M-6 | `employees.organization_id` is nullable. Employees without an organization are invisible to scope-filtered queries but can be created. | `EmployeeORM.organization_id` nullable | Orphaned employees bypass tenant queries |
 | M-7 | `time_entries.organization_id` is nullable. Entries without an org are not scope-filtered. | `TimeEntryORM.organization_id` nullable | Time entries can escape org scope |
 | M-8 | `timesheet_periods.organization_id` is nullable. Same risk as time entries. | `TimesheetPeriodORM.organization_id` nullable | Timesheet periods can escape org scope |

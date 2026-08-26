@@ -33,7 +33,7 @@ Item {
     readonly property string _orgMetaText: String(detailRoot.organization && detailRoot.organization.metaText
         ? detailRoot.organization.metaText
         : "")
-    readonly property bool _isActiveOrganization: detailRoot._orgState.isActive === true
+    readonly property bool _isEnabledOrganization: detailRoot._orgState.isEnabled === true
     readonly property var _sections: [
         { "label": "Overview" },
         { "label": "Runtime Scope" },
@@ -56,16 +56,16 @@ Item {
         const actions = []
         if (detailRoot._activeSectionLabel === "Overview") {
             actions.push({ "id": "edit", "label": "Edit", "icon": "edit", "enabled": detailRoot.canWrite })
-            if (!detailRoot._isActiveOrganization) {
-                actions.push({ "id": "set_active", "label": "Set Active", "icon": "approve", "enabled": detailRoot.canWrite })
+            if (!detailRoot._isEnabledOrganization) {
+                actions.push({ "id": "enable", "label": "Enable", "icon": "approve", "enabled": detailRoot.canWrite })
             }
             actions.push({ "id": "refresh", "label": "Refresh", "icon": "refresh" })
             return actions
         }
         if (detailRoot._activeSectionLabel === "Runtime Scope") {
             actions.push({ "id": "refresh", "label": "Refresh", "icon": "refresh" })
-            if (!detailRoot._isActiveOrganization) {
-                actions.push({ "id": "set_active", "label": "Set Active", "icon": "approve", "enabled": detailRoot.canWrite })
+            if (!detailRoot._isEnabledOrganization) {
+                actions.push({ "id": "enable", "label": "Enable", "icon": "approve", "enabled": detailRoot.canWrite })
             }
             return actions
         }
@@ -243,10 +243,10 @@ Item {
 
                                         AppWidgets.InlineMessage {
                                             Layout.fillWidth: true
-                                            tone: detailRoot._isActiveOrganization ? "success" : "info"
-                                            message: detailRoot._isActiveOrganization
-                                                ? "This organization is the active runtime scope for shared Platform records."
-                                                : "This organization is currently inactive. Activate it when you need it to become the runtime scope."
+                                            tone: detailRoot._isEnabledOrganization ? "success" : "info"
+                                            message: detailRoot._isEnabledOrganization
+                                                ? "This organization is enabled and available for use, subject to each user's own organization access."
+                                                : "This organization is currently disabled. Enable it before users can select it as their working organization."
                                         }
                                     }
                                 }
@@ -298,7 +298,7 @@ Item {
                                 AppWidgets.InlineMessage {
                                     Layout.fillWidth: true
                                     tone: "info"
-                                    message: "Shared platform APIs for sites, departments, documents, and downstream records resolve through the active organization context."
+                                    message: "Shared platform APIs for sites, departments, documents, and downstream records resolve through each user's own current working organization, not through any single tenant-wide designation."
                                 }
 
                                 AppWidgets.SectionCard {
@@ -317,9 +317,9 @@ Item {
 
                                         AppControls.Label {
                                             Layout.fillWidth: true
-                                            text: detailRoot._isActiveOrganization
-                                                ? "This organization is active, so shared runtime catalogs resolve from this organization context."
-                                                : "This organization is currently inactive. Shared runtime catalogs will resolve through the current active organization instead."
+                                            text: detailRoot._isEnabledOrganization
+                                                ? "This organization is enabled, so authorized users may select it as their current working organization."
+                                                : "This organization is currently disabled and cannot be selected as a working organization until re-enabled."
                                             color: Theme.AppTheme.textSecondary
                                             font.pixelSize: Theme.AppTheme.smallSize
                                             wrapMode: Text.WrapAtWordBoundaryOrAnywhere

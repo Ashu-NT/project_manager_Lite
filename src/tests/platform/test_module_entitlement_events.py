@@ -389,7 +389,7 @@ def test_events_carry_the_commanded_organization_not_the_active_one(services, mo
     catalog = services["module_catalog_service"]
     org_a1 = organization_service.get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique_code("SEMEVT"), display_name="Semantic Event Org", is_active=False
+        organization_code=_unique_code("SEMEVT"), display_name="Semantic Event Org", is_enabled=False
     )
     assert organization_service.get_active_organization().id == org_a1.id
     recorded = _spy_recorded_events(catalog, monkeypatch)
@@ -452,7 +452,7 @@ def test_provisioning_new_organization_records_zero_module_events(services, monk
         display_name="Provisioned No-Event Org",
         timezone_name="UTC",
         base_currency="EUR",
-        is_active=False,
+        is_enabled=False,
         initial_module_codes=["project_management"],
     )
 
@@ -463,11 +463,12 @@ def test_read_time_default_seeding_records_zero_module_events(services, monkeypa
     organization_service = services["organization_service"]
     catalog = services["module_catalog_service"]
     new_org = organization_service.create_organization(
-        organization_code=_unique_code("SEED-NOEVT"), display_name="Seed No-Event Org", is_active=False
+        organization_code=_unique_code("SEED-NOEVT"), display_name="Seed No-Event Org", is_enabled=False
     )
     recorded = _spy_recorded_events(catalog, monkeypatch)
 
-    organization_service.set_active_organization(new_org.id)
+    organization_service.enable_organization(new_org.id)
+    services["tenant_context_service"].set_active_organization(new_org.id)
     catalog.list_entitlements()  # triggers _ensure_context_defaults' first-read row seeding
 
     assert recorded == []

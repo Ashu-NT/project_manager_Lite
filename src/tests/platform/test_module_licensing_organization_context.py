@@ -10,22 +10,25 @@ def test_module_entitlements_are_scoped_by_active_organization(services):
         display_name="North Division",
         timezone_name="Europe/Berlin",
         base_currency="EUR",
-        is_active=False,
+        is_enabled=False,
     )
 
     assert module_catalog.is_enabled("project_management") is True
 
-    organization_service.set_active_organization(second_organization.id)
+    organization_service.enable_organization(second_organization.id)
+    services["tenant_context_service"].set_active_organization(second_organization.id)
     assert module_catalog.is_enabled("project_management") is True
 
     module_catalog.disable_module(second_organization.id, "project_management")
     assert module_catalog.is_enabled("project_management") is False
 
-    organization_service.set_active_organization(default_organization.id)
+    organization_service.enable_organization(default_organization.id)
+    services["tenant_context_service"].set_active_organization(default_organization.id)
     assert module_catalog.current_context_label() == "Default Organization"
     assert module_catalog.is_enabled("project_management") is True
 
-    organization_service.set_active_organization(second_organization.id)
+    organization_service.enable_organization(second_organization.id)
+    services["tenant_context_service"].set_active_organization(second_organization.id)
     assert module_catalog.current_context_label() == "North Division"
     assert module_catalog.is_enabled("project_management") is False
 

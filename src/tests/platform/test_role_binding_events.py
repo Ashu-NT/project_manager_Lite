@@ -383,7 +383,7 @@ def test_resource_scope_assignment_in_a_non_active_organization_carries_the_auth
     )
     org_a1_id = storeroom_a1.organization_id
     org_a2 = services["organization_service"].create_organization(
-        organization_code=_unique_code("P5C2-A2"), display_name="P5C-2 Org A2", is_active=True
+        organization_code=_unique_code("P5C2-A2"), display_name="P5C-2 Org A2", is_enabled=True
     )
     tenant_context_service.set_active_organization(org_a2.id)
 
@@ -423,7 +423,7 @@ def test_resource_scope_revocation_preserves_the_same_authoritative_binding_scop
     )
     org_a1_id = storeroom_a1.organization_id
     org_a2 = services["organization_service"].create_organization(
-        organization_code=_unique_code("P5C2-REV-A2"), display_name="P5C-2 Revoke Org A2", is_active=True
+        organization_code=_unique_code("P5C2-REV-A2"), display_name="P5C-2 Revoke Org A2", is_enabled=True
     )
     tenant_context_service.set_active_organization(org_a2.id)
 
@@ -520,7 +520,7 @@ def test_storeroom_scope_event_carries_the_authoritative_organization_from_the_c
     )
     org_a1_id = storeroom_a1.organization_id
     org_a2 = services["organization_service"].create_organization(
-        organization_code=_unique_code("P5C2-STOREROOM-A2"), display_name="P5C-2 Storeroom Org A2", is_active=True
+        organization_code=_unique_code("P5C2-STOREROOM-A2"), display_name="P5C-2 Storeroom Org A2", is_enabled=True
     )
     tenant_context_service.set_active_organization(org_a2.id)
 

@@ -27,9 +27,10 @@ def test_party_service_scopes_party_master_data_by_active_organization(services)
         display_name="Operations Hub",
         timezone_name="Europe/Berlin",
         base_currency="EUR",
-        is_active=False,
+        is_enabled=False,
     )
-    organization_service.set_active_organization(second_organization.id)
+    organization_service.enable_organization(second_organization.id)
+    services["tenant_context_service"].set_active_organization(second_organization.id)
 
     assert party_service.get_context_organization().display_name == "Operations Hub"
     assert party_service.list_parties() == []

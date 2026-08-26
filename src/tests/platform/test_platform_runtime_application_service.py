@@ -18,9 +18,10 @@ def test_platform_runtime_application_service_tracks_active_organization_context
         display_name="North Division",
         timezone_name="Europe/Berlin",
         base_currency="EUR",
-        is_active=False,
+        is_enabled=False,
     )
-    organization_service.set_active_organization(second.id)
+    organization_service.enable_organization(second.id)
+    tenant_context_service.set_active_organization(second.id)
     app_service.set_active_organization(second.id)
 
     assert app_service.current_context_label() == "North Division"
@@ -38,7 +39,7 @@ def test_platform_runtime_application_service_switches_module_mix_by_organizatio
         display_name="South Division",
         timezone_name="Africa/Lagos",
         base_currency="USD",
-        is_active=False,
+        is_enabled=False,
     )
 
     assert app_service.is_enabled("project_management") is True
@@ -80,7 +81,7 @@ def test_platform_runtime_application_service_provisions_organization_with_initi
         display_name="Operations Hub",
         timezone_name="Africa/Lagos",
         base_currency="USD",
-        is_active=False,
+        is_enabled=False,
         initial_module_codes=[],
     )
 
@@ -114,7 +115,7 @@ def test_provision_organization_with_is_active_true_activates_in_one_transaction
         display_name="East Division",
         timezone_name="Asia/Dubai",
         base_currency="AED",
-        is_active=True,
+        is_enabled=True,
         initial_module_codes=["project_management"],
     )
 
@@ -162,7 +163,7 @@ def test_platform_runtime_application_service_requires_settings_manage_to_switch
         display_name="West Division",
         timezone_name="America/Chicago",
         base_currency="USD",
-        is_active=False,
+        is_enabled=False,
     )
 
     user_session.set_principal(

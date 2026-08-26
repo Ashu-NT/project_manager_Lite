@@ -204,15 +204,17 @@ def test_workspace_query_fails_closed_after_organization_switch(services) -> Non
         organization_code="PF-WORKSPACE-ISOLATION",
         display_name="Finance Workspace Isolation",
         base_currency="USD",
-        is_active=False,
+        is_enabled=False,
     )
-    organization_service.set_active_organization(other.id)
+    organization_service.enable_organization(other.id)
+    services["tenant_context_service"].set_active_organization(other.id)
     try:
         with pytest.raises(NotFoundError) as exc:
             services["finance_workspace_query"].get(project.id)
         assert exc.value.code == "FINANCIAL_PROFILE_NOT_FOUND"
     finally:
-        organization_service.set_active_organization(original.id)
+        organization_service.enable_organization(original.id)
+        services["tenant_context_service"].set_active_organization(original.id)
 
 
 def test_qml_uses_five_project_level_finance_views_and_deletes_false_budget_view() -> None:

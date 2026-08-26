@@ -12,7 +12,7 @@ def organization_to_orm(organization: Organization) -> OrganizationORM:
         display_name=organization.display_name,
         timezone_name=organization.timezone_name,
         base_currency=organization.base_currency,
-        is_active=organization.is_active,
+        is_enabled=organization.is_enabled,
         version=getattr(organization, "version", 1),
     )
 
@@ -25,7 +25,7 @@ def organization_from_orm(obj: OrganizationORM) -> Organization:
         display_name=obj.display_name,
         timezone_name=obj.timezone_name,
         base_currency=obj.base_currency,
-        is_active=obj.is_active,
+        is_enabled=obj.is_enabled,
         version=getattr(obj, "version", 1),
     )
 

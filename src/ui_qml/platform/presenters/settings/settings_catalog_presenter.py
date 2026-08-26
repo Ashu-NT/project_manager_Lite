@@ -95,7 +95,7 @@ class PlatformSettingsCatalogPresenter:
                 empty_state="Platform runtime API is not connected in this QML preview.",
             )
 
-        result = self._runtime_api.list_organizations(active_only=None)
+        result = self._runtime_api.list_organizations(enabled_only=None)
         if not result.ok or result.data is None:
             message = result.error.message if result.error is not None else "Unable to load organization profiles."
             return PlatformWorkspaceActionListViewModel(
@@ -112,12 +112,12 @@ class PlatformSettingsCatalogPresenter:
                 PlatformWorkspaceActionItemViewModel(
                     id=org.id,
                     title=org.display_name,
-                    status_label="Active" if org.is_active else "Inactive",
+                    status_label="Enabled" if org.is_enabled else "Disabled",
                     subtitle=org.organization_code,
                     supporting_text=f"{org.timezone_name} | {org.base_currency}",
                     meta_text=f"Version {org.version}",
                     state={
-                        "isActive": org.is_active,
+                        "isEnabled": org.is_enabled,
                     },
                 )
                 for org in result.data

@@ -21,14 +21,14 @@ def update_organization(controller, payload: dict) -> dict[str, object]:
     )
 
 
-def set_active_organization(controller, organization_id: str) -> dict[str, object]:
+def enable_organization(controller, organization_id: str) -> dict[str, object]:
     return run_admin_action(
         controller,
-        action=lambda: controller._organization_controller.setActiveOrganization(
+        action=lambda: controller._organization_controller.enableOrganization(
             organization_id
         ),
         on_success=lambda: refresh_after_organization_change(controller),
     )
 
 
-__all__ = ["create_organization", "set_active_organization", "update_organization"]
+__all__ = ["create_organization", "enable_organization", "update_organization"]

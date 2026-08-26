@@ -334,14 +334,16 @@ def test_commitment_repository_isolates_active_organization(services) -> None:
     organization_service = services["organization_service"]
     other = organization_service.create_organization(
         organization_code="COMMIT2", display_name="Second commitment organization",
-        timezone_name="UTC", base_currency="EUR", is_active=True,
+        timezone_name="UTC", base_currency="EUR", is_enabled=True,
     )
-    organization_service.set_active_organization(other.id)
+    organization_service.enable_organization(other.id)
+    services["tenant_context_service"].set_active_organization(other.id)
     try:
         with pytest.raises(NotFoundError):
             services["commitment_service"].get_line(line.id)
     finally:
-        organization_service.set_active_organization(organization.id)
+        organization_service.enable_organization(organization.id)
+        services["tenant_context_service"].set_active_organization(organization.id)
     assert services["commitment_service"].get_line(line.id).id == line.id
 
 

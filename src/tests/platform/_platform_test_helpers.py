@@ -56,7 +56,7 @@ def _organization(*, organization_id: str, code: str, display_name: str, is_acti
         display_name=display_name,
         timezone_name="UTC",
         base_currency="EUR",
-        is_active=is_active,
+        is_enabled=is_active,
         version=1,
     )
 
@@ -130,7 +130,7 @@ class FakePlatformRuntimeApi:
         self._rebuild_runtime_context()
 
     def _rebuild_runtime_context(self) -> None:
-        active_organization = next((row for row in self._organizations if row.is_active), None)
+        active_organization = next((row for row in self._organizations if row.is_enabled), None)
         self._runtime_context = PlatformRuntimeContextDto(
             context_label="Enterprise Runtime",
             shell_summary="2 modules licensed",
@@ -153,10 +153,10 @@ class FakePlatformRuntimeApi:
     def get_runtime_context(self) -> DesktopApiResult[PlatformRuntimeContextDto]:
         return DesktopApiResult(ok=True, data=self._runtime_context)
 
-    def list_organizations(self, *, active_only: bool | None = None) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
+    def list_organizations(self, *, enabled_only: bool | None = None) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
         rows = self._organizations
-        if active_only is not None:
-            rows = [row for row in rows if row.is_active == active_only]
+        if enabled_only is not None:
+            rows = [row for row in rows if row.is_enabled == enabled_only]
         return DesktopApiResult(ok=True, data=tuple(rows))
 
     def get_organization_count(self) -> DesktopApiResult[int]:
@@ -200,15 +200,15 @@ class FakePlatformRuntimeApi:
                     category="conflict",
                 ),
             )
-        if command.is_active:
-            self._organizations = [replace(row, is_active=False) for row in self._organizations]
+        # P10A: no mutual-exclusion sibling deactivation -- multiple organizations may be
+        # is_enabled=True simultaneously.
         organization = OrganizationDto(
             id=f"org-{len(self._organizations) + 1}",
             organization_code=command.organization_code,
             display_name=command.display_name,
             timezone_name=command.timezone_name,
             base_currency=command.base_currency,
-            is_active=command.is_active,
+            is_enabled=command.is_enabled,
             version=1,
         )
         self._organizations.append(organization)
@@ -219,21 +219,13 @@ class FakePlatformRuntimeApi:
         for index, row in enumerate(self._organizations):
             if row.id != command.organization_id:
                 continue
-            if command.is_active:
-                self._organizations = [
-                    replace(existing, is_active=False)
-                    if existing.id != command.organization_id
-                    else existing
-                    for existing in self._organizations
-                ]
-                row = self._organizations[index]
             updated = replace(
                 row,
                 organization_code=command.organization_code or row.organization_code,
                 display_name=command.display_name or row.display_name,
                 timezone_name=command.timezone_name or row.timezone_name,
                 base_currency=command.base_currency or row.base_currency,
-                is_active=row.is_active if command.is_active is None else command.is_active,
+                is_enabled=row.is_enabled if command.is_enabled is None else command.is_enabled,
                 version=row.version + 1,
             )
             self._organizations[index] = updated
@@ -248,26 +240,23 @@ class FakePlatformRuntimeApi:
             ),
         )
 
-    def set_active_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
-        updated: OrganizationDto | None = None
-        next_rows: list[OrganizationDto] = []
-        for row in self._organizations:
-            new_row = replace(row, is_active=row.id == organization_id)
-            next_rows.append(new_row)
-            if new_row.id == organization_id:
-                updated = new_row
-        if updated is None:
-            return DesktopApiResult(
-                ok=False,
-                error=DesktopApiError(
-                    code="organization_not_found",
-                    message=f"Organization '{organization_id}' was not found.",
-                    category="not_found",
-                ),
-            )
-        self._organizations = next_rows
-        self._rebuild_runtime_context()
-        return DesktopApiResult(ok=True, data=updated)
+    def enable_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+        # P10A: availability mutation only -- never touches any other organization row.
+        for index, row in enumerate(self._organizations):
+            if row.id != organization_id:
+                continue
+            updated = replace(row, is_enabled=True, version=row.version + 1)
+            self._organizations[index] = updated
+            self._rebuild_runtime_context()
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(
+                code="organization_not_found",
+                message=f"Organization '{organization_id}' was not found.",
+                category="not_found",
+            ),
+        )
 
     def license_module(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
         return self._apply_module_transition(module_code, licensed=True)

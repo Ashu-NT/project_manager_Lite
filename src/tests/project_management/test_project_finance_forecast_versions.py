@@ -334,14 +334,16 @@ def test_forecast_repository_is_isolated_by_active_organization(services) -> Non
         display_name="Forecast Isolation Organization",
         timezone_name="UTC",
         base_currency="USD",
-        is_active=False,
+        is_enabled=False,
     )
-    organization_service.set_active_organization(other.id)
+    organization_service.enable_organization(other.id)
+    services["tenant_context_service"].set_active_organization(other.id)
     try:
         assert service._forecast_repo.get(forecast.id) is None
         assert service._forecast_repo.list_for_project(project.id) == []
     finally:
-        organization_service.set_active_organization(original.id)
+        organization_service.enable_organization(original.id)
+        services["tenant_context_service"].set_active_organization(original.id)
 
     assert service._forecast_repo.get(forecast.id).id == forecast.id
 

@@ -37,7 +37,7 @@ def test_platform_runtime_desktop_api_provisions_organization_with_initial_modul
             display_name="Operations Hub",
             timezone_name="Africa/Lagos",
             base_currency="USD",
-            is_active=False,
+            is_enabled=False,
             initial_module_codes=(),
         )
     )
@@ -81,7 +81,7 @@ def test_platform_runtime_desktop_api_maps_permission_denied_org_switch(services
         display_name="East Division",
         timezone_name="Asia/Dubai",
         base_currency="AED",
-        is_active=False,
+        is_enabled=False,
     )
     user_session.set_principal(
         UserSessionPrincipal(

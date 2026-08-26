@@ -183,7 +183,7 @@ def test_module_catalog_read_path_is_isolated_per_organization(services):
         display_name="South Division",
         timezone_name="Europe/Berlin",
         base_currency="EUR",
-        is_active=False,
+        is_enabled=False,
     )
 
     # Disable on the default organization only. project_management defaults
@@ -191,7 +191,8 @@ def test_module_catalog_read_path_is_isolated_per_organization(services):
     module_catalog.disable_module(default_organization.id, "project_management")
     assert module_catalog.is_enabled("project_management") is False
 
-    organization_service.set_active_organization(second_organization.id)
+    organization_service.enable_organization(second_organization.id)
+    services["tenant_context_service"].set_active_organization(second_organization.id)
     # A fresh organization must not inherit the default organization's
     # disabled state -- the reader must be scoped by the (now different)
     # active organization_id, not leak the previous snapshot.
@@ -199,7 +200,8 @@ def test_module_catalog_read_path_is_isolated_per_organization(services):
     entitlements_by_code = {e.code: e for e in module_catalog.list_entitlements()}
     assert entitlements_by_code["project_management"].enabled is True
 
-    organization_service.set_active_organization(default_organization.id)
+    organization_service.enable_organization(default_organization.id)
+    services["tenant_context_service"].set_active_organization(default_organization.id)
     assert module_catalog.is_enabled("project_management") is False
     entitlements_by_code = {e.code: e for e in module_catalog.list_entitlements()}
     assert entitlements_by_code["project_management"].enabled is False

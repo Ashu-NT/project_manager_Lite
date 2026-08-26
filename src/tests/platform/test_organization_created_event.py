@@ -240,7 +240,7 @@ def test_provisioning_create_records_exactly_one_event_before_commit(services, m
 
     organization = app_service.provision_organization(
         organization_code=_unique_code("PROV-EVT"), display_name="Provisioned Evt Org",
-        timezone_name="UTC", base_currency="EUR", is_active=False, initial_module_codes=[],
+        timezone_name="UTC", base_currency="EUR", is_enabled=False, initial_module_codes=[],
     )
 
     assert len(recorded) == 1
@@ -258,7 +258,7 @@ def test_provisioning_late_failure_produces_no_observable_event(services):
     with pytest.raises(NotFoundError):
         app_service.provision_organization(
             organization_code=_unique_code("PROV-LATEFAIL-EVT"), display_name="x",
-            timezone_name="UTC", base_currency="EUR", is_active=False,
+            timezone_name="UTC", base_currency="EUR", is_enabled=False,
             initial_module_codes=["not-a-real-module"],
         )
 

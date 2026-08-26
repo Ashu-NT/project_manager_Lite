@@ -115,7 +115,7 @@ class OrganizationService:
             display_name=DEFAULT_ORGANIZATION_NAME,
             timezone_name=DEFAULT_ORGANIZATION_TIMEZONE,
             base_currency=DEFAULT_ORGANIZATION_CURRENCY,
-            is_active=True,
+            is_enabled=True,
             tenant_id=bootstrap_tenant_id,
         )
         with self._uow_factory.create(context=self._new_context()) as uow:
@@ -126,10 +126,10 @@ class OrganizationService:
     # Runtime read operations — all tenant-scoped, fail-fast.
     # ------------------------------------------------------------------
 
-    def list_organizations(self, *, active_only: bool | None = None) -> list[Organization]:
+    def list_organizations(self, *, enabled_only: bool | None = None) -> list[Organization]:
         require_permission(self._user_session, "settings.manage", operation_label="list organizations")
         tenant_id = self._require_current_tenant_id(operation_label="list organizations")
-        return self._organization_repo.list_for_tenant(tenant_id, active_only=active_only)
+        return self._organization_repo.list_for_tenant(tenant_id, enabled_only=enabled_only)
 
     def get_organization_count(self) -> int:
         require_permission(self._user_session, "settings.manage", operation_label="view organization count")
@@ -137,17 +137,6 @@ class OrganizationService:
         if self._overview_rollup_reader is None:
             raise RuntimeError("Platform overview rollup reader is not configured.")
         return self._overview_rollup_reader.get_organization_count(tenant_id=tenant_id)
-
-    def get_active_organization(self) -> Organization:
-        require_permission(self._user_session, "settings.manage", operation_label="view active organization")
-        tenant_id = self._require_current_tenant_id(operation_label="view active organization")
-        organization = self._organization_repo.get_active_for_tenant(tenant_id)
-        if organization is None:
-            self.bootstrap_defaults()
-            organization = self._organization_repo.get_active_for_tenant(tenant_id)
-        if organization is None:
-            raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
-        return organization
 
     # ------------------------------------------------------------------
     # Runtime write operations — all tenant-scoped, fail-fast.
@@ -162,13 +151,10 @@ class OrganizationService:
         display_name: str,
         timezone_name: str = DEFAULT_ORGANIZATION_TIMEZONE,
         base_currency: str = DEFAULT_ORGANIZATION_CURRENCY,
-        is_active: bool = True,
+        is_enabled: bool = True,
     ) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="create organization")
         tenant_id = self._require_current_tenant_id(operation_label="create organization")
-        # Transaction-owning path: a fresh `OrganizationUnitOfWork` per call. Any exception raised
-        # inside the `with` block is rolled back and the Session closed by the UoW's own
-        # `__exit__` (src/infra/persistence/db/unit_of_work.py) -- no manual rollback/close needed.
         with self._uow_factory.create(context=self._new_context()) as uow:
             organization = self._create_organization_using(
                 uow.organizations,
@@ -177,7 +163,7 @@ class OrganizationService:
                 display_name=display_name,
                 timezone_name=timezone_name,
                 base_currency=base_currency,
-                is_active=is_active,
+                is_enabled=is_enabled,
                 tenant_id=tenant_id,
             )
             try:
@@ -186,11 +172,6 @@ class OrganizationService:
                 raise ValidationError(
                     "Organization code already exists.", code="ORGANIZATION_CODE_EXISTS"
                 ) from exc
-        # P5A: the legacy `organizations_changed` reaction is now driven post-commit from the
-        # committed `OrganizationCreated` fact (recorded inside `_create_organization_using`) via
-        # the registered legacy-compatibility handler -- never emitted directly here, so
-        # standalone creation and `provision_organization` both produce exactly one legacy
-        # reaction from the same business fact, not two independent emission sites.
         return organization
 
     def update_organization(
@@ -201,16 +182,11 @@ class OrganizationService:
         display_name: str | None = None,
         timezone_name: str | None = None,
         base_currency: str | None = None,
-        is_active: bool | None = None,
+        is_enabled: bool | None = None,
         expected_version: int | None = None,
     ) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="update organization")
         tenant_id = self._require_current_tenant_id(operation_label="update organization")
-        # No real caller composes `update_organization` into a larger caller-owned transaction
-        # (searched: `platform_runtime_service.py`, desktop `runtime.py`, the QML presenter, and
-        # every test caller -- each invokes it standalone), so it always owns a fresh
-        # `OrganizationUnitOfWork` directly -- it has no `_using`-parameterized counterpart
-        # because provisioning (P4C) never needs to update an existing organization's fields.
         with self._uow_factory.create(context=self._new_context()) as uow:
             organization = uow.organizations.get_for_tenant(organization_id, tenant_id)
             if organization is None:
@@ -220,6 +196,7 @@ class OrganizationService:
                     "Organization changed since you opened it. Refresh and try again.",
                     code="STALE_WRITE",
                 )
+
             candidate = replace(
                 organization,
                 organization_code=(
@@ -230,7 +207,7 @@ class OrganizationService:
                 display_name=organization.display_name if display_name is None else display_name,
                 timezone_name=organization.timezone_name if timezone_name is None else timezone_name,
                 base_currency=organization.base_currency if base_currency is None else base_currency,
-                is_active=organization.is_active if is_active is None else is_active,
+                is_enabled=organization.is_enabled if is_enabled is None else is_enabled,
                 tenant_id=tenant_id,
             )
             existing = uow.organizations.get_by_code_for_tenant(
@@ -239,19 +216,9 @@ class OrganizationService:
             )
             if existing is not None and existing.id != organization.id:
                 raise ValidationError("Organization code already exists.", code="ORGANIZATION_CODE_EXISTS")
-            if not candidate.is_active and organization.is_active and not self._has_other_active_organizations_using(
-                    uow.organizations, organization.id, tenant_id=tenant_id
-                ):
-                    raise ValidationError(
-                        "At least one active organization is required.",
-                        code="ORGANIZATION_ACTIVE_REQUIRED",
-                    )
             try:
-                if candidate.is_active:
-                    self._deactivate_other_organizations_using(
-                        uow.organizations, tenant_id=tenant_id, exclude_id=organization.id
-                    )
                 uow.organizations.update(candidate)
+
                 record_audit_entry(
                     uow,
                     operation="update",
@@ -265,47 +232,66 @@ class OrganizationService:
                         "display_name": candidate.display_name,
                         "timezone_name": candidate.timezone_name,
                         "base_currency": candidate.base_currency,
-                        "is_active": str(candidate.is_active),
+                        "is_enabled": str(candidate.is_enabled),
                     },
                     commit=False,
+                    fail_closed=True,
                 )
                 uow.commit()
             except IntegrityError as exc:
                 raise ValidationError(
                     "Organization code already exists.", code="ORGANIZATION_CODE_EXISTS"
                 ) from exc
+
         domain_events.organizations_changed.emit(candidate.id)
         return candidate
 
-    def set_active_organization(self, organization_id: str) -> Organization:
-        require_permission(self._user_session, "settings.manage", operation_label="set active organization")
-        tenant_id = self._require_current_tenant_id(operation_label="set active organization")
-        # Transaction-owning path: a fresh `OrganizationUnitOfWork` per call.
+    def enable_organization(self, organization_id: str) -> Organization:
+        return self._set_organization_enabled(organization_id, is_enabled=True, action="organization.enable")
+
+    def disable_organization(self, organization_id: str) -> Organization:
+        """Availability mutation only -- flips `is_enabled` False for exactly this organization.
+        Symmetric with `enable_organization`; see its docstring."""
+        return self._set_organization_enabled(organization_id, is_enabled=False, action="organization.disable")
+
+    def _set_organization_enabled(
+        self, organization_id: str, *, is_enabled: bool, action: str
+    ) -> Organization:
+        require_permission(
+            self._user_session, "settings.manage", operation_label="change organization availability"
+        )
+        tenant_id = self._require_current_tenant_id(operation_label="change organization availability")
         with self._uow_factory.create(context=self._new_context()) as uow:
-            candidate = self._activate_organization_using(
-                uow.organizations, uow, organization_id=organization_id, tenant_id=tenant_id
+            organization = uow.organizations.get_for_tenant(organization_id, tenant_id)
+            if organization is None:
+                raise NotFoundError("Organization not found.", code="ORGANIZATION_NOT_FOUND")
+            if organization.is_enabled == is_enabled:
+                # No-op: nothing actually changes, so no write, no audit, no signal -- a
+                # past-tense state-transition write must represent an actual transition
+                # (P9A-R/P9B decision, applied here for the first time it's implementable).
+                return organization
+            candidate = replace(organization, is_enabled=is_enabled, tenant_id=tenant_id)
+            uow.organizations.update(candidate)
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="organization",
+                entity_id=candidate.id,
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": action,
+                    "organization_code": candidate.organization_code,
+                    "display_name": candidate.display_name,
+                    "is_enabled": str(candidate.is_enabled),
+                },
+                commit=False,
+                fail_closed=True,
             )
             uow.commit()
-        if self._tenant_context_service is not None:
-            self._tenant_context_service.set_active_organization(candidate.id)
-        elif self._user_session is not None:
-            self._user_session.set_active_organization_id(candidate.id)
         domain_events.organizations_changed.emit(candidate.id)
         return candidate
 
-    # ------------------------------------------------------------------
-    # Private helpers — tenant_id passed explicitly by every caller.
-    # Orgs from list_for_tenant() already carry the correct tenant_id;
-    # the pin below is defense-in-depth before any repo.update() call.
-    # `_using` variants are parameterized by repository/audit-owner so any transaction-bound
-    # caller can supply its own UnitOfWork's fresh-Session-bound repository: `create_organization`/
-    # `set_active_organization` pass their own `OrganizationUnitOfWork`'s accessor;
-    # `PlatformRuntimeApplicationService.provision_organization` (P4C) passes its own
-    # `PlatformProvisioningUnitOfWork`'s `organizations` accessor instead -- same business
-    # operation, two different transaction owners, never a nested UnitOfWork. The plain
-    # `_deactivate_other_organizations` wrapper over `self._organization_repo` remains only for
-    # direct test use (`test_phase_0_critical_bug_fixes.py`).
-    # ------------------------------------------------------------------
 
     def _create_organization_using(
         self,
@@ -316,36 +302,20 @@ class OrganizationService:
         display_name: str,
         timezone_name: str,
         base_currency: str,
-        is_active: bool,
+        is_enabled: bool,
         tenant_id: str,
     ) -> Organization:
-        """The Organization-creation business operation, shared by `create_organization`'s own
-        fresh `OrganizationUnitOfWork` and `PlatformRuntimeApplicationService.provision_organization`'s
-        provisioning UnitOfWork -- one implementation, reused via whichever transaction-bound
-        repository/UoW pair the caller supplies. Does not open or commit a transaction itself --
-        that remains the caller's responsibility (never nest a UnitOfWork inside this operation).
-
-        `uow` is duck-typed against the canonical `UnitOfWork` contract
-        (`record_event`) plus the `_enterprise_audit_service` accessor both
-        `OrganizationUnitOfWork` and `PlatformProvisioningUnitOfWork` declare -- never a concrete
-        `SqlAlchemyOrganizationUnitOfWork`/`SqlAlchemyPlatformProvisioningUnitOfWork` import here
-        (P5A, ADR-005 Section 9's no-service-locator/no-concrete-coupling principle)."""
         organization = Organization.create(
             organization_code=organization_code,
             display_name=display_name,
             timezone_name=timezone_name,
             base_currency=base_currency,
-            is_active=is_active,
+            is_enabled=is_enabled,
             tenant_id=tenant_id,
         )
         if organization_repo.get_by_code_for_tenant(organization.organization_code, tenant_id) is not None:
             raise ValidationError("Organization code already exists.", code="ORGANIZATION_CODE_EXISTS")
-        if organization.is_active:
-            self._deactivate_other_organizations_using(organization_repo, tenant_id=tenant_id, exclude_id=None)
         organization_repo.add(organization)
-        # Audit is staged in the same transaction as the business write (ADR-003: "the business
-        # mutation and successful security audit intent commit atomically" for platform
-        # provisioning) — never a second, separate commit.
         record_audit_entry(
             uow,
             operation="create",
@@ -359,16 +329,11 @@ class OrganizationService:
                 "display_name": organization.display_name,
                 "timezone_name": organization.timezone_name,
                 "base_currency": organization.base_currency,
-                "is_active": str(organization.is_active),
+                "is_enabled": str(organization.is_enabled),
             },
             commit=False,
             fail_closed=True,
         )
-        # P5A (ADR-005 Section 6's application-authored escape hatch): Organization has no
-        # aggregate transition methods to record itself on, and a creation fact has no prior
-        # instance regardless. Recorded before `uow.commit()` so it participates in the canonical
-        # UoW event lifecycle -- transactional dispatch, then only-on-successful-commit
-        # post-commit publication (never observable if this transaction rolls back).
         uow.record_event(
             OrganizationCreated(
                 tenant_id=tenant_id,
@@ -380,7 +345,7 @@ class OrganizationService:
         )
         return organization
 
-    def _activate_organization_using(
+    def _enable_organization_using(
         self,
         organization_repo: OrganizationRepository,
         audit_owner: object,
@@ -388,19 +353,10 @@ class OrganizationService:
         organization_id: str,
         tenant_id: str,
     ) -> Organization:
-        """The Organization-activation business operation (P4C), shared by
-        `set_active_organization`'s own fresh `OrganizationUnitOfWork` and
-        `PlatformRuntimeApplicationService.provision_organization`'s provisioning UnitOfWork --
-        same reuse principle as `_create_organization_using`. Does not open or commit a
-        transaction, and does not touch runtime context (`tenant_context_service`/
-        `UserSessionContext`) -- callers update that only after their own commit succeeds."""
         organization = organization_repo.get_for_tenant(organization_id, tenant_id)
         if organization is None:
             raise NotFoundError("Organization not found.", code="ORGANIZATION_NOT_FOUND")
-        candidate = replace(organization, is_active=True, tenant_id=tenant_id)
-        self._deactivate_other_organizations_using(
-            organization_repo, tenant_id=tenant_id, exclude_id=organization.id
-        )
+        candidate = replace(organization, is_enabled=True, tenant_id=tenant_id)
         organization_repo.update(candidate)
         record_audit_entry(
             audit_owner,
@@ -410,7 +366,7 @@ class OrganizationService:
             module="platform",
             severity="low",
             metadata={
-                "action": "organization.set_active",
+                "action": "organization.enable",
                 "organization_code": candidate.organization_code,
                 "display_name": candidate.display_name,
             },
@@ -418,29 +374,6 @@ class OrganizationService:
             fail_closed=True,
         )
         return candidate
-
-    def _deactivate_other_organizations_using(
-        self, organization_repo: OrganizationRepository, *, tenant_id: str, exclude_id: str | None
-    ) -> None:
-        for organization in organization_repo.list_for_tenant(tenant_id, active_only=True):
-            if exclude_id and organization.id == exclude_id:
-                continue
-            organization.is_active = False
-            organization.tenant_id = tenant_id  # pin: tenant ownership is immutable
-            organization_repo.update(organization)
-
-    def _deactivate_other_organizations(self, *, tenant_id: str, exclude_id: str | None) -> None:
-        self._deactivate_other_organizations_using(
-            self._organization_repo, tenant_id=tenant_id, exclude_id=exclude_id
-        )
-
-    def _has_other_active_organizations_using(
-        self, organization_repo: OrganizationRepository, organization_id: str, *, tenant_id: str
-    ) -> bool:
-        return any(
-            org.id != organization_id
-            for org in organization_repo.list_for_tenant(tenant_id, active_only=True)
-        )
 
 
 __all__ = ["OrganizationService"]

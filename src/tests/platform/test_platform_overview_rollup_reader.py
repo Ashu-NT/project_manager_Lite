@@ -468,7 +468,7 @@ def test_organization_service_get_organization_count_reflects_writes(services):
         display_name="Rollup Org 1",
         timezone_name="UTC",
         base_currency="USD",
-        is_active=False,
+        is_enabled=False,
     )
 
     assert organization_service.get_organization_count() == baseline + 1
@@ -540,16 +540,18 @@ def test_rollup_summaries_isolated_per_organization(services):
         display_name="Second Org",
         timezone_name="UTC",
         base_currency="USD",
-        is_active=False,
+        is_enabled=False,
     )
-    organization_service.set_active_organization(second_organization.id)
+    organization_service.enable_organization(second_organization.id)
+    services["tenant_context_service"].set_active_organization(second_organization.id)
 
     assert site_service.get_site_rollup_summary().total == 0
     assert department_service.get_department_rollup_summary().total == 0
     assert party_service.get_party_rollup_summary().total == 0
     assert document_service.get_document_rollup_summary().total == 0
 
-    organization_service.set_active_organization(default_organization.id)
+    organization_service.enable_organization(default_organization.id)
+    services["tenant_context_service"].set_active_organization(default_organization.id)
     assert site_service.get_site_rollup_summary().total >= 1
     assert department_service.get_department_rollup_summary().total >= 1
     assert party_service.get_party_rollup_summary().total >= 1

@@ -60,7 +60,7 @@ def _seed_priority_pm_rows(services):
     session = services["session"]
     organization_service = services["organization_service"]
     default_org = organization_service.get_active_organization()
-    other_org = organization_service.create_organization(organization_code="OPS", display_name="Operations Hub", timezone_name="UTC", base_currency="USD", is_active=False)
+    other_org = organization_service.create_organization(organization_code="OPS", display_name="Operations Hub", timezone_name="UTC", base_currency="USD", is_enabled=False)
     assert default_org is not None
     assert other_org is not None
     assert getattr(default_org, "tenant_id", None)
@@ -97,7 +97,8 @@ def _seed_priority_pm_rows(services):
     session.commit()
     session.add_all([baseline_task_a, baseline_task_b, variance_a, variance_b])
     session.commit()
-    organization_service.set_active_organization(default_org.id)
+    organization_service.enable_organization(default_org.id)
+    services["tenant_context_service"].set_active_organization(default_org.id)
     return {
         "default_org": default_org, "other_org": other_org,
         "project_a": project_a.id, "project_b": project_b.id,
@@ -148,7 +149,8 @@ def _seed_pm_secondary_scope_rows(services):
     dep_b = PortfolioProjectDependencyORM(id="portfolio-dependency-b", predecessor_project_id=seeded["project_b"], successor_project_id=project_b_secondary.id, dependency_type=DependencyType.FINISH_TO_START.value, summary="Portfolio dependency B", created_at=now, updated_at=now)
     session.add_all([project_resource_a, project_resource_b, skill_a, skill_b, cert_a, cert_b, task_requirement_a, task_requirement_b, project_assignment_a, project_assignment_b, resource_assignment_a, resource_assignment_b, template_a, template_b, intake_a, intake_b, scenario_a, scenario_b, dep_a, dep_b])
     session.commit()
-    organization_service.set_active_organization(default_org.id)
+    organization_service.enable_organization(default_org.id)
+    services["tenant_context_service"].set_active_organization(default_org.id)
     return {
         **seeded,
         "project_a_secondary": project_a_secondary.id, "project_b_secondary": project_b_secondary.id,
@@ -169,7 +171,8 @@ def _seed_pm_secondary_scope_rows(services):
 def test_pm_secondary_repositories_hide_other_organization_rows(services):
     seeded = _seed_pm_secondary_scope_rows(services)
     organization_service = services["organization_service"]
-    organization_service.set_active_organization(seeded["default_org"].id)
+    organization_service.enable_organization(seeded["default_org"].id)
+    services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
     project_resource_repo = services["project_resource_service"]._project_resource_repo
     resource_service = services["resource_service"]
     skill_repo = resource_service._skill_repo
@@ -211,7 +214,8 @@ def test_pm_secondary_repositories_hide_other_organization_rows(services):
 def test_pm_secondary_repositories_scope_mutations_to_active_organization(services):
     seeded = _seed_pm_secondary_scope_rows(services)
     organization_service = services["organization_service"]
-    organization_service.set_active_organization(seeded["default_org"].id)
+    organization_service.enable_organization(seeded["default_org"].id)
+    services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
     project_resource_repo = services["project_resource_service"]._project_resource_repo
     resource_service = services["resource_service"]
     skill_repo = resource_service._skill_repo
@@ -237,7 +241,8 @@ def test_pm_secondary_repositories_scope_mutations_to_active_organization(servic
     scenario_repo.delete(seeded["scenario_b"])
     dependency_repo.delete(seeded["portfolio_dependency_b"])
     services["session"].commit()
-    organization_service.set_active_organization(seeded["other_org"].id)
+    organization_service.enable_organization(seeded["other_org"].id)
+    services["tenant_context_service"].set_active_organization(seeded["other_org"].id)
     assert project_resource_repo.get(seeded["project_resource_b"]) is not None
     assert skill_repo.get(seeded["skill_b"]) is not None
     assert cert_repo.get(seeded["cert_b"]) is not None

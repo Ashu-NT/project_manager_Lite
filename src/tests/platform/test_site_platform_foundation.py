@@ -30,9 +30,10 @@ def test_site_service_scopes_site_master_data_by_active_organization(services):
         display_name="Operations Hub",
         timezone_name="Europe/Berlin",
         base_currency="EUR",
-        is_active=False,
+        is_enabled=False,
     )
-    organization_service.set_active_organization(second_organization.id)
+    organization_service.enable_organization(second_organization.id)
+    services["tenant_context_service"].set_active_organization(second_organization.id)
 
     assert site_service.get_context_organization().display_name == "Operations Hub"
     assert site_service.list_sites() == []
@@ -41,7 +42,8 @@ def test_site_service_scopes_site_master_data_by_active_organization(services):
     assert plant.organization_id == second_organization.id
     assert [site.site_code for site in site_service.list_sites()] == ["PLANT1"]
 
-    organization_service.set_active_organization(default_organization.id)
+    organization_service.enable_organization(default_organization.id)
+    services["tenant_context_service"].set_active_organization(default_organization.id)
     assert site_service.get_context_organization().display_name == "Default Organization"
     assert [site.site_code for site in site_service.list_sites()] == ["HQ"]
 

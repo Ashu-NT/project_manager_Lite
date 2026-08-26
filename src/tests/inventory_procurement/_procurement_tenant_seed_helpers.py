@@ -62,7 +62,7 @@ def _seed_inventory_scope_rows(services) -> dict[str, str]:
         display_name="Inventory Tenant Operations",
         timezone_name="UTC",
         base_currency="USD",
-        is_active=False,
+        is_enabled=False,
     )
 
     assert current_org is not None
@@ -159,9 +159,11 @@ def _seed_inventory_scope_rows(services) -> dict[str, str]:
         }
 
     current_rows = build_rows("CUR")
-    organization_service.set_active_organization(other_org.id)
+    organization_service.enable_organization(other_org.id)
+    tenant_context_service.set_active_organization(other_org.id)
     other_rows = build_rows("OTH")
-    organization_service.set_active_organization(current_org.id)
+    organization_service.enable_organization(current_org.id)
+    tenant_context_service.set_active_organization(current_org.id)
 
     return {
         "current_org_id": current_org.id,
@@ -206,7 +208,7 @@ def _seed_procurement_scope_rows(services) -> dict[str, str]:
         display_name="Procurement Tenant Operations",
         timezone_name="UTC",
         base_currency="USD",
-        is_active=False,
+        is_enabled=False,
     )
 
     assert current_org is not None
@@ -255,9 +257,11 @@ def _seed_procurement_scope_rows(services) -> dict[str, str]:
         }
 
     current_refs = build_reference_rows("CUR")
-    organization_service.set_active_organization(other_org.id)
+    organization_service.enable_organization(other_org.id)
+    tenant_context_service.set_active_organization(other_org.id)
     other_refs = build_reference_rows("OTH")
-    organization_service.set_active_organization(current_org.id)
+    organization_service.enable_organization(current_org.id)
+    tenant_context_service.set_active_organization(current_org.id)
 
     current_requisition = PurchaseRequisitionORM(
         id="req-current-scope",

@@ -83,9 +83,9 @@ def test_deactivate_other_organizations_does_not_touch_other_tenants(services):
     tenant_b = "tenant-fix1-b"
     _add_tenant_row(session, tenant_b, "FIX1-B")
 
-    org_a1 = Organization.create("FIX1-A1", "Tenant A Org 1", tenant_id=tenant_a, is_active=True)
-    org_a2 = Organization.create("FIX1-A2", "Tenant A Org 2", tenant_id=tenant_a, is_active=True)
-    org_b1 = Organization.create("FIX1-B1", "Tenant B Org 1", tenant_id=tenant_b, is_active=True)
+    org_a1 = Organization.create("FIX1-A1", "Tenant A Org 1", tenant_id=tenant_a, is_enabled=True)
+    org_a2 = Organization.create("FIX1-A2", "Tenant A Org 2", tenant_id=tenant_a, is_enabled=True)
+    org_b1 = Organization.create("FIX1-B1", "Tenant B Org 1", tenant_id=tenant_b, is_enabled=True)
 
     repo.add(org_a1)
     repo.add(org_a2)
@@ -123,8 +123,8 @@ def test_list_organizations_is_scoped_to_active_tenant(services):
     tenant_b = "tenant-fix2-b"
     _add_tenant_row(session, tenant_b, "FIX2-B")
 
-    org_a = Organization.create("FIX2-A", "Tenant A Org", tenant_id=tenant_a, is_active=False)
-    org_b = Organization.create("FIX2-B", "Tenant B Org", tenant_id=tenant_b, is_active=False)
+    org_a = Organization.create("FIX2-A", "Tenant A Org", tenant_id=tenant_a, is_enabled=False)
+    org_b = Organization.create("FIX2-B", "Tenant B Org", tenant_id=tenant_b, is_enabled=False)
     repo.add(org_a)
     repo.add(org_b)
     session.flush()
@@ -158,7 +158,7 @@ def test_get_active_organization_returns_tenant_scoped_active_org(services):
     _add_tenant_row(session, tenant_b, "FIX2B-B")
 
     # Add a second org for tenant_b that is also active
-    org_b = Organization.create("FIX2B-B", "Tenant B Active", tenant_id=tenant_b, is_active=True)
+    org_b = Organization.create("FIX2B-B", "Tenant B Active", tenant_id=tenant_b, is_enabled=True)
     repo.add(org_b)
     session.flush()
 
@@ -188,7 +188,7 @@ def test_get_active_for_tenant_repository_method(services):
     t2 = "tenant-repo-2"
     _add_tenant_row(session, t2, "REPO-T2")
 
-    o2 = Organization.create("REPO-T2", "T2 Active Org", tenant_id=t2, is_active=True)
+    o2 = Organization.create("REPO-T2", "T2 Active Org", tenant_id=t2, is_enabled=True)
     repo.add(o2)
     session.flush()
 

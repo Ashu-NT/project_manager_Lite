@@ -525,14 +525,16 @@ def test_finance_reporting_isolated_across_organizations(services):
         organization_code="F0-REPORTING-ISOLATION",
         display_name="F0 Reporting Isolation Org",
         base_currency="USD",
-        is_active=False,
+        is_enabled=False,
     )
-    organization_service.set_active_organization(other_organization.id)
+    organization_service.enable_organization(other_organization.id)
+    services["tenant_context_service"].set_active_organization(other_organization.id)
     try:
         with pytest.raises(NotFoundError, match="not found"):
             services["reporting_service"].get_cost_breakdown(project_id)
     finally:
-        organization_service.set_active_organization(original_organization.id)
+        organization_service.enable_organization(original_organization.id)
+        services["tenant_context_service"].set_active_organization(original_organization.id)
 
     # Visibility (and finance authorization) returns once back in-scope.
     assert services["reporting_service"].get_cost_breakdown(project_id) is not None

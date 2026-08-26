@@ -16,7 +16,7 @@ class PlatformSettingsWorkspacePresenter:
     def build_overview(self) -> PlatformWorkspaceOverviewViewModel:
         runtime_result = self._runtime_api.get_runtime_context() if self._runtime_api is not None else None
         modules_result = self._runtime_api.list_modules() if self._runtime_api is not None else None
-        organizations_result = self._runtime_api.list_organizations(active_only=None) if self._runtime_api is not None else None
+        organizations_result = self._runtime_api.list_organizations(enabled_only=None) if self._runtime_api is not None else None
 
         if runtime_result is not None and (not runtime_result.ok or runtime_result.data is None):
             message = runtime_result.error.message if runtime_result.error is not None else "Unknown platform API error"

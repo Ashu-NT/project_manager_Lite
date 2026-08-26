@@ -46,7 +46,7 @@ AppWidgets.EntityDialog {
         displayName: displayNameField.text.trim(),
         timezoneName: timezoneField.text.trim(),
         baseCurrency: currencyField.text.trim().toUpperCase(),
-        isActive: activeCheck.checked,
+        isEnabled: enabledCheck.checked,
         initialModuleCodes: _selectedModuleCodes()
     })
 
@@ -70,7 +70,7 @@ AppWidgets.EntityDialog {
         displayNameField.text = root.draft.displayName || ""
         timezoneField.text = root.draft.timezoneName || "UTC"
         currencyField.text = root.draft.baseCurrency || "USD"
-        activeCheck.checked = root.draft.isActive !== undefined ? root.draft.isActive : true
+        enabledCheck.checked = root.draft.isEnabled !== undefined ? root.draft.isEnabled : true
         _reloadModules()
     }
 
@@ -162,9 +162,9 @@ AppWidgets.EntityDialog {
     }
 
     AppControls.CheckBox {
-        id: activeCheck
+        id: enabledCheck
 
-        text: "Active organization"
+        text: "Enabled"
     }
 
     ColumnLayout {
