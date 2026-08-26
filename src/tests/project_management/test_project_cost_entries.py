@@ -50,7 +50,7 @@ def _source(*, command_id: str = "command-1", content_hash: str = "a" * 64):
 
 
 def _create_project_finance_setup(services):
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         "Canonical actuals",
         financial_currency_code=organization.base_currency,

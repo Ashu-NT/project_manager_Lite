@@ -39,7 +39,7 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _setup_billable_project(services, *, suffix: str):
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         f"Billing Approval Project {suffix}", financial_currency_code=organization.base_currency
     )

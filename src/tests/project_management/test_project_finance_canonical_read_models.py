@@ -14,7 +14,7 @@ from src.core.modules.project_management.domain.financials.forecast import (
 
 
 def _approved_controls(services):
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         "Canonical finance read model",
         financial_currency_code=organization.base_currency,

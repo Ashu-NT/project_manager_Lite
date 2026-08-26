@@ -38,7 +38,7 @@ def _create_approved_project_purchase_order(
     link_via_task: bool = False,
 ):
     suffix = uuid4().hex[:7].upper()
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         f"Procurement Finance {suffix}",
         financial_currency_code=organization.base_currency,

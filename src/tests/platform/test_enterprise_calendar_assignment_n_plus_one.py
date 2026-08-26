@@ -169,7 +169,7 @@ def test_list_calendar_assignments_serializes_all_five_entity_types_correctly(se
     """P5.4 -- semantic equivalence: every assignment category still
     produces a DTO with the correct entity_type/entity_id and the shared
     calendar's name/type, exactly as before the batch-fetch rewire."""
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     calendar_service = services["enterprise_calendar_service"]
     assignment_service = services["calendar_assignment_service"]
     api = _build_api(services)

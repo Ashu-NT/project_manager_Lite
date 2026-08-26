@@ -189,7 +189,7 @@ def test_governance_permissions_are_split_between_request_and_decide(services, m
     approvals = services["approval_service"]
 
     project = ps.create_project("Governance permission split")
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     cost_code = configuration.create_cost_code(code="HOTEL", name="Hotel")
     item = cost_entries.create_manual_entry(
         project_id=project.id,

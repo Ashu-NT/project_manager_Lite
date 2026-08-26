@@ -563,7 +563,7 @@ def test_cross_tenant_storeroom_assignment_attempt_emits_zero_events(services, m
     foreign_org_id = _unique_code("p5c2-foreign-org")
     session.add(OrganizationORM(
         id=foreign_org_id, tenant_id=foreign_tenant_id, organization_code=_unique_code("P5C2FORG"),
-        display_name="Foreign Org", is_active=True, version=1,
+        display_name="Foreign Org", is_enabled=True, version=1,
     ))
     session.commit()
     foreign_site_id = _unique_code("p5c2-foreign-site")

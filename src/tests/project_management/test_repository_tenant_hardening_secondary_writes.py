@@ -230,7 +230,8 @@ def test_pm_secondary_repositories_reject_cross_organization_writes(services):
 
 def test_resource_capability_counts_preserve_organization_scope(services):
     seeded = _seed_pm_secondary_scope_rows(services)
-    services["organization_service"].set_active_organization(seeded["default_org"].id)
+    services["organization_service"].enable_organization(seeded["default_org"].id)
+    services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
     resource_service = services["resource_service"]
     skill_repo = resource_service._skill_repo
     cert_repo = resource_service._cert_repo
@@ -243,7 +244,8 @@ def test_resource_capability_counts_preserve_organization_scope(services):
 
 def test_task_comment_repository_rejects_stale_atomic_update(services):
     seeded = _seed_priority_pm_rows(services)
-    services["organization_service"].set_active_organization(seeded["default_org"].id)
+    services["organization_service"].enable_organization(seeded["default_org"].id)
+    services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
     repository = services["collaboration_service"]._comment_repo
     session = services["session"]
 

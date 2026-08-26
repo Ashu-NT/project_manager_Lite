@@ -28,7 +28,7 @@ def test_inventory_pricing_desktop_api_builds_snapshot_and_exports_reports(
     services,
     tmp_path,
 ) -> None:
-    active_organization_id = services["organization_service"].get_active_organization().id
+    active_organization_id = services["tenant_context_service"].get_active_organization().id
     services["module_catalog_service"].license_module(active_organization_id, "inventory_procurement")
     services["module_catalog_service"].enable_module(active_organization_id, "inventory_procurement")
     services["auth_service"].register_user(

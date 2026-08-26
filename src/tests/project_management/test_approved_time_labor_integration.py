@@ -18,7 +18,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.finance_
 
 
 def _setup(services):
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         "Approved Time Finance", financial_currency_code=organization.base_currency
     )

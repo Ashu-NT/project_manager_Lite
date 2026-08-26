@@ -455,7 +455,7 @@ def test_cross_tenant_mutation_attempt_produces_no_invalidation(services):
     session.add(TenantORM(id=foreign_tenant_id, tenant_code=_unique_code("P5C3FT"), display_name="Foreign Tenant", is_active=True, version=1))
     session.commit()
     foreign_org_id = _unique_code("p5c3-foreign-org")
-    session.add(OrganizationORM(id=foreign_org_id, tenant_id=foreign_tenant_id, organization_code=_unique_code("P5C3FORG"), display_name="Foreign Org", is_active=True, version=1))
+    session.add(OrganizationORM(id=foreign_org_id, tenant_id=foreign_tenant_id, organization_code=_unique_code("P5C3FORG"), display_name="Foreign Org", is_enabled=True, version=1))
     session.commit()
     foreign_site_id = _unique_code("p5c3-foreign-site")
     session.add(SiteORM(id=foreign_site_id, tenant_id=foreign_tenant_id, organization_id=foreign_org_id, site_code=_unique_code("P5C3FSITE"), name="Foreign Site", is_active=True, created_at=now, updated_at=now, version=1))
@@ -485,7 +485,7 @@ def test_adapter_subscribes_via_exact_organization_and_tenant_wide_only(services
 
     channel = services["platform_view_invalidation_channel"]
     tenant_id = _active_tenant(services)
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
 
     adapter = RoleBindingViewInvalidationAdapter(channel=channel, tenant_id=tenant_id, organization_id=org.id)
     try:
@@ -525,7 +525,7 @@ def test_adapter_only_reacts_to_its_exact_active_organization_for_resource_scope
 def test_adapter_reacts_to_tenant_scope_regardless_of_active_organization(services):
     channel = services["platform_view_invalidation_channel"]
     tenant_id = _active_tenant(services)
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
 
     adapter = RoleBindingViewInvalidationAdapter(channel=channel, tenant_id=tenant_id, organization_id=org.id)
     signal_calls = []

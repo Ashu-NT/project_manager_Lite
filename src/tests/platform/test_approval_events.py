@@ -427,7 +427,7 @@ def test_submit_preparation_records_exactly_one_approval_requested(services, mon
     from src.core.modules.project_management.domain.financials.configuration import BillingMethod
 
     _login(services, "admin", "ChangeMe123!")
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         _unique("Events Billing Project"), financial_currency_code=organization.base_currency
     )

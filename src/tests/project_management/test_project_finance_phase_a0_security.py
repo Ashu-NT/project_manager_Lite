@@ -191,7 +191,7 @@ def test_global_sensitive_grant_does_not_bypass_project_scope(services):
 
 
 def _create_audited_cost_entry(services, *, command_id: str):
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         "Audited canonical cost",
         financial_currency_code=organization.base_currency,
@@ -232,7 +232,7 @@ def test_cost_entry_mutation_records_scoped_enterprise_audit(services):
 
 
 def test_cost_entry_mutation_rolls_back_when_required_audit_fails(services, monkeypatch):
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         "Fail-closed canonical cost audit",
         financial_currency_code=organization.base_currency,

@@ -142,7 +142,7 @@ def test_shared_events_package_does_not_import_module_entitlement_events():
 
 def test_license_module_idempotency_preserves_trial_not_a_lifecycle_reset(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     catalog.transition_module_lifecycle(org.id, "project_management", "trial")
 
     entitlement = catalog.license_module(org.id, "project_management")
@@ -158,7 +158,7 @@ def test_license_module_idempotency_preserves_trial_not_a_lifecycle_reset(servic
 
 def test_license_module_records_exactly_one_module_licensed(services, monkeypatch):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     catalog.revoke_module_license(org.id, "project_management")
     recorded = _spy_recorded_events(catalog, monkeypatch)
 
@@ -177,7 +177,7 @@ def test_license_module_records_exactly_one_module_licensed(services, monkeypatc
 
 def test_license_module_on_already_licensed_module_records_zero_events(services, monkeypatch):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     recorded = _spy_recorded_events(catalog, monkeypatch)
 
     catalog.license_module(org.id, "project_management")  # already licensed by default
@@ -187,7 +187,7 @@ def test_license_module_on_already_licensed_module_records_zero_events(services,
 
 def test_license_module_uses_the_injected_clock_deterministically(services, monkeypatch):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     catalog.revoke_module_license(org.id, "project_management")
     fixed_when = datetime(2030, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
     original_clock = catalog._clock
@@ -207,7 +207,7 @@ def test_license_module_uses_the_injected_clock_deterministically(services, monk
 
 def test_revoke_module_license_records_exactly_one_module_license_revoked_and_no_others(services, monkeypatch):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     recorded = _spy_recorded_events(catalog, monkeypatch)
 
     entitlement = catalog.revoke_module_license(org.id, "project_management")
@@ -226,7 +226,7 @@ def test_revoke_module_license_records_exactly_one_module_license_revoked_and_no
 
 def test_revoke_module_license_on_already_unlicensed_module_records_zero_events(services, monkeypatch):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     catalog.revoke_module_license(org.id, "project_management")
     recorded = _spy_recorded_events(catalog, monkeypatch)
 
@@ -242,7 +242,7 @@ def test_revoke_module_license_on_already_unlicensed_module_records_zero_events(
 
 def test_enable_module_records_exactly_one_module_enabled_from_active_and_from_trial(services, monkeypatch):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     catalog.disable_module(org.id, "project_management")
     recorded = _spy_recorded_events(catalog, monkeypatch)
 
@@ -263,7 +263,7 @@ def test_enable_module_records_exactly_one_module_enabled_from_active_and_from_t
 
 def test_enable_module_invalid_attempts_record_zero_events(services, monkeypatch):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     recorded = _spy_recorded_events(catalog, monkeypatch)
 
     catalog.revoke_module_license(org.id, "project_management")
@@ -288,7 +288,7 @@ def test_enable_module_invalid_attempts_record_zero_events(services, monkeypatch
 
 def test_enable_module_on_already_enabled_module_records_zero_events(services, monkeypatch):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     recorded = _spy_recorded_events(catalog, monkeypatch)
 
     catalog.enable_module(org.id, "project_management")  # already enabled by default
@@ -303,7 +303,7 @@ def test_enable_module_on_already_enabled_module_records_zero_events(services, m
 
 def test_disable_module_records_exactly_one_module_disabled_license_and_lifecycle_unchanged(services, monkeypatch):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     catalog.transition_module_lifecycle(org.id, "project_management", "trial")
     recorded = _spy_recorded_events(catalog, monkeypatch)
 
@@ -317,7 +317,7 @@ def test_disable_module_records_exactly_one_module_disabled_license_and_lifecycl
 
 def test_disable_module_on_already_disabled_module_records_zero_events(services, monkeypatch):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     catalog.disable_module(org.id, "project_management")
     recorded = _spy_recorded_events(catalog, monkeypatch)
 
@@ -333,7 +333,7 @@ def test_disable_module_on_already_disabled_module_records_zero_events(services,
 
 def test_transition_module_lifecycle_records_previous_and_new_status(services, monkeypatch):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     recorded = _spy_recorded_events(catalog, monkeypatch)
 
     trial = catalog.transition_module_lifecycle(org.id, "project_management", "trial")
@@ -371,7 +371,7 @@ def test_transition_module_lifecycle_records_previous_and_new_status(services, m
 
 def test_transition_module_lifecycle_same_state_records_zero_events(services, monkeypatch):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     recorded = _spy_recorded_events(catalog, monkeypatch)
 
     catalog.transition_module_lifecycle(org.id, "project_management", "active")  # already active
@@ -425,7 +425,7 @@ def test_command_against_a_foreign_tenant_organization_is_rejected_with_no_event
             tenant_id=foreign_tenant_id,
             organization_code=_unique_code("FOREIGN"),
             display_name="Foreign Org",
-            is_active=True,
+            is_enabled=True,
             version=1,
         )
     )
@@ -481,7 +481,7 @@ def test_read_time_default_seeding_records_zero_module_events(services, monkeypa
 
 def test_no_event_observable_on_commit_failure(services, monkeypatch):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
 
     bus = catalog._uow_factory._post_commit_bus
     seen = []
@@ -504,7 +504,7 @@ def test_no_event_observable_on_commit_failure(services, monkeypatch):
 
 def test_one_post_commit_handler_failing_does_not_block_the_other_or_the_commit(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     bus = catalog._uow_factory._post_commit_bus
 
     def _failing_handler(event, context):
@@ -525,7 +525,7 @@ def test_one_post_commit_handler_failing_does_not_block_the_other_or_the_commit(
 
 def test_post_commit_subscriber_receives_the_commands_own_domain_event_context(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     bus = catalog._uow_factory._post_commit_bus
     seen = {}
 
@@ -553,7 +553,7 @@ def test_post_commit_subscriber_receives_the_commands_own_domain_event_context(s
 
 def test_exactly_one_event_per_real_transition_no_duplication(services, monkeypatch):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     recorded = _spy_recorded_events(catalog, monkeypatch)
 
     catalog.disable_module(org.id, "project_management")

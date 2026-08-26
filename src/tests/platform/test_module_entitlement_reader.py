@@ -140,7 +140,7 @@ def test_reader_empty_snapshot_when_no_rows(reader_session):
 
 def test_module_catalog_read_path_reflects_writes_through_the_reader(services):
     module_catalog = services["module_catalog_service"]
-    active_org = services["organization_service"].get_active_organization()
+    active_org = services["tenant_context_service"].get_active_organization()
 
     baseline = module_catalog.get_entitlement("project_management")
     assert baseline is not None

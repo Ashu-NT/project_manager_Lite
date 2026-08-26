@@ -51,14 +51,14 @@ def test_module_catalog_service_bootstraps_persistent_defaults(services):
 
 def test_module_catalog_service_rejects_licensing_planned_module(services):
     catalog = services["module_catalog_service"]
-    active_org = services["organization_service"].get_active_organization()
+    active_org = services["tenant_context_service"].get_active_organization()
 
     with pytest.raises(ValidationError, match="planned"):
         catalog.license_module(active_org.id, "hr_management")
 
 
 def test_module_catalog_service_normalizes_legacy_payroll_entitlement_rows_to_hr_management(services, session):
-    active_org = services["organization_service"].get_active_organization()
+    active_org = services["tenant_context_service"].get_active_organization()
     assert active_org is not None
 
     session.execute(
@@ -107,7 +107,7 @@ def test_module_catalog_service_normalizes_legacy_payroll_entitlement_rows_to_hr
 
 def test_project_management_services_block_direct_calls_when_module_disabled(services):
     catalog = services["module_catalog_service"]
-    active_org = services["organization_service"].get_active_organization()
+    active_org = services["tenant_context_service"].get_active_organization()
     catalog.disable_module(active_org.id, "project_management")
 
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled") as project_exc:
@@ -125,7 +125,7 @@ def test_project_management_services_block_direct_calls_when_module_disabled(ser
 
 def test_module_catalog_service_supports_trial_and_suspended_lifecycle_states(services):
     catalog = services["module_catalog_service"]
-    active_org = services["organization_service"].get_active_organization()
+    active_org = services["tenant_context_service"].get_active_organization()
 
     trial = catalog.transition_module_lifecycle(active_org.id, "project_management", "trial")
     assert trial.lifecycle_status == "trial"

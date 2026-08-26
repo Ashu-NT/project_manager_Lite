@@ -131,7 +131,8 @@ def test_actor_with_decide_permission_cannot_reach_org_a1_approval_while_org_a2_
 
     # Org A2 becomes -- and stays -- the session's active organization for the remainder of this
     # test (`set_active_organization` is the ONLY production path that changes this).
-    services["organization_service"].set_active_organization(org_a2.id)
+    services["organization_service"].enable_organization(org_a2.id)
+    services["tenant_context_service"].set_active_organization(org_a2.id)
     assert _session_active_organization_id(services) == org_a2.id
 
     _login(services, approver_username, "StrongPass123")
@@ -145,7 +146,8 @@ def test_actor_with_decide_permission_cannot_reach_org_a1_approval_while_org_a2_
     # Switch back to Org A1 (the same coarse-grained `settings.manage` capability every actor in
     # this test already exercised) to read the request's true, unaffected state.
     _login(services, "admin", "ChangeMe123!")
-    services["organization_service"].set_active_organization(org_a1.id)
+    services["organization_service"].enable_organization(org_a1.id)
+    services["tenant_context_service"].set_active_organization(org_a1.id)
     still_pending = approvals.list_pending()
     matching = [row for row in still_pending if row.id == request.id]
     assert len(matching) == 1
@@ -204,7 +206,8 @@ def test_actor_gains_authority_only_after_switching_active_organization_to_the_t
 
     approver_username = _unique("xorg2-approver")
     services["auth_service"].register_user(approver_username, "StrongPass123", role_names=["approver"])
-    services["organization_service"].set_active_organization(org_a2.id)
+    services["organization_service"].enable_organization(org_a2.id)
+    services["tenant_context_service"].set_active_organization(org_a2.id)
 
     _login(services, approver_username, "StrongPass123")
     approvals = services["approval_service"]
@@ -212,7 +215,8 @@ def test_actor_gains_authority_only_after_switching_active_organization_to_the_t
         approvals.approve_and_apply(request.id)
 
     _login(services, "admin", "ChangeMe123!")
-    services["organization_service"].set_active_organization(org_a1.id)
+    services["organization_service"].enable_organization(org_a1.id)
+    services["tenant_context_service"].set_active_organization(org_a1.id)
     _login(services, approver_username, "StrongPass123")
 
     decided = approvals.approve_and_apply(request.id, note="Approved from the matching org")

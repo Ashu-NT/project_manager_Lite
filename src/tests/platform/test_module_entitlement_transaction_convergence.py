@@ -44,7 +44,7 @@ def _unique_code(prefix: str) -> str:
 
 def test_fresh_session_per_module_command_call(services, monkeypatch):
     module_catalog = services["module_catalog_service"]
-    active_org = services["organization_service"].get_active_organization()
+    active_org = services["tenant_context_service"].get_active_organization()
     seen_sessions = []
     original_create = type(module_catalog._uow_factory).create
 
@@ -65,7 +65,7 @@ def test_fresh_session_per_module_command_call(services, monkeypatch):
 
 def test_repository_and_audit_share_the_uow_session(services, monkeypatch):
     module_catalog = services["module_catalog_service"]
-    active_org = services["organization_service"].get_active_organization()
+    active_org = services["tenant_context_service"].get_active_organization()
     seen = {}
     original_create = type(module_catalog._uow_factory).create
 
@@ -89,7 +89,7 @@ def test_audit_entry_is_atomic_with_the_entitlement_write(services, monkeypatch)
     write and its audit entry share one fresh UoW Session -- a commit failure rolls back both
     together (proven structurally: the UoW's own `_committed`/`_closed` state)."""
     module_catalog = services["module_catalog_service"]
-    active_org = services["organization_service"].get_active_organization()
+    active_org = services["tenant_context_service"].get_active_organization()
     captured_uow = {}
     original_create = type(module_catalog._uow_factory).create
 
@@ -119,7 +119,7 @@ def test_audit_entry_is_atomic_with_the_entitlement_write(services, monkeypatch)
 
 def test_no_global_mutation_session_touch(services):
     module_catalog = services["module_catalog_service"]
-    active_org = services["organization_service"].get_active_organization()
+    active_org = services["tenant_context_service"].get_active_organization()
     legacy_session = services["session"]
     legacy_session.commit()
 

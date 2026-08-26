@@ -16,7 +16,7 @@ def _login(services, username: str, password: str):
 
 
 def _submitted_cost_entry(services, name: str):
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(name)
     cost_code = services["financial_configuration_service"].create_cost_code(
         code="MANUAL-ACTUAL",

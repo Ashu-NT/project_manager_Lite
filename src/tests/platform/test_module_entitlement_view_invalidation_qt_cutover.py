@@ -131,7 +131,7 @@ def test_module_entitlement_events_module_has_no_view_invalidation_or_ui_vocabul
 def test_settings_workspace_module_entitlements_refresh_on_real_mutation(services):
     catalog = _catalog(services)
     catalog.settingsWorkspace.refresh()
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
 
     services["module_catalog_service"].disable_module(org.id, "project_management")
 
@@ -152,7 +152,7 @@ def test_access_workspace_no_longer_reacts_to_module_mutations(services):
     catalog.adminAccessWorkspace.refresh()
     refresh_calls = []
     catalog.adminAccessWorkspace.refresh = lambda: refresh_calls.append("refresh")
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
 
     services["module_catalog_service"].disable_module(org.id, "inventory_procurement")
 
@@ -166,7 +166,7 @@ def test_control_workspace_no_longer_reacts_to_module_mutations(services):
     catalog.controlWorkspace.ensureLoaded()
     refresh_calls = []
     catalog.controlWorkspace.refresh = lambda: refresh_calls.append("refresh")
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
 
     services["module_catalog_service"].disable_module(org.id, "project_management")
 
@@ -178,7 +178,7 @@ def test_no_refresh_before_commit_and_none_on_rollback(services, monkeypatch):
     catalog.settingsWorkspace.refresh()
     refresh_calls = []
     catalog.settingsWorkspace.refresh_module_entitlements = lambda: refresh_calls.append("refresh") or None
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
 
     def _fail_commit(self):
         raise RuntimeError("simulated commit failure")
@@ -195,7 +195,7 @@ def test_no_invalidation_on_no_op_command(services):
     catalog.settingsWorkspace.refresh()
     refresh_calls = []
     catalog.settingsWorkspace.refresh_module_entitlements = lambda: refresh_calls.append("refresh") or None
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
 
     services["module_catalog_service"].enable_module(org.id, "project_management")  # already enabled
 
@@ -248,7 +248,7 @@ def test_command_against_a_foreign_tenant_organization_produces_no_invalidation(
     session.add(
         OrganizationORM(
             id=foreign_org_id, tenant_id=foreign_tenant_id, organization_code=_unique_code("QTFOREIGN"),
-            display_name="Foreign Org", is_active=True, version=1,
+            display_name="Foreign Org", is_enabled=True, version=1,
         )
     )
     session.commit()
@@ -290,7 +290,7 @@ def test_adapter_never_subscribes_via_all_tenants_or_tenant_wide(services):
 
     channel = services["platform_view_invalidation_channel"]
     tenant_id = _active_tenant(services)
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
 
     adapter = ModuleEntitlementViewInvalidationAdapter(channel=channel, tenant_id=tenant_id, organization_id=org.id)
     try:
@@ -379,7 +379,7 @@ def test_adapter_follows_a_tenant_switch_via_refresh_current_permissions(service
     catalog = _catalog(services)
     channel = services["platform_view_invalidation_channel"]
     tenant_a = _active_tenant(services)
-    org_a1 = services["organization_service"].get_active_organization()
+    org_a1 = services["tenant_context_service"].get_active_organization()
 
     def _current_filters():
         return [filt for filt, _handler in channel._subscriptions.values() if isinstance(filt, ExactOrganization)]

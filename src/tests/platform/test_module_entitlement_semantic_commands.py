@@ -39,7 +39,7 @@ def _non_active_organization(services):
 
 def test_license_module_grants_license_active_and_disabled(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     catalog.revoke_module_license(org.id, "project_management")  # start from unlicensed/inactive
 
     entitlement = catalog.license_module(org.id, "project_management")
@@ -51,7 +51,7 @@ def test_license_module_grants_license_active_and_disabled(services):
 
 def test_license_module_on_already_licensed_module_is_idempotent_and_preserves_trial(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     catalog.transition_module_lifecycle(org.id, "project_management", "trial")
 
     entitlement = catalog.license_module(org.id, "project_management")
@@ -62,7 +62,7 @@ def test_license_module_on_already_licensed_module_is_idempotent_and_preserves_t
 
 def test_license_module_rejects_planned_module(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
 
     with pytest.raises(ValidationError, match="planned") as exc:
         catalog.license_module(org.id, "hr_management")
@@ -89,7 +89,7 @@ def test_license_module_on_non_active_organization_affects_only_that_organizatio
 
 def test_revoke_module_license_forces_unlicensed_inactive_disabled(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
 
     entitlement = catalog.revoke_module_license(org.id, "project_management")
 
@@ -100,7 +100,7 @@ def test_revoke_module_license_forces_unlicensed_inactive_disabled(services):
 
 def test_revoke_module_license_is_idempotent_on_already_unlicensed_module(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     catalog.revoke_module_license(org.id, "project_management")
 
     entitlement = catalog.revoke_module_license(org.id, "project_management")
@@ -124,7 +124,7 @@ def test_revoke_module_license_on_non_active_organization_affects_only_that_orga
 
 def test_enable_module_from_active_and_from_trial(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     catalog.disable_module(org.id, "project_management")
 
     active_entitlement = catalog.enable_module(org.id, "project_management")
@@ -139,7 +139,7 @@ def test_enable_module_from_active_and_from_trial(services):
 
 def test_enable_module_rejects_unlicensed_module(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     catalog.revoke_module_license(org.id, "project_management")
 
     with pytest.raises(ValidationError, match="licensed") as exc:
@@ -149,7 +149,7 @@ def test_enable_module_rejects_unlicensed_module(services):
 
 def test_enable_module_rejects_suspended_and_expired(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
 
     catalog.transition_module_lifecycle(org.id, "project_management", "suspended")
     with pytest.raises(ValidationError, match="suspended") as suspended_exc:
@@ -167,7 +167,7 @@ def test_enable_module_rejects_inactive_module(services):
     same rejection path as `test_enable_module_rejects_unlicensed_module`, documented explicitly
     for the `inactive` lifecycle value named in P5B-SEM's own test list."""
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     catalog.revoke_module_license(org.id, "project_management")
     entitlement = catalog.get_entitlement("project_management")
     assert entitlement.lifecycle_status == "inactive"
@@ -179,7 +179,7 @@ def test_enable_module_rejects_inactive_module(services):
 
 def test_enable_module_is_idempotent_on_already_enabled_module(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
 
     entitlement = catalog.enable_module(org.id, "project_management")
 
@@ -190,7 +190,7 @@ def test_enable_module_is_idempotent_on_already_enabled_module(services):
 
 def test_disable_module_leaves_license_and_lifecycle_unchanged(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     catalog.transition_module_lifecycle(org.id, "project_management", "trial")
 
     entitlement = catalog.disable_module(org.id, "project_management")
@@ -202,7 +202,7 @@ def test_disable_module_leaves_license_and_lifecycle_unchanged(services):
 
 def test_disable_module_is_idempotent_on_already_disabled_module(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     catalog.disable_module(org.id, "project_management")
 
     entitlement = catalog.disable_module(org.id, "project_management")
@@ -226,7 +226,7 @@ def test_enable_module_on_non_active_organization_affects_only_that_organization
 
 def test_transition_module_lifecycle_active_to_trial_and_back(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
 
     trial = catalog.transition_module_lifecycle(org.id, "project_management", "trial")
     assert trial.lifecycle_status == "trial"
@@ -239,7 +239,7 @@ def test_transition_module_lifecycle_active_to_trial_and_back(services):
 
 def test_transition_module_lifecycle_to_suspended_and_expired_forces_disabled(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
 
     suspended = catalog.transition_module_lifecycle(org.id, "project_management", "suspended")
     assert suspended.lifecycle_status == "suspended"
@@ -254,7 +254,7 @@ def test_transition_module_lifecycle_to_suspended_and_expired_forces_disabled(se
 
 def test_transition_module_lifecycle_active_to_active_is_idempotent(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
 
     entitlement = catalog.transition_module_lifecycle(org.id, "project_management", "active")
 
@@ -264,7 +264,7 @@ def test_transition_module_lifecycle_active_to_active_is_idempotent(services):
 
 def test_transition_module_lifecycle_rejects_inactive_as_explicit_target(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
 
     with pytest.raises(ValidationError) as exc:
         catalog.transition_module_lifecycle(org.id, "project_management", "inactive")
@@ -273,7 +273,7 @@ def test_transition_module_lifecycle_rejects_inactive_as_explicit_target(service
 
 def test_transition_module_lifecycle_rejects_unlicensed_module(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
     catalog.revoke_module_license(org.id, "project_management")
 
     with pytest.raises(ValidationError, match="licensed") as exc:
@@ -283,7 +283,7 @@ def test_transition_module_lifecycle_rejects_unlicensed_module(services):
 
 def test_transition_module_lifecycle_rejects_planned_module(services):
     catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
 
     with pytest.raises(ValidationError, match="planned") as exc:
         catalog.transition_module_lifecycle(org.id, "hr_management", "trial")

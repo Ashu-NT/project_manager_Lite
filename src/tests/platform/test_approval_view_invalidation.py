@@ -459,7 +459,7 @@ def test_adapter_only_reacts_to_its_exact_active_organization(services, session)
 def test_adapter_never_subscribes_via_all_tenants_or_tenant_wide(services):
     channel = services["platform_view_invalidation_channel"]
     tenant_id = _active_tenant(services)
-    org = services["organization_service"].get_active_organization()
+    org = services["tenant_context_service"].get_active_organization()
 
     adapter = ApprovalViewInvalidationAdapter(channel=channel, tenant_id=tenant_id, organization_id=org.id)
     try:
@@ -614,7 +614,7 @@ def test_adapter_follows_a_tenant_switch_via_refresh_current_permissions(service
     catalog = _catalog(services)
     channel = services["platform_view_invalidation_channel"]
     tenant_a = _active_tenant(services)
-    org_a1 = services["organization_service"].get_active_organization()
+    org_a1 = services["tenant_context_service"].get_active_organization()
 
     def _current_filters():
         return [filt for filt, _handler in channel._subscriptions.values() if isinstance(filt, ExactOrganization)]
@@ -765,7 +765,7 @@ def test_cross_tenant_approval_event_produces_zero_callback(services, session):
 
     adapter = ApprovalViewInvalidationAdapter(
         channel=channel, tenant_id=_active_tenant(services),
-        organization_id=services["organization_service"].get_active_organization().id,
+        organization_id=services["tenant_context_service"].get_active_organization().id,
     )
     signal_calls = []
     adapter.approvalsStale.connect(lambda: signal_calls.append("stale"))
@@ -936,7 +936,7 @@ def test_one_broken_postcommit_subscriber_does_not_block_the_control_workspace_r
         raise RuntimeError("simulated broken subscriber")
 
     channel.subscribe(ExactOrganization(
-        _active_tenant(services), services["organization_service"].get_active_organization().id
+        _active_tenant(services), services["tenant_context_service"].get_active_organization().id
     ), _failing_subscriber)
     _login_as_fresh_requester(services)
 

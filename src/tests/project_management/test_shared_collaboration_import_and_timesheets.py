@@ -287,9 +287,7 @@ def test_data_import_service_imports_projects_resources_tasks_and_rejects_legacy
     ps = services["project_service"]
     ts = services["task_service"]
     rs = services["resource_service"]
-    expected_currency = services[
-        "organization_service"
-    ].get_active_organization().base_currency
+    expected_currency = services["tenant_context_service"].get_active_organization().base_currency
 
     tmp = create_test_workspace("import")
     try:

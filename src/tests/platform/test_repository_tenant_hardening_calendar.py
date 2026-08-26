@@ -22,7 +22,7 @@ from src.core.platform.infrastructure.persistence.orm.master_data.site.sites imp
 def _seed_calendar_scope_rows(services) -> dict[str, str]:
     session = services["session"]
     org_svc = services["organization_service"]
-    cur_org = org_svc.get_active_organization()
+    cur_org = services["tenant_context_service"].get_active_organization()
     oth_org = org_svc.create_organization(
         organization_code="OPS", display_name="Operations Hub",
         timezone_name="UTC", base_currency="USD", is_enabled=False,
