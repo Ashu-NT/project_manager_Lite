@@ -426,6 +426,7 @@ def test_no_generic_bridge_registry_exists_anywhere():
         normalized = path.replace("\\", "/")
         if "__pycache__" in normalized or normalized.endswith((
             "test_p7_legacy_bridge_removal.py", "test_p7b_dead_signal_cleanup.py",
+            "test_p8_platform_event_architecture_canonicalization.py",
         )):
             continue
         with open(path, "r", encoding="utf-8", errors="ignore") as fh:
@@ -450,7 +451,10 @@ def test_no_replacement_generic_router_or_registry_introduced():
     hits = []
     for path in glob.glob("src/**/*.py", recursive=True):
         normalized = path.replace("\\", "/")
-        if "__pycache__" in normalized or normalized.endswith("test_p7_legacy_bridge_removal.py"):
+        if "__pycache__" in normalized or normalized.endswith((
+            "test_p7_legacy_bridge_removal.py",
+            "test_p8_platform_event_architecture_canonicalization.py",
+        )):
             continue
         with open(path, "r", encoding="utf-8", errors="ignore") as fh:
             source = _strip_strings_and_comments(fh.read())

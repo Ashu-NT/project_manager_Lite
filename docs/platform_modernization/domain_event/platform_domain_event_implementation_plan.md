@@ -1,6 +1,12 @@
 # Platform Domain Event Implementation Plan
 
-- Status: draft — awaiting review. Not yet approved for implementation.
+- Status: **implemented, P0-P8 complete** — see the Completion Ledger immediately below for the
+  authoritative per-phase status, artifact, deviation, and remaining-debt record. This document's
+  original phase-by-phase prose is retained below the ledger as the detailed historical record of
+  what each phase actually built (several phases' own implementation diverged from their original
+  plan text where current-source evidence contradicted an earlier assumption; each such divergence
+  is called out inline in that phase's own "implementation report" subsection, not silently
+  smoothed over).
 - Companion documents: [ADR-005: Domain Events](../../architecture_decisions/ADR-005-domain-events.md)
   (owns WHAT/WHY/semantics — this document does not re-litigate any decision made there, only
   applies it), [ADR-005 Execution Plan](../../architecture_decisions/ADR-005-execution-plan.md)
@@ -21,8 +27,68 @@ Each phase (P0-P8) is a self-contained unit of work with explicit exit criteria.
 ordered by dependency, not by convenience — do not skip ahead. Every phase states its own
 **Explicit Non-Goals** to prevent scope creep into adjacent, tempting-but-out-of-scope work (most
 importantly: this migration is not a QML controller-hierarchy refactor, and it does not touch any
-business module). Nothing in this plan is implemented yet — see the final validation section for
-the current, unimplemented state confirmed.
+business module). **All phases P0-P8 are now implemented** — see the Completion Ledger below for
+the authoritative status of each, and each phase's own "implementation report" subsection (where
+one exists) for what was actually built versus originally planned.
+
+## Completion Ledger (P8 closeout)
+
+| Phase | Status | Major artifact | Important deviation | Remaining debt |
+|---|---|---|---|---|
+| P0 | Implemented | Architecture-guardrail/baseline characterization tests | None | — |
+| P1 | Implemented | `EventScope`/`ViewInvalidationHint`/`ScopeFilter` contracts, `DomainEvent`/`DomainEventContext`/`RecordsDomainEvents` | None | — |
+| P2 | Implemented | `InProcessTransactionalEventDispatcher`, `InProcessPostCommitEventBus`, `InProcessViewInvalidationChannel` | None | — |
+| P3 | Implemented | Canonical `UnitOfWork`/`UnitOfWorkFactory` protocol + SQLAlchemy base | None | — |
+| P4-PRE | Implemented (Round 8 scope) | 8 approval-backed PM/Inventory services converged onto session-parameterized apply/reject participants | Collapsed from a 4-step adapter-first plan to 2 direct steps (pre-release, no back-compat needed) | — |
+| P4 | Implemented | `ApprovalService` on canonical `UnitOfWork`; `commit=False` removed everywhere | 4th caller (`submit_purchase_order`) discovered during implementation, converged alongside the other 3 | — |
+| P4B | Implemented | Organization capability transaction convergence | None | — |
+| P5A | Implemented | `OrganizationCreated` → ViewInvalidation → `OrganizationViewInvalidationAdapter` | `update_organization`/`set_active_organization` deliberately NOT typed — Organization is PARTIALLY MODERNIZED (§26.4 of ADR-005) | Organization update/set-active still legacy |
+| P5B / P5B-3 | Implemented | 5 Module Entitlement `DomainEvent`s, `modules_changed` fully retired | None | — |
+| P5C / P5C-3 | Implemented | `RoleBindingAssigned`/`Revoked`, polymorphic scope mapper (Platform/Tenant/Resource), dual-subscription adapter | `PlatformScope()` hint path proven unreachable in practice (governance denies platform-scope assignment before any event fires) — documented, not "fixed" | — |
+| P5D / P5D-3 | Implemented | 4 TenantMembership `DomainEvent`s, tenant-only (never org-rescoped) adapter | None | — |
+| P5 Closeout | Implemented | Residual `auth_changed` audit; RoleBinding legacy cleanup | None | 7 auth-adjacent capabilities remain, by design (§10 below) |
+| Approval-SEM | Implemented (design-only) | Semantic discovery, no code | None | — |
+| Approval-P1/P1A | Implemented | `tenant_id`/`organization_id` on `ApprovalRequest`; transaction-agnostic participant; 4 host workflows converged; `commit=False` removed | 4th caller (`submit_purchase_order`) found during P1 itself | — |
+| Approval-P2 | Implemented | `ApprovalRequested`/`Approved`/`Rejected` typed events, `Clock`-driven `occurred_at` | None | — |
+| Approval-P3 | Implemented | Approval ViewInvalidation, Control workspace + PM Collaboration migrated, `approvals_changed` deleted | PM Dashboard's incidental subscription found and dropped (not migrated) | PM catalog has no QML-wired tenant/org-switch hook (pre-existing, unrelated) |
+| P6 | Implemented | `ScopedViewInvalidationSubscription` (composition, mechanics-only), all 5 adapters migrated | Original plan assumed adapter lifecycle lived on `PlatformWorkspaceControllerBase` — audit found it lives at the catalog level instead; all 3 controller bases KEPT unchanged | — |
+| P7 | Implemented (narrowed scope, superseded by P7A) | Removed 4 dead Platform-signal bridge entries + `shared_master_changed` | Scope was narrower than "delete the whole bridge" — corrected by P7A | — |
+| P7A | Implemented | Entire generic bridge (`_BRIDGE_SPECS`/`_wire_bridges`/`_build_bridge`/`domain_changed`/`DomainChangeEvent`/`_subscribe_domain_change`) deleted; 17 PM/Inventory consumers direct-wired | None | — |
+| P7B | Implemented | `costs_changed`/`calendars_changed` deleted (zero producers) | P7's own report had wrongly named 4 different signals as "dead" — corrected by re-auditing from source | — |
+| P7C | Implemented | `cost_entries_changed`/`commitments_changed`/`forecasts_changed`/`financial_changes_changed` deleted (zero consumers), producers removed | None | 26→29 signal-count correction (P7C's own "26" was a miscount; the true post-P7C count, verified in P8, is 29) |
+| P8 | Implemented | ADR-005 §26 canonical-architecture closeout, frozen legacy-signal allowlist guard, final migration ledger (below) | **29 signals, not 26** — P8's own re-audit found and corrected P7C's count error | See §26.8 of ADR-005 for the full deferred-debt list |
+
+## Final Migration Ledger
+
+| Capability | Transaction model | Typed DomainEvent | ViewInvalidation | Legacy Signal | Status | Future action |
+|---|---|---|---|---|---|---|
+| Organization create | Canonical UoW | `OrganizationCreated` | YES (`organization_list`, `organization_details` unconsumed) | NO | Fully modernized (create only) | — |
+| Organization update/set-active | Legacy service call | NO | NO | `organizations_changed` (direct) | Partially modernized | Future semantic migration slice |
+| Module Entitlement | Canonical UoW | 5 events | YES | NO (`modules_changed` retired) | Fully modernized | — |
+| RoleBinding | Canonical UoW | `RoleBindingAssigned`/`Revoked` | YES (dual tenant+org subscription) | NO | Fully modernized | — |
+| Tenant Membership | Canonical UoW | 4 events | YES (tenant-only, never org-rescoped) | NO (no `auth_changed` bridge) | Fully modernized | — |
+| Approval | Canonical UoW | `ApprovalRequested`/`Approved`/`Rejected` | YES | NO (`approvals_changed` deleted) | Fully modernized | — |
+| Custom Role Definition | Legacy service call | NO | NO | `auth_changed` (direct) | Grandfathered legacy | Future semantic migration slice |
+| Authentication/Session | Legacy service call | NO | NO | `auth_changed` (direct) | Grandfathered legacy | Future semantic migration slice |
+| User Account | Legacy service call | NO | NO | `auth_changed` (direct) | Grandfathered legacy | Future semantic migration slice |
+| Password | Legacy service call | NO | NO | `auth_changed` (direct) | Grandfathered legacy | Future semantic migration slice |
+| MFA | Legacy service call | NO | NO | `auth_changed` (direct) | Grandfathered legacy | Future semantic migration slice |
+| Federated Identity | Legacy service call | NO | NO | `auth_changed` (direct) | Grandfathered legacy | Future semantic migration slice |
+| Registration/Bootstrap | Legacy service call | NO | NO | `auth_changed` (direct) | Grandfathered legacy | Future semantic migration slice |
+| Employee | Legacy service call | NO | NO | `employees_changed` (direct) | Grandfathered legacy | Future semantic migration slice |
+| Department | Legacy service call | NO | NO | `departments_changed` (direct) | Grandfathered legacy | Future semantic migration slice |
+| Site (shared-master) | Legacy service call | NO | NO | `sites_changed` (direct, cross-module) | Grandfathered legacy | Future semantic migration slice |
+| Working Calendar (shared-master) | Legacy service call | NO | NO | none remaining (`calendars_changed` deleted P7B — zero producers) | Dead signal deleted | — |
+| Document (shared-master) | Legacy service call | NO | NO | `documents_changed` (direct, cross-module) | Grandfathered legacy | Future semantic migration slice |
+| Party (shared-master) | Legacy service call | NO | NO | `parties_changed` (direct, cross-module) | Grandfathered legacy | Future semantic migration slice |
+| PM: project/tasks/timesheets/resources/baseline/register/collaboration/portfolio | Legacy service call | NO | NO | 8 distinct signals (direct-wired, P7A) | Module-migration backlog | Future PM module migration |
+| PM: budgets/billing-preparations/planned-costs | Legacy service call | NO | NO | 3 distinct signals (real producer + real consumer) | Module-migration backlog | Future PM Finance migration |
+| PM: cost-entries/commitments/forecasts/financial-changes | Legacy service call | NO | NO | none remaining (all 4 deleted P7C — zero consumers) | Dead signals deleted | Future PM Finance migration would need genuinely new semantic events, not a revival of these names |
+| Inventory/Procurement (10 entity families) | Legacy service call | NO | NO | 10 distinct signals (direct-wired, P7A) | Module-migration backlog | Future Inventory module migration |
+
+*29 total remaining `Signal[str]` fields on `DomainEvents` — see
+`test_p8_platform_event_architecture_canonicalization.py::FROZEN_LEGACY_SIGNAL_ALLOWLIST` for the
+exact, source-verified list this ledger's "Legacy Signal" column summarizes.*
 
 ## Human Approval Gates
 
@@ -3504,12 +3570,108 @@ business semantics untouched (no emission site added, no transaction boundary to
 renamed); Organization's legacy signal untouched; `admin_console/domain_event_binder.py` kept,
 unchanged in responsibility; no generic bridge reintroduced.
 
-**Final signal invariant.** Every remaining `DomainEvents` `Signal` field now has at least one
-real production producer. `cost_entries_changed`/`commitments_changed`/`forecasts_changed`/
-`financial_changes_changed` remain the one documented, deliberate exception to "producer AND
-consumer both > 0" -- real producers, zero consumers, a pre-existing PM financial-module
-UI-reaction gap explicitly left for a future, separate PM Finance semantic migration (P7B forbids
-inventing replacement events to close this gap prematurely).
+**Final signal invariant (superseded by P7C below).** ~~Every remaining `DomainEvents` `Signal`
+field now has at least one real production producer. `cost_entries_changed`/`commitments_changed`/
+`forecasts_changed`/`financial_changes_changed` remain the one documented, deliberate exception to
+"producer AND consumer both > 0" -- real producers, zero consumers, a pre-existing PM
+financial-module UI-reaction gap explicitly left for a future, separate PM Finance semantic
+migration.~~ **P7C deleted these four signals entirely, producers included -- see below. The
+"exception" is now closed, not merely documented.**
+
+### P7C implementation report: deleting the four zero-consumer signals and their producers
+
+P7B closed with one documented exception: `cost_entries_changed`/`commitments_changed`/
+`forecasts_changed`/`financial_changes_changed` had real production producers but zero UI
+consumers, left in place as a "pre-existing PM financial-module UI-reaction gap." P7C revisited
+that exception under the pre-release rule that a Signal with no consumer has no production
+effect, regardless of how many producers still fire into it -- and deleted all four.
+
+**Consumer audit, reconfirmed from current source.** A repo-wide search across `src/ui_qml/**`
+for `domain_events.<signal_name>` found zero UI references for all four -- no `.connect(`, no
+`_subscribe_domain_signal(...)`, no binder entry, anywhere. A separate check confirmed no non-UI
+consumer either (no audit/notification-persistence/outbox/cache-invalidation subscriber reads
+these `Signal` objects -- `AuditEntry`/`Notification`/`IntegrationEventEnvelope` are genuinely
+separate mechanisms, written directly by the same service methods, never through these Signals).
+Confirmed emit-into-the-void.
+
+**Every producer deleted, not merely the consumers.** Unlike P7A/P7B (bridge routing / dead
+signals with real UI consumers still attached), P7C's four signals had real producers that had to
+be removed too, or the `Signal` field deletion would crash the first time that code path ran.
+Removed:
+- **Reflective (`ApprovalPostCommitEvent`) producers:** `project_cost_apply_participant.py`'s
+  `apply()`/`reject()` (`cost_entries_changed`, both methods -- now emit zero post-commit events);
+  `financial_change_apply_participant.py`'s `apply()` (`financial_changes_changed`/
+  `forecasts_changed` removed, `budgets_changed`/`tasks_changed` kept -- both real, both still
+  fire conditionally exactly as before) and `reject()` (`financial_changes_changed` removed -- now
+  emits zero post-commit events, there was nothing else to notify).
+- **Direct `.emit(` producers:** `cost_entry_service.py` (`_commit_and_emit` renamed to `_commit`,
+  emit line removed, 8 call sites updated); `commitment_service.py` (same rename pattern, 3 call
+  sites); `financial_changes/service.py` (4 standalone inline emits removed from
+  `create_change`/`add_impact`/`submit_change`; the dead, zero-caller `_commit_and_emit` helper
+  deleted outright; `_emit_applied`'s `financial_changes_changed`/`forecasts_changed` lines
+  removed, `budgets_changed`/`tasks_changed` kept; `_apply_rejection_decision`'s now-empty
+  `if commit:` emit block removed); `forecasts/generation_service.py` (1 inline emit removed);
+  `forecasts/version_service.py` (`_commit_and_emit` renamed to `_commit`, 8 call sites updated);
+  `approved_time_dispatcher.py` (the whole `if project_id: try: ... emit(...) except: ...`
+  isolation block removed, including the now-unused `project_id`/`entry` locals);
+  `procurement_financial_dispatcher.py` (`_emit_local_refresh` -- a method whose ENTIRE body only
+  emitted `commitments_changed`/`cost_entries_changed` -- deleted outright, along with its sole
+  call site and the now-unused `result` local).
+
+**Business mutation, audit, and integration/outbox behavior: unchanged.** Every removal was
+strictly the dead notification-emission line/block; no business method's actual mutation,
+`record_audit_entry`/enterprise-audit call, transaction boundary, or `IntegrationOutboxService`/
+`IntegrationInboxService` interaction was touched. Proven by a real end-to-end budget-approval
+regression test (asserting `budgets_changed` -- a real, kept signal -- still fires correctly) and
+by the full PM Finance/Approval-participant/Approved-Time-integration regression suites.
+
+**Remaining `ApprovalPostCommitEvent` inventory, verified exhaustively.** Every surviving
+construction site (`inventory_requisitions_changed`/`inventory_purchase_orders_changed`/
+`inventory_balances_changed` in the two Inventory procurement participants; `baseline_changed`;
+`billing_preparations_changed`; `budgets_changed`; `tasks_changed`) resolves to a `DomainEvents`
+field that both exists and has a real UI consumer -- confirmed by an AST-based scan of every
+`ApprovalPostCommitEvent(...)` call site's literal signal-name argument, cross-checked against
+`domain_events`'s own fields and against `src/ui_qml/**`'s own consumer references. No
+emit-into-the-void `ApprovalPostCommitEvent` remains.
+
+**`ApprovalService._emit_signal_safely`: kept.** 19 real callers remain across the participants
+listed above -- the reflective mechanism itself is still genuinely needed, only 5 of its call
+sites (the ones naming a now-deleted signal) were removed.
+
+**New tests:** `test_p7c_zero_consumer_signal_cleanup.py` -- absence guards for all four deleted
+signals (word-boundary-matched); a guard that no `ApprovalPostCommitEvent` references a deleted
+signal name; the AST-based "every remaining `ApprovalPostCommitEvent` resolves to a real signal
+with a real consumer" guard; `_emit_signal_safely` retention proof; participant-level proofs that
+`apply()`/`reject()` now construct zero `ApprovalPostCommitEvent`s for the deleted signals while
+keeping the real ones; the real end-to-end budget-approval regression; structural guards that no
+`_commit_and_emit`-named helper remains anywhere and that the two dispatcher files no longer
+reference any deleted signal; a final-invariant guard (every remaining `DomainEvents` field has
+some production reference) with no more documented exceptions; a no-replacement-event guard.
+P7B's own three tests that asserted these four signals still existed with real producers were
+retired (superseded, not contradicted -- P7B's finding was correct at the time; P7C is a
+subsequent, deliberate deletion). Five pre-existing test files that manually subscribed to/emitted
+one of the four dead signals were updated: two whole tests characterizing dead compatibility
+behavior were retired outright (a `cost_entries_changed`-emission characterization test, and an
+Approved-Time dispatcher failure-isolation test whose isolated failure mode no longer exists) with
+one new equivalent-coverage test added; three tests' `post_commit_events` assertions were updated
+to reflect the narrower (or now-empty) tuples the participants return.
+
+**Explicit non-goals honored:** no PM Finance DomainEvent introduced; no ViewInvalidation added;
+no UI consumer added merely to justify a producer's continued existence; no PM Finance business
+mutation changed; Approval DomainEvent behavior unchanged; no generic bridge reintroduced.
+
+**Final legacy signal invariant, now fully closed.** Every remaining `DomainEvents` `Signal` field
+has both a real production producer and a real production consumer. Zero known zero-producer
+signals remain (P7B). Zero known zero-consumer signals remain (P7C). There is no longer any
+documented exception.
+
+**PM Finance read-model invalidation gap: none newly discovered.** The four deleted signals'
+absence changes nothing observable -- no production code path ever reached a real UI consumer
+through them, so their removal is not evidence of (and does not create) a PM Finance UI-staleness
+bug. Whether PM Finance's UI should react to cost-entry/commitment/forecast/financial-change
+approvals via some future *typed* mechanism is a separate, not-yet-investigated product question,
+correctly left for a dedicated semantic migration rather than resurrected here via legacy Signal
+names.
 
 ## P8 — Platform Cutover Validation
 
