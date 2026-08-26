@@ -146,6 +146,53 @@ def test_submit_change_uses_a_fresh_uow_session_shared_by_the_approval_request(
     assert submitted.status is FinancialChangeStatus.PENDING_APPROVAL
 
 
+def test_submit_change_commit_failure_rolls_back_change_and_approval_request_together(
+    services, monkeypatch
+) -> None:
+    """Approval-P1 (§23-26): a commit failure inside `submit_change`'s canonical UoW must roll
+    back the WHOLE transaction -- the financial change must remain in its pre-submit state, and
+    no `ApprovalRequest` may have been persisted independently of its host command."""
+    from src.core.modules.project_management.infrastructure.persistence.financial_change_submission_unit_of_work import (
+        SqlAlchemyFinancialChangeSubmissionUnitOfWork,
+    )
+
+    _login(services, "admin", "ChangeMe123!")
+    project, code, budget, budget_line, _forecast, _forecast_line = _seed_approved_finance(
+        services
+    )
+    changes = services["financial_change_service"]
+    change = _draft_change(services, project)
+    changes.add_impact(
+        change.id,
+        impact_type=FinancialChangeImpactType.BUDGET,
+        description="Increase approved scope",
+        amount=Decimal("10"),
+        cost_code_id=code.id,
+        target_line_id=budget_line.id,
+        expected_change_version=change.row_version,
+    )
+    change = changes.get_change(change.id)
+    pending_count_before = len(services["approval_service"].list_pending(project_id=project.id))
+
+    def _fail_commit(self):
+        raise RuntimeError("simulated financial change submission commit failure")
+
+    monkeypatch.setattr(SqlAlchemyFinancialChangeSubmissionUnitOfWork, "commit", _fail_commit)
+
+    with pytest.raises(RuntimeError, match="simulated financial change submission commit failure"):
+        changes.submit_change(
+            change.id,
+            submitted_by=services["user_session"].principal.user_id,
+            expected_version=change.row_version,
+        )
+
+    monkeypatch.undo()
+    reloaded = changes.get_change(change.id)
+    assert reloaded.status is FinancialChangeStatus.DRAFT
+    pending_after = services["approval_service"].list_pending(project_id=project.id)
+    assert len(pending_after) == pending_count_before
+
+
 def test_negative_financial_delta_requires_an_exact_target() -> None:
     with pytest.raises(ValidationError):
         FinancialChangeImpact.create(

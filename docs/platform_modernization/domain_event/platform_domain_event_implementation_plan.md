@@ -2586,6 +2586,82 @@ Approval-P1 is genuinely the smallest first step, not busywork.
 implemented; `approvals_changed` not removed; no custom-role/authentication modernization
 started; no production code changed.
 
+### Approval-P1 — Tenant Ownership + Request Transaction Convergence (implemented)
+
+**Tenant ownership.** `ApprovalRequest` now carries authoritative `tenant_id: str` (required,
+non-optional, never derived from ambient `TenantContextService`/active org/Qt workspace after
+construction) alongside its existing `organization_id`. No schema migration was needed -- the
+`approval_requests.tenant_id` column already existed; the gap was purely the mapper never
+round-tripping it. `approval_to_orm`/`approval_from_orm` now carry it both directions;
+`SqlAlchemyApprovalRepository.add()`/`update()` stamp it via the same `TenantScopedRepositorySupport
+._stamp_scope(...)` every tenant-scoped repository already uses (validate-if-set, stamp-if-absent
+-- never blind overwrite). Every production and test construction site across the repo was updated
+to supply `tenant_id` explicitly; there is no default, so a caller that forgets it fails loudly
+with `APPROVAL_TENANT_ID_REQUIRED`.
+
+**The transaction-agnostic request participant.** `approval_mutation_participant.py`
+(`request_approval_using(...)`) now owns the common request-creation semantics previously
+duplicated inside `ApprovalService.request_change`: duplicate/open-request guard (org-scoped when
+available), cross-organization project guard, `ApprovalRequest.create(...)`, `approval_repo.add()`,
+and the fail-closed audit entry (`build_request_audit_details(...)`). It takes already-constructed
+collaborators (`approval_repo`, `enterprise_audit_service`) as plain parameters -- it never commits,
+rolls back, opens a Session/UnitOfWork, publishes notifications, or emits `approvals_changed`; the
+transaction owner (the standalone `ApprovalService.request_change` or one of the four converged host
+commands below) does that, strictly after `uow.commit()`. This lets every caller share identical
+request-creation mechanics without ever nesting a UnitOfWork inside another.
+
+**Caller-owned transaction convergence.** All caller-owned-transaction paths that used to compose
+`ApprovalService.request_change(commit=False)` onto their own shared, process-lifetime Session are
+converged onto their own narrow, capability-specific canonical UnitOfWork, calling
+`request_approval_using(...)` directly instead:
+
+- `ProcurementLifecycleMixin.submit_requisition` -> `RequisitionSubmissionUnitOfWork`
+  (`requisitions`, `requisition_lines`, `approvals`, `_enterprise_audit_service`).
+- `FinancialChangeService.submit_change` -> `FinancialChangeSubmissionUnitOfWork` (`changes`,
+  `budgets`, `forecasts`, `approvals`, `_enterprise_audit_service`).
+- `ProjectBillingPreparationService.submit_preparation` -> `BillingPreparationSubmissionUnitOfWork`
+  (`billing`, `approvals`, `_enterprise_audit_service`).
+- `PurchasingLifecycleMixin.submit_purchase_order` -> `PurchaseOrderSubmissionUnitOfWork`
+  (`purchase_orders`, `approvals`, `_enterprise_audit_service`) -- discovered during this phase (not
+  in the original three-caller inventory) still composing `request_change(commit=False)`; converged
+  identically rather than left to crash once `commit` was removed.
+
+Each factory opens a genuinely fresh Session per call (never the shared legacy Session), shares the
+SAME composition-owned `TransactionalEventDispatcher`/`PostCommitEventPublisher` every other
+Platform/P5 canonical UoW factory uses, and is wired in `project_registry.py`/`inventory_registry.py`
+with `submission_uow_factory`/`*_submission_uow_factory` constructor parameters that default to
+`None` (so existing test doubles that never call the submit method stay valid) but are always
+supplied in production composition; the submit method itself raises a `BusinessRuleError` if the
+factory is missing, rather than silently falling back to caller-owned semantics.
+
+`request_change(commit=False)` was removed completely: `ApprovalService.request_change` has no
+`commit` parameter at all, and no production caller anywhere in `src/core` passes `commit=False` to
+it (enforced by `test_approval_p1_architecture_guards.py`). No replacement boolean transaction-
+ownership flag was introduced -- callers now participate in their own transaction explicitly via
+`request_approval_using(...)`.
+
+**Notifications preserved, unchanged.** `ApprovalService.publish_requested(...)` (the standalone
+path's existing post-commit notification + `approvals_changed` emission) is now called by every
+converged host command too, post-commit, from the host's own method -- never from the participant.
+This incidentally fixed a pre-existing gap: `submit_requisition` and `submit_purchase_order`
+previously emitted `approvals_changed` directly, bypassing `ApprovalService`'s permission-holder
+notification fan-out (`_notify_approval_requested`); they now go through `publish_requested` like
+every other request path. `approvals_changed` itself is retained unchanged for now (removal is
+Approval-P3 scope, not P1).
+
+**Verification added:** mapper round-trip test; a cross-tenant repository-read isolation test
+(two genuinely different tenant contexts against the same database, never an "active organization"
+switch within one tenant); a fresh-Session test for each of the four converged paths plus the
+standalone path (already existing); a commit-failure rollback test proving the financial-change
+write and its `ApprovalRequest` roll back together; and the architecture guards described above
+(no `RecordsDomainEvents`, no Approval DomainEvent classes, no Approval ViewInvalidation, no
+`commit` parameter, no production `commit=False` caller, participant purity).
+
+**Not done in this phase (by design):** `ApprovalRequested`/`ApprovalApproved`/`ApprovalRejected`
+events, Approval ViewInvalidation, Qt consumer migration, `approvals_changed` removal, and any
+change to `approve_and_apply`/`reject`'s own (already-canonical) atomicity beyond reusing
+`build_request_audit_details(...)` from the participant module instead of a private duplicate.
+
 ## P6 — Qt Invalidation Adapter Consolidation
 
 **Goal:** build the one shared Qt adapter, and migrate the three existing controller bases to

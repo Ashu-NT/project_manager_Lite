@@ -188,13 +188,18 @@ class _FakeTaskService:
         self,
         *,
         project_id: str | None = None,
+        resource_id: str | None = None,
     ) -> list[TimesheetAssignmentContext]:
         project_service = getattr(self, "_project_service", None)
         resource_service = getattr(self, "_resource_service", None)
         rows: list[TimesheetAssignmentContext] = []
         for assignment in self._assignments.values():
             task = self._tasks.get(assignment.task_id)
-            if task is None or (project_id and task.project_id != project_id):
+            if (
+                task is None
+                or (project_id and task.project_id != project_id)
+                or (resource_id and assignment.resource_id != resource_id)
+            ):
                 continue
             project = project_service.get_project(task.project_id) if project_service else None
             resource = resource_service.get_resource(assignment.resource_id) if resource_service else None

@@ -318,6 +318,7 @@ class TaskQueryMixin:
         self,
         *,
         project_id: str | None = None,
+        resource_id: str | None = None,
     ) -> list[TimesheetAssignmentContext]:
         require_permission(
             self._user_session,

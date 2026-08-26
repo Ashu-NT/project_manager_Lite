@@ -96,6 +96,7 @@ class TaskDeletionMixin:
                 if self._time_entry_repo is not None:
                     for assignment in assignments:
                         self._time_entry_repo.delete_by_assignment(assignment.id)
+                    self._session.flush()
                 self._dependency_repo.delete_for_task(task.id)
                 self._assignment_repo.delete_by_task(task.id)
                 record_activity(

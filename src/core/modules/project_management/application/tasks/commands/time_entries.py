@@ -153,9 +153,6 @@ class TaskTimeEntryMixin:
             expected_version=expected_version,
         )
 
-    def get_timesheet_period(self, resource_id: str, *, period_start: date) -> TimesheetPeriod | None:
-        return self._require_timesheet_service().get_timesheet_period(resource_id, period_start=period_start)
-
     def list_timesheet_periods_for_resource(self, resource_id: str) -> list[TimesheetPeriod]:
         return self._require_timesheet_service().list_timesheet_periods_for_resource(resource_id)
 
