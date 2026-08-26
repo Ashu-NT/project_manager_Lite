@@ -107,8 +107,16 @@ def _submitted_budget(services, session):
 
 def _request_budget_approval_as_a_different_user(services, budget):
     """Requests as a fresh, non-admin user, then logs back in as admin (the eventual decider) --
-    avoids the self-decision rule, mirroring `test_approval_service_unit_of_work_cutover.py`."""
+    avoids the self-decision rule, mirroring `test_approval_service_unit_of_work_cutover.py`.
+
+    P10A: a fresh login's active-organization auto-select is genuinely ambiguous once more than
+    one organization is enabled simultaneously (no longer "the one enabled org", unlike the
+    pre-P10A mutual-exclusion model) -- pin it explicitly to whatever was active immediately
+    before the switch rather than relying on that heuristic."""
+    active_organization_id = services["tenant_context_service"].get_active_organization_id()
     _login_as_fresh_requester(services)
+    if active_organization_id:
+        services["user_session"].set_active_organization_id(active_organization_id)
     approvals = services["approval_service"]
     request = approvals.request_change(
         request_type="budget.approve",
@@ -756,6 +764,7 @@ def test_cross_org_decision_denial_emits_zero_approval_approved_or_rejected(serv
     services["tenant_context_service"].set_active_organization(org_a2.id)
 
     _login(services, approver_username, "StrongPass123")
+    services["user_session"].set_active_organization_id(org_a2.id)
     approvals = services["approval_service"]
     bus = approvals._uow_factory._post_commit_bus
     approved_seen, rejected_seen = [], []

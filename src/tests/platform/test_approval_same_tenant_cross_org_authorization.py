@@ -136,6 +136,14 @@ def test_actor_with_decide_permission_cannot_reach_org_a1_approval_while_org_a2_
     assert _session_active_organization_id(services) == org_a2.id
 
     _login(services, approver_username, "StrongPass123")
+    # P10A: with multiple organizations enabled simultaneously, a freshly-logged-in user's
+    # active-organization auto-select is genuinely ambiguous (no longer "the one enabled org") --
+    # unlike the pre-P10A mutual-exclusion model, where enabling A2 always left exactly one
+    # enabled org for a fresh login to auto-resolve to. This directly pins the session's active
+    # organization to A2 the way that auto-select accidentally used to, without granting the
+    # approver any RBAC organization-scoped access (there is none to grant here -- this test is
+    # about Approval's own org-scoping, not organization-access authorization).
+    services["user_session"].set_active_organization_id(org_a2.id)
     approvals = services["approval_service"]
 
     with pytest.raises(NotFoundError, match="Approval request not found"):
@@ -210,6 +218,8 @@ def test_actor_gains_authority_only_after_switching_active_organization_to_the_t
     services["tenant_context_service"].set_active_organization(org_a2.id)
 
     _login(services, approver_username, "StrongPass123")
+    # P10A: pin the fresh login's ambiguous auto-select the same way as the sibling test above.
+    services["user_session"].set_active_organization_id(org_a2.id)
     approvals = services["approval_service"]
     with pytest.raises(NotFoundError, match="Approval request not found"):
         approvals.approve_and_apply(request.id)
@@ -218,6 +228,7 @@ def test_actor_gains_authority_only_after_switching_active_organization_to_the_t
     services["organization_service"].enable_organization(org_a1.id)
     services["tenant_context_service"].set_active_organization(org_a1.id)
     _login(services, approver_username, "StrongPass123")
+    services["user_session"].set_active_organization_id(org_a1.id)
 
     decided = approvals.approve_and_apply(request.id, note="Approved from the matching org")
     assert decided.status == ApprovalStatus.APPROVED

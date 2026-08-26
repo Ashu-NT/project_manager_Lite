@@ -65,8 +65,15 @@ def _submitted_budget(services, session):
 
 def _request_budget_approval_as_a_different_user(services, budget):
     """Requests as a fresh, non-admin user, then logs back in as admin -- so admin (the eventual
-    decider) never becomes the requester, avoiding the (correctly enforced) self-decision rule."""
+    decider) never becomes the requester, avoiding the (correctly enforced) self-decision rule.
+
+    P10A: a fresh login's active-organization auto-select is genuinely ambiguous once more than
+    one organization is enabled simultaneously -- pin it explicitly to whatever was active
+    immediately before the switch rather than relying on that heuristic."""
+    active_organization_id = services["tenant_context_service"].get_active_organization_id()
     _login_as_fresh_requester(services)
+    if active_organization_id:
+        services["user_session"].set_active_organization_id(active_organization_id)
     approvals = services["approval_service"]
     request = approvals.request_change(
         request_type="budget.approve",

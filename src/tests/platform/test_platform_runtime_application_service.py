@@ -180,10 +180,17 @@ def test_switching_context_does_not_require_settings_manage(services):
         base_currency="USD",
     )
 
+    # A real registered user is required -- a successful switch rebuilds the principal via
+    # `AuthService.rebuild_current_principal_for_context`, which looks the user up in the real
+    # user repository (unlike the disabled-organization denial test below, which fails before
+    # ever reaching that rebuild step).
+    real_user = services["auth_service"].register_user(
+        "context-switch-planner", "StrongPass123", role_names=["viewer"]
+    )
     user_session.set_principal(
         UserSessionPrincipal(
-            user_id="user-1",
-            username="planner",
+            user_id=real_user.id,
+            username=real_user.username,
             display_name="Planner",
             role_names=frozenset(),
             permissions=frozenset({"organization.access"}),
