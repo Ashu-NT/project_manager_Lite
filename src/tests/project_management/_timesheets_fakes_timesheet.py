@@ -69,6 +69,14 @@ class _FakeTimesheetService:
     def get_timesheet_period(self, resource_id: str, *, period_start: date) -> TimesheetPeriod:
         return self._ensure_period(resource_id, period_start)
 
+    def get_timesheet_period_record(
+        self,
+        resource_id: str,
+        *,
+        period_start: date,
+    ) -> TimesheetPeriod:
+        return self.get_timesheet_period(resource_id, period_start=period_start)
+
     def add_time_entry(
         self,
         assignment_id: str,

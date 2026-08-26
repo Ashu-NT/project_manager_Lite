@@ -89,7 +89,7 @@ def test_task_time_root_public_contract_uses_the_redesigned_tabs() -> None:
         "property string errorText",
         "signal addRequested(var payload)",
         "signal updateRequested(var payload)",
-        "signal deleteRequested(string entryId)",
+        "signal deleteRequested(string entryId, int expectedVersion)",
         "signal entrySelected(string entryId)",
         "signal resourceFilterRequested(string resourceId)",
         "signal pageRequested(int page)",
@@ -128,6 +128,7 @@ def test_task_time_interactions_and_payload_contract_are_preserved() -> None:
         '"entryDate"',
         '"hours"',
         '"note"',
+        '"expectedVersion"',
     ):
         assert payload_key in source
 
@@ -224,7 +225,7 @@ def test_task_time_section_and_private_children_load_offscreen() -> None:
         "entrySelected(QString)",
         "addRequested(QVariant)",
         "updateRequested(QVariant)",
-        "deleteRequested(QString)",
+        "deleteRequested(QString,int)",
         "resourceFilterRequested(QString)",
         "pageRequested(int)",
         "openTimesheetsRequested()",
