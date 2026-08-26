@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from PySide6.QtCore import QMetaObject, QObject, QUrl, qInstallMessageHandler
 from PySide6.QtQml import QQmlComponent
-from PySide6.QtQuick import QQuickWindow
+from PySide6.QtQuick import QQuickItem, QQuickWindow
 
 from src.ui_qml.shell.qml_engine import create_qml_engine
 
@@ -209,3 +209,110 @@ def test_r5g_resources_centered_filter_fits_viewport_and_restores_focus(
         page.deleteLater()
         window.close()
         window.deleteLater()
+
+
+@pytest.mark.parametrize(
+    ("width", "height"),
+    [(1024, 640), (1280, 720), (1366, 768), (1440, 900), (1920, 1080)],
+)
+@pytest.mark.parametrize(
+    ("filename", "pagination_name"),
+    [
+        ("ResourcesSkillsSection.qml", "resourceSkillsPagination"),
+        ("ResourcesCertificationsSection.qml", "resourceCertificationsPagination"),
+    ],
+)
+def test_r5g_capability_tables_pin_pagination_to_available_bottom(
+    qapp,
+    width: int,
+    height: int,
+    filename: str,
+    pagination_name: str,
+) -> None:
+    engine = create_qml_engine()
+    source = PM_QML / "workspaces/resources/sections" / filename
+    component = QQmlComponent(engine, QUrl.fromLocalFile(str(source.resolve())))
+    section = component.create()
+    assert section is not None, "\n".join(
+        error.toString() for error in component.errors()
+    )
+    try:
+        assert section.setProperty("width", width)
+        assert section.setProperty("height", height)
+        assert section.setProperty("availableHeight", height)
+        qapp.processEvents()
+
+        pagination = section.findChild(QQuickItem, pagination_name)
+        assert pagination is not None
+        bottom = pagination.height()
+        current = pagination
+        while current is not section:
+            bottom += current.y()
+            current = current.parentItem()
+            assert current is not None
+        assert abs(bottom - height) <= 1.0
+        assert 0 < pagination.width() <= width
+    finally:
+        section.deleteLater()
+        qapp.processEvents()
+
+
+@pytest.mark.parametrize(
+    ("width", "height"),
+    [(1024, 640), (1280, 720), (1366, 768), (1440, 900), (1920, 1080)],
+)
+def test_r5g_workload_routes_survive_repeated_open_close_lifecycle(
+    qapp, width: int, height: int
+) -> None:
+    messages: list[str] = []
+
+    def capture_message(_message_type, _context, message: str) -> None:
+        messages.append(str(message))
+
+    previous_handler = qInstallMessageHandler(capture_message)
+    try:
+        engine = create_qml_engine()
+        for relative_path in (
+            "workspaces/resources/ResourcesWorkspacePage.qml",
+            "workspaces/timesheets/TimesheetsWorkspacePage.qml",
+        ):
+            source = PM_QML / relative_path
+            for _iteration in range(3):
+                component = QQmlComponent(
+                    engine, QUrl.fromLocalFile(str(source.resolve()))
+                )
+                page = component.create()
+                assert page is not None, "\n".join(
+                    error.toString() for error in component.errors()
+                )
+                window = QQuickWindow()
+                try:
+                    window.setWidth(width)
+                    window.setHeight(height)
+                    page.setParentItem(window.contentItem())
+                    assert page.setProperty("width", width)
+                    assert page.setProperty("height", height)
+                    window.show()
+                    qapp.processEvents()
+                    assert page.width() == width
+                    assert page.height() == height
+                finally:
+                    page.setParentItem(None)
+                    page.deleteLater()
+                    window.close()
+                    window.deleteLater()
+                    qapp.processEvents()
+                    qapp.processEvents()
+    finally:
+        qInstallMessageHandler(previous_handler)
+
+    rejected = (
+        "managed by a layout",
+        "is not a type",
+        "ReferenceError",
+        "TypeError",
+        "Cannot read property",
+    )
+    assert not any(
+        marker in message for message in messages for marker in rejected
+    ), messages
