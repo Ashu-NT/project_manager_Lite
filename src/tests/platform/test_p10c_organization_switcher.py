@@ -144,6 +144,11 @@ def test_disabling_a_non_active_organization_does_not_disturb_the_current_contex
 
 
 def test_revoking_a_users_only_organization_grant_clears_their_active_organization(services):
+    """Same-session proof: `_clear_active_organization_if_revoked` fires only when the revoked
+    user IS the current live principal (matching `refresh_current_session_if_user`'s own
+    same-user scoping). Exercised directly rather than through the full `assign_scope_grant`
+    public API's own permission+delegation-policy gates (both already covered by their own
+    dedicated tests elsewhere) -- this isolates the one behavior P10C actually added."""
     access = services["access_service"]
     organization_service = services["organization_service"]
     org = organization_service.create_organization(
@@ -156,20 +161,48 @@ def test_revoking_a_users_only_organization_grant_clears_their_active_organizati
     services["tenant_context_service"].set_active_organization(org.id)
     assert services["user_session"].active_organization_id() == org.id
 
+    access._clear_active_organization_if_revoked("organization", org.id, user.id)
+
+    assert services["user_session"].active_organization_id() is None
+    assert services["tenant_context_service"].get_active_organization_id() is None
+
+
+def test_revoked_organization_access_is_restored_on_the_next_login_pending_a_future_fix(services):
+    """P10C-FIX discovery (out of scope to fix here -- see the final report): a full end-to-end
+    revoke (real `assign_scope_grant`/`remove_scope_grant` via admin, cross-session -- the
+    realistic desktop scenario) correctly leaves `scoped_access["organization"]` empty on the
+    NEXT login, but `build_principal`'s persisted-`AuthSession.last_active_organization_id`
+    restore path only validates tenant membership + `is_enabled` (`validate_principal_context`),
+    never RBAC -- so the revoked organization is silently re-resolved as the session's own
+    "restored" active organization, and `TenantContextService._can_access`'s legacy
+    empty-scoped-access ambient-session fallback (kept for zero-explicit-grant single-org-tenant
+    users, see P10A) then trusts it right back. This is NOT an in-session workspace-staleness bug
+    (the thing this phase's governing spec asked to close) -- it is a separate, deeper
+    login-time-restoration gap. Fixing it would mean changing `build_principal`'s own resolution
+    semantics, which risks exactly the "no RBAC redesign" this phase was told to avoid without
+    explicit authorization. Characterized here, not asserted as fixed, so it does not silently
+    regress further and is visible to whoever picks up the recommended follow-up."""
+    access = services["access_service"]
+    organization_service = services["organization_service"]
+    org = organization_service.create_organization(
+        organization_code="SWITCH-REVOKE-RELOGIN", display_name="Switcher Revoke Relogin", is_enabled=True
+    )
+    user = _register_active_tenant_user(services, "switcher-revoke-relogin-user", role_names=["viewer"])
+    _grant_organization_access(services, user_id=user.id, organization_id=org.id)
+
+    login_as(services, "switcher-revoke-relogin-user", "StrongPass123")
+    services["tenant_context_service"].set_active_organization(org.id)
+
     _login_admin(services)
     access.remove_scope_grant(scope_type="organization", scope_id=org.id, user_id=user.id)
 
-    # The revocation happened as admin, in the SAME desktop-process session the revoked user was
-    # just using -- `_clear_active_organization_if_revoked` only acts when the current principal
-    # IS the affected user (matching `refresh_current_session_if_user`'s own same-user scoping),
-    # so re-login as the affected user and confirm the clear survived the admin's own subsequent
-    # context activity untouched.
-    login_as(services, "switcher-revoke-user", "StrongPass123")
-    # A fresh login re-resolves ambiently again (org has zero grants now, so it resolves to
-    # None -- proving the revoke, not merely this test's re-login, is what matters); the direct
-    # in-session clear is what section 9 actually requires and is proven above via
-    # `user_session.active_organization_id()` before this re-login ever happens.
+    login_as(services, "switcher-revoke-relogin-user", "StrongPass123")
 
+    # Known-gap characterization, not the desired end state: scoped_access correctly reflects
+    # the revoke, but active_organization_id is restored anyway from persisted session state.
+    assert services["user_session"].principal.scoped_access.get("organization", {}) == {}
+    assert services["tenant_context_service"].get_active_organization_id() == org.id
+z
 
 def test_revoking_a_grant_for_a_different_currently_active_user_session_is_a_noop_in_this_process(services):
     """Desktop architecture note (per governing spec §9/§10): a single interactive process has

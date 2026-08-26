@@ -195,6 +195,8 @@ class PlatformWorkspaceCatalog(QObject):
             self._settings_workspace.refresh_organization_profiles
         )
         self._tenant_switcher.tenantSwitched.connect(self._on_tenant_switched)
+        self._tenant_switcher.tenantSwitched.connect(self.refreshAllWorkspaces)
+        self._organization_switcher.organizationSwitched.connect(self.refreshAllWorkspaces)
         self._module_entitlement_view_invalidation_adapter = ModuleEntitlementViewInvalidationAdapter(
             channel=view_invalidation_channel,
             tenant_id=self._tenant_switcher.activeTenantId,
