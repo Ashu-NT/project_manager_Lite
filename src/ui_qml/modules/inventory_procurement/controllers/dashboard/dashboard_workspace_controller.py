@@ -5,6 +5,7 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
+from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.inventory_procurement.controllers.common import (
     InventoryProcurementWorkspaceControllerBase,
     serialize_dashboard_overview_view_model,
@@ -107,7 +108,27 @@ class InventoryProcurementDashboardWorkspaceController(
             self._set_is_loading(False)
 
     def _bind_domain_events(self) -> None:
-        self._subscribe_domain_change(scope_code="inventory_procurement")
+        """P7A: direct-wired to every Inventory/Procurement legacy signal (this dashboard
+        genuinely reacts to any inventory mutation, by design) -- no generic `domain_changed`
+        bridge."""
+
+        def _on_domain_event(_payload: object) -> None:
+            self._request_domain_refresh()
+
+        for signal in (
+            domain_events.inventory_items_changed,
+            domain_events.inventory_item_categories_changed,
+            domain_events.inventory_storerooms_changed,
+            domain_events.inventory_balances_changed,
+            domain_events.inventory_reservations_changed,
+            domain_events.inventory_requisitions_changed,
+            domain_events.inventory_purchase_orders_changed,
+            domain_events.inventory_receipts_changed,
+            domain_events.inventory_locations_changed,
+            domain_events.inventory_reorder_policies_changed,
+            domain_events.inventory_cycle_counts_changed,
+        ):
+            self._subscribe_domain_signal(signal, _on_domain_event)
 
     def _set_overview(self, overview: dict[str, object]) -> None:
         if overview == self._overview:

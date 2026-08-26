@@ -1,12 +1,14 @@
-"""P7: pre-release removal of generic legacy-bridge residue for the five already-modernized
-capabilities (Organization, Module Entitlement, RoleBinding, TenantMembership, Approval), plus
-proof that the still-unmodernized capabilities' own direct legacy-signal wiring (e.g.
-`auth_changed` -> `AccessWorkspaceController._on_auth_changed`) is unaffected and stays narrow.
+"""P7 + P7A: pre-release removal of the ENTIRE generic legacy-compatibility bridge architecture
+(`_BRIDGE_SPECS`/`_wire_bridges`/`domain_changed`/`DomainChangeEvent`/`shared_master_changed`/
+`_subscribe_domain_change`) -- not merely the residue for the five already-modernized capabilities
+(P7's original, narrower scope), but the entire mechanism (P7A). Every still-unmodernized
+capability (PM/Inventory module signals, auth-adjacent Platform signals) is now direct-wired:
+`domain_events.<specific_signal>.connect(callback)`, never routed through a generic entity_type/
+scope_code dispatch table.
 
-Explicitly NOT modernizing any further capability, NOT touching `admin_console/domain_event_binder
-.py` (proven to already be direct wiring with a real, still-required composite-refresh
-responsibility, not generic bridge routing), and NOT touching PM/Inventory's own extensive,
-still-genuinely-needed `_subscribe_domain_change(...)` usage -- both are out of this phase's scope.
+`admin_console/domain_event_binder.py` was never part of the bridge in the first place (proven in
+P7: it subscribes directly to 8 specific signals) -- kept unchanged, still real, non-compatibility
+composite-refresh coordination.
 """
 
 from __future__ import annotations
@@ -16,6 +18,7 @@ import inspect
 
 from src.application.runtime import build_desktop_api_registry
 from src.core.shared.events.domain_events import domain_events
+from src.ui_qml.modules.inventory_procurement.context import InventoryProcurementWorkspaceCatalog
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
@@ -37,6 +40,11 @@ def _pm_catalog(services) -> ProjectManagementWorkspaceCatalog:
     return ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
 
 
+def _inventory_catalog(services) -> InventoryProcurementWorkspaceCatalog:
+    registry = build_desktop_api_registry(services)
+    return InventoryProcurementWorkspaceCatalog(desktop_api_registry=registry)
+
+
 def _login(services, username: str, password: str) -> None:
     auth = services["auth_service"]
     user_session = services["user_session"]
@@ -53,60 +61,59 @@ def _strip_strings_and_comments(source: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# 1. Producer -> bridge -> consumer graph: the four dead-bridge entries are gone
+# 1. P7A: the entire generic bridge mechanism is gone -- not merely 4 dead entries
 # ---------------------------------------------------------------------------
 
 
-def test_bridge_specs_no_longer_routes_the_four_dead_entries():
-    """`organizations_changed`/`auth_changed`/`employees_changed`/`departments_changed` each had
-    zero real consumers of their bridge-routed `domain_changed` output (verified repo-wide: no
-    `_subscribe_domain_change(...)` call filters entity_type "organization"/"user_account"/
-    "employee"/"department") -- removed from the registry. Their own direct subscribers
-    (admin_console binder, settings_workspace_controller, access_workspace_controller) never went
-    through this bridge and are unaffected."""
-    bridged_signal_names = {spec[0] for spec in domain_events._BRIDGE_SPECS}
-    for dead in ("organizations_changed", "auth_changed", "employees_changed", "departments_changed"):
-        assert dead not in bridged_signal_names, f"{dead} still routes through the generic bridge"
+def test_bridge_specs_no_longer_exists_at_all():
+    assert not hasattr(domain_events, "_BRIDGE_SPECS")
+    assert not hasattr(domain_events.__class__, "_BRIDGE_SPECS")
 
 
-def test_the_four_signals_still_exist_with_their_own_direct_subscribers_unaffected():
-    """Removing the dead bridge-routing entries must not touch the signals themselves -- they
-    still exist and still have their own real, direct (non-bridge) consumers."""
-    for signal_name in ("organizations_changed", "auth_changed", "employees_changed", "departments_changed"):
-        assert hasattr(domain_events, signal_name), f"{signal_name} was deleted, not just un-bridged"
+def test_domain_changed_signal_no_longer_exists():
+    assert not hasattr(domain_events, "domain_changed")
 
 
 def test_shared_master_changed_signal_no_longer_exists():
-    """Zero production consumers anywhere (only `domain_changed`, via
-    `_subscribe_domain_change(...)`, was ever actually consumed) -- deleted entirely: field,
-    `_build_bridge`'s emit branch, and its bridge-only test."""
     assert not hasattr(domain_events, "shared_master_changed")
 
 
-def test_domain_changed_still_exists_with_real_production_consumers():
-    """`domain_changed` itself is NOT dead -- dozens of still-unmodernized PM/Inventory
-    controllers depend on it via `_subscribe_domain_change(...)` for entity types this phase never
-    touches (project/tasks/costs/resources/baseline/register/timesheet/portfolio/inventory-* and
-    the still-alive shared_master entries site/document/party/working_calendar). Per §5, only a
-    generic signal with ZERO real production producers/consumers gets deleted -- this one does
-    not qualify."""
-    assert hasattr(domain_events, "domain_changed")
-    seen = []
-    domain_events.domain_changed.connect(seen.append)
-    try:
-        domain_events.project_changed.emit(_unique("p7-domain-changed-alive"))
-    finally:
-        domain_events.domain_changed.disconnect(seen.append)
-    assert len(seen) == 1
+def test_domain_change_event_class_no_longer_exists():
+    import src.core.shared.events.domain_events as domain_events_module
+
+    assert not hasattr(domain_events_module, "DomainChangeEvent")
 
 
-def test_bridge_specs_still_routes_the_genuinely_alive_shared_master_entries():
-    """`sites_changed`/`calendars_changed`/`documents_changed`/`parties_changed` remain bridged --
-    Inventory's and PM's own `_subscribe_domain_change(..., scope_code="platform")` consumers
-    genuinely depend on this (verified repo-wide)."""
-    bridged_signal_names = {spec[0] for spec in domain_events._BRIDGE_SPECS}
-    for alive in ("sites_changed", "calendars_changed", "documents_changed", "parties_changed"):
-        assert alive in bridged_signal_names
+def test_wire_bridges_no_longer_exists():
+    assert not hasattr(domain_events, "_wire_bridges")
+    assert not hasattr(domain_events, "_build_bridge")
+
+
+def test_subscribe_domain_change_no_longer_exists_on_any_controller_base():
+    import src.ui_qml.modules.inventory_procurement.controllers.common.workspace_controller_base as inv_base
+    import src.ui_qml.modules.project_management.controllers.common.workspace_controller_base as pm_base
+    import src.ui_qml.platform.controllers.common.workspace_controller_base as platform_base
+
+    for module, cls_name in (
+        (platform_base, "PlatformWorkspaceControllerBase"),
+        (pm_base, "ProjectManagementWorkspaceControllerBase"),
+        (inv_base, "InventoryProcurementWorkspaceControllerBase"),
+    ):
+        cls = getattr(module, cls_name)
+        assert not hasattr(cls, "_subscribe_domain_change")
+
+
+def test_all_still_unmodernized_signals_survive_with_real_direct_consumers():
+    """The four already-audited-in-P7 signals, plus every PM/Inventory module-level and
+    shared-master signal, still exist as plain `Signal` fields -- only the generic bridge routing
+    around them was removed, never the signals or their real direct consumers."""
+    for signal_name in (
+        "organizations_changed", "auth_changed", "employees_changed", "departments_changed",
+        "project_changed", "tasks_changed", "resources_changed", "costs_changed",
+        "sites_changed", "calendars_changed", "documents_changed", "parties_changed",
+        "inventory_items_changed", "inventory_storerooms_changed",
+    ):
+        assert hasattr(domain_events, signal_name), f"{signal_name} was deleted, not just un-bridged"
 
 
 # ---------------------------------------------------------------------------
@@ -186,6 +193,105 @@ def test_tenant_membership_mutation_never_emits_auth_changed(services):
 def test_approval_has_no_legacy_signal_at_all():
     """`approvals_changed` was fully deleted in Approval-P3 -- confirmed still gone."""
     assert not hasattr(domain_events, "approvals_changed")
+
+
+# ---------------------------------------------------------------------------
+# 2b. §21: representative direct-wiring proofs across PM, Inventory, and shared-master
+# ---------------------------------------------------------------------------
+
+
+def test_pm_register_workspace_direct_wired_to_register_changed_exactly_once(services):
+    """PM's register binder now connects directly to `register_changed`/`project_changed` --
+    no generic `domain_changed` involved."""
+    pm_catalog = _pm_catalog(services)
+    controller = pm_catalog.registerWorkspace
+    refresh_calls = []
+    controller.refresh = lambda: refresh_calls.append("refresh")
+
+    domain_events.register_changed.emit(_unique("p7a-register"))
+
+    assert refresh_calls == ["refresh"]
+
+
+def test_pm_register_workspace_does_not_react_to_an_unrelated_inventory_signal(services):
+    """Direct wiring must not accidentally widen scope -- an Inventory-only signal must never
+    reach a PM controller."""
+    pm_catalog = _pm_catalog(services)
+    controller = pm_catalog.registerWorkspace
+    refresh_calls = []
+    controller.refresh = lambda: refresh_calls.append("refresh")
+
+    domain_events.inventory_items_changed.emit(_unique("p7a-unrelated-inventory"))
+
+    assert refresh_calls == []
+
+
+def test_inventory_dashboard_direct_wired_to_every_inventory_signal(services):
+    """Inventory's dashboard binder now connects directly to all 10 inventory-module signals --
+    no generic `scope_code="inventory_procurement"` bridge filter involved."""
+    inventory_catalog = _inventory_catalog(services)
+    controller = inventory_catalog.dashboardWorkspace
+    refresh_calls = []
+    controller.refresh = lambda: refresh_calls.append("refresh")
+
+    domain_events.inventory_items_changed.emit(_unique("p7a-inv-item"))
+    domain_events.inventory_purchase_orders_changed.emit(_unique("p7a-inv-po"))
+
+    assert refresh_calls == ["refresh", "refresh"]
+
+
+def test_inventory_dashboard_does_not_react_to_an_unrelated_pm_signal(services):
+    inventory_catalog = _inventory_catalog(services)
+    controller = inventory_catalog.dashboardWorkspace
+    refresh_calls = []
+    controller.refresh = lambda: refresh_calls.append("refresh")
+
+    domain_events.project_changed.emit(_unique("p7a-unrelated-pm"))
+
+    assert refresh_calls == []
+
+
+def test_inventory_catalog_workspace_direct_wired_to_shared_master_document_and_party(services):
+    """Inventory's catalog binder now connects directly to `documents_changed`/`parties_changed`
+    (its own cross-module shared-master dependency) -- no generic `scope_code="platform"` bridge
+    filter involved."""
+    inventory_catalog = _inventory_catalog(services)
+    controller = inventory_catalog.catalogWorkspace
+    refresh_calls = []
+    controller.refresh = lambda: refresh_calls.append("refresh")
+
+    domain_events.documents_changed.emit(_unique("p7a-doc"))
+    domain_events.parties_changed.emit(_unique("p7a-party"))
+
+    assert refresh_calls == ["refresh", "refresh"]
+
+
+def test_inventory_catalog_workspace_does_not_react_to_an_unrelated_shared_master_signal(services):
+    """`sites_changed` is a real shared-master signal, but NOT one the catalog workspace's own
+    binder ever subscribed to (only inventory/pricing/procurement/reservations did) -- direct
+    wiring must preserve that exact per-consumer scope, not widen it."""
+    inventory_catalog = _inventory_catalog(services)
+    controller = inventory_catalog.catalogWorkspace
+    refresh_calls = []
+    controller.refresh = lambda: refresh_calls.append("refresh")
+
+    domain_events.sites_changed.emit(_unique("p7a-unrelated-site"))
+
+    assert refresh_calls == []
+
+
+def test_pm_scheduling_workspace_direct_wired_to_shared_master_calendar(services):
+    """PM's scheduling binder now connects directly to `calendars_changed` (its own
+    cross-module shared-master dependency) -- no generic `category="shared_master"` bridge filter
+    involved."""
+    pm_catalog = _pm_catalog(services)
+    controller = pm_catalog.schedulingWorkspace
+    refresh_calls = []
+    controller.refresh = lambda: refresh_calls.append("refresh")
+
+    domain_events.calendars_changed.emit(_unique("p7a-calendar"))
+
+    assert refresh_calls == ["refresh"]
 
 
 # ---------------------------------------------------------------------------
@@ -311,7 +417,9 @@ def test_pm_dashboard_still_does_not_react_to_unrelated_capability_events(servic
 # ---------------------------------------------------------------------------
 
 
-def test_no_generic_bridge_registry_exists_outside_domain_events_py():
+def test_no_generic_bridge_registry_exists_anywhere():
+    """P7A: `_BRIDGE_SPECS` is gone entirely -- not even domain_events.py itself references it
+    any more."""
     import glob
 
     hits = []
@@ -323,7 +431,46 @@ def test_no_generic_bridge_registry_exists_outside_domain_events_py():
             source = fh.read()
         if "_BRIDGE_SPECS" in _strip_strings_and_comments(source):
             hits.append(normalized)
-    assert hits == ["src/core/shared/events/domain_events.py"], hits
+    assert hits == [], hits
+
+
+def test_no_replacement_generic_router_or_registry_introduced():
+    """§7/§23: forbidden replacement shapes -- a signal-name-string -> registry -> generic
+    callback under any name would just rename `_BRIDGE_SPECS`."""
+    import glob
+
+    forbidden_names = (
+        "LegacySignalRouter",
+        "DomainSignalRegistry",
+        "EntityChangeRouter",
+        "SignalDispatchMap",
+        "CapabilitySignalRegistry",
+    )
+    hits = []
+    for path in glob.glob("src/**/*.py", recursive=True):
+        normalized = path.replace("\\", "/")
+        if "__pycache__" in normalized or normalized.endswith("test_p7_legacy_bridge_removal.py"):
+            continue
+        with open(path, "r", encoding="utf-8", errors="ignore") as fh:
+            source = _strip_strings_and_comments(fh.read())
+        if any(name in source for name in forbidden_names):
+            hits.append(normalized)
+    assert hits == [], hits
+
+
+def test_subscribe_domain_change_has_zero_production_references():
+    import glob
+
+    hits = []
+    for path in glob.glob("src/**/*.py", recursive=True):
+        normalized = path.replace("\\", "/")
+        if "__pycache__" in normalized or "/tests/" in normalized:
+            continue
+        with open(path, "r", encoding="utf-8", errors="ignore") as fh:
+            source = _strip_strings_and_comments(fh.read())
+        if "_subscribe_domain_change" in source:
+            hits.append(normalized)
+    assert hits == [], hits
 
 
 def test_organization_service_create_never_emits_the_legacy_signal():

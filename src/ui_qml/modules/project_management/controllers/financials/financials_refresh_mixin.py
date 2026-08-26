@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 
+from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.project_management.controllers.common import (
     serialize_financials_baseline_variance_view_models,
     serialize_financials_collection_view_model,
@@ -189,15 +190,21 @@ class FinancialsRefreshMixin:
             self._set_is_loading(False)
 
     def _bind_domain_events(self) -> None:
-        self._subscribe_domain_change(
-            "project",
-            "project_tasks",
-            "project_costs",
-            "project_budget",
-            "project_planned_cost",
-            "project_billing_preparation",
-            scope_code="project_management",
-        )
+        """P7A: direct-wired to the specific legacy signals this workspace actually reads --
+        no generic `domain_changed` bridge."""
+
+        def _on_domain_event(_payload: object) -> None:
+            self._request_domain_refresh()
+
+        for signal in (
+            domain_events.project_changed,
+            domain_events.tasks_changed,
+            domain_events.costs_changed,
+            domain_events.budgets_changed,
+            domain_events.planned_costs_changed,
+            domain_events.billing_preparations_changed,
+        ):
+            self._subscribe_domain_signal(signal, _on_domain_event)
 
 
 __all__ = ["FinancialsRefreshMixin"]

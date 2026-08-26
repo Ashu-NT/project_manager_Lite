@@ -6,6 +6,7 @@ from datetime import date
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
 )
@@ -105,12 +106,14 @@ class ProjectManagementResourceTimesheetsController(ProjectManagementWorkspaceCo
         self._resource_page = 1
         self._resource_page_size = 20
         self._resource_total = 0
-        self._subscribe_domain_change(
-            "timesheet_period",
-            "project_tasks",
-            "resource",
-            scope_code="project_management",
-        )
+        # P7A: direct-wired to the specific legacy signals this workspace actually reads -- no
+        # generic `domain_changed` bridge.
+        for signal in (
+            domain_events.timesheet_periods_changed,
+            domain_events.tasks_changed,
+            domain_events.resources_changed,
+        ):
+            self._subscribe_domain_signal(signal, lambda _payload: self._request_domain_refresh())
         self.refresh()
 
     period = Property("QVariantMap", lambda self: self._period, notify=periodChanged)

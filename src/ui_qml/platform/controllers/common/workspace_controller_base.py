@@ -7,7 +7,6 @@ from typing import Any
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
 from src.core.shared.events.signal import Signal as DomainSignal
 
 QML_IMPORT_NAME = "Platform.Controllers"
@@ -192,44 +191,6 @@ class PlatformWorkspaceControllerBase(QObject):
             "Platform domain signal subscribed context=%s subscription_count=%s",
             self._diagnostic_context(),
             len(self._domain_event_subscriptions),
-        )
-
-    def _subscribe_domain_change(
-        self,
-        *entity_types: str,
-        scope_code: str | None = None,
-        category: str | None = None,
-    ) -> None:
-        allowed_entity_types = {
-            entity_type.strip()
-            for entity_type in entity_types
-            if entity_type.strip()
-        }
-
-        def _handler(event: DomainChangeEvent) -> None:
-            if category is not None and event.category != category:
-                return
-            if scope_code is not None and event.scope_code != scope_code:
-                return
-            if allowed_entity_types and event.entity_type not in allowed_entity_types:
-                return
-            logger.debug(
-                "Platform domain change matched context=%s entity_type=%s entity_id=%s scope=%s category=%s",
-                self._diagnostic_context(),
-                event.entity_type,
-                event.entity_id,
-                event.scope_code,
-                event.category,
-            )
-            self._request_domain_refresh()
-
-        self._subscribe_domain_signal(domain_events.domain_changed, _handler)
-        logger.debug(
-            "Platform domain change filter registered context=%s entity_types=%s scope=%s category=%s",
-            self._diagnostic_context(),
-            sorted(allowed_entity_types),
-            scope_code or "-",
-            category or "-",
         )
 
     def _request_domain_refresh(self) -> None:

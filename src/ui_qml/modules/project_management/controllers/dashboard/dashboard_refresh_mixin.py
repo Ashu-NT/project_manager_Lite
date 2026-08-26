@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from time import perf_counter
 
+from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.project_management.controllers.common import (
     serialize_dashboard_activity_feed_view_model,
     serialize_dashboard_chart_view_models,
@@ -170,17 +171,23 @@ class DashboardRefreshMixin:
         super()._request_domain_refresh()
 
     def _bind_domain_events(self) -> None:
-        self._subscribe_domain_change(
-            "project",
-            "project_tasks",
-            "project_baseline",
-            "resource",
-            "project_costs",
-            "register_scope",
-            "portfolio_entity",
-            "task_collaboration",
-            scope_code="project_management",
-        )
+        """P7A: direct-wired to the specific legacy signals this dashboard actually reads --
+        no generic `domain_changed` bridge."""
+
+        def _on_domain_event(_payload: object) -> None:
+            self._request_domain_refresh()
+
+        for signal in (
+            domain_events.project_changed,
+            domain_events.tasks_changed,
+            domain_events.baseline_changed,
+            domain_events.resources_changed,
+            domain_events.costs_changed,
+            domain_events.register_changed,
+            domain_events.portfolio_changed,
+            domain_events.collaboration_changed,
+        ):
+            self._subscribe_domain_signal(signal, _on_domain_event)
 
 
 __all__ = ["DashboardRefreshMixin"]

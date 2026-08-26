@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QApplication
 
-from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
+from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.project_management.context import (
     ProjectManagementWorkspaceCatalog,
 )
@@ -55,29 +55,16 @@ def test_pm_collaboration_workspace_refreshes_on_collaboration_workflow_events(m
 def test_pm_portfolio_workspace_refreshes_on_portfolio_workflow_events(
     monkeypatch, qapp
 ) -> None:
+    """P7A: direct-wired -- `portfolio_changed`/`project_changed` are the actual specific signals
+    Portfolio's own debounced `_request_domain_refresh()` override coalesces into one refresh,
+    no generic `domain_changed` bridge involved."""
     catalog = ProjectManagementWorkspaceCatalog()
     controller = catalog.portfolioWorkspace
     refresh_calls: list[str] = []
     monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
 
-    domain_events.domain_changed.emit(
-        DomainChangeEvent(
-            category="module",
-            scope_code="project_management",
-            entity_type="portfolio_entity",
-            entity_id="portfolio-1",
-            source_event="manual_test",
-        )
-    )
-    domain_events.domain_changed.emit(
-        DomainChangeEvent(
-            category="module",
-            scope_code="project_management",
-            entity_type="project",
-            entity_id="proj-1",
-            source_event="manual_test",
-        )
-    )
+    domain_events.portfolio_changed.emit("portfolio-1")
+    domain_events.project_changed.emit("proj-1")
     QApplication.processEvents()
 
     assert refresh_calls == ["refresh"]
