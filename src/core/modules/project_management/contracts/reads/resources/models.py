@@ -188,6 +188,50 @@ class ResourceActivityReadPage:
     sort: ReadSort = ReadSort("occurredAt")
 
 
+@dataclass(frozen=True, slots=True)
+class ResourceSkillFact:
+    skill_id: str
+    resource_id: str
+    skill_code: str
+    skill_name: str
+    proficiency: str
+    notes: str
+    version: int
+
+
+@dataclass(frozen=True, slots=True)
+class ResourceSkillReadPage:
+    items: tuple[ResourceSkillFact, ...] = ()
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = 25
+    sort: ReadSort = ReadSort("skillName")
+
+
+@dataclass(frozen=True, slots=True)
+class ResourceCertificationFact:
+    certification_id: str
+    resource_id: str
+    certification_code: str
+    certification_name: str
+    issued_date: date | None
+    expiry_date: date | None
+    certificate_number: str
+    issuer: str
+    notes: str
+    cert_status: str
+    version: int
+
+
+@dataclass(frozen=True, slots=True)
+class ResourceCertificationReadPage:
+    items: tuple[ResourceCertificationFact, ...] = ()
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = 25
+    sort: ReadSort = ReadSort("certificationName")
+
+
 __all__ = [
     "ResourceCatalogReadItem",
     "ResourceCatalogReadPage",
@@ -199,5 +243,9 @@ __all__ = [
     "ResourceInspectorFact",
     "ResourceProjectFact",
     "ResourceProjectReadPage",
+    "ResourceCertificationFact",
+    "ResourceCertificationReadPage",
+    "ResourceSkillFact",
+    "ResourceSkillReadPage",
     "ResourceSummaryFact",
 ]

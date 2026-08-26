@@ -12,6 +12,7 @@ from .context_reader import (
     ResourceActivityReader,
     ResourceAssignmentsReader,
     ResourceProjectsReader,
+    ResourceCapabilityReader,
 )
 from .models import (
     ResourceActivityFact,
@@ -20,6 +21,10 @@ from .models import (
     ResourceAssignmentReadPage,
     ResourceProjectFact,
     ResourceProjectReadPage,
+    ResourceCertificationFact,
+    ResourceCertificationReadPage,
+    ResourceSkillFact,
+    ResourceSkillReadPage,
 )
 
 __all__ = [
@@ -42,4 +47,9 @@ __all__ = [
     "ResourceProjectFact",
     "ResourceProjectReadPage",
     "ResourceProjectsReader",
+    "ResourceCapabilityReader",
+    "ResourceCertificationFact",
+    "ResourceCertificationReadPage",
+    "ResourceSkillFact",
+    "ResourceSkillReadPage",
 ]

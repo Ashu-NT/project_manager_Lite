@@ -8,35 +8,42 @@ from src.core.modules.project_management.api.desktop import (
     ResourceRemoveCertificationCommand,
     ResourceUpdateCertificationCommand,
 )
-from src.ui_qml.modules.project_management.view_models.resources import (
-    ResourceCertificationViewModel,
-)
-
 from .validation import optional_text, require_text
 
-def build_certifications_state(
+
+def build_certifications_page(
     desktop_api: ProjectManagementResourcesDesktopApi,
     resource_id: str,
-) -> tuple[ResourceCertificationViewModel, ...]:
-    if not resource_id:
-        return ()
-    certs = desktop_api.list_resource_certifications(resource_id)
-    return tuple(
-        ResourceCertificationViewModel(
-            id=c.id,
-            certification_code=c.certification_code,
-            certification_name=c.certification_name,
-            issued_date=c.issued_date or "",
-            expiry_date=c.expiry_date or "",
-            certificate_number=c.certificate_number,
-            issuer=c.issuer,
-            notes=c.notes,
-            cert_status=c.cert_status,
-            cert_status_label=c.cert_status_label,
-            version=c.version,
-        )
-        for c in certs
-    )
+    **query,
+) -> dict[str, object]:
+    page = desktop_api.list_resource_certifications_page(resource_id, **query)
+    return {
+        "items": [
+            {
+                "id": cert.id,
+                "title": cert.certification_name,
+                "subtitle": cert.certification_code,
+                "statusLabel": cert.cert_status_label,
+                "metaText": cert.expiry_date or "No expiry",
+                "certificationCode": cert.certification_code,
+                "certificationName": cert.certification_name,
+                "issuedDate": cert.issued_date or "",
+                "expiryDate": cert.expiry_date or "",
+                "certificateNumber": cert.certificate_number,
+                "issuer": cert.issuer,
+                "notes": cert.notes,
+                "certStatus": cert.cert_status,
+                "certStatusLabel": cert.cert_status_label,
+                "version": cert.version,
+            }
+            for cert in page.items
+        ],
+        "total": page.filtered_total,
+        "page": page.page,
+        "pageSize": page.page_size,
+        "sortKey": page.sort_key,
+        "sortDirection": page.sort_direction,
+    }
 
 def add_certification(
     desktop_api: ProjectManagementResourcesDesktopApi,
@@ -46,7 +53,9 @@ def add_certification(
     command = ResourceAddCertificationCommand(
         resource_id=resource_id,
         certification_code=require_text(payload, "certCode", "Certification code is required."),
-        certification_name=optional_text(payload, "certName") or payload.get("certCode", ""),
+        certification_name=require_text(
+            payload, "certName", "Certification name is required."
+        ),
         issued_date=optional_text(payload, "issuedDate"),
         expiry_date=optional_text(payload, "expiryDate"),
         certificate_number=optional_text(payload, "certificateNumber") or "",
@@ -82,8 +91,9 @@ def update_certification(
             certification_code=require_text(
                 payload, "certCode", "Certification code is required."
             ),
-            certification_name=optional_text(payload, "certName")
-            or payload.get("certCode", ""),
+            certification_name=require_text(
+                payload, "certName", "Certification name is required."
+            ),
             issued_date=optional_text(payload, "issuedDate"),
             expiry_date=optional_text(payload, "expiryDate"),
             certificate_number=optional_text(payload, "certificateNumber") or "",

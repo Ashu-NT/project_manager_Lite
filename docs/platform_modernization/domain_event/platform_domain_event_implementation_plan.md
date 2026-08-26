@@ -3161,7 +3161,7 @@ Approval-P3 report above) is untouched; Organization's own unconsumed `organizat
 ViewInvalidation target remains unconsumed; RoleBinding's `PlatformScope()` hint path remains
 unreachable in practice (proven dead by `RoleGovernanceService`'s own denial, not by this phase).
 
-## P7 — Platform Legacy Compatibility Bridge and Cutover
+## P7 — Platform Legacy Compatibility Bridge and Cutover (implemented, revised scope)
 
 **Goal:** retire every legacy-bridge adapter this plan introduced along the way, once — and only
 once — every consumer it served has migrated to the new mechanism.
@@ -3232,6 +3232,148 @@ plan's.
 fastest safe recovery is re-adding that one signal's bridge adapter (not reverting the whole
 phase) while the missed consumer is migrated properly — treat this as a signal-by-signal
 operation, not an all-or-nothing one.
+
+### P7 implementation report: what was actually built (revised from the plan above, pre-release)
+
+**Why the plan above's premise didn't hold.** The planning text assumed all 11 Platform-owned
+legacy signals could be deleted once P5/P6 closed, and that `admin_console/domain_event_binder.py`
+would simply be deleted as dead compatibility scaffolding. A repo-wide re-audit from current
+source (not the plan's own earlier estimate) found neither was true: `organizations_changed`/
+`auth_changed`/`employees_changed`/`departments_changed` each still have a real, still-required
+DIRECT consumer (none of these transitions were ever modernized -- P5A only ever covered
+`OrganizationCreated`; Employees/Departments/Auth/Session/Password/MFA/Custom-Role/Federated-
+Identity/Registration were never in scope of any P5x phase at all); and
+`admin_console/domain_event_binder.py` was never a generic bridge in the first place -- it
+subscribes directly to 8 specific signals (`_subscribe_domain_signal`, never
+`_subscribe_domain_change`/`domain_changed`/`_BRIDGE_SPECS`) and owns a real, still-needed
+UI-coordination responsibility (coalescing 9 admin-console sub-controllers into one refresh
+cycle), explicitly deferred to its own already-planned "R2" phase, not this one.
+
+**Producer -> bridge -> consumer graph, built from current source.** Every one of the 30
+`_BRIDGE_SPECS` entries was checked against the full repo for a real `_subscribe_domain_change
+(...)`-based consumer of its bridge-routed `domain_changed` output:
+- **Alive (kept unchanged):** all `project_management`-scoped entries (`project`, `project_tasks`,
+  `project_costs`, `resource`, `project_baseline`, `project_budget`, `project_planned_cost`,
+  `project_billing_preparation`, `register_scope`, `task_collaboration`, `portfolio_entity`,
+  `timesheet_period`) -- extensively consumed across PM's own dashboard/collaboration/portfolio/
+  projects/register/resources/scheduling/tasks/timesheets/financials/resource-timesheets
+  controllers. All 10 `inventory_procurement`-scoped entries -- consumed via each Inventory
+  controller's own broad `scope_code="inventory_procurement"` subscription (no entity_type
+  filter). The 4 remaining `shared_master` entries `sites_changed`/`calendars_changed`/
+  `documents_changed`/`parties_changed` -- consumed cross-module, by name, via
+  `scope_code="platform"` subscriptions in both Inventory's and PM's own binders (e.g. Inventory's
+  catalog/inventory/pricing/procurement/reservations controllers all react to Platform-level
+  site/party/document changes; PM's resources/scheduling controllers react to
+  `working_calendar`).
+- **Dead bridge routing, direct consumer still real (bridge entry removed, signal + consumer
+  untouched):** `organizations_changed`, `auth_changed`, `employees_changed`,
+  `departments_changed` -- zero `_subscribe_domain_change(...)` call anywhere filters entity_type
+  "organization"/"user_account"/"employee"/"department" (confirmed by exhaustive repo grep), so
+  their bridge-routed `domain_changed`/`shared_master_changed` emission reached no one -- but each
+  still has a real, unaffected DIRECT subscriber (`admin_console/domain_event_binder.py` for all
+  four; `settings_workspace_controller.py` additionally for `organizations_changed`;
+  `access_workspace_controller.py` additionally for `auth_changed`).
+- **100% dead, deleted entirely:** `shared_master_changed` itself -- zero production consumers
+  anywhere (only its own declaration/emit site, plus one test that existed solely to preserve the
+  signal). Nothing anywhere subscribed to `shared_master_changed` specifically; every real
+  shared_master consumer already went through `domain_changed` + an explicit entity_type filter.
+- **Found, explicitly out of scope, left untouched:** `cost_entries_changed`/`commitments_changed`/
+  `forecasts_changed`/`financial_changes_changed` -- all four are actively, heavily produced by
+  real PM financial business logic (`cost_entry_service.py`, `commitment_service.py`, the
+  forecasts generation/version services, `financial_changes/service.py`, the approved-time and
+  procurement-financial dispatchers, the financial-change apply participant) but have **zero**
+  consumers anywhere, bridge or direct -- a pre-existing PM financial-module UI-reaction gap,
+  unrelated to Platform legacy-bridge cleanup. Deleting actively-produced business-event
+  infrastructure with unknown blast radius is not "removing dead compatibility scaffolding"; left
+  fully alone and documented here for whoever eventually picks up PM's own financials-module
+  modernization.
+
+**`domain_event_binder.py`: KEPT, evidence-based, unchanged.** Never touched `_BRIDGE_SPECS`/
+`domain_changed`/`_subscribe_domain_change` at all -- it already was the §6-preferred "specific
+signal -> explicit consumer" shape. Its own docstring already documents both the real
+responsibility (coalesce 9 sub-controllers into one refresh, rather than 9 independent
+subscriptions) and its own removal point ("R2, when each capability controller manages its own
+domain-event subscriptions independently") -- narrowing any one of its 8 signals now would
+partially pre-empt that already-planned, distinct future phase for no benefit this phase asked
+for. No changes made.
+
+**`_BRIDGE_SPECS`: KEPT as a mechanism, 4 dead entries removed.** Not deletable outright (§4's
+"if it is a compatibility registry... DELETE it" is conditioned on the registry itself being dead
+weight -- it is not: dozens of real PM/Inventory `_subscribe_domain_change(...)` consumers
+genuinely depend on the entries that remain). `organizations_changed`/`auth_changed`/
+`employees_changed`/`departments_changed` were removed from the registry -- each entry's *bridge
+routing specifically* was proven dead, while each underlying signal and its real direct
+consumer(s) are completely unaffected (verified by regression: their own direct-subscription
+tests still pass unmodified).
+
+**`shared_master_changed`: DELETED entirely.** Field removed from `DomainEvents`; the
+`if category == "shared_master": self.shared_master_changed.emit(event)` branch removed from
+`_build_bridge` (the unconditional `self.domain_changed.emit(event)` line, which every real
+consumer actually uses, is untouched); the one bridge-only test that existed solely to preserve
+this signal (`test_shared_master_changed_bridges_specific_shared_master_events`) retired with a
+comment pointing to the still-passing `sites_changed`/`documents_changed` -> `domain_changed`
+coverage that remains. Confirmed via `not hasattr(domain_events, "shared_master_changed")`.
+
+**`domain_changed` itself: KEPT, not dead.** Real, current production dependency for dozens of
+still-unmodernized PM/Inventory entity types -- §5's deletion condition ("zero real production
+producers/consumers") does not hold.
+
+**Access Workspace (§10): already correct, no change needed.** Re-audited
+`PlatformAdminAccessWorkspaceController._on_auth_changed` from current source: it calls only
+`_refresh_after_security_change()` (`_refresh_security_users()` + `_refresh_empty_state()`) --
+never `_refresh_scope_grants()` (RoleBinding's own read model). `refresh_role_bindings()` (the
+typed RoleBinding reaction) and `refresh_security_users()` (the typed TenantMembership reaction,
+whose own docstring already documented this exact separation) touch disjoint state. Confirmed by
+source that `TenantMembershipService` never emits `auth_changed` anywhere (P5D already fully
+collapsed membership transitions into the typed path with no legacy bridge) -- so a membership
+change triggers exactly one reaction (the typed one), never two. No duplicate-refresh coupling
+existed to remove.
+
+**Admin Console (§11): already correct, no change needed.** Organization's typed slice
+(`create_organization`) connects only to the narrow `refresh_organizations`, never through
+`domain_event_binder.py`; Module Entitlement has no legacy signal left at all (`modules_changed`
+fully retired in P5B-3); Approval has no legacy signal left at all (`approvals_changed` fully
+deleted in P3, confirmed still absent). Only the genuinely-still-unmodernized update/activate
+slice of Organization (plus Employees/Departments/Auth) reaches admin console through the direct
+binder -- exactly the "still-unmodernized capability may cause direct legacy refresh" case §11
+permits.
+
+**PM Dashboard (§12): confirmed still absent, no regression.** `dashboard_refresh_mixin.py`'s own
+`_bind_domain_events()` has no `approval_request`/`scope_code="platform"` entry and no other
+cross-capability subscription -- Approval-P3's removal is intact.
+
+**Representative unmodernized capability, proven end-to-end (§18):** a real `forcePasswordReset`
+call -> `auth_changed` fires -> `AccessWorkspaceController._on_auth_changed` -> narrow
+`_refresh_after_security_change()` only (never the full `refresh()`); RoleBinding's, Organization's,
+Module Entitlement's, and Approval's own Qt adapter signals all stay silent. (The mutation's own
+`on_success` callback also self-refreshes immediately, independent of the event path -- the same
+accepted "self-refresh after your own action" pattern already proven and accepted for
+Organization's own `createOrganization`; not confused with the event-driven reaction, isolated
+separately in the test.)
+
+**New tests added:** `test_p7_legacy_bridge_removal.py` -- the producer/bridge/consumer inventory
+assertions above as executable guards; per-capability zero-legacy-dependency proofs for all five
+modernized capabilities (Organization creation never touches `organizations_changed`; Module
+Entitlement/RoleBinding/Approval have no legacy signal at all; a real TenantMembership
+`accept_invitation` never emits `auth_changed`); the representative-capability end-to-end proof
+above; `admin_console/domain_event_binder.py`'s own architecture guard (never imports/uses
+`_subscribe_domain_change`/`domain_changed`/`_BRIDGE_SPECS`) plus its still-real composite-refresh
+behavior test; the PM Dashboard non-regression check; and architecture guards for no generic
+bridge registry outside `domain_events.py`, no typed-event -> legacy-bridge import in any of the
+five mappers, no wildcard ViewInvalidation listener anywhere touched by this phase, no service
+locator, and `ScopedViewInvalidationSubscription`'s public surface unchanged from P6.
+
+**Explicit non-goals honored:** no further capability modernized to typed events; PM/Inventory's
+own extensive `_subscribe_domain_change` usage untouched (never in scope of any P5x/P6/P7 phase);
+`ScopedViewInvalidationSubscription` unchanged; no Approval/P5 event contract or ViewInvalidation
+contract touched; no new business DomainEvent introduced.
+
+**Remaining legacy debt (unchanged by this phase, explicitly out of scope):** Custom Role
+Definition, Authentication/Session, User Account, Password, MFA, Federated Identity, and
+Registration/Bootstrap all remain on `auth_changed` (direct-wired, narrow, no bridge -- already
+compliant with §16's "unmodernized temporary capability" target shape); modernizing any of these
+to typed DomainEvents is a future, separate phase, not started here. The four dead-producer
+financial signals noted above remain a distinct, pre-existing PM-module gap.
 
 ## P8 — Platform Cutover Validation
 

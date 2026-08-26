@@ -62,11 +62,15 @@ class DomainEvents:
         ),
         ("planned_costs_changed", "module", "project_management", "project_planned_cost", "planned_costs_changed"),
         ("register_changed", "module", "project_management", "register_scope", "register_changed"),
-        ("auth_changed", "platform", "platform", "user_account", "auth_changed"),
-        ("employees_changed", "platform", "platform", "employee", "employees_changed"),
-        ("organizations_changed", "shared_master", "platform", "organization", "organizations_changed"),
+        # P7: `auth_changed`, `employees_changed`, `organizations_changed`, `departments_changed`
+        # each still have a real DIRECT subscriber (admin_console/domain_event_binder.py, plus
+        # settings_workspace_controller.py for organizations_changed, plus
+        # access_workspace_controller.py for auth_changed) -- but their bridge-routed
+        # `domain_changed`/`shared_master_changed` output had zero consumers anywhere (verified
+        # repo-wide: no `_subscribe_domain_change(...)` call filters entity_type "user_account",
+        # "employee", "organization", or "department"). Removed from this registry; the direct
+        # subscriptions above are completely unaffected -- they never went through this bridge.
         ("sites_changed", "shared_master", "platform", "site", "sites_changed"),
-        ("departments_changed", "shared_master", "platform", "department", "departments_changed"),
         ("calendars_changed", "shared_master", "platform", "working_calendar", "calendars_changed"),
         ("documents_changed", "shared_master", "platform", "document", "documents_changed"),
         ("parties_changed", "shared_master", "platform", "party", "parties_changed"),
@@ -190,7 +194,6 @@ class DomainEvents:
     inventory_locations_changed: Signal[str] = field(default_factory=Signal)
     inventory_reorder_policies_changed: Signal[str] = field(default_factory=Signal)
     inventory_cycle_counts_changed: Signal[str] = field(default_factory=Signal)
-    shared_master_changed: Signal[DomainChangeEvent] = field(default_factory=Signal)
     domain_changed: Signal[DomainChangeEvent] = field(default_factory=Signal)
 
     def __post_init__(self) -> None:
@@ -231,8 +234,6 @@ class DomainEvents:
                 entity_id=entity_id,
                 source_event=source_event,
             )
-            if category == "shared_master":
-                self.shared_master_changed.emit(event)
             self.domain_changed.emit(event)
 
         return _bridge

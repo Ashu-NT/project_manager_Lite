@@ -58,35 +58,12 @@ def test_signal_emit_keeps_non_deleted_runtime_errors_visible():
         assert str(exc) == "boom"
 
 
-def test_shared_master_changed_bridges_specific_shared_master_events():
-    seen: list[DomainChangeEvent] = []
-
-    def _handler(event: DomainChangeEvent) -> None:
-        seen.append(event)
-
-    domain_events.shared_master_changed.connect(_handler)
-    try:
-        domain_events.sites_changed.emit("site-1")
-        domain_events.parties_changed.emit("party-1")
-    finally:
-        domain_events.shared_master_changed.disconnect(_handler)
-
-    assert seen == [
-        DomainChangeEvent(
-            category="shared_master",
-            scope_code="platform",
-            entity_type="site",
-            entity_id="site-1",
-            source_event="sites_changed",
-        ),
-        DomainChangeEvent(
-            category="shared_master",
-            scope_code="platform",
-            entity_type="party",
-            entity_id="party-1",
-            source_event="parties_changed",
-        ),
-    ]
+# P7: `shared_master_changed` retired -- repo-wide audit found zero production consumers (only
+# `domain_changed`, via `_subscribe_domain_change(...)`, is ever actually consumed; nothing
+# subscribed to this separate, fully-redundant signal). `sites_changed`/`parties_changed` (and
+# every other "shared_master"-category bridge entry) still bridge to `domain_changed` exactly as
+# before -- see `test_domain_events_reset_rewires_generic_event_bridges` below, which proves this
+# for `documents_changed`. See `test_p7_legacy_bridge_removal.py` for the retirement guard.
 
 
 def test_domain_changed_bridges_module_events():

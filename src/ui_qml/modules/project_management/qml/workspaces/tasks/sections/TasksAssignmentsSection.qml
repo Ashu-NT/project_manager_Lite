@@ -382,7 +382,7 @@ Item {
                 color: Theme.AppTheme.divider
             }
 
-            RowLayout {
+            ColumnLayout {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingXs
 

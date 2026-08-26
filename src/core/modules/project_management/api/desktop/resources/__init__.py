@@ -36,9 +36,7 @@ from src.core.modules.project_management.api.desktop.resources.models.availabili
 )
 from src.core.modules.project_management.api.desktop.resources.models.certifications import (
     ResourceCertificationDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.resources.models.capability import (
-    ResourceCapabilityCountsDesktopDto,
+    ResourceCertificationsPageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.resources.models.options import (
     ResourceCategoryDescriptor,
@@ -56,6 +54,7 @@ from src.core.modules.project_management.api.desktop.resources.models.resources 
 )
 from src.core.modules.project_management.api.desktop.resources.models.skills import (
     ResourceSkillDesktopDto,
+    ResourceSkillsPageDesktopDto,
 )
 
 __all__ = [
@@ -71,10 +70,10 @@ __all__ = [
     "ResourceAvailabilityDayDto",
     "ResourceAvailabilityDto",
     "ResourceCategoryDescriptor",
-    "ResourceCapabilityCountsDesktopDto",
     "ResourceCatalogItemDesktopDto",
     "ResourceCatalogPageDesktopDto",
     "ResourceCertificationDesktopDto",
+    "ResourceCertificationsPageDesktopDto",
     "ResourceCreateCommand",
     "ResourceDesktopDto",
     "ResourceEmployeeOptionDescriptor",
@@ -86,6 +85,7 @@ __all__ = [
     "ResourceProjectsPageDesktopDto",
     "ResourceScopeOptionDescriptor",
     "ResourceSkillDesktopDto",
+    "ResourceSkillsPageDesktopDto",
     "ResourceUpdateCommand",
     "ResourceUpdateCertificationCommand",
     "ResourceUpdateSkillCommand",

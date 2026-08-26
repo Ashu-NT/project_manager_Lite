@@ -303,27 +303,3 @@ def test_resource_service_skill_and_certification_commands_use_domain_validation
             expiry_date=date(2026, 1, 1),
         )
     assert exc_cert.value.code == "RESOURCE_CERTIFICATION_DATE_RANGE_INVALID"
-
-
-def test_resource_capability_counts_are_repository_backed(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "src.core.modules.project_management.application.resources.queries.skill_queries.require_permission",
-        lambda *args, **kwargs: None,
-    )
-    skill_repo = _RecordingSkillRepo()
-    cert_repo = _RecordingCertRepo()
-    skill_repo.add(
-        ResourceSkill.create("res-1", "python", "Python")
-    )
-    skill_repo.add(
-        ResourceSkill.create("res-1", "sql", "SQL")
-    )
-    cert_repo.add(
-        ResourceCertification.create("res-1", "pmp", "PMP")
-    )
-    service = _make_resource_service(skill_repo=skill_repo, cert_repo=cert_repo)
-
-    counts = service.get_resource_capability_counts("res-1")
-
-    assert counts.skill_count == 2
-    assert counts.certification_count == 1

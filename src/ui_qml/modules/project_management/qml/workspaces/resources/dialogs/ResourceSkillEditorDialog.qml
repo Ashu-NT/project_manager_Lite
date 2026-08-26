@@ -9,6 +9,7 @@ AppWidgets.EntityDialog {
 
     property string modeTitle: "Add Skill"
     property var skillData: ({})
+    property var fieldErrors: ({})
 
     property var proficiencyOptions: [
         { value: "beginner",     label: "Beginner"     },
@@ -45,12 +46,21 @@ AppWidgets.EntityDialog {
         skillNameField.text = String(state.skillName || "")
         proficiencyCombo.currentIndex = root._indexForValue(state.proficiency || "intermediate")
         notesField.text = String(state.notes || "")
+        root.fieldErrors = ({})
         root.errorMessage = ""
     }
 
     function _submit() {
-        if (skillCodeField.text.trim().length === 0) {
-            root.errorMessage = "Skill code is required."
+        const errors = ({})
+        if (!skillCodeField.text.trim().length)
+            errors.skillCode = "Skill code is required."
+        if (!skillNameField.text.trim().length)
+            errors.skillName = "Skill name is required."
+        if (proficiencyCombo.currentIndex < 0)
+            errors.proficiency = "Skill proficiency is required."
+        root.fieldErrors = errors
+        if (Object.keys(errors).length > 0) {
+            root.errorMessage = "Complete the required skill fields."
             return
         }
         root.errorMessage = ""
@@ -77,6 +87,7 @@ AppWidgets.EntityDialog {
             Layout.fillWidth: true
             label: "Skill Code"
             required: true
+            errorText: String(root.fieldErrors.skillCode || root.fieldErrors.skill_code || "")
             AppControls.TextField { id: skillCodeField; Layout.fillWidth: true; placeholderText: "e.g. PY-DEV"; Keys.onReturnPressed: root._submit() }
         }
 
@@ -84,12 +95,15 @@ AppWidgets.EntityDialog {
             Layout.fillWidth: true
             required: true
             label: "Skill Name"
+            errorText: String(root.fieldErrors.skillName || root.fieldErrors.skill_name || "")
             AppControls.TextField { id: skillNameField; Layout.fillWidth: true; placeholderText: "e.g. Python Development"; Keys.onReturnPressed: root._submit() }
         }
 
         AppWidgets.FormField {
             Layout.fillWidth: true
             label: "Proficiency"
+            required: true
+            errorText: String(root.fieldErrors.proficiency || "")
             AppControls.ComboBox { id: proficiencyCombo; Layout.fillWidth: true; model: root.proficiencyOptions; textRole: "label" }
         }
 

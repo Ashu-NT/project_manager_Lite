@@ -9,6 +9,7 @@ AppWidgets.EntityDialog {
 
     property string modeTitle: "Add Certification"
     property var certificationData: ({})
+    property var fieldErrors: ({})
 
     signal submitted(var payload)
 
@@ -33,12 +34,19 @@ AppWidgets.EntityDialog {
         expiryDateField.text = String(state.expiryDate || "")
         issuerField.text = String(state.issuer || "")
         notesField.text = String(state.notes || "")
+        root.fieldErrors = ({})
         root.errorMessage = ""
     }
 
     function _submit() {
-        if (certCodeField.text.trim().length === 0) {
-            root.errorMessage = "Certification code is required."
+        const errors = ({})
+        if (!certCodeField.text.trim().length)
+            errors.certCode = "Certification code is required."
+        if (!certNameField.text.trim().length)
+            errors.certName = "Certification name is required."
+        root.fieldErrors = errors
+        if (Object.keys(errors).length > 0) {
+            root.errorMessage = "Complete the required certification fields."
             return
         }
         root.errorMessage = ""
@@ -68,6 +76,7 @@ AppWidgets.EntityDialog {
             Layout.fillWidth: true
             label: "Cert Code"
             required: true
+            errorText: String(root.fieldErrors.certCode || root.fieldErrors.certification_code || "")
             AppControls.TextField { id: certCodeField; Layout.fillWidth: true; placeholderText: "e.g. ISO-9001" }
         }
 
@@ -75,6 +84,7 @@ AppWidgets.EntityDialog {
             Layout.fillWidth: true
             required: true
             label: "Cert Name"
+            errorText: String(root.fieldErrors.certName || root.fieldErrors.certification_name || "")
             AppControls.TextField { id: certNameField; Layout.fillWidth: true; placeholderText: "e.g. ISO 9001 Quality Management" }
         }
 

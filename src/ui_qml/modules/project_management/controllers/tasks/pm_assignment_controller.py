@@ -107,6 +107,12 @@ class PMAssignmentController(QObject):
         self._set_assignments({"title": "Assignments", "subtitle": f"{page['total']} matching assignment(s).",
                                "emptyState": "No assignments match the selected filters.", **state, **page})
 
+    def _refresh_after_mutation(self) -> None:
+        # The assignment section is lazy-loaded, so the parent refresh does not
+        # rebuild its authoritative page while the detail page remains open.
+        self._reload()
+        self._facade_refresh()
+
     # ── Properties ───────────────────────────────────────────────────
 
     @Property("QVariantList", notify=assignmentOptionsChanged)
@@ -162,7 +168,7 @@ class PMAssignmentController(QObject):
         return run_mutation(
             operation=lambda: self._presenter.create_assignment(dict(payload)),
             success_message="Assignment created.",
-            on_success=self._facade_refresh,
+            on_success=self._refresh_after_mutation,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -177,7 +183,7 @@ class PMAssignmentController(QObject):
                 dict(payload)
             ),
             success_message="Assignment allocation updated.",
-            on_success=self._facade_refresh,
+            on_success=self._refresh_after_mutation,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -192,7 +198,7 @@ class PMAssignmentController(QObject):
                 dict(payload)
             ),
             success_message="Planned work updated.",
-            on_success=self._facade_refresh,
+            on_success=self._refresh_after_mutation,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -203,7 +209,7 @@ class PMAssignmentController(QObject):
         return run_mutation(
             operation=lambda: self._presenter.delete_assignment(assignment_id),
             success_message="Assignment removed.",
-            on_success=self._facade_refresh,
+            on_success=self._refresh_after_mutation,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -214,7 +220,7 @@ class PMAssignmentController(QObject):
         return run_mutation(
             operation=lambda: self._presenter.accept_assignment(assignment_id),
             success_message="Assignment accepted.",
-            on_success=self._facade_refresh,
+            on_success=self._refresh_after_mutation,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -225,7 +231,7 @@ class PMAssignmentController(QObject):
         return run_mutation(
             operation=lambda: self._presenter.decline_assignment(dict(payload)),
             success_message="Assignment declined.",
-            on_success=self._facade_refresh,
+            on_success=self._refresh_after_mutation,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,

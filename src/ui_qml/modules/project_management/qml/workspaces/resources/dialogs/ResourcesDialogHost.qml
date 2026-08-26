@@ -21,6 +21,8 @@ Item {
     signal removeCertificationRequested(string certId)
 
     function _handleResult(dialog, result) {
+        if (dialog.fieldErrors !== undefined)
+            dialog.fieldErrors = result && result.fieldErrors ? result.fieldErrors : ({})
         if (result && result.ok === true) {
             dialog.close()
         } else {

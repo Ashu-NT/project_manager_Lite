@@ -384,6 +384,7 @@ def build_project_management_service_bundle(
         resource_projects_reader=resource_context_reader,
         resource_assignments_reader=resource_context_reader,
         resource_activity_reader=resource_context_reader,
+        resource_capability_reader=resource_context_reader,
         department_service=platform_services.department_service,
         site_service=platform_services.site_service,
     )

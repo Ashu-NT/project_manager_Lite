@@ -10,6 +10,8 @@ from .models import (
     ResourceActivityReadPage,
     ResourceAssignmentReadPage,
     ResourceProjectReadPage,
+    ResourceCertificationReadPage,
+    ResourceSkillReadPage,
 )
 
 
@@ -68,8 +70,38 @@ class ResourceActivityReader(Protocol):
     ) -> ResourceActivityReadPage: ...
 
 
+class ResourceCapabilityReader(Protocol):
+    def read_skills_page(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        resource_id: str,
+        search_text: str,
+        proficiency: str | None,
+        page: int,
+        page_size: int,
+        sort: ReadSort,
+    ) -> ResourceSkillReadPage: ...
+
+    def read_certifications_page(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        resource_id: str,
+        search_text: str,
+        status: str | None,
+        as_of: date,
+        page: int,
+        page_size: int,
+        sort: ReadSort,
+    ) -> ResourceCertificationReadPage: ...
+
+
 __all__ = [
     "ResourceActivityReader",
     "ResourceAssignmentsReader",
+    "ResourceCapabilityReader",
     "ResourceProjectsReader",
 ]
