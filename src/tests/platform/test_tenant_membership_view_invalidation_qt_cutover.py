@@ -259,7 +259,7 @@ def test_real_tenant_switch_through_the_catalog_rewires_the_adapter(services):
     adapter = catalog._tenant_membership_view_invalidation_adapter
 
     def _current_filters():
-        subscription = adapter._subscription
+        subscription = adapter._subscription._subscription
         if subscription is None:
             return []
         entry = channel._subscriptions.get(subscription._subscription_id)
@@ -289,7 +289,10 @@ def test_organization_switch_does_not_re_scope_the_membership_subscription(servi
     catalog = _catalog(services)
     channel = services["platform_view_invalidation_channel"]
     adapter = catalog._tenant_membership_view_invalidation_adapter
-    subscription_before = adapter._subscription
+    # P6: the raw channel Subscription (`adapter._subscription._subscription`), not the
+    # always-present `ScopedViewInvalidationSubscription` wrapper itself, is what must keep its
+    # identity here -- the wrapper instance never changes, only what it wraps.
+    subscription_before = adapter._subscription._subscription
 
     org = services["organization_service"].create_organization(
         organization_code=_unique_code("P5D3-ORG-SWITCH"), display_name="P5D-3 Org Switch"
@@ -297,7 +300,7 @@ def test_organization_switch_does_not_re_scope_the_membership_subscription(servi
     services["tenant_context_service"].set_active_organization(org.id)
     catalog.refreshCurrentPermissions()  # re-scopes role_binding/module adapters; must not touch this one
 
-    assert adapter._subscription is subscription_before, (
+    assert adapter._subscription._subscription is subscription_before, (
         "an organization switch must never dispose/recreate the tenant-only membership "
         "subscription"
     )

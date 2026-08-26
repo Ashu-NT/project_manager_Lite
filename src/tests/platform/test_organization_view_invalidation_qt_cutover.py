@@ -253,7 +253,7 @@ def test_real_tenant_switch_through_the_catalog_rewires_the_adapter_end_to_end(s
     adapter = catalog._organization_view_invalidation_adapter
 
     def _current_filters():
-        subscription = adapter._subscription
+        subscription = adapter._subscription._subscription
         if subscription is None:
             return []
         entry = channel._subscriptions.get(subscription._subscription_id)

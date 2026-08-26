@@ -2961,7 +2961,7 @@ catalog's own switch-lifecycle wiring gap noted above.
 participants; the P6 generalized/shared Qt adapter; modernizing any remaining `auth_changed`
 capability.
 
-## P6 — Qt Invalidation Adapter Consolidation
+## P6 — Qt Invalidation Adapter Consolidation (implemented, revised scope)
 
 **Goal:** build the one shared Qt adapter, and migrate the three existing controller bases to
 delegate their invalidation slice to it — explicitly not a controller-hierarchy unification.
@@ -3032,6 +3032,134 @@ responsibilities. Does **not** delete `admin_console/domain_event_binder.py` yet
 subscribe/dispose/coalesce logic (unchanged since before this phase, still present in git
 history) if the shared adapter needs to be rolled back; no module code is affected either way
 since this phase never touched any.
+
+### P6 implementation report: what was actually built (revised from the plan above)
+
+**Parity audit finding that changed the plan's own premise.** The planning text above assumed
+the ViewInvalidation subscription lifecycle lived on `PlatformWorkspaceControllerBase`
+(`_subscribe_domain_change`/`_subscribe_domain_signal`/etc.). Re-auditing all five capability
+adapters (Organization, Module Entitlement, RoleBinding, TenantMembership, Approval) from current
+source found this was never true: every adapter is constructed and owned by
+`PlatformWorkspaceCatalog.__init__` (or, for Approval's PM Collaboration consumer,
+`ProjectManagementWorkspaceCatalog`), `parent=self` on the catalog, with its Qt signal connected
+directly to a controller method (`refresh_approvals`, `refresh_role_bindings`,
+`refresh_organizations`, `refresh_module_entitlements`, `refresh_users`,
+`refresh_security_users`, `refresh_organization_profiles`). `PlatformWorkspaceControllerBase`'s
+own `_subscribe_domain_change`/`_subscribe_domain_signal`/`_request_domain_refresh`/
+`_disconnect_domain_event_subscriptions` machinery is a completely separate mechanism -- the
+legacy `domain_events`/`domain_changed` bridge -- and contains zero ViewInvalidation-adapter code
+to consolidate. All three controller bases (`platform/controllers/common`,
+`project_management/controllers/common`, `inventory_procurement/controllers/common`) were
+audited and confirmed to reference no ViewInvalidation adapter at all: **KEEP all three,
+unmodified** -- there is nothing there for this phase to consolidate, and forcing a change onto
+them would be scope creep the spec explicitly prohibited (§21-23). The actual duplication lives
+entirely across the five adapter files' own bespoke `_subscription`/`_dispose_subscription()`
+bookkeeping -- that is what P6 consolidates.
+
+**Duplication classification (§2).**
+- **(A) Generic subscription lifecycle mechanics -- centralized:** construct-time subscribe,
+  dispose-before-resubscribe on every rescope, safe/idempotent `dispose()`, at-most-one-live-
+  subscription-per-instance. Identical byte-for-byte across all five adapters before this phase.
+- **(B) Capability invalidation vocabulary -- left alone:** each adapter's own `_on_hint`
+  category/scope_code filter, its own Qt Signal name (`organizationCollectionStale`/
+  `moduleEntitlementsStale`/`roleBindingsStale`/`membershipDataStale`/`approvalsStale`).
+- **(C) Capability scope semantics -- left alone:** tenant-only (Organization, TenantMembership)
+  vs. organization-scoped (Module Entitlement, Approval) vs. polymorphic dual-subscription
+  (RoleBinding) -- each adapter's own `set_active_scope`/`set_active_tenant` still decides which
+  `ScopeFilter` to construct, the helper never sees a tenant_id/organization_id string.
+- **(D) Qt/controller-specific signal naming -- left alone.**
+
+**Chosen abstraction: composition, not inheritance (§5/§6).** A new pure-Python (no `QObject`,
+no PySide6 import at all) `ScopedViewInvalidationSubscription`
+(`src/ui_qml/platform/adapters/scoped_view_invalidation_subscription.py`) owns exactly (A) above:
+`replace_filter(filter: ScopeFilter | None)` (dispose-then-resubscribe, or go inert on `None`)
+and `dispose()`. Each capability adapter remains its own thin `QObject` owning its own Signal, and
+holds one `ScopedViewInvalidationSubscription` instance per live subscription it needs -- one for
+four of the five adapters, two (`_tenant_subscription` + `_organization_subscription`) for
+RoleBinding. Inheritance (a shared `QObject` base) was considered and rejected: Qt `Signal`
+declarations are class-level, each adapter's signal name is deliberately distinct presentation
+vocabulary worth keeping legible (§18/§19), and RoleBinding's two-simultaneous-subscriptions shape
+composes trivially as two helper instances but would strain a single-subscription base class.
+
+**No service locator (§4).** Composition wiring in `context.py` (both catalogs) is unchanged --
+each capability's adapter is still constructed explicitly by name
+(`ApprovalViewInvalidationAdapter(channel=..., tenant_id=..., organization_id=..., parent=self)`),
+never through an `adapter_for(...)`/registry lookup (guarded).
+
+**RoleBinding, the hard case (§11), preserved in full.** Its mapper's `_to_event_scope` still maps
+`RoleBindingPlatformScope` -> `PlatformScope()`, `RoleBindingTenantScope`/an ownerless
+`RoleBindingResourceScope` -> `TenantScope`, and an owned `RoleBindingResourceScope` ->
+`OrganizationScope` -- untouched. Its adapter still holds two simultaneous subscriptions
+(`TenantWide(tenant_id)` + `ExactOrganization(tenant_id, organization_id)`, no `PlatformWide()`
+subscription -- confirmed via the existing P5C-3 reference test that platform-scope role-binding
+assignment is unconditionally denied by `RoleGovernanceService` before any event fires, so this is
+proven-dead-in-practice, not a gap this phase introduced or should paper over). No generic
+abstraction was forced onto it; it simply holds two `ScopedViewInvalidationSubscription`
+instances instead of two raw `Subscription | None` fields.
+
+**One-live-subscription invariant (§13) / idempotent rescope (§14).** Structurally guaranteed by
+`replace_filter`'s own unconditional dispose-before-subscribe. Idempotence (skip
+dispose/resubscribe when the filter is unchanged) was deliberately **not** added: no pre-P6
+adapter ever had it, `ScopeFilter` dataclasses being frozen+eq would make it safe to add later,
+but adding it now would be an unrequested behavior change (subscription-identity churn) outside a
+consolidation-only phase -- characterized and tested as the preserved-as-is current behavior
+(`test_replace_filter_with_the_same_filter_still_unconditionally_resubscribes`).
+
+**Empty/unresolved scope (§15) / dispose semantics (§16).** `replace_filter(None)` goes inert --
+never a fabricated `AllTenants()`/`TenantWide()` fallback; each adapter's own
+`set_active_scope`/`set_active_tenant` decides when to pass `None` (mirrors every adapter's
+pre-P6 `if tenant_id and organization_id:` guard exactly). `dispose()` is safe and idempotent,
+mirroring `InProcessViewInvalidationChannel`'s own subscription `dispose()` idempotence; a
+disposed adapter can still be reactivated by a later `set_active_scope(...)` call, matching every
+adapter's existing contract (unchanged).
+
+**Behavioral parity (§27), proven, not assumed.** All five pre-existing capability test files
+(2945 lines total: `test_organization_view_invalidation_qt_cutover.py`,
+`test_module_entitlement_view_invalidation_qt_cutover.py`,
+`test_role_binding_view_invalidation_qt_cutover.py`,
+`test_tenant_membership_view_invalidation_qt_cutover.py`,
+`test_approval_view_invalidation.py`) pass unmodified against the migrated adapters, except two
+tests (`test_organization_view_invalidation_qt_cutover.py::
+test_real_tenant_switch_through_the_catalog_rewires_the_adapter_end_to_end` and
+`test_tenant_membership_view_invalidation_qt_cutover.py::
+test_real_tenant_switch_through_the_catalog_rewires_the_adapter` /
+`test_organization_switch_does_not_re_scope_the_membership_subscription`) whose own white-box
+assertions reached into `adapter._subscription` expecting the RAW channel `Subscription` -- these
+were updated to reach one level deeper (`adapter._subscription._subscription`, the helper's own
+raw handle) since `adapter._subscription` is now the always-present
+`ScopedViewInvalidationSubscription` wrapper. The semantic assertions themselves (subscription
+identity preserved across an unrelated organization switch; filters resolved by subscription id)
+are unchanged.
+
+**New tests added (§38/§39):** `test_p6_view_invalidation_adapter_consolidation.py` -- pure-Python
+unit tests for `ScopedViewInvalidationSubscription` (no channel, none-filter-inert, dispose-before-
+resubscribe, unconditional resubscribe on an equal filter, idempotent dispose, at-most-one-live-
+subscription-across-many-rescopes) plus architecture guards: the helper has no Qt/DomainEvent/
+capability-vocabulary/repository/SQLAlchemy imports and never sees a tenant_id/organization_id
+string; all five adapter modules import the shared helper; no adapter references
+`AllTenants`/`AnyOrganizationInTenant`; no legacy signal name (`approvals_changed`/
+`organizations_changed`/`modules_changed`/`access_changed`/`auth_changed`/`domain_changed`)
+appears in any adapter or the helper; RoleBinding constructs exactly two helper instances, the
+other four exactly one; no service locator in either catalog; the Approval event contract and the
+`ViewInvalidationHint`/`EventScope`/`ScopeFilter` contract fields are byte-for-byte unchanged from
+before this phase.
+
+**Explicit non-goals honored:** no controller-base code changed (none needed changing -- see the
+parity-audit finding above); `admin_console/domain_event_binder.py` untouched, still bridging its
+own legacy signals until P7; no Approval/P5 event vocabulary or mapper semantics changed; no
+`auth_changed` capability modernized; no generic/shared Qt adapter base class introduced.
+
+**Lines/classes deleted or consolidated:** one new 90-line pure-Python helper class; each of the
+five adapters lost its own bespoke `_subscription`/`_dispose_subscription()` pair (net: roughly
+30 lines of duplicated lifecycle bookkeeping removed across the five files, replaced by one shared
+implementation) -- a modest, expected reduction, not the success metric (§40): the actual gain is
+one correct subscription-lifecycle implementation instead of five independently-maintained copies.
+
+**Remaining adapter/UI debt (unchanged by this phase, explicitly out of scope):** the PM catalog's
+own pre-existing lack of any QML-triggered tenant/org-switch rescoping hook (noted in the
+Approval-P3 report above) is untouched; Organization's own unconsumed `organization_details`
+ViewInvalidation target remains unconsumed; RoleBinding's `PlatformScope()` hint path remains
+unreachable in practice (proven dead by `RoleGovernanceService`'s own denial, not by this phase).
 
 ## P7 — Platform Legacy Compatibility Bridge and Cutover
 
