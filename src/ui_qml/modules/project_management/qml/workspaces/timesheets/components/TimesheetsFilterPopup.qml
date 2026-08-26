@@ -19,7 +19,7 @@ AppControls.CenteredDialog {
     property string _draftResourceId: "all"
 
     title: "Filter Review Queue"
-    width: 360
+    width: 440
     padding: 0
     modal: true
     focus: true

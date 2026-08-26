@@ -24,8 +24,7 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
     def add(self, request: ApprovalRequest) -> None:
         ctx = self._context(operation_label="access approvals")
         orm = approval_to_orm(request)
-        orm.tenant_id = ctx.tenant_id
-        orm.organization_id = ctx.organization_id
+        self._stamp_scope(ctx, orm)
         self.session.add(orm)
 
     def update(self, request: ApprovalRequest) -> None:
@@ -39,8 +38,7 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
         ).scalar_one_or_none()
         if obj is None:
             orm = approval_to_orm(request)
-            orm.tenant_id = ctx.tenant_id
-            orm.organization_id = ctx.organization_id
+            self._stamp_scope(ctx, orm)
             self.session.add(orm)
             return
         obj.request_type = request.request_type

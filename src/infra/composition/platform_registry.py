@@ -26,6 +26,10 @@ from src.infra.events.in_process_transactional_event_dispatcher import (
 )
 from src.infra.events.in_process_view_invalidation_channel import InProcessViewInvalidationChannel
 from src.core.shared.events.view_invalidation import ViewInvalidationChannel
+from src.core.shared.events.domain_event_publisher import (
+    PostCommitEventPublisher,
+    TransactionalEventDispatcher,
+)
 from src.infra.time.system_clock import SystemClock
 from src.core.platform.application.history.audit import EnterpriseAuditService
 from src.core.platform.application.finance import FinancialPeriodService
@@ -224,6 +228,12 @@ class PlatformServiceBundle:
     party_repo: PartyRepository
     tenant_context_service: TenantContextService
     platform_view_invalidation_channel: ViewInvalidationChannel
+    # Approval-P1: exposed so a module's own narrow, capability-specific canonical UnitOfWork
+    # (e.g. inventory_procurement's `RequisitionSubmissionUnitOfWork`) can share the SAME
+    # composition-owned dispatcher/bus every other Platform UnitOfWork factory already uses --
+    # never a second, module-local dispatcher/bus instance.
+    platform_transactional_dispatcher: TransactionalEventDispatcher
+    platform_post_commit_bus: PostCommitEventPublisher
     platform_runtime_application_service: PlatformRuntimeApplicationService
     module_catalog_service: ModuleCatalogService
     auth_service: AuthService
@@ -863,6 +873,8 @@ def build_platform_service_bundle(
         party_repo=repositories.party_repo,
         tenant_context_service=tenant_context_service,
         platform_view_invalidation_channel=platform_view_invalidation_channel,
+        platform_transactional_dispatcher=platform_transactional_dispatcher,
+        platform_post_commit_bus=platform_post_commit_bus,
         platform_runtime_application_service=platform_runtime_application_service,
         module_catalog_service=module_catalog_service,
         auth_service=auth_service,

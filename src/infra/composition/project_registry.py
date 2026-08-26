@@ -6,9 +6,12 @@ import logging
 from dataclasses import dataclass
 from time import perf_counter
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.platform.access import ScopedRolePolicy
+from src.core.modules.project_management.infrastructure.persistence.financial_change_submission_unit_of_work import (
+    SqlAlchemyFinancialChangeSubmissionUnitOfWorkFactory,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
     SqlAlchemyProjectRepository,
 )
@@ -543,6 +546,17 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
+
+    financial_change_submission_uow_session_factory = sessionmaker(
+        bind=platform_services.session.bind, future=True
+    )
+    financial_change_submission_uow_factory = SqlAlchemyFinancialChangeSubmissionUnitOfWorkFactory(
+        session_factory=financial_change_submission_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
     financial_change_service = FinancialChangeService(
         session=session,
         change_repo=repositories.financial_change_repo,
@@ -555,6 +569,7 @@ def build_project_management_service_bundle(
         task_service=task_service,
         approval_service=platform_services.approval_service,
         clock=system_clock,
+        submission_uow_factory=financial_change_submission_uow_factory,
         user_session=platform_services.user_session,
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,

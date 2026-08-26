@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass
 from time import perf_counter
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.platform.access import ScopedRolePolicy
 from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
@@ -32,6 +32,9 @@ from src.core.modules.inventory_procurement.application.inventory import (
 from src.core.modules.inventory_procurement.application.procurement import (
     ProcurementService,
     PurchasingService,
+)
+from src.core.modules.inventory_procurement.infrastructure.persistence.requisition_submission_unit_of_work import (
+    SqlAlchemyRequisitionSubmissionUnitOfWorkFactory,
 )
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.catalog import (
     SqlAlchemyInventoryItemCategoryRepository,
@@ -196,6 +199,19 @@ def build_inventory_procurement_service_bundle(
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
     )
+    # Approval-P1: the narrow, capability-specific canonical UoW for `submit_requisition` --
+    # shares the SAME composition-owned dispatcher/post-commit bus every Platform UnitOfWork
+    # factory already uses, never a second, module-local instance.
+    requisition_submission_uow_session_factory = sessionmaker(
+        bind=platform_services.session.bind, future=True
+    )
+    requisition_submission_uow_factory = SqlAlchemyRequisitionSubmissionUnitOfWorkFactory(
+        session_factory=requisition_submission_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
     inventory_procurement_service = ProcurementService(
         platform_services.session,
         requisition_repo,
@@ -205,6 +221,7 @@ def build_inventory_procurement_service_bundle(
         item_service=inventory_item_service,
         party_service=platform_services.party_service,
         approval_service=platform_services.approval_service,
+        requisition_submission_uow_factory=requisition_submission_uow_factory,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )

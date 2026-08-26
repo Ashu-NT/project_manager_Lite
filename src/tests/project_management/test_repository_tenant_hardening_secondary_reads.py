@@ -4,6 +4,7 @@ from datetime import date, datetime, timezone
 
 import pytest
 
+from src.core.platform.common.exceptions import NotFoundError
 from src.core.modules.project_management.domain.enums import (
     CostType,
     DependencyType,
@@ -225,8 +226,10 @@ def test_pm_secondary_repositories_scope_mutations_to_active_organization(servic
     resource_assignment_repo = calendar_assignment_service._resource_assignment_repo
     project_resource_repo.delete(seeded["project_resource_b"])
     project_resource_repo.delete_by_resource(seeded["resource_b"])
-    skill_repo.delete(seeded["skill_b"])
-    cert_repo.delete(seeded["cert_b"])
+    with pytest.raises(NotFoundError):
+        skill_repo.delete(seeded["skill_b"], expected_version=1)
+    with pytest.raises(NotFoundError):
+        cert_repo.delete(seeded["cert_b"], expected_version=1)
     requirement_repo.delete(seeded["task_requirement_b"])
     project_assignment_repo.delete(seeded["project_assignment_b"])
     resource_assignment_repo.delete(seeded["resource_assignment_b"])

@@ -18,7 +18,7 @@ AppControls.CenteredDialog {
     property string _draftCategory: "all"
 
     title: "Filter Resources"
-    width: 340
+    width: 440
     padding: 0
     modal: true
     focus: true

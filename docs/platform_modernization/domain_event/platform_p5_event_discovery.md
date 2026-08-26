@@ -469,6 +469,29 @@ aggregate-recording vs. application-authored recording (§8, §17) — both are 
 prerequisites, but they are prerequisites, not this discovery's job to resolve. Once decided,
 Approval slots in easily given P4's UoW work is already done.
 
+**Approval-SEM (2026-08-26, discovery complete; no code changed): both prerequisites resolved.**
+(a) `tenant_id` is already correctly stamped on the persisted ORM row by the repository
+(ambient, via `TenantScopedRepositorySupport`, the same pattern every other tenant-scoped
+repository in this codebase uses) -- the mapper simply never round-trips it to the domain
+dataclass; recommended fix is a pure domain-model/mapper addition, no schema migration needed.
+(b) application-authored recording is the correct, evidence-based choice (not merely
+convention-following) -- `ApprovalRequest` owns no transition methods today, and `ApprovalApproved`
+specifically is not a fact `ApprovalRequest` alone could ever honestly record, since it depends on
+the apply handler's own external orchestration outcome (traced in full: the handler runs BEFORE
+the status flip, inside the same transaction; a handler failure leaves the request PENDING
+forever -- there is no "approved but unapplied" state, reconfirming the prior rejection of a
+separate `ApprovalApplied` event). A third, previously-undercounted sequencing dependency was
+found: the grandfathered `request_change(commit=False)` path has THREE current callers, not two
+(`procurement_lifecycle.submit_requisition`, `FinancialChangeService.submit_change`,
+`ProjectBillingPreparationService.submit_preparation`), none yet on a canonical UoW -- a future
+`ApprovalRequested` producer needs either their transaction convergence first, or (recommended,
+smaller) a transaction-agnostic `ApprovalMutationParticipant`, mirroring
+`role_binding_mutation_participant.py`. Also newly confirmed: Approval is organization-scoped,
+not tenant-wide (unlike Membership/RoleGovernance) -- a future ViewInvalidation target needs
+`OrganizationScope`, not `TenantScope`. See `platform_domain_event_implementation_plan.md`'s
+"Approval-SEM" section for the full writeup, recommended event fields, and phased sequence
+(Approval-P1/P2/P3).
+
 ## 13. Implementation Order
 
 **P5A (Organization) → P5B (Module Entitlements) → P5C (Access/RBAC) → P5D (Tenant Membership) →
@@ -540,9 +563,24 @@ the legacy mechanism until their own event slice (not part of P5A) is proposed.
 
 1. **`ApprovalRequest` has no `tenant_id` field.** Must be resolved (add the field, or a
    documented non-ambient resolution path) before any Approval event work begins.
+   **Resolved (2026-08-26, Approval-SEM):** the ORM row already carries a correctly-stamped
+   `tenant_id` (ambient, via the same `TenantScopedRepositorySupport` pattern every tenant-scoped
+   repository uses) — the mapper simply never round-trips it to the domain dataclass. Recommended
+   fix: add `tenant_id: str` to `ApprovalRequest` and map it both directions; no schema migration
+   needed. See `platform_domain_event_implementation_plan.md`'s "Approval-SEM" section.
 2. **`ApprovalRequest` has no `.approve()`/`.reject()` methods** — a decision is needed on
    whether to add them (enabling proper aggregate-recording, ADR-005's preferred shape) or accept
    application-authored recording as a documented, permanent-until-refactored choice.
+   **Resolved (2026-08-26, Approval-SEM): application-authored, evidence-based (not
+   convention-following).** `ApprovalApproved` is not a fact `ApprovalRequest` alone could ever
+   honestly record — it depends on the apply handler's own external orchestration outcome (the
+   handler runs BEFORE the status flip, inside the same transaction; a handler failure leaves the
+   request PENDING forever, reconfirming there is no separate `ApprovalApplied` fact). A related,
+   newly-found sequencing dependency: the grandfathered `request_change(commit=False)` caller-owned
+   path has THREE current callers (not two), none on a canonical UoW yet — recommended smallest
+   fix is a transaction-agnostic `ApprovalMutationParticipant`, mirroring `role_binding_mutation_
+   participant.py`, not converging all three callers' own transaction ownership first. See the
+   same Approval-SEM section for the full trace and recommended phased sequence.
 3. **`OrganizationActivated`'s sibling-deactivation gap** — should deactivating siblings produce
    its own fact/hint, or is "the active organization changed" sufficiently captured by a single
    event naming only the newly-activated organization? Needs a business-owner decision, not an

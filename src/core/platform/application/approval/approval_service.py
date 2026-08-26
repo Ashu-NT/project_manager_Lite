@@ -12,6 +12,10 @@ from src.core.platform.contract.persistence.unit_of_work import PlatformUnitOfWo
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_events import domain_events
 from src.core.shared.audit import record_audit_entry
+from src.core.platform.application.approval.approval_mutation_participant import (
+    build_request_audit_details,
+    request_approval_using,
+)
 from src.core.platform.contract.models.approval.contracts import ApprovalHandlerResult
 from src.core.platform.contract.repositories.approval.contracts import ApprovalRepository
 from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
@@ -47,12 +51,6 @@ class ApprovalService:
         permission_repo: Any = None,
         role_binding_repo: Any = None,
     ):
-        # `session`/`approval_repo`/`enterprise_audit_service` are kept -- NOT for mutation
-        # transaction ownership (that is `_uow_factory`'s job now) -- but for: (a) read-only
-        # query methods (list_requests/list_pending/list_recent), which this phase deliberately
-        # leaves alone (ADR-005 Section 24/P4 Step 2 scope: "Step 2 is primarily mutation
-        # transaction ownership"); (b) `request_change(commit=False)`'s caller-owned-transaction
-        # mode, a documented, still-valid exception -- see `request_change`'s own docstring.
         self._session = session
         self._approval_repo = approval_repo
         self._uow_factory = uow_factory
@@ -97,110 +95,51 @@ class ApprovalService:
         project_id: str | None,
         module: str | None = None,
         payload: dict | None = None,
-        commit: bool = True,
     ) -> ApprovalRequest:
+        """Approval-P1: the standalone (non-nested) request path -- fresh `PlatformUnitOfWork`,
+        the SAME canonical transaction/tenant-ownership mechanics
+        (`approval_mutation_participant.request_approval_using`) every caller-owned host
+        workflow now also uses inside its own outer transaction. `commit=False` no longer
+        exists: the three former caller-owned-transaction callers
+        (`ProcurementLifecycleMixin.submit_requisition`, `FinancialChangeService.submit_change`,
+        `ProjectBillingPreparationService.submit_preparation`) call
+        `request_approval_using(...)` directly, inside their own canonical UoW, instead of this
+        method."""
         require_permission(
             self._user_session,
             "approval.request",
             operation_label="request governed change",
+        )
+        tenant_context = getattr(self, "_tenant_context_service", None)
+        if tenant_context is None:
+            raise BusinessRuleError(
+                "Tenant context is required to request a governed change.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        tenant_id = tenant_context.require_active_tenant_id(
+            operation_label="request governed change"
         )
         organization_id = self._active_organization_id(
             operation_label="request governed change"
         )
         principal = self._user_session.principal if self._user_session else None
 
-        if not commit:
-            # Caller-owned transaction (ADR-005 Section 24, Round 8) -- a still-valid, documented
-            # exception, not a leftover. `ProjectBillingPreparationService.submit_preparation()`
-            # and `FinancialChangeService.submit_change()` both call `request_change(commit=False)`
-            # to stage the approval-request row inside their OWN already-open transaction (on the
-            # shared, process-lifetime Session), so it commits atomically with their own prior
-            # mutation. This branch is intentionally byte-for-byte unchanged from before Step 2 --
-            # migrating it onto an independent fresh UnitOfWork would split that atomicity across
-            # two physical transactions, and migrating those two callers' own transaction
-            # ownership is out of Step 2's scope (their own future migration phase).
-            self._assert_project_in_active_organization(
-                project_id, operation_label="request governed change"
-            )
-            existing_pending = self._list_approval_rows(
-                status=ApprovalStatus.PENDING,
-                limit=1,
-                project_id=project_id,
-                entity_type=entity_type,
-                entity_id=entity_id,
-            )
-            if existing_pending:
-                raise BusinessRuleError(
-                    f"A pending approval already exists for this {entity_type.replace('_', ' ')}. "
-                    f"Request {existing_pending[0].id} is still pending.",
-                    code="APPROVAL_DUPLICATE_ENTITY",
-                )
-            request = ApprovalRequest.create(
-                request_type=request_type,
-                entity_type=entity_type,
-                entity_id=entity_id,
-                project_id=project_id,
-                organization_id=organization_id,
-                payload=payload,
-                requested_by_user_id=principal.user_id if principal else None,
-                requested_by_username=principal.username if principal else None,
-            )
-            self._approval_repo.add(request)
-            record_audit_entry(
-                self,
-                operation="create",
-                entity_type="approval_request",
-                entity_id=request.id,
-                module="platform",
-                severity="medium",
-                metadata={"action": "governance.request", **self._build_request_audit_details(request)},
-                commit=False,
-                fail_closed=True,
-            )
-            self._session.flush()
-            return request
-
-        # Transaction-owning (the default -- every real caller except the two documented above
-        # uses this mode): fresh PlatformUnitOfWork, per ADR-005 Section 9/24.
         with self._uow_factory.create(context=self._new_context()) as uow:
             self._assert_project_in_active_organization_using(
                 uow.approvals, project_id, operation_label="request governed change"
             )
-            existing_pending = self._list_approval_rows_using(
-                uow.approvals,
-                status=ApprovalStatus.PENDING,
-                limit=1,
-                project_id=project_id,
-                entity_type=entity_type,
-                entity_id=entity_id,
-            )
-            if existing_pending:
-                raise BusinessRuleError(
-                    f"A pending approval already exists for this {entity_type.replace('_', ' ')}. "
-                    f"Request {existing_pending[0].id} is still pending.",
-                    code="APPROVAL_DUPLICATE_ENTITY",
-                )
-            request = ApprovalRequest.create(
+            request = request_approval_using(
+                approval_repo=uow.approvals,
+                enterprise_audit_service=uow._enterprise_audit_service,
                 request_type=request_type,
                 entity_type=entity_type,
                 entity_id=entity_id,
-                project_id=project_id,
+                tenant_id=tenant_id,
                 organization_id=organization_id,
+                project_id=project_id,
                 payload=payload,
                 requested_by_user_id=principal.user_id if principal else None,
                 requested_by_username=principal.username if principal else None,
-            )
-            uow.approvals.add(request)
-            record_audit_entry(
-                uow,
-                operation="create",
-                entity_type="approval_request",
-                entity_id=request.id,
-                module="platform",
-                severity="medium",
-                metadata={"action": "governance.request", **self._build_request_audit_details(request)},
-                commit=False,
-                fail_closed=True,
             )
             uow.commit()
         self.publish_requested(request)
@@ -281,7 +220,7 @@ class ApprovalService:
                 entity_id=request.id,
                 module="platform",
                 severity="high",
-                metadata={"action": "governance.reject", **self._build_request_audit_details(request, decision_note=request.decision_note)},
+                metadata={"action": "governance.reject", **build_request_audit_details(request, decision_note=request.decision_note)},
                 commit=False,
                 fail_closed=True,
             )
@@ -324,7 +263,7 @@ class ApprovalService:
                 entity_id=request.id,
                 module="platform",
                 severity="high",
-                metadata={"action": "governance.approve", **self._build_request_audit_details(request, decision_note=request.decision_note)},
+                metadata={"action": "governance.approve", **build_request_audit_details(request, decision_note=request.decision_note)},
                 commit=False,
                 fail_closed=True,
             )
@@ -460,39 +399,6 @@ class ApprovalService:
             metadata={"request_id": request.id, "request_type": request.request_type},
         )
 
-    @staticmethod
-    def _build_request_audit_details(
-        request: ApprovalRequest,
-        *,
-        decision_note: str | None = None,
-    ) -> dict[str, str]:
-        payload = request.payload or {}
-        details: dict[str, str] = {
-            "request_type": request.request_type,
-            "entity_type": request.entity_type,
-        }
-        baseline_name = str(payload.get("name") or "").strip()
-        project_name = str(payload.get("project_name") or "").strip()
-        if baseline_name:
-            details["baseline_name"] = baseline_name
-        if project_name:
-            details["project_name"] = project_name
-        cost_desc = str(payload.get("description") or "").strip()
-        task_name = str(payload.get("task_name") or "").strip()
-        if cost_desc:
-            details["cost_description"] = cost_desc
-        if task_name:
-            details["task_name"] = task_name
-        predecessor_name = str(payload.get("predecessor_name") or "").strip()
-        successor_name = str(payload.get("successor_name") or "").strip()
-        if predecessor_name:
-            details["predecessor_name"] = predecessor_name
-        if successor_name:
-            details["successor_name"] = successor_name
-        if decision_note:
-            details["decision_note"] = decision_note
-        return details
-
     def _active_organization_id(self, *, operation_label: str) -> str | None:
         tenant_context = getattr(self, "_tenant_context_service", None)
         if tenant_context is None:
@@ -545,18 +451,6 @@ class ApprovalService:
             project_id=project_id,
             entity_type=entity_type,
             entity_id=entity_id,
-        )
-
-    def _assert_project_in_active_organization(
-        self,
-        project_id: str | None,
-        *,
-        operation_label: str,
-    ) -> None:
-        """Standalone/caller-owned-transaction read path -- uses the long-lived
-        `self._approval_repo` (see `_list_approval_rows`'s docstring)."""
-        self._assert_project_in_active_organization_using(
-            self._approval_repo, project_id, operation_label=operation_label
         )
 
     def _assert_project_in_active_organization_using(

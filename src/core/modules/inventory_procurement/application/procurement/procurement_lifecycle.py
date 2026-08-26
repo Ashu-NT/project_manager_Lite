@@ -26,8 +26,13 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing import
     PurchaseRequisitionLineStatus,
     PurchaseRequisitionStatus,
 )
+from src.core.platform.application.approval.approval_mutation_participant import (
+    request_approval_using,
+)
+from src.core.platform.common.ids import generate_id
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.common.exceptions import ConcurrencyError, ValidationError
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_events import domain_events
 
 
@@ -190,6 +195,13 @@ class ProcurementLifecycleMixin:
         return line
 
     def submit_requisition(self, requisition_id: str, *, note: str = "") -> PurchaseRequisition:
+        """Approval-P1: converged onto `RequisitionSubmissionUnitOfWork` -- one fresh Session,
+        one transaction, for the requisition transition, the Approval-request participant, and
+        the Approval audit entry together. The pre-mutation reads below (`_require_draft_
+        requisition`/`list_for_requisition`) intentionally stay on the shared, process-lifetime
+        Session -- they only inform what the transaction below will write; `update_with_version_
+        check` still fails a genuinely stale write regardless of which Session performed the
+        read."""
         self._require_manage("submit purchase requisition")
         requisition = self._require_draft_requisition(requisition_id)
         lines = self._requisition_line_repo.list_for_requisition(requisition.id)
@@ -198,55 +210,69 @@ class ProcurementLifecycleMixin:
                 "Purchase requisition must have at least one line before submission.",
                 code="INVENTORY_REQUISITION_LINES_REQUIRED",
             )
-        request = self._approval_service.request_change(
-            request_type="purchase_requisition.submit",
-            entity_type="purchase_requisition",
-            entity_id=requisition.id,
-            module="inventory",
-            project_id=None,
-            payload={
-                "requisition_id": requisition.id,
-                "requisition_number": requisition.requisition_number,
-                "site_id": requisition.requesting_site_id,
-                "storeroom_id": requisition.requesting_storeroom_id,
-                "purpose": requisition.purpose,
-                "line_count": len(lines),
-            },
-            commit=False,
-        )
         validate_transition(
             current_status=requisition.status.value,
             next_status=PurchaseRequisitionStatus.SUBMITTED.value,
             transitions=REQUISITION_STATUS_TRANSITIONS,
         )
-        effective_at = datetime.now(timezone.utc)
-        requisition = replace(
-            requisition,
-            status=PurchaseRequisitionStatus.SUBMITTED,
-            approval_request_id=request.id,
-            submitted_at=effective_at,
-            updated_at=effective_at,
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="submit purchase requisition"
         )
-        for line in lines:
-            line = replace(line, status=PurchaseRequisitionLineStatus.DRAFT)
-            self._requisition_line_repo.update(line)
-        self._requisition_repo.update(requisition)
-        self._session.commit()
+        organization = self._active_organization()
+        payload = {
+            "requisition_id": requisition.id,
+            "requisition_number": requisition.requisition_number,
+            "site_id": requisition.requesting_site_id,
+            "storeroom_id": requisition.requesting_storeroom_id,
+            "purpose": requisition.purpose,
+            "line_count": len(lines),
+        }
+        effective_at = datetime.now(timezone.utc)
+        submitted_lines = [replace(line, status=PurchaseRequisitionLineStatus.DRAFT) for line in lines]
+        principal = self._user_session.principal if self._user_session is not None else None
+
+        with self._requisition_submission_uow_factory.create(
+            context=DomainEventContext(correlation_id=generate_id())
+        ) as uow:
+            request = request_approval_using(
+                approval_repo=uow.approvals,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                request_type="purchase_requisition.submit",
+                entity_type="purchase_requisition",
+                entity_id=requisition.id,
+                tenant_id=tenant_id,
+                organization_id=organization.id,
+                project_id=None,
+                payload=payload,
+                requested_by_user_id=getattr(principal, "user_id", None),
+                requested_by_username=str(getattr(principal, "username", "") or ""),
+            )
+            submitted_requisition = replace(
+                requisition,
+                status=PurchaseRequisitionStatus.SUBMITTED,
+                approval_request_id=request.id,
+                submitted_at=effective_at,
+                updated_at=effective_at,
+            )
+            for line in submitted_lines:
+                uow.requisition_lines.update(line)
+            uow.requisitions.update(submitted_requisition)
+            uow.commit()
         record_activity(
             self,
             action="inventory_requisition.submit",
             entity_type="purchase_requisition",
-            entity_id=requisition.id,
+            entity_id=submitted_requisition.id,
             module="inventory",
             details={
-                "requisition_number": requisition.requisition_number,
+                "requisition_number": submitted_requisition.requisition_number,
                 "approval_request_id": request.id,
                 "note": normalize_optional_text(note),
             },
         )
-        domain_events.approvals_changed.emit(request.id)
-        domain_events.inventory_requisitions_changed.emit(requisition.id)
-        return requisition
+        self._approval_service.publish_requested(request)
+        domain_events.inventory_requisitions_changed.emit(submitted_requisition.id)
+        return submitted_requisition
 
     def update_requisition(
         self,

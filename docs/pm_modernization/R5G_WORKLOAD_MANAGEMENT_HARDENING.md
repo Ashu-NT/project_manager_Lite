@@ -2,12 +2,12 @@
 
 ## 1. Status
 
-**IN PROGRESS.** R5A through R5F are the approved implementation baseline. R5G
-is an integrated hardening and evidence phase; it adds no product capability and
-does not change the approved information architecture. This document records
-only evidence observed in the current repository or produced during R5G. A gate
-is not closed by a prior phase claim when the integrated path has not been
-retested.
+**IMPLEMENTATION COMPLETE; EVIDENCE GATES OPEN.** R5A through R5F are the
+approved implementation baseline. R5G adds no product capability and does not
+change the approved information architecture. The integrated code defects found
+in this pass are fixed and the targeted PM suites are green. R5G is not formally
+closed because PostgreSQL runtime-role/RLS/query-plan evidence and parts of the
+manual keyboard/dialog matrix require an appropriate runtime environment.
 
 Current baseline findings:
 
@@ -16,14 +16,16 @@ Current baseline findings:
   and lazy Resource Detail sections are present.
 - Resource Inspector already distinguishes compact overlay and bounded side
   presentation from actual workspace content width.
-- Review Queue still opens a full-page detail surface. R5G must reconcile this
-  with the approved bounded Inspector composition without changing workflow.
+- Review Queue now keeps its server table mounted and presents the selected
+  period in one responsive Inspector authority: bounded side Inspector when the
+  table retains 720 px, otherwise a right overlay.
 - Resource and Review Queue filters use the approved application-standard
   centered modal dialog pattern. R5G validates that all fields and actions fit
   the minimum viewport; it does not introduce a separate popup pattern.
-- SQLite scale and statement evidence exists for earlier phases. PostgreSQL
-  EXPLAIN/ANALYZE, runtime-role RLS negatives, 50k fixtures, and the integrated
-  five-viewport runtime matrix remain open and must not be inferred.
+- SQLite scale and statement evidence exists for earlier phases. Both Resources
+  and Review Queue now pass the integrated five-viewport QML matrix. PostgreSQL
+  EXPLAIN/ANALYZE, runtime-role RLS negatives, and 50k fixtures remain open and
+  must not be inferred.
 - No R5G source change may weaken Task Detail -> Time, scheduling authority,
   ResourceKind semantics, tenant/organization scope, or deny-safe permissions.
 
@@ -69,14 +71,16 @@ remains. No permanent compact side pane and no three-column layout are allowed.
 
 | Viewport | Resources | Review Queue | Evidence |
 |---|---|---|---|
-| 1024x640 | Open | Open | Integrated runtime geometry required |
-| 1280x720 | Open | Open | Integrated runtime geometry required |
-| 1366x768 | Open | Open | Integrated runtime geometry required |
-| 1440x900 | Open | Open | Integrated runtime geometry required |
-| 1920x1080 | Open | Open | Integrated runtime geometry required |
+| 1024x640 | Pass | Pass | Runtime component geometry; compact Inspector mode |
+| 1280x720 | Pass | Pass | Runtime component geometry; width-derived mode |
+| 1366x768 | Pass | Pass | Runtime component geometry; width-derived mode |
+| 1440x900 | Pass | Pass | Runtime component geometry; bounded wide mode |
+| 1920x1080 | Pass | Pass | Runtime component geometry; bounded wide mode |
 
-Earlier isolated offscreen tests are useful characterization but do not alone
-close the integrated R5G runtime gate.
+Evidence: `test_r5b_resource_workspace_runtime_geometry` and
+`test_r5g_review_queue_runtime_geometry`; the required widths were rerun in the
+targeted R5G validation. No layout-management, missing-type, or ReferenceError
+warning was observed.
 
 ## 6. Resource Catalog Geometry
 

@@ -2294,6 +2294,298 @@ membership events, Approval work, modernizing Custom Role Definition/session/use
 password/MFA/federated-identity/registration capabilities (all remain legitimate `auth_changed`
 producers, deliberately untouched).
 
+## Approval-SEM — Prerequisite / Semantic Discovery (complete; no code changes)
+
+**Status:** discovery only, as instructed. Resolves both prerequisites `platform_p5_event_
+discovery.md` §17 items 1-2 flagged as blocking. No DomainEvent, ViewInvalidation, or Qt work
+implemented. No production code changed; two narrow test-observation notes below, no fixes.
+
+### Current model (re-audited from source, not from prior ADR assumptions)
+
+`ApprovalRequest` (`domain/approval/approval_request.py`) is a **plain frozen-ish
+`@validated_dataclass`, not a `RecordsDomainEvents` aggregate** -- `id`, `request_type`,
+`entity_type`, `entity_id`, `project_id`, `payload`, `organization_id` (optional, but the ORM
+column is `NOT NULL` and every real caller resolves it via `require_active_organization_id`
+before construction -- effectively always populated), `status: ApprovalStatus` (`PENDING`/
+`APPROVED`/`REJECTED` only -- no `applied`/`failed`/`cancelled`), `requested_by_user_id`/
+`requested_by_username`, `requested_at`, `decided_by_user_id`/`decided_by_username`,
+`decided_at`, `decision_note`. **No `.approve()`/`.reject()`/`.request()` methods exist** --
+`ApprovalService` mutates `request.status`/`decided_*` fields by bare attribute assignment.
+
+**Transaction architecture is already canonical for the primary paths.** `PlatformUnitOfWork`
+(`contract/persistence/unit_of_work.py`) + `SqlAlchemyPlatformUnitOfWork`
+(`infrastructure/persistence/unit_of_work.py`) is a thin `SqlAlchemyUnitOfWorkBase` subclass --
+fresh Session per `create()` call, `approvals`/`_enterprise_audit_service` typed accessors,
+already inherits `record_event`/`commit`/the transactional dispatcher/post-commit bus. `request_
+change` (transaction-owning branch), `approve_and_apply`, `reject` all use `with self._uow_
+factory.create(...) as uow:`. **The UoW-level infrastructure a future Approval event needs
+already exists and needs zero new plumbing** -- unlike P5D-1, there is no "build a new UoW from
+scratch" prerequisite here.
+
+**The grandfathered caller-owned `request_change(commit=False)` path is still real, and its
+count was stale in the source docstring (said "two", is actually THREE).** All three still use a
+shared, process-lifetime `Session` with inline `try:`/`.commit()`/`except:`/`.rollback()` --
+none has been converged to a canonical UoW:
+
+1. `inventory_procurement/application/procurement/procurement_lifecycle.py` --
+   `submit_requisition()` (`purchase_requisition.submit`).
+2. `project_management/application/financials/financial_changes/service.py` --
+   `FinancialChangeService.submit_change()` (`financial_change.apply`).
+3. `project_management/application/financials/invoicing/preparation_service.py` --
+   `ProjectBillingPreparationService.submit_preparation()`
+   (`project_billing_preparation.approve`).
+
+Each stages its own prior mutation (requisition status flip / financial change submission /
+billing preparation submission) and the `ApprovalRequest` insert on the SAME shared `Session`,
+then commits once. Two of the three (`FinancialChangeService`/`ProjectBillingPreparationService`)
+correctly call `ApprovalService.publish_requested(request)` afterward for the canonical
+post-commit signal+notification path; the third (`procurement_lifecycle.submit_requisition`)
+**does not** -- it duplicates `domain_events.approvals_changed.emit(request.id)` inline itself
+and skips `_notify_approval_requested` entirely, a pre-existing notification gap, unrelated to
+this discovery's scope but flagged for whoever eventually converges that caller.
+
+**`commit=False` is NOT obsolete** -- P4/PF has not converged these three callers to canonical
+UoWs, so removing the parameter now would silently split their atomicity across two physical
+transactions. A future `ApprovalRequested` event recorded at request-creation time must be
+recordable from BOTH the canonical-UoW path (`uow.record_event(...)`, trivial) AND these three
+callers' own shared-Session path -- which means either (a) those three callers get their own
+transaction convergence first (a real, separate prerequisite phase, likely Approval-P0 or folded
+into each caller's own PF/PM modernization), or (b) a transaction-agnostic
+`ApprovalMutationParticipant.request_using(...)` (mirroring `role_binding_mutation_participant.py`
+exactly: takes the caller's own session-bound `approval_repo`/`audit_repo`/`clock`/
+`record_event` callback, never commits/rolls back/opens a Session) is built so the three legacy
+callers can record the SAME event through their own transaction without adopting a full UoW.
+**Recommendation: (b) is the smaller, lower-risk prerequisite** -- it does not require touching
+three other capabilities' own transaction ownership, and the pattern is already proven twice
+(RoleBinding, then reused verbatim by TenantMembership).
+
+**Apply-handler atomicity is fully proven, not assumed.** 18 handler registrations across 12
+`request_type`s (`project_registry.py`: baseline.create, dependency.add/remove/update,
+task.constraint.update, scheduling.leveling.apply, budget.approve, project_cost.approve,
+financial_change.apply, project_billing_preparation.approve; `inventory_registry.py`:
+purchase_requisition.submit, purchase_order.submit -- 14 apply + 4 reject handlers, confirming
+the "18 approval participants" figure exactly). Every handler is `(request, deps) ->
+ApprovalHandlerResult | None`; every `dependencies_factory(session)` builds fresh, session-bound
+collaborators from the SAME `uow._session` `approve_and_apply`/`reject` pass in; zero `.commit(`/
+`.rollback(`/`UnitOfWorkFactory`/`Session(` calls found in any of the participant modules; every
+underlying target-capability mutation call passes `commit=False` explicitly; no participant
+emits a legacy signal directly -- all go through `ApprovalHandlerResult.post_commit_events`
+(`ApprovalPostCommitEvent(signal_name, payload)`), drained by `ApprovalService._emit_handler_
+events` strictly after `uow.commit()` succeeds. This matches ADR-PF-008's own accepted decision
+record exactly ("apply handlers may validate and stage repository/domain mutations but must not
+commit, roll back, dispatch notifications, or emit process-local success signals") -- confirmed
+implemented as designed, not just documented.
+
+**`approve_and_apply`'s exact order (settles item 3/13/20's "what does Approved mean" question):**
+load pending request -> self-decision guard -> resolve handler (raise `APPROVAL_HANDLER_MISSING`
+if none registered) -> **invoke the apply handler FIRST** -> only then set `status=APPROVED`/
+`decided_*` fields -> audit (`fail_closed=True`) -> `uow.commit()`. **If the apply handler
+raises, nothing commits -- the request remains PENDING, unchanged, forever (no `failed` status
+exists to fall into).** This conclusively answers item 3: `ApprovalApproved` can only ever mean
+"the decision succeeded AND the approved change was atomically applied" (Option B) -- there is no
+source-supported reading where a request becomes "approved but unapplied." The prior discovery's
+rejection of a separate `ApprovalApplied` event is **reconfirmed, not just carried forward**.
+
+**`reject` has no apply handler requirement** -- a `reject_handler` is optional (only 4 of 12
+request types register one, e.g. releasing a reserved resource); if none is registered, rejection
+proceeds with just the status flip + audit. Symmetric atomicity guarantee: if a registered reject
+handler raises, the same rollback applies -- request stays PENDING.
+
+**No-op/invalid transitions are hard errors, never silent no-ops.** `_require_pending_using`
+raises `APPROVAL_ALREADY_DECIDED` for ANY non-PENDING status before either commit path is ever
+reached -- approve-already-approved, reject-already-rejected, approve-a-rejected-request, etc.
+all raise before any mutation, audit, or event recording occurs. There is no idempotent-no-op
+branch (unlike RoleBinding's `create_role_binding_using`) -- command invocation on an
+already-decided request is always an error, so "zero DomainEvent on invalid transition" is
+guaranteed structurally, not by a design choice that needs enforcing later.
+
+### The critical open decision: tenant ownership (§17 item 1) -- RESOLVED
+
+**`ApprovalRequest` (the domain dataclass) has no `tenant_id` field -- confirmed, re-verified.**
+But the persisted row DOES have one: `ApprovalRequestORM.tenant_id` (nullable at the schema
+level, but the repository's `add()` unconditionally stamps `ctx.tenant_id` -- resolved from
+`TenantContextService.require_active_scope_ids()`, i.e. the ACTOR's own ambient active tenant at
+write time -- so it is always populated in practice) is used correctly for READ isolation
+(`get()`/`list_by_status()`/`list_by_status_for_organization()` all filter `tenant_id ==
+ctx.tenant_id` first). **The mapper (`mappers/approval/approval.py`) simply never round-trips
+`tenant_id` between the ORM and the domain dataclass in either direction** -- a clean, narrow,
+already-half-solved gap, not a missing column or a missing isolation mechanism.
+
+**Today's tenant isolation is real and correctly enforced, just ambient (the established,
+codebase-wide `TenantScopedRepositorySupport` pattern every other tenant-scoped repository
+already uses -- not a defect unique to Approval).** `reject`/`approve_and_apply` both call
+`uow.approvals.get(request_id)` first, which already filters by the ACTING user's own ambient
+tenant -- a cross-tenant `get()` returns `None`, raising `APPROVAL_NOT_FOUND` before any
+mutation. Tenant A genuinely cannot approve/reject Tenant B's request today. **This is not a
+live security hole; it is a DomainEvent-readiness gap** -- a future event needs `event.
+tenant_id` as a plain, explicit fact read off the request, not re-derived from ambient
+`TenantContextService` state at record time (ADR-005 §3's rule, and the exact trap `assign_scope_
+grant`/`Module.set_module_state` fell into before their own P5C/P5B fixes).
+
+**Recommendation (matches the task's own stated enterprise-SaaS default, and is unusually
+low-risk here since the data already exists): add `tenant_id: str` to the `ApprovalRequest`
+dataclass, and map it both directions in `approval_to_orm`/`approval_from_orm`.** No schema
+migration needed (the column already exists and is already correctly populated by the
+repository on every write) -- this is a pure domain-model/mapper correction, not an
+infrastructure change. Once present, every future event can read `request.tenant_id` directly,
+with zero ambient re-derivation and zero post-commit re-query.
+
+### Approval's actual scope shape (§7's over-generalization corrected)
+
+**Approval is organization-scoped, not tenant-wide** -- `organization_id` is `NOT NULL` at the
+schema level and every real caller resolves an active organization before creating a request;
+reads filter on `(tenant_id, organization_id)` together (with a project-fallback join for rows
+whose own `organization_id` might diverge from their project's). This is a genuinely different
+scope shape than `TenantMembership`/`RoleGovernance`'s tenant-wide bindings -- it mirrors
+RoleBinding's own *resource*-scope shape (`OrganizationScope(tenant_id, organization_id)`) more
+than Membership's `TenantScope(tenant_id)`. A future Approval ViewInvalidation target must use
+`OrganizationScope`, never `TenantScope`, and never `organization_id=None`-as-tenant-wide.
+
+### Aggregate-vs-application event recording (§17 item 2) -- RESOLVED
+
+**Recommendation: APPLICATION-AUTHORED (`uow.record_event(...)` from `ApprovalService`), not
+aggregate-authored.** `ApprovalRequest` does not currently own its transitions (no `.approve()`/
+`.reject()` methods, no invariants encapsulated on the entity) -- promoting it to a
+`RecordsDomainEvents` aggregate purely to satisfy ADR-005's stated *preference* would be
+aesthetic, not evidence-driven, and the task's own item 18 explicitly warns against forcing
+aggregate recording for that reason. More decisively: the `ApprovalApproved` fact, per the
+`approve_and_apply` trace above, is NOT fully determined by `ApprovalRequest` alone -- it also
+depends on the apply handler's own orchestration OUTCOME (a fact external to the aggregate,
+produced by `dependencies_factory`/the target-capability participant), which is exactly item 18's
+textbook case for application-authored recording. Adding `.approve()`/`.reject()` methods to
+`ApprovalRequest` (§17 item 2's first option) would only correctly express the STATUS half of the
+fact and would still need an external application-level check (did the handler succeed?) before
+it could honestly be called -- a partial aggregate would be worse than no aggregate. This
+decision is the opposite of P5D's aggregate audit (`UserTenantMembership` DOES own real,
+invariant-checked transition methods already) precisely because the source evidence differs.
+
+### Actor/requester/target field decision
+
+**Business-identity fields belong on the events, unlike the four already-converged
+capabilities.** `ApprovalRequest` already persists `requested_by_user_id`/`decided_by_user_id` as
+durable business data (not merely audit metadata) -- the requester and the approver/rejector are
+first-class governance participants a consumer legitimately needs without a second query (e.g. "
+whose request is this", "who decided it"), unlike Organization/Module/RoleBinding/Membership
+where the acting admin's identity was correctly excluded as pure `DomainEventContext`/audit
+concern. Recommendation: include `requested_by_user_id` on `ApprovalRequested`, `decided_by_user_
+id` on `ApprovalApproved`/`Rejected` (never a display name/username -- durable identifiers only,
+matching every other event's own convention).
+
+### Recommended event fields (documentation only -- not implemented)
+
+- `ApprovalRequested`: `approval_id`, `tenant_id`, `organization_id`, `request_type`,
+  `entity_type`, `entity_id`, `project_id`, `requested_by_user_id`, `occurred_at`.
+- `ApprovalApproved`: `approval_id`, `tenant_id`, `organization_id`, `request_type`,
+  `entity_type`, `entity_id`, `decided_by_user_id`, `occurred_at`.
+- `ApprovalRejected`: same shape as `Approved` plus `decision_note` (matches the domain object's
+  own existing field; omit if empty, never invent one).
+
+No raw `payload` (may carry financial/resource/security details) on any event -- consumers needing
+more than the identifiers above should re-query by `approval_id`, matching item 26's explicit
+instruction and every other converged capability's own restraint.
+
+### Event vocabulary verdict
+
+`ApprovalRequested`/`ApprovalApproved`/`ApprovalRejected` -- **reconfirmed, unchanged.** No
+`ApprovalChanged`/`ApprovalStatusChanged`/`ApprovalUpdated`, no `ApprovalApplied` (redundant, per
+above), no new invitation-style eventless-transition additions needed: PENDING is the only
+"created" state (no separate request-vs-materialize split), and the two decision transitions
+(`PENDING -> APPROVED`, `PENDING -> REJECTED`) are the only two decision facts source evidence
+supports.
+
+### Notification / audit / PlatformEvent / outbox separation (all confirmed correctly separate
+already, none need to change)
+
+- **Notifications** (`_notify_approval_requested`/`_notify_approval_decided` via `safe_dispatch_
+  notification`) are POST-commit, outside the `with uow:` block, called only after a successful
+  commit -- already correctly separate from the future DomainEvent and never merged with it.
+- **Audit** goes through the SAME generic `AuditEntry`/`record_audit_entry` mechanism every other
+  converged capability uses (`operation`, `entity_type="approval_request"`, `fail_closed=True`,
+  inside the transaction) -- not the separate `PlatformEvent` immutable governance log.
+- **`PlatformEvent`** (`domain/events/platform_events/platform_event.py`, requiring an explicit
+  `tenant_id`) is a DIFFERENT mechanism entirely, currently used only by `TenantAdminService` for
+  tenant lifecycle facts (create/suspend/archive) -- Approval does not use it today and this
+  discovery recommends no change.
+- **Integration outbox** genuinely exists for at least the purchasing/procurement family
+  (ADR-PF-008/ADR-PF-011 govern it explicitly: "Financial mutation, approval decision, Enterprise
+  Audit intent/row, idempotency/inbox state, and durable outbox records commit atomically" /
+  "the current post-commit process-local signals remain UI refresh notifications and are not a
+  substitute for durable integration delivery"). A future Approval DomainEvent replaces ONLY the
+  process-local-signal presentation layer, exactly as ADR-PF-011 already anticipates -- it must
+  never touch or duplicate the outbox staging, which stays exactly as-is.
+
+### Legacy `approvals_changed` inventory (production only)
+
+**5 producers:** `approval_service.py`'s own three commands (`request_change`'s fresh-UoW path,
+`reject`, `approve_and_apply`, all via the canonical `_emit_signal_safely`/`publish_requested`
+path) + the two caller-owned-transaction paths' own direct emissions
+(`procurement_lifecycle.submit_requisition` duplicates the emit inline instead of calling
+`publish_requested`; `preparation_service.submit_preparation`/`financial_changes.submit_change`
+correctly call `publish_requested`).
+
+**3 real production consumers**, all coarse (no narrow approval-specific reaction exists yet
+anywhere):
+
+1. `PlatformControlWorkspaceController._bind_domain_events` -- subscribes `approvals_changed`
+   alongside 6 unrelated signals (`project_changed`/`tasks_changed`/`costs_changed`/
+   `resources_changed`/`baseline_changed`/`register_changed`), all routed through one coarse
+   `refresh()` reloading the control-workspace overview, the approval queue, AND the audit feed
+   regardless of which signal fired.
+2. `bind_collaboration_domain_events` (PM module) -- subscribes `approvals_changed` +
+   `timesheet_periods_changed` into one coarse panel refresh.
+3. `approvals_builder.py` (the Collaboration tab's own Approvals list) -- reads the SAME
+   `PlatformApprovalDesktopApi.list_requests(...)` as the other two, filtered additionally by
+   `project_id` -- a third real consumer of identical data, not a separate concept.
+
+**Real read models, all backed by the SAME `ApprovalService.list_requests`/`_list_approval_rows_
+using` query** (organization-scoped: `tenant_id == ctx.tenant_id AND (organization_id == ctx.
+organization_id OR project.organization_id == ctx.organization_id)`): the Control workspace's
+approval queue, the Control workspace overview's approval count (not yet traced to its exact
+field name -- flagged for the implementation phase, not re-derived here), and the PM
+Collaboration tab's project-filtered approvals list.
+
+**Proposed ViewInvalidation target (documentation only, not implemented): one target,
+`approval_requests`, `OrganizationScope(tenant_id, organization_id)`-scoped**, mirroring the
+"one target covers all three real consumers, all read the same authoritative data" pattern
+`tenant_memberships` established for P5D-3 -- `ApprovalRequested`/`Approved`/`Rejected` would all
+map onto it via one shared handler. Tenant switch must re-scope (dispose+resubscribe, mirroring
+every existing adapter); since Approval genuinely IS organization-scoped (unlike Membership), an
+organization switch WITHIN the same tenant SHOULD re-scope too (mirroring RoleBinding/Module's own
+adapters, not Membership's tenant-only one) -- this is a real, source-confirmed difference from
+the P5D-3 precedent, not an oversight if a future implementer only re-scopes on tenant switch.
+
+### Prerequisite blockers found
+
+**None are hard blockers for typed-event implementation itself** -- both explicit design
+questions this pass was asked to resolve are now resolved with a clear recommendation and
+low-risk fix shape. The one genuine sequencing dependency: **the three `commit=False` callers'
+own transaction architecture must be addressed (via option (a) or (b) above) before `Approval
+Requested` can be recorded consistently across ALL request-creation paths** -- recording it only
+from the canonical-UoW branch and leaving the three legacy callers silent would be an incomplete,
+inconsistent event producer, not a genuine blocker to defer indefinitely.
+
+### Recommended implementation phases
+
+- **Approval-P1 (prerequisite convergence):** add `tenant_id` to `ApprovalRequest` + mapper;
+  build `ApprovalMutationParticipant.request_using(...)` (transaction-agnostic, mirroring `role_
+  binding_mutation_participant.py`) so the three legacy `commit=False` callers can eventually
+  record `ApprovalRequested` through their own transaction without a full UoW migration. No new
+  UoW needed (already canonical) -- this phase is narrower than P5D-1's.
+- **Approval-P2 (typed DomainEvents):** `ApprovalRequested`/`Approved`/`Rejected`, application-
+  authored via `uow.record_event(...)`, recorded at the exact points traced above (Approved only
+  after the apply handler succeeds, before commit).
+- **Approval-P3 (ViewInvalidation + direct UI cutover):** one `approval_requests`
+  `OrganizationScope` target, migrate the 3 real consumers off `approvals_changed` (retain the
+  signal for nothing else -- unlike `auth_changed`, no other capability shares it), organization-
+  switch re-scoping (unlike Membership).
+
+Do not manufacture a P0 -- the canonical UoW and apply-handler atomicity are already sufficient;
+Approval-P1 is genuinely the smallest first step, not busywork.
+
+**Explicit non-goals of this discovery pass:** no DomainEvent, ViewInvalidation, or Qt migration
+implemented; `approvals_changed` not removed; no custom-role/authentication modernization
+started; no production code changed.
+
 ## P6 — Qt Invalidation Adapter Consolidation
 
 **Goal:** build the one shared Qt adapter, and migrate the three existing controller bases to
