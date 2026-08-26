@@ -61,7 +61,6 @@ class DomainEvents:
             "billing_preparations_changed",
         ),
         ("planned_costs_changed", "module", "project_management", "project_planned_cost", "planned_costs_changed"),
-        ("approvals_changed", "platform", "platform", "approval_request", "approvals_changed"),
         ("register_changed", "module", "project_management", "register_scope", "register_changed"),
         ("auth_changed", "platform", "platform", "user_account", "auth_changed"),
         ("employees_changed", "platform", "platform", "employee", "employees_changed"),
@@ -169,7 +168,6 @@ class DomainEvents:
     financial_changes_changed: Signal[str] = field(default_factory=Signal)
     billing_preparations_changed: Signal[str] = field(default_factory=Signal)
     planned_costs_changed: Signal[str] = field(default_factory=Signal)
-    approvals_changed: Signal[str] = field(default_factory=Signal)
     register_changed: Signal[str] = field(default_factory=Signal)
     auth_changed: Signal[str] = field(default_factory=Signal)
     employees_changed: Signal[str] = field(default_factory=Signal)

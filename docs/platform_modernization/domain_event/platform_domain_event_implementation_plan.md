@@ -2723,6 +2723,244 @@ case -- no `ApprovalRequest`, no host mutation, no notification/`approvals_chang
 2. None found inside Approval-P1/P1A's own code paths themselves -- all gaps closed were test
    coverage gaps, not production defects.
 
+### Approval-P2 — Typed Approval DomainEvents (implemented)
+
+Implements exactly `ApprovalRequested`/`ApprovalApproved`/`ApprovalRejected`
+(`src/core/platform/domain/approval/events.py`) -- frozen, `slots=True`, keyword-only dataclasses,
+no infrastructure imports, no `ApprovalApplied`/`ApprovalChanged`/`ApprovalStatusChanged`. No
+DomainEvents/ViewInvalidation/Qt migration/`approvals_changed` removal beyond this.
+
+**Fields (locked, all identical shape except the actor field):**
+```
+ApprovalRequested(approval_id, tenant_id, organization_id, approval_type, entity_type,
+                   entity_id, requested_by_user_id, occurred_at)
+ApprovalApproved(approval_id, tenant_id, organization_id, approval_type, entity_type,
+                  entity_id, decided_by_user_id, occurred_at)
+ApprovalRejected(approval_id, tenant_id, organization_id, approval_type, entity_type,
+                 entity_id, decided_by_user_id, occurred_at)
+```
+No `payload`, `project_id`, `correlation_id`/`causation_id`/`command_id` (those stay on
+`DomainEventContext`), free-text rejection reason, display name, or schema version.
+`tenant_id`/`organization_id` always come from the authoritative `ApprovalRequest`, never
+re-derived from `TenantContextService`/active org/Qt context.
+
+**Ownership: application-authored, one recording responsibility per event.**
+`ApprovalRequest` still does NOT implement `RecordsDomainEvents` (reconfirmed).
+`approval_mutation_participant.request_approval_using(...)` is the ONE place `ApprovalRequested`
+is constructed -- proven by an architecture guard (`test_approval_events.py::
+test_approval_requested_has_exactly_one_recording_responsibility`) that greps all of `src/core`
+for `ApprovalRequested(` and requires exactly one hit. `ApprovalService.approve_and_apply`/
+`reject` record `ApprovalApproved`/`ApprovalRejected` directly -- no host service, repository, or
+UI facade constructs any of the three.
+
+**Recording mechanism: a narrow callback, never a concrete UoW type.** `request_approval_using`
+gained two new required keyword parameters -- `clock: Clock` and
+`record_event: Callable[[object], None]` -- mirroring `role_binding_mutation_participant.py
+::create_role_binding_using`'s own established shape exactly. The module still imports no
+SQLAlchemy/Session/concrete UnitOfWork (guarded). Every one of the five call sites passes its own
+owning UoW's bound method (`uow.record_event`) and its own `Clock` instance:
+1. `ApprovalService.request_change` -> `self._clock` (new; guarded via `_require_clock()`,
+   raising `APPROVAL_CLOCK_REQUIRED` if unset) + `uow.record_event`.
+2. `submit_requisition` -> `self._clock` (new on `ProcurementService`, optional/guarded exactly
+   like `requisition_submission_uow_factory` was in P1, for the apply-participant's own
+   submission-unrelated instance) + `uow.record_event`.
+3. `submit_purchase_order` -> `self._clock` (new on `PurchasingService`, same optional/guarded
+   shape) + `uow.record_event`.
+4. `submit_change` -> the EXISTING `self._clock` on `FinancialChangeService` + `uow.record_event`.
+5. `submit_preparation` -> the EXISTING `self._clock` on `ProjectBillingPreparationService` +
+   `uow.record_event`.
+
+All five `Clock` instances are `SystemClock()` in production composition
+(`platform_registry.py`/`inventory_registry.py`) -- no `datetime.now()`/`datetime.utcnow()` calls
+were introduced for event `occurred_at`; determinism proven via `_FixedClock` test doubles.
+
+**`ApprovalRequested` recording point.** Inside `request_approval_using`, immediately after
+`approval_repo.add(request)` and the fail-closed request audit entry -- i.e. right after the
+business fact (a valid, invariant-checked, PENDING `ApprovalRequest`) is staged, never deferred
+to just-before-commit. All five request contexts (standalone + the four converged host
+workflows, including the fourth-caller purchase-order path) record exactly one, proven by
+per-path `_spy_recorded_events`-style tests plus a two-request ordering test.
+
+**`ApprovalApproved` recording point.** `approve_and_apply`'s existing ordering already matched
+the locked semantics without needing reordering: apply participant runs and must succeed FIRST;
+only then does `request.status = APPROVED` execute, `uow.approvals.update(request)` persists it,
+and `uow.record_event(ApprovalApproved(...))` runs immediately after that `update()` call, before
+the decision audit entry and `uow.commit()`. If the apply participant raises, execution never
+reaches the status transition, the event recording, or commit -- proven by a dedicated
+apply-handler-failure test asserting zero recorded events, zero postcommit publication, and the
+request still PENDING. Any target-capability DomainEvent the apply participant itself records
+(e.g. `BudgetApprovalParticipant`'s own) commits in the SAME transaction, strictly BEFORE
+`ApprovalApproved` in committed order -- verified, never suppressed, never duplicated into
+`ApprovalApproved`'s own fields.
+
+**`ApprovalRejected` recording point.** `reject`'s existing ordering already matched the locked
+semantics too: any registered reject participant runs before `uow.approvals.update(request)`;
+`uow.record_event(ApprovalRejected(...))` runs immediately after that `update()` call. A reject-
+participant failure emits zero events, request stays PENDING.
+
+**Invalid transitions.** A second decision attempt on an already-decided request
+(`APPROVAL_ALREADY_DECIDED`) is a command that never re-enters the decision body -- zero new
+events, zero new audit, zero postcommit reaction (proven for both approve and reject).
+
+**Cross-tenant / cross-org event isolation.** Re-verifies Approval-P1A's own authorization
+findings at the event layer: a same-tenant, non-active-organization decision denial emits zero
+`ApprovalApproved`/`ApprovalRejected`; a genuinely different tenant (two independent
+`TenantContextService` fakes over the same database, sharing only the transactional
+dispatcher/post-commit bus so a leak would be observable) cannot reach another tenant's request
+at all -- `NotFoundError`, zero events, before any dispatch could occur.
+
+**Transactional (pre-commit, FAIL_FAST) vs. post-commit (ISOLATE_AND_CONTINUE) semantics.**
+Unchanged, generic `SqlAlchemyUnitOfWorkBase` behavior, exercised for Approval specifically: a
+failing transactional handler rolls back the WHOLE owning transaction (no `ApprovalRequest`
+persists, no postcommit publication follows); a failing post-commit subscriber is isolated (the
+sibling subscriber and the already-committed decision are both unaffected). No Approval-specific
+event-bus behavior was added.
+
+**Audit/commit failure still suppresses observable events.** Re-run and extended: forcing the
+Approval audit write to fail, or forcing `uow.commit()` to fail, now additionally asserts zero
+events reach a real post-commit subscriber (not merely that the ApprovalRequest/host mutation is
+absent from the database, as P1A already proved).
+
+**Notification / PlatformEvent / outbox: unchanged, still separate.** `publish_requested`/
+`_notify_approval_decided` remain post-commit, unmodeled as DomainEvents. No `PlatformEvent` is
+constructed from an Approval DomainEvent. No Approval event is mapped into any outbox; the
+existing ADR-PF-011 procurement outbox mapping (unrelated target-capability concern) is untouched.
+`approvals_changed` is retained, fired directly from `ApprovalService`/the host commands exactly
+as before -- no `ApprovalRequested`/`Approved`/`Rejected` -> `approvals_changed` bridge was built.
+
+**Latent test-infrastructure bug found and fixed while adding these guards.** Approval-P1's own
+`test_approval_p1_architecture_guards.py` computed `_SRC_CORE` as `Path(__file__).resolve()
+.parents[3] / "core"` -- one level too high (resolves to the repo root's nonexistent `core/`,
+not `src/core/`), so every guard built on `_SRC_CORE.rglob(...)` was vacuously passing (`rglob`
+on a nonexistent directory yields nothing, matching nothing, including a real violation). Fixed
+to `parents[2]`; the same, correctly-computed pattern is used in this phase's own new guards.
+`test_no_approval_domain_event_classes_exist_yet` (P1's phase-boundary assertion that the three
+events did NOT exist yet) is retired now that P2 has legitimately implemented them; its forward-
+looking replacement (`ApprovalApplied`/`ApprovalChanged`/`ApprovalStatusChanged` must not exist)
+lives in `test_approval_events.py`.
+
+**Not done in this phase (by design):** Approval ViewInvalidation, Qt consumer migration,
+`approvals_changed` removal, any redesign of `approve_and_apply`/`reject`'s own atomicity beyond
+adding event recording at the already-correct point, any change to the 18 apply/reject
+participants' own target-capability logic.
+
+### Approval-P3 — Approval ViewInvalidation + Direct UI Consumer Cutover (implemented)
+
+Maps all three typed events (`ApprovalRequested`/`ApprovalApproved`/`ApprovalRejected`) to ONE
+ViewInvalidation target -- category `"approval"`, `scope_code="approval_requests"`, scope
+`OrganizationScope(event.tenant_id, event.organization_id)` (never `TenantWide`/`AllTenants`,
+never re-derived from ambient context) -- and cuts the two genuine UI consumers over to it
+directly. No event-vocabulary change, no `ApprovalApplied`, no apply-participant change, no P6
+Qt-adapter-consolidation work (this builds one more capability-specific adapter, following the
+existing Module Entitlement/RoleBinding/TenantMembership precedent exactly, not the future shared
+one).
+
+**`approvals_changed` re-audit from current source (not trusted from any earlier estimate).**
+Exactly 3 producers, all in `ApprovalService` (`publish_requested`/`reject`/`approve_and_apply`) --
+matches P2's own inventory. 4 consumers found (one more than previously tracked): Control
+workspace's approval queue + Control/Admin overview pending-approval count (same controller, same
+read models -- genuine); PM Collaboration's approvals panel (genuine, direct signal subscription);
+and a previously-unlisted 4th, PM Dashboard, reached only through the legacy
+`X_changed` -> `domain_changed` auto-bridge (`DomainEvents._wire_bridges()`) via
+`_subscribe_domain_change("approval_request", scope_code="platform")` -- classified INCIDENTAL and
+dropped, not migrated, after confirming by grep that `PlatformDashboard`'s own
+`build_workspace_state(...)` never reads any Approval data.
+
+**One mapper, one adapter (capability-specific, not the P6 shared adapter).**
+`src/core/platform/application/approval/event_handlers/view_invalidation.py` --
+`build_approval_view_invalidation_handler(channel)` maps all three event types to the one hint
+above; no Qt/`domain_events` import (guarded). `src/ui_qml/platform/adapters/
+approval_view_invalidation_adapter.py` -- `ApprovalViewInvalidationAdapter(QObject)`, one
+`approvalsStale` Signal, `set_active_scope(*, tenant_id, organization_id)` (dispose-then-
+resubscribe, at most one live subscription), filters by category+scope_code, `dispose()`; no
+`ApprovalRequested`/`ApprovalApproved`/`ApprovalRejected`/`DomainEvent` import (guarded, source
+scanned with docstrings/comments stripped so prose mentioning those names in the class's own
+explanatory docstring cannot false-positive the guard). Wired in `platform_registry.py`
+(`platform_post_commit_bus.subscribe(EventType, handler)` for all three event types, reusing the
+one shared `platform_view_invalidation_channel`) and constructed in both `PlatformWorkspaceCatalog`
+and `ProjectManagementWorkspaceCatalog` (`context.py`).
+
+**Control workspace: narrow refresh, audit feed untouched.** `PlatformControlWorkspaceController.
+refresh()` split into `_refresh_approval_state()` (overview + approval queue only --
+`PlatformControlWorkspacePresenter.build_overview()` was already 100% approval+audit-derived, so
+this was a clean extraction, not a dashboard redesign) and the full `refresh()` (adds the audit
+feed on top, still used for filter changes/manual reload/other domain events). The new
+`refresh_approvals()` -- gated by the existing `_loaded`/`_is_loading`/`_is_busy` lazy-loading
+contract (queues via `_pending_domain_refresh` if busy, no-ops if never visited) -- calls only
+`_refresh_approval_state()`, and the adapter's `approvalsStale` connects to it. The
+`domain_events.approvals_changed` entry was removed from `_bind_domain_events()`'s subscription
+tuple; the other six (`project_changed`/`tasks_changed`/`costs_changed`/`resources_changed`/
+`baseline_changed`/`register_changed`) are unchanged, pre-existing, out of scope.
+
+**PM Collaboration: full `refresh()`, by deliberate, documented choice.** `build_overview(inbox=,
+mentions=, approvals=, active_users_count=)` needs all four current values together -- there is no
+narrow "approvals-only" recompute without a deeper `overview_builder.py`/panel restructuring, which
+this phase does not do. `refresh_approvals()` therefore calls the existing
+`_request_domain_refresh()` (same debounce-aware scheduling as every other domain event this
+controller already reacts to). This still satisfies the phase's actual requirement for PM (exact
+tenant/org-scoped reaction, no legacy signal fallback) even though it is not the minimal-recompute
+shape Control got. `bind_collaboration_domain_events()`'s `approvals_changed` subscription was
+removed; PM Dashboard's incidental `_subscribe_domain_change("approval_request",
+scope_code="platform")` was dropped outright (not migrated -- see audit above).
+
+**Controllers stay ignorant of the event vocabulary (guarded).** Neither
+`control_workspace_controller.py` nor `collaboration_workspace_controller.py` imports
+`ApprovalRequested`/`ApprovalApproved`/`ApprovalRejected`/`DomainEvent`/`ViewInvalidationHint`/
+`ScopeFilter`/`EventScope`/the postcommit bus -- both only ever see the adapter's narrow
+`approvalsStale` Qt signal.
+
+**Proven end-to-end, exactly once each, no legacy signal:** standalone `request_change`; a host
+workflow (`FinancialChangeService.submit_change`); `approve_and_apply`; `reject` -- all assert the
+narrow reaction fires exactly once and that `domain_events` no longer even has an
+`approvals_changed` attribute.
+
+**Proven isolation:** cross-org (Org A2's own request does not stale an adapter still scoped to
+Org A1); cross-tenant (two independent `TenantContextService` fakes sharing only the transactional
+dispatcher/post-commit bus -- zero callback); adapter never subscribes via `AllTenants`/
+`TenantWide`, only `ExactOrganization`.
+
+**Proven organization/tenant switch lifecycle** (the property explicitly called out as different
+from TenantMembership's tenant-only scoping): `set_active_scope(...)` disposes the old
+subscription before adding the new one (`len(channel._subscriptions)` never grows across a
+switch); a full A/A1 -> A/A2 -> B/B1 -> A/A1 sequence ends with exactly one live subscription,
+correct final scope, no duplicate callbacks; the real `refreshCurrentPermissions()` hook (Platform
+shell's already-QML-wired tenant/org-switch entrypoint, same one Module Entitlement/RoleBinding/
+TenantMembership adapters rescope from) correctly rewires the Approval adapter too.
+
+**Proven failure-path suppression, all producing zero UI refresh:** apply-handler failure,
+reject-handler failure, audit failure, commit failure, transactional-handler failure (whole
+transaction rolls back, zero postcommit invalidation), and one broken postcommit subscriber
+(ISOLATE_AND_CONTINUE -- the Control workspace's own sibling subscription is unaffected).
+
+**`approvals_changed` deleted -- zero remaining producers or consumers.** All 3 producer call
+sites removed from `ApprovalService` (the underlying `_emit_signal_safely` static helper is
+retained; it still serves the 18 unrelated apply/reject participants' own target-capability
+signals). The `Signal[str]` field and its `_BRIDGE_SPECS` entry were both removed from
+`DomainEvents` (`src/core/shared/events/domain_events.py`) -- confirmed via
+`not hasattr(domain_events, "approvals_changed")`. No typed-event -> legacy-signal bridge was
+built, matching every prior P5 phase's own precedent.
+
+**Genuine architectural gap discovered (documented, not fixed here).**
+`ProjectManagementWorkspaceCatalog` had zero pre-existing tenant-resolution mechanism (no
+`tenant_switcher`, no tenant field on `PlatformRuntimeContextDto`/`OrganizationDto`) -- resolved
+locally by constructing a lightweight `TenantSwitcherPresenter(tenant_api=...)` inside PM's own
+catalog. Separately, and pre-existing/wider than Approval: PM's `refreshAllWorkspaces()`/
+`refreshCapabilities()` are never called from any `.qml` file today, for any capability -- so while
+the Approval adapter's rescope call is correctly wired into `refreshCapabilities()`, PM has no
+automatic QML-triggered tenant/org-switch rescoping yet for anything. This is out of scope for
+Approval-P3 and is not claimed as fixed.
+
+**P6 design inputs surfaced by this phase (not acted on):** the fifth near-identical adapter
+(construction/`set_active_scope`/`_on_hint`/`dispose()` shape duplicated once more, now across
+Organization/Module Entitlement/RoleBinding/TenantMembership/Approval); the org-scoped vs.
+tenant-only rescoping split (`ExactOrganization` vs. tenant-wide filters) a shared adapter would
+need to parameterize; Qt signal naming conventions across the five adapters; and the PM
+catalog's own switch-lifecycle wiring gap noted above.
+
+**Not done in this phase (by design):** any change to the Approval event vocabulary or apply
+participants; the P6 generalized/shared Qt adapter; modernizing any remaining `auth_changed`
+capability.
+
 ## P6 — Qt Invalidation Adapter Consolidation
 
 **Goal:** build the one shared Qt adapter, and migrate the three existing controller bases to

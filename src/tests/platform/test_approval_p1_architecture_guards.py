@@ -8,7 +8,7 @@ from src.core.platform.application.approval import approval_mutation_participant
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.domain.approval.approval_request import ApprovalRequest
 
-_SRC_CORE = Path(__file__).resolve().parents[3] / "core"
+_SRC_CORE = Path(__file__).resolve().parents[2] / "core"
 
 
 def test_approval_request_does_not_implement_records_domain_events():
@@ -18,29 +18,12 @@ def test_approval_request_does_not_implement_records_domain_events():
     assert "RecordsDomainEvents" not in base_names
 
 
-def test_no_approval_domain_event_classes_exist_yet():
-    """§35: the final future event vocabulary (`ApprovalRequested`/`ApprovalApproved`/
-    `ApprovalRejected`) is locked and documented, but explicitly NOT implemented in this phase."""
-    for forbidden in ("ApprovalRequested", "ApprovalApproved", "ApprovalRejected"):
-        found = list(_SRC_CORE.rglob("*.py"))
-        for path in found:
-            if "approval" not in path.as_posix().lower():
-                continue
-            source = path.read_text(encoding="utf-8", errors="ignore")
-            assert not re.search(rf"^class {forbidden}\b", source, re.MULTILINE), (
-                f"{forbidden} must not be implemented yet (Approval-P2 concern): {path}"
-            )
-
-
-def test_no_approval_view_invalidation_exists_yet():
-    """§3: presentation routing via `OrganizationScope(tenant_id, organization_id)` is future
-    work -- no Approval `ViewInvalidationHint` producer exists yet."""
-    approval_app_dir = _SRC_CORE / "platform" / "application" / "approval"
-    for path in approval_app_dir.rglob("*.py"):
-        source = path.read_text(encoding="utf-8", errors="ignore")
-        assert "ViewInvalidationHint" not in source, (
-            f"Approval ViewInvalidation must not exist yet: {path}"
-        )
+### Approval-P3 legitimately implemented Approval ViewInvalidation (one mapper, one Qt
+### adapter, routed via `OrganizationScope`). The phase-boundary guard that used to assert no
+### `ViewInvalidationHint` producer existed yet is retired; its forward-looking replacement --
+### that ONLY the `approval` mapper module produces the `approval_requests` hint, and that no
+### `ApprovalApplied`/generic P6 shared adapter was introduced -- lives in
+### `test_approval_view_invalidation.py`.
 
 
 def test_request_change_has_no_commit_parameter():

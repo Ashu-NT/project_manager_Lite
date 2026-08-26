@@ -161,9 +161,6 @@ class ApprovalService:
         return request
 
     def publish_requested(self, request: ApprovalRequest) -> None:
-        """Publish post-commit effects for a caller-owned or now-committed fresh-UoW
-        approval-request transaction."""
-        self._emit_signal_safely("approvals_changed", request.id)
         self._notify_approval_requested(request)
 
     def list_requests(
@@ -255,7 +252,7 @@ class ApprovalService:
             )
             uow.commit()
         self._emit_handler_events(handler_result)
-        self._emit_signal_safely("approvals_changed", request.id)
+
         self._notify_approval_decided(request, decided="rejected")
         return request
 
@@ -315,7 +312,6 @@ class ApprovalService:
             )
             uow.commit()
         self._emit_handler_events(handler_result)
-        self._emit_signal_safely("approvals_changed", request.id)
         self._notify_approval_decided(request, decided="approved")
         return request
 

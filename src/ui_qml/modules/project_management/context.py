@@ -8,6 +8,12 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
 
+from src.ui_qml.platform.adapters.approval_view_invalidation_adapter import (
+    ApprovalViewInvalidationAdapter,
+)
+from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import (
+    TenantSwitcherPresenter,
+)
 from src.ui_qml.modules.project_management.controllers import (
     ProjectManagementCollaborationWorkspaceController,
     ProjectManagementDashboardWorkspaceController,
@@ -127,6 +133,19 @@ class ProjectManagementWorkspaceCatalog(QObject):
             getattr(desktop_api_registry, "integration_capability", None)
             if desktop_api_registry is not None else None
         )
+
+        self._view_invalidation_channel = (
+            getattr(desktop_api_registry, "platform_view_invalidation_channel", None)
+            if desktop_api_registry is not None else None
+        )
+
+        self._tenant_switcher_presenter = TenantSwitcherPresenter(
+            tenant_api=(
+                getattr(desktop_api_registry, "platform_tenant", None)
+                if desktop_api_registry is not None else None
+            )
+        )
+        self._approval_view_invalidation_adapter: ApprovalViewInvalidationAdapter | None = None
         self._pm_capability = PMCapabilityController(
             auth_engine=auth_engine,
             user_session_provider=user_session_provider,
@@ -147,6 +166,12 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self._collaboration_workspace: ProjectManagementCollaborationWorkspaceController | None = None
         self._timesheets_workspace: ProjectManagementResourceTimesheetsController | None = None
         self._review_queue_workspace: ProjectManagementTimesheetsWorkspaceController | None = None
+
+    def _active_tenant_id(self) -> str | None:
+        try:
+            return self._tenant_switcher_presenter.get_active_tenant_id() or None
+        except Exception:
+            return None
 
     def _active_organization_id(self) -> str | None:
         runtime_api = self._platform_runtime_api
@@ -262,6 +287,16 @@ class ProjectManagementWorkspaceCatalog(QObject):
                 ),
                 parent=self,
             )
+
+            self._approval_view_invalidation_adapter = ApprovalViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._approval_view_invalidation_adapter.approvalsStale.connect(
+                self._collaboration_workspace.refresh_approvals
+            )
         return self._collaboration_workspace
 
     def _get_timesheets_workspace(self) -> ProjectManagementResourceTimesheetsController:
@@ -376,6 +411,11 @@ class ProjectManagementWorkspaceCatalog(QObject):
     @Slot()
     def refreshCapabilities(self) -> None:
         self._pm_capability.refresh()
+        if self._approval_view_invalidation_adapter is not None:
+            self._approval_view_invalidation_adapter.set_active_scope(
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+            )
 
     @Slot(str, result=bool)
     def isModuleEnabled(self, module_code: str) -> bool:

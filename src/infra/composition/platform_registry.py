@@ -17,6 +17,14 @@ from src.core.platform.application.tenant.modules import ModuleCatalogService
 from src.core.platform.access import AccessControlService, ScopedRolePolicy, ScopedRolePolicyRegistry
 from src.core.platform.application.history.activity import ActivityService
 from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.application.approval.event_handlers.view_invalidation import (
+    build_approval_view_invalidation_handler,
+)
+from src.core.platform.domain.approval.events import (
+    ApprovalApproved,
+    ApprovalRejected,
+    ApprovalRequested,
+)
 from src.core.platform.infrastructure.persistence.unit_of_work import (
     SqlAlchemyPlatformUnitOfWorkFactory,
 )
@@ -394,6 +402,19 @@ def build_platform_service_bundle(
     ):
         platform_post_commit_bus.subscribe(
             _tenant_membership_event_type, _tenant_membership_view_invalidation_handler
+        )
+
+    # Approval-P3: direct Qt cutover for Approval, mirroring the Organization/Module
+    # Entitlement/RoleBinding/TenantMembership precedent above -- no legacy `approvals_changed`
+    # bridge. All three Approval events collapse onto the SAME single mapping handler (every real
+    # UI consumer re-reads the whole approval-request collection, never one approval row at a
+    # time).
+    _approval_view_invalidation_handler = build_approval_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _approval_event_type in (ApprovalRequested, ApprovalApproved, ApprovalRejected):
+        platform_post_commit_bus.subscribe(
+            _approval_event_type, _approval_view_invalidation_handler
         )
 
     approval_uow_session_factory = sessionmaker(bind=session.bind, future=True)

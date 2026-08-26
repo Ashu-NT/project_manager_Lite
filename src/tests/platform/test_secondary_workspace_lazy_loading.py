@@ -65,18 +65,8 @@ _CASES = [
         None,
         None,
     ),
+
     (
-        "controlWorkspace",
-        PlatformControlQueuePresenter,
-        "build_approval_queue",
-        domain_events.approvals_changed,
-        ("approval.request", "approval.decide", "audit.read"),
-    ),
-    (
-        # P5B-3: `modules_changed` retired -- module-entitlement-triggered refresh now flows
-        # through `ModuleEntitlementViewInvalidationAdapter`, not a legacy Signal, so this case
-        # uses `organizations_changed` (still legacy-signal-driven) to exercise the same
-        # lazy-loading lifecycle against `refresh()`'s still-coarse full reload.
         "settingsWorkspace",
         PlatformSettingsCatalogPresenter,
         "build_module_entitlements",

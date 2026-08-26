@@ -216,7 +216,7 @@ def test_no_approval_applied_or_changed_event_classes_exist():
     import re
     from pathlib import Path
 
-    src_core = Path(__file__).resolve().parents[3] / "core"
+    src_core = Path(__file__).resolve().parents[2] / "core"
     for forbidden in ("ApprovalApplied", "ApprovalChanged", "ApprovalStatusChanged"):
         for path in src_core.rglob("*.py"):
             if "approval" not in path.as_posix().lower():
@@ -225,6 +225,25 @@ def test_no_approval_applied_or_changed_event_classes_exist():
             assert not re.search(rf"^class {forbidden}\b", source, re.MULTILINE), (
                 f"{forbidden} must not be implemented: {path}"
             )
+
+
+def test_approval_requested_has_exactly_one_recording_responsibility():
+    """§9/§11: the transaction-bound Approval request participant is the ONE semantic recording
+    boundary for `ApprovalRequested` -- no host service (procurement/purchasing/financial-change/
+    billing-preparation) or `ApprovalService` itself constructs it independently."""
+    from pathlib import Path
+
+    src_core = Path(__file__).resolve().parents[2] / "core"
+    construction_sites = [
+        path for path in src_core.rglob("*.py")
+        if "ApprovalRequested(" in path.read_text(encoding="utf-8", errors="ignore")
+    ]
+    assert [str(p) for p in construction_sites] == [
+        str(
+            src_core
+            / "platform" / "application" / "approval" / "approval_mutation_participant.py"
+        )
+    ]
 
 
 # ---------------------------------------------------------------------------

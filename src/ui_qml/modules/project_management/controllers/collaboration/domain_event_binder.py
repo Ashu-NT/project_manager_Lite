@@ -11,10 +11,6 @@ def bind_collaboration_domain_events(controller: object) -> None:
         scope_code="project_management",
     )
     controller._subscribe_domain_signal(
-        domain_events.approvals_changed,
-        controller._on_domain_event,
-    )
-    controller._subscribe_domain_signal(
         domain_events.timesheet_periods_changed,
         controller._on_domain_event,
     )

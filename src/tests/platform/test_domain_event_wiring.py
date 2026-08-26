@@ -130,6 +130,7 @@ def test_resource_create_update_delete_emit_resources_changed(services):
 
     domain_events.resources_changed.connect(_on_resources_changed)
     try:
+
         resource = rs.create_resource("Event Resource", "Analyst", hourly_rate=80.0)
         rs.update_resource(resource.id, name="Event Resource Updated")
         rs.delete_resource(resource.id)
@@ -137,47 +138,6 @@ def test_resource_create_update_delete_emit_resources_changed(services):
         domain_events.resources_changed.disconnect(_on_resources_changed)
 
     assert seen == [resource.id, resource.id, resource.id]
-
-
-def test_cost_entry_governance_request_emits_approvals_changed(services, monkeypatch):
-    monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
-    monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "project_cost.approve")
-    auth = services["auth_service"]
-    auth.register_user("planner-events", "StrongPass123", role_names=["planner"])
-    _login_as(services, "admin", "ChangeMe123!")
-
-    ps = services["project_service"]
-    cs = services["cost_entry_service"]
-    project = ps.create_project("Approval events")
-    organization = services["organization_service"].get_active_organization()
-    cost_code = services["financial_configuration_service"].create_cost_code(
-        code="EVENT-APPROVAL", name="Event approval"
-    )
-    item = cs.create_manual_entry(
-        project_id=project.id,
-        command_id="event-governed-actual",
-        description="Travel",
-        amount=Decimal("20"),
-        currency_code=organization.base_currency,
-        transaction_date=date(2026, 1, 1),
-        cost_code_id=cost_code.id,
-    )
-    item = cs.submit(item.id, expected_version=item.row_version)
-    _login_as(services, "planner-events", "StrongPass123")
-
-    seen: list[str] = []
-
-    def _on_approvals_changed(request_id: str) -> None:
-        seen.append(request_id)
-
-    domain_events.approvals_changed.connect(_on_approvals_changed)
-    try:
-        result = cs.approve(item.id, expected_version=item.row_version)
-        assert result.outcome.value == "pending_approval"
-    finally:
-        domain_events.approvals_changed.disconnect(_on_approvals_changed)
-
-    assert len(seen) == 1
 
 
 def test_approve_baseline_request_emits_baseline_changed(services, monkeypatch):

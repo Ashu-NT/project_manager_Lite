@@ -5,6 +5,9 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
 from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
+from src.ui_qml.platform.adapters.approval_view_invalidation_adapter import (
+    ApprovalViewInvalidationAdapter,
+)
 from src.ui_qml.platform.adapters.module_entitlement_view_invalidation_adapter import (
     ModuleEntitlementViewInvalidationAdapter,
 )
@@ -220,6 +223,16 @@ class PlatformWorkspaceCatalog(QObject):
             self._admin_access_workspace.refresh_security_users
         )
 
+        self._approval_view_invalidation_adapter = ApprovalViewInvalidationAdapter(
+            channel=view_invalidation_channel,
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+            parent=self,
+        )
+        self._approval_view_invalidation_adapter.approvalsStale.connect(
+            self._control_workspace.refresh_approvals
+        )
+
     def _on_tenant_switched(self) -> None:
         self._organization_view_invalidation_adapter.set_active_tenant(
             self._tenant_switcher.activeTenantId
@@ -391,6 +404,10 @@ class PlatformWorkspaceCatalog(QObject):
             organization_id=self._active_organization_id(),
         )
         self._role_binding_view_invalidation_adapter.set_active_scope(
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+        )
+        self._approval_view_invalidation_adapter.set_active_scope(
             tenant_id=self._tenant_switcher.activeTenantId,
             organization_id=self._active_organization_id(),
         )

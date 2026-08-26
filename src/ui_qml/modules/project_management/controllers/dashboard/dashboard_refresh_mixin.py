@@ -181,10 +181,6 @@ class DashboardRefreshMixin:
             "task_collaboration",
             scope_code="project_management",
         )
-        self._subscribe_domain_change(
-            "approval_request",
-            scope_code="platform",
-        )
 
 
 __all__ = ["DashboardRefreshMixin"]

@@ -145,11 +145,7 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
         self._loaded = True
         self._set_is_loading(True)
         self._set_error_message("")
-        self._set_overview(serialize_workspace_overview(self._overview_presenter.build_overview()))
-        self._set_approval_queue(serialize_action_list(self._queue_presenter.build_approval_queue(
-            status=self._approval_status_filter or None,
-            entity_type=self._approval_entity_type_filter or None,
-        )))
+        self._refresh_approval_state()
         self._set_audit_feed(serialize_action_list(self._queue_presenter.build_audit_feed(
             entity_type=self._audit_entity_type_filter or None,
             operation=self._audit_operation_filter or None,
@@ -158,6 +154,25 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
         has_items = bool(self._approval_queue.get("items") or self._audit_feed.get("items"))
         self._set_empty_state("" if has_items else str(self._approval_queue.get("emptyState") or self._audit_feed.get("emptyState") or ""))
         self._set_is_loading(False)
+
+    def _refresh_approval_state(self) -> None:
+
+        self._set_overview(serialize_workspace_overview(self._overview_presenter.build_overview()))
+        self._set_approval_queue(serialize_action_list(self._queue_presenter.build_approval_queue(
+            status=self._approval_status_filter or None,
+            entity_type=self._approval_entity_type_filter or None,
+        )))
+        has_items = bool(self._approval_queue.get("items") or self._audit_feed.get("items"))
+        self._set_empty_state("" if has_items else str(self._approval_queue.get("emptyState") or self._audit_feed.get("emptyState") or ""))
+
+    def refresh_approvals(self) -> None:
+
+        if not self._loaded:
+            return
+        if self._is_loading or self._is_busy:
+            self._pending_domain_refresh = True
+            return
+        self._refresh_approval_state()
 
     @Slot(str)
     def approveRequest(self, request_id: str) -> None:
@@ -189,12 +204,7 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
         return self._has_permission(WORKSPACE_PERMISSIONS["control"])
 
     def _bind_domain_events(self) -> None:
-        # P5B-3: `modules_changed` removed here (not migrated) -- traced end-to-end, this
-        # workspace's `refresh()` never reads any module-entitlement state (only the approval
-        # queue and audit feed); the subscription was incidental over-refresh from the coarse
-        # legacy signal, not a genuine dependency (see the P5B-3 report's consumer-chain trace).
         for signal in (
-            domain_events.approvals_changed,
             domain_events.project_changed,
             domain_events.tasks_changed,
             domain_events.costs_changed,

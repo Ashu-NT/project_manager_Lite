@@ -38,16 +38,18 @@ def test_pm_resources_workspace_refreshes_on_resource_and_employee_events(monkey
 
 
 def test_pm_collaboration_workspace_refreshes_on_collaboration_workflow_events(monkeypatch) -> None:
+    """Approval-P3: `approvals_changed` is no longer emitted here -- the approvals panel's
+    dependency now flows through `ApprovalViewInvalidationAdapter`, tested separately in
+    `test_approval_view_invalidation.py`."""
     catalog = ProjectManagementWorkspaceCatalog()
     controller = catalog.collaborationWorkspace
     refresh_calls: list[str] = []
     monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
 
     domain_events.collaboration_changed.emit("task-1")
-    domain_events.approvals_changed.emit("approval-1")
     domain_events.timesheet_periods_changed.emit("period-1")
 
-    assert refresh_calls == ["refresh", "refresh", "refresh"]
+    assert refresh_calls == ["refresh", "refresh"]
 
 
 def test_pm_portfolio_workspace_refreshes_on_portfolio_workflow_events(
@@ -94,16 +96,19 @@ def test_pm_timesheets_workspace_refreshes_on_timesheet_workflow_events(monkeypa
 
 
 def test_platform_control_workspace_refreshes_on_control_events(monkeypatch) -> None:
+    """Approval-P3: `approvals_changed` is no longer emitted here -- the approval queue/overview
+    dependency now flows through `ApprovalViewInvalidationAdapter` -> `refresh_approvals()`,
+    tested separately in `test_approval_view_invalidation.py`. `costs_changed` remains
+    unrelated, pre-existing incidental-refresh debt, unchanged by this migration."""
     catalog = PlatformWorkspaceCatalog()
     controller = catalog.controlWorkspace
     controller.ensureLoaded()
     refresh_calls: list[str] = []
     monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
 
-    domain_events.approvals_changed.emit("approval-1")
     domain_events.costs_changed.emit("proj-1")
 
-    assert refresh_calls == ["refresh", "refresh"]
+    assert refresh_calls == ["refresh"]
 
 
 def test_platform_settings_workspace_refreshes_on_runtime_events(monkeypatch) -> None:
