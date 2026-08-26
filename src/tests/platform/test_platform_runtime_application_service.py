@@ -21,10 +21,6 @@ def test_platform_runtime_application_service_tracks_active_organization_context
         base_currency="EUR",
         is_enabled=False,
     )
-    # P10A: enabling and session-selecting are two separate, explicit steps --
-    # PlatformRuntimeApplicationService.set_active_organization was deleted (it conflated
-    # availability with session context); enabling goes through OrganizationService, selecting
-    # goes through TenantContextService directly.
     organization_service.enable_organization(second.id)
     tenant_context_service.set_active_organization(second.id)
 
@@ -104,12 +100,6 @@ def test_platform_runtime_application_service_provisions_organization_with_initi
 
 
 def test_provision_organization_with_is_enabled_true_activates_in_one_transaction(services):
-    """§18 item 6 -- dynamic confirmation that provision_organization's is_enabled=True branch is
-    reachable and correct, not just statically plausible. P10A: provisioning with is_enabled=True
-    still auto-selects the new organization into the provisioning caller's own session context,
-    unchanged from pre-P10A behavior -- this is a deliberate provisioning/bootstrap convenience
-    (PlatformRuntimeApplicationService.provision_organization's own post-commit step), distinct
-    from the general-purpose organization switcher (P10C, not yet built)."""
     app_service = services["platform_runtime_application_service"]
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
@@ -140,33 +130,16 @@ def test_provision_organization_with_is_enabled_true_activates_in_one_transactio
     }
     assert entitlements_by_code["project_management"].licensed is True
     assert entitlements_by_code["project_management"].enabled is True
-
-    # Active runtime context updated -- both the tenant context service and
-    # the application-service facade must agree the new organization is
-    # active, with no manual session-switch follow-up call (unlike the
-    # is_enabled=False provisioning test above, which requires one).
     assert tenant_context_service.get_active_organization_id() == provisioned.id
     assert app_service.get_active_organization().id == provisioned.id
     assert app_service.current_context_label() == "East Division"
 
-    # P10A: no mutual exclusion -- the previously-active default organization
-    # is still present AND still enabled, never forced disabled as a side
-    # effect of another organization being provisioned/enabled.
     all_orgs_by_id = {o.id: o for o in organization_service.list_organizations(enabled_only=None)}
     still_there = all_orgs_by_id[default_organization.id]
     assert still_there.is_enabled is True
 
 
 def test_switching_context_does_not_require_settings_manage(services):
-    """P10A: `PlatformRuntimeApplicationService.set_active_organization` (settings.manage-gated)
-    was deleted -- session-context switching goes through
-    `TenantContextService.set_active_organization` directly, gated by RBAC organization access,
-    never by the settings.manage admin permission. A user holding only `organization.access` (no
-    `settings.manage`) can switch between organizations they are authorized for. Replaces the
-    pre-P10A test asserting the opposite (that switching required settings.manage), which
-    characterized behavior P10A deliberately removed -- session selection was never really an
-    admin-permission-gated operation; it just used to ride along with the deleted
-    OrganizationService.set_active_organization's own settings.manage requirement."""
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     user_session = services["user_session"]
@@ -179,14 +152,10 @@ def test_switching_context_does_not_require_settings_manage(services):
         timezone_name="America/Chicago",
         base_currency="USD",
     )
-
-    # A real registered user is required -- a successful switch rebuilds the principal via
-    # `AuthService.rebuild_current_principal_for_context`, which looks the user up in the real
-    # user repository (unlike the disabled-organization denial test below, which fails before
-    # ever reaching that rebuild step).
     real_user = services["auth_service"].register_user(
         "context-switch-planner", "StrongPass123", role_names=["viewer"]
     )
+    active_tenant_id = tenant_context_service.get_active_tenant_id()
     user_session.set_principal(
         UserSessionPrincipal(
             user_id=real_user.id,
@@ -200,6 +169,11 @@ def test_switching_context_does_not_require_settings_manage(services):
                     second.id: frozenset({"organization.access"}),
                 }
             },
+            # The commit step's own tenant-mismatch guard compares this principal's
+            # active_tenant_id against the rebuilt one after the switch -- both must reflect the
+            # real active tenant, or an organization-only switch is misread as also changing
+            # tenants.
+            active_tenant_id=active_tenant_id,
             active_organization_id=default_organization.id,
         )
     )

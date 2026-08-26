@@ -673,6 +673,7 @@ def test_cross_org_decision_denial_produces_no_ui_refresh(services, session):
     refresh_calls.clear()
 
     _login(services, approver_username, "StrongPass123")
+    services["user_session"].set_active_organization_id(org_a2.id)
     approvals = services["approval_service"]
     with pytest.raises(NotFoundError):
         approvals.approve_and_apply(request.id)
@@ -683,6 +684,7 @@ def test_cross_org_decision_denial_produces_no_ui_refresh(services, session):
     services["tenant_context_service"].set_active_organization(org_a1.id)
     catalog.refreshCurrentPermissions()
     _login(services, approver_username, "StrongPass123")
+    services["user_session"].set_active_organization_id(org_a1.id)
 
     decided = approvals.approve_and_apply(request.id, note="Approved from the matching org")
     assert decided.status == ApprovalStatus.APPROVED
