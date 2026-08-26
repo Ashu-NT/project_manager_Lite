@@ -65,6 +65,7 @@ ColumnLayout {
                 AppControls.Label { text: "Channel"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize; font.bold: true }
                 AppControls.ComboBox {
                     id: channelCombo
+                    objectName: "supportUpdateChannelCombo"
                     Layout.fillWidth: true
                     enabled:  !root.isBusy
                     model:    root.supportSettings.channelOptions || []
@@ -74,6 +75,7 @@ ColumnLayout {
 
             AppControls.CheckBox {
                 id: autoCheckBox
+                objectName: "supportAutoCheckBox"
                 Layout.alignment: Qt.AlignBottom
                 text:    "Auto-check at startup"
                 enabled: !root.isBusy
@@ -87,6 +89,7 @@ ColumnLayout {
             AppControls.Label { text: "Manifest Source"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize; font.bold: true }
             AppControls.TextField {
                 id: manifestField
+                objectName: "supportManifestField"
                 Layout.fillWidth: true
                 enabled:         !root.isBusy
                 placeholderText: "Update manifest URL or path"

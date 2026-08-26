@@ -85,7 +85,7 @@ def test_platform_workspace_catalog_runs_support_actions() -> None:
 def test_platform_workspace_controllers_store_validation_errors() -> None:
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=build_connected_platform_registry())
 
-    result = catalog.toggleModuleLicensed("inventory")
+    result = catalog.toggleModuleLicensed("hr_management")
 
     assert result["ok"] is False
     assert result["category"] == "validation"
