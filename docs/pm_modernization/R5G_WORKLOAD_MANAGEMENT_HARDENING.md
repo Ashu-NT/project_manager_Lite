@@ -93,9 +93,10 @@ all viewports and preserve useful catalog width when Inspector is selected.
 
 One controller-owned selected Resource ID is authoritative. Compact mode uses a
 right-side overlay Popup and wide mode uses the shared InspectorPanel at a fixed
-token width. Opening Resource Detail closes the compact Inspector. Remaining
-evidence: focus return, rapid selection, repeated open/close, and all five
-integrated viewports.
+token width. Opening Resource Detail closes the compact Inspector. The five
+integrated viewports pass, `restoreTableFocus()` runs after close, and existing
+request generations reject stale Resource selection results. Repeated
+open/close memory observation remains a manual gate.
 
 ## 8. Resource Detail Geometry
 
@@ -107,11 +108,12 @@ or clipped action regressions at 1024x640.
 
 ## 9. Review Queue Geometry
 
-**Defect R5G-UI-001:** the current row activation replaces the queue with a
-full-page SectionDetailPage. The approved R5G composition requires a bounded
-Inspector beside the table only when table width remains usable, otherwise an
-overlay Inspector. The selected TimesheetPeriod ID remains the sole authority;
-the read and command contracts must not change.
+**R5G-UI-001 fixed:** row activation no longer replaces the queue with a
+full-page `SectionDetailPage`. The queue remains mounted beside a bounded
+Inspector when at least 720 px of table width remains; constrained widths use a
+right overlay. `selectedQueuePeriodId` remains the sole selection authority and
+the read/versioned command contracts are unchanged. The obsolete detail panel,
+its `qmldir`, and unused detail-section metadata were removed.
 
 ## 10. Dialog / Popup Geometry
 
@@ -121,9 +123,10 @@ review decision dialogs use shared dialog foundations.
 
 Resource and Review Queue filters intentionally use the shared centered modal
 dialog pattern used by the other PM filters. They retain staged Apply/Clear
-semantics and shared viewport width clamping. R5G must prove the complete field
-and footer layout at 1024x640. Certification DateField boundaries must also be
-verified against the dialog content viewport.
+semantics and shared viewport width clamping. Runtime geometry exposed that the
+former 340/360 px widths were narrower than their 400/408 px content. Both now
+use the established 440 px PM modal width and pass complete content/action-row
+fit at 1024x640. Review Queue DateFields remain bounded by the dialog content.
 
 ## 11. Keyboard Essentials
 
