@@ -117,6 +117,68 @@ def _deps(services, session):
     )
 
 
+def test_submit_preparation_uses_a_fresh_uow_session_shared_by_the_approval_request(
+    services, monkeypatch
+):
+    """Approval-P1: `submit_preparation` is converged onto
+    `BillingPreparationSubmissionUnitOfWork` -- a genuinely fresh Session per call, distinct
+    from the shared legacy Session, with the preparation update and the Approval request sharing
+    that one Session/transaction."""
+    _login(services, "admin", "ChangeMe123!")
+    project = _setup_billable_project(services, suffix="UOW")
+    billing_profile_service = services["billing_profile_service"]
+    profile = billing_profile_service.create_profile(
+        project.id,
+        contract_reference="CONTRACT-UOW",
+        contract_value=Decimal("50000"),
+        customer_party_id="party-1",
+    )
+    profile = billing_profile_service.activate_profile(
+        project.id, expected_row_version=profile.row_version
+    )
+    line = billing_profile_service.add_schedule_line(
+        project.id, name="Milestone 1", amount=Decimal("24000"), due_date=date(2026, 8, 20)
+    )
+    line = billing_profile_service.mark_schedule_line_ready(
+        line.id, expected_row_version=line.row_version
+    )
+    billing_preparation_service = services["billing_preparation_service"]
+    preparation = billing_preparation_service.create_preparation(
+        project.id,
+        preparation_number="BP-APPROVAL-UOW",
+        period_start=date(2026, 8, 1),
+        period_end=date(2026, 8, 31),
+        idempotency_key="billing-approval-key-uow",
+    )
+    billing_preparation_service.add_fixed_price_source(
+        preparation.id, schedule_line_id=line.id, expected_row_version=preparation.row_version
+    )
+    preparation = billing_preparation_service.get_preparation(preparation.id)
+
+    seen_uows = []
+    original_create = type(billing_preparation_service._submission_uow_factory).create
+
+    def _spy_create(self, *, context):
+        uow = original_create(self, context=context)
+        seen_uows.append(uow)
+        return uow
+
+    monkeypatch.setattr(
+        type(billing_preparation_service._submission_uow_factory), "create", _spy_create
+    )
+    submitted = billing_preparation_service.submit_preparation(
+        preparation.id, expected_row_version=preparation.row_version
+    )
+
+    assert len(seen_uows) == 1
+    uow = seen_uows[0]
+    assert uow._session is not billing_preparation_service._session
+    assert uow.billing.session is uow._session
+    assert uow.approvals.session is uow._session
+    assert uow._enterprise_audit_service._session is uow._session
+    assert submitted.status == BillingPreparationStatus.SUBMITTED
+
+
 def test_participant_apply_approves_preparation_on_the_supplied_session(services, session):
     _login(services, "admin", "ChangeMe123!")
     project, preparation, request = _submitted_preparation(services, session, suffix="A")

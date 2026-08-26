@@ -125,6 +125,52 @@ def test_approver_can_approve_and_reject_inventory_requisitions(services):
     assert [line.status.value for line in rejected_lines] == ["REJECTED"]
 
 
+def test_submit_requisition_uses_a_fresh_uow_session_shared_by_the_approval_request(
+    services, monkeypatch
+):
+    """Approval-P1: `submit_requisition` is converged onto `RequisitionSubmissionUnitOfWork` --
+    a genuinely fresh Session per call, distinct from the shared legacy Session, with the
+    requisition update and the Approval request sharing that one Session/transaction."""
+    auth = services["auth_service"]
+    auth.register_user("inventory-requester-uow", "StrongPass123", role_names=["inventory_manager"])
+    site, storeroom, item, supplier = _create_requisition_context(services)
+    login_as(services, "inventory-requester-uow", "StrongPass123")
+
+    procurement = services["inventory_procurement_service"]
+    requisition = procurement.create_requisition(
+        requesting_site_id=site.id,
+        requesting_storeroom_id=storeroom.id,
+        purpose="UoW probe",
+    )
+    procurement.add_requisition_line(
+        requisition.id,
+        stock_item_id=item.id,
+        quantity_requested=1,
+        suggested_supplier_party_id=supplier.id,
+    )
+
+    seen_uows = []
+    original_create = type(procurement._requisition_submission_uow_factory).create
+
+    def _spy_create(self, *, context):
+        uow = original_create(self, context=context)
+        seen_uows.append(uow)
+        return uow
+
+    monkeypatch.setattr(
+        type(procurement._requisition_submission_uow_factory), "create", _spy_create
+    )
+    submitted = procurement.submit_requisition(requisition.id)
+
+    assert len(seen_uows) == 1
+    uow = seen_uows[0]
+    assert uow._session is not procurement._session
+    assert uow.requisitions.session is uow._session
+    assert uow.approvals.session is uow._session
+    assert uow._enterprise_audit_service._session is uow._session
+    assert submitted.status.value == "SUBMITTED"
+
+
 def test_requisition_service_validates_draft_and_line_rules(services):
     site, storeroom, item, _supplier = _create_requisition_context(services)
     procurement = services["inventory_procurement_service"]

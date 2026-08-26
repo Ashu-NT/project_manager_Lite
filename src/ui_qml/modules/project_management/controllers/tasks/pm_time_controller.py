@@ -135,12 +135,6 @@ class PMTimeController(QObject):
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
         )
-
-    # Period submit/lock/unlock is deliberately not exposed here -- a
-    # period can span other tasks' assignments too, so it's not task-scoped.
-    # Users go through the Timesheets workspace (My Time / Review Queue)
-    # for that; see TasksWorkspaceState.qml's openTimesheetsRoute().
-
     # ── Private setters ───────────────────────────────────────────────
 
     def _set_time_assignment_options(self, v: list) -> None:

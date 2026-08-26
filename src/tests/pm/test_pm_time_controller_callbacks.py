@@ -1,7 +1,7 @@
 """Phase 5 verification: PMTimeController routes entry mutations through
 _refresh_entry_cb (scoped). Period-level submit/lock/unlock is not
 task-scoped and was removed from this controller entirely -- see the
-Timesheets workspace (My Time / Review Queue) for that instead.
+canonical Timesheets or Review Queue workspace for that instead.
 """
 from __future__ import annotations
 
@@ -108,7 +108,7 @@ class TestEntryMutationsUseScoped:
         ctrl = _build_controller(facade_refresh=facade, entry_refresh=scoped)
         patcher, mock_run = _stub_run_mutation()
         with patcher:
-            ctrl.deleteTaskTimeEntry("e-99")
+            ctrl.deleteTaskTimeEntry("e-99", 1)
         _, kw = mock_run.call_args
         assert kw["on_success"] is scoped
 

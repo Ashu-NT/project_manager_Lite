@@ -232,29 +232,25 @@ def test_request_change_default_mode_uses_a_fresh_uow_session(services, session,
     assert request.status == ApprovalStatus.PENDING
 
 
-def test_request_change_caller_owned_mode_still_uses_the_caller_session_unchanged(
-    services, session
-):
-    """The documented, still-valid exception (ADR-005 Section 24, Round 8): callers composing
-    request_change(commit=False) into their own transaction must see byte-for-byte unchanged
-    behavior -- staged on the caller's own Session, never a fresh UoW."""
-    _login_as_fresh_requester(services)
-    approvals = services["approval_service"]
+def test_request_change_has_no_commit_parameter(services):
+    """Approval-P1 (§13/§38): `request_change(commit=False)` no longer exists -- every former
+    caller-owned-transaction path now calls `request_approval_using(...)` directly inside its own
+    canonical UoW instead of composing into this method. No deprecated compatibility argument is
+    left on the signature."""
+    import inspect
 
-    request = approvals.request_change(
-        request_type="baseline.create",
-        entity_type="project_baseline",
-        entity_id=f"probe-entity-caller-owned-{_REQUESTER_COUNTER['n']}",
-        project_id=None,
-        payload={"name": "Probe caller-owned"},
-        commit=False,
-    )
-    # Staged (flushed) but not committed -- visible via the same session, not yet durable.
-    assert session.in_transaction()
-    reloaded = approvals._approval_repo.get(request.id)
-    assert reloaded is not None
-    session.rollback()
-    assert approvals._approval_repo.get(request.id) is None
+    approvals = services["approval_service"]
+    params = inspect.signature(approvals.request_change).parameters
+    assert "commit" not in params
+    with pytest.raises(TypeError):
+        approvals.request_change(
+            request_type="baseline.create",
+            entity_type="project_baseline",
+            entity_id="probe-entity-no-commit-param",
+            project_id=None,
+            payload={"name": "Probe"},
+            commit=False,
+        )
 
 
 def test_shared_legacy_session_is_not_touched_by_approval_mutation(services, session):

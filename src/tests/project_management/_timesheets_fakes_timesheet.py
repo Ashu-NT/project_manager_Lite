@@ -101,20 +101,24 @@ class _FakeTimesheetService:
         self,
         entry_id: str,
         *,
+        expected_version: int,
         entry_date: date | None = None,
         hours: float | None = None,
         note: str | None = None,
     ) -> TimeEntry:
         entry = self._entries[entry_id]
+        assert entry.version == expected_version
         if entry_date is not None:
             entry.entry_date = entry_date
         if hours is not None:
             entry.hours = float(hours)
         if note is not None:
             entry.note = note
+        entry.version += 1
         return entry
 
-    def delete_time_entry(self, entry_id: str) -> None:
+    def delete_time_entry(self, entry_id: str, *, expected_version: int) -> None:
+        assert self._entries[entry_id].version == expected_version
         del self._entries[entry_id]
 
     def submit_timesheet_period(

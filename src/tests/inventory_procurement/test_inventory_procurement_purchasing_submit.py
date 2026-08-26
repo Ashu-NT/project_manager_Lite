@@ -136,6 +136,53 @@ def test_purchase_order_submit_enriches_approval_payload(services):
     assert "PO" in context_label
 
 
+def test_submit_purchase_order_uses_a_fresh_uow_session_shared_by_the_approval_request(
+    services, monkeypatch
+):
+    """Approval-P1: `submit_purchase_order` is converged onto
+    `PurchaseOrderSubmissionUnitOfWork` -- a genuinely fresh Session per call, distinct from the
+    shared legacy Session, with the purchase order update and the Approval request sharing that
+    one Session/transaction."""
+    site, storeroom, item, supplier = _create_procurement_context(services)
+    purchasing = services["inventory_purchasing_service"]
+
+    purchase_order = purchasing.create_purchase_order(
+        site_id=site.id,
+        supplier_party_id=supplier.id,
+        currency_code="EUR",
+        source_requisition_id=None,
+        expected_delivery_date=date(2026, 4, 20),
+    )
+    purchasing.add_purchase_order_line(
+        purchase_order.id,
+        stock_item_id=item.id,
+        destination_storeroom_id=storeroom.id,
+        quantity_ordered=5,
+        unit_price=240.0,
+    )
+
+    seen_uows = []
+    original_create = type(purchasing._purchase_order_submission_uow_factory).create
+
+    def _spy_create(self, *, context):
+        uow = original_create(self, context=context)
+        seen_uows.append(uow)
+        return uow
+
+    monkeypatch.setattr(
+        type(purchasing._purchase_order_submission_uow_factory), "create", _spy_create
+    )
+    submitted = purchasing.submit_purchase_order(purchase_order.id)
+
+    assert len(seen_uows) == 1
+    uow = seen_uows[0]
+    assert uow._session is not purchasing._session
+    assert uow.purchase_orders.session is uow._session
+    assert uow.approvals.session is uow._session
+    assert uow._enterprise_audit_service._session is uow._session
+    assert submitted.status.value == "SUBMITTED"
+
+
 def test_purchase_order_approval_updates_requisition_sourcing_and_on_order_balance(services):
     (
         _site,

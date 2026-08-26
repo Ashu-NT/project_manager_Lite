@@ -101,7 +101,12 @@ def test_approved_time_posts_once_and_correction_reverses_and_replaces(services)
         note="Correct entered hours",
     )
     assert reopened.status.value == "OPEN"
-    tasks.update_time_entry(entry.id, hours=Decimal("5"), note="Corrected")
+    tasks.update_time_entry(
+        entry.id,
+        expected_version=entry.version,
+        hours=Decimal("5"),
+        note="Corrected",
+    )
     resubmitted = time.submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
     time.approve_timesheet_period(
         resubmitted.period_id,

@@ -288,10 +288,13 @@ class ResourceTimesheetsPresenter:
         hours = float(payload.get("hours", 0) or 0)
         note = str(payload.get("note", "") or "").strip()
         if entry_id:
+            expected_version = int(payload.get("expectedVersion", 0) or 0)
+            if expected_version < 1:
+                raise ValueError("Refresh the time entry before changing it.")
             self._desktop_api.update_resource_time_entry(
                 TimesheetEntryUpdateCommand(
                     entry_id=entry_id,
-                    expected_version=int(payload.get("expectedVersion", 0) or 0),
+                    expected_version=expected_version,
                     entry_date=entry_date,
                     hours=hours,
                     note=note,
@@ -328,6 +331,8 @@ class ResourceTimesheetsPresenter:
         normalized = str(entry_id or "").strip()
         if not normalized:
             raise ValueError("Choose a time entry to delete.")
+        if expected_version < 1:
+            raise ValueError("Refresh the time entry before deleting it.")
         self._desktop_api.delete_resource_time_entry(
             normalized,
             scope=scope,

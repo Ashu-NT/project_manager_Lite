@@ -5,6 +5,8 @@ onto them.
 
 from __future__ import annotations
 
+import datetime as _dt
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -136,6 +138,104 @@ def test_rollback_discards_staged_approval_and_audit_rows_together(tmp_path):
         verify_uow._session.close()
     assert reloaded is None
     assert audit_row_count == 0
+
+
+def test_approval_request_mapper_round_trips_tenant_and_organization_id():
+    """Approval-P1 (§6): the mapper must round-trip `tenant_id` -- ORM tenant_id=T1/org_id=O1 ->
+    domain -> ORM, byte-for-byte unchanged, with no ambient context involved anywhere in the
+    mapping functions themselves."""
+    from src.core.platform.infrastructure.persistence.mappers.approval.approval import (
+        approval_from_orm,
+        approval_to_orm,
+    )
+    from src.core.platform.infrastructure.persistence.orm.approval.approval import (
+        ApprovalRequestORM,
+    )
+
+    orm = ApprovalRequestORM(
+        id="req-1",
+        tenant_id="T1",
+        request_type="budget.approve",
+        entity_type="project_budget",
+        entity_id="budget-1",
+        organization_id="O1",
+        project_id="project-1",
+        payload_json="{}",
+        status="PENDING",
+        requested_by_user_id="user-1",
+        requested_by_username="requester",
+        requested_at=_dt.datetime(2026, 8, 1, tzinfo=_dt.timezone.utc),
+    )
+    domain = approval_from_orm(orm)
+    assert domain.tenant_id == "T1"
+    assert domain.organization_id == "O1"
+
+    round_tripped = approval_to_orm(domain)
+    assert round_tripped.tenant_id == "T1"
+    assert round_tripped.organization_id == "O1"
+    assert round_tripped.id == orm.id
+    assert round_tripped.request_type == orm.request_type
+
+
+def test_cross_tenant_context_cannot_read_another_tenants_approval_request(tmp_path):
+    """Approval-P1 (§7): Tenant A's `ApprovalRequest` must not be readable through a UoW whose
+    active context resolves to Tenant B -- proven without ever switching an "active
+    organization" within the same tenant; the two contexts are genuinely different tenants."""
+    from src.core.platform.infrastructure.persistence.unit_of_work import (
+        SqlAlchemyPlatformUnitOfWorkFactory,
+    )
+
+    engine_path = tmp_path / "cross_tenant.db"
+    from sqlalchemy import create_engine as _create_engine
+    from sqlalchemy.orm import sessionmaker as _sessionmaker
+
+    engine = _create_engine(f"sqlite:///{engine_path}", future=True)
+    Base.metadata.create_all(engine)
+    session_factory = _sessionmaker(bind=engine, future=True)
+
+    factory_a = SqlAlchemyPlatformUnitOfWorkFactory(
+        session_factory=session_factory,
+        transactional_dispatcher=InProcessTransactionalEventDispatcher(),
+        post_commit_bus=InProcessPostCommitEventBus(),
+        tenant_context_service=_FakeTenantContextService(
+            tenant_id="tenant-a", organization_id="org-a"
+        ),
+        user_session=None,
+    )
+    factory_b = SqlAlchemyPlatformUnitOfWorkFactory(
+        session_factory=session_factory,
+        transactional_dispatcher=InProcessTransactionalEventDispatcher(),
+        post_commit_bus=InProcessPostCommitEventBus(),
+        tenant_context_service=_FakeTenantContextService(
+            tenant_id="tenant-b", organization_id="org-b"
+        ),
+        user_session=None,
+    )
+
+    request = ApprovalRequest.create(
+        request_type="budget.approve",
+        entity_type="project_budget",
+        entity_id="budget-cross-tenant",
+        tenant_id="tenant-a",
+        project_id="project-1",
+        organization_id="org-a",
+        payload={"budget_id": "budget-cross-tenant"},
+        requested_by_user_id="user-1",
+        requested_by_username="requester",
+    )
+    with factory_a.create(context=_context()) as uow_a:
+        uow_a.approvals.add(request)
+        uow_a.commit()
+
+    with factory_b.create(context=_context("as-tenant-b")) as uow_b:
+        assert uow_b.approvals.get(request.id) is None
+        assert uow_b.approvals.list_by_status() == []
+
+    with factory_a.create(context=_context("as-tenant-a-verify")) as uow_a_verify:
+        reloaded = uow_a_verify.approvals.get(request.id)
+        uow_a_verify._session.close()
+    assert reloaded is not None
+    assert reloaded.id == request.id
 
 
 def test_platform_uow_never_touches_a_different_shared_session(tmp_path):
