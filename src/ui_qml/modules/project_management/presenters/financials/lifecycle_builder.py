@@ -30,17 +30,34 @@ def build_lifecycle_views(
     selected_change_id: str | None,
     selected_baseline_id: str | None,
 ) -> dict[str, object]:
+    return {
+        **build_forecast_lifecycle_views(
+            desktop_api,
+            project_id=project_id,
+            selected_forecast_id=selected_forecast_id,
+        ),
+        **build_change_lifecycle_views(
+            desktop_api,
+            project_id=project_id,
+            selected_change_id=selected_change_id,
+        ),
+        **build_variance_views(
+            desktop_api,
+            project_id=project_id,
+            selected_baseline_id=selected_baseline_id,
+        ),
+    }
+
+
+def build_forecast_lifecycle_views(
+    desktop_api: ProjectManagementFinancialsDesktopApi,
+    *,
+    project_id: str,
+    selected_forecast_id: str | None,
+) -> dict[str, object]:
     forecasts = desktop_api.list_forecast_versions(project_id)
     forecast_id = _selected_id(forecasts, selected_forecast_id, preferred_status="approved")
     forecast_lines = desktop_api.list_forecast_lines(project_id, forecast_id)
-
-    changes = desktop_api.list_financial_changes(project_id)
-    change_id = _selected_id(changes, selected_change_id)
-    impacts = desktop_api.list_financial_change_impacts(project_id, change_id)
-
-    variance = desktop_api.get_baseline_variance(project_id, selected_baseline_id)
-    baseline_id = variance.selected_baseline_id
-
     return {
         "selected_forecast_id": forecast_id,
         "forecast_versions": FinancialsCollectionViewModel(
@@ -94,6 +111,19 @@ def build_lifecycle_views(
             ),
             total=len(forecast_lines),
         ),
+    }
+
+
+def build_change_lifecycle_views(
+    desktop_api: ProjectManagementFinancialsDesktopApi,
+    *,
+    project_id: str,
+    selected_change_id: str | None,
+) -> dict[str, object]:
+    changes = desktop_api.list_financial_changes(project_id)
+    change_id = _selected_id(changes, selected_change_id)
+    impacts = desktop_api.list_financial_change_impacts(project_id, change_id)
+    return {
         "selected_change_id": change_id,
         "financial_changes": FinancialsCollectionViewModel(
             title="Financial Changes",
@@ -143,6 +173,18 @@ def build_lifecycle_views(
             ),
             total=len(impacts),
         ),
+    }
+
+
+def build_variance_views(
+    desktop_api: ProjectManagementFinancialsDesktopApi,
+    *,
+    project_id: str,
+    selected_baseline_id: str | None,
+) -> dict[str, object]:
+    variance = desktop_api.get_baseline_variance(project_id, selected_baseline_id)
+    baseline_id = variance.selected_baseline_id
+    return {
         "selected_baseline_id": baseline_id,
         "baseline_versions": FinancialsCollectionViewModel(
             title="Schedule Baseline Versions",
@@ -199,4 +241,9 @@ def build_lifecycle_views(
     }
 
 
-__all__ = ["build_lifecycle_views"]
+__all__ = [
+    "build_change_lifecycle_views",
+    "build_forecast_lifecycle_views",
+    "build_lifecycle_views",
+    "build_variance_views",
+]

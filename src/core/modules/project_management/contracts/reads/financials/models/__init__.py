@@ -19,3 +19,6 @@ __all__ = [
     "ResourceFact",
     "TaskFact",
 ]
+from .finance_overview_facts import FinanceOverviewFacts
+
+__all__ = ["FinanceOverviewFacts"]

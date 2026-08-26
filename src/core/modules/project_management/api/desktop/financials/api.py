@@ -505,6 +505,10 @@ class ProjectManagementFinancialsDesktopApi:
         rate_line_page: int = 1,
         planned_cost_line_page: int = 1,
         page_size: int = 50,
+        include_profile_details: bool = True,
+        include_budgets: bool = True,
+        include_rates: bool = True,
+        include_planned_costs: bool = True,
     ) -> FinancialConfigurationWorkspaceDto:
         if not project_id or self._finance_workspace_query is None:
             return FinancialConfigurationWorkspaceDto()
@@ -515,7 +519,59 @@ class ProjectManagementFinancialsDesktopApi:
                 rate_line_page=rate_line_page,
                 planned_cost_line_page=planned_cost_line_page,
                 page_size=page_size,
+                include_profile_details=include_profile_details,
+                include_budgets=include_budgets,
+                include_rates=include_rates,
+                include_planned_costs=include_planned_costs,
             )
+        )
+
+    def get_planning_workspace(
+        self,
+        project_id: str,
+        *,
+        budget_line_page: int = 1,
+        planned_cost_line_page: int = 1,
+        page_size: int = 50,
+    ) -> FinancialConfigurationWorkspaceDto:
+        return self.get_configuration_workspace(
+            project_id,
+            budget_line_page=budget_line_page,
+            planned_cost_line_page=planned_cost_line_page,
+            page_size=page_size,
+            include_profile_details=False,
+            include_budgets=True,
+            include_rates=False,
+            include_planned_costs=True,
+        )
+
+    def get_costs_workspace(
+        self,
+        project_id: str,
+        *,
+        rate_line_page: int = 1,
+        page_size: int = 50,
+    ) -> FinancialConfigurationWorkspaceDto:
+        return self.get_configuration_workspace(
+            project_id,
+            rate_line_page=rate_line_page,
+            page_size=page_size,
+            include_profile_details=False,
+            include_budgets=False,
+            include_rates=True,
+            include_planned_costs=False,
+        )
+
+    def get_controls_workspace(
+        self,
+        project_id: str,
+    ) -> FinancialConfigurationWorkspaceDto:
+        return self.get_configuration_workspace(
+            project_id,
+            include_profile_details=True,
+            include_budgets=False,
+            include_rates=False,
+            include_planned_costs=False,
         )
 
     def get_billing_workspace(

@@ -76,6 +76,10 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         rate_line_page: int = 1,
         planned_cost_line_page: int = 1,
         page_size: int = 50,
+        include_profile_details: bool = True,
+        include_budgets: bool = True,
+        include_rates: bool = True,
+        include_planned_costs: bool = True,
     ) -> ProjectFinanceWorkspaceRead:
         require_permission(
             self._user_session,
@@ -99,31 +103,60 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
                 "Project financial profile not found.",
                 code="FINANCIAL_PROFILE_NOT_FOUND",
             )
-        cost_codes = self._cost_code_repo.list(include_inactive=True)
+        needs_cost_codes = (
+            include_profile_details or include_budgets or include_planned_costs
+        )
+        needs_tasks = include_budgets or include_planned_costs
+        needs_resources = include_rates or include_planned_costs
+        cost_codes = (
+            self._cost_code_repo.list(include_inactive=True)
+            if needs_cost_codes
+            else []
+        )
         cost_code_by_id = {item.id: item for item in cost_codes}
-        tasks = self._task_repo.list_by_project(project_id)
+        tasks = self._task_repo.list_by_project(project_id) if needs_tasks else []
         task_by_id = {item.id: item for item in tasks}
-        resources = self._resource_repo.list()
+        resources = self._resource_repo.list() if needs_resources else []
         resource_by_id = {item.id: item for item in resources}
 
-        budgets = self._budget_repo.list_for_project(project_id, include_superseded=True)
+        budgets = (
+            self._budget_repo.list_for_project(project_id, include_superseded=True)
+            if include_budgets
+            else []
+        )
         budget_by_id = {item.id: item for item in budgets}
-        budget_line_summaries = self._budget_repo.summarize_lines_for_project(project_id)
+        budget_line_summaries = (
+            self._budget_repo.summarize_lines_for_project(project_id)
+            if include_budgets
+            else {}
+        )
         budget_line_total = sum(item[0] for item in budget_line_summaries.values())
         budget_page.page = normalize_page_for_total(
             page=budget_page.page,
             page_size=budget_page.page_size,
             total=budget_line_total,
         )
-        budget_lines = self._budget_repo.list_lines_for_project(
-            project_id, offset=budget_page.offset, limit=budget_page.limit
+        budget_lines = (
+            self._budget_repo.list_lines_for_project(
+                project_id, offset=budget_page.offset, limit=budget_page.limit
+            )
+            if include_budgets
+            else []
         )
-        cards = self._rate_card_repo.list_visible_for_project(
-            project_id, include_inactive=True
+        cards = (
+            self._rate_card_repo.list_visible_for_project(
+                project_id, include_inactive=True
+            )
+            if include_rates
+            else []
         )
         card_by_id = {item.id: item for item in cards}
-        rate_line_counts = self._rate_card_repo.count_lines_by_card(
-            tuple(card_by_id), include_inactive=True
+        rate_line_counts = (
+            self._rate_card_repo.count_lines_by_card(
+                tuple(card_by_id), include_inactive=True
+            )
+            if card_by_id
+            else {}
         )
         rate_line_total = sum(rate_line_counts.values())
         rate_page.page = normalize_page_for_total(
@@ -131,16 +164,26 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             page_size=rate_page.page_size,
             total=rate_line_total,
         )
-        rate_lines = self._rate_card_repo.list_lines_for_cards(
-            tuple(card_by_id),
-            include_inactive=True,
-            offset=rate_page.offset,
-            limit=rate_page.limit,
+        rate_lines = (
+            self._rate_card_repo.list_lines_for_cards(
+                tuple(card_by_id),
+                include_inactive=True,
+                offset=rate_page.offset,
+                limit=rate_page.limit,
+            )
+            if card_by_id
+            else []
         )
-        planned_versions = self._planned_cost_repo.list_for_project(project_id)
+        planned_versions = (
+            self._planned_cost_repo.list_for_project(project_id)
+            if include_planned_costs
+            else []
+        )
         planned_version_by_id = {item.id: item for item in planned_versions}
-        planned_line_summaries = self._planned_cost_repo.summarize_lines_for_project(
-            project_id
+        planned_line_summaries = (
+            self._planned_cost_repo.summarize_lines_for_project(project_id)
+            if include_planned_costs
+            else {}
         )
         planned_line_total = sum(item[0] for item in planned_line_summaries.values())
         planned_page.page = normalize_page_for_total(
@@ -148,8 +191,12 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             page_size=planned_page.page_size,
             total=planned_line_total,
         )
-        planned_lines = self._planned_cost_repo.list_lines_for_project(
-            project_id, offset=planned_page.offset, limit=planned_page.limit
+        planned_lines = (
+            self._planned_cost_repo.list_lines_for_project(
+                project_id, offset=planned_page.offset, limit=planned_page.limit
+            )
+            if include_planned_costs
+            else []
         )
         default_code = cost_code_by_id.get(
             profile.default_cost_code_id
