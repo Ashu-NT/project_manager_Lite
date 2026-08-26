@@ -167,21 +167,7 @@ def test_revoking_a_users_only_organization_grant_clears_their_active_organizati
     assert services["tenant_context_service"].get_active_organization_id() is None
 
 
-def test_revoked_organization_access_is_restored_on_the_next_login_pending_a_future_fix(services):
-    """P10C-FIX discovery (out of scope to fix here -- see the final report): a full end-to-end
-    revoke (real `assign_scope_grant`/`remove_scope_grant` via admin, cross-session -- the
-    realistic desktop scenario) correctly leaves `scoped_access["organization"]` empty on the
-    NEXT login, but `build_principal`'s persisted-`AuthSession.last_active_organization_id`
-    restore path only validates tenant membership + `is_enabled` (`validate_principal_context`),
-    never RBAC -- so the revoked organization is silently re-resolved as the session's own
-    "restored" active organization, and `TenantContextService._can_access`'s legacy
-    empty-scoped-access ambient-session fallback (kept for zero-explicit-grant single-org-tenant
-    users, see P10A) then trusts it right back. This is NOT an in-session workspace-staleness bug
-    (the thing this phase's governing spec asked to close) -- it is a separate, deeper
-    login-time-restoration gap. Fixing it would mean changing `build_principal`'s own resolution
-    semantics, which risks exactly the "no RBAC redesign" this phase was told to avoid without
-    explicit authorization. Characterized here, not asserted as fixed, so it does not silently
-    regress further and is visible to whoever picks up the recommended follow-up."""
+def test_revoked_organization_access_is_not_restored_on_the_next_login(services):
     access = services["access_service"]
     organization_service = services["organization_service"]
     org = organization_service.create_organization(
@@ -198,11 +184,10 @@ def test_revoked_organization_access_is_restored_on_the_next_login_pending_a_fut
 
     login_as(services, "switcher-revoke-relogin-user", "StrongPass123")
 
-    # Known-gap characterization, not the desired end state: scoped_access correctly reflects
-    # the revoke, but active_organization_id is restored anyway from persisted session state.
     assert services["user_session"].principal.scoped_access.get("organization", {}) == {}
-    assert services["tenant_context_service"].get_active_organization_id() == org.id
-z
+    assert services["tenant_context_service"].get_active_organization_id() != org.id
+    assert services["tenant_context_service"].get_active_organization_id() is None
+
 
 def test_revoking_a_grant_for_a_different_currently_active_user_session_is_a_noop_in_this_process(services):
     """Desktop architecture note (per governing spec §9/§10): a single interactive process has
