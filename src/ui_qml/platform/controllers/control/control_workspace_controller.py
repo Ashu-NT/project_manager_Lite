@@ -204,10 +204,10 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
         return self._has_permission(WORKSPACE_PERMISSIONS["control"])
 
     def _bind_domain_events(self) -> None:
+
         for signal in (
             domain_events.project_changed,
             domain_events.tasks_changed,
-            domain_events.costs_changed,
             domain_events.resources_changed,
             domain_events.baseline_changed,
             domain_events.register_changed,

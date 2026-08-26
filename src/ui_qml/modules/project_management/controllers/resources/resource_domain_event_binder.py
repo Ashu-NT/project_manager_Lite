@@ -33,17 +33,8 @@ def _reload_availability_if_loaded(controller) -> None:
 
 
 def bind_resource_domain_events(controller) -> None:
-    """P7A: direct-wired to the specific legacy signals this workspace actually reads -- no
-    generic `domain_changed` bridge. `resources_changed` deliberately has two independent
-    reactions here, exactly as before this migration: a full `_request_domain_refresh()` (this
-    was the "resource" generic-bridge subscription) alongside the already-existing narrow
-    `_reload_if_loaded("activity")` reaction below."""
     controller._subscribe_domain_signal(
         domain_events.resources_changed,
-        lambda _payload: controller._request_domain_refresh(),
-    )
-    controller._subscribe_domain_signal(
-        domain_events.calendars_changed,
         lambda _payload: controller._request_domain_refresh(),
     )
     controller._subscribe_domain_signal(

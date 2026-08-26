@@ -3364,16 +3364,101 @@ five mappers, no wildcard ViewInvalidation listener anywhere touched by this pha
 locator, and `ScopedViewInvalidationSubscription`'s public surface unchanged from P6.
 
 **Explicit non-goals honored:** no further capability modernized to typed events; PM/Inventory's
-own extensive `_subscribe_domain_change` usage untouched (never in scope of any P5x/P6/P7 phase);
-`ScopedViewInvalidationSubscription` unchanged; no Approval/P5 event contract or ViewInvalidation
-contract touched; no new business DomainEvent introduced.
+own extensive `_subscribe_domain_change` usage untouched *by P7 itself* (see the P7A report below,
+which does eliminate it); `ScopedViewInvalidationSubscription` unchanged; no Approval/P5 event
+contract or ViewInvalidation contract touched; no new business DomainEvent introduced.
 
-**Remaining legacy debt (unchanged by this phase, explicitly out of scope):** Custom Role
-Definition, Authentication/Session, User Account, Password, MFA, Federated Identity, and
-Registration/Bootstrap all remain on `auth_changed` (direct-wired, narrow, no bridge -- already
-compliant with §16's "unmodernized temporary capability" target shape); modernizing any of these
-to typed DomainEvents is a future, separate phase, not started here. The four dead-producer
-financial signals noted above remain a distinct, pre-existing PM-module gap.
+**Remaining legacy debt after P7 (superseded by P7A below):** ~~PM/Inventory's own extensive
+`_subscribe_domain_change` usage~~ -- eliminated in P7A. Custom Role Definition,
+Authentication/Session, User Account, Password, MFA, Federated Identity, and Registration/
+Bootstrap all remain on `auth_changed` (direct-wired, narrow, no bridge -- already compliant with
+§16's "unmodernized temporary capability" target shape); modernizing any of these to typed
+DomainEvents is a future, separate phase, not started here. The four dead-producer financial
+signals noted above remain a distinct, pre-existing PM-module gap.
+
+### P7A implementation report: complete removal of the generic bridge architecture
+
+P7 (above) removed only the *dead-bridge residue* of four Platform signals while leaving the
+generic mechanism itself (`_BRIDGE_SPECS`/`_wire_bridges`/`domain_changed`/`DomainChangeEvent`/
+`_subscribe_domain_change`) in place, since it still had ~26 genuinely alive entries serving
+PM/Inventory's own business-module controllers. P7A completes the pre-release mandate: eliminate
+that entire generic architecture, not just its dead parts.
+
+**Direct-wiring migration.** All 17 production caller files (11 in `project_management`, 6 in
+`inventory_procurement`) that called `_subscribe_domain_change(...)` were converted to connect
+directly to the actual `domain_events.<specific_signal>` objects the removed call's entity_type
+arguments mapped to 1:1 (via the now-deleted `_BRIDGE_SPECS` table, which was itself the source of
+truth for this mapping): `project_management/controllers/{collaboration,dashboard,financials,
+portfolio,projects,register,resources,resource_timesheets,scheduling,tasks,timesheets}` and
+`inventory_procurement/controllers/{catalog,dashboard,inventory,pricing,procurement,reservations}`.
+Each now uses the exact same `_subscribe_domain_signal(signal, callback)` mechanics helper that
+already existed and was already fully compliant with §8's "mechanics only" requirement -- no new
+utility was introduced. Scope filtering is preserved exactly: a consumer that used to filter
+`_subscribe_domain_change("project", "project_tasks", scope_code="project_management")` now
+connects directly to `project_changed` and `tasks_changed` -- the specific signal *is* the filter,
+since each surviving entity_type mapped to exactly one signal in the deleted table. Bare,
+entity_type-less Inventory subscriptions (`_subscribe_domain_change(scope_code="inventory_procurement")`)
+were expanded to all 10 inventory signals explicitly, per consumer file (no shared constant --
+plain, explicit, duplicated lists, matching every other direct-wire file's style). One consumer
+(`resources/resource_domain_event_binder.py`) already had a real duplicate-reaction pattern for
+`resources_changed` (a full refresh from the generic path alongside an existing narrow
+`_reload_if_loaded("activity")` reaction) -- preserved exactly, not simplified, per §16's "do not
+change business semantics" rule.
+
+**No incidental subscriptions found to delete.** Every one of the 17 consumers' entity_type sets
+was checked against what that controller's own presenter/read model actually consumes; all were
+genuine dependencies (Category A). None were incidental (Category B) or dead (Category C) at the
+consumer level.
+
+**Deleted entirely, zero production references remaining:** `_BRIDGE_SPECS`, `_wire_bridges`,
+`_build_bridge`, `domain_changed` (the `Signal[DomainChangeEvent]` field), `DomainChangeEvent`
+(the dataclass, plus its export from `src/core/shared/events/__init__.py`), and
+`_subscribe_domain_change` (removed from all three controller bases -- Platform, PM, Inventory).
+`domain_events.py` itself shrank from a 30-entry bridge-spec registry + 33 signal fields to
+exactly the 32 real, still-needed `Signal[str]` fields and nothing else.
+
+**Organization lifecycle status corrected.** Prior documentation (including earlier in this same
+plan) imprecisely described Organization as "fully typed / zero legacy" alongside Module
+Entitlement/RoleBinding/TenantMembership/Approval. Corrected: Organization is **PARTIALLY
+MODERNIZED** -- `create_organization` is fully typed DomainEvent -> ViewInvalidation with zero
+legacy involvement; `update_organization`/`set_active_organization` (never in P5A's scope) still
+emit the direct, un-bridged `organizations_changed` signal, consumed directly by
+`settings_workspace_controller.py` and `admin_console/domain_event_binder.py`. This is not a P7A
+blocker -- `organizations_changed` was already direct-wired, never routed through the now-deleted
+bridge -- but the ownership-matrix claim is corrected here rather than left inaccurate. Module
+Entitlement, RoleBinding, TenantMembership, and Approval remain the four capabilities with
+genuinely zero legacy presentation dependency of any kind.
+
+**`admin_console/domain_event_binder.py`: unchanged, KEPT.** Re-confirmed unchanged from P7's own
+finding -- it was never part of the bridge, already direct-wired, still owns its real composite
+coalesced-refresh responsibility.
+
+**New tests added:** `test_p7_legacy_bridge_removal.py` extended with -- absence guards for
+`_BRIDGE_SPECS`/`domain_changed`/`DomainChangeEvent`/`_wire_bridges`/`_subscribe_domain_change`
+(zero production references anywhere, all controller bases); a forbidden-replacement-shape guard
+(`LegacySignalRouter`/`DomainSignalRegistry`/`EntityChangeRouter`/`SignalDispatchMap`/
+`CapabilitySignalRegistry` -- none introduced); representative direct-wiring proofs across PM
+(register/scheduling), Inventory (dashboard/catalog), and shared-master (documents/parties/sites/
+calendars) signals, each proving the specific signal reaches its real consumer exactly once and a
+genuinely unrelated signal reaches zero consumers (no accidental scope widening). `test_domain_events.py`
+trimmed to the signal-mechanics tests that remain valid (connect/emit/disconnect, deleted-Qt-callback
+pruning, RuntimeError propagation, `reset()` clearing every signal) -- its bridge-specific tests
+retired along with the mechanism they exercised. `test_qml_domain_event_bridges_pm.py`'s Portfolio
+coalescing test rewritten to emit the actual `portfolio_changed`/`project_changed` signals directly
+instead of the deleted `domain_changed`/`DomainChangeEvent`.
+
+**Explicit non-goals honored:** no PM/Inventory business semantics changed (no signal emission
+site touched, no transaction boundary touched, no signal renamed); no new DomainEvent introduced;
+no Approval/P5/P6 contract touched; `ScopedViewInvalidationSubscription` unchanged.
+
+**Remaining legacy debt after P7A:** every still-unmodernized capability's own specific `Signal`
+now direct-wired with no generic routing of any kind -- there is no third architecture left in the
+codebase. The seven auth-adjacent capabilities (Custom Role Definition, Authentication/Session,
+User Account, Password, MFA, Federated Identity, Registration/Bootstrap) and every PM/Inventory
+business-module signal remain un-migrated to typed DomainEvents -- that is genuinely separate,
+future, per-capability modernization work, not a P7A gap. The four dead-producer PM financial
+signals (`cost_entries_changed`/`commitments_changed`/`forecasts_changed`/`financial_changes_changed`)
+remain a distinct, pre-existing, out-of-scope PM-module UI-reaction gap, unchanged by P7A.
 
 ## P8 — Platform Cutover Validation
 

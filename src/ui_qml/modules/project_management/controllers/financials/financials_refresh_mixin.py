@@ -190,8 +190,6 @@ class FinancialsRefreshMixin:
             self._set_is_loading(False)
 
     def _bind_domain_events(self) -> None:
-        """P7A: direct-wired to the specific legacy signals this workspace actually reads --
-        no generic `domain_changed` bridge."""
 
         def _on_domain_event(_payload: object) -> None:
             self._request_domain_refresh()
@@ -199,7 +197,6 @@ class FinancialsRefreshMixin:
         for signal in (
             domain_events.project_changed,
             domain_events.tasks_changed,
-            domain_events.costs_changed,
             domain_events.budgets_changed,
             domain_events.planned_costs_changed,
             domain_events.billing_preparations_changed,

@@ -104,13 +104,11 @@ def test_subscribe_domain_change_no_longer_exists_on_any_controller_base():
 
 
 def test_all_still_unmodernized_signals_survive_with_real_direct_consumers():
-    """The four already-audited-in-P7 signals, plus every PM/Inventory module-level and
-    shared-master signal, still exist as plain `Signal` fields -- only the generic bridge routing
-    around them was removed, never the signals or their real direct consumers."""
+
     for signal_name in (
         "organizations_changed", "auth_changed", "employees_changed", "departments_changed",
-        "project_changed", "tasks_changed", "resources_changed", "costs_changed",
-        "sites_changed", "calendars_changed", "documents_changed", "parties_changed",
+        "project_changed", "tasks_changed", "resources_changed",
+        "sites_changed", "documents_changed", "parties_changed",
         "inventory_items_changed", "inventory_storerooms_changed",
     ):
         assert hasattr(domain_events, signal_name), f"{signal_name} was deleted, not just un-bridged"
@@ -280,18 +278,19 @@ def test_inventory_catalog_workspace_does_not_react_to_an_unrelated_shared_maste
     assert refresh_calls == []
 
 
-def test_pm_scheduling_workspace_direct_wired_to_shared_master_calendar(services):
-    """PM's scheduling binder now connects directly to `calendars_changed` (its own
-    cross-module shared-master dependency) -- no generic `category="shared_master"` bridge filter
-    involved."""
-    pm_catalog = _pm_catalog(services)
-    controller = pm_catalog.schedulingWorkspace
+def test_inventory_workspace_direct_wired_to_shared_master_site_and_party(services):
+    """Inventory's `inventory` binder now connects directly to `sites_changed`/`parties_changed`
+    (its own cross-module shared-master dependency) -- no generic `category="shared_master"`
+    bridge filter involved."""
+    inventory_catalog = _inventory_catalog(services)
+    controller = inventory_catalog.inventoryWorkspace
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.calendars_changed.emit(_unique("p7a-calendar"))
+    domain_events.sites_changed.emit(_unique("p7a-inv-site"))
+    domain_events.parties_changed.emit(_unique("p7a-inv-party"))
 
-    assert refresh_calls == ["refresh"]
+    assert refresh_calls == ["refresh", "refresh"]
 
 
 # ---------------------------------------------------------------------------
@@ -425,7 +424,9 @@ def test_no_generic_bridge_registry_exists_anywhere():
     hits = []
     for path in glob.glob("src/**/*.py", recursive=True):
         normalized = path.replace("\\", "/")
-        if "__pycache__" in normalized or normalized.endswith("test_p7_legacy_bridge_removal.py"):
+        if "__pycache__" in normalized or normalized.endswith((
+            "test_p7_legacy_bridge_removal.py", "test_p7b_dead_signal_cleanup.py",
+        )):
             continue
         with open(path, "r", encoding="utf-8", errors="ignore") as fh:
             source = fh.read()

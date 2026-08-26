@@ -24,7 +24,6 @@ def bind_domain_events(controller) -> None:
 
     for signal in (
         domain_events.organizations_changed,
-        domain_events.calendars_changed,
         domain_events.sites_changed,
         domain_events.departments_changed,
         domain_events.employees_changed,

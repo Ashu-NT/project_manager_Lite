@@ -171,8 +171,6 @@ class DashboardRefreshMixin:
         super()._request_domain_refresh()
 
     def _bind_domain_events(self) -> None:
-        """P7A: direct-wired to the specific legacy signals this dashboard actually reads --
-        no generic `domain_changed` bridge."""
 
         def _on_domain_event(_payload: object) -> None:
             self._request_domain_refresh()
@@ -182,7 +180,6 @@ class DashboardRefreshMixin:
             domain_events.tasks_changed,
             domain_events.baseline_changed,
             domain_events.resources_changed,
-            domain_events.costs_changed,
             domain_events.register_changed,
             domain_events.portfolio_changed,
             domain_events.collaboration_changed,

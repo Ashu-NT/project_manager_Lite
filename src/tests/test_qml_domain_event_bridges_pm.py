@@ -83,17 +83,13 @@ def test_pm_timesheets_workspace_refreshes_on_timesheet_workflow_events(monkeypa
 
 
 def test_platform_control_workspace_refreshes_on_control_events(monkeypatch) -> None:
-    """Approval-P3: `approvals_changed` is no longer emitted here -- the approval queue/overview
-    dependency now flows through `ApprovalViewInvalidationAdapter` -> `refresh_approvals()`,
-    tested separately in `test_approval_view_invalidation.py`. `costs_changed` remains
-    unrelated, pre-existing incidental-refresh debt, unchanged by this migration."""
     catalog = PlatformWorkspaceCatalog()
     controller = catalog.controlWorkspace
     controller.ensureLoaded()
     refresh_calls: list[str] = []
     monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
 
-    domain_events.costs_changed.emit("proj-1")
+    domain_events.register_changed.emit("proj-1")
 
     assert refresh_calls == ["refresh"]
 

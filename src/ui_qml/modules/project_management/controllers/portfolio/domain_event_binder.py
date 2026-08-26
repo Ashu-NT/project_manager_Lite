@@ -11,10 +11,6 @@ logger = logging.getLogger(__name__)
 
 
 def bind_portfolio_domain_events(controller: object) -> None:
-    """P7A: direct-wired to the specific legacy signals this workspace actually reads -- no
-    generic `domain_changed` bridge. `_request_domain_refresh()` is still this controller's own
-    debounced override (see `portfolio_request_domain_refresh` below), unaffected by this
-    migration."""
 
     def _on_domain_event(_payload: object) -> None:
         controller._request_domain_refresh()
@@ -23,7 +19,6 @@ def bind_portfolio_domain_events(controller: object) -> None:
         domain_events.portfolio_changed,
         domain_events.project_changed,
         domain_events.tasks_changed,
-        domain_events.costs_changed,
         domain_events.resources_changed,
     ):
         controller._subscribe_domain_signal(signal, _on_domain_event)
