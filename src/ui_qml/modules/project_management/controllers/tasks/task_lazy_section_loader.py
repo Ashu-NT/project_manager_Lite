@@ -14,10 +14,14 @@ def load_task_assignments_and_dependencies(controller) -> None:
     load_selected_task_dependencies(controller)
 
 
-def load_selected_task_assignments(controller) -> None:
+def load_selected_task_assignments(controller, *, force: bool = False) -> None:
     if not controller._selected_task_id:
         return
-    if controller._assignments_section_loaded_for_task_id == controller._selected_task_id:
+    if (
+        not force
+        and controller._assignments_section_loaded_for_task_id
+        == controller._selected_task_id
+    ):
         return
     controller._set_is_loading(True)
     try:

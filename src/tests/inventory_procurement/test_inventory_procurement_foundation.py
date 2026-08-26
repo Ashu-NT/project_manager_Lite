@@ -144,6 +144,8 @@ def test_inventory_foundation_rejects_out_of_scope_shared_references(services):
     auth.register_user("inventory-scope-user", "StrongPass123", role_names=["inventory_manager"])
     login_as(services, "inventory-scope-user", "StrongPass123")
 
+    services["user_session"].set_active_organization_id(default_org.id)
+
     with pytest.raises(NotFoundError, match="Site not found"):
         services["inventory_service"].create_storeroom(
             storeroom_code="BAD-SITE",
