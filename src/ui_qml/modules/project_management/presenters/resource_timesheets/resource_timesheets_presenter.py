@@ -122,6 +122,7 @@ def _entry_map(entry) -> dict[str, object]:
         "hoursValue": entry.hours,
         "description": entry.description,
         "activityType": entry.activity_type,
+        "version": entry.version,
         "canEdit": entry.can_edit,
         "canDelete": entry.can_delete,
     }
@@ -290,6 +291,7 @@ class ResourceTimesheetsPresenter:
             self._desktop_api.update_resource_time_entry(
                 TimesheetEntryUpdateCommand(
                     entry_id=entry_id,
+                    expected_version=int(payload.get("expectedVersion", 0) or 0),
                     entry_date=entry_date,
                     hours=hours,
                     note=note,
@@ -318,6 +320,7 @@ class ResourceTimesheetsPresenter:
         self,
         entry_id: str,
         *,
+        expected_version: int,
         scope: str,
         resource_id: str | None,
         period_start: date,
@@ -330,6 +333,7 @@ class ResourceTimesheetsPresenter:
             scope=scope,
             resource_id=resource_id,
             period_start=period_start,
+            expected_version=expected_version,
         )
 
     def submit_period(

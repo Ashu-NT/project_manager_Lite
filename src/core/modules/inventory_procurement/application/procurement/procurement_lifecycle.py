@@ -31,7 +31,7 @@ from src.core.platform.application.approval.approval_mutation_participant import
 )
 from src.core.platform.common.ids import generate_id
 from src.core.shared.activity.activity_recorder import record_activity
-from src.core.platform.common.exceptions import ConcurrencyError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, ValidationError
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_events import domain_events
 
@@ -195,13 +195,11 @@ class ProcurementLifecycleMixin:
         return line
 
     def submit_requisition(self, requisition_id: str, *, note: str = "") -> PurchaseRequisition:
-        """Approval-P1: converged onto `RequisitionSubmissionUnitOfWork` -- one fresh Session,
-        one transaction, for the requisition transition, the Approval-request participant, and
-        the Approval audit entry together. The pre-mutation reads below (`_require_draft_
-        requisition`/`list_for_requisition`) intentionally stay on the shared, process-lifetime
-        Session -- they only inform what the transaction below will write; `update_with_version_
-        check` still fails a genuinely stale write regardless of which Session performed the
-        read."""
+        if self._requisition_submission_uow_factory is None:
+            raise BusinessRuleError(
+                "Purchase requisition submission requires a configured transaction owner.",
+                code="INVENTORY_REQUISITION_SUBMISSION_UOW_REQUIRED",
+            )
         self._require_manage("submit purchase requisition")
         requisition = self._require_draft_requisition(requisition_id)
         lines = self._requisition_line_repo.list_for_requisition(requisition.id)

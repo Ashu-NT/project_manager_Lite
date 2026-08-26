@@ -572,6 +572,7 @@ class TimesheetService(
         scope: TimesheetScope | str,
         resource_id: str | None,
         period_start: date,
+        expected_version: int,
         entry_date: date | None = None,
         hours: float | None = None,
         note: str | None = None,
@@ -602,7 +603,11 @@ class TimesheetService(
                 code="TIME_ENTRY_OUTSIDE_SELECTED_PERIOD",
             )
         return self.update_time_entry(
-            entry_id, entry_date=entry_date, hours=hours, note=note
+            entry_id,
+            expected_version=expected_version,
+            entry_date=entry_date,
+            hours=hours,
+            note=note,
         )
 
     def delete_timesheet_entry(
@@ -612,6 +617,7 @@ class TimesheetService(
         scope: TimesheetScope | str,
         resource_id: str | None,
         period_start: date,
+        expected_version: int,
     ) -> None:
         _, resource, _ = self._require_timesheet_edit_target(
             scope=scope, resource_id=resource_id, operation_label="delete Timesheet entry"
@@ -637,7 +643,7 @@ class TimesheetService(
                 "The time entry belongs to a different reporting period.",
                 code="TIME_ENTRY_OUTSIDE_SELECTED_PERIOD",
             )
-        self.delete_time_entry(entry_id)
+        self.delete_time_entry(entry_id, expected_version=expected_version)
 
     def submit_resource_timesheet_period(
         self,

@@ -51,7 +51,7 @@ class ProcurementService(
         item_service: ItemMasterService,
         party_service: PartyService,
         approval_service: ApprovalService,
-        requisition_submission_uow_factory: RequisitionSubmissionUnitOfWorkFactory,
+        requisition_submission_uow_factory: RequisitionSubmissionUnitOfWorkFactory | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
         activity_service=None,
@@ -68,11 +68,6 @@ class ProcurementService(
         self._item_service: ItemMasterService = item_service
         self._party_service: PartyService = party_service
         self._approval_service: ApprovalService = approval_service
-        # Approval-P1: the ONE canonical, fresh-session transaction owner for
-        # `submit_requisition` -- the requisition transition, the Approval request
-        # participant, and the Approval audit entry all commit atomically through this same
-        # UoW. Every other `ProcurementLifecycleMixin` method stays on `self._session`
-        # (tracked debt, out of this narrow migration's scope).
         self._requisition_submission_uow_factory: RequisitionSubmissionUnitOfWorkFactory = (
             requisition_submission_uow_factory
         )

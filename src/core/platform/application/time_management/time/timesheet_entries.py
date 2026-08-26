@@ -26,34 +26,36 @@ class TimesheetEntriesMixin:
         if self._time_entry_repo is None:
             return []
         seeded_entry = None
+        project_id = self._resolve_entry_project_id(work_allocation=work_allocation, work_owner=work_owner)
         try:
             seeded_entry = self._seed_legacy_hours_entry(work_allocation, work_owner, resource)
             if seeded_entry is not None:
+                record_audit_entry(
+                    self,
+                    operation="create",
+                    entity_type="time_entry",
+                    entity_id=seeded_entry.id,
+                    module="platform",
+                    severity="low",
+                    metadata={
+                        "action": "time_entry.bootstrap_legacy_hours",
+                        "project_id": project_id,
+                        **self._build_time_entry_audit_details(
+                            work_allocation=work_allocation,
+                            work_owner=work_owner,
+                            resource_name=resource.name if resource is not None else work_allocation.resource_id,
+                            entry=seeded_entry,
+                            extra={"legacy_hours_migrated": seeded_entry.hours},
+                        ),
+                    },
+                    commit=False,
+                    fail_closed=True,
+                )
+                self._session.flush()
                 self._session.commit()
         except Exception:
             self._session.rollback()
             raise
-        project_id = self._resolve_entry_project_id(work_allocation=work_allocation, work_owner=work_owner)
-        if seeded_entry is not None:
-            record_audit_entry(
-                self,
-                operation="create",
-                entity_type="time_entry",
-                entity_id=seeded_entry.id,
-                module="platform",
-                severity="low",
-                metadata={
-                    "action": "time_entry.bootstrap_legacy_hours",
-                    "project_id": project_id,
-                    **self._build_time_entry_audit_details(
-                        work_allocation=work_allocation,
-                        work_owner=work_owner,
-                        resource_name=resource.name if resource is not None else work_allocation.resource_id,
-                        entry=seeded_entry,
-                        extra={"legacy_hours_migrated": seeded_entry.hours},
-                    ),
-                },
-            )
         return self._time_entry_repo.list_by_work_allocation(work_allocation_id)
 
     def initialize_timesheet_for_assignment(self, assignment_id: str) -> list[TimeEntry]:
@@ -94,13 +96,12 @@ class TimesheetEntriesMixin:
             ),
         )
         seeded_entry = None
+        project_id = self._resolve_entry_project_id(work_allocation=work_allocation, work_owner=work_owner)
         try:
             seeded_entry = self._seed_legacy_hours_entry(work_allocation, work_owner, resource)
             self._time_entry_repo.add(entry)
             self._session.flush()
             self._sync_work_allocation_hours_from_entries(work_allocation.id)
-            self._session.commit()
-            project_id = self._resolve_entry_project_id(work_allocation=work_allocation, work_owner=work_owner)
             if seeded_entry is not None:
                 record_audit_entry(
                     self,
@@ -120,6 +121,8 @@ class TimesheetEntriesMixin:
                             extra={"legacy_hours_migrated": seeded_entry.hours},
                         ),
                     },
+                    commit=False,
+                    fail_closed=True,
                 )
             record_audit_entry(
                 self,
@@ -138,7 +141,11 @@ class TimesheetEntriesMixin:
                         entry=entry,
                     ),
                 },
+                commit=False,
+                fail_closed=True,
             )
+            self._session.flush()
+            self._session.commit()
         except Exception:
             self._session.rollback()
             raise
@@ -165,6 +172,7 @@ class TimesheetEntriesMixin:
         self,
         entry_id: str,
         *,
+        expected_version: int,
         entry_date: date | None = None,
         hours: float | None = None,
         note: str | None = None,
@@ -194,12 +202,15 @@ class TimesheetEntriesMixin:
         if note is not None:
             entry.note = note
         entry.updated_at = datetime.now(timezone.utc)
+        project_id = self._resolve_entry_project_id(
+            entry=entry,
+            work_allocation=work_allocation,
+            work_owner=work_owner,
+        )
         try:
-            self._time_entry_repo.update(entry)  # type: ignore[union-attr]
+            self._time_entry_repo.update(entry, expected_version=expected_version)  # type: ignore[union-attr]
             self._session.flush()
             self._sync_work_allocation_hours_from_entries(entry.work_allocation_id)
-            self._session.commit()
-            project_id = self._resolve_entry_project_id(entry=entry, work_allocation=work_allocation, work_owner=work_owner)
             record_audit_entry(
                 self,
                 operation="update",
@@ -217,7 +228,11 @@ class TimesheetEntriesMixin:
                         entry=entry,
                     ),
                 },
+                commit=False,
+                fail_closed=True,
             )
+            self._session.flush()
+            self._session.commit()
         except Exception:
             self._session.rollback()
             raise
@@ -225,7 +240,7 @@ class TimesheetEntriesMixin:
             domain_events.tasks_changed.emit(project_id)
         return entry
 
-    def delete_time_entry(self, entry_id: str) -> None:
+    def delete_time_entry(self, entry_id: str, *, expected_version: int) -> None:
         self._require_time_manage_permission("delete time entry")
         entry = self._require_time_entry(entry_id)
         work_allocation, work_owner, resource = self._load_work_allocation_context(entry.work_allocation_id)
@@ -237,12 +252,15 @@ class TimesheetEntriesMixin:
             entry_date=entry.entry_date,
             operation_label="delete time entry",
         )
+        project_id = self._resolve_entry_project_id(
+            entry=entry,
+            work_allocation=work_allocation,
+            work_owner=work_owner,
+        )
         try:
-            self._time_entry_repo.delete(entry.id)  # type: ignore[union-attr]
+            self._time_entry_repo.delete(entry.id, expected_version=expected_version)  # type: ignore[union-attr]
             self._session.flush()
             self._sync_work_allocation_hours_from_entries(entry.work_allocation_id)
-            self._session.commit()
-            project_id = self._resolve_entry_project_id(entry=entry, work_allocation=work_allocation, work_owner=work_owner)
             record_audit_entry(
                 self,
                 operation="delete",
@@ -260,7 +278,11 @@ class TimesheetEntriesMixin:
                         entry=entry,
                     ),
                 },
+                commit=False,
+                fail_closed=True,
             )
+            self._session.flush()
+            self._session.commit()
         except Exception:
             self._session.rollback()
             raise

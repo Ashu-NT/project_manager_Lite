@@ -439,6 +439,7 @@ class SqlAlchemyTimesheetWorkspaceReader:
                 output_task_code,
                 output_task_name,
                 TimeEntryORM.updated_at,
+                TimeEntryORM.version,
             ),
             resource=resource,
         ).where(*filters)
@@ -475,6 +476,7 @@ class SqlAlchemyTimesheetWorkspaceReader:
                     task_name=str(row[10] or "Project Work"),
                     activity_type="task" if row[8] else "general",
                     updated_at=row[11],
+                    version=int(row[12]),
                 )
                 for row in rows
             ),

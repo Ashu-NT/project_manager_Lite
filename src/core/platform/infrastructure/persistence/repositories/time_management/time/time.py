@@ -18,6 +18,10 @@ from src.core.platform.infrastructure.persistence.mappers.time_management.time.t
     timesheet_period_from_orm,
     timesheet_period_to_orm,
 )
+from src.infra.persistence.db.optimistic import (
+    delete_with_version_check,
+    update_with_version_check,
+)
 
 
 class SqlAlchemyTimeEntryRepository(TenantScopedRepositorySupport, TimeEntryRepository):
@@ -45,53 +49,58 @@ class SqlAlchemyTimeEntryRepository(TenantScopedRepositorySupport, TimeEntryRepo
         obj = self.session.execute(stmt).scalar_one_or_none()
         return time_entry_from_orm(obj) if obj else None
 
-    def update(self, entry: TimeEntry) -> None:
+    def update(self, entry: TimeEntry, *, expected_version: int) -> TimeEntry:
         ctx = self._context(operation_label="access time entries")
-        obj = self.session.execute(
-            select(TimeEntryORM).where(
-                TimeEntryORM.id == entry.id,
-                TimeEntryORM.tenant_id == ctx.tenant_id,
-                TimeEntryORM.organization_id == ctx.organization_id,
-            )
-        ).scalar_one_or_none()
-        if obj is None:
-            orm = time_entry_to_orm(entry)
-            orm.tenant_id = ctx.tenant_id
-            orm.organization_id = ctx.organization_id
-            self.session.add(orm)
-            return
-        obj.organization_id = ctx.organization_id
-        obj.work_allocation_id = entry.work_allocation_id
-        obj.assignment_id = entry.assignment_id
-        obj.entry_date = entry.entry_date
-        obj.hours = entry.hours
-        obj.note = entry.note
-        obj.owner_type = entry.owner_type
-        obj.owner_id = entry.owner_id
-        obj.owner_label = entry.owner_label or None
-        obj.scope_type = entry.scope_type
-        obj.scope_id = entry.scope_id
-        obj.employee_id = entry.employee_id
-        obj.department_id = entry.department_id
-        obj.department_name = entry.department_name or None
-        obj.site_id = entry.site_id
-        obj.site_name = entry.site_name or None
-        obj.author_user_id = entry.author_user_id
-        obj.author_username = entry.author_username
-        obj.created_at = entry.created_at
-        obj.updated_at = entry.updated_at
+        entry.version = update_with_version_check(
+            self.session,
+            TimeEntryORM,
+            entry.id,
+            expected_version,
+            {
+                "organization_id": ctx.organization_id,
+                "work_allocation_id": entry.work_allocation_id,
+                "assignment_id": entry.assignment_id,
+                "entry_date": entry.entry_date,
+                "hours": entry.hours,
+                "note": entry.note,
+                "owner_type": entry.owner_type,
+                "owner_id": entry.owner_id,
+                "owner_label": entry.owner_label or None,
+                "scope_type": entry.scope_type,
+                "scope_id": entry.scope_id,
+                "employee_id": entry.employee_id,
+                "department_id": entry.department_id,
+                "department_name": entry.department_name or None,
+                "site_id": entry.site_id,
+                "site_name": entry.site_name or None,
+                "author_user_id": entry.author_user_id,
+                "author_username": entry.author_username,
+                "created_at": entry.created_at,
+                "updated_at": entry.updated_at,
+            },
+            not_found_message="Time entry not found.",
+            stale_message="Time entry changed since you opened it.",
+            extra_filters={
+                "tenant_id": ctx.tenant_id,
+                "organization_id": ctx.organization_id,
+            },
+        )
+        return entry
 
-    def delete(self, entry_id: str) -> None:
+    def delete(self, entry_id: str, *, expected_version: int) -> None:
         ctx = self._context(operation_label="access time entries")
-        obj = self.session.execute(
-            select(TimeEntryORM).where(
-                TimeEntryORM.id == entry_id,
-                TimeEntryORM.tenant_id == ctx.tenant_id,
-                TimeEntryORM.organization_id == ctx.organization_id,
-            )
-        ).scalar_one_or_none()
-        if obj is not None:
-            self.session.delete(obj)
+        delete_with_version_check(
+            self.session,
+            TimeEntryORM,
+            entry_id,
+            expected_version,
+            not_found_message="Time entry not found.",
+            stale_message="Time entry changed since you opened it.",
+            extra_filters={
+                "tenant_id": ctx.tenant_id,
+                "organization_id": ctx.organization_id,
+            },
+        )
 
     def list_by_work_allocation(self, work_allocation_id: str) -> list[TimeEntry]:
         ctx = self._context(operation_label="access time entries")

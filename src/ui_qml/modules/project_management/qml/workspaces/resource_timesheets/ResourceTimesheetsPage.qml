@@ -365,7 +365,10 @@ Item {
         confirmDanger: true
         onConfirmed: {
             if (!root.workspaceController) return
-            const result = root.workspaceController.deleteEntry(String(root.selectedEntry.entryId || ""))
+            const result = root.workspaceController.deleteEntry(
+                String(root.selectedEntry.entryId || ""),
+                Number(root.selectedEntry.version || 0)
+            )
             if (result.ok === true) entryDialog.close()
         }
     }

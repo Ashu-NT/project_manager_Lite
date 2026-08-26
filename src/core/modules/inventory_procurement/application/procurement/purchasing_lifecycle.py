@@ -24,8 +24,13 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing import
     PurchaseOrderLineStatus,
     PurchaseOrderStatus,
 )
+from src.core.platform.application.approval.approval_mutation_participant import (
+    request_approval_using,
+)
+from src.core.platform.common.ids import generate_id
 from src.core.shared.activity.activity_recorder import record_activity
-from src.core.platform.common.exceptions import ConcurrencyError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, ValidationError
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_events import domain_events
 
 
@@ -195,6 +200,18 @@ class PurchasingLifecycleMixin:
         return line
 
     def submit_purchase_order(self, purchase_order_id: str, *, note: str = "") -> PurchaseOrder:
+        """Approval-P1: converged onto `PurchaseOrderSubmissionUnitOfWork` -- one fresh Session,
+        one transaction, for the purchase order transition, the Approval-request participant,
+        and the Approval audit entry together. The pre-mutation reads below (`_require_draft_
+        purchase_order`/`list_for_purchase_order`/reference lookups) intentionally stay on the
+        shared, process-lifetime Session -- they only inform what the transaction below will
+        write; `validate_transition` still fails a genuinely stale status regardless of which
+        Session performed the read."""
+        if self._purchase_order_submission_uow_factory is None:
+            raise BusinessRuleError(
+                "Purchase order submission requires a configured transaction owner.",
+                code="INVENTORY_PURCHASE_ORDER_SUBMISSION_UOW_REQUIRED",
+            )
         self._require_manage("submit purchase order")
         purchase_order = self._require_draft_purchase_order(purchase_order_id)
         lines = self._purchase_order_line_repo.list_for_purchase_order(purchase_order.id)
@@ -207,61 +224,72 @@ class PurchasingLifecycleMixin:
         site = self._reference_service.get_site(purchase_order.site_id)
         supplier = self._reference_service.get_party(purchase_order.supplier_party_id)
         total_amount = sum((line.quantity_ordered or 0.0) * (line.unit_price or 0.0) for line in lines)
-
-        request = self._approval_service.request_change(
-            request_type="purchase_order.submit",
-            entity_type="purchase_order",
-            entity_id=purchase_order.id,
-            module="inventory",
-            project_id=None,
-            payload={
-                "purchase_order_id": purchase_order.id,
-                "po_number": purchase_order.po_number,
-                "site_id": purchase_order.site_id,
-                "site_name": getattr(site, "name", ""),
-                "supplier_party_id": purchase_order.supplier_party_id,
-                "supplier_name": getattr(supplier, "party_name", ""),
-                "source_requisition_id": purchase_order.source_requisition_id or "",
-                "line_count": len(lines),
-                "total_amount": round(total_amount, 2),
-                "currency_code": purchase_order.currency_code,
-                "order_date": purchase_order.order_date.isoformat() if purchase_order.order_date else "",
-                "expected_delivery_date": purchase_order.expected_delivery_date.isoformat()
-                if purchase_order.expected_delivery_date
-                else "",
-            },
-            commit=False,
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="submit purchase order"
         )
+        principal = self._user_session.principal if self._user_session is not None else None
         validate_transition(
             current_status=purchase_order.status.value,
             next_status=PurchaseOrderStatus.SUBMITTED.value,
             transitions=PURCHASE_ORDER_STATUS_TRANSITIONS,
         )
         effective_at = datetime.now(timezone.utc)
-        purchase_order = replace(
-            purchase_order,
-            status=PurchaseOrderStatus.SUBMITTED,
-            approval_request_id=request.id,
-            submitted_at=effective_at,
-            updated_at=effective_at,
-        )
-        self._purchase_order_repo.update(purchase_order)
-        self._session.commit()
+
+        with self._purchase_order_submission_uow_factory.create(
+            context=DomainEventContext(correlation_id=generate_id())
+        ) as uow:
+            request = request_approval_using(
+                approval_repo=uow.approvals,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                request_type="purchase_order.submit",
+                entity_type="purchase_order",
+                entity_id=purchase_order.id,
+                tenant_id=tenant_id,
+                organization_id=purchase_order.organization_id,
+                project_id=None,
+                payload={
+                    "purchase_order_id": purchase_order.id,
+                    "po_number": purchase_order.po_number,
+                    "site_id": purchase_order.site_id,
+                    "site_name": getattr(site, "name", ""),
+                    "supplier_party_id": purchase_order.supplier_party_id,
+                    "supplier_name": getattr(supplier, "party_name", ""),
+                    "source_requisition_id": purchase_order.source_requisition_id or "",
+                    "line_count": len(lines),
+                    "total_amount": round(total_amount, 2),
+                    "currency_code": purchase_order.currency_code,
+                    "order_date": purchase_order.order_date.isoformat() if purchase_order.order_date else "",
+                    "expected_delivery_date": purchase_order.expected_delivery_date.isoformat()
+                    if purchase_order.expected_delivery_date
+                    else "",
+                },
+                requested_by_user_id=getattr(principal, "user_id", None),
+                requested_by_username=str(getattr(principal, "username", "") or ""),
+            )
+            submitted_purchase_order = replace(
+                purchase_order,
+                status=PurchaseOrderStatus.SUBMITTED,
+                approval_request_id=request.id,
+                submitted_at=effective_at,
+                updated_at=effective_at,
+            )
+            uow.purchase_orders.update(submitted_purchase_order)
+            uow.commit()
         record_activity(
             self,
             action="inventory_purchase_order.submit",
             entity_type="purchase_order",
-            entity_id=purchase_order.id,
+            entity_id=submitted_purchase_order.id,
             module="inventory",
             details={
-                "po_number": purchase_order.po_number,
+                "po_number": submitted_purchase_order.po_number,
                 "approval_request_id": request.id,
                 "note": normalize_optional_text(note),
             },
         )
-        domain_events.approvals_changed.emit(request.id)
-        domain_events.inventory_purchase_orders_changed.emit(purchase_order.id)
-        return purchase_order
+        self._approval_service.publish_requested(request)
+        domain_events.inventory_purchase_orders_changed.emit(submitted_purchase_order.id)
+        return submitted_purchase_order
 
     def update_purchase_order(
         self,

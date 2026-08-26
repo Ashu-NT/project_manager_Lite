@@ -350,11 +350,12 @@ class ProjectManagementResourceTimesheetsController(ProjectManagementWorkspaceCo
             set_feedback_message=self._set_feedback_message,
         )
 
-    @Slot(str, result="QVariantMap")
-    def deleteEntry(self, entry_id: str):
+    @Slot(str, int, result="QVariantMap")
+    def deleteEntry(self, entry_id: str, expected_version: int):
         return run_mutation(
             operation=lambda: self._presenter.delete_entry(
                 entry_id,
+                expected_version=expected_version,
                 scope=self._selected_scope,
                 resource_id=self._selected_resource_id or None,
                 period_start=self._selected_period_start,

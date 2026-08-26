@@ -22,7 +22,7 @@ Rectangle {
 
     signal addRequested(var payload)
     signal updateRequested(var payload)
-    signal deleteRequested(string entryId)
+    signal deleteRequested(string entryId, int expectedVersion)
     signal cancelEditRequested()
 
     property string _selectedAssignmentId: ""
@@ -378,6 +378,7 @@ Rectangle {
                     if (root._hasEntry) {
                         root.updateRequested({
                             "entryId": root._entryState.entryId || "",
+                            "expectedVersion": Number(root._entryState.version || 0),
                             "entryDate": _dateField.text,
                             "hours": _hoursField.text,
                             "note": _noteArea.text
@@ -407,6 +408,9 @@ Rectangle {
         supportingText: String(root._entryState.entryDate || "") + " - "
             + String(root._entryState.hours || "")
             + " h. The recorded work will be removed from task and timesheet totals."
-        onConfirmed: root.deleteRequested(String(root._entryState.entryId || ""))
+        onConfirmed: root.deleteRequested(
+            String(root._entryState.entryId || ""),
+            Number(root._entryState.version || 0)
+        )
     }
 }

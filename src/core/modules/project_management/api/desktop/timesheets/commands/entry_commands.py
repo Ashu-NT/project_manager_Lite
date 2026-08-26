@@ -15,6 +15,7 @@ class TimesheetEntryCreateCommand:
 @dataclass(frozen=True)
 class TimesheetEntryUpdateCommand:
     entry_id: str
+    expected_version: int
     entry_date: date | None = None
     hours: float | None = None
     note: str | None = None

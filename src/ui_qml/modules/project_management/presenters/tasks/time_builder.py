@@ -70,6 +70,7 @@ def build_task_time_entries_page_dict(page_dto) -> dict[str, object] | None:
                 "hoursLabel": item.hours_label,
                 "note": item.note,
                 "authorUsername": item.author_username,
+                "version": item.version,
             }
             for item in page_dto.items
         ],
@@ -109,6 +110,7 @@ def build_selected_time_entry_detail(entry_dto) -> TimesheetDetailViewModel:
             "hours": str(entry_dto.hours),
             "note": entry_dto.note,
             "authorUsername": entry_dto.author_username or "",
+            "version": entry_dto.version,
         },
     )
 

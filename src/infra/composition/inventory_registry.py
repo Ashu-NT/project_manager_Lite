@@ -33,6 +33,9 @@ from src.core.modules.inventory_procurement.application.procurement import (
     ProcurementService,
     PurchasingService,
 )
+from src.core.modules.inventory_procurement.infrastructure.persistence.purchase_order_submission_unit_of_work import (
+    SqlAlchemyPurchaseOrderSubmissionUnitOfWorkFactory,
+)
 from src.core.modules.inventory_procurement.infrastructure.persistence.requisition_submission_unit_of_work import (
     SqlAlchemyRequisitionSubmissionUnitOfWorkFactory,
 )
@@ -235,6 +238,16 @@ def build_inventory_procurement_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
+    purchase_order_submission_uow_session_factory = sessionmaker(
+        bind=platform_services.session.bind, future=True
+    )
+    purchase_order_submission_uow_factory = SqlAlchemyPurchaseOrderSubmissionUnitOfWorkFactory(
+        session_factory=purchase_order_submission_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
     inventory_purchasing_service = PurchasingService(
         platform_services.session,
         purchase_order_repo,
@@ -254,6 +267,7 @@ def build_inventory_procurement_service_bundle(
         item_service=inventory_item_service,
         stock_service=inventory_stock_service,
         approval_service=platform_services.approval_service,
+        purchase_order_submission_uow_factory=purchase_order_submission_uow_factory,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         document_integration_service=platform_services.document_integration_service,

@@ -18,6 +18,7 @@ def serialize_entry(entry, assignment_id: str) -> TimesheetEntryDesktopDto:
         hours_label=format_hours(entry.hours),
         note=entry.note or "",
         author_username=entry.author_username or "unknown",
+        version=int(entry.version),
     )
 
 

@@ -88,7 +88,7 @@ Item {
     signal entrySelected(string entryId)
     signal timeAddRequested(var payload)
     signal timeUpdateRequested(var payload)
-    signal timeDeleteRequested(string entryId)
+    signal timeDeleteRequested(string entryId, int expectedVersion)
     signal goToAssignmentRequested(string assignmentId)
     signal openTimesheetsRequested()
 
@@ -350,7 +350,9 @@ Item {
                     onEntrySelected: function(id) { root.entrySelected(id) }
                     onAddRequested: function(pl) { root.timeAddRequested(pl) }
                     onUpdateRequested: function(pl) { root.timeUpdateRequested(pl) }
-                    onDeleteRequested: function(id) { root.timeDeleteRequested(id) }
+                    onDeleteRequested: function(id, expectedVersion) {
+                        root.timeDeleteRequested(id, expectedVersion)
+                    }
                     onOpenTimesheetsRequested: root.openTimesheetsRequested()
                     onGoToAssignmentRequested: function(assignmentId) { root.goToAssignmentRequested(assignmentId) }
                 }

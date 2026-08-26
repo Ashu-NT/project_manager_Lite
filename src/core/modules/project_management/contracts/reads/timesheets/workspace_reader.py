@@ -110,6 +110,7 @@ class TimesheetEntryFact:
     task_name: str
     activity_type: str
     updated_at: datetime | None
+    version: int
     can_edit: bool = False
     can_delete: bool = False
 

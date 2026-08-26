@@ -55,6 +55,7 @@ AppWidgets.EntityDialog {
         }
         root.submitted({
             "entryId": String(root.entry.entryId || ""),
+            "expectedVersion": Number(root.entry.version || 0),
             "assignmentId": option ? String(option.value || "") : String(root.entry.assignmentId || ""),
             "entryDate": dateField.text.trim(),
             "hours": hoursField.text.trim(),

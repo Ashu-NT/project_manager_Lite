@@ -252,6 +252,7 @@ class ProjectManagementTimesheetsDesktopApi:
             scope=scope,
             resource_id=resource_id,
             period_start=period_start,
+            expected_version=command.expected_version,
             entry_date=command.entry_date,
             hours=command.hours,
             note=command.note,
@@ -267,12 +268,14 @@ class ProjectManagementTimesheetsDesktopApi:
         scope: TimesheetScope | str,
         resource_id: str | None,
         period_start: date,
+        expected_version: int,
     ) -> None:
         self._require_timesheet_service().delete_timesheet_entry(
             str(entry_id or "").strip(),
             scope=scope,
             resource_id=resource_id,
             period_start=period_start,
+            expected_version=expected_version,
         )
 
     def submit_resource_timesheet_period(
@@ -387,6 +390,7 @@ class ProjectManagementTimesheetsDesktopApi:
     ) -> TimesheetEntryDesktopDto:
         entry = self._require_timesheet_service().update_time_entry(
             str(command.entry_id or "").strip(),
+            expected_version=command.expected_version,
             entry_date=command.entry_date,
             hours=command.hours,
             note=command.note,
@@ -399,8 +403,11 @@ class ProjectManagementTimesheetsDesktopApi:
             ),
         )
 
-    def delete_time_entry(self, entry_id: str) -> None:
-        self._require_timesheet_service().delete_time_entry(str(entry_id or "").strip())
+    def delete_time_entry(self, entry_id: str, *, expected_version: int) -> None:
+        self._require_timesheet_service().delete_time_entry(
+            str(entry_id or "").strip(),
+            expected_version=expected_version,
+        )
 
     def submit_period(
         self,

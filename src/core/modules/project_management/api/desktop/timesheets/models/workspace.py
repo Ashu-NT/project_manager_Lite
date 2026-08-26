@@ -76,6 +76,7 @@ class ResourceTimesheetEntryDesktopDto:
     task_code: str
     task_name: str
     activity_type: str
+    version: int
     can_edit: bool
     can_delete: bool
 

@@ -2700,6 +2700,7 @@ def upgrade() -> None:
     sa.Column('task_id', sa.String(), nullable=False),
     sa.Column('author_user_id', sa.String(), nullable=True),
     sa.Column('author_username', sa.String(length=128), nullable=True),
+    sa.Column('version', sa.Integer(), server_default='1', nullable=False),
     sa.Column('body', sa.Text(), nullable=False),
     sa.Column('mentions_json', sa.Text(), server_default='[]', nullable=False),
     sa.Column('mentioned_user_ids_json', sa.Text(), server_default='[]', nullable=False),

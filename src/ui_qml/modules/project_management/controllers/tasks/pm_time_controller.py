@@ -125,10 +125,10 @@ class PMTimeController(QObject):
             set_feedback_message=self._set_feedback_message,
         )
 
-    @Slot(str, result="QVariantMap")
-    def deleteTaskTimeEntry(self, entry_id: str) -> dict[str, object]:
+    @Slot(str, int, result="QVariantMap")
+    def deleteTaskTimeEntry(self, entry_id: str, expected_version: int) -> dict[str, object]:
         return run_mutation(
-            operation=lambda: self._presenter.delete_task_time_entry(entry_id),
+            operation=lambda: self._presenter.delete_task_time_entry(entry_id, expected_version),
             success_message="Task time entry deleted.",
             on_success=self._refresh_entry_cb,
             set_is_busy=self._set_is_busy,

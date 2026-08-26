@@ -94,6 +94,7 @@ def serialize_resource_entry(fact: TimesheetEntryFact) -> ResourceTimesheetEntry
         task_code=fact.task_code,
         task_name=fact.task_name,
         activity_type=fact.activity_type,
+        version=fact.version,
         can_edit=fact.can_edit,
         can_delete=fact.can_delete,
     )
