@@ -199,7 +199,7 @@ def test_desktop_projection_formats_canonical_workspace_without_recalculation(se
 def test_workspace_query_fails_closed_after_organization_switch(services) -> None:
     project = _seed_workspace(services)
     organization_service = services["organization_service"]
-    original = organization_service.get_active_organization()
+    original = services["tenant_context_service"].get_active_organization()
     other = organization_service.create_organization(
         organization_code="PF-WORKSPACE-ISOLATION",
         display_name="Finance Workspace Isolation",

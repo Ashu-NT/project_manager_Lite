@@ -26,11 +26,11 @@ def _unique_code(prefix: str) -> str:
 
 def _non_active_organization(services):
     organization_service = services["organization_service"]
-    active = organization_service.get_active_organization()
+    active = services["tenant_context_service"].get_active_organization()
     other = organization_service.create_organization(
         organization_code=_unique_code("SEM"), display_name="Semantic Command Org", is_enabled=False
     )
-    assert organization_service.get_active_organization().id == active.id
+    assert services["tenant_context_service"].get_active_organization().id == active.id
     return active, other
 
 

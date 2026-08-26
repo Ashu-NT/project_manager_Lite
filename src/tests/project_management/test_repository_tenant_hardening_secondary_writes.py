@@ -77,7 +77,7 @@ from src.core.platform.infrastructure.persistence.orm.time_management.calendar.e
 def _seed_priority_pm_rows(services):
     session = services["session"]
     organization_service = services["organization_service"]
-    default_org = organization_service.get_active_organization()
+    default_org = services["tenant_context_service"].get_active_organization()
     other_org = organization_service.create_organization(organization_code="OPS", display_name="Operations Hub", timezone_name="UTC", base_currency="USD", is_enabled=False)
     assert default_org is not None
     assert other_org is not None

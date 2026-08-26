@@ -7,7 +7,7 @@ def test_party_service_scopes_party_master_data_by_active_organization(services)
     organization_service = services["organization_service"]
     party_service = services["party_service"]
 
-    default_organization = organization_service.get_active_organization()
+    default_organization = services["tenant_context_service"].get_active_organization()
     created = party_service.create_party(
         party_code="SUP-001",
         party_name="North Supply",

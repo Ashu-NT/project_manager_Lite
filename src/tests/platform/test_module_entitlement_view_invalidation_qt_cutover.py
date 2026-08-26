@@ -215,7 +215,7 @@ def test_non_active_organization_mutation_does_not_refresh_active_org_ui(service
     organization_service = services["organization_service"]
     catalog = _catalog(services)
     catalog.settingsWorkspace.refresh()
-    org_a1 = organization_service.get_active_organization()
+    org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
         organization_code=_unique_code("QTCUT-A2"), display_name="Qt Cutover Org A2", is_enabled=False
     )
@@ -224,7 +224,7 @@ def test_non_active_organization_mutation_does_not_refresh_active_org_ui(service
 
     services["module_catalog_service"].disable_module(org_a2.id, "project_management")
 
-    assert organization_service.get_active_organization().id == org_a1.id
+    assert services["tenant_context_service"].get_active_organization().id == org_a1.id
     assert refresh_calls == []
 
 
@@ -268,7 +268,7 @@ def test_adapter_only_reacts_to_its_exact_active_organization(services):
     channel = services["platform_view_invalidation_channel"]
     organization_service = services["organization_service"]
     tenant_id = _active_tenant(services)
-    org_a1 = organization_service.get_active_organization()
+    org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
         organization_code=_unique_code("QTCUT-SCOPE-A2"), display_name="Scope Org A2", is_enabled=False
     )
@@ -311,7 +311,7 @@ def test_adapter_follows_an_organization_switch_with_no_stale_or_duplicate_subsc
     channel = services["platform_view_invalidation_channel"]
     organization_service = services["organization_service"]
     tenant_id = _active_tenant(services)
-    org_a1 = organization_service.get_active_organization()
+    org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
         organization_code=_unique_code("QTCUT-SWITCH-A2"), display_name="Switch Org A2", is_enabled=False
     )
@@ -352,7 +352,7 @@ def test_real_organization_switch_through_refresh_current_permissions_rewires_th
     channel = services["platform_view_invalidation_channel"]
     adapter = catalog._module_entitlement_view_invalidation_adapter
 
-    org_a1 = organization_service.get_active_organization()
+    org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
         organization_code=_unique_code("QTCUT-REALSWITCH-A2"), display_name="Real Switch Org A2", is_enabled=False
     )

@@ -518,7 +518,7 @@ def test_finance_project_scope_does_not_leak_across_projects(services):
 
 def test_finance_reporting_isolated_across_organizations(services):
     organization_service = services["organization_service"]
-    original_organization = organization_service.get_active_organization()
+    original_organization = services["tenant_context_service"].get_active_organization()
     project_id = _seed_labor_finance_project(services)
 
     other_organization = organization_service.create_organization(

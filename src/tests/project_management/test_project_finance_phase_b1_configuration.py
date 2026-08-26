@@ -196,7 +196,7 @@ def test_cost_code_hierarchy_restrictions_and_profile_lifecycle(services) -> Non
 def test_financial_configuration_repositories_isolate_active_organization(services) -> None:
     organization_service = services["organization_service"]
     configuration_service = services["financial_configuration_service"]
-    original_organization = organization_service.get_active_organization()
+    original_organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project("Organization A finance")
     code = configuration_service.create_cost_code(code="ORG-A", name="Organization A")
     other_organization = organization_service.create_organization(

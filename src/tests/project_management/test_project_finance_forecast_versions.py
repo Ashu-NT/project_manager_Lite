@@ -328,7 +328,7 @@ def test_forecast_repository_is_isolated_by_active_organization(services) -> Non
         created_by="admin",
     )
     organization_service = services["organization_service"]
-    original = organization_service.get_active_organization()
+    original = services["tenant_context_service"].get_active_organization()
     other = organization_service.create_organization(
         organization_code="PF-FORECAST-ISOLATION",
         display_name="Forecast Isolation Organization",

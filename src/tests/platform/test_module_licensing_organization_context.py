@@ -4,7 +4,7 @@ def test_module_entitlements_are_scoped_by_active_organization(services):
     organization_service = services["organization_service"]
     module_catalog = services["module_catalog_service"]
 
-    default_organization = organization_service.get_active_organization()
+    default_organization = services["tenant_context_service"].get_active_organization()
     second_organization = organization_service.create_organization(
         organization_code="NORTH",
         display_name="North Division",

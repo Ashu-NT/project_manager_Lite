@@ -431,7 +431,7 @@ def test_adapter_only_reacts_to_its_exact_active_organization(services, session)
     channel = services["platform_view_invalidation_channel"]
     organization_service = services["organization_service"]
     tenant_id = _active_tenant(services)
-    org_a1 = organization_service.get_active_organization()
+    org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
         organization_code=_unique("VI-SCOPE-A2"), display_name="View Invalidation Org A2", is_enabled=False
     )
@@ -447,7 +447,7 @@ def test_adapter_only_reacts_to_its_exact_active_organization(services, session)
 
     signal_calls.clear()
     organization_service.enable_organization(org_a2.id)
-    tenant_context_service.set_active_organization(org_a2.id)
+    services["tenant_context_service"].set_active_organization(org_a2.id)
     _, budget2 = _submitted_budget(services, session)
     request2 = _request_budget_approval_as_a_different_user(services, budget2)
     assert request2.organization_id == org_a2.id
@@ -508,7 +508,7 @@ def test_adapter_follows_an_organization_switch_with_no_stale_or_duplicate_subsc
     channel = services["platform_view_invalidation_channel"]
     organization_service = services["organization_service"]
     tenant_id = _active_tenant(services)
-    org_a1 = organization_service.get_active_organization()
+    org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
         organization_code=_unique("VI-SWITCH-A2"), display_name="Switch Org A2", is_enabled=False
     )
@@ -523,7 +523,7 @@ def test_adapter_follows_an_organization_switch_with_no_stale_or_duplicate_subsc
     assert signal_calls == ["stale"]
 
     organization_service.enable_organization(org_a2.id)
-    tenant_context_service.set_active_organization(org_a2.id)
+    services["tenant_context_service"].set_active_organization(org_a2.id)
     adapter.set_active_scope(tenant_id=tenant_id, organization_id=org_a2.id)
     assert len(channel._subscriptions) == subscription_count_before, (
         "switching must dispose the old subscription before adding the new one -- never accumulate"
@@ -546,7 +546,7 @@ def test_full_switch_sequence_a1_a2_b1_a1_ends_with_exactly_one_live_subscriptio
     organization_service = services["organization_service"]
     tenant_admin = services["tenant_admin_service"]
     tenant_a = _active_tenant(services)
-    org_a1 = organization_service.get_active_organization()
+    org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
         organization_code=_unique("VI-SEQ-A2"), display_name="Sequence Org A2", is_enabled=False
     )
@@ -590,7 +590,7 @@ def test_real_organization_switch_through_refresh_current_permissions_rewires_th
     channel = services["platform_view_invalidation_channel"]
     adapter = catalog._approval_view_invalidation_adapter
 
-    org_a1 = organization_service.get_active_organization()
+    org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
         organization_code=_unique("VI-REALSWITCH-A2"), display_name="Real Switch Org A2", is_enabled=False
     )
@@ -601,7 +601,7 @@ def test_real_organization_switch_through_refresh_current_permissions_rewires_th
     assert any(f.organization_id == org_a1.id for f in _current_filters())
 
     organization_service.enable_organization(org_a2.id)
-    tenant_context_service.set_active_organization(org_a2.id)
+    services["tenant_context_service"].set_active_organization(org_a2.id)
     catalog.refreshCurrentPermissions()
 
     filters_after_switch = _current_filters()
@@ -650,7 +650,7 @@ def test_cross_org_decision_denial_produces_no_ui_refresh(services, session):
 
     _login(services, "admin", "ChangeMe123!")
     organization_service = services["organization_service"]
-    org_a1 = organization_service.get_active_organization()
+    org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
         organization_code=_unique("VI-XORG-A2"), display_name="View Invalidation Cross-Org A2", is_enabled=False
     )
@@ -661,7 +661,7 @@ def test_cross_org_decision_denial_produces_no_ui_refresh(services, session):
     approver_username = _unique("vi-xorg-approver")
     services["auth_service"].register_user(approver_username, "StrongPass123", role_names=["approver"])
     organization_service.enable_organization(org_a2.id)
-    tenant_context_service.set_active_organization(org_a2.id)
+    services["tenant_context_service"].set_active_organization(org_a2.id)
     catalog.refreshCurrentPermissions()
     refresh_calls.clear()
 
@@ -673,7 +673,7 @@ def test_cross_org_decision_denial_produces_no_ui_refresh(services, session):
 
     _login(services, "admin", "ChangeMe123!")
     organization_service.enable_organization(org_a1.id)
-    tenant_context_service.set_active_organization(org_a1.id)
+    services["tenant_context_service"].set_active_organization(org_a1.id)
     catalog.refreshCurrentPermissions()
     _login(services, approver_username, "StrongPass123")
 

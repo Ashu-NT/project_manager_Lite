@@ -529,7 +529,7 @@ def test_rollup_summaries_isolated_per_organization(services):
     party_service = services["party_service"]
     document_service = services["document_service"]
 
-    default_organization = organization_service.get_active_organization()
+    default_organization = services["tenant_context_service"].get_active_organization()
     site_service.create_site(site_code="ISO-S1", name="Iso Site 1", is_active=True)
     department_service.create_department(department_code="ISO-D1", name="Iso Dept 1", is_active=True)
     party_service.create_party(party_code="ISO-P1", party_name="Iso Party 1", is_active=True)

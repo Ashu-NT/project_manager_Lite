@@ -130,7 +130,7 @@ def test_financial_period_service_enforces_overlap_concurrency_audit_and_posting
 def test_financial_period_repository_isolates_active_organization(services) -> None:
     service = services["financial_period_service"]
     organization_service = services["organization_service"]
-    original = organization_service.get_active_organization()
+    original = services["tenant_context_service"].get_active_organization()
     first = _create_period(service)
     second_organization = organization_service.create_organization(
         organization_code="FIN2",

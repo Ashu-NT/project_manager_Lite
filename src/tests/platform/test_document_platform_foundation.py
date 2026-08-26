@@ -7,7 +7,7 @@ def test_document_service_scopes_documents_by_active_organization(services):
     organization_service = services["organization_service"]
     document_service = services["document_service"]
 
-    default_organization = organization_service.get_active_organization()
+    default_organization = services["tenant_context_service"].get_active_organization()
     created = document_service.create_document(
         document_code="MAN-001",
         title="Operations Manual",

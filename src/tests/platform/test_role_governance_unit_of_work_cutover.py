@@ -536,7 +536,7 @@ def test_storeroom_role_assignment_rejects_a_foreign_tenant_storeroom(services):
             tenant_id=foreign_tenant_id,
             organization_code=_unique_code("P5C1FORG"),
             display_name="Foreign Org",
-            is_active=True,
+            is_enabled=True,
             version=1,
         )
     )

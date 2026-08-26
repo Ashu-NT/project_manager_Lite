@@ -177,7 +177,7 @@ def test_module_catalog_read_path_is_isolated_per_organization(services):
     organization_service = services["organization_service"]
     module_catalog = services["module_catalog_service"]
 
-    default_organization = organization_service.get_active_organization()
+    default_organization = services["tenant_context_service"].get_active_organization()
     second_organization = organization_service.create_organization(
         organization_code="SOUTH",
         display_name="South Division",

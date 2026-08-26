@@ -83,7 +83,7 @@ def _create_second_org_in_same_tenant(services):
     organization_service = services["organization_service"]
     org_a1_session_id = _session_active_organization_id(services)
     assert org_a1_session_id is not None
-    org_a1 = organization_service.get_active_organization()
+    org_a1 = services["tenant_context_service"].get_active_organization()
     assert org_a1.id == org_a1_session_id
     org_a2 = organization_service.create_organization(
         organization_code=_unique("XORG-A2"), display_name="Same-Tenant Org A2", is_enabled=False

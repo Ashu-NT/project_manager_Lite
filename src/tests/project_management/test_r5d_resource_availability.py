@@ -124,7 +124,7 @@ def test_resource_workload_requires_resource_read(services) -> None:
 def test_resource_workload_fails_closed_after_organization_switch(services) -> None:
     resource = services["resource_service"].create_resource("R5D scoped resource")
     organization_service = services["organization_service"]
-    original = organization_service.get_active_organization()
+    original = services["tenant_context_service"].get_active_organization()
     other = organization_service.create_organization(
         organization_code="R5D-OTHER",
         display_name="R5D Other Organization",

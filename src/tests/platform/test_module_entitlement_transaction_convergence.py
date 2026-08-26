@@ -145,17 +145,17 @@ def test_non_active_organization_mutation_affects_only_that_organization(service
     organization_service = services["organization_service"]
     module_catalog = services["module_catalog_service"]
 
-    org_a1 = organization_service.get_active_organization()
+    org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
         organization_code=_unique_code("NONACTIVE"), display_name="Non-Active Org A2", is_enabled=False
     )
-    assert organization_service.get_active_organization().id == org_a1.id
+    assert services["tenant_context_service"].get_active_organization().id == org_a1.id
 
     entitlement_a2 = module_catalog.disable_module(org_a2.id, "project_management")
     assert entitlement_a2.enabled is False
 
     # A1 (still active throughout -- never switched) must be completely unaffected.
-    assert organization_service.get_active_organization().id == org_a1.id
+    assert services["tenant_context_service"].get_active_organization().id == org_a1.id
     entitlement_a1 = module_catalog.get_entitlement("project_management")
     assert entitlement_a1.enabled is True
 

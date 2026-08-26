@@ -8,7 +8,7 @@ def test_department_service_scopes_department_master_data_by_active_organization
     department_service = services["department_service"]
     site_service = services["site_service"]
 
-    default_organization = organization_service.get_active_organization()
+    default_organization = services["tenant_context_service"].get_active_organization()
     site = site_service.create_site(site_code="HQ", name="Headquarters")
     created = department_service.create_department(
         department_code="OPS",

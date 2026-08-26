@@ -99,7 +99,7 @@ def test_resource_inspector_and_summary_are_scoped_bounded_independent_reads(ser
 def test_resource_inspector_and_summary_fail_closed_after_organization_switch(services) -> None:
     resource = services["resource_service"].create_resource(name="Scoped Planner")
     organization_service = services["organization_service"]
-    original = organization_service.get_active_organization()
+    original = services["tenant_context_service"].get_active_organization()
     other = organization_service.create_organization(
         organization_code="R5B-OTHER",
         display_name="R5B Other Organization",

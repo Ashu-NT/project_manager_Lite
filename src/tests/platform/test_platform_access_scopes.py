@@ -237,7 +237,7 @@ def test_storeroom_scope_grant_targets_a_non_active_organization(services):
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
 
-    org_a1 = organization_service.get_active_organization()
+    org_a1 = services["tenant_context_service"].get_active_organization()
     site_a1 = services["site_service"].create_site(
         site_code="STR-A1-SITE",
         name="Org A1 Site",
@@ -305,8 +305,8 @@ def test_storeroom_scope_grant_targets_the_active_organization_while_a_different
     org_a2 = organization_service.create_organization(
         organization_code="STR-SCOPE-INV-A2", display_name="Storeroom Scope Inverse Org A2", is_enabled=True
     )
-    # Creating A2 as `is_active=True` deactivates A1's own DB flag as a side effect (a separate,
-    # unrelated mechanism from the ambient session org this test manipulates directly).
+    # P10A: creating A2 as `is_enabled=True` no longer deactivates A1 -- multiple organizations
+    # may be enabled simultaneously. A1 remains enabled throughout this test regardless.
 
     # Build a site/storeroom under A2 by switching the ambient session org to it temporarily --
     # this setup step, unlike the actual grant below, is allowed to switch. A2 is already the
@@ -321,8 +321,8 @@ def test_storeroom_scope_grant_targets_the_active_organization_while_a_different
     )
     assert storeroom_a2.organization_id == org_a2.id
 
-    # Reactivate A1 (deactivating A2 in turn -- fine, A2 has already served its purpose as the
-    # ambient org for setup) so the switch back to A1 succeeds.
+    # P10A: A1 was never disabled (no mutual exclusion), so this is a harmless no-op re-affirming
+    # it explicitly, kept for clarity that the switch back to A1 below relies on it being enabled.
     organization_service.update_organization(org_a1_id, is_enabled=True)
     tenant_context_service.set_active_organization(org_a1_id)
     assert tenant_context_service.get_active_organization_id() == org_a1_id

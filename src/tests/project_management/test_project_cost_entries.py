@@ -389,7 +389,7 @@ def test_governed_cost_approval_applies_as_deciding_principal(
 def test_cost_entry_repository_isolates_active_organization(services) -> None:
     _organization, _project, _cost_code, _period, draft = _create_draft(services)
     organization_service = services["organization_service"]
-    original = organization_service.get_active_organization()
+    original = services["tenant_context_service"].get_active_organization()
     other = organization_service.create_organization(
         organization_code="COST2",
         display_name="Second cost organization",

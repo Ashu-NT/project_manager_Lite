@@ -504,7 +504,7 @@ def test_adapter_only_reacts_to_its_exact_active_organization_for_resource_scope
     channel = services["platform_view_invalidation_channel"]
     organization_service = services["organization_service"]
     tenant_id = _active_tenant(services)
-    org_a1 = organization_service.get_active_organization()
+    org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
         organization_code=_unique_code("P5C3-ADAPTER-A2"), display_name="Adapter Scope A2", is_enabled=False
     )
@@ -557,7 +557,7 @@ def test_real_organization_switch_through_refresh_current_permissions_rewires_th
     channel = services["platform_view_invalidation_channel"]
     adapter = catalog._role_binding_view_invalidation_adapter
 
-    org_a1 = organization_service.get_active_organization()
+    org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
         organization_code=_unique_code("P5C3-REALSWITCH-A2"), display_name="Real Switch A2", is_enabled=False
     )
@@ -568,7 +568,7 @@ def test_real_organization_switch_through_refresh_current_permissions_rewires_th
     assert any(f.organization_id == org_a1.id for f in _exact_org_filters())
 
     organization_service.enable_organization(org_a2.id)
-    tenant_context_service.set_active_organization(org_a2.id)
+    services["tenant_context_service"].set_active_organization(org_a2.id)
     catalog.refreshCurrentPermissions()
 
     filters_after = _exact_org_filters()
@@ -605,18 +605,16 @@ def test_switching_does_not_accumulate_subscriptions(services):
     organization_service = services["organization_service"]
     catalog = _catalog(services)
     channel = services["platform_view_invalidation_channel"]
-    org_a1 = organization_service.get_active_organization()
+    org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
         organization_code=_unique_code("P5C3-NOACCUMULATE-A2"), display_name="No Accumulate A2", is_enabled=False
     )
     subscription_count_before = len(channel._subscriptions)
 
     organization_service.enable_organization(org_a2.id)
-    tenant_context_service.set_active_organization(org_a2.id)
+    services["tenant_context_service"].set_active_organization(org_a2.id)
     catalog.refreshCurrentPermissions()
-    organization_service.update_organization(org_a1.id, is_enabled=True)
-    organization_service.enable_organization(org_a1.id)
-    tenant_context_service.set_active_organization(org_a1.id)
+    services["tenant_context_service"].set_active_organization(org_a1.id)
     catalog.refreshCurrentPermissions()
 
     assert len(channel._subscriptions) == subscription_count_before

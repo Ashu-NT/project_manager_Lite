@@ -64,16 +64,10 @@ class _FakeOrganizationRepo:
                 return row
         return None
 
-    def get_active(self) -> Organization | None:
-        active = [row for row in self._rows.values() if row.is_active]
-        if not active:
-            return None
-        return sorted(active, key=lambda row: row.display_name)[0]
-
-    def list_all(self, *, active_only: bool | None = None) -> list[Organization]:
+    def list_all(self, *, enabled_only: bool | None = None) -> list[Organization]:
         rows = list(self._rows.values())
-        if active_only is not None:
-            rows = [row for row in rows if row.is_active is bool(active_only)]
+        if enabled_only is not None:
+            rows = [row for row in rows if row.is_enabled is bool(enabled_only)]
         return sorted(rows, key=lambda row: row.display_name)
 
     def get_for_tenant(self, organization_id: str, tenant_id: str) -> Organization | None:
@@ -88,29 +82,19 @@ class _FakeOrganizationRepo:
                 return row
         return None
 
-    def get_active_for_tenant(self, tenant_id: str) -> Organization | None:
-        active = [
-            row
-            for row in self._rows.values()
-            if row.tenant_id == tenant_id and row.is_active
-        ]
-        if not active:
-            return None
-        return sorted(active, key=lambda row: row.display_name)[0]
-
     def list_for_tenant(
         self,
         tenant_id: str,
         *,
-        active_only: bool | None = None,
+        enabled_only: bool | None = None,
     ) -> list[Organization]:
         rows = [
             row
             for row in self._rows.values()
             if row.tenant_id == tenant_id
         ]
-        if active_only is not None:
-            rows = [row for row in rows if row.is_active is bool(active_only)]
+        if enabled_only is not None:
+            rows = [row for row in rows if row.is_enabled is bool(enabled_only)]
         return sorted(rows, key=lambda row: row.display_name)
 
 
@@ -331,11 +315,12 @@ def test_organization_service_uses_entity_validation_and_final_state(monkeypatch
     )
 
     assert activated.display_name == "North Ops"
-    assert activated.is_active is True
+    assert activated.is_enabled is True
     assert activated.version == 2
+    # P10A: enabling `second` never disables `created` -- no mutual exclusion.
     reloaded_first = service._organization_repo.get(created.id)
     assert reloaded_first is not None
-    assert reloaded_first.is_active is False
+    assert reloaded_first.is_enabled is True
 
     with pytest.raises(ValidationError) as exc_name:
         service.update_organization(
@@ -344,10 +329,6 @@ def test_organization_service_uses_entity_validation_and_final_state(monkeypatch
             display_name=" ",
         )
     assert exc_name.value.code == "ORGANIZATION_NAME_REQUIRED"
-
-    switched = service.set_active_organization(created.id)
-    assert switched.id == created.id
-    assert service._user_session.active_organization_id == created.id
 
 
 def test_site_dto_normalizes_and_validates_fields():

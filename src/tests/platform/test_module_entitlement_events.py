@@ -387,16 +387,16 @@ def test_transition_module_lifecycle_same_state_records_zero_events(services, mo
 def test_events_carry_the_commanded_organization_not_the_active_one(services, monkeypatch):
     organization_service = services["organization_service"]
     catalog = services["module_catalog_service"]
-    org_a1 = organization_service.get_active_organization()
+    org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
         organization_code=_unique_code("SEMEVT"), display_name="Semantic Event Org", is_enabled=False
     )
-    assert organization_service.get_active_organization().id == org_a1.id
+    assert services["tenant_context_service"].get_active_organization().id == org_a1.id
     recorded = _spy_recorded_events(catalog, monkeypatch)
 
     catalog.disable_module(org_a2.id, "project_management")
 
-    assert organization_service.get_active_organization().id == org_a1.id  # never switched
+    assert services["tenant_context_service"].get_active_organization().id == org_a1.id  # never switched
     assert len(recorded) == 1
     assert recorded[0].organization_id == org_a2.id
     assert recorded[0].organization_id != org_a1.id

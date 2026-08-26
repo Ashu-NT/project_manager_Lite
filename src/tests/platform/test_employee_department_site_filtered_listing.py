@@ -121,7 +121,7 @@ def test_department_filter_from_foreign_organization_yields_no_rows(services):
     department_service = services["department_service"]
     organization_service = services["organization_service"]
 
-    default_organization = organization_service.get_active_organization()
+    default_organization = services["tenant_context_service"].get_active_organization()
     dept_in_default_org = department_service.create_department(
         department_code="FILT-CROSS-D", name="Cross Dept", is_active=True
     )

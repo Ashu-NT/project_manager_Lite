@@ -531,7 +531,7 @@ def test_add_line_rejects_mismatched_currency(services) -> None:
 def test_add_line_rejects_cross_organization_cost_code(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     organization_service = services["organization_service"]
-    original_organization = organization_service.get_active_organization()
+    original_organization = services["tenant_context_service"].get_active_organization()
     project = _make_project(services)
     budget_service = services["budget_service"]
     budget = budget_service.create_budget(project.id, "cross-org")
@@ -1093,7 +1093,7 @@ def test_task_referenced_by_budget_line_cannot_be_hard_deleted(services) -> None
 def test_tenant_isolation_across_organizations(services) -> None:
     _login(services, "admin", "ChangeMe123!")
     organization_service = services["organization_service"]
-    original_organization = organization_service.get_active_organization()
+    original_organization = services["tenant_context_service"].get_active_organization()
     project = _make_project(services)
     budget_service = services["budget_service"]
     budget = budget_service.create_budget(project.id, "org-scoped")

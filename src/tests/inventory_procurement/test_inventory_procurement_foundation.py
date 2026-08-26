@@ -121,7 +121,7 @@ def test_inventory_manager_can_create_storerooms_under_shared_sites(services):
 def test_inventory_foundation_rejects_out_of_scope_shared_references(services):
     auth = services["auth_service"]
     organization_service = services["organization_service"]
-    default_org = organization_service.get_active_organization()
+    default_org = services["tenant_context_service"].get_active_organization()
     other_org = organization_service.create_organization(
         organization_code="INV-OPS",
         display_name="Inventory Operations",

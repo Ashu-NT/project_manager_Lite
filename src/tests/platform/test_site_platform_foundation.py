@@ -7,7 +7,7 @@ def test_site_service_scopes_site_master_data_by_active_organization(services):
     organization_service = services["organization_service"]
     site_service = services["site_service"]
 
-    default_organization = organization_service.get_active_organization()
+    default_organization = services["tenant_context_service"].get_active_organization()
     created = site_service.create_site(
         site_code="HQ",
         name="Headquarters",

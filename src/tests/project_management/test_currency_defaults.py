@@ -1,6 +1,6 @@
 def _set_active_organization_currency(services, currency_code: str) -> None:
     organization_service = services["organization_service"]
-    organization = organization_service.get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     organization_service.update_organization(
         organization.id,
         expected_version=organization.version,

@@ -23,7 +23,7 @@ from src.core.platform.domain.master_data.party import PartyType
 def _seed_procurement_scope_rows(services) -> dict[str, str]:
     session = services["session"]
     organization_service = services["organization_service"]
-    current_org = organization_service.get_active_organization()
+    current_org = services["tenant_context_service"].get_active_organization()
     other_org = organization_service.create_organization(
         organization_code="PROC-TENANT-OPS",
         display_name="Procurement Tenant Operations",
