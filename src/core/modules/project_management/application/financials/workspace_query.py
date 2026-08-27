@@ -36,6 +36,15 @@ from src.core.modules.project_management.contracts.repositories.finance.rate_car
 )
 from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
+from src.core.modules.project_management.contracts.reads.financials.finance_budget_reader import (
+    FinanceBudgetReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
+    FinanceBudgetWorkspaceFacts,
+    FinancePageFacts,
+    FinancePageRequest,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -55,6 +64,8 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         planned_cost_repo: ProjectPlannedCostVersionRepository,
         task_repo: TaskRepository,
         resource_repo: ResourceRepository,
+        budget_reader: FinanceBudgetReader | None = None,
+        tenant_context_service: TenantContextService | None = None,
         user_session=None,
         module_catalog_service=None,
     ) -> None:
@@ -65,8 +76,68 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         self._planned_cost_repo = planned_cost_repo
         self._task_repo = task_repo
         self._resource_repo = resource_repo
+        self._budget_reader = budget_reader
+        self._tenant_context_service = tenant_context_service
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
+
+    def get_budget_workspace(
+        self,
+        project_id: str,
+        *,
+        selected_budget_id: str = "",
+        version_request: FinancePageRequest | None = None,
+        line_request: FinancePageRequest | None = None,
+    ) -> FinanceBudgetWorkspaceFacts:
+        require_permission(
+            self._user_session,
+            "finance.read",
+            operation_label="view project budgets",
+        )
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "finance.read",
+            operation_label="view project budgets",
+        )
+        if self._budget_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Finance Budget Reader is not configured.")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view project budgets"
+        )
+        normalized_budget_id = str(selected_budget_id or "").strip()
+        versions = self._budget_reader.list_versions(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            request=version_request or FinancePageRequest(sort_key="revision"),
+        )
+        requested_lines = line_request or FinancePageRequest(sort_key="metaText")
+        lines = (
+            self._budget_reader.list_lines(
+                tenant_id=scope.tenant_id,
+                organization_id=scope.organization_id,
+                project_id=project_id,
+                budget_id=normalized_budget_id,
+                request=requested_lines,
+            )
+            if normalized_budget_id
+            else FinancePageFacts(
+                items=(),
+                total=0,
+                page=requested_lines.normalized_page,
+                page_size=requested_lines.normalized_page_size,
+                sort_key=(requested_lines.sort_key or "metaText"),
+                sort_direction=(
+                    "asc" if requested_lines.sort_direction == "asc" else "desc"
+                ),
+            )
+        )
+        return FinanceBudgetWorkspaceFacts(
+            selected_budget_id=normalized_budget_id,
+            versions=versions,
+            lines=lines,
+        )
 
     def get(
         self,

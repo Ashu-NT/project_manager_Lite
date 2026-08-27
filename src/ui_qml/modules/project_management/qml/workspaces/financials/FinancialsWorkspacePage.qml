@@ -52,12 +52,12 @@ AppLayouts.WorkspaceFrame {
 
     readonly property var _detailSections: {
         return [
-            { "label": "Overview", "group": "Finance" },
-            { "label": "Planning", "group": "Finance" },
-            { "label": "Costs", "group": "Finance" },
-            { "label": "Performance", "group": "Finance" },
-            { "label": "Commercial", "group": "Finance" },
-            { "label": "Controls", "group": "Finance" }
+            "Overview",
+            "Planning",
+            "Costs",
+            "Performance",
+            "Commercial",
+            "Controls"
         ]
     }
     readonly property var _destinationIds: [
@@ -393,6 +393,13 @@ AppLayouts.WorkspaceFrame {
                     financialProfileModel: root.workspaceController ? root.workspaceController.financialProfile : ({})
                     budgetVersionsModel: root.workspaceController ? root.workspaceController.budgetVersions : ({ "items": [] })
                     budgetLinesModel: root.workspaceController ? root.workspaceController.budgetLines : ({ "items": [] })
+                    budgetVersionsTableModel: root.workspaceController ? root.workspaceController.budgetVersionsTableModel : null
+                    budgetLinesTableModel: root.workspaceController ? root.workspaceController.budgetLinesTableModel : null
+                    selectedBudgetId: root.workspaceController ? root.workspaceController.selectedBudgetId : ""
+                    budgetVersionSortKey: root.workspaceController ? root.workspaceController.budgetVersionSortKey : "revision"
+                    budgetVersionSortDirection: root.workspaceController ? root.workspaceController.budgetVersionSortDirection : Qt.DescendingOrder
+                    budgetLineSortKey: root.workspaceController ? root.workspaceController.budgetLineSortKey : "metaText"
+                    budgetLineSortDirection: root.workspaceController ? root.workspaceController.budgetLineSortDirection : Qt.DescendingOrder
                     rateCardsModel: root.workspaceController ? root.workspaceController.rateCards : ({ "items": [] })
                     rateLinesModel: root.workspaceController ? root.workspaceController.rateLines : ({ "items": [] })
                     plannedCostVersionsModel: root.workspaceController ? root.workspaceController.plannedCostVersions : ({ "items": [] })
@@ -411,6 +418,18 @@ AppLayouts.WorkspaceFrame {
                         if (root.workspaceController !== null) {
                             root.workspaceController.setConfigurationPage(collection, page)
                         }
+                    }
+                    onBudgetVersionSelected: function(budgetId) {
+                        if (root.workspaceController !== null) root.workspaceController.selectBudgetVersion(budgetId)
+                    }
+                    onBudgetVersionPageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setBudgetVersionPage(page)
+                    }
+                    onBudgetVersionSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setBudgetVersionSort(key, direction)
+                    }
+                    onBudgetLineSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setBudgetLineSort(key, direction)
                     }
                     onActualPageRequested: function(page) {
                         if (root.workspaceController !== null) root.workspaceController.setActualPage(page)

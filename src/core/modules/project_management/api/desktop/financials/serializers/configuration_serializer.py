@@ -16,6 +16,9 @@ from src.core.modules.project_management.api.desktop.financials.models.configura
 from src.core.modules.project_management.application.financials import (
     ProjectFinanceWorkspaceRead,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
+    FinanceBudgetWorkspaceFacts,
+)
 
 
 def _label(value: str) -> str:
@@ -71,52 +74,8 @@ def serialize_finance_configuration_workspace(
 
     return FinancialConfigurationWorkspaceDto(
         profile=profile_dto,
-        budget_versions=tuple(
-            FinancialConfigurationRecordDto(
-                id=item.id,
-                title=f"v{item.revision} - {item.name}",
-                status_label=_label(item.status),
-                subtitle=f"{item.line_count} line{'s' if item.line_count != 1 else ''}",
-                supporting_text=f"Authorized total {format_money(item.total_amount, item.currency_code)}",
-                meta_text=(
-                    f"Approved {_datetime_label(item.approved_at)} by "
-                    f"{item.approved_by or 'not approved'}"
-                    if item.status == "approved"
-                    else f"Updated row version {item.row_version}"
-                ),
-                state={
-                    "revision": item.revision,
-                    "currency": item.currency_code,
-                    "totalAmountLabel": format_money(item.total_amount, item.currency_code),
-                    "lineCount": item.line_count,
-                    "notes": item.notes,
-                },
-            )
-            for item in source.budget_versions
-        ),
-        budget_lines=tuple(
-            FinancialConfigurationRecordDto(
-                id=item.id,
-                title=item.description or f"{item.cost_code} budget line",
-                status_label=_label(item.budget_status),
-                subtitle=(
-                    f"{item.cost_code} - {item.cost_code_name}"
-                    if item.cost_code_name
-                    else item.cost_code
-                ),
-                supporting_text=f"{item.task_name} | {format_money(item.amount, item.currency_code)}",
-                meta_text=f"Budget v{item.budget_revision} - {item.budget_name}",
-                state={
-                    "budgetId": item.budget_id,
-                    "budgetRevision": item.budget_revision,
-                    "costCode": item.cost_code,
-                    "taskName": item.task_name,
-                    "wbsCode": item.wbs_code,
-                    "amountLabel": format_money(item.amount, item.currency_code),
-                },
-            )
-            for item in source.budget_lines
-        ),
+        budget_versions=tuple(_budget_version_dto(item) for item in source.budget_versions),
+        budget_lines=tuple(_budget_line_dto(item) for item in source.budget_lines),
         budget_line_page=source.budget_line_page,
         budget_line_page_size=source.budget_line_page_size,
         budget_line_total=source.budget_line_total,
@@ -227,4 +186,73 @@ def serialize_finance_configuration_workspace(
     )
 
 
-__all__ = ["serialize_finance_configuration_workspace"]
+def serialize_finance_budget_workspace(
+    source: FinanceBudgetWorkspaceFacts,
+) -> FinancialConfigurationWorkspaceDto:
+    return FinancialConfigurationWorkspaceDto(
+        selected_budget_id=source.selected_budget_id,
+        budget_versions=tuple(_budget_version_dto(item) for item in source.versions.items),
+        budget_version_page=source.versions.page,
+        budget_version_page_size=source.versions.page_size,
+        budget_version_total=source.versions.total,
+        budget_version_sort_key=source.versions.sort_key,
+        budget_version_sort_direction=source.versions.sort_direction,
+        budget_lines=tuple(_budget_line_dto(item) for item in source.lines.items),
+        budget_line_page=source.lines.page,
+        budget_line_page_size=source.lines.page_size,
+        budget_line_total=source.lines.total,
+        budget_line_sort_key=source.lines.sort_key,
+        budget_line_sort_direction=source.lines.sort_direction,
+    )
+
+
+def _budget_version_dto(item) -> FinancialConfigurationRecordDto:
+    return FinancialConfigurationRecordDto(
+        id=item.id,
+        title=f"v{item.revision} - {item.name}",
+        status_label=_label(item.status),
+        subtitle=f"{item.line_count} line{'s' if item.line_count != 1 else ''}",
+        supporting_text=f"Authorized total {format_money(item.total_amount, item.currency_code)}",
+        meta_text=(
+            f"Approved {_datetime_label(item.approved_at)} by "
+            f"{item.approved_by or 'not approved'}"
+            if item.status == "approved"
+            else f"Updated row version {item.row_version}"
+        ),
+        state={
+            "revision": item.revision,
+            "currency": item.currency_code,
+            "totalAmountLabel": format_money(item.total_amount, item.currency_code),
+            "lineCount": item.line_count,
+            "notes": item.notes,
+        },
+    )
+
+
+def _budget_line_dto(item) -> FinancialConfigurationRecordDto:
+    return FinancialConfigurationRecordDto(
+        id=item.id,
+        title=item.description or f"{item.cost_code} budget line",
+        status_label=_label(item.budget_status),
+        subtitle=(
+            f"{item.cost_code} - {item.cost_code_name}"
+            if item.cost_code_name
+            else item.cost_code
+        ),
+        supporting_text=f"{item.task_name} | {format_money(item.amount, item.currency_code)}",
+        meta_text=f"Budget v{item.budget_revision} - {item.budget_name}",
+        state={
+            "budgetId": item.budget_id,
+            "budgetRevision": item.budget_revision,
+            "costCode": item.cost_code,
+            "taskName": item.task_name,
+            "wbsCode": item.wbs_code,
+            "amountLabel": format_money(item.amount, item.currency_code),
+        },
+    )
+
+
+__all__ = [
+    "serialize_finance_budget_workspace",
+    "serialize_finance_configuration_workspace",
+]

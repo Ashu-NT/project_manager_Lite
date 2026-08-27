@@ -181,12 +181,50 @@ class FinancialsStateMixin:
     def _set_budget_versions(self, value: FinancialsMap) -> None:
         if value != self._budget_versions:
             self._budget_versions = value
+            self._budget_versions_table_model.set_rows(value.get("items", []))
             self.budgetVersionsChanged.emit()
 
     def _set_budget_lines(self, value: FinancialsMap) -> None:
         if value != self._budget_lines:
             self._budget_lines = value
+            self._budget_lines_table_model.set_rows(value.get("items", []))
             self.budgetLinesChanged.emit()
+
+    def _set_selected_budget_id(self, value: str) -> None:
+        if value != self._selected_budget_id:
+            self._selected_budget_id = value
+            self.selectedBudgetIdChanged.emit()
+
+    def _set_budget_sort_state(
+        self,
+        *,
+        version_key: str,
+        version_direction: str,
+        line_key: str,
+        line_direction: str,
+    ) -> None:
+        version_order = (
+            Qt.DescendingOrder.value
+            if version_direction == "desc"
+            else Qt.AscendingOrder.value
+        )
+        line_order = (
+            Qt.DescendingOrder.value
+            if line_direction == "desc"
+            else Qt.AscendingOrder.value
+        )
+        if version_key != self._budget_version_sort_key:
+            self._budget_version_sort_key = version_key
+            self.budgetVersionSortKeyChanged.emit()
+        if version_order != self._budget_version_sort_direction:
+            self._budget_version_sort_direction = version_order
+            self.budgetVersionSortDirectionChanged.emit()
+        if line_key != self._budget_line_sort_key:
+            self._budget_line_sort_key = line_key
+            self.budgetLineSortKeyChanged.emit()
+        if line_order != self._budget_line_sort_direction:
+            self._budget_line_sort_direction = line_order
+            self.budgetLineSortDirectionChanged.emit()
 
     def _set_rate_cards(self, value: FinancialsMap) -> None:
         if value != self._rate_cards:

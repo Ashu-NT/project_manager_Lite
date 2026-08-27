@@ -109,6 +109,7 @@ def build_destination_state(
     selected_project_id: str,
     selected_project_label: str = "",
     budget_line_page: int = 1,
+    budget_version_page: int = 1,
     rate_line_page: int = 1,
     planned_cost_line_page: int = 1,
     billing_preparation_page: int = 1,
@@ -121,6 +122,11 @@ def build_destination_state(
     commitment_sort_key: str = "metaText",
     commitment_sort_direction: str = "desc",
     selected_forecast_id: str | None = None,
+    selected_budget_id: str | None = None,
+    budget_version_sort_key: str = "revision",
+    budget_version_sort_direction: str = "desc",
+    budget_line_sort_key: str = "metaText",
+    budget_line_sort_direction: str = "desc",
     selected_change_id: str | None = None,
     selected_baseline_id: str | None = None,
 ) -> FinancialsWorkspaceViewModel:
@@ -145,24 +151,41 @@ def build_destination_state(
 
     if destination == "planning":
         if subsection in {"budgets", "planned_costs"}:
-            configuration = desktop_api.get_configuration_workspace(
-                project_id,
-                budget_line_page=budget_line_page,
-                rate_line_page=rate_line_page,
-                planned_cost_line_page=planned_cost_line_page,
-                page_size=configuration_page_size,
-                include_profile_details=False,
-                include_budgets=subsection == "budgets",
-                include_rates=False,
-                include_planned_costs=subsection == "planned_costs",
+            configuration = (
+                desktop_api.get_budget_workspace(
+                    project_id,
+                    selected_budget_id=selected_budget_id or "",
+                    version_page=budget_version_page,
+                    line_page=budget_line_page,
+                    page_size=configuration_page_size,
+                    version_sort_key=budget_version_sort_key,
+                    version_sort_direction=budget_version_sort_direction,
+                    line_sort_key=budget_line_sort_key,
+                    line_sort_direction=budget_line_sort_direction,
+                )
+                if subsection == "budgets"
+                else desktop_api.get_configuration_workspace(
+                    project_id,
+                    planned_cost_line_page=planned_cost_line_page,
+                    page_size=configuration_page_size,
+                    include_profile_details=False,
+                    include_budgets=False,
+                    include_rates=False,
+                    include_planned_costs=True,
+                )
             )
             views = build_finance_configuration_views(configuration)
             if subsection == "budgets":
                 return FinancialsWorkspaceViewModel(
                     overview=state.overview,
                     selected_project_id=project_id,
+                    selected_budget_id=views["selected_budget_id"],
                     budget_versions=views["budget_versions"],
                     budget_lines=views["budget_lines"],
+                    budget_version_sort_key=views["budget_version_sort_key"],
+                    budget_version_sort_direction=views["budget_version_sort_direction"],
+                    budget_line_sort_key=views["budget_line_sort_key"],
+                    budget_line_sort_direction=views["budget_line_sort_direction"],
                 )
             return FinancialsWorkspaceViewModel(
                 overview=state.overview,

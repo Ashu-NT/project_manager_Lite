@@ -76,6 +76,11 @@ class ProjectManagementFinancialsWorkspaceController(
     financialProfileChanged = Signal()
     budgetVersionsChanged = Signal()
     budgetLinesChanged = Signal()
+    selectedBudgetIdChanged = Signal()
+    budgetVersionSortKeyChanged = Signal()
+    budgetVersionSortDirectionChanged = Signal()
+    budgetLineSortKeyChanged = Signal()
+    budgetLineSortDirectionChanged = Signal()
     rateCardsChanged = Signal()
     rateLinesChanged = Signal()
     plannedCostVersionsChanged = Signal()
@@ -142,6 +147,14 @@ class ProjectManagementFinancialsWorkspaceController(
         self._financial_profile = default_detail()
         self._budget_versions = default_collection()
         self._budget_lines = default_collection()
+        self._budget_versions_table_model = DynamicTableModel(self)
+        self._budget_lines_table_model = DynamicTableModel(self)
+        self._selected_budget_id = ""
+        self._budget_version_page = 1
+        self._budget_version_sort_key = "revision"
+        self._budget_version_sort_direction = Qt.DescendingOrder.value
+        self._budget_line_sort_key = "metaText"
+        self._budget_line_sort_direction = Qt.DescendingOrder.value
         self._rate_cards = default_collection()
         self._rate_lines = default_collection()
         self._planned_cost_versions = default_collection()
@@ -275,6 +288,30 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property("QVariantMap", notify=budgetLinesChanged)
     def budgetLines(self) -> FinancialsMap: return self._budget_lines
 
+    @Property(QObject, constant=True)
+    def budgetVersionsTableModel(self) -> DynamicTableModel:
+        return self._budget_versions_table_model
+
+    @Property(QObject, constant=True)
+    def budgetLinesTableModel(self) -> DynamicTableModel:
+        return self._budget_lines_table_model
+
+    @Property(str, notify=selectedBudgetIdChanged)
+    def selectedBudgetId(self) -> str: return self._selected_budget_id
+
+    @Property(str, notify=budgetVersionSortKeyChanged)
+    def budgetVersionSortKey(self) -> str: return self._budget_version_sort_key
+
+    @Property(int, notify=budgetVersionSortDirectionChanged)
+    def budgetVersionSortDirection(self) -> int:
+        return self._budget_version_sort_direction
+
+    @Property(str, notify=budgetLineSortKeyChanged)
+    def budgetLineSortKey(self) -> str: return self._budget_line_sort_key
+
+    @Property(int, notify=budgetLineSortDirectionChanged)
+    def budgetLineSortDirection(self) -> int: return self._budget_line_sort_direction
+
     @Property("QVariantMap", notify=rateCardsChanged)
     def rateCards(self) -> FinancialsMap: return self._rate_cards
 
@@ -322,6 +359,10 @@ class ProjectManagementFinancialsWorkspaceController(
         self._select_forecast_version(forecast_id)
 
     @Slot(str)
+    def selectBudgetVersion(self, budget_id: str) -> None:
+        self._select_budget_version(budget_id)
+
+    @Slot(str)
     def selectFinancialChange(self, change_id: str) -> None:
         self._select_financial_change(change_id)
 
@@ -353,6 +394,18 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str, int)
     def setConfigurationPage(self, collection: str, page: int) -> None:
         self._set_configuration_page(collection, page)
+
+    @Slot(int)
+    def setBudgetVersionPage(self, page: int) -> None:
+        self._set_budget_version_page(page)
+
+    @Slot(str, int)
+    def setBudgetVersionSort(self, sort_key: str, sort_direction: int) -> None:
+        self._set_budget_version_sort(sort_key, sort_direction)
+
+    @Slot(str, int)
+    def setBudgetLineSort(self, sort_key: str, sort_direction: int) -> None:
+        self._set_budget_line_sort(sort_key, sort_direction)
 
     @Slot(int)
     def setActualPage(self, page: int) -> None: self._set_actual_page(page)

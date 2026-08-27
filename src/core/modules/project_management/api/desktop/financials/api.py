@@ -19,6 +19,9 @@ from src.core.modules.project_management.contracts.reads.financials.sorting impo
     normalize_cost_entry_sort,
     normalize_commitment_sort,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
+    FinancePageRequest,
+)
 from src.core.modules.project_management.contracts.reads.pagination import (
     normalize_offset_for_total,
     normalize_page_for_total,
@@ -118,6 +121,7 @@ from src.core.modules.project_management.api.desktop.financials.serializers.snap
     serialize_snapshot,
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.configuration_serializer import (
+    serialize_finance_budget_workspace,
     serialize_finance_configuration_workspace,
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.billing_serializer import (
@@ -535,6 +539,45 @@ class ProjectManagementFinancialsDesktopApi:
                 include_budgets=include_budgets,
                 include_rates=include_rates,
                 include_planned_costs=include_planned_costs,
+            )
+        )
+
+    def get_budget_workspace(
+        self,
+        project_id: str,
+        *,
+        selected_budget_id: str = "",
+        version_page: int = 1,
+        line_page: int = 1,
+        page_size: int = 50,
+        version_sort_key: str = "revision",
+        version_sort_direction: str = "desc",
+        line_sort_key: str = "metaText",
+        line_sort_direction: str = "desc",
+        search: str = "",
+        status: str = "",
+    ) -> FinancialConfigurationWorkspaceDto:
+        if not project_id or self._finance_workspace_query is None:
+            return FinancialConfigurationWorkspaceDto()
+        return serialize_finance_budget_workspace(
+            self._finance_workspace_query.get_budget_workspace(
+                project_id,
+                selected_budget_id=selected_budget_id,
+                version_request=FinancePageRequest(
+                    page=version_page,
+                    page_size=page_size,
+                    sort_key=version_sort_key,
+                    sort_direction=version_sort_direction,
+                    search=search,
+                    status=status,
+                ),
+                line_request=FinancePageRequest(
+                    page=line_page,
+                    page_size=page_size,
+                    sort_key=line_sort_key,
+                    sort_direction=line_sort_direction,
+                    search=search,
+                ),
             )
         )
 

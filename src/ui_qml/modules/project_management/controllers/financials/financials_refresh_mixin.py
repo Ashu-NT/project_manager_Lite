@@ -59,6 +59,7 @@ class FinancialsRefreshMixin:
                 selected_project_id=project_id,
                 selected_project_label=self._selected_project_label(),
                 budget_line_page=self._budget_line_page,
+                budget_version_page=self._budget_version_page,
                 rate_line_page=self._rate_line_page,
                 planned_cost_line_page=self._planned_cost_line_page,
                 billing_preparation_page=self._billing_preparation_page,
@@ -75,6 +76,15 @@ class FinancialsRefreshMixin:
                     self._commitment_sort_direction
                 ),
                 selected_forecast_id=self._selected_forecast_id or None,
+                selected_budget_id=self._selected_budget_id or None,
+                budget_version_sort_key=self._budget_version_sort_key,
+                budget_version_sort_direction=self._sort_direction_name(
+                    self._budget_version_sort_direction
+                ),
+                budget_line_sort_key=self._budget_line_sort_key,
+                budget_line_sort_direction=self._sort_direction_name(
+                    self._budget_line_sort_direction
+                ),
                 selected_change_id=self._selected_change_id or None,
                 selected_baseline_id=self._selected_baseline_id or None,
             )
@@ -104,14 +114,22 @@ class FinancialsRefreshMixin:
 
         if destination == "planning":
             if subsection == "budgets":
+                self._set_selected_budget_id(state.selected_budget_id)
                 self._set_budget_versions(
                     serialize_financials_collection_view_model(state.budget_versions)
                 )
                 self._set_budget_lines(
                     serialize_financials_collection_view_model(state.budget_lines)
                 )
+                self._budget_version_page = state.budget_versions.page
                 self._budget_line_page = state.budget_lines.page
                 self._configuration_page_size = state.budget_lines.page_size
+                self._set_budget_sort_state(
+                    version_key=state.budget_version_sort_key,
+                    version_direction=state.budget_version_sort_direction,
+                    line_key=state.budget_line_sort_key,
+                    line_direction=state.budget_line_sort_direction,
+                )
             elif subsection == "planned_costs":
                 self._set_planned_cost_versions(
                     serialize_financials_collection_view_model(
@@ -296,6 +314,7 @@ class FinancialsRefreshMixin:
         self._set_financial_profile(default_detail())
         self._set_budget_versions(default_collection())
         self._set_budget_lines(default_collection())
+        self._set_selected_budget_id("")
         self._set_rate_cards(default_collection())
         self._set_rate_lines(default_collection())
         self._set_planned_cost_versions(default_collection())

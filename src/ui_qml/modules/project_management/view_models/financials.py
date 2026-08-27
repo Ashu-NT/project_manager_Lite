@@ -139,8 +139,13 @@ class FinancialsWorkspaceViewModel:
     variance_basis: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     report_basis: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     financial_profile: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
+    selected_budget_id: str = ""
     budget_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     budget_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    budget_version_sort_key: str = "revision"
+    budget_version_sort_direction: str = "desc"
+    budget_line_sort_key: str = "metaText"
+    budget_line_sort_direction: str = "desc"
     rate_cards: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     rate_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     planned_cost_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))

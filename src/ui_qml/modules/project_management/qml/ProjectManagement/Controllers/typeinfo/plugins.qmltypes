@@ -216,10 +216,21 @@ Component {
     Property { name: "billingPreparations"; type: "QVariantMap"; isReadonly: true }
     Property { name: "commercialProjection"; type: "QVariantMap"; isReadonly: true }
     Property { name: "activity"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "budgetVersionsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "budgetLinesTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "selectedBudgetId"; type: "QString"; isReadonly: true }
+    Property { name: "budgetVersionSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "budgetVersionSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "budgetLineSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "budgetLineSortDirection"; type: "int"; isReadonly: true }
     Method { name: "refresh" }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
     Method { name: "selectFinanceDestination"; Parameter { name: "destination"; type: "QString" } }
     Method { name: "selectFinanceSubsection"; Parameter { name: "subsection"; type: "QString" } }
+    Method { name: "selectBudgetVersion"; Parameter { name: "budgetId"; type: "QString" } }
+    Method { name: "setBudgetVersionPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setBudgetVersionSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
+    Method { name: "setBudgetLineSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
     Method { name: "exportFinancials"; Parameter { name: "reportFormat"; type: "QString" } Parameter { name: "outputPath"; type: "QString" } }
     Method { name: "selectForecastVersion"; Parameter { name: "forecastId"; type: "QString" } }
     Method { name: "selectFinancialChange"; Parameter { name: "changeId"; type: "QString" } }

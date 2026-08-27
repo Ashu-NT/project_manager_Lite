@@ -36,6 +36,13 @@ Item {
     property var financialProfileModel: ({ "id": "", "fields": [] })
     property var budgetVersionsModel: ({ "items": [] })
     property var budgetLinesModel: ({ "items": [] })
+    property var budgetVersionsTableModel: null
+    property var budgetLinesTableModel: null
+    property string selectedBudgetId: ""
+    property string budgetVersionSortKey: "revision"
+    property int budgetVersionSortDirection: Qt.DescendingOrder
+    property string budgetLineSortKey: "metaText"
+    property int budgetLineSortDirection: Qt.DescendingOrder
     property var rateCardsModel: ({ "items": [] })
     property var rateLinesModel: ({ "items": [] })
     property var plannedCostVersionsModel: ({ "items": [] })
@@ -53,6 +60,10 @@ Item {
 
     signal subsectionRequested(string subsection)
     signal configurationPageRequested(string collection, int page)
+    signal budgetVersionSelected(string budgetId)
+    signal budgetVersionPageRequested(int page)
+    signal budgetVersionSortRequested(string key, int direction)
+    signal budgetLineSortRequested(string key, int direction)
     signal forecastSelected(string forecastId)
     signal financialChangeSelected(string changeId)
     signal varianceBaselineSelected(string baselineId)
@@ -165,14 +176,27 @@ Item {
             FinancialsBudgetVersionsSection {
                 width: parent.width
                 versions: root.budgetVersionsModel
+                tableModel: root.budgetVersionsTableModel
+                busy: root.isBusy
+                selectedBudgetId: root.selectedBudgetId
+                sortKey: root.budgetVersionSortKey
+                sortDirection: root.budgetVersionSortDirection
+                onBudgetSelected: function(budgetId) { root.budgetVersionSelected(budgetId) }
+                onPageRequested: function(page) { root.budgetVersionPageRequested(page) }
+                onSortRequested: function(key, direction) { root.budgetVersionSortRequested(key, direction) }
             }
             FinancialsBudgetLinesSection {
                 width: parent.width
                 lines: root.budgetLinesModel
+                tableModel: root.budgetLinesTableModel
                 busy: root.isBusy
+                selectedBudgetId: root.selectedBudgetId
+                sortKey: root.budgetLineSortKey
+                sortDirection: root.budgetLineSortDirection
                 onPageRequested: function(page) {
                     root.configurationPageRequested("budget_lines", page)
                 }
+                onSortRequested: function(key, direction) { root.budgetLineSortRequested(key, direction) }
             }
         }
     }

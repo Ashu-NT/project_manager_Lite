@@ -257,7 +257,7 @@ def test_qml_uses_six_intent_destinations_and_secondary_finance_views() -> None:
     assert "FinancialsListPage" not in page
 
 
-def test_financials_uses_grouped_scrollable_navigation_and_project_scope_selector() -> None:
+def test_financials_uses_flat_scrollable_navigation_and_project_scope_selector() -> None:
     financials_root = Path("src/ui_qml/modules/project_management/qml/workspaces/financials")
     page = (financials_root / "FinancialsWorkspacePage.qml").read_text(encoding="utf-8")
     section_page = Path(
@@ -274,7 +274,16 @@ def test_financials_uses_grouped_scrollable_navigation_and_project_scope_selecto
         "src/ui_qml/shared/qml/App/Widgets/GroupedNavigationRail.qml"
     ).read_text(encoding="utf-8")
 
-    assert page.count('"group": "Finance"') == 6
+    assert '"group": "Finance"' not in page
+    for destination in (
+        "Overview",
+        "Planning",
+        "Costs",
+        "Performance",
+        "Commercial",
+        "Controls",
+    ):
+        assert f'            "{destination}",' in page or f'            "{destination}"' in page
 
     assert "projectOptions" in page
     assert "selectedProjectId" in page

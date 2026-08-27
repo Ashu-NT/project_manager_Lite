@@ -33,6 +33,9 @@ from src.core.platform.api.desktop.history.audit.models.audit_entry import (
     AuditEntryDto,
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
+    FinancePageRequest,
+)
 
 
 @contextmanager
@@ -104,7 +107,7 @@ def test_overview_uses_bounded_overview_contract_only() -> None:
 
 def test_planning_budget_tab_does_not_query_cost_or_performance_reads() -> None:
     api = MagicMock()
-    api.get_configuration_workspace.return_value = FinancialConfigurationWorkspaceDto()
+    api.get_budget_workspace.return_value = FinancialConfigurationWorkspaceDto()
 
     build_destination_state(
         api,
@@ -113,14 +116,97 @@ def test_planning_budget_tab_does_not_query_cost_or_performance_reads() -> None:
         selected_project_id="project-1",
     )
 
-    api.get_configuration_workspace.assert_called_once()
-    kwargs = api.get_configuration_workspace.call_args.kwargs
-    assert kwargs["include_budgets"] is True
-    assert kwargs["include_rates"] is False
-    assert kwargs["include_planned_costs"] is False
+    api.get_budget_workspace.assert_called_once()
+    kwargs = api.get_budget_workspace.call_args.kwargs
+    assert kwargs["selected_budget_id"] == ""
+    assert kwargs["version_page"] == 1
+    assert kwargs["line_page"] == 1
+    api.get_configuration_workspace.assert_not_called()
     api.get_finance_snapshot.assert_not_called()
     api.list_cost_entries.assert_not_called()
     api.get_billing_workspace.assert_not_called()
+
+
+def test_budget_reader_pages_versions_and_selected_lines_authoritatively(services) -> None:
+    project = services["project_service"].create_project(
+        "R6B budget reader",
+        financial_currency_code="USD",
+    )
+    cost_code = services["financial_configuration_service"].create_cost_code(
+        code="R6B-BUDGET",
+        name="R6B Budget",
+    )
+    budgets = services["budget_service"]
+
+    first = budgets.create_budget(project.id, "Alpha", currency_code="USD")
+    budgets.add_line(
+        first.id,
+        cost_code_id=cost_code.id,
+        description="Alpha line",
+        amount=Decimal("125"),
+        expected_budget_version=first.row_version,
+    )
+    first = budgets.get_budget(first.id)
+    first = budgets.submit_budget(
+        first.id,
+        submitted_by="admin",
+        expected_version=first.row_version,
+    )
+    budgets.reject_budget(
+        first.id,
+        rejected_by="admin",
+        expected_version=first.row_version,
+    )
+
+    second = budgets.create_budget(project.id, "Zulu", currency_code="USD")
+    budgets.add_line(
+        second.id,
+        cost_code_id=cost_code.id,
+        description="Zulu line",
+        amount=Decimal("250"),
+        expected_budget_version=second.row_version,
+    )
+
+    query = services["finance_workspace_query"]
+    with _statement_count(services["session"]) as statements:
+        first_page = query.get_budget_workspace(
+            project.id,
+            selected_budget_id=first.id,
+            version_request=FinancePageRequest(
+                page=1,
+                page_size=1,
+                sort_key="revision",
+                sort_direction="asc",
+            ),
+            line_request=FinancePageRequest(
+                page=1,
+                page_size=1,
+                sort_key="supportingText",
+                sort_direction="asc",
+            ),
+        )
+
+    # One module-entitlement authorization statement plus the Reader's
+    # count/data pair for versions and count/data pair for selected lines.
+    assert len(statements) <= 5
+    assert first_page.versions.total == 2
+    assert first_page.versions.items[0].id == first.id
+    assert first_page.lines.total == 1
+    assert first_page.lines.items[0].budget_id == first.id
+    assert first_page.lines.items[0].amount == Decimal("125")
+
+    second_page = query.get_budget_workspace(
+        project.id,
+        version_request=FinancePageRequest(
+            page=2,
+            page_size=1,
+            sort_key="revision",
+            sort_direction="asc",
+        ),
+    )
+    assert second_page.versions.items[0].id == second.id
+    assert second_page.lines.items == ()
+    assert second_page.selected_budget_id == ""
 
 
 def test_cost_actuals_tab_loads_only_paged_actual_dependencies() -> None:

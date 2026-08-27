@@ -55,6 +55,9 @@ def build_finance_configuration_views(
             subtitle="Governed budget revisions and approval state.",
             empty_state="No budget version exists for this project.",
             items=tuple(_record(item) for item in source.budget_versions),
+            page=source.budget_version_page,
+            page_size=source.budget_version_page_size,
+            total=source.budget_version_total,
         ),
         "budget_lines": FinancialsCollectionViewModel(
             title="Budget Lines",
@@ -95,6 +98,11 @@ def build_finance_configuration_views(
             page_size=source.planned_cost_line_page_size,
             total=source.planned_cost_line_total,
         ),
+        "selected_budget_id": source.selected_budget_id,
+        "budget_version_sort_key": source.budget_version_sort_key,
+        "budget_version_sort_direction": source.budget_version_sort_direction,
+        "budget_line_sort_key": source.budget_line_sort_key,
+        "budget_line_sort_direction": source.budget_line_sort_direction,
     }
 
 

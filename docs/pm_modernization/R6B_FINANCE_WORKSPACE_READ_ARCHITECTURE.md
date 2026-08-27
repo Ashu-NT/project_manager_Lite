@@ -29,6 +29,10 @@ The production Finance workspace exposes exactly six primary destinations:
 5. Commercial
 6. Controls
 
+They are direct Finance-local navigation items. A redundant single `Finance`
+group header is intentionally not rendered; grouping is reserved for navigation
+rails containing multiple meaningful groups.
+
 ## 4. Current-to-Target Navigation Map
 
 | Former primary section | R6B destination / subsection |
@@ -96,11 +100,11 @@ shown as `Not approved` or `Not available`, not a fabricated zero.
 ## 10. Planning Architecture
 
 Planning has Budgets, Planned Costs, and Forecast tabs and loads only the active
-tab. **Blocking:** Budget/Planned Cost version parents and Forecast versions and
-lines remain unbounded aggregate/service reads. Budget and Planned Cost lines
-are page-limited but currently span all versions and preload lookup catalogs.
-The target is a paged version table plus a selected-version, server-paged line
-query with immutable scalar facts and deterministic allowlisted sorting.
+tab. Budgets now use a paged/sorted immutable version Reader and an explicitly
+selected-version, paged/sorted line Reader; no first row is silently selected.
+The service path is bounded to five statements including authorization.
+**Blocking:** Planned Cost and Forecast versions/lines remain unbounded
+aggregate/service reads and still preload lookup catalogs.
 
 ## 11. Costs Architecture
 
