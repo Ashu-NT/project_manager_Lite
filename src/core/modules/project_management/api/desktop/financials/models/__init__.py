@@ -43,6 +43,7 @@ from src.core.modules.project_management.api.desktop.financials.models.options i
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
     FinancialAnalyticsRowDto,
     FinancialLedgerRowDto,
+    FinancialOverviewDto,
     FinancialPeriodRowDto,
     FinancialSnapshotDto,
 )
@@ -75,6 +76,7 @@ __all__ = [
     "FinancialBaselineVersionDto",
     "FinancialLedgerRowDto",
     "FinancialManualActualOptionsDto",
+    "FinancialOverviewDto",
     "FinancialPeriodRowDto",
     "FinancialProjectOptionDescriptor",
     "FinancialProfileDto",

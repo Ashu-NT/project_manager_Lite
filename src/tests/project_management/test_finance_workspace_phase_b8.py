@@ -217,21 +217,40 @@ def test_workspace_query_fails_closed_after_organization_switch(services) -> Non
         services["tenant_context_service"].set_active_organization(original.id)
 
 
-def test_qml_uses_five_project_level_finance_views_and_deletes_false_budget_view() -> None:
+def test_qml_uses_six_intent_destinations_and_secondary_finance_views() -> None:
     root = Path("src/ui_qml/modules/project_management/qml/workspaces/financials")
     page = (root / "FinancialsWorkspacePage.qml").read_text(encoding="utf-8")
     panel = (root / "panels/FinancialsDetailPanel.qml").read_text(encoding="utf-8")
     section_registry = (root / "sections/qmldir").read_text(encoding="utf-8")
 
     for section in (
-        "Profile",
-        "Budget Versions",
-        "Budget Lines",
-        "Rate Cards",
-        "Planned Costs",
+        "Overview",
+        "Planning",
+        "Costs",
+        "Performance",
+        "Commercial",
+        "Controls",
     ):
         assert f'"{section}"' in page
-        assert f'"{section}"' in panel
+    for subsection in (
+        "Budgets",
+        "Planned Costs",
+        "Forecast",
+        "Actuals",
+        "Commitments",
+        "Rate Cards",
+        "Variance",
+        "Cost Phasing",
+        "Reports",
+        "Billing Preparation",
+        "Projected Profitability",
+        "Accounting Status",
+        "Financial Setup",
+        "Change Control",
+        "Activity",
+    ):
+        assert f'"label": "{subsection}"' in panel
+    assert "Cashflow" not in panel
     assert "FinancialsBudgetSection" not in section_registry
     assert not (root / "sections/FinancialsBudgetSection.qml").exists()
     assert "FinancialsDetailPanel" in page
@@ -255,8 +274,7 @@ def test_financials_uses_grouped_scrollable_navigation_and_project_scope_selecto
         "src/ui_qml/shared/qml/App/Widgets/GroupedNavigationRail.qml"
     ).read_text(encoding="utf-8")
 
-    for group in ("Configuration", "Planning", "Cost Control", "Commercial", "Insights"):
-        assert f'"group": "{group}"' in page
+    assert page.count('"group": "Finance"') == 6
 
     assert "projectOptions" in page
     assert "selectedProjectId" in page

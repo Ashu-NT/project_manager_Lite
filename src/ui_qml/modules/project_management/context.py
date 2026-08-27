@@ -226,7 +226,12 @@ class ProjectManagementWorkspaceCatalog(QObject):
         if self._financials_workspace is None:
             self._financials_workspace = ProjectManagementFinancialsWorkspaceController(
                 financials_workspace_presenter=ProjectFinancialsWorkspacePresenter(
-                    desktop_api=self._financials_api
+                    desktop_api=self._financials_api,
+                    audit_api=getattr(
+                        self._desktop_api_registry,
+                        "platform_enterprise_audit",
+                        None,
+                    ),
                 ),
                 parent=self,
             )

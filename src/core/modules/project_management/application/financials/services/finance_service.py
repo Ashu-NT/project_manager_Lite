@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from typing import cast
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
@@ -9,6 +10,12 @@ from src.core.modules.project_management.contracts.repositories.finance.rate_car
 )
 from src.core.modules.project_management.contracts.reads.financials.finance_snapshot_reader import (
     FinanceSnapshotReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.finance_overview_reader import (
+    FinanceOverviewReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_overview_facts import (
+    FinanceOverviewFacts,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
     FinanceSnapshotFacts,
@@ -55,11 +62,16 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         *,
         rate_resolver: LaborRateResolver,
         finance_snapshot_reader: FinanceSnapshotReader,
+        finance_overview_reader: FinanceOverviewReader | None = None,
         tenant_context_service: TenantContextService,
         user_session=None,
         module_catalog_service=None,
     ) -> None:
         self._finance_snapshot_reader: FinanceSnapshotReader = finance_snapshot_reader
+        self._finance_overview_reader = finance_overview_reader or cast(
+            FinanceOverviewReader,
+            finance_snapshot_reader,
+        )
         self._tenant_context_service: TenantContextService = tenant_context_service
         self._labor = LaborCostEngine.for_facts(
             rate_resolver=rate_resolver,
@@ -71,6 +83,37 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         )
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
+
+    def get_finance_overview(
+        self,
+        project_id: str,
+        *,
+        as_of: date | None = None,
+    ) -> FinanceOverviewFacts:
+        require_permission(
+            self._user_session,
+            "finance.read",
+            operation_label="view finance overview",
+        )
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "finance.read",
+            operation_label="view finance overview",
+        )
+        as_of = as_of or date.today()
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="build finance overview"
+        )
+        facts = self._finance_overview_reader.read_overview_facts(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            as_of=as_of,
+        )
+        if facts is None:
+            raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
+        return facts
 
     def get_finance_snapshot(
         self,

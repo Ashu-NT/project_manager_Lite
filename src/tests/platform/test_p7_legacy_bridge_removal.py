@@ -433,6 +433,7 @@ def test_no_generic_bridge_registry_exists_anywhere():
         if "__pycache__" in normalized or normalized.endswith((
             "test_p7_legacy_bridge_removal.py", "test_p7b_dead_signal_cleanup.py",
             "test_p8_platform_event_architecture_canonicalization.py",
+            "test_p10d_organization_event_modernization.py",
         )):
             continue
         with open(path, "r", encoding="utf-8", errors="ignore") as fh:

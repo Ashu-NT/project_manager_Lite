@@ -177,6 +177,8 @@ Component {
     Property { name: "taskOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "manualActualOptions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
+    Property { name: "activeDestination"; type: "QString"; isReadonly: true }
+    Property { name: "activeSubsection"; type: "QString"; isReadonly: true }
     Property { name: "cashflow"; type: "QVariantMap"; isReadonly: true }
     Property { name: "ledger"; type: "QVariantMap"; isReadonly: true }
     Property { name: "ledgerTableModel"; type: "QObject"; isReadonly: true }
@@ -212,8 +214,12 @@ Component {
     Property { name: "billingProfile"; type: "QVariantMap"; isReadonly: true }
     Property { name: "billingSchedule"; type: "QVariantMap"; isReadonly: true }
     Property { name: "billingPreparations"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "commercialProjection"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "activity"; type: "QVariantMap"; isReadonly: true }
     Method { name: "refresh" }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
+    Method { name: "selectFinanceDestination"; Parameter { name: "destination"; type: "QString" } }
+    Method { name: "selectFinanceSubsection"; Parameter { name: "subsection"; type: "QString" } }
     Method { name: "exportFinancials"; Parameter { name: "reportFormat"; type: "QString" } Parameter { name: "outputPath"; type: "QString" } }
     Method { name: "selectForecastVersion"; Parameter { name: "forecastId"; type: "QString" } }
     Method { name: "selectFinancialChange"; Parameter { name: "changeId"; type: "QString" } }

@@ -26,6 +26,10 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectManagementWorkspacePresenter,
 )
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+from src.ui_qml.modules.project_management.presenters.financials.destination_builder import (
+    FINANCE_DESTINATIONS,
+    FINANCE_SUBSECTIONS,
+)
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -47,6 +51,7 @@ class ProjectManagementFinancialsWorkspaceController(
     selectedProjectIdChanged = Signal()
     cashflowChanged = Signal()
     ledgerChanged = Signal()
+    activityChanged = Signal()
     actualSortKeyChanged = Signal()
     actualSortDirectionChanged = Signal()
     sourceAnalyticsChanged = Signal()
@@ -78,6 +83,9 @@ class ProjectManagementFinancialsWorkspaceController(
     billingProfileChanged = Signal()
     billingScheduleChanged = Signal()
     billingPreparationsChanged = Signal()
+    commercialProjectionChanged = Signal()
+    activeDestinationChanged = Signal()
+    activeSubsectionChanged = Signal()
 
     def __init__(
         self,
@@ -105,6 +113,7 @@ class ProjectManagementFinancialsWorkspaceController(
         self._ledger_table_model = DynamicTableModel(self)
         self._cashflow = default_collection()
         self._ledger = default_collection()
+        self._activity = default_collection()
         self._actual_page = 1
         self._actual_sort_key = "metaText"
         self._actual_sort_direction = Qt.DescendingOrder.value
@@ -140,11 +149,21 @@ class ProjectManagementFinancialsWorkspaceController(
         self._billing_profile = default_detail()
         self._billing_schedule = default_collection()
         self._billing_preparations = default_collection()
+        self._commercial_projection = default_detail()
         self._budget_line_page = 1
         self._rate_line_page = 1
         self._planned_cost_line_page = 1
         self._billing_preparation_page = 1
         self._configuration_page_size = 50
+        self._finance_destinations = FINANCE_DESTINATIONS
+        self._finance_subsections = FINANCE_SUBSECTIONS
+        self._active_destination = "overview"
+        self._active_subsection = "summary"
+        self._workspace_loaded = False
+        self._shell_loaded = False
+        self._refresh_generation = 0
+        self._loaded_destination_keys: set[tuple[str, str, str]] = set()
+        self._invalidated_destinations: set[str] = set(FINANCE_DESTINATIONS)
         self._bind_domain_events()
         self.refresh()
 
@@ -163,11 +182,20 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property(str, notify=selectedProjectIdChanged)
     def selectedProjectId(self) -> str: return self._selected_project_id
 
+    @Property(str, notify=activeDestinationChanged)
+    def activeDestination(self) -> str: return self._active_destination
+
+    @Property(str, notify=activeSubsectionChanged)
+    def activeSubsection(self) -> str: return self._active_subsection
+
     @Property("QVariantMap", notify=cashflowChanged)
     def cashflow(self) -> FinancialsMap: return self._cashflow
 
     @Property("QVariantMap", notify=ledgerChanged)
     def ledger(self) -> FinancialsMap: return self._ledger
+
+    @Property("QVariantMap", notify=activityChanged)
+    def activity(self) -> FinancialsMap: return self._activity
 
     @Property(QObject, constant=True)
     def ledgerTableModel(self) -> DynamicTableModel: return self._ledger_table_model
@@ -268,11 +296,22 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property("QVariantMap", notify=billingPreparationsChanged)
     def billingPreparations(self) -> FinancialsMap: return self._billing_preparations
 
+    @Property("QVariantMap", notify=commercialProjectionChanged)
+    def commercialProjection(self) -> FinancialsMap: return self._commercial_projection
+
     @Slot()
     def refresh(self) -> None: self._refresh()
 
     @Slot(str)
     def selectProject(self, project_id: str) -> None: self._select_project(project_id)
+
+    @Slot(str)
+    def selectFinanceDestination(self, destination: str) -> None:
+        self._select_destination(destination)
+
+    @Slot(str)
+    def selectFinanceSubsection(self, subsection: str) -> None:
+        self._select_subsection(subsection)
 
     @Slot(str, str)
     def exportFinancials(self, report_format: str, output_path: str) -> None:

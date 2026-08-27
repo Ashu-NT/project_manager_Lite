@@ -52,6 +52,12 @@ class FinancialsStateMixin:
         self._ledger_table_model.set_rows(ledger.get("items", []))
         self.ledgerChanged.emit()
 
+    def _set_activity(self, activity: FinancialsMap) -> None:
+        if activity == self._activity:
+            return
+        self._activity = activity
+        self.activityChanged.emit()
+
     def _set_actual_sort_state(self, key: str, direction: str) -> None:
         normalized_direction = (
             Qt.DescendingOrder.value if direction == "desc" else Qt.AscendingOrder.value
@@ -216,6 +222,11 @@ class FinancialsStateMixin:
         if value != self._billing_preparations:
             self._billing_preparations = value
             self.billingPreparationsChanged.emit()
+
+    def _set_commercial_projection(self, value: FinancialsMap) -> None:
+        if value != self._commercial_projection:
+            self._commercial_projection = value
+            self.commercialProjectionChanged.emit()
 
 
 __all__ = ["FinancialsStateMixin"]

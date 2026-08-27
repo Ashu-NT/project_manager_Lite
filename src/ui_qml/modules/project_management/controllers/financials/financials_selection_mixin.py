@@ -2,6 +2,29 @@ from __future__ import annotations
 
 
 class FinancialsSelectionMixin:
+    def _select_destination(self, destination: str) -> None:
+        normalized = str(destination or "").strip().lower()
+        if normalized not in self._finance_destinations:
+            normalized = "overview"
+        if normalized == self._active_destination:
+            return
+        self._active_destination = normalized
+        self._active_subsection = self._finance_subsections[normalized][0]
+        self.activeDestinationChanged.emit()
+        self.activeSubsectionChanged.emit()
+        self.refresh()
+
+    def _select_subsection(self, subsection: str) -> None:
+        allowed = self._finance_subsections[self._active_destination]
+        normalized = str(subsection or "").strip().lower()
+        if normalized not in allowed:
+            normalized = allowed[0]
+        if normalized == self._active_subsection:
+            return
+        self._active_subsection = normalized
+        self.activeSubsectionChanged.emit()
+        self.refresh()
+
     def _select_project(self, project_id: str) -> None:
         normalized_value = (project_id or "").strip()
         if normalized_value == self._selected_project_id:
@@ -16,6 +39,7 @@ class FinancialsSelectionMixin:
         self._set_selected_forecast_id("")
         self._set_selected_change_id("")
         self._set_selected_baseline_id("")
+        self._reset_destination_state()
         self.refresh()
 
     def _select_forecast_version(self, forecast_id: str) -> None:

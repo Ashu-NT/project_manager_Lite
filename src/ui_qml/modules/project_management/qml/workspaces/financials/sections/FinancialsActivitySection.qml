@@ -6,7 +6,7 @@ import App.Theme 1.0 as Theme
 Item {
     id: root
 
-    property var ledgerModel: ({ "items": [] })
+    property var activityModel: ({ "items": [] })
 
     implicitHeight: _col.implicitHeight
 
@@ -28,8 +28,9 @@ Item {
                 anchors.right: parent.right
                 anchors.top: parent.top
                 anchors.margins: Theme.AppTheme.spacingMd
-                items: root.ledgerModel.items || []
-                emptyText: "No ledger activity recorded for the selected project."
+                items: root.activityModel.items || []
+                emptyText: root.activityModel.emptyState
+                    || "No Finance audit events have been recorded for this project."
             }
         }
     }

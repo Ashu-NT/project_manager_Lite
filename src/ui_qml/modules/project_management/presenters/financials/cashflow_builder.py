@@ -9,9 +9,9 @@ from src.ui_qml.modules.project_management.view_models.financials import (
 
 def build_cashflow_collection(snapshot: Any) -> FinancialsCollectionViewModel:
     return FinancialsCollectionViewModel(
-        title="Cashflow",
-        subtitle="Forecast, actuals, and exposure grouped by period.",
-        empty_state="No finance periods are available for the selected project.",
+        title="Cost Phasing",
+        subtitle="Cost forecast, actuals, and exposure grouped by accounting period.",
+        empty_state="No cost-phasing periods are available for the selected project.",
         items=tuple(
             FinancialsRecordViewModel(
                 id=row.period_key,

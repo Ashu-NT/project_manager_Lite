@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -102,6 +103,9 @@ class EnterpriseAuditService:
         entity_type: str | None = None,
         operation: str | None = None,
         severity: str | None = None,
+        module: str | None = None,
+        workspace_id: str | None = None,
+        operation_prefixes: Sequence[str] | None = None,
     ) -> list[AuditEntry]:
         require_permission(self._user_session, "audit.read", operation_label="view audit entries")
         organization_id = self._active_organization_id()
@@ -112,12 +116,18 @@ class EnterpriseAuditService:
                 entity_type=entity_type,
                 operation=operation,
                 severity=severity,
+                module=module,
+                workspace_id=workspace_id,
+                operation_prefixes=operation_prefixes,
             )
         return self._audit_repo.list_recent(
             limit=limit,
             entity_type=entity_type,
             operation=operation,
             severity=severity,
+            module=module,
+            workspace_id=workspace_id,
+            operation_prefixes=operation_prefixes,
         )
 
     def _active_organization_id(self) -> str | None:

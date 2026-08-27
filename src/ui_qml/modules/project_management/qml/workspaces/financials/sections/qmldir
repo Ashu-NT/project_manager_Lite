@@ -13,3 +13,6 @@ FinancialsBillingPreparationSection 1.0 FinancialsBillingPreparationSection.qml
 FinancialsActivitySection 1.0 FinancialsActivitySection.qml
 FinancialsVarianceSection 1.0 FinancialsVarianceSection.qml
 FinancialsReportsSection 1.0 FinancialsReportsSection.qml
+FinancialsOverviewSection 1.0 FinancialsOverviewSection.qml
+FinancialsCostPhasingSection 1.0 FinancialsCostPhasingSection.qml
+FinancialsCommercialProjectionSection 1.0 FinancialsCommercialProjectionSection.qml

@@ -27,6 +27,8 @@ AppLayouts.WorkspaceFrame {
         ? root.workspaceController.cashflow : ({ "items": [] })
     readonly property var ledgerModel: root.workspaceController
         ? root.workspaceController.ledger : ({ "items": [] })
+    readonly property var activityModel: root.workspaceController
+        ? root.workspaceController.activity : ({ "items": [] })
     readonly property var sourceAnalyticsModel: root.workspaceController
         ? root.workspaceController.sourceAnalytics : ({ "items": [] })
     readonly property var baselineVarianceModel: root.workspaceController
@@ -49,23 +51,18 @@ AppLayouts.WorkspaceFrame {
     }
 
     readonly property var _detailSections: {
-        const sections = [
-            { "label": "Profile", "group": "Configuration" },
-            { "label": "Budget Versions", "group": "Planning" },
-            { "label": "Budget Lines", "group": "Planning" },
-            { "label": "Rate Cards", "group": "Configuration" },
-            { "label": "Planned Costs", "group": "Planning" },
-            { "label": "Actuals", "group": "Cost Control" },
-            { "label": "Forecast", "group": "Planning" },
-            { "label": "Change Control", "group": "Cost Control" },
-            { "label": "Commitments", "group": "Cost Control" },
-            { "label": "Billing Preparation", "group": "Commercial" }
+        return [
+            { "label": "Overview", "group": "Finance" },
+            { "label": "Planning", "group": "Finance" },
+            { "label": "Costs", "group": "Finance" },
+            { "label": "Performance", "group": "Finance" },
+            { "label": "Commercial", "group": "Finance" },
+            { "label": "Controls", "group": "Finance" }
         ]
-        sections.push({ "label": "Variance", "group": "Insights" })
-        sections.push({ "label": "Reports", "group": "Insights" })
-        sections.push({ "label": "Activity", "group": "Insights" })
-        return sections
     }
+    readonly property var _destinationIds: [
+        "overview", "planning", "costs", "performance", "commercial", "controls"
+    ]
     readonly property string _activeDetailSection: {
         if (!root.detailPage) return ""
         const index = root.detailPage.activeSectionIndex
@@ -74,7 +71,9 @@ AppLayouts.WorkspaceFrame {
         return typeof entry === "string" ? entry : String(entry.label || "")
     }
     readonly property var _detailActions: {
-        if (root._activeDetailSection === "Actuals") {
+        if (root.workspaceController
+                && root.workspaceController.activeDestination === "costs"
+                && root.workspaceController.activeSubsection === "actuals") {
             const selected = root._selectedActualEntry()
             const state = selected ? (selected.state || {}) : {}
             const busy = root.workspaceController ? root.workspaceController.isBusy : false
@@ -126,7 +125,9 @@ AppLayouts.WorkspaceFrame {
                 } : null
             ].filter(Boolean)
         }
-        if (root._activeDetailSection === "Reports") return [
+        if (root.workspaceController
+                && root.workspaceController.activeDestination === "performance"
+                && root.workspaceController.activeSubsection === "reports") return [
             {
                 "id": "export_excel",
                 "label": "Export Excel",
@@ -220,7 +221,21 @@ AppLayouts.WorkspaceFrame {
                 showDelete: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                 sections: root._detailSections
-                Component.onCompleted: scrollToSection(root._pendingDetailSection)
+                Component.onCompleted: {
+                    scrollToSection(root._pendingDetailSection)
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.selectFinanceDestination(
+                            root._destinationIds[activeSectionIndex] || "overview"
+                        )
+                    }
+                }
+                onSectionChanged: function(index) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.selectFinanceDestination(
+                            root._destinationIds[index] || "overview"
+                        )
+                    }
+                }
 
                 Rectangle {
                     property bool detailPagePinned: true
@@ -342,15 +357,21 @@ AppLayouts.WorkspaceFrame {
 
                 Panels.FinancialsDetailPanel {
                     width: parent ? parent.width : 0
-                    detailPage: detailPageLoader.item
+                    activeDestination: root.workspaceController
+                        ? root.workspaceController.activeDestination : "overview"
+                    activeSubsection: root.workspaceController
+                        ? root.workspaceController.activeSubsection : "summary"
                     cashflowModel: root.cashflowModel
                     ledgerModel: root.ledgerModel
+                    activityModel: root.activityModel
                     ledgerTableModel: root.workspaceController ? root.workspaceController.ledgerTableModel : null
                     selectedActualEntryId: root._selectedActualEntryId
                     actualSortKey: root.workspaceController ? root.workspaceController.actualSortKey : "metaText"
                     actualSortDirection: root.workspaceController ? root.workspaceController.actualSortDirection : Qt.DescendingOrder
                     onActualEntrySelected: function(entryId) { root._selectedActualEntryId = entryId }
                     sourceAnalyticsModel: root.sourceAnalyticsModel
+                    costTypeAnalyticsModel: root.workspaceController
+                        ? root.workspaceController.costTypeAnalytics : ({ "items": [] })
                     overviewModel: root.overviewModel
                     forecastModel: root.workspaceController ? root.workspaceController.forecast : ({})
                     forecastVersionsModel: root.workspaceController ? root.workspaceController.forecastVersions : ({ "items": [] })
@@ -379,7 +400,13 @@ AppLayouts.WorkspaceFrame {
                     billingProfileModel: root.workspaceController ? root.workspaceController.billingProfile : ({ "id": "", "fields": [] })
                     billingScheduleModel: root.workspaceController ? root.workspaceController.billingSchedule : ({ "items": [] })
                     billingPreparationsModel: root.workspaceController ? root.workspaceController.billingPreparations : ({ "items": [] })
+                    commercialProjectionModel: root.workspaceController
+                        ? root.workspaceController.commercialProjection : ({ "id": "", "fields": [] })
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                    onSubsectionRequested: function(subsection) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.selectFinanceSubsection(subsection)
+                    }
                     onConfigurationPageRequested: function(collection, page) {
                         if (root.workspaceController !== null) {
                             root.workspaceController.setConfigurationPage(collection, page)

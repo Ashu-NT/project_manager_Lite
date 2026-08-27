@@ -6,6 +6,9 @@ from src.core.modules.project_management.api.desktop import (
     ProjectManagementFinancialsDesktopApi,
     build_project_management_financials_desktop_api,
 )
+from src.core.platform.api.desktop.history.audit.audit_enterprise import (
+    PlatformEnterpriseAuditDesktopApi,
+)
 from src.ui_qml.modules.project_management.view_models.financials import FinancialsWorkspaceViewModel
 
 from .command_handler import (
@@ -17,14 +20,34 @@ from .command_handler import (
     submit_actual,
 )
 from .workspace_builder import build_workspace_state
+from .destination_builder import build_destination_state, build_shell_state
 
 class ProjectFinancialsWorkspacePresenter:
     def __init__(
         self,
         *,
         desktop_api: ProjectManagementFinancialsDesktopApi | None = None,
+        audit_api: PlatformEnterpriseAuditDesktopApi | None = None,
     ) -> None:
         self._desktop_api = desktop_api or build_project_management_financials_desktop_api()
+        self._audit_api = audit_api
+
+    def build_shell_state(
+        self,
+        *,
+        selected_project_id: str | None = None,
+    ) -> FinancialsWorkspaceViewModel:
+        return build_shell_state(
+            self._desktop_api,
+            selected_project_id=selected_project_id,
+        )
+
+    def build_destination_state(self, **query: Any) -> FinancialsWorkspaceViewModel:
+        return build_destination_state(
+            self._desktop_api,
+            audit_api=self._audit_api,
+            **query,
+        )
 
     def build_workspace_state(
         self,

@@ -47,7 +47,10 @@ from src.core.modules.project_management.api.desktop.financials.models.options i
     FinancialProjectOptionDescriptor,
     FinancialTaskOptionDescriptor,
 )
-from src.core.modules.project_management.api.desktop.financials.models.snapshots import FinancialSnapshotDto
+from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
+    FinancialOverviewDto,
+    FinancialSnapshotDto,
+)
 from src.core.modules.project_management.api.desktop.financials.models.configuration import (
     FinancialConfigurationWorkspaceDto,
 )
@@ -109,7 +112,9 @@ from src.core.modules.project_management.api.desktop.financials.serializers.cost
     serialize_cost_entry,
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.snapshot_serializer import (
+    empty_overview,
     empty_snapshot,
+    serialize_overview,
     serialize_snapshot,
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.configuration_serializer import (
@@ -347,6 +352,14 @@ class ProjectManagementFinancialsDesktopApi:
             )
         return serialize_snapshot(project_id, self._finance_service.get_finance_snapshot(project_id))
 
+    def get_finance_overview(self, project_id: str) -> FinancialOverviewDto:
+        if not project_id or self._finance_service is None:
+            return empty_overview(project_id=project_id)
+        return serialize_overview(
+            project_id,
+            self._finance_service.get_finance_overview(project_id),
+        )
+
     def get_cost_forecast(
         self,
         project_id: str,
@@ -359,11 +372,10 @@ class ProjectManagementFinancialsDesktopApi:
         )
 
     def get_commitment_summary(self, project_id: str) -> FinancialCommitmentSummaryDto:
-        currency = self._project_currency(project_id)
+        facts = self._require_finance_service().get_finance_overview(project_id)
         return build_commitment_summary_dto(
             project_id,
-            snapshot=self._require_finance_service().get_finance_snapshot(project_id),
-            currency=currency,
+            facts=facts,
         )
 
     def list_commitments(

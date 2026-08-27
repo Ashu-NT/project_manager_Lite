@@ -117,6 +117,7 @@ class FinancialsWorkspaceViewModel:
     selected_project_id: str = ""
     cashflow: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     ledger: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    activity: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     actual_sort_key: str = "metaText"
     actual_sort_direction: str = "desc"
     source_analytics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
@@ -147,6 +148,9 @@ class FinancialsWorkspaceViewModel:
     billing_profile: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     billing_schedule: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     billing_preparations: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    commercial_projection: FinancialsDetailViewModel = field(
+        default_factory=FinancialsDetailViewModel
+    )
     notes: tuple[str, ...] = field(default_factory=tuple)
     empty_state: str = ""
 

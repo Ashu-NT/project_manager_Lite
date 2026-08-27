@@ -17,8 +17,13 @@ from src.core.modules.project_management.api.desktop.financials.builders import 
 
 
 class _FinanceService:
+    def __init__(self) -> None:
+        self.snapshot_calls = 0
+        self.overview_calls = 0
+
     def get_finance_snapshot(self, project_id):
         assert project_id == "project-1"
+        self.snapshot_calls += 1
         return SimpleNamespace(
             budget=Decimal("1000"),
             actual=Decimal("400"),
@@ -30,6 +35,20 @@ class _FinanceService:
             approved_forecast_revision=3,
             approved_forecast_as_of=date(2026, 8, 1),
             commitment_rate_percent=Decimal("15"),
+        )
+
+    def get_finance_overview(self, project_id):
+        assert project_id == "project-1"
+        self.overview_calls += 1
+        control = SimpleNamespace(commitment_rate_percent=Decimal("15"))
+        return SimpleNamespace(
+            currency_code="EUR",
+            approved_budget_id="budget-1",
+            approved_budget=Decimal("1000"),
+            posted_actual=Decimal("400"),
+            open_commitment=Decimal("150"),
+            available_after_commitment=Decimal("450"),
+            control=control,
         )
 
 
@@ -76,7 +95,13 @@ def _api(**dependencies) -> ProjectManagementFinancialsDesktopApi:
 
 
 def test_financial_desktop_maps_approved_forecast_and_commitment_controls() -> None:
-    api = _api()
+    finance_service = _FinanceService()
+    api = ProjectManagementFinancialsDesktopApi(
+        finance_service=finance_service,
+        financial_configuration_service=SimpleNamespace(
+            get_profile=lambda _project_id: SimpleNamespace(currency_code="EUR")
+        ),
+    )
 
     forecast = api.get_cost_forecast("project-1")
     commitment = api.get_commitment_summary("project-1")
@@ -86,6 +111,8 @@ def test_financial_desktop_maps_approved_forecast_and_commitment_controls() -> N
     assert forecast.forecast_revision == 3
     assert commitment.commitment_rate_pct == 15.0
     assert commitment.available_after_commitment_label == "EUR 450.00"
+    assert finance_service.snapshot_calls == 1
+    assert finance_service.overview_calls == 1
 
 
 def test_financial_desktop_requires_canonical_finance_service() -> None:

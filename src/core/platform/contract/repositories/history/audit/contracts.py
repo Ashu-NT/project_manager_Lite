@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 
 from src.core.platform.domain.history.audit import AuditEntry
 
@@ -28,6 +29,9 @@ class AuditRepository(ABC):
         operation: str | None = None,
         severity: str | None = None,
         compliance_tag: str | None = None,
+        module: str | None = None,
+        workspace_id: str | None = None,
+        operation_prefixes: Sequence[str] | None = None,
     ) -> list[AuditEntry]: ...
 
     @abstractmethod
@@ -39,6 +43,9 @@ class AuditRepository(ABC):
         entity_type: str | None = None,
         operation: str | None = None,
         severity: str | None = None,
+        module: str | None = None,
+        workspace_id: str | None = None,
+        operation_prefixes: Sequence[str] | None = None,
     ) -> list[AuditEntry]: ...
 
 
