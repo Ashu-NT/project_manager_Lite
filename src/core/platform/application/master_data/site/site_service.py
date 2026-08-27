@@ -9,7 +9,9 @@ from sqlalchemy.orm import Session
 
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.ids import generate_id
 from src.core.shared.events.domain_events import domain_events
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.platform.application.security.authorization import get_authorization_engine
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission, require_permission
@@ -18,6 +20,7 @@ from src.core.platform.contract.read.overview.platform_overview_rollup_reader im
     SiteRollupSummary,
 )
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.uow.site_unit_of_work import SiteUnitOfWorkFactory
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.org.support import normalize_code
 from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
@@ -48,6 +51,7 @@ class SiteService:
         enterprise_audit_service: EnterpriseAuditService | None = None,
         tenant_context_service: TenantContextService | None = None,
         overview_rollup_reader: PlatformOverviewRollupReader | None = None,
+        uow_factory: SiteUnitOfWorkFactory,
     ):
         self._session = session
         self._site_repo = site_repo
@@ -56,6 +60,10 @@ class SiteService:
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
         self._overview_rollup_reader = overview_rollup_reader
+        self._uow_factory = uow_factory
+
+    def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
 
     def list_sites(self, *, active_only: bool | None = None) -> list[Site]:
         self._require_site_read_access("list sites")
@@ -174,40 +182,38 @@ class SiteService:
             closed_at=closed_at,
             notes=notes,
         )
-        if self._site_repo.get_by_code(organization.id, site.site_code) is not None:
-            raise ValidationError("Site code already exists in the active organization.", code="SITE_CODE_EXISTS")
-        try:
-            self._site_repo.add(site)
-            # Audit is staged in the same transaction as the business write (ADR-003:
-            # "the business mutation and successful security audit intent commit
-            # atomically") — never a second, separate commit.
-            record_audit_entry(
-                self,
-                operation="create",
-                entity_type="site",
-                entity_id=site.id,
-                module="platform",
-                severity="low",
-                metadata={
-                    "action": "site.create",
-                    "organization_id": organization.id,
-                    "site_code": site.site_code,
-                    "name": site.name,
-                    "status": site.status,
-                    "city": site.city,
-                    "country": site.country,
-                    "is_active": str(site.is_active),
-                },
-                commit=False,
-                fail_closed=True,
-            )
-            self._session.commit()
-        except IntegrityError as exc:
-            self._session.rollback()
-            raise ValidationError("Site code already exists in the active organization.", code="SITE_CODE_EXISTS") from exc
-        except Exception:
-            self._session.rollback()
-            raise
+        with self._uow_factory.create(context=self._new_context()) as uow:
+            if uow.sites.get_by_code(organization.id, site.site_code) is not None:
+                raise ValidationError(
+                    "Site code already exists in the active organization.", code="SITE_CODE_EXISTS"
+                )
+            try:
+                uow.sites.add(site)
+                record_audit_entry(
+                    uow,
+                    operation="create",
+                    entity_type="site",
+                    entity_id=site.id,
+                    module="platform",
+                    severity="low",
+                    metadata={
+                        "action": "site.create",
+                        "organization_id": organization.id,
+                        "site_code": site.site_code,
+                        "name": site.name,
+                        "status": site.status,
+                        "city": site.city,
+                        "country": site.country,
+                        "is_active": str(site.is_active),
+                    },
+                    commit=False,
+                    fail_closed=True,
+                )
+                uow.commit()
+            except IntegrityError as exc:
+                raise ValidationError(
+                    "Site code already exists in the active organization.", code="SITE_CODE_EXISTS"
+                ) from exc
         domain_events.sites_changed.emit(site.id)
         return site
 
@@ -239,90 +245,86 @@ class SiteService:
     ) -> Site:
         require_permission(self._user_session, "settings.manage", operation_label="update site")
         organization = self._active_organization()
-        site = self._site_repo.get(site_id)
-        if site is None or site.organization_id != organization.id:
-            raise NotFoundError("Site not found in the active organization.", code="SITE_NOT_FOUND")
-        if expected_version is not None and site.version != expected_version:
-            raise ConcurrencyError(
-                "Site changed since you opened it. Refresh and try again.",
-                code="STALE_WRITE",
+        with self._uow_factory.create(context=self._new_context()) as uow:
+            site = uow.sites.get(site_id)
+            if site is None or site.organization_id != organization.id:
+                raise NotFoundError("Site not found in the active organization.", code="SITE_NOT_FOUND")
+            if expected_version is not None and site.version != expected_version:
+                raise ConcurrencyError(
+                    "Site changed since you opened it. Refresh and try again.",
+                    code="STALE_WRITE",
+                )
+            previous_is_active = site.is_active
+            now = datetime.now(timezone.utc)
+            next_is_active = site.is_active if is_active is None else is_active
+            next_status = site.status
+            if status is not None:
+                next_status = status
+            elif is_active is not None and previous_is_active != bool(next_is_active):
+                next_status = ""
+            next_opened_at = site.opened_at if opened_at is None else opened_at
+            next_closed_at = site.closed_at if closed_at is None else closed_at
+            if is_active is not None and previous_is_active != bool(next_is_active):
+                if bool(next_is_active):
+                    if closed_at is None:
+                        next_closed_at = None
+                    if next_opened_at is None:
+                        next_opened_at = now
+                elif next_closed_at is None:
+                    next_closed_at = now
+            candidate = replace(
+                site,
+                site_code=site.site_code if site_code is None else site_code,
+                name=site.name if name is None and display_name is None else _resolve_name(name=name, display_name=display_name),
+                description=site.description if description is None else description,
+                country=site.country if country is None else country,
+                region=site.region if region is None else region,
+                city=site.city if city is None else city,
+                address_line_1=site.address_line_1 if address_line_1 is None else address_line_1,
+                address_line_2=site.address_line_2 if address_line_2 is None else address_line_2,
+                postal_code=site.postal_code if postal_code is None else postal_code,
+                timezone=site.timezone if timezone_name is None else timezone_name,
+                currency_code=site.currency_code if currency_code is None else currency_code,
+                site_type=site.site_type if site_type is None else site_type,
+                status=next_status,
+                default_calendar_id=site.default_calendar_id if default_calendar_id is None else default_calendar_id,
+                default_language=site.default_language if default_language is None else default_language,
+                is_active=next_is_active,
+                opened_at=next_opened_at,
+                closed_at=next_closed_at,
+                notes=site.notes if notes is None else notes,
+                updated_at=now,
             )
-        previous_is_active = site.is_active
-        now = datetime.now(timezone.utc)
-        next_is_active = site.is_active if is_active is None else is_active
-        next_status = site.status
-        if status is not None:
-            next_status = status
-        elif is_active is not None and previous_is_active != bool(next_is_active):
-            next_status = ""
-        next_opened_at = site.opened_at if opened_at is None else opened_at
-        next_closed_at = site.closed_at if closed_at is None else closed_at
-        if is_active is not None and previous_is_active != bool(next_is_active):
-            if bool(next_is_active):
-                if closed_at is None:
-                    next_closed_at = None
-                if next_opened_at is None:
-                    next_opened_at = now
-            elif next_closed_at is None:
-                next_closed_at = now
-        candidate = replace(
-            site,
-            site_code=site.site_code if site_code is None else site_code,
-            name=site.name if name is None and display_name is None else _resolve_name(name=name, display_name=display_name),
-            description=site.description if description is None else description,
-            country=site.country if country is None else country,
-            region=site.region if region is None else region,
-            city=site.city if city is None else city,
-            address_line_1=site.address_line_1 if address_line_1 is None else address_line_1,
-            address_line_2=site.address_line_2 if address_line_2 is None else address_line_2,
-            postal_code=site.postal_code if postal_code is None else postal_code,
-            timezone=site.timezone if timezone_name is None else timezone_name,
-            currency_code=site.currency_code if currency_code is None else currency_code,
-            site_type=site.site_type if site_type is None else site_type,
-            status=next_status,
-            default_calendar_id=site.default_calendar_id if default_calendar_id is None else default_calendar_id,
-            default_language=site.default_language if default_language is None else default_language,
-            is_active=next_is_active,
-            opened_at=next_opened_at,
-            closed_at=next_closed_at,
-            notes=site.notes if notes is None else notes,
-            updated_at=now,
-        )
-        existing = self._site_repo.get_by_code(organization.id, candidate.site_code)
-        if existing is not None and existing.id != site.id:
-            raise ValidationError("Site code already exists in the active organization.", code="SITE_CODE_EXISTS")
-        try:
-            self._site_repo.update(candidate)
-            # Audit is staged in the same transaction as the business write (ADR-003:
-            # "the business mutation and successful security audit intent commit
-            # atomically") — never a second, separate commit.
-            record_audit_entry(
-                self,
-                operation="update",
-                entity_type="site",
-                entity_id=candidate.id,
-                module="platform",
-                severity="low",
-                metadata={
-                    "action": "site.update",
-                    "organization_id": organization.id,
-                    "site_code": candidate.site_code,
-                    "name": candidate.name,
-                    "status": candidate.status,
-                    "city": candidate.city,
-                    "country": candidate.country,
-                    "is_active": str(candidate.is_active),
-                },
-                commit=False,
-                fail_closed=True,
-            )
-            self._session.commit()
-        except IntegrityError as exc:
-            self._session.rollback()
-            raise ValidationError("Site code already exists in the active organization.", code="SITE_CODE_EXISTS") from exc
-        except Exception:
-            self._session.rollback()
-            raise
+            existing = uow.sites.get_by_code(organization.id, candidate.site_code)
+            if existing is not None and existing.id != site.id:
+                raise ValidationError("Site code already exists in the active organization.", code="SITE_CODE_EXISTS")
+            try:
+                uow.sites.update(candidate)
+                record_audit_entry(
+                    uow,
+                    operation="update",
+                    entity_type="site",
+                    entity_id=candidate.id,
+                    module="platform",
+                    severity="low",
+                    metadata={
+                        "action": "site.update",
+                        "organization_id": organization.id,
+                        "site_code": candidate.site_code,
+                        "name": candidate.name,
+                        "status": candidate.status,
+                        "city": candidate.city,
+                        "country": candidate.country,
+                        "is_active": str(candidate.is_active),
+                    },
+                    commit=False,
+                    fail_closed=True,
+                )
+                uow.commit()
+            except IntegrityError as exc:
+                raise ValidationError(
+                    "Site code already exists in the active organization.", code="SITE_CODE_EXISTS"
+                ) from exc
         domain_events.sites_changed.emit(candidate.id)
         return candidate
 

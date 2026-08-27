@@ -123,6 +123,7 @@ from src.core.modules.project_management.api.desktop.financials.serializers.snap
 from src.core.modules.project_management.api.desktop.financials.serializers.configuration_serializer import (
     serialize_finance_budget_workspace,
     serialize_finance_configuration_workspace,
+    serialize_finance_planned_cost_workspace,
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.billing_serializer import (
     serialize_billing_preparation,
@@ -563,6 +564,45 @@ class ProjectManagementFinancialsDesktopApi:
             self._finance_workspace_query.get_budget_workspace(
                 project_id,
                 selected_budget_id=selected_budget_id,
+                version_request=FinancePageRequest(
+                    page=version_page,
+                    page_size=page_size,
+                    sort_key=version_sort_key,
+                    sort_direction=version_sort_direction,
+                    search=search,
+                    status=status,
+                ),
+                line_request=FinancePageRequest(
+                    page=line_page,
+                    page_size=page_size,
+                    sort_key=line_sort_key,
+                    sort_direction=line_sort_direction,
+                    search=search,
+                ),
+            )
+        )
+
+    def get_planned_cost_workspace(
+        self,
+        project_id: str,
+        *,
+        selected_version_id: str = "",
+        version_page: int = 1,
+        line_page: int = 1,
+        page_size: int = 50,
+        version_sort_key: str = "revision",
+        version_sort_direction: str = "desc",
+        line_sort_key: str = "title",
+        line_sort_direction: str = "asc",
+        search: str = "",
+        status: str = "",
+    ) -> FinancialConfigurationWorkspaceDto:
+        if not project_id or self._finance_workspace_query is None:
+            return FinancialConfigurationWorkspaceDto()
+        return serialize_finance_planned_cost_workspace(
+            self._finance_workspace_query.get_planned_cost_workspace(
+                project_id,
+                selected_version_id=selected_version_id,
                 version_request=FinancePageRequest(
                     page=version_page,
                     page_size=page_size,

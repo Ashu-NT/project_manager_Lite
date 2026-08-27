@@ -239,12 +239,50 @@ class FinancialsStateMixin:
     def _set_planned_cost_versions(self, value: FinancialsMap) -> None:
         if value != self._planned_cost_versions:
             self._planned_cost_versions = value
+            self._planned_cost_versions_table_model.set_rows(value.get("items", []))
             self.plannedCostVersionsChanged.emit()
 
     def _set_planned_cost_lines(self, value: FinancialsMap) -> None:
         if value != self._planned_cost_lines:
             self._planned_cost_lines = value
+            self._planned_cost_lines_table_model.set_rows(value.get("items", []))
             self.plannedCostLinesChanged.emit()
+
+    def _set_selected_planned_cost_version_id(self, value: str) -> None:
+        if value != self._selected_planned_cost_version_id:
+            self._selected_planned_cost_version_id = value
+            self.selectedPlannedCostVersionIdChanged.emit()
+
+    def _set_planned_cost_sort_state(
+        self,
+        *,
+        version_key: str,
+        version_direction: str,
+        line_key: str,
+        line_direction: str,
+    ) -> None:
+        version_order = (
+            Qt.DescendingOrder.value
+            if version_direction == "desc"
+            else Qt.AscendingOrder.value
+        )
+        line_order = (
+            Qt.DescendingOrder.value
+            if line_direction == "desc"
+            else Qt.AscendingOrder.value
+        )
+        if version_key != self._planned_cost_version_sort_key:
+            self._planned_cost_version_sort_key = version_key
+            self.plannedCostVersionSortKeyChanged.emit()
+        if version_order != self._planned_cost_version_sort_direction:
+            self._planned_cost_version_sort_direction = version_order
+            self.plannedCostVersionSortDirectionChanged.emit()
+        if line_key != self._planned_cost_line_sort_key:
+            self._planned_cost_line_sort_key = line_key
+            self.plannedCostLineSortKeyChanged.emit()
+        if line_order != self._planned_cost_line_sort_direction:
+            self._planned_cost_line_sort_direction = line_order
+            self.plannedCostLineSortDirectionChanged.emit()
 
     def _set_billing_profile(self, value: FinancialsMap) -> None:
         if value != self._billing_profile:

@@ -160,7 +160,7 @@ def test_known_large_modules_have_growth_budgets():
         "src/core/modules/project_management/application/scheduling/cpm/passes.py": 260,
         "src/core/modules/project_management/application/resources/commands/project_resource_commands.py": 320,
         "src/core/modules/project_management/application/tasks/commands/lifecycle.py": 360,
-        "src/core/platform/application/master_data/site/site_service.py": 360,
+        "src/core/platform/application/master_data/site/site_service.py": 400,
     }
 
     breaches = []

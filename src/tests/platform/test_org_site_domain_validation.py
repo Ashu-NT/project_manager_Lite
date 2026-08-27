@@ -147,6 +147,33 @@ class _FakeTenantContext:
         return self._organization_repo.get(self._organization_id)
 
 
+class _FakeSiteUnitOfWork:
+    def __init__(self, site_repo: "_FakeSiteRepo", enterprise_audit_service) -> None:
+        self.sites = site_repo
+        self._enterprise_audit_service = enterprise_audit_service
+
+    def __enter__(self) -> "_FakeSiteUnitOfWork":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        return None
+
+    def commit(self) -> None:
+        return None
+
+    def record_event(self, event) -> None:
+        return None
+
+
+class _FakeSiteUnitOfWorkFactory:
+    def __init__(self, site_repo: "_FakeSiteRepo", enterprise_audit_service) -> None:
+        self._site_repo = site_repo
+        self._enterprise_audit_service = enterprise_audit_service
+
+    def create(self, *, context) -> _FakeSiteUnitOfWork:
+        return _FakeSiteUnitOfWork(self._site_repo, self._enterprise_audit_service)
+
+
 class _FakeSiteRepo:
     def __init__(self) -> None:
         self._rows: dict[str, Site] = {}
@@ -230,13 +257,16 @@ def _make_site_service(monkeypatch: pytest.MonkeyPatch) -> tuple[SiteService, Or
     )
     organization_repo.add(organization)
 
+    site_repo = _FakeSiteRepo()
+    enterprise_audit_service = _FakeEnterpriseAuditService()
     service = SiteService(
         session=_FakeSession(),
-        site_repo=_FakeSiteRepo(),
+        site_repo=site_repo,
         organization_repo=organization_repo,
         user_session=object(),
-        enterprise_audit_service=_FakeEnterpriseAuditService(),
+        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=_FakeTenantContext(organization_repo, organization.id),
+        uow_factory=_FakeSiteUnitOfWorkFactory(site_repo, enterprise_audit_service),
     )
     return service, organization
 

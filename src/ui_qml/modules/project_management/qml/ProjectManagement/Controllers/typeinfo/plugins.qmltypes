@@ -211,6 +211,13 @@ Component {
     Property { name: "rateLines"; type: "QVariantMap"; isReadonly: true }
     Property { name: "plannedCostVersions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "plannedCostLines"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "plannedCostVersionsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "plannedCostLinesTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "selectedPlannedCostVersionId"; type: "QString"; isReadonly: true }
+    Property { name: "plannedCostVersionSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "plannedCostVersionSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "plannedCostLineSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "plannedCostLineSortDirection"; type: "int"; isReadonly: true }
     Property { name: "billingProfile"; type: "QVariantMap"; isReadonly: true }
     Property { name: "billingSchedule"; type: "QVariantMap"; isReadonly: true }
     Property { name: "billingPreparations"; type: "QVariantMap"; isReadonly: true }
@@ -231,6 +238,10 @@ Component {
     Method { name: "setBudgetVersionPage"; Parameter { name: "page"; type: "int" } }
     Method { name: "setBudgetVersionSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
     Method { name: "setBudgetLineSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
+    Method { name: "selectPlannedCostVersion"; Parameter { name: "versionId"; type: "QString" } }
+    Method { name: "setPlannedCostVersionPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setPlannedCostVersionSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
+    Method { name: "setPlannedCostLineSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
     Method { name: "exportFinancials"; Parameter { name: "reportFormat"; type: "QString" } Parameter { name: "outputPath"; type: "QString" } }
     Method { name: "selectForecastVersion"; Parameter { name: "forecastId"; type: "QString" } }
     Method { name: "selectFinancialChange"; Parameter { name: "changeId"; type: "QString" } }

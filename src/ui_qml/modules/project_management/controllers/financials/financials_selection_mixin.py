@@ -34,11 +34,13 @@ class FinancialsSelectionMixin:
         self._budget_version_page = 1
         self._rate_line_page = 1
         self._planned_cost_line_page = 1
+        self._planned_cost_version_page = 1
         self._billing_preparation_page = 1
         self._actual_page = 1
         self._commitment_page = 1
         self._set_selected_forecast_id("")
         self._set_selected_budget_id("")
+        self._set_selected_planned_cost_version_id("")
         self._set_selected_change_id("")
         self._set_selected_baseline_id("")
         self._reset_destination_state()
@@ -81,6 +83,45 @@ class FinancialsSelectionMixin:
             self._budget_line_page = 1
             self.budgetLineSortKeyChanged.emit()
             self.budgetLineSortDirectionChanged.emit()
+            self.refresh()
+
+    def _select_planned_cost_version(self, version_id: str) -> None:
+        value = (version_id or "").strip()
+        if value != self._selected_planned_cost_version_id:
+            self._set_selected_planned_cost_version_id(value)
+            self._planned_cost_line_page = 1
+            self.refresh()
+
+    def _set_planned_cost_version_page(self, page: int) -> None:
+        normalized_page = max(1, int(page))
+        if normalized_page != self._planned_cost_version_page:
+            self._planned_cost_version_page = normalized_page
+            self.refresh()
+
+    def _set_planned_cost_version_sort(self, sort_key: str, sort_direction: int) -> None:
+        key = str(sort_key or "").strip()
+        if (
+            key != self._planned_cost_version_sort_key
+            or int(sort_direction) != self._planned_cost_version_sort_direction
+        ):
+            self._planned_cost_version_sort_key = key
+            self._planned_cost_version_sort_direction = int(sort_direction)
+            self._planned_cost_version_page = 1
+            self.plannedCostVersionSortKeyChanged.emit()
+            self.plannedCostVersionSortDirectionChanged.emit()
+            self.refresh()
+
+    def _set_planned_cost_line_sort(self, sort_key: str, sort_direction: int) -> None:
+        key = str(sort_key or "").strip()
+        if (
+            key != self._planned_cost_line_sort_key
+            or int(sort_direction) != self._planned_cost_line_sort_direction
+        ):
+            self._planned_cost_line_sort_key = key
+            self._planned_cost_line_sort_direction = int(sort_direction)
+            self._planned_cost_line_page = 1
+            self.plannedCostLineSortKeyChanged.emit()
+            self.plannedCostLineSortDirectionChanged.emit()
             self.refresh()
 
     def _select_financial_change(self, change_id: str) -> None:

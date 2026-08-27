@@ -36,6 +36,7 @@ from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
     FinancePageRequest,
 )
+from src.core.modules.project_management.domain.financials.rate_cards import RateType
 
 
 @contextmanager
@@ -127,6 +128,39 @@ def test_planning_budget_tab_does_not_query_cost_or_performance_reads() -> None:
     api.get_billing_workspace.assert_not_called()
 
 
+def test_planning_planned_cost_tab_uses_bounded_reader_facade_only() -> None:
+    api = MagicMock()
+    api.get_planned_cost_workspace.return_value = FinancialConfigurationWorkspaceDto()
+
+    build_destination_state(
+        api,
+        destination="planning",
+        subsection="planned_costs",
+        selected_project_id="project-1",
+        selected_planned_cost_version_id="snapshot-2",
+        planned_cost_version_page=3,
+        planned_cost_line_page=2,
+        planned_cost_version_sort_key="metaText",
+        planned_cost_version_sort_direction="asc",
+        planned_cost_line_sort_key="supportingText",
+        planned_cost_line_sort_direction="desc",
+    )
+
+    api.get_planned_cost_workspace.assert_called_once_with(
+        "project-1",
+        selected_version_id="snapshot-2",
+        version_page=3,
+        line_page=2,
+        page_size=50,
+        version_sort_key="metaText",
+        version_sort_direction="asc",
+        line_sort_key="supportingText",
+        line_sort_direction="desc",
+    )
+    api.get_configuration_workspace.assert_not_called()
+    api.get_finance_snapshot.assert_not_called()
+
+
 def test_budget_reader_pages_versions_and_selected_lines_authoritatively(services) -> None:
     project = services["project_service"].create_project(
         "R6B budget reader",
@@ -207,6 +241,118 @@ def test_budget_reader_pages_versions_and_selected_lines_authoritatively(service
     assert second_page.versions.items[0].id == second.id
     assert second_page.lines.items == ()
     assert second_page.selected_budget_id == ""
+
+
+def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
+    services,
+) -> None:
+    project = services["project_service"].create_project(
+        "R6B planned-cost reader",
+        financial_currency_code="USD",
+    )
+    cost_code = services["financial_configuration_service"].create_cost_code(
+        code="R6B-LABOR",
+        name="R6B Labor",
+    )
+    profile = services["financial_configuration_service"].get_profile(project.id)
+    services["financial_configuration_service"].configure_profile(
+        project.id,
+        expected_version=profile.version,
+        default_cost_code_id=cost_code.id,
+    )
+    task = services["task_service"].create_task(
+        project.id,
+        "R6B Engineering",
+        wbs_code="1.1",
+    )
+    resource = services["resource_service"].create_resource(
+        "R6B Engineer",
+        hourly_rate=Decimal("50"),
+        currency_code="USD",
+    )
+    project_resource = services["project_resource_service"].add_to_project(
+        project.id,
+        resource.id,
+        hourly_rate=Decimal("50"),
+        currency_code="USD",
+        planned_hours=Decimal("20"),
+    )
+    assignment = services["task_service"].assign_project_resource(
+        task_id=task.id,
+        project_resource_id=project_resource.id,
+        allocation_percent=100,
+    )
+    services["task_service"].update_assignment_planned_hours(
+        assignment.id,
+        allocated_planned_hours=Decimal("10"),
+        expected_assignment_version=assignment.version,
+        expected_project_resource_version=project_resource.version,
+    )
+    rate_card = services["rate_card_service"].create_rate_card(
+        name="R6B Rates",
+        project_id=project.id,
+    )
+    services["rate_card_service"].create_line(
+        rate_card.id,
+        rate_type=RateType.COST,
+        unit="HOUR",
+        rate_amount=Decimal("60"),
+        rate_currency="USD",
+        resource_id=resource.id,
+        effective_from=date(2026, 1, 1),
+    )
+    planned_costs = services["planned_cost_service"]
+    first = planned_costs.calculate_snapshot(
+        project.id,
+        calculated_by="admin",
+        as_of=date(2026, 8, 1),
+    ).version
+    second = planned_costs.calculate_snapshot(
+        project.id,
+        calculated_by="admin",
+        as_of=date(2026, 8, 2),
+    ).version
+
+    query = services["finance_workspace_query"]
+    with _statement_count(services["session"]) as statements:
+        first_page = query.get_planned_cost_workspace(
+            project.id,
+            selected_version_id=first.id,
+            version_request=FinancePageRequest(
+                page=1,
+                page_size=1,
+                sort_key="revision",
+                sort_direction="asc",
+            ),
+            line_request=FinancePageRequest(
+                page=1,
+                page_size=1,
+                sort_key="title",
+                sort_direction="asc",
+            ),
+        )
+
+    assert len(statements) <= 5
+    assert first_page.versions.total == 2
+    assert first_page.versions.items[0].id == first.id
+    assert first_page.lines.total == 1
+    assert first_page.lines.items[0].version_id == first.id
+    assert first_page.lines.items[0].task_name == "R6B Engineering"
+    assert first_page.lines.items[0].resource_name == "R6B Engineer"
+    assert first_page.lines.items[0].amount == Decimal("600")
+
+    second_page = query.get_planned_cost_workspace(
+        project.id,
+        version_request=FinancePageRequest(
+            page=2,
+            page_size=1,
+            sort_key="revision",
+            sort_direction="asc",
+        ),
+    )
+    assert second_page.versions.items[0].id == second.id
+    assert second_page.lines.items == ()
+    assert second_page.selected_version_id == ""
 
 
 def test_cost_actuals_tab_loads_only_paged_actual_dependencies() -> None:

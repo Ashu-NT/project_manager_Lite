@@ -19,6 +19,9 @@ from src.core.modules.project_management.application.financials import (
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
     FinanceBudgetWorkspaceFacts,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.finance_planned_cost_facts import (
+    FinancePlannedCostWorkspaceFacts,
+)
 
 
 def _label(value: str) -> str:
@@ -127,58 +130,10 @@ def serialize_finance_configuration_workspace(
         rate_line_page_size=source.rate_line_page_size,
         rate_line_total=source.rate_line_total,
         planned_cost_versions=tuple(
-            FinancialConfigurationRecordDto(
-                id=item.id,
-                title=f"Planned cost v{item.revision}",
-                status_label=_label(item.status),
-                subtitle=f"As of {item.as_of.isoformat()} | {item.line_count} lines",
-                supporting_text=(
-                    f"{format_money(item.total_amount, item.currency_code)} | "
-                    f"{format_hours(item.total_hours)}"
-                ),
-                meta_text=f"Calculated {_datetime_label(item.calculated_at)} by {item.calculated_by}",
-                state={
-                    "revision": item.revision,
-                    "ratesComplete": item.rates_complete,
-                    "allocationsComplete": item.allocations_complete,
-                    "costCodesComplete": item.cost_codes_complete,
-                    "unresolvedRateCount": item.unresolved_rate_count,
-                    "partiallyAllocatedResourceCount": item.partially_allocated_resource_count,
-                    "unclassifiedLineCount": item.unclassified_line_count,
-                    "totalAmountLabel": format_money(item.total_amount, item.currency_code),
-                    "totalHoursLabel": format_hours(item.total_hours),
-                },
-            )
-            for item in source.planned_cost_versions
+            _planned_cost_version_dto(item) for item in source.planned_cost_versions
         ),
         planned_cost_lines=tuple(
-            FinancialConfigurationRecordDto(
-                id=item.id,
-                title=item.task_name,
-                status_label=_label(item.version_status),
-                subtitle=(
-                    f"{item.wbs_code} | {item.resource_name}"
-                    if item.wbs_code
-                    else item.resource_name
-                ),
-                supporting_text=(
-                    f"{format_hours(item.planned_hours)} x "
-                    f"{format_money(item.rate_amount, item.currency_code)} = "
-                    f"{format_money(item.amount, item.currency_code)}"
-                ),
-                meta_text=(
-                    f"Snapshot v{item.version_revision} | {item.cost_code} | "
-                    f"Rate-card v{item.rate_card_version}"
-                ),
-                state={
-                    "versionId": item.version_id,
-                    "versionRevision": item.version_revision,
-                    "costCode": item.cost_code,
-                    "costCodeName": item.cost_code_name,
-                    "rateCardId": item.rate_card_id,
-                },
-            )
-            for item in source.planned_cost_lines
+            _planned_cost_line_dto(item) for item in source.planned_cost_lines
         ),
         planned_cost_line_page=source.planned_cost_line_page,
         planned_cost_line_page_size=source.planned_cost_line_page_size,
@@ -203,6 +158,30 @@ def serialize_finance_budget_workspace(
         budget_line_total=source.lines.total,
         budget_line_sort_key=source.lines.sort_key,
         budget_line_sort_direction=source.lines.sort_direction,
+    )
+
+
+def serialize_finance_planned_cost_workspace(
+    source: FinancePlannedCostWorkspaceFacts,
+) -> FinancialConfigurationWorkspaceDto:
+    return FinancialConfigurationWorkspaceDto(
+        selected_planned_cost_version_id=source.selected_version_id,
+        planned_cost_versions=tuple(
+            _planned_cost_version_dto(item) for item in source.versions.items
+        ),
+        planned_cost_version_page=source.versions.page,
+        planned_cost_version_page_size=source.versions.page_size,
+        planned_cost_version_total=source.versions.total,
+        planned_cost_version_sort_key=source.versions.sort_key,
+        planned_cost_version_sort_direction=source.versions.sort_direction,
+        planned_cost_lines=tuple(
+            _planned_cost_line_dto(item) for item in source.lines.items
+        ),
+        planned_cost_line_page=source.lines.page,
+        planned_cost_line_page_size=source.lines.page_size,
+        planned_cost_line_total=source.lines.total,
+        planned_cost_line_sort_key=source.lines.sort_key,
+        planned_cost_line_sort_direction=source.lines.sort_direction,
     )
 
 
@@ -252,7 +231,63 @@ def _budget_line_dto(item) -> FinancialConfigurationRecordDto:
     )
 
 
+def _planned_cost_version_dto(item) -> FinancialConfigurationRecordDto:
+    return FinancialConfigurationRecordDto(
+        id=item.id,
+        title=f"Planned cost v{item.revision}",
+        status_label=_label(item.status),
+        subtitle=f"As of {item.as_of.isoformat()} | {item.line_count} lines",
+        supporting_text=(
+            f"{format_money(item.total_amount, item.currency_code)} | "
+            f"{format_hours(item.total_hours)}"
+        ),
+        meta_text=f"Calculated {_datetime_label(item.calculated_at)} by {item.calculated_by}",
+        state={
+            "revision": item.revision,
+            "ratesComplete": item.rates_complete,
+            "allocationsComplete": item.allocations_complete,
+            "costCodesComplete": item.cost_codes_complete,
+            "unresolvedRateCount": item.unresolved_rate_count,
+            "partiallyAllocatedResourceCount": item.partially_allocated_resource_count,
+            "unclassifiedLineCount": item.unclassified_line_count,
+            "totalAmountLabel": format_money(item.total_amount, item.currency_code),
+            "totalHoursLabel": format_hours(item.total_hours),
+        },
+    )
+
+
+def _planned_cost_line_dto(item) -> FinancialConfigurationRecordDto:
+    return FinancialConfigurationRecordDto(
+        id=item.id,
+        title=item.task_name,
+        status_label=_label(item.version_status),
+        subtitle=(
+            f"{item.wbs_code} | {item.resource_name}"
+            if item.wbs_code
+            else item.resource_name
+        ),
+        supporting_text=(
+            f"{format_hours(item.planned_hours)} x "
+            f"{format_money(item.rate_amount, item.currency_code)} = "
+            f"{format_money(item.amount, item.currency_code)}"
+        ),
+        meta_text=(
+            f"Snapshot v{item.version_revision} | {item.cost_code} | "
+            f"Rate-card v{item.rate_card_version}"
+        ),
+        state={
+            "versionId": item.version_id,
+            "versionRevision": item.version_revision,
+            "resourceCode": getattr(item, "resource_code", ""),
+            "costCode": item.cost_code,
+            "costCodeName": item.cost_code_name,
+            "rateCardId": item.rate_card_id,
+        },
+    )
+
+
 __all__ = [
     "serialize_finance_budget_workspace",
     "serialize_finance_configuration_workspace",
+    "serialize_finance_planned_cost_workspace",
 ]

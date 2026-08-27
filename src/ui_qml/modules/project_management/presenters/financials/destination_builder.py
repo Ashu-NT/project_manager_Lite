@@ -127,6 +127,12 @@ def build_destination_state(
     budget_version_sort_direction: str = "desc",
     budget_line_sort_key: str = "metaText",
     budget_line_sort_direction: str = "desc",
+    selected_planned_cost_version_id: str | None = None,
+    planned_cost_version_page: int = 1,
+    planned_cost_version_sort_key: str = "revision",
+    planned_cost_version_sort_direction: str = "desc",
+    planned_cost_line_sort_key: str = "title",
+    planned_cost_line_sort_direction: str = "asc",
     selected_change_id: str | None = None,
     selected_baseline_id: str | None = None,
 ) -> FinancialsWorkspaceViewModel:
@@ -164,14 +170,16 @@ def build_destination_state(
                     line_sort_direction=budget_line_sort_direction,
                 )
                 if subsection == "budgets"
-                else desktop_api.get_configuration_workspace(
+                else desktop_api.get_planned_cost_workspace(
                     project_id,
-                    planned_cost_line_page=planned_cost_line_page,
+                    selected_version_id=selected_planned_cost_version_id or "",
+                    version_page=planned_cost_version_page,
+                    line_page=planned_cost_line_page,
                     page_size=configuration_page_size,
-                    include_profile_details=False,
-                    include_budgets=False,
-                    include_rates=False,
-                    include_planned_costs=True,
+                    version_sort_key=planned_cost_version_sort_key,
+                    version_sort_direction=planned_cost_version_sort_direction,
+                    line_sort_key=planned_cost_line_sort_key,
+                    line_sort_direction=planned_cost_line_sort_direction,
                 )
             )
             views = build_finance_configuration_views(configuration)
@@ -190,8 +198,21 @@ def build_destination_state(
             return FinancialsWorkspaceViewModel(
                 overview=state.overview,
                 selected_project_id=project_id,
+                selected_planned_cost_version_id=views[
+                    "selected_planned_cost_version_id"
+                ],
                 planned_cost_versions=views["planned_cost_versions"],
                 planned_cost_lines=views["planned_cost_lines"],
+                planned_cost_version_sort_key=views[
+                    "planned_cost_version_sort_key"
+                ],
+                planned_cost_version_sort_direction=views[
+                    "planned_cost_version_sort_direction"
+                ],
+                planned_cost_line_sort_key=views["planned_cost_line_sort_key"],
+                planned_cost_line_sort_direction=views[
+                    "planned_cost_line_sort_direction"
+                ],
             )
         forecast = desktop_api.get_cost_forecast(project_id)
         lifecycle = build_forecast_lifecycle_views(

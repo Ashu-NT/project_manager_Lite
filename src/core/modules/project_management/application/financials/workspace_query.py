@@ -39,10 +39,16 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
 from src.core.modules.project_management.contracts.reads.financials.finance_budget_reader import (
     FinanceBudgetReader,
 )
+from src.core.modules.project_management.contracts.reads.financials.finance_planned_cost_reader import (
+    FinancePlannedCostReader,
+)
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
     FinanceBudgetWorkspaceFacts,
     FinancePageFacts,
     FinancePageRequest,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_planned_cost_facts import (
+    FinancePlannedCostWorkspaceFacts,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
@@ -65,6 +71,7 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         task_repo: TaskRepository,
         resource_repo: ResourceRepository,
         budget_reader: FinanceBudgetReader | None = None,
+        planned_cost_reader: FinancePlannedCostReader | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
         module_catalog_service=None,
@@ -77,6 +84,7 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         self._task_repo = task_repo
         self._resource_repo = resource_repo
         self._budget_reader = budget_reader
+        self._planned_cost_reader = planned_cost_reader
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
@@ -135,6 +143,64 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         )
         return FinanceBudgetWorkspaceFacts(
             selected_budget_id=normalized_budget_id,
+            versions=versions,
+            lines=lines,
+        )
+
+    def get_planned_cost_workspace(
+        self,
+        project_id: str,
+        *,
+        selected_version_id: str = "",
+        version_request: FinancePageRequest | None = None,
+        line_request: FinancePageRequest | None = None,
+    ) -> FinancePlannedCostWorkspaceFacts:
+        require_permission(
+            self._user_session,
+            "finance.read",
+            operation_label="view project planned costs",
+        )
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "finance.read",
+            operation_label="view project planned costs",
+        )
+        if self._planned_cost_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Finance Planned Cost Reader is not configured.")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view project planned costs"
+        )
+        normalized_version_id = str(selected_version_id or "").strip()
+        versions = self._planned_cost_reader.list_versions(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            request=version_request or FinancePageRequest(sort_key="revision"),
+        )
+        requested_lines = line_request or FinancePageRequest(sort_key="title")
+        lines = (
+            self._planned_cost_reader.list_lines(
+                tenant_id=scope.tenant_id,
+                organization_id=scope.organization_id,
+                project_id=project_id,
+                version_id=normalized_version_id,
+                request=requested_lines,
+            )
+            if normalized_version_id
+            else FinancePageFacts(
+                items=(),
+                total=0,
+                page=requested_lines.normalized_page,
+                page_size=requested_lines.normalized_page_size,
+                sort_key=(requested_lines.sort_key or "title"),
+                sort_direction=(
+                    "asc" if requested_lines.sort_direction == "asc" else "desc"
+                ),
+            )
+        )
+        return FinancePlannedCostWorkspaceFacts(
+            selected_version_id=normalized_version_id,
             versions=versions,
             lines=lines,
         )

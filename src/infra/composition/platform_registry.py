@@ -115,6 +115,9 @@ from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work 
 from src.core.platform.infrastructure.persistence.uow.department_unit_of_work import (
     SqlAlchemyDepartmentUnitOfWorkFactory,
 )
+from src.core.platform.infrastructure.persistence.uow.site_unit_of_work import (
+    SqlAlchemySiteUnitOfWorkFactory,
+)
 from src.core.platform.infrastructure.persistence.uow.employee_unit_of_work import (
     SqlAlchemyEmployeeUnitOfWorkFactory,
 )
@@ -616,6 +619,14 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
         overview_rollup_reader=overview_rollup_reader,
     )
+    site_uow_session_factory = sessionmaker(bind=session.bind, future=True)
+    site_uow_factory = SqlAlchemySiteUnitOfWorkFactory(
+        session_factory=site_uow_session_factory,
+        transactional_dispatcher=platform_transactional_dispatcher,
+        post_commit_bus=platform_post_commit_bus,
+        tenant_context_service=tenant_context_service,
+        user_session=user_session,
+    )
     site_service = SiteService(
         session=session,
         site_repo=repositories.site_repo,
@@ -624,6 +635,7 @@ def build_platform_service_bundle(
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
         overview_rollup_reader=overview_rollup_reader,
+        uow_factory=site_uow_factory,
     )
     department_uow_session_factory = sessionmaker(bind=session.bind, future=True)
     department_uow_factory = SqlAlchemyDepartmentUnitOfWorkFactory(

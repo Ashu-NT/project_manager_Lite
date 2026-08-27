@@ -85,6 +85,11 @@ class ProjectManagementFinancialsWorkspaceController(
     rateLinesChanged = Signal()
     plannedCostVersionsChanged = Signal()
     plannedCostLinesChanged = Signal()
+    selectedPlannedCostVersionIdChanged = Signal()
+    plannedCostVersionSortKeyChanged = Signal()
+    plannedCostVersionSortDirectionChanged = Signal()
+    plannedCostLineSortKeyChanged = Signal()
+    plannedCostLineSortDirectionChanged = Signal()
     billingProfileChanged = Signal()
     billingScheduleChanged = Signal()
     billingPreparationsChanged = Signal()
@@ -159,6 +164,14 @@ class ProjectManagementFinancialsWorkspaceController(
         self._rate_lines = default_collection()
         self._planned_cost_versions = default_collection()
         self._planned_cost_lines = default_collection()
+        self._planned_cost_versions_table_model = DynamicTableModel(self)
+        self._planned_cost_lines_table_model = DynamicTableModel(self)
+        self._selected_planned_cost_version_id = ""
+        self._planned_cost_version_page = 1
+        self._planned_cost_version_sort_key = "revision"
+        self._planned_cost_version_sort_direction = Qt.DescendingOrder.value
+        self._planned_cost_line_sort_key = "title"
+        self._planned_cost_line_sort_direction = Qt.AscendingOrder.value
         self._billing_profile = default_detail()
         self._billing_schedule = default_collection()
         self._billing_preparations = default_collection()
@@ -324,6 +337,34 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property("QVariantMap", notify=plannedCostLinesChanged)
     def plannedCostLines(self) -> FinancialsMap: return self._planned_cost_lines
 
+    @Property(QObject, constant=True)
+    def plannedCostVersionsTableModel(self) -> DynamicTableModel:
+        return self._planned_cost_versions_table_model
+
+    @Property(QObject, constant=True)
+    def plannedCostLinesTableModel(self) -> DynamicTableModel:
+        return self._planned_cost_lines_table_model
+
+    @Property(str, notify=selectedPlannedCostVersionIdChanged)
+    def selectedPlannedCostVersionId(self) -> str:
+        return self._selected_planned_cost_version_id
+
+    @Property(str, notify=plannedCostVersionSortKeyChanged)
+    def plannedCostVersionSortKey(self) -> str:
+        return self._planned_cost_version_sort_key
+
+    @Property(int, notify=plannedCostVersionSortDirectionChanged)
+    def plannedCostVersionSortDirection(self) -> int:
+        return self._planned_cost_version_sort_direction
+
+    @Property(str, notify=plannedCostLineSortKeyChanged)
+    def plannedCostLineSortKey(self) -> str:
+        return self._planned_cost_line_sort_key
+
+    @Property(int, notify=plannedCostLineSortDirectionChanged)
+    def plannedCostLineSortDirection(self) -> int:
+        return self._planned_cost_line_sort_direction
+
     @Property("QVariantMap", notify=billingProfileChanged)
     def billingProfile(self) -> FinancialsMap: return self._billing_profile
 
@@ -406,6 +447,22 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str, int)
     def setBudgetLineSort(self, sort_key: str, sort_direction: int) -> None:
         self._set_budget_line_sort(sort_key, sort_direction)
+
+    @Slot(str)
+    def selectPlannedCostVersion(self, version_id: str) -> None:
+        self._select_planned_cost_version(version_id)
+
+    @Slot(int)
+    def setPlannedCostVersionPage(self, page: int) -> None:
+        self._set_planned_cost_version_page(page)
+
+    @Slot(str, int)
+    def setPlannedCostVersionSort(self, sort_key: str, sort_direction: int) -> None:
+        self._set_planned_cost_version_sort(sort_key, sort_direction)
+
+    @Slot(str, int)
+    def setPlannedCostLineSort(self, sort_key: str, sort_direction: int) -> None:
+        self._set_planned_cost_line_sort(sort_key, sort_direction)
 
     @Slot(int)
     def setActualPage(self, page: int) -> None: self._set_actual_page(page)

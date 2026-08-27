@@ -404,6 +404,13 @@ AppLayouts.WorkspaceFrame {
                     rateLinesModel: root.workspaceController ? root.workspaceController.rateLines : ({ "items": [] })
                     plannedCostVersionsModel: root.workspaceController ? root.workspaceController.plannedCostVersions : ({ "items": [] })
                     plannedCostLinesModel: root.workspaceController ? root.workspaceController.plannedCostLines : ({ "items": [] })
+                    plannedCostVersionsTableModel: root.workspaceController ? root.workspaceController.plannedCostVersionsTableModel : null
+                    plannedCostLinesTableModel: root.workspaceController ? root.workspaceController.plannedCostLinesTableModel : null
+                    selectedPlannedCostVersionId: root.workspaceController ? root.workspaceController.selectedPlannedCostVersionId : ""
+                    plannedCostVersionSortKey: root.workspaceController ? root.workspaceController.plannedCostVersionSortKey : "revision"
+                    plannedCostVersionSortDirection: root.workspaceController ? root.workspaceController.plannedCostVersionSortDirection : Qt.DescendingOrder
+                    plannedCostLineSortKey: root.workspaceController ? root.workspaceController.plannedCostLineSortKey : "title"
+                    plannedCostLineSortDirection: root.workspaceController ? root.workspaceController.plannedCostLineSortDirection : Qt.AscendingOrder
                     billingProfileModel: root.workspaceController ? root.workspaceController.billingProfile : ({ "id": "", "fields": [] })
                     billingScheduleModel: root.workspaceController ? root.workspaceController.billingSchedule : ({ "items": [] })
                     billingPreparationsModel: root.workspaceController ? root.workspaceController.billingPreparations : ({ "items": [] })
@@ -430,6 +437,18 @@ AppLayouts.WorkspaceFrame {
                     }
                     onBudgetLineSortRequested: function(key, direction) {
                         if (root.workspaceController !== null) root.workspaceController.setBudgetLineSort(key, direction)
+                    }
+                    onPlannedCostVersionSelected: function(versionId) {
+                        if (root.workspaceController !== null) root.workspaceController.selectPlannedCostVersion(versionId)
+                    }
+                    onPlannedCostVersionPageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setPlannedCostVersionPage(page)
+                    }
+                    onPlannedCostVersionSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setPlannedCostVersionSort(key, direction)
+                    }
+                    onPlannedCostLineSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setPlannedCostLineSort(key, direction)
                     }
                     onActualPageRequested: function(page) {
                         if (root.workspaceController !== null) root.workspaceController.setActualPage(page)

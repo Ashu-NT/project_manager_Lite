@@ -47,6 +47,13 @@ Item {
     property var rateLinesModel: ({ "items": [] })
     property var plannedCostVersionsModel: ({ "items": [] })
     property var plannedCostLinesModel: ({ "items": [] })
+    property var plannedCostVersionsTableModel: null
+    property var plannedCostLinesTableModel: null
+    property string selectedPlannedCostVersionId: ""
+    property string plannedCostVersionSortKey: "revision"
+    property int plannedCostVersionSortDirection: Qt.DescendingOrder
+    property string plannedCostLineSortKey: "title"
+    property int plannedCostLineSortDirection: Qt.AscendingOrder
     property var billingProfileModel: ({ "id": "", "fields": [] })
     property var billingScheduleModel: ({ "items": [] })
     property var billingPreparationsModel: ({ "items": [] })
@@ -64,6 +71,10 @@ Item {
     signal budgetVersionPageRequested(int page)
     signal budgetVersionSortRequested(string key, int direction)
     signal budgetLineSortRequested(string key, int direction)
+    signal plannedCostVersionSelected(string versionId)
+    signal plannedCostVersionPageRequested(int page)
+    signal plannedCostVersionSortRequested(string key, int direction)
+    signal plannedCostLineSortRequested(string key, int direction)
     signal forecastSelected(string forecastId)
     signal financialChangeSelected(string changeId)
     signal varianceBaselineSelected(string baselineId)
@@ -207,9 +218,28 @@ Item {
             width: parent ? parent.width : 0
             versions: root.plannedCostVersionsModel
             lines: root.plannedCostLinesModel
+            versionsTableModel: root.plannedCostVersionsTableModel
+            linesTableModel: root.plannedCostLinesTableModel
             busy: root.isBusy
+            selectedVersionId: root.selectedPlannedCostVersionId
+            versionSortKey: root.plannedCostVersionSortKey
+            versionSortDirection: root.plannedCostVersionSortDirection
+            lineSortKey: root.plannedCostLineSortKey
+            lineSortDirection: root.plannedCostLineSortDirection
+            onVersionSelected: function(versionId) {
+                root.plannedCostVersionSelected(versionId)
+            }
+            onVersionPageRequested: function(page) {
+                root.plannedCostVersionPageRequested(page)
+            }
             onLinePageRequested: function(page) {
                 root.configurationPageRequested("planned_cost_lines", page)
+            }
+            onVersionSortRequested: function(key, direction) {
+                root.plannedCostVersionSortRequested(key, direction)
+            }
+            onLineSortRequested: function(key, direction) {
+                root.plannedCostLineSortRequested(key, direction)
             }
         }
     }

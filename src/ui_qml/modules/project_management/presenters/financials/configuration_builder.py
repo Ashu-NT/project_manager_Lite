@@ -88,6 +88,9 @@ def build_finance_configuration_views(
             subtitle="Versioned assignment-based labor calculations.",
             empty_state="No planned-cost snapshot has been calculated.",
             items=tuple(_record(item) for item in source.planned_cost_versions),
+            page=source.planned_cost_version_page,
+            page_size=source.planned_cost_version_page_size,
+            total=source.planned_cost_version_total,
         ),
         "planned_cost_lines": FinancialsCollectionViewModel(
             title="Planned Cost Lines",
@@ -103,6 +106,11 @@ def build_finance_configuration_views(
         "budget_version_sort_direction": source.budget_version_sort_direction,
         "budget_line_sort_key": source.budget_line_sort_key,
         "budget_line_sort_direction": source.budget_line_sort_direction,
+        "selected_planned_cost_version_id": source.selected_planned_cost_version_id,
+        "planned_cost_version_sort_key": source.planned_cost_version_sort_key,
+        "planned_cost_version_sort_direction": source.planned_cost_version_sort_direction,
+        "planned_cost_line_sort_key": source.planned_cost_line_sort_key,
+        "planned_cost_line_sort_direction": source.planned_cost_line_sort_direction,
     }
 
 

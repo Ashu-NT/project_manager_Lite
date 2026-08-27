@@ -62,6 +62,7 @@ class FinancialsRefreshMixin:
                 budget_version_page=self._budget_version_page,
                 rate_line_page=self._rate_line_page,
                 planned_cost_line_page=self._planned_cost_line_page,
+                planned_cost_version_page=self._planned_cost_version_page,
                 billing_preparation_page=self._billing_preparation_page,
                 configuration_page_size=self._configuration_page_size,
                 actual_page=self._actual_page,
@@ -84,6 +85,17 @@ class FinancialsRefreshMixin:
                 budget_line_sort_key=self._budget_line_sort_key,
                 budget_line_sort_direction=self._sort_direction_name(
                     self._budget_line_sort_direction
+                ),
+                selected_planned_cost_version_id=(
+                    self._selected_planned_cost_version_id or None
+                ),
+                planned_cost_version_sort_key=self._planned_cost_version_sort_key,
+                planned_cost_version_sort_direction=self._sort_direction_name(
+                    self._planned_cost_version_sort_direction
+                ),
+                planned_cost_line_sort_key=self._planned_cost_line_sort_key,
+                planned_cost_line_sort_direction=self._sort_direction_name(
+                    self._planned_cost_line_sort_direction
                 ),
                 selected_change_id=self._selected_change_id or None,
                 selected_baseline_id=self._selected_baseline_id or None,
@@ -131,6 +143,9 @@ class FinancialsRefreshMixin:
                     line_direction=state.budget_line_sort_direction,
                 )
             elif subsection == "planned_costs":
+                self._set_selected_planned_cost_version_id(
+                    state.selected_planned_cost_version_id
+                )
                 self._set_planned_cost_versions(
                     serialize_financials_collection_view_model(
                         state.planned_cost_versions
@@ -142,7 +157,14 @@ class FinancialsRefreshMixin:
                     )
                 )
                 self._planned_cost_line_page = state.planned_cost_lines.page
+                self._planned_cost_version_page = state.planned_cost_versions.page
                 self._configuration_page_size = state.planned_cost_lines.page_size
+                self._set_planned_cost_sort_state(
+                    version_key=state.planned_cost_version_sort_key,
+                    version_direction=state.planned_cost_version_sort_direction,
+                    line_key=state.planned_cost_line_sort_key,
+                    line_direction=state.planned_cost_line_sort_direction,
+                )
             else:
                 self._set_forecast(
                     serialize_financials_forecast_view_model(state.forecast)
@@ -319,6 +341,7 @@ class FinancialsRefreshMixin:
         self._set_rate_lines(default_collection())
         self._set_planned_cost_versions(default_collection())
         self._set_planned_cost_lines(default_collection())
+        self._set_selected_planned_cost_version_id("")
         self._set_billing_profile(default_detail())
         self._set_billing_schedule(default_collection())
         self._set_billing_preparations(default_collection())
