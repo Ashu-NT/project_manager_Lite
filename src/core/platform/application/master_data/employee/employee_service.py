@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.contract.persistence.employee_unit_of_work import EmployeeUnitOfWorkFactory
 from src.core.platform.contract.repositories.master_data.department.contracts import DepartmentRepository
 from src.core.platform.application.master_data.employee.employee_support import (
     build_employee_audit_details,
@@ -25,11 +26,13 @@ from src.core.platform.contract.read.master_data.employee.employee_headcount_rea
     EmployeeHeadcountSummary,
     EmployeeSiteBreakdownRow,
 )
+from src.core.platform.common.ids import generate_id
 from src.core.platform.domain.master_data.employee import Employee, EmploymentType
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_events import domain_events
 
 if TYPE_CHECKING:
@@ -51,6 +54,7 @@ class EmployeeService:
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
         headcount_reader: EmployeeHeadcountReader | None = None,
+        uow_factory: EmployeeUnitOfWorkFactory,
     ):
         self._session = session
         self._employee_repo = employee_repo
@@ -59,6 +63,7 @@ class EmployeeService:
         self._department_repo = department_repo
         self._organization_repo = organization_repo
         self._headcount_reader = headcount_reader
+        self._uow_factory = uow_factory
         self._tenant_context_service = tenant_context_service or (
             TenantContextService(
                 organization_repo=organization_repo,
@@ -69,6 +74,9 @@ class EmployeeService:
         )
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
+
+    def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
 
     def create_employee(
         self,
@@ -103,45 +111,39 @@ class EmployeeService:
             is_active=bool(is_active),
             user_id=user_id,
         )
-        if self._employee_repo.get_by_code_for_organization(employee.employee_code, organization_id) is not None:
-            raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS")
-        employee.department_id, employee.department = resolve_employee_department_reference(
-            department_repo=self._department_repo,
-            organization_repo=self._organization_repo,
-            active_organization_id=organization_id,
-            department_id=employee.department_id,
-            department_name=employee.department,
-        )
-        employee.site_id, employee.site_name = resolve_employee_site_reference(
-            site_repo=self._site_repo,
-            organization_repo=self._organization_repo,
-            active_organization_id=organization_id,
-            site_id=employee.site_id,
-            site_name=employee.site_name,
-        )
-        try:
-            self._employee_repo.add(employee)
-            # Audit is staged in the same transaction as the business write (ADR-003:
-            # "the business mutation and successful security audit intent commit
-            # atomically") — never a second, separate commit.
-            record_audit_entry(
-                self,
-                operation="create",
-                entity_type="employee",
-                entity_id=employee.id,
-                module="platform",
-                severity="low",
-                metadata={"action": "employee.create", **build_employee_audit_details(employee)},
-                commit=False,
-                fail_closed=True,
+        with self._uow_factory.create(context=self._new_context()) as uow:
+            if uow.employees.get_by_code_for_organization(employee.employee_code, organization_id) is not None:
+                raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS")
+            employee.department_id, employee.department = resolve_employee_department_reference(
+                department_repo=uow.departments,
+                organization_repo=self._organization_repo,
+                active_organization_id=organization_id,
+                department_id=employee.department_id,
+                department_name=employee.department,
             )
-            self._session.commit()
-        except IntegrityError as exc:
-            self._session.rollback()
-            raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS") from exc
-        except Exception:
-            self._session.rollback()
-            raise
+            employee.site_id, employee.site_name = resolve_employee_site_reference(
+                site_repo=uow.sites,
+                organization_repo=self._organization_repo,
+                active_organization_id=organization_id,
+                site_id=employee.site_id,
+                site_name=employee.site_name,
+            )
+            try:
+                uow.employees.add(employee)
+                record_audit_entry(
+                    uow,
+                    operation="create",
+                    entity_type="employee",
+                    entity_id=employee.id,
+                    module="platform",
+                    severity="low",
+                    metadata={"action": "employee.create", **build_employee_audit_details(employee)},
+                    commit=False,
+                    fail_closed=True,
+                )
+                uow.commit()
+            except IntegrityError as exc:
+                raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS") from exc
         domain_events.employees_changed.emit(employee.id)
         return employee
 
@@ -165,84 +167,78 @@ class EmployeeService:
     ) -> Employee:
         require_permission(self._user_session, "employee.manage", operation_label="update employee")
         organization_id = self._active_organization_id(operation_label="update employee")
-        employee = self._employee_repo.get_for_organization(employee_id, organization_id)
-        if employee is None:
-            raise NotFoundError("Employee not found.", code="EMPLOYEE_NOT_FOUND")
-        if expected_version is not None and employee.version != expected_version:
-            raise ConcurrencyError(
-                "Employee changed since you opened it. Refresh and try again.",
-                code="STALE_WRITE",
-            )
+        with self._uow_factory.create(context=self._new_context()) as uow:
+            employee = uow.employees.get_for_organization(employee_id, organization_id)
+            if employee is None:
+                raise NotFoundError("Employee not found.", code="EMPLOYEE_NOT_FOUND")
+            if expected_version is not None and employee.version != expected_version:
+                raise ConcurrencyError(
+                    "Employee changed since you opened it. Refresh and try again.",
+                    code="STALE_WRITE",
+                )
 
-        resolved_department_id = employee.department_id
-        resolved_department_name = employee.department
-        if department_id is not None or department is not None:
-            resolved_department_id, resolved_department_name = resolve_employee_department_reference(
-                department_repo=self._department_repo,
-                organization_repo=self._organization_repo,
-                active_organization_id=organization_id,
-                department_id=department_id if department_id is not None else None,
-                department_name=department if department is not None else employee.department,
-            )
+            resolved_department_id = employee.department_id
+            resolved_department_name = employee.department
+            if department_id is not None or department is not None:
+                resolved_department_id, resolved_department_name = resolve_employee_department_reference(
+                    department_repo=uow.departments,
+                    organization_repo=self._organization_repo,
+                    active_organization_id=organization_id,
+                    department_id=department_id if department_id is not None else None,
+                    department_name=department if department is not None else employee.department,
+                )
 
-        resolved_site_id = employee.site_id
-        resolved_site_name = employee.site_name
-        if site_id is not None or site_name is not None:
-            resolved_site_id, resolved_site_name = resolve_employee_site_reference(
-                site_repo=self._site_repo,
-                organization_repo=self._organization_repo,
-                active_organization_id=organization_id,
-                site_id=site_id if site_id is not None else None,
-                site_name=site_name if site_name is not None else employee.site_name,
-            )
+            resolved_site_id = employee.site_id
+            resolved_site_name = employee.site_name
+            if site_id is not None or site_name is not None:
+                resolved_site_id, resolved_site_name = resolve_employee_site_reference(
+                    site_repo=uow.sites,
+                    organization_repo=self._organization_repo,
+                    active_organization_id=organization_id,
+                    site_id=site_id if site_id is not None else None,
+                    site_name=site_name if site_name is not None else employee.site_name,
+                )
 
-        candidate = replace(
-            employee,
-            employee_code=employee_code if employee_code is not None else employee.employee_code,
-            full_name=full_name if full_name is not None else employee.full_name,
-            department_id=resolved_department_id,
-            department=resolved_department_name,
-            site_id=resolved_site_id,
-            site_name=resolved_site_name,
-            title=title if title is not None else employee.title,
-            employment_type=employment_type if employment_type is not None else employee.employment_type,
-            email=email if email is not None else employee.email,
-            phone=phone if phone is not None else employee.phone,
-            is_active=bool(is_active) if is_active is not None else employee.is_active,
-            user_id=user_id if user_id is not None else employee.user_id,
-        )
-        if employee_code is not None:
-            existing = self._employee_repo.get_by_code_for_organization(
-                candidate.employee_code,
-                organization_id,
+            candidate = replace(
+                employee,
+                employee_code=employee_code if employee_code is not None else employee.employee_code,
+                full_name=full_name if full_name is not None else employee.full_name,
+                department_id=resolved_department_id,
+                department=resolved_department_name,
+                site_id=resolved_site_id,
+                site_name=resolved_site_name,
+                title=title if title is not None else employee.title,
+                employment_type=employment_type if employment_type is not None else employee.employment_type,
+                email=email if email is not None else employee.email,
+                phone=phone if phone is not None else employee.phone,
+                is_active=bool(is_active) if is_active is not None else employee.is_active,
+                user_id=user_id if user_id is not None else employee.user_id,
             )
-            if existing is not None and existing.id != employee.id:
-                raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS")
+            if employee_code is not None:
+                existing = uow.employees.get_by_code_for_organization(
+                    candidate.employee_code,
+                    organization_id,
+                )
+                if existing is not None and existing.id != employee.id:
+                    raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS")
 
-        try:
-            self._employee_repo.update(candidate)
-            touched_resource_ids = sync_linked_employee_resources(candidate, self._resource_repo)
-            # Audit is staged in the same transaction as the business write (ADR-003:
-            # "the business mutation and successful security audit intent commit
-            # atomically") — never a second, separate commit.
-            record_audit_entry(
-                self,
-                operation="update",
-                entity_type="employee",
-                entity_id=candidate.id,
-                module="platform",
-                severity="low",
-                metadata={"action": "employee.update", **build_employee_audit_details(candidate)},
-                commit=False,
-                fail_closed=True,
-            )
-            self._session.commit()
-        except IntegrityError as exc:
-            self._session.rollback()
-            raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS") from exc
-        except Exception:
-            self._session.rollback()
-            raise
+            try:
+                uow.employees.update(candidate)
+                touched_resource_ids = sync_linked_employee_resources(candidate, uow.resources)
+                record_audit_entry(
+                    uow,
+                    operation="update",
+                    entity_type="employee",
+                    entity_id=candidate.id,
+                    module="platform",
+                    severity="low",
+                    metadata={"action": "employee.update", **build_employee_audit_details(candidate)},
+                    commit=False,
+                    fail_closed=True,
+                )
+                uow.commit()
+            except IntegrityError as exc:
+                raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS") from exc
         # Only emit resources_changed once the linked-resource mutations above
         # are actually durable — emitting inside sync_linked_employee_resources
         # (before commit) would fire events for rows that could still roll back.

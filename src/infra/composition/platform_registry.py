@@ -98,6 +98,12 @@ from src.core.platform.domain.security.authorization.roles.events import (
 from src.core.platform.infrastructure.persistence.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWorkFactory,
 )
+from src.core.platform.infrastructure.persistence.employee_unit_of_work import (
+    SqlAlchemyEmployeeUnitOfWorkFactory,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.resources.resource import (
+    SqlAlchemyResourceRepository,
+)
 from src.core.platform.infrastructure.persistence.platform_provisioning_unit_of_work import (
     SqlAlchemyPlatformProvisioningUnitOfWorkFactory,
 )
@@ -797,6 +803,15 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
     )
     employee_headcount_reader = SqlAlchemyEmployeeHeadcountReader(session)
+    employee_uow_session_factory = sessionmaker(bind=session.bind, future=True)
+    employee_uow_factory = SqlAlchemyEmployeeUnitOfWorkFactory(
+        session_factory=employee_uow_session_factory,
+        transactional_dispatcher=platform_transactional_dispatcher,
+        post_commit_bus=platform_post_commit_bus,
+        tenant_context_service=tenant_context_service,
+        user_session=user_session,
+        resource_repo_factory=SqlAlchemyResourceRepository,
+    )
     employee_service = EmployeeService(
         session=session,
         employee_repo=repositories.employee_repo,
@@ -808,6 +823,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         headcount_reader=employee_headcount_reader,
+        uow_factory=employee_uow_factory,
     )
     master_data_exchange_service = MasterDataExchangeService(
         site_service=site_service,

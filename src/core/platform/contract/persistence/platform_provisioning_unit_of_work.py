@@ -1,15 +1,3 @@
-"""P4C (Platform Runtime Organization Provisioning Transaction Convergence): the narrow,
-Platform-owned extension of the P3 canonical `UnitOfWork` that
-`PlatformRuntimeApplicationService.provision_organization` uses.
-
-A sibling of `OrganizationUnitOfWork` and `PlatformUnitOfWork`, not a growth of either --
-ADR-005 Section 9/24 rejects a single Platform-wide UoW that accumulates one named accessor per
-capability. Provisioning is its own orchestration operation with a genuine, atomic cross-capability
-write set (an Organization row plus that organization's module entitlement rows plus their shared
-audit trail), so it gets its own narrow UoW with exactly the two typed accessors it needs --
-`organizations` and `entitlements` -- never a generic `repository_for`/`resolve` lookup.
-"""
-
 from __future__ import annotations
 
 from typing import Protocol

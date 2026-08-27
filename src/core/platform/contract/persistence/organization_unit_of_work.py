@@ -1,16 +1,3 @@
-"""P4B (Organization Capability Transaction Convergence): `OrganizationUnitOfWork` -- the narrow,
-Platform-owned extension of the P3 canonical `UnitOfWork` that `OrganizationService`'s
-transaction-owning commands (`create_organization`, `update_organization`,
-`set_active_organization`, `bootstrap_defaults`, when transaction-owning) use.
-
-A sibling of `PlatformUnitOfWork` (Approval's own narrow extension), not a growth of it --
-ADR-005 Section 9/24 rejects a single Platform-wide UoW that accumulates one named accessor per
-capability (`uow.approvals`, `uow.organizations`, `uow.departments`, ...), since that is exactly
-the hidden-service-locator shape already rejected. Each capability gets its own minimal
-extension: two named, typed fields -- `organizations` and `_enterprise_audit_service` -- exactly
-what `OrganizationService` itself needs, nothing more.
-"""
-
 from __future__ import annotations
 
 from typing import Protocol
