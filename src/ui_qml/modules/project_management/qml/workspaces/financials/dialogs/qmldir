@@ -1,4 +1,5 @@
 module ProjectManagement.FinancialsDialogs
 ActualLifecycleDialog 1.0 ActualLifecycleDialog.qml
+CostCodeEditorDialog 1.0 CostCodeEditorDialog.qml
 FinancialsDialogHost 1.0 FinancialsDialogHost.qml
 ManualActualEditorDialog 1.0 ManualActualEditorDialog.qml

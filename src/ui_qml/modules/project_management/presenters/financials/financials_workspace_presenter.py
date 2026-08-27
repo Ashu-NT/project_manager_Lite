@@ -13,6 +13,7 @@ from src.ui_qml.modules.project_management.view_models.financials import Financi
 
 from .command_handler import (
     approve_actual,
+    create_cost_code,
     create_manual_actual,
     post_actual,
     reject_actual,
@@ -91,6 +92,9 @@ class ProjectFinancialsWorkspacePresenter:
 
     def create_manual_actual(self, payload: dict[str, Any]) -> None:
         create_manual_actual(self._desktop_api, payload)
+
+    def create_cost_code(self, payload: dict[str, Any]) -> None:
+        create_cost_code(self._desktop_api, payload)
 
     def submit_actual(self, payload: dict[str, Any]) -> None:
         submit_actual(self._desktop_api, payload)

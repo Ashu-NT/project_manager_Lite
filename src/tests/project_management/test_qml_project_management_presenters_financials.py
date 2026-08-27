@@ -9,11 +9,13 @@ import pytest
 from PySide6.QtCore import Qt
 
 from src.core.modules.project_management.api.desktop.financials import (
+    FinancialCreateCostCodeCommand,
     FinancialCreateManualActualCommand,
     FinancialDecideActualCommand,
     FinancialPostActualCommand,
     FinancialReverseActualCommand,
     FinancialVersionedActualCommand,
+    ProjectManagementFinancialsDesktopApi,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.ui_qml.modules.project_management.controllers.financials.financials_workspace_controller import (
@@ -21,6 +23,7 @@ from src.ui_qml.modules.project_management.controllers.financials.financials_wor
 )
 from src.ui_qml.modules.project_management.presenters.financials.command_handler import (
     approve_actual,
+    create_cost_code,
     post_actual,
     reject_actual,
     reverse_actual,
@@ -51,6 +54,60 @@ class _RecordingDesktopApi:
 
     def reverse_actual(self, command):
         self.calls.append(("reverse_actual", command))
+
+    def create_cost_code(self, command):
+        self.calls.append(("create_cost_code", command))
+
+
+def test_create_cost_code_builds_project_available_command():
+    api = _RecordingDesktopApi()
+    create_cost_code(
+        api,
+        {
+            "projectId": "project-1",
+            "code": "LABOR.INTERNAL",
+            "name": "Internal labor",
+            "description": "Employee delivery time",
+        },
+    )
+
+    name, command = api.calls[0]
+    assert name == "create_cost_code"
+    assert command == FinancialCreateCostCodeCommand(
+        project_id="project-1",
+        code="LABOR.INTERNAL",
+        name="Internal labor",
+        description="Employee delivery time",
+    )
+
+
+def test_create_cost_code_desktop_api_preserves_project_availability_scope():
+    configuration_service = MagicMock()
+    configuration_service.create_cost_code.return_value = MagicMock(
+        id="cost-code-1",
+        code="LABOR.INTERNAL",
+        name="Internal labor",
+    )
+    api = ProjectManagementFinancialsDesktopApi(
+        financial_configuration_service=configuration_service
+    )
+
+    result = api.create_cost_code(
+        FinancialCreateCostCodeCommand(
+            project_id="project-1",
+            code="LABOR.INTERNAL",
+            name="Internal labor",
+            description="Employee delivery time",
+        )
+    )
+
+    configuration_service.create_cost_code.assert_called_once_with(
+        code="LABOR.INTERNAL",
+        name="Internal labor",
+        description="Employee delivery time",
+        available_to_project_id="project-1",
+    )
+    assert result.value == "cost-code-1"
 
 
 def test_submit_actual_builds_versioned_command():
@@ -161,6 +218,9 @@ class _FakeFinancialsWorkspacePresenter:
     def create_manual_actual(self, payload):
         self._record("create_manual_actual", payload)
 
+    def create_cost_code(self, payload):
+        self._record("create_cost_code", payload)
+
     def submit_actual(self, payload):
         self._record("submit_actual", payload)
 
@@ -212,6 +272,24 @@ def test_submit_actual_slot_delegates_and_reports_success(controller):
     assert controller._fake_presenter.calls == [
         ("submit_actual", {"entryId": "entry-1", "rowVersion": 1})
     ]
+
+
+def test_create_cost_code_slot_delegates_and_requests_refresh(controller):
+    controller._request_domain_refresh = MagicMock()
+    payload = {
+        "projectId": "project-1",
+        "code": "LABOR.INTERNAL",
+        "name": "Internal labor",
+    }
+
+    result = controller.createCostCode(payload)
+
+    assert result == {
+        "ok": True,
+        "message": "Cost code created and made available to the project.",
+    }
+    assert controller._fake_presenter.calls == [("create_cost_code", payload)]
+    controller._request_domain_refresh.assert_called_once_with()
 
 
 def test_approve_actual_slot_reports_success_message(controller):

@@ -80,6 +80,9 @@ from src.core.modules.project_management.api.desktop.financials.commands.cost_en
     FinancialUpdateActualDraftCommand,
     FinancialVersionedActualCommand,
 )
+from src.core.modules.project_management.api.desktop.financials.commands.configuration import (
+    FinancialCreateCostCodeCommand,
+)
 from src.core.modules.project_management.api.desktop.financials.commands.billing import (
     FinancialActivateBillingProfileCommand,
     FinancialAddApprovedTimeBillingSourceCommand,
@@ -205,6 +208,21 @@ class ProjectManagementFinancialsDesktopApi:
                 )
                 for code in codes
             ),
+        )
+
+    def create_cost_code(
+        self, command: FinancialCreateCostCodeCommand
+    ) -> FinancialCostCodeOptionDescriptor:
+        service = self._require_financial_configuration_service()
+        cost_code = service.create_cost_code(
+            code=command.code,
+            name=command.name,
+            description=command.description,
+            available_to_project_id=command.project_id,
+        )
+        return FinancialCostCodeOptionDescriptor(
+            value=cost_code.id,
+            label=f"{cost_code.code} - {cost_code.name}",
         )
 
     def list_cost_entries(

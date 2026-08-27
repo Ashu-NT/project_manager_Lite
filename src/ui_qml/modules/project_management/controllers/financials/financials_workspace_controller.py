@@ -501,6 +501,9 @@ class ProjectManagementFinancialsWorkspaceController(
     def createManualActual(self, payload: FinancialsMap) -> FinancialsMap: return self._create_manual_actual(payload)
 
     @Slot("QVariantMap", result="QVariantMap")
+    def createCostCode(self, payload: FinancialsMap) -> FinancialsMap: return self._create_cost_code(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
     def submitActual(self, payload: FinancialsMap) -> FinancialsMap: return self._submit_actual(payload)
 
     @Slot("QVariantMap", result="QVariantMap")

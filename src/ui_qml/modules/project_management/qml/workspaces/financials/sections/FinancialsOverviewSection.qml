@@ -72,7 +72,7 @@ Item {
                             text: String(metricCard.modelData.value || "-")
                             color: Theme.AppTheme.textPrimary
                             font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.titleSize
+                            font.pixelSize: Theme.AppTheme.subtitleSize
                             font.bold: true
                             elide: Text.ElideRight
                         }

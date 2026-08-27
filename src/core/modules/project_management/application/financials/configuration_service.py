@@ -190,6 +190,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         *,
         code: str,
         name: str,
+        available_to_project_id: str | None = None,
         description: str = "",
         parent_id: str | None = None,
         external_system: str | None = None,
@@ -202,6 +203,14 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
             "finance.manage",
             operation_label="create project cost code",
         )
+        project_profile = None
+        if available_to_project_id:
+            self._require_project(
+                available_to_project_id,
+                "finance.manage",
+                "make a new cost code available to the project",
+            )
+            project_profile = self._require_profile(available_to_project_id)
         context = self._require_context("create project cost code")
         cost_code = ProjectCostCode.create(
             tenant_id=context.tenant_id,
@@ -217,8 +226,24 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         )
         self._ensure_parent_is_acyclic(cost_code.id, cost_code.parent_id)
         self._cost_code_repo.add(cost_code)
+        duplicate_message = f"Cost code '{cost_code.code}' already exists."
+        if available_to_project_id and project_profile:
+            self._flush(duplicate_message=duplicate_message)
         self._record_cost_code_audit("create", cost_code)
-        self._commit(duplicate_message=f"Cost code '{cost_code.code}' already exists.")
+        if (
+            available_to_project_id
+            and project_profile
+            and project_profile.cost_code_policy == CostCodePolicy.RESTRICTED
+        ):
+            restriction = ProjectCostCodeRestriction.create(
+                tenant_id=context.tenant_id,
+                organization_id=context.organization_id,
+                project_id=available_to_project_id,
+                cost_code_id=cost_code.id,
+            )
+            self._cost_code_repo.add_restriction(restriction)
+            self._record_restriction_audit("create", restriction)
+        self._commit(duplicate_message=duplicate_message)
         return cost_code
 
     def update_cost_code(
@@ -590,6 +615,21 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
     def _commit(self, *, duplicate_message: str | None = None) -> None:
         try:
             self._session.commit()
+        except IntegrityError as exc:
+            self._session.rollback()
+            if duplicate_message:
+                raise ValidationError(
+                    duplicate_message,
+                    code="PROJECT_FINANCE_CONFIGURATION_DUPLICATE",
+                ) from exc
+            raise
+        except Exception:
+            self._session.rollback()
+            raise
+
+    def _flush(self, *, duplicate_message: str | None = None) -> None:
+        try:
+            self._session.flush()
         except IntegrityError as exc:
             self._session.rollback()
             if duplicate_message:

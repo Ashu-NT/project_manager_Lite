@@ -704,6 +704,91 @@ Window {
     root.deleteLater()
 
 
+def test_manual_actual_dialog_opens_and_explains_missing_cost_code(qapp) -> None:
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    component.setData(
+        b"""
+import QtQuick
+import workspaces.financials.dialogs 1.0
+Window {
+    visible: true
+    width: 900
+    height: 700
+    FinancialsDialogHost {
+        id: host
+        objectName: "financialsDialogHost"
+        selectedProjectId: "project-1"
+        manualActualOptions: ({
+            "currencyCode": "XAF",
+            "costCodes": [],
+            "entryKinds": [{"label": "Actual", "value": "actual"}]
+        })
+    }
+    Timer {
+        interval: 0
+        running: true
+        repeat: false
+        onTriggered: host.openCreateManualActualDialog()
+    }
+}
+""",
+        QUrl(),
+    )
+    assert component.isReady(), [error.toString() for error in component.errors()]
+    window = component.create()
+    assert window is not None
+    window.show()
+    for _ in range(10):
+        qapp.processEvents()
+
+    dialog = window.findChild(QObject, "manualActualEditorDialog")
+    assert dialog is not None
+    assert dialog.property("opened") is True
+    assert dialog.property("primaryEnabled") is False
+    assert "No active cost code" in str(dialog.property("infoMessage"))
+    window.deleteLater()
+
+
+def test_financial_setup_can_open_cost_code_editor(qapp) -> None:
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    component.setData(
+        b"""
+import QtQuick
+import workspaces.financials.dialogs 1.0
+Window {
+    visible: true
+    width: 900
+    height: 700
+    FinancialsDialogHost {
+        id: host
+        selectedProjectId: "project-1"
+    }
+    Timer {
+        interval: 0
+        running: true
+        repeat: false
+        onTriggered: host.openCreateCostCodeDialog()
+    }
+}
+""",
+        QUrl(),
+    )
+    assert component.isReady(), [error.toString() for error in component.errors()]
+    window = component.create()
+    assert window is not None
+    window.show()
+    for _ in range(10):
+        qapp.processEvents()
+
+    dialog = window.findChild(QObject, "costCodeEditorDialog")
+    assert dialog is not None
+    assert dialog.property("opened") is True
+    assert dialog.property("primaryEnabled") is True
+    window.deleteLater()
+
+
 def test_cost_actuals_tab_loads_only_paged_actual_dependencies() -> None:
     api = MagicMock()
     api.list_cost_entries.return_value = FinancialCostEntryPageDto()

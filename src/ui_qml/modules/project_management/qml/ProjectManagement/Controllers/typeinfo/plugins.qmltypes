@@ -265,6 +265,7 @@ Component {
     Method { name: "selectFinancialChange"; Parameter { name: "changeId"; type: "QString" } }
     Method { name: "selectVarianceBaseline"; Parameter { name: "baselineId"; type: "QString" } }
     Method { name: "createManualActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "createCostCode"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "submitActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "approveActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "rejectActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }

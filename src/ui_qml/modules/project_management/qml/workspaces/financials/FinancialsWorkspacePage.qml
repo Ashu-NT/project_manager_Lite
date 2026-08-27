@@ -72,6 +72,17 @@ AppLayouts.WorkspaceFrame {
     }
     readonly property var _detailActions: {
         if (root.workspaceController
+                && root.workspaceController.activeDestination === "controls"
+                && root.workspaceController.activeSubsection === "setup") return [
+            {
+                "id": "add_cost_code",
+                "label": "New Cost Code",
+                "icon": "add",
+                "enabled": !root.workspaceController.isBusy,
+                "danger": false
+            }
+        ]
+        if (root.workspaceController
                 && root.workspaceController.activeDestination === "costs"
                 && root.workspaceController.activeSubsection === "actuals") {
             const selected = root._selectedActualEntry()
@@ -82,10 +93,7 @@ AppLayouts.WorkspaceFrame {
                     "id": "add_manual_actual",
                     "label": "New Manual Actual",
                     "icon": "add",
-                    "enabled": !busy && root.workspaceController
-                        ? root.workspaceController.selectedProjectId.length > 0
-                            && (root.workspaceController.manualActualOptions.costCodes || []).length > 0
-                        : false,
+                    "enabled": !busy,
                     "danger": false
                 },
                 Boolean(state.canSubmit) ? {
@@ -310,6 +318,10 @@ AppLayouts.WorkspaceFrame {
                     busy: root.workspaceController ? root.workspaceController.isBusy : false
                     actions: root._detailActions
                     onActionTriggered: function(actionId) {
+                        if (actionId === "add_cost_code") {
+                            dialogHostLoader.invoke("openCreateCostCodeDialog")
+                            return
+                        }
                         if (actionId === "add_manual_actual") {
                             dialogHostLoader.invoke("openCreateManualActualDialog")
                             return

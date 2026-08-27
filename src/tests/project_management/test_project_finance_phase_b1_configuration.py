@@ -193,6 +193,25 @@ def test_cost_code_hierarchy_restrictions_and_profile_lifecycle(services) -> Non
         )
 
 
+def test_create_cost_code_for_restricted_project_is_immediately_available(services) -> None:
+    project = services["project_service"].create_project("Restricted cost-code creation")
+    service = services["financial_configuration_service"]
+    profile = service.get_profile(project.id)
+    service.configure_profile(
+        project.id,
+        expected_version=profile.version,
+        cost_code_policy=CostCodePolicy.RESTRICTED,
+    )
+
+    created = service.create_cost_code(
+        code="FIELD.LABOR",
+        name="Field labor",
+        available_to_project_id=project.id,
+    )
+
+    assert [row.id for row in service.list_available_cost_codes(project.id)] == [created.id]
+
+
 def test_financial_configuration_repositories_isolate_active_organization(services) -> None:
     organization_service = services["organization_service"]
     configuration_service = services["financial_configuration_service"]
