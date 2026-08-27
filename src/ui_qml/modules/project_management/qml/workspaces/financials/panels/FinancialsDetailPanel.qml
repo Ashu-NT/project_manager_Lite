@@ -181,8 +181,10 @@ Item {
 
         Loader {
             id: destinationLoader
+            objectName: "financialsDestinationLoader"
+            readonly property Item loadedDestination: item as Item
             Layout.fillWidth: true
-            Layout.preferredHeight: childrenRect.height
+            Layout.preferredHeight: loadedDestination ? loadedDestination.implicitHeight : 0
             asynchronous: true
             sourceComponent: root._activeComponent
         }
@@ -191,6 +193,7 @@ Item {
     Component {
         id: overviewComponent
         FinancialsOverviewSection {
+            objectName: "financialsOverviewSection"
             width: parent ? parent.width : 0
             overview: root.overviewModel
         }

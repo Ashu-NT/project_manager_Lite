@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import logging
+from time import perf_counter
+
 from PySide6.QtCore import Qt
 
 from src.core.shared.events.domain_events import domain_events
@@ -21,10 +24,25 @@ from src.ui_qml.modules.project_management.controllers.financials.financials_typ
 )
 
 
+logger = logging.getLogger(__name__)
+
+
 class FinancialsRefreshMixin:
     def _refresh(self) -> None:
+        started = perf_counter()
         self._refresh_generation += 1
         generation = self._refresh_generation
+        project_id = self._selected_project_id
+        destination = self._active_destination
+        subsection = self._active_subsection
+        success = False
+        logger.info(
+            "PM financials refresh begin generation=%s project=%r destination=%s subsection=%s",
+            generation,
+            project_id,
+            destination,
+            subsection,
+        )
         self._set_is_loading(True)
         try:
             self._set_error_message("")
@@ -120,15 +138,49 @@ class FinancialsRefreshMixin:
                 or destination != self._active_destination
                 or subsection != self._active_subsection
             ):
+                logger.debug(
+                    "PM financials stale refresh ignored generation=%s current_generation=%s "
+                    "project=%r current_project=%r destination=%s current_destination=%s "
+                    "subsection=%s current_subsection=%s",
+                    generation,
+                    self._refresh_generation,
+                    project_id,
+                    self._selected_project_id,
+                    destination,
+                    self._active_destination,
+                    subsection,
+                    self._active_subsection,
+                )
                 return
             self._apply_destination_state(destination, subsection, state)
             self._loaded_destination_keys.add((project_id, destination, subsection))
             self._invalidated_destinations.discard(destination)
+            success = True
         except Exception as exc:  # pragma: no cover - defensive QML boundary
+            logger.exception(
+                "PM financials refresh failed generation=%s project=%r "
+                "destination=%s subsection=%s",
+                generation,
+                project_id,
+                destination,
+                subsection,
+            )
             self._set_error_message(str(exc))
         finally:
             if generation == self._refresh_generation:
                 self._set_is_loading(False)
+                duration_ms = (perf_counter() - started) * 1000
+                log_method = logger.warning if duration_ms > 500 else logger.info
+                log_method(
+                    "PM financials refresh complete generation=%s success=%s "
+                    "duration_ms=%.1f project=%r destination=%s subsection=%s",
+                    generation,
+                    success,
+                    duration_ms,
+                    project_id,
+                    destination,
+                    subsection,
+                )
 
     def _apply_destination_state(self, destination: str, subsection: str, state) -> None:
         self._set_empty_state(state.empty_state)

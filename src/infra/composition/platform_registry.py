@@ -640,6 +640,7 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
         overview_rollup_reader=overview_rollup_reader,
         uow_factory=party_uow_factory,
+        clock=SystemClock(),
     )
     site_uow_session_factory = sessionmaker(bind=session.bind, future=True)
     site_uow_factory = SqlAlchemySiteUnitOfWorkFactory(

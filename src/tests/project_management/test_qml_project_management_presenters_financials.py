@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+import logging
 from unittest.mock import MagicMock
 
 import pytest
@@ -356,3 +357,23 @@ def test_forecast_refresh_rejects_stale_a_b_c_selection_responses(controller) ->
     controller._apply_destination_state.assert_called_once_with(
         "planning", "forecast", state_c
     )
+
+
+def test_financials_refresh_logs_exception_context(controller, caplog) -> None:
+    controller._workspace_loaded = True
+    controller._shell_loaded = True
+    controller._set_selected_project_id("project-a")
+    controller._financials_workspace_presenter.build_destination_state = MagicMock(
+        side_effect=RuntimeError("overview read failed")
+    )
+
+    with caplog.at_level(
+        logging.INFO,
+        logger="src.ui_qml.modules.project_management.controllers.financials.financials_refresh_mixin",
+    ):
+        controller.refresh()
+
+    assert controller.errorMessage == "overview read failed"
+    assert "PM financials refresh failed" in caplog.text
+    assert "project='project-a' destination=overview subsection=summary" in caplog.text
+    assert "RuntimeError: overview read failed" in caplog.text

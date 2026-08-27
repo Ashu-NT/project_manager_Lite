@@ -654,6 +654,56 @@ Window {
     root.deleteLater()
 
 
+def test_financials_overview_loader_keeps_loaded_content_height(qapp) -> None:
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    component.setData(
+        b"""
+import QtQuick
+import workspaces.financials.panels 1.0
+Window {
+    visible: true
+    width: 1024
+    height: 640
+    FinancialsDetailPanel {
+        id: panel
+        objectName: "financialsDetailPanel"
+        width: parent.width
+        activeDestination: "overview"
+        activeSubsection: "summary"
+        overviewModel: ({
+            "title": "Financials",
+            "subtitle": "Overview regression",
+            "metrics": [{
+                "label": "Budget",
+                "value": "XAF 1,000.00",
+                "supportingText": "Approved revision 1"
+            }]
+        })
+    }
+}
+""",
+        QUrl(),
+    )
+    assert component.isReady(), [error.toString() for error in component.errors()]
+    root = component.create()
+    assert root is not None
+    root.show()
+    for _ in range(5):
+        qapp.processEvents()
+
+    panel = root.findChild(QObject, "financialsDetailPanel")
+    loader = root.findChild(QObject, "financialsDestinationLoader")
+    overview = root.findChild(QObject, "financialsOverviewSection")
+    assert panel is not None
+    assert loader is not None
+    assert overview is not None
+    assert float(loader.property("height")) > 0
+    assert float(overview.property("height")) > 0
+    assert float(panel.property("implicitHeight")) >= float(overview.property("height"))
+    root.deleteLater()
+
+
 def test_cost_actuals_tab_loads_only_paged_actual_dependencies() -> None:
     api = MagicMock()
     api.list_cost_entries.return_value = FinancialCostEntryPageDto()
