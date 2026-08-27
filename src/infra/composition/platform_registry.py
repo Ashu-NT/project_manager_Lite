@@ -105,6 +105,9 @@ from src.core.platform.domain.security.authorization.roles.events import (
 from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWorkFactory,
 )
+from src.core.platform.infrastructure.persistence.uow.department_unit_of_work import (
+    SqlAlchemyDepartmentUnitOfWorkFactory,
+)
 from src.core.platform.infrastructure.persistence.uow.employee_unit_of_work import (
     SqlAlchemyEmployeeUnitOfWorkFactory,
 )
@@ -607,6 +610,14 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
         overview_rollup_reader=overview_rollup_reader,
     )
+    department_uow_session_factory = sessionmaker(bind=session.bind, future=True)
+    department_uow_factory = SqlAlchemyDepartmentUnitOfWorkFactory(
+        session_factory=department_uow_session_factory,
+        transactional_dispatcher=platform_transactional_dispatcher,
+        post_commit_bus=platform_post_commit_bus,
+        tenant_context_service=tenant_context_service,
+        user_session=user_session,
+    )
     department_service = DepartmentService(
         session=session,
         department_repo=repositories.department_repo,
@@ -617,6 +628,7 @@ def build_platform_service_bundle(
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
         overview_rollup_reader=overview_rollup_reader,
+        uow_factory=department_uow_factory,
     )
 
     def _active_organization() -> Organization | None:

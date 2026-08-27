@@ -1,20 +1,20 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.contract.repositories.master_data.department.contracts import DepartmentRepository
+from src.core.platform.contract.repositories.master_data.employee.contracts import EmployeeRepository
+from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 
 from .department_utils import normalize_optional_text
 
-if TYPE_CHECKING:
-    from .department_service import DepartmentService
 
-
-def validate_site_id(service: DepartmentService, site_id: str | None, *, organization_id: str) -> str | None:
+def validate_site_id(
+    site_repo: SiteRepository | None, site_id: str | None, *, organization_id: str
+) -> str | None:
     normalized = normalize_optional_text(site_id) or None
-    if normalized is None or service._site_repo is None:
+    if normalized is None or site_repo is None:
         return normalized
-    site = service._site_repo.get(normalized)
+    site = site_repo.get(normalized)
     if site is None or site.organization_id != organization_id:
         raise ValidationError(
             "Department site must belong to the active organization.",
@@ -24,7 +24,7 @@ def validate_site_id(service: DepartmentService, site_id: str | None, *, organiz
 
 
 def validate_parent_department_id(
-    service: DepartmentService,
+    department_repo: DepartmentRepository,
     parent_department_id: str | None,
     *,
     organization_id: str,
@@ -35,7 +35,7 @@ def validate_parent_department_id(
         return None
     if current_department_id and normalized == current_department_id:
         raise ValidationError("Department cannot be its own parent.", code="DEPARTMENT_PARENT_INVALID")
-    parent = service._department_repo.get(normalized)
+    parent = department_repo.get(normalized)
     if parent is None or parent.organization_id != organization_id:
         raise ValidationError(
             "Parent department must belong to the active organization.",
@@ -44,11 +44,13 @@ def validate_parent_department_id(
     return normalized
 
 
-def validate_manager_employee_id(service: DepartmentService, manager_employee_id: str | None) -> str | None:
+def validate_manager_employee_id(
+    employee_repo: EmployeeRepository | None, manager_employee_id: str | None, *, organization_id: str
+) -> str | None:
     normalized = normalize_optional_text(manager_employee_id) or None
-    if normalized is None or service._employee_repo is None:
+    if normalized is None or employee_repo is None:
         return normalized
-    if service._employee_repo.get(normalized) is None:
+    if employee_repo.get_for_organization(normalized, organization_id) is None:
         raise ValidationError(
             "Department manager employee does not exist.",
             code="DEPARTMENT_MANAGER_INVALID",

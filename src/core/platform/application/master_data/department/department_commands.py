@@ -54,55 +54,50 @@ def create_department(
         is_active=bool(is_active),
         notes=notes,
     )
-    if service._department_repo.get_by_code(organization.id, department.department_code) is not None:
-        raise ValidationError(
-            "Department code already exists in the active organization.",
-            code="DEPARTMENT_CODE_EXISTS",
+    with service._uow_factory.create(context=service._new_context()) as uow:
+        if uow.departments.get_by_code(organization.id, department.department_code) is not None:
+            raise ValidationError(
+                "Department code already exists in the active organization.",
+                code="DEPARTMENT_CODE_EXISTS",
+            )
+        department.site_id = validate_site_id(uow.sites, department.site_id, organization_id=organization.id)
+        department.parent_department_id = validate_parent_department_id(
+            uow.departments,
+            department.parent_department_id,
+            organization_id=organization.id,
         )
-    department.site_id = validate_site_id(service, department.site_id, organization_id=organization.id)
-    department.parent_department_id = validate_parent_department_id(
-        service,
-        department.parent_department_id,
-        organization_id=organization.id,
-    )
-    department.manager_employee_id = validate_manager_employee_id(
-        service,
-        department.manager_employee_id,
-    )
-    try:
-        service._department_repo.add(department)
-        # Audit is staged in the same transaction as the business write (ADR-003:
-        # "the business mutation and successful security audit intent commit
-        # atomically") — never a second, separate commit.
-        record_audit_entry(
-            service,
-            operation="create",
-            entity_type="department",
-            entity_id=department.id,
-            module="platform",
-            severity="low",
-            metadata={
-                "action": "department.create",
-                "organization_id": organization.id,
-                "department_code": department.department_code,
-                "name": department.name,
-                "site_id": department.site_id or "",
-                "department_type": department.department_type,
-                "is_active": str(department.is_active),
-            },
-            commit=False,
-            fail_closed=True,
+        department.manager_employee_id = validate_manager_employee_id(
+            uow.employees,
+            department.manager_employee_id,
+            organization_id=organization.id,
         )
-        service._session.commit()
-    except IntegrityError as exc:
-        service._session.rollback()
-        raise ValidationError(
-            "Department code already exists in the active organization.",
-            code="DEPARTMENT_CODE_EXISTS",
-        ) from exc
-    except Exception:
-        service._session.rollback()
-        raise
+        try:
+            uow.departments.add(department)
+            record_audit_entry(
+                uow,
+                operation="create",
+                entity_type="department",
+                entity_id=department.id,
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": "department.create",
+                    "organization_id": organization.id,
+                    "department_code": department.department_code,
+                    "name": department.name,
+                    "site_id": department.site_id or "",
+                    "department_type": department.department_type,
+                    "is_active": str(department.is_active),
+                },
+                commit=False,
+                fail_closed=True,
+            )
+            uow.commit()
+        except IntegrityError as exc:
+            raise ValidationError(
+                "Department code already exists in the active organization.",
+                code="DEPARTMENT_CODE_EXISTS",
+            ) from exc
     domain_events.departments_changed.emit(department.id)
     return department
 
@@ -126,94 +121,90 @@ def update_department(
 ) -> Department:
     require_permission(service._user_session, "settings.manage", operation_label="update department")
     organization = active_organization(service)
-    department = service._department_repo.get(department_id)
-    if department is None or department.organization_id != organization.id:
-        raise NotFoundError(
-            "Department not found in the active organization.", code="DEPARTMENT_NOT_FOUND"
+    with service._uow_factory.create(context=service._new_context()) as uow:
+        department = uow.departments.get(department_id)
+        if department is None or department.organization_id != organization.id:
+            raise NotFoundError(
+                "Department not found in the active organization.", code="DEPARTMENT_NOT_FOUND"
+            )
+        if expected_version is not None and department.version != expected_version:
+            raise ConcurrencyError(
+                "Department changed since you opened it. Refresh and try again.",
+                code="STALE_WRITE",
+            )
+
+        target_site_id = department.site_id
+        if site_id is not None:
+            target_site_id = validate_site_id(uow.sites, site_id, organization_id=organization.id)
+
+        target_parent_department_id = department.parent_department_id
+        if parent_department_id is not None:
+            target_parent_department_id = validate_parent_department_id(
+                uow.departments,
+                parent_department_id,
+                organization_id=organization.id,
+                current_department_id=department.id,
+            )
+
+        target_manager_employee_id = department.manager_employee_id
+        if manager_employee_id is not None:
+            target_manager_employee_id = validate_manager_employee_id(
+                uow.employees, manager_employee_id, organization_id=organization.id
+            )
+
+        candidate = replace(
+            department,
+            department_code=department_code if department_code is not None else department.department_code,
+            name=(
+                resolve_name(name=name, display_name=display_name)
+                if name is not None or display_name is not None
+                else department.name
+            ),
+            description=description if description is not None else department.description,
+            site_id=target_site_id,
+            parent_department_id=target_parent_department_id,
+            department_type=department_type if department_type is not None else department.department_type,
+            cost_center_code=cost_center_code if cost_center_code is not None else department.cost_center_code,
+            manager_employee_id=target_manager_employee_id,
+            is_active=bool(is_active) if is_active is not None else department.is_active,
+            notes=notes if notes is not None else department.notes,
+            updated_at=datetime.now(timezone.utc),
         )
-    if expected_version is not None and department.version != expected_version:
-        raise ConcurrencyError(
-            "Department changed since you opened it. Refresh and try again.",
-            code="STALE_WRITE",
-        )
+        if department_code is not None:
+            existing = uow.departments.get_by_code(organization.id, candidate.department_code)
+            if existing is not None and existing.id != department.id:
+                raise ValidationError(
+                    "Department code already exists in the active organization.",
+                    code="DEPARTMENT_CODE_EXISTS",
+                )
 
-    target_site_id = department.site_id
-    if site_id is not None:
-        target_site_id = validate_site_id(service, site_id, organization_id=organization.id)
-
-    target_parent_department_id = department.parent_department_id
-    if parent_department_id is not None:
-        target_parent_department_id = validate_parent_department_id(
-            service,
-            parent_department_id,
-            organization_id=organization.id,
-            current_department_id=department.id,
-        )
-
-    target_manager_employee_id = department.manager_employee_id
-    if manager_employee_id is not None:
-        target_manager_employee_id = validate_manager_employee_id(service, manager_employee_id)
-
-    candidate = replace(
-        department,
-        department_code=department_code if department_code is not None else department.department_code,
-        name=(
-            resolve_name(name=name, display_name=display_name)
-            if name is not None or display_name is not None
-            else department.name
-        ),
-        description=description if description is not None else department.description,
-        site_id=target_site_id,
-        parent_department_id=target_parent_department_id,
-        department_type=department_type if department_type is not None else department.department_type,
-        cost_center_code=cost_center_code if cost_center_code is not None else department.cost_center_code,
-        manager_employee_id=target_manager_employee_id,
-        is_active=bool(is_active) if is_active is not None else department.is_active,
-        notes=notes if notes is not None else department.notes,
-        updated_at=datetime.now(timezone.utc),
-    )
-    if department_code is not None:
-        existing = service._department_repo.get_by_code(organization.id, candidate.department_code)
-        if existing is not None and existing.id != department.id:
+        try:
+            uow.departments.update(candidate)
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="department",
+                entity_id=candidate.id,
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": "department.update",
+                    "organization_id": organization.id,
+                    "department_code": candidate.department_code,
+                    "name": candidate.name,
+                    "site_id": candidate.site_id or "",
+                    "department_type": candidate.department_type,
+                    "is_active": str(candidate.is_active),
+                },
+                commit=False,
+                fail_closed=True,
+            )
+            uow.commit()
+        except IntegrityError as exc:
             raise ValidationError(
                 "Department code already exists in the active organization.",
                 code="DEPARTMENT_CODE_EXISTS",
-            )
-
-    try:
-        service._department_repo.update(candidate)
-        # Audit is staged in the same transaction as the business write (ADR-003:
-        # "the business mutation and successful security audit intent commit
-        # atomically") — never a second, separate commit.
-        record_audit_entry(
-            service,
-            operation="update",
-            entity_type="department",
-            entity_id=candidate.id,
-            module="platform",
-            severity="low",
-            metadata={
-                "action": "department.update",
-                "organization_id": organization.id,
-                "department_code": candidate.department_code,
-                "name": candidate.name,
-                "site_id": candidate.site_id or "",
-                "department_type": candidate.department_type,
-                "is_active": str(candidate.is_active),
-            },
-            commit=False,
-            fail_closed=True,
-        )
-        service._session.commit()
-    except IntegrityError as exc:
-        service._session.rollback()
-        raise ValidationError(
-            "Department code already exists in the active organization.",
-            code="DEPARTMENT_CODE_EXISTS",
-        ) from exc
-    except Exception:
-        service._session.rollback()
-        raise
+            ) from exc
     domain_events.departments_changed.emit(candidate.id)
     return candidate
 
