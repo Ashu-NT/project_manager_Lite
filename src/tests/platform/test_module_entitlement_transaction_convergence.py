@@ -30,7 +30,7 @@ import inspect
 import pytest
 
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.infrastructure.persistence.module_entitlement_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.module_entitlement_unit_of_work import (
     SqlAlchemyModuleEntitlementUnitOfWork,
 )
 

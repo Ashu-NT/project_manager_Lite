@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.contract.persistence.employee_unit_of_work import EmployeeUnitOfWork
+from src.core.platform.contract.uow.employee_unit_of_work import EmployeeUnitOfWork
 from src.core.platform.contract.repositories.master_data.employee.contracts import (
     LinkedEmployeeResourceRepository,
 )

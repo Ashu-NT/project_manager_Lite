@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.persistence.role_governance_unit_of_work import (
+from src.core.platform.contract.uow.role_governance_unit_of_work import (
     RoleGovernanceUnitOfWork,
 )
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (

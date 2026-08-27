@@ -12,7 +12,7 @@ import pytest
 
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.approval import ApprovalStatus
-from src.core.platform.infrastructure.persistence.unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
     SqlAlchemyPlatformUnitOfWork,
 )
 

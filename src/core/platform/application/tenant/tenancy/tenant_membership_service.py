@@ -7,7 +7,7 @@ import hmac
 import logging
 import secrets
 
-from src.core.platform.contract.persistence.tenant_membership_unit_of_work import (
+from src.core.platform.contract.uow.tenant_membership_unit_of_work import (
     TenantMembershipUnitOfWork,
     TenantMembershipUnitOfWorkFactory,
 )

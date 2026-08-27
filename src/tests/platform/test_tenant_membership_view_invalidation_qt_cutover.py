@@ -25,7 +25,7 @@ from src.core.shared.events.view_invalidation import TenantScope
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
-from src.core.platform.infrastructure.persistence.tenant_membership_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.tenant_membership_unit_of_work import (
     SqlAlchemyTenantMembershipUnitOfWork,
 )
 from src.ui_qml.platform.adapters.tenant_membership_view_invalidation_adapter import (

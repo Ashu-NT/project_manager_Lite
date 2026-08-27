@@ -11,7 +11,7 @@ from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
     SqlAlchemyRoleBindingRepository,
 )
-from src.core.platform.infrastructure.persistence.role_governance_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.role_governance_unit_of_work import (
     SqlAlchemyRoleGovernanceUnitOfWork,
 )
 from src.tests.ui_runtime_helpers import login_as

@@ -13,7 +13,7 @@ from src.core.platform.application.tenant.modules.module_catalog_mutation import
     ModuleCatalogMutationMixin,
 )
 from src.core.platform.application.tenant.modules.module_catalog_query import ModuleCatalogQueryMixin
-from src.core.platform.contract.persistence.module_entitlement_unit_of_work import (
+from src.core.platform.contract.uow.module_entitlement_unit_of_work import (
     ModuleEntitlementUnitOfWorkFactory,
 )
 from src.core.platform.contract.repositories.tenant.modules.contracts import ModuleEntitlementRepository

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.common.ids import generate_id
-from src.core.platform.contract.persistence.unit_of_work import PlatformUnitOfWorkFactory
+from src.core.platform.contract.uow.approval_unit_of_work import PlatformUnitOfWorkFactory
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_events import domain_events
 from src.core.shared.audit import record_audit_entry

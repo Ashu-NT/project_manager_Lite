@@ -16,7 +16,7 @@ from src.core.platform.common.exceptions import (
 from src.core.platform.common.ids import generate_id
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.contract.persistence.organization_unit_of_work import (
+from src.core.platform.contract.uow.organization_unit_of_work import (
     OrganizationUnitOfWorkFactory,
 )
 from src.core.platform.contract.read.overview.platform_overview_rollup_reader import PlatformOverviewRollupReader

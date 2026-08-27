@@ -23,7 +23,7 @@ from src.core.platform.domain.tenant.tenancy import (
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
-from src.core.platform.infrastructure.persistence.tenant_membership_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.tenant_membership_unit_of_work import (
     SqlAlchemyTenantMembershipUnitOfWork,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext

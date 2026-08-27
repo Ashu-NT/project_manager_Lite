@@ -656,7 +656,7 @@ def test_standalone_request_audit_failure_emits_zero_observable_approval_request
 
 
 def test_no_approval_requested_observable_on_commit_failure(services, monkeypatch):
-    from src.core.platform.infrastructure.persistence.unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
         SqlAlchemyPlatformUnitOfWork,
     )
 
@@ -798,7 +798,7 @@ def test_cross_tenant_decision_attempt_emits_zero_approval_events(tmp_path):
     from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
         SqlAlchemyApprovalRepository,
     )
-    from src.core.platform.infrastructure.persistence.unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
         SqlAlchemyPlatformUnitOfWorkFactory,
     )
     from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus

@@ -25,7 +25,7 @@ from src.core.platform.application.master_data.org.event_handlers.view_invalidat
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
-from src.core.platform.infrastructure.persistence.organization_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWork,
 )
 from src.core.shared.events.view_invalidation import AllTenants, TenantScope

@@ -12,7 +12,7 @@ from src.core.platform.application.tenant.modules import ModuleCatalogService
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.ids import generate_id
-from src.core.platform.contract.persistence.platform_provisioning_unit_of_work import (
+from src.core.platform.contract.uow.platform_provisioning_unit_of_work import (
     PlatformProvisioningUnitOfWorkFactory,
 )
 from src.core.platform.domain.security.auth.session import UserSessionContext

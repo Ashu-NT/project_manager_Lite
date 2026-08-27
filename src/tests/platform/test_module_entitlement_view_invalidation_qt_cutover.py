@@ -33,7 +33,7 @@ from src.core.platform.domain.tenant.modules.events import (
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import ExactOrganization, OrganizationScope
-from src.core.platform.infrastructure.persistence.module_entitlement_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.module_entitlement_unit_of_work import (
     SqlAlchemyModuleEntitlementUnitOfWork,
 )
 from src.ui_qml.platform.adapters.module_entitlement_view_invalidation_adapter import (

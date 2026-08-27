@@ -18,7 +18,7 @@ from src.core.platform.infrastructure.persistence.repositories.history.audit.aud
 from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
     SqlAlchemyRoleBindingRepository,
 )
-from src.core.platform.infrastructure.persistence.tenant_membership_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.tenant_membership_unit_of_work import (
     SqlAlchemyTenantMembershipUnitOfWork,
 )
 from src.core.platform.domain.tenant.tenancy import (

@@ -191,7 +191,7 @@ def test_no_event_observable_on_validation_failure(services):
 
 
 def test_no_event_observable_on_commit_failure(services, monkeypatch):
-    from src.core.platform.infrastructure.persistence.organization_unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
         SqlAlchemyOrganizationUnitOfWork,
     )
 

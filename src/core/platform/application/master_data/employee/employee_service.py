@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.contract.persistence.employee_unit_of_work import EmployeeUnitOfWorkFactory
+from src.core.platform.contract.uow.employee_unit_of_work import EmployeeUnitOfWorkFactory
 from src.core.platform.contract.repositories.master_data.department.contracts import DepartmentRepository
 from src.core.platform.application.master_data.employee.employee_support import (
     build_employee_audit_details,

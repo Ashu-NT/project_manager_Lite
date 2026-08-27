@@ -25,7 +25,7 @@ from src.core.platform.domain.approval.events import (
     ApprovalRejected,
     ApprovalRequested,
 )
-from src.core.platform.infrastructure.persistence.unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
     SqlAlchemyPlatformUnitOfWorkFactory,
 )
 from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
@@ -95,25 +95,25 @@ from src.core.platform.domain.security.authorization.roles.events import (
     RoleBindingAssigned,
     RoleBindingRevoked,
 )
-from src.core.platform.infrastructure.persistence.organization_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.persistence.employee_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.employee_unit_of_work import (
     SqlAlchemyEmployeeUnitOfWorkFactory,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.resources.resource import (
     SqlAlchemyResourceRepository,
 )
-from src.core.platform.infrastructure.persistence.platform_provisioning_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.platform_provisioning_unit_of_work import (
     SqlAlchemyPlatformProvisioningUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.persistence.module_entitlement_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.module_entitlement_unit_of_work import (
     SqlAlchemyModuleEntitlementUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.persistence.role_governance_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.role_governance_unit_of_work import (
     SqlAlchemyRoleGovernanceUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.persistence.tenant_membership_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.tenant_membership_unit_of_work import (
     SqlAlchemyTenantMembershipUnitOfWorkFactory,
 )
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository

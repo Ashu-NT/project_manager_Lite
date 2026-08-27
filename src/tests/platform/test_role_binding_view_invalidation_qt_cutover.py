@@ -24,7 +24,7 @@ from src.core.platform.domain.security.authorization.roles.role_binding_scope im
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import ExactOrganization, OrganizationScope, PlatformScope, TenantScope, TenantWide
-from src.core.platform.infrastructure.persistence.role_governance_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.role_governance_unit_of_work import (
     SqlAlchemyRoleGovernanceUnitOfWork,
 )
 from src.ui_qml.platform.adapters.role_binding_view_invalidation_adapter import (

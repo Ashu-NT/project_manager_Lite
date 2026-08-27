@@ -703,7 +703,7 @@ def test_cross_tenant_approval_event_produces_zero_callback(services, session):
     from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
         SqlAlchemyApprovalRepository,
     )
-    from src.core.platform.infrastructure.persistence.unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
         SqlAlchemyPlatformUnitOfWorkFactory,
     )
     from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
@@ -877,7 +877,7 @@ def test_audit_failure_produces_zero_ui_refresh(services):
 
 
 def test_commit_failure_produces_zero_ui_refresh(services):
-    from src.core.platform.infrastructure.persistence.unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
         SqlAlchemyPlatformUnitOfWork,
     )
 

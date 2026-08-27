@@ -17,7 +17,7 @@ from src.core.platform.application.history.audit.enterprise_audit_service import
     EnterpriseAuditService,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
-from src.core.platform.contract.persistence.platform_provisioning_unit_of_work import (
+from src.core.platform.contract.uow.platform_provisioning_unit_of_work import (
     PlatformProvisioningUnitOfWork,
 )
 from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (

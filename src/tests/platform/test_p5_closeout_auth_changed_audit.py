@@ -157,7 +157,7 @@ def test_role_binding_assignment_no_longer_reaches_the_admin_console_coarse_bind
 def test_legacy_signal_still_silent_on_rollback(services, monkeypatch):
     """Rollback safety is unaffected by removing the (already-redundant) legacy emit -- there
     was never anything to observe on a rolled-back mutation, before or after this closeout."""
-    from src.core.platform.infrastructure.persistence.role_governance_unit_of_work import (
+    from src.core.platform.infrastructure.persistence.uow.role_governance_unit_of_work import (
         SqlAlchemyRoleGovernanceUnitOfWork,
     )
 

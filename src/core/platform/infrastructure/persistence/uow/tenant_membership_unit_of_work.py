@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.persistence.tenant_membership_unit_of_work import (
+from src.core.platform.contract.uow.tenant_membership_unit_of_work import (
     TenantMembershipUnitOfWork,
 )
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (

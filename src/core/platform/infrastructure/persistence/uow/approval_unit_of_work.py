@@ -1,9 +1,3 @@
-"""P4 Step 2 (ADR-005 Section 24, Round 7/8): `SqlAlchemyPlatformUnitOfWork` -- Platform's own
-thin, concrete subclass of the P3 `SqlAlchemyUnitOfWorkBase`, adding exactly the two named
-accessors `PlatformUnitOfWork` declares (`approvals`, `enterprise_audit_service`), both bound to
-this instance's own fresh `Session` -- never the shared, process-lifetime one `RepositoryBundle`
-still uses for every other, not-yet-migrated Platform/PM/Inventory service.
-"""
 
 from __future__ import annotations
 
@@ -14,7 +8,7 @@ from sqlalchemy.orm import Session
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.contract.persistence.unit_of_work import PlatformUnitOfWork
+from src.core.platform.contract.uow.approval_unit_of_work import PlatformUnitOfWork
 from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
     SqlAlchemyApprovalRepository,
 )

@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
-from src.core.platform.contract.persistence.organization_unit_of_work import (
+from src.core.platform.contract.uow.organization_unit_of_work import (
     OrganizationUnitOfWork,
 )
 from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (

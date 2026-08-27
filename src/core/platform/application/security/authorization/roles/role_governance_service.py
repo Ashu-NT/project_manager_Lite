@@ -15,7 +15,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
     record_authorization_denial,
     require_permission,
 )
-from src.core.platform.contract.persistence.role_governance_unit_of_work import (
+from src.core.platform.contract.uow.role_governance_unit_of_work import (
     RoleGovernanceUnitOfWorkFactory,
 )
 from src.core.platform.domain.security.auth import (

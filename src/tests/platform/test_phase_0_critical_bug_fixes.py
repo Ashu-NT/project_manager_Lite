@@ -20,7 +20,7 @@ from src.core.platform.infrastructure.persistence.repositories.master_data.org.o
 )
 from src.core.platform.application.master_data.org.organization_service import OrganizationService
 from src.core.platform.domain.master_data.org.organization import Organization
-from src.core.platform.infrastructure.persistence.organization_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWorkFactory,
 )
 from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
