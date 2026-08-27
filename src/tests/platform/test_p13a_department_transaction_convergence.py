@@ -6,10 +6,10 @@ from src.core.platform.application.history.audit.enterprise_audit_service import
     EnterpriseAuditService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.domain.master_data.department.events import DepartmentCreated, DepartmentProfileUpdated
 from src.core.platform.infrastructure.persistence.uow.department_unit_of_work import (
     SqlAlchemyDepartmentUnitOfWork,
 )
-from src.core.shared.events.domain_events import domain_events
 
 _COUNTER = {"n": 0}
 
@@ -19,9 +19,11 @@ def _unique_code(prefix: str) -> str:
     return f"{prefix}-{_COUNTER['n']}"
 
 
-def _spy_signal(signal):
+def _spy(services, event_type):
     calls = []
-    signal.connect(lambda payload: calls.append(payload))
+    services["department_service"]._uow_factory._post_commit_bus.subscribe(
+        event_type, lambda event, context: calls.append(event)
+    )
     return calls
 
 
@@ -71,38 +73,38 @@ def test_create_department_repository_and_audit_share_the_uow_session(services, 
     assert seen["uow_session"] is seen["audit_session"]
 
 
-def test_create_department_success_commits_and_emits_only_after_commit(services):
+def test_create_department_success_commits_and_records_event_only_after_commit(services):
     department_service = services["department_service"]
-    calls = _spy_signal(domain_events.departments_changed)
+    calls = _spy(services, DepartmentCreated)
 
     code = _unique_code("CREATE-OK")
     department = department_service.create_department(department_code=code, name="Create Ok")
 
     assert department.department_code == code
-    assert calls == [department.id]
+    assert [e.department_id for e in calls] == [department.id]
     reloaded = department_service._department_repo.get(department.id)
     assert reloaded is not None
     assert reloaded.department_code == code
 
 
-def test_update_department_success_commits_and_emits_only_after_commit(services):
+def test_update_department_success_commits_and_records_event_only_after_commit(services):
     department_service = services["department_service"]
     department = department_service.create_department(
         department_code=_unique_code("UPDATE-OK"), name="Before Update"
     )
-    calls = _spy_signal(domain_events.departments_changed)
+    calls = _spy(services, DepartmentProfileUpdated)
 
     updated = department_service.update_department(
         department.id, name="After Update", expected_version=department.version
     )
 
     assert updated.name == "After Update"
-    assert calls == [updated.id]
+    assert [e.department_id for e in calls] == [updated.id]
     reloaded = department_service._department_repo.get(department.id)
     assert reloaded.name == "After Update"
 
 
-def test_create_department_duplicate_code_validation_failure_rolls_back_and_emits_nothing(services, monkeypatch):
+def test_create_department_duplicate_code_validation_failure_rolls_back_and_records_nothing(services, monkeypatch):
     department_service = services["department_service"]
     code = _unique_code("DUPE")
     department_service.create_department(department_code=code, name="First")
@@ -116,7 +118,7 @@ def test_create_department_duplicate_code_validation_failure_rolls_back_and_emit
         return uow
 
     monkeypatch.setattr(type(department_service._uow_factory), "create", _spy_create)
-    calls = _spy_signal(domain_events.departments_changed)
+    calls = _spy(services, DepartmentCreated)
 
     with pytest.raises(ValidationError, match="Department code already exists"):
         department_service.create_department(department_code=code, name="Second")
@@ -127,14 +129,14 @@ def test_create_department_duplicate_code_validation_failure_rolls_back_and_emit
     assert calls == []
 
 
-def test_update_department_duplicate_code_validation_failure_rolls_back_and_emits_nothing(services):
+def test_update_department_duplicate_code_validation_failure_rolls_back_and_records_nothing(services):
     department_service = services["department_service"]
     existing_code = _unique_code("DUPE-UPDATE-EXISTING")
     department_service.create_department(department_code=existing_code, name="Existing")
     department = department_service.create_department(
         department_code=_unique_code("DUPE-UPDATE-TARGET"), name="Target"
     )
-    calls = _spy_signal(domain_events.departments_changed)
+    calls = _spy(services, DepartmentProfileUpdated)
 
     with pytest.raises(ValidationError, match="Department code already exists"):
         department_service.update_department(
@@ -146,12 +148,12 @@ def test_update_department_duplicate_code_validation_failure_rolls_back_and_emit
     assert calls == []
 
 
-def test_update_department_cannot_be_its_own_parent_rolls_back_and_emits_nothing(services):
+def test_update_department_cannot_be_its_own_parent_rolls_back_and_records_nothing(services):
     department_service = services["department_service"]
     department = department_service.create_department(
         department_code=_unique_code("SELF-PARENT"), name="Self Parent"
     )
-    calls = _spy_signal(domain_events.departments_changed)
+    calls = _spy(services, DepartmentProfileUpdated)
 
     with pytest.raises(ValidationError, match="cannot be its own parent"):
         department_service.update_department(
@@ -161,7 +163,7 @@ def test_update_department_cannot_be_its_own_parent_rolls_back_and_emits_nothing
     assert calls == []
 
 
-def test_create_department_cross_organization_parent_denied_and_emits_nothing(services):
+def test_create_department_cross_organization_parent_denied_and_records_nothing(services):
     department_service = services["department_service"]
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
@@ -179,7 +181,7 @@ def test_create_department_cross_organization_parent_denied_and_emits_nothing(se
     )
     tenant_context_service.set_active_organization(default_organization.id)
 
-    calls = _spy_signal(domain_events.departments_changed)
+    calls = _spy(services, DepartmentCreated)
     with pytest.raises(ValidationError, match="Parent department must belong to the active organization"):
         department_service.create_department(
             department_code=_unique_code("DEPT-CROSSORG-CHILD"),
@@ -190,7 +192,7 @@ def test_create_department_cross_organization_parent_denied_and_emits_nothing(se
     assert calls == []
 
 
-def test_create_department_cross_organization_site_denied_and_emits_nothing(services):
+def test_create_department_cross_organization_site_denied_and_records_nothing(services):
     department_service = services["department_service"]
     site_service = services["site_service"]
     organization_service = services["organization_service"]
@@ -207,7 +209,7 @@ def test_create_department_cross_organization_site_denied_and_emits_nothing(serv
     foreign_site = site_service.create_site(site_code=_unique_code("FOREIGN-SITE"), name="Foreign Site")
     tenant_context_service.set_active_organization(default_organization.id)
 
-    calls = _spy_signal(domain_events.departments_changed)
+    calls = _spy(services, DepartmentCreated)
     with pytest.raises(ValidationError, match="Department site must belong to the active organization"):
         department_service.create_department(
             department_code=_unique_code("DEPT-SITE-CROSSORG-CHILD"),
@@ -218,9 +220,9 @@ def test_create_department_cross_organization_site_denied_and_emits_nothing(serv
     assert calls == []
 
 
-def test_create_department_invalid_manager_employee_denied_and_emits_nothing(services):
+def test_create_department_invalid_manager_employee_denied_and_records_nothing(services):
     department_service = services["department_service"]
-    calls = _spy_signal(domain_events.departments_changed)
+    calls = _spy(services, DepartmentCreated)
 
     with pytest.raises(ValidationError, match="Department manager employee does not exist"):
         department_service.create_department(
@@ -247,7 +249,7 @@ def test_create_department_same_org_manager_accepted(services):
     assert department.manager_employee_id == employee.id
 
 
-def test_create_department_cross_organization_manager_denied_and_emits_nothing(services):
+def test_create_department_cross_organization_manager_denied_and_records_nothing(services):
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     default_organization = tenant_context_service.get_active_organization()
@@ -265,7 +267,7 @@ def test_create_department_cross_organization_manager_denied_and_emits_nothing(s
     tenant_context_service.set_active_organization(default_organization.id)
 
     department_service = services["department_service"]
-    calls = _spy_signal(domain_events.departments_changed)
+    calls = _spy(services, DepartmentCreated)
 
     with pytest.raises(ValidationError, match="Department manager employee does not exist"):
         department_service.create_department(
@@ -277,7 +279,7 @@ def test_create_department_cross_organization_manager_denied_and_emits_nothing(s
     assert calls == []
 
 
-def test_update_department_cross_organization_manager_denied_and_emits_nothing(services):
+def test_update_department_cross_organization_manager_denied_and_records_nothing(services):
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     default_organization = tenant_context_service.get_active_organization()
@@ -299,7 +301,7 @@ def test_update_department_cross_organization_manager_denied_and_emits_nothing(s
     )
     tenant_context_service.set_active_organization(default_organization.id)
 
-    calls = _spy_signal(domain_events.departments_changed)
+    calls = _spy(services, DepartmentProfileUpdated)
     with pytest.raises(ValidationError, match="Department manager employee does not exist"):
         department_service.update_department(
             department.id,
@@ -420,13 +422,13 @@ def test_update_department_authorization_failure_opens_no_uow(services, monkeypa
     assert reloaded.name == "Before Deny"
 
 
-def test_create_department_audit_failure_rolls_back_and_emits_nothing(services, monkeypatch):
+def test_create_department_audit_failure_rolls_back_and_records_nothing(services, monkeypatch):
     def _fail_record(self, **kwargs):
         raise RuntimeError("simulated create_department audit failure")
 
     monkeypatch.setattr(EnterpriseAuditService, "record", _fail_record)
     department_service = services["department_service"]
-    calls = _spy_signal(domain_events.departments_changed)
+    calls = _spy(services, DepartmentCreated)
     code = _unique_code("AUDITFAIL-CREATE")
 
     with pytest.raises(RuntimeError, match="simulated create_department audit failure"):
@@ -439,7 +441,7 @@ def test_create_department_audit_failure_rolls_back_and_emits_nothing(services, 
     assert calls == []
 
 
-def test_update_department_audit_failure_rolls_back_and_emits_nothing(services, monkeypatch):
+def test_update_department_audit_failure_rolls_back_and_records_nothing(services, monkeypatch):
     department_service = services["department_service"]
     department = department_service.create_department(
         department_code=_unique_code("AUDITFAIL-UPDATE"), name="Before Audit Fail"
@@ -449,7 +451,7 @@ def test_update_department_audit_failure_rolls_back_and_emits_nothing(services, 
         raise RuntimeError("simulated update_department audit failure")
 
     monkeypatch.setattr(EnterpriseAuditService, "record", _fail_record)
-    calls = _spy_signal(domain_events.departments_changed)
+    calls = _spy(services, DepartmentProfileUpdated)
 
     with pytest.raises(RuntimeError, match="simulated update_department audit failure"):
         department_service.update_department(
@@ -462,7 +464,7 @@ def test_update_department_audit_failure_rolls_back_and_emits_nothing(services, 
     assert calls == []
 
 
-def test_create_department_commit_failure_leaves_no_partial_state_and_emits_nothing(services, monkeypatch):
+def test_create_department_commit_failure_leaves_no_partial_state_and_records_nothing(services, monkeypatch):
     department_service = services["department_service"]
 
     captured_uow = {}
@@ -479,7 +481,7 @@ def test_create_department_commit_failure_leaves_no_partial_state_and_emits_noth
         raise RuntimeError("simulated database commit failure")
 
     monkeypatch.setattr(SqlAlchemyDepartmentUnitOfWork, "commit", _fail_commit)
-    calls = _spy_signal(domain_events.departments_changed)
+    calls = _spy(services, DepartmentCreated)
 
     code = _unique_code("COMMITFAIL")
     with pytest.raises(RuntimeError, match="simulated database commit failure"):
@@ -491,7 +493,7 @@ def test_create_department_commit_failure_leaves_no_partial_state_and_emits_noth
     assert calls == []
 
 
-def test_update_department_commit_failure_leaves_no_partial_state_and_emits_nothing(services, monkeypatch):
+def test_update_department_commit_failure_leaves_no_partial_state_and_records_nothing(services, monkeypatch):
     department_service = services["department_service"]
     department = department_service.create_department(
         department_code=_unique_code("COMMITFAIL-UPDATE"), name="Before Commit Fail"
@@ -501,7 +503,7 @@ def test_update_department_commit_failure_leaves_no_partial_state_and_emits_noth
         raise RuntimeError("simulated database commit failure")
 
     monkeypatch.setattr(SqlAlchemyDepartmentUnitOfWork, "commit", _fail_commit)
-    calls = _spy_signal(domain_events.departments_changed)
+    calls = _spy(services, DepartmentProfileUpdated)
 
     with pytest.raises(RuntimeError, match="simulated database commit failure"):
         department_service.update_department(
@@ -546,28 +548,3 @@ def test_update_department_uses_a_fresh_uow_distinct_from_the_legacy_session(ser
 
     assert updated.name == "After Update"
     assert seen["uow_session"] is not department_service._session
-
-
-def test_admin_console_still_reacts_to_departments_changed_unchanged(services):
-    from src.ui_qml.platform.controllers.admin_console.domain_event_binder import bind_domain_events
-
-    refresh_calls = []
-
-    class _FakeController:
-        def __init__(self):
-            self._domain_event_subscriptions = []
-
-        def _subscribe_domain_signal(self, signal, callback):
-            signal.connect(callback)
-            self._domain_event_subscriptions.append((signal, callback))
-
-        def _request_domain_refresh(self):
-            refresh_calls.append("refresh")
-
-    bind_domain_events(_FakeController())
-
-    services["department_service"].create_department(
-        department_code=_unique_code("ADMIN-REFRESH"), name="Admin Refresh Department"
-    )
-
-    assert refresh_calls == ["refresh"]

@@ -9,7 +9,6 @@ def bind_domain_events(controller) -> None:
 
     for signal in (
         domain_events.sites_changed,
-        domain_events.departments_changed,
         domain_events.auth_changed,
         domain_events.parties_changed,
         domain_events.documents_changed,

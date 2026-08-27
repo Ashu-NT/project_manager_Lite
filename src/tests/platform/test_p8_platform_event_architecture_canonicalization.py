@@ -245,6 +245,10 @@ def test_employee_has_no_legacy_signal_at_all():
     assert not hasattr(domain_events, "employees_changed")
 
 
+def test_department_has_no_legacy_signal_at_all():
+    assert not hasattr(domain_events, "departments_changed")
+
+
 def test_five_capability_mappers_never_import_domain_events_or_qt():
     mapper_modules = (
         "src.core.platform.application.master_data.org.event_handlers.view_invalidation",

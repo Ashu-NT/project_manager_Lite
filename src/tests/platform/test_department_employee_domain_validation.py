@@ -323,6 +323,7 @@ def test_department_service_uses_entity_validation(monkeypatch):
             employees=employee_repo,
             enterprise_audit_service=enterprise_audit_service,
         ),
+        clock=SystemClock(),
     )
 
     created = service.create_department(

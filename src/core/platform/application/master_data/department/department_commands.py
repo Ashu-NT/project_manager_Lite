@@ -9,8 +9,11 @@ from sqlalchemy.exc import IntegrityError
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.domain.master_data.department import Department
+from src.core.platform.domain.master_data.department.events import (
+    DepartmentCreated,
+    DepartmentProfileUpdated,
+)
 from src.core.shared.audit import record_audit_entry
-from src.core.shared.events.domain_events import domain_events
 
 from .department_context import active_organization
 from .department_utils import resolve_name
@@ -92,13 +95,20 @@ def create_department(
                 commit=False,
                 fail_closed=True,
             )
+            uow.record_event(
+                DepartmentCreated(
+                    tenant_id=organization.tenant_id,
+                    organization_id=organization.id,
+                    department_id=department.id,
+                    occurred_at=service._clock.now(),
+                )
+            )
             uow.commit()
         except IntegrityError as exc:
             raise ValidationError(
                 "Department code already exists in the active organization.",
                 code="DEPARTMENT_CODE_EXISTS",
             ) from exc
-    domain_events.departments_changed.emit(department.id)
     return department
 
 
@@ -168,8 +178,22 @@ def update_department(
             manager_employee_id=target_manager_employee_id,
             is_active=bool(is_active) if is_active is not None else department.is_active,
             notes=notes if notes is not None else department.notes,
-            updated_at=datetime.now(timezone.utc),
         )
+        profile_changed = (
+            candidate.department_code != department.department_code
+            or candidate.name != department.name
+            or candidate.description != department.description
+            or candidate.site_id != department.site_id
+            or candidate.parent_department_id != department.parent_department_id
+            or candidate.department_type != department.department_type
+            or candidate.cost_center_code != department.cost_center_code
+            or candidate.manager_employee_id != department.manager_employee_id
+            or candidate.is_active != department.is_active
+            or candidate.notes != department.notes
+        )
+        if not profile_changed:
+            return department
+        candidate = replace(candidate, updated_at=datetime.now(timezone.utc))
         if department_code is not None:
             existing = uow.departments.get_by_code(organization.id, candidate.department_code)
             if existing is not None and existing.id != department.id:
@@ -199,13 +223,20 @@ def update_department(
                 commit=False,
                 fail_closed=True,
             )
+            uow.record_event(
+                DepartmentProfileUpdated(
+                    tenant_id=organization.tenant_id,
+                    organization_id=organization.id,
+                    department_id=candidate.id,
+                    occurred_at=service._clock.now(),
+                )
+            )
             uow.commit()
         except IntegrityError as exc:
             raise ValidationError(
                 "Department code already exists in the active organization.",
                 code="DEPARTMENT_CODE_EXISTS",
             ) from exc
-    domain_events.departments_changed.emit(candidate.id)
     return candidate
 
 

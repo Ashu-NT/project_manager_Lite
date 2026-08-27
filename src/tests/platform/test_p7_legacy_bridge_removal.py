@@ -104,12 +104,13 @@ def test_subscribe_domain_change_no_longer_exists_on_any_controller_base():
 
 
 def test_all_still_unmodernized_signals_survive_with_real_direct_consumers():
-    """`organizations_changed`/`employees_changed` are deliberately absent from this list (P10D,
-    P12B): both capabilities are now fully modernized (create/profile events are typed), so their
-    legacy signals were actually deleted, not merely left un-bridged like the ones below."""
+    """`organizations_changed`/`employees_changed`/`departments_changed` are deliberately absent
+    from this list (P10D, P12B, P13B): all three capabilities are now fully modernized
+    (create/profile events are typed), so their legacy signals were actually deleted, not merely
+    left un-bridged like the ones below."""
 
     for signal_name in (
-        "auth_changed", "departments_changed",
+        "auth_changed",
         "project_changed", "tasks_changed", "resources_changed",
         "sites_changed", "documents_changed", "parties_changed",
         "inventory_items_changed", "inventory_storerooms_changed",
@@ -378,20 +379,20 @@ def test_admin_console_domain_event_binder_never_touches_the_generic_bridge():
         assert forbidden not in source
 
 
-def test_admin_console_still_composite_refreshes_on_the_two_genuinely_unmodernized_signals(
+def test_admin_console_still_composite_refreshes_on_the_one_genuinely_unmodernized_signal(
     services,
 ):
-    """Organization and Employee are no longer in this list (P10D, P12B): both are fully
-    modernized and route through their own typed ViewInvalidation targets instead."""
+    """Organization, Employee, and Department are no longer in this list (P10D, P12B, P13B): all
+    three are fully modernized and route through their own typed ViewInvalidation targets
+    instead."""
     catalog = _catalog(services)
     admin = catalog.adminWorkspace
     refresh_calls = []
     admin.refresh = lambda: refresh_calls.append("refresh") or None
 
-    domain_events.departments_changed.emit(_unique("p7-admin-dept"))
     domain_events.auth_changed.emit(_unique("p7-admin-auth"))
 
-    assert refresh_calls == ["refresh", "refresh"]
+    assert refresh_calls == ["refresh"]
 
 
 # ---------------------------------------------------------------------------
@@ -405,7 +406,7 @@ def test_pm_dashboard_still_does_not_react_to_unrelated_capability_events(servic
     refresh_calls = []
     dashboard.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.departments_changed.emit(_unique("p7-dashboard-dept"))
+    domain_events.sites_changed.emit(_unique("p7-dashboard-site"))
     domain_events.auth_changed.emit(_unique("p7-dashboard-auth"))
 
     assert refresh_calls == []

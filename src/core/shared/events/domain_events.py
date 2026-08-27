@@ -23,7 +23,6 @@ class DomainEvents:
     register_changed: Signal[str] = field(default_factory=Signal)
     auth_changed: Signal[str] = field(default_factory=Signal)
     sites_changed: Signal[str] = field(default_factory=Signal)
-    departments_changed: Signal[str] = field(default_factory=Signal)
     documents_changed: Signal[str] = field(default_factory=Signal)
     parties_changed: Signal[str] = field(default_factory=Signal)
     collaboration_changed: Signal[str] = field(default_factory=Signal)

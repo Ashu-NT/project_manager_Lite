@@ -76,6 +76,13 @@ from src.core.platform.domain.master_data.employee.events import (
     EmployeeCreated,
     EmployeeProfileUpdated,
 )
+from src.core.platform.application.master_data.department.event_handlers.view_invalidation import (
+    build_department_list_view_invalidation_handler,
+)
+from src.core.platform.domain.master_data.department.events import (
+    DepartmentCreated,
+    DepartmentProfileUpdated,
+)
 from src.core.platform.application.tenant.modules.event_handlers.view_invalidation import (
     build_module_entitlement_view_invalidation_handler,
 )
@@ -450,6 +457,14 @@ def build_platform_service_bundle(
             _employee_event_type, _employee_list_view_invalidation_handler
         )
 
+    _department_list_view_invalidation_handler = build_department_list_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _department_event_type in (DepartmentCreated, DepartmentProfileUpdated):
+        platform_post_commit_bus.subscribe(
+            _department_event_type, _department_list_view_invalidation_handler
+        )
+
     approval_uow_session_factory = sessionmaker(bind=session.bind, future=True)
     approval_uow_factory = SqlAlchemyPlatformUnitOfWorkFactory(
         session_factory=approval_uow_session_factory,
@@ -629,6 +644,7 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
         overview_rollup_reader=overview_rollup_reader,
         uow_factory=department_uow_factory,
+        clock=SystemClock(),
     )
 
     def _active_organization() -> Organization | None:

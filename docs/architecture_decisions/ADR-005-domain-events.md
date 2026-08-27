@@ -1116,6 +1116,7 @@ explicit citation back to this section, so it remains visible rather than quietl
 | Dead `session_scope()` | Reclaimed as planned. |
 | Organization update/set-active | **Not in the original table at all** — discovered during P7 to still use the direct (never-bridged) `organizations_changed` signal; P5A only ever typed `OrganizationCreated`. Documented as a correction, not migrated (§26.4). **Migrated (P10D):** `update_organization`/`enable_organization`/`disable_organization` now record `OrganizationProfileUpdated`/`OrganizationEnabled`/`OrganizationDisabled` on the same canonical `OrganizationUnitOfWork` `OrganizationCreated` already used, mapped onto the existing `organization_list` ViewInvalidation target. `organizations_changed` is deleted from `DomainEvents` entirely — zero remaining producers, zero remaining consumers. Session-context selection (`TenantContextService.set_active_organization`) was never in scope for this migration and produces no DomainEvent of any kind. |
 | Employee create/update | Not in the original table — `employees_changed` was a direct (never-bridged) legacy signal, un-typed prior to P12A/P12B. **Migrated (P12B):** `create_employee`/`update_employee` now record `EmployeeCreated`/`EmployeeProfileUpdated` on the canonical `EmployeeUnitOfWork` P12A converged onto, mapped onto a new `employee_list` ViewInvalidation target (`OrganizationScope`, matching Employee's actual ownership — organization-scoped, not tenant-wide). `employees_changed` is deleted from `DomainEvents` entirely — zero remaining producers, zero remaining consumers. `resources_changed` (Employee's other, PM-owned legacy signal, still emitted by `update_employee`'s linked-resource sync) is explicitly untouched — Resource capability remains NOT MODERNIZED. |
+| Department create/update | Not in the original table — `departments_changed` was a direct (never-bridged) legacy signal, un-typed prior to P13A/P13B. **Migrated (P13B):** `create_department`/`update_department` now record `DepartmentCreated`/`DepartmentProfileUpdated` on the canonical `DepartmentUnitOfWork` P13A converged onto, mapped onto a new `department_list` ViewInvalidation target (`OrganizationScope`). `departments_changed` is deleted from `DomainEvents` entirely — zero remaining producers, zero remaining consumers (Admin Console was its only consumer, per P11's audit). |
 
 No compatibility facades that outlive their own migration phase, and no straddling: per this
 codebase's existing hard rule (also stated in `docs/repo_structure_plan/EXECUTION_SPEC.md`), a
@@ -1573,6 +1574,37 @@ double-refreshing around it. `employees_changed` is now deleted from `DomainEven
 producers, zero consumers); the legacy Signal count on `DomainEvents` is 27 as of this phase,
 recomputed directly from `dataclasses.fields(domain_events)` rather than incrementally adjusting
 any previously-stated count.
+
+**26.11 Department: FULLY MODERNIZED (P13A/P13B).** P13A converged `create_department`/
+`update_department` off the shared, process-lifetime `Session` onto a canonical fresh-session
+`DepartmentUnitOfWork`/`DepartmentUnitOfWorkFactory` pair. Both of Department's cross-entity
+dependencies (`SiteRepository` for site-organization validation, `EmployeeRepository` for
+manager-employee validation, plus `DepartmentRepository` itself for parent-department validation)
+are Platform-owned, so — unlike Employee's `resource_repo_factory` injection seam — no
+cross-module layering workaround was needed. A P13A-FIX pass closed a real integrity gap found
+during that convergence: manager-employee validation originally checked only that the Employee
+existed, not that it belonged to the active organization; both `create_department` and
+`update_department` now resolve the manager through the UoW's own organization-scoped
+`EmployeeRepository.get_for_organization(...)`, reusing the existing `DEPARTMENT_MANAGER_INVALID`
+error rather than inventing a new one. P13B then recorded `DepartmentCreated`/
+`DepartmentProfileUpdated` on that same UoW, pre-commit, via `uow.record_event(...)` — no
+`DepartmentChanged` blanket event. `update_department` gained a genuine no-op guard: a call whose
+user-controlled fields (code/name/description/site/parent/type/cost-center/manager/active/notes)
+are already identical to the persisted state performs no write, no audit entry, records no event,
+and — critically, since P13A had preserved an unconditional `updated_at=datetime.now(...)` bump on
+every update — no longer bumps `updated_at` either; the candidate is built without the timestamp
+touch, compared field-by-field, and the timestamp is only applied once a real change is confirmed.
+Both events map onto one new `department_list` ViewInvalidation target, `OrganizationScope`-
+filtered (Department is organization-owned, matching Employee's own scope choice). Department had
+only one legacy consumer (Admin Console, per P11's audit — unlike Employee's dual-consumer case,
+no duplicate-refresh concern existed here): its direct `departments_changed` subscription was
+removed from `admin_console/domain_event_binder.py`, and a new narrow
+`AdminConsoleController.refresh_departments()` (delegating to the existing Department
+sub-controller's own `refresh()`, the narrowest existing refresh path — no full-workspace
+cascade) was wired to a new `DepartmentViewInvalidationAdapter` in `context.py`, mirroring the
+Employee/Organization adapter pattern exactly. `departments_changed` is now deleted from
+`DomainEvents` entirely (zero producers, zero consumers); the legacy Signal count is 26 as of this
+phase, recomputed directly from `dataclasses.fields(domain_events)`.
 
 ## Alternatives Rejected
 

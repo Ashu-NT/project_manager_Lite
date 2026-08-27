@@ -17,6 +17,7 @@ from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.time.clock import Clock
 
 from .department_access import require_department_read_access
 from .department_context import active_organization
@@ -38,6 +39,7 @@ class DepartmentService:
         tenant_context_service: TenantContextService | None = None,
         overview_rollup_reader: PlatformOverviewRollupReader | None = None,
         uow_factory: DepartmentUnitOfWorkFactory,
+        clock: Clock,
     ):
         self._session = session
         self._department_repo = department_repo
@@ -49,6 +51,7 @@ class DepartmentService:
         self._tenant_context_service = tenant_context_service
         self._overview_rollup_reader = overview_rollup_reader
         self._uow_factory = uow_factory
+        self._clock = clock
 
     def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
         return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
