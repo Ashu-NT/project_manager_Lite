@@ -14,7 +14,11 @@ from .export_handler import (
     export_stock_status_csv,
     export_stock_status_excel,
 )
-from .workspace_builder import build_site_reference_options, build_workspace_state
+from .workspace_builder import (
+    build_party_reference_options,
+    build_site_reference_options,
+    build_workspace_state,
+)
 
 
 class InventoryPricingWorkspacePresenter:
@@ -43,6 +47,9 @@ class InventoryPricingWorkspacePresenter:
 
     def build_site_reference_options(self):
         return build_site_reference_options(self._desktop_api)
+
+    def build_party_reference_options(self):
+        return build_party_reference_options(self._desktop_api)
 
     def export_stock_status_csv(
         self,

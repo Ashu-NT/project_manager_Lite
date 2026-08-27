@@ -95,10 +95,7 @@ from src.core.platform.application.master_data.site.site_service import SiteServ
 class DesktopApiRegistry:
     integration_capability: IntegrationCapabilityDesktopApi
     platform_runtime: PlatformRuntimeDesktopApi
-    # P5A + Organization-specific P6A cutover: the transport-independent ViewInvalidationChannel,
-    # exposed here (not a Qt type) so the ui_qml layer can build its own Qt adapter
-    # (OrganizationViewInvalidationAdapter) on top of it. No Qt/PySide6 dependency belongs in this
-    # file -- see src/ui_qml/platform/adapters/ for the actual Qt-facing translation.
+
     platform_view_invalidation_channel: ViewInvalidationChannel | None
     platform_calendar: None  # removed â€” use platform_enterprise_calendar instead
     platform_enterprise_calendar: EnterpriseCalendarDesktopApi | None

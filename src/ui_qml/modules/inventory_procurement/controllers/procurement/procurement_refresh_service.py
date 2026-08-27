@@ -142,3 +142,8 @@ def refresh_site_options(ctrl) -> None:
     )
     ctrl._set_site_options(serialize_selector_options(site_options))
     ctrl._set_storeroom_options(serialize_selector_options(storeroom_options))
+
+
+def refresh_party_options(ctrl) -> None:
+    supplier_options = ctrl._procurement_workspace_presenter.build_party_reference_options()
+    ctrl._set_supplier_options(serialize_selector_options(supplier_options))

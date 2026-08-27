@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission, require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.read.overview.platform_overview_rollup_reader import (
     PartyRollupSummary,
     PlatformOverviewRollupReader,
@@ -16,15 +17,18 @@ from src.core.platform.contract.read.overview.platform_overview_rollup_reader im
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.contract.repositories.master_data.party.contracts import PartyRepository
+from src.core.platform.contract.uow.party_unit_of_work import PartyUnitOfWorkFactory
 from src.core.platform.domain.master_data.party import (
     Party,
     PartyType,
     coerce_party_type,
     normalize_party_code,
 )
+from src.core.platform.domain.master_data.party.events import PartyCreated, PartyProfileUpdated
 from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.shared.audit import record_audit_entry
-from src.core.shared.events.domain_events import domain_events
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.time.clock import Clock
 
 if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
@@ -42,6 +46,8 @@ class PartyService:
         enterprise_audit_service: EnterpriseAuditService | None = None,
         tenant_context_service: TenantContextService | None = None,
         overview_rollup_reader: PlatformOverviewRollupReader | None = None,
+        uow_factory: PartyUnitOfWorkFactory,
+        clock: Clock,
     ):
         self._session = session
         self._party_repo = party_repo
@@ -50,6 +56,11 @@ class PartyService:
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
         self._overview_rollup_reader = overview_rollup_reader
+        self._uow_factory = uow_factory
+        self._clock = clock
+
+    def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
 
     def list_parties(self, *, active_only: bool | None = None) -> list[Party]:
         self._require_party_read_access("list parties")
@@ -149,6 +160,7 @@ class PartyService:
     ) -> Party:
         require_permission(self._user_session, "settings.manage", operation_label="create party")
         organization = self._active_organization()
+        tenant_id = organization.tenant_id
         party = Party.create(
             organization_id=organization.id,
             party_code=party_code,
@@ -169,39 +181,44 @@ class PartyService:
             is_active=bool(is_active),
             notes=notes,
         )
-        if self._party_repo.get_by_code(organization.id, party.party_code) is not None:
-            raise ValidationError("Party code already exists in the active organization.", code="PARTY_CODE_EXISTS")
-        try:
-            self._party_repo.add(party)
-            # Audit is staged in the same transaction as the business write (ADR-003:
-            # "the business mutation and successful security audit intent commit
-            # atomically") — never a second, separate commit.
-            record_audit_entry(
-                self,
-                operation="create",
-                entity_type="party",
-                entity_id=party.id,
-                module="platform",
-                severity="low",
-                metadata={
-                    "action": "party.create",
-                    "organization_id": organization.id,
-                    "party_code": party.party_code,
-                    "party_name": party.party_name,
-                    "party_type": party.party_type.value,
-                    "is_active": str(party.is_active),
-                },
-                commit=False,
-                fail_closed=True,
-            )
-            self._session.commit()
-        except IntegrityError as exc:
-            self._session.rollback()
-            raise ValidationError("Party code already exists in the active organization.", code="PARTY_CODE_EXISTS") from exc
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.parties_changed.emit(party.id)
+        with self._uow_factory.create(context=self._new_context()) as uow:
+            if uow.parties.get_by_code(organization.id, party.party_code) is not None:
+                raise ValidationError(
+                    "Party code already exists in the active organization.", code="PARTY_CODE_EXISTS"
+                )
+            try:
+                uow.parties.add(party)
+                record_audit_entry(
+                    uow,
+                    operation="create",
+                    entity_type="party",
+                    entity_id=party.id,
+                    module="platform",
+                    severity="low",
+                    metadata={
+                        "action": "party.create",
+                        "organization_id": organization.id,
+                        "party_code": party.party_code,
+                        "party_name": party.party_name,
+                        "party_type": party.party_type.value,
+                        "is_active": str(party.is_active),
+                    },
+                    commit=False,
+                    fail_closed=True,
+                )
+                uow.record_event(
+                    PartyCreated(
+                        tenant_id=tenant_id,
+                        organization_id=organization.id,
+                        party_id=party.id,
+                        occurred_at=self._clock.now(),
+                    )
+                )
+                uow.commit()
+            except IntegrityError as exc:
+                raise ValidationError(
+                    "Party code already exists in the active organization.", code="PARTY_CODE_EXISTS"
+                ) from exc
         return party
 
     def update_party(
@@ -230,80 +247,107 @@ class PartyService:
     ) -> Party:
         require_permission(self._user_session, "settings.manage", operation_label="update party")
         organization = self._active_organization()
-        party = self._party_repo.get(party_id)
-        if party is None or party.organization_id != organization.id:
-            raise NotFoundError("Party not found in the active organization.", code="PARTY_NOT_FOUND")
-        if expected_version is not None and party.version != expected_version:
-            raise ConcurrencyError(
-                "Party changed since you opened it. Refresh and try again.",
-                code="STALE_WRITE",
-            )
+        tenant_id = organization.tenant_id
+        with self._uow_factory.create(context=self._new_context()) as uow:
+            party = uow.parties.get(party_id)
+            if party is None or party.organization_id != organization.id:
+                raise NotFoundError("Party not found in the active organization.", code="PARTY_NOT_FOUND")
+            if expected_version is not None and party.version != expected_version:
+                raise ConcurrencyError(
+                    "Party changed since you opened it. Refresh and try again.",
+                    code="STALE_WRITE",
+                )
 
-        candidate = replace(
-            party,
-            party_code=party_code if party_code is not None else party.party_code,
-            party_name=(
-                party_name if party_name is not None else name
-                if party_name is not None or name is not None
-                else party.party_name
-            ),
-            party_type=party_type if party_type is not None else party.party_type,
-            legal_name=legal_name if legal_name is not None else party.legal_name,
-            contact_name=contact_name if contact_name is not None else party.contact_name,
-            email=email if email is not None else party.email,
-            phone=phone if phone is not None else party.phone,
-            country=country if country is not None else party.country,
-            city=city if city is not None else party.city,
-            address_line_1=address_line_1 if address_line_1 is not None else party.address_line_1,
-            address_line_2=address_line_2 if address_line_2 is not None else party.address_line_2,
-            postal_code=postal_code if postal_code is not None else party.postal_code,
-            website=website if website is not None else party.website,
-            tax_registration_number=(
-                tax_registration_number
-                if tax_registration_number is not None
-                else party.tax_registration_number
-            ),
-            external_reference=external_reference if external_reference is not None else party.external_reference,
-            is_active=bool(is_active) if is_active is not None else party.is_active,
-            notes=notes if notes is not None else party.notes,
-            updated_at=datetime.now(timezone.utc),
-        )
-        if party_code is not None:
-            existing = self._party_repo.get_by_code(organization.id, candidate.party_code)
-            if existing is not None and existing.id != party.id:
-                raise ValidationError("Party code already exists in the active organization.", code="PARTY_CODE_EXISTS")
-
-        try:
-            self._party_repo.update(candidate)
-            # Audit is staged in the same transaction as the business write (ADR-003:
-            # "the business mutation and successful security audit intent commit
-            # atomically") — never a second, separate commit.
-            record_audit_entry(
-                self,
-                operation="update",
-                entity_type="party",
-                entity_id=candidate.id,
-                module="platform",
-                severity="low",
-                metadata={
-                    "action": "party.update",
-                    "organization_id": organization.id,
-                    "party_code": candidate.party_code,
-                    "party_name": candidate.party_name,
-                    "party_type": candidate.party_type.value,
-                    "is_active": str(candidate.is_active),
-                },
-                commit=False,
-                fail_closed=True,
+            candidate = replace(
+                party,
+                party_code=party_code if party_code is not None else party.party_code,
+                party_name=(
+                    party_name if party_name is not None else name
+                    if party_name is not None or name is not None
+                    else party.party_name
+                ),
+                party_type=party_type if party_type is not None else party.party_type,
+                legal_name=legal_name if legal_name is not None else party.legal_name,
+                contact_name=contact_name if contact_name is not None else party.contact_name,
+                email=email if email is not None else party.email,
+                phone=phone if phone is not None else party.phone,
+                country=country if country is not None else party.country,
+                city=city if city is not None else party.city,
+                address_line_1=address_line_1 if address_line_1 is not None else party.address_line_1,
+                address_line_2=address_line_2 if address_line_2 is not None else party.address_line_2,
+                postal_code=postal_code if postal_code is not None else party.postal_code,
+                website=website if website is not None else party.website,
+                tax_registration_number=(
+                    tax_registration_number
+                    if tax_registration_number is not None
+                    else party.tax_registration_number
+                ),
+                external_reference=external_reference if external_reference is not None else party.external_reference,
+                is_active=bool(is_active) if is_active is not None else party.is_active,
+                notes=notes if notes is not None else party.notes,
             )
-            self._session.commit()
-        except IntegrityError as exc:
-            self._session.rollback()
-            raise ValidationError("Party code already exists in the active organization.", code="PARTY_CODE_EXISTS") from exc
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.parties_changed.emit(candidate.id)
+            profile_changed = (
+                candidate.party_code != party.party_code
+                or candidate.party_name != party.party_name
+                or candidate.party_type != party.party_type
+                or candidate.legal_name != party.legal_name
+                or candidate.contact_name != party.contact_name
+                or candidate.email != party.email
+                or candidate.phone != party.phone
+                or candidate.country != party.country
+                or candidate.city != party.city
+                or candidate.address_line_1 != party.address_line_1
+                or candidate.address_line_2 != party.address_line_2
+                or candidate.postal_code != party.postal_code
+                or candidate.website != party.website
+                or candidate.tax_registration_number != party.tax_registration_number
+                or candidate.external_reference != party.external_reference
+                or candidate.is_active != party.is_active
+                or candidate.notes != party.notes
+            )
+            if not profile_changed:
+                return party
+            candidate = replace(candidate, updated_at=datetime.now(timezone.utc))
+            if party_code is not None:
+                existing = uow.parties.get_by_code(organization.id, candidate.party_code)
+                if existing is not None and existing.id != party.id:
+                    raise ValidationError(
+                        "Party code already exists in the active organization.", code="PARTY_CODE_EXISTS"
+                    )
+
+            try:
+                uow.parties.update(candidate)
+                record_audit_entry(
+                    uow,
+                    operation="update",
+                    entity_type="party",
+                    entity_id=candidate.id,
+                    module="platform",
+                    severity="low",
+                    metadata={
+                        "action": "party.update",
+                        "organization_id": organization.id,
+                        "party_code": candidate.party_code,
+                        "party_name": candidate.party_name,
+                        "party_type": candidate.party_type.value,
+                        "is_active": str(candidate.is_active),
+                    },
+                    commit=False,
+                    fail_closed=True,
+                )
+                uow.record_event(
+                    PartyProfileUpdated(
+                        tenant_id=tenant_id,
+                        organization_id=organization.id,
+                        party_id=candidate.id,
+                        occurred_at=self._clock.now(),
+                    )
+                )
+                uow.commit()
+            except IntegrityError as exc:
+                raise ValidationError(
+                    "Party code already exists in the active organization.", code="PARTY_CODE_EXISTS"
+                ) from exc
         return candidate
 
     def _active_organization(self) -> Organization:

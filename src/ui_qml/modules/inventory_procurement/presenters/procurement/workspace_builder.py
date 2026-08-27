@@ -44,6 +44,16 @@ def build_site_reference_options(desktop_api):
     return site_options, storeroom_options
 
 
+def build_party_reference_options(desktop_api):
+    return (
+        InventorySelectorOptionViewModel(value="all", label="All suppliers"),
+        *(
+            InventorySelectorOptionViewModel(value=option.value, label=option.label)
+            for option in desktop_api.list_supplier_options(active_only=None)
+        ),
+    )
+
+
 def build_workspace_state(
     desktop_api,
     *,
@@ -57,13 +67,7 @@ def build_workspace_state(
     selected_purchase_order_id: str | None = None,
 ) -> InventoryProcurementProcurementWorkspaceViewModel:
     site_options, storeroom_options = build_site_reference_options(desktop_api)
-    supplier_options = (
-        InventorySelectorOptionViewModel(value="all", label="All suppliers"),
-        *(
-            InventorySelectorOptionViewModel(value=option.value, label=option.label)
-            for option in desktop_api.list_supplier_options(active_only=None)
-        ),
-    )
+    supplier_options = build_party_reference_options(desktop_api)
     requisition_status_options = (
         InventorySelectorOptionViewModel(value="all", label="All requisition statuses"),
         *(

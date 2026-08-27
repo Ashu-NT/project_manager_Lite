@@ -98,3 +98,8 @@ def refresh_site_options(ctrl) -> None:
     site_options, storeroom_options = ctrl._inventory_workspace_presenter.build_site_reference_options()
     ctrl._set_site_options(serialize_selector_options(site_options))
     ctrl._set_storeroom_options(serialize_selector_options(storeroom_options))
+
+
+def refresh_party_options(ctrl) -> None:
+    manager_party_options = ctrl._inventory_workspace_presenter.build_party_reference_options()
+    ctrl._set_manager_party_options(serialize_selector_options(manager_party_options))

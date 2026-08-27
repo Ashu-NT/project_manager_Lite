@@ -176,10 +176,7 @@ class PlatformWorkspaceCatalog(QObject):
             self,
         )
         self._tenant_switcher.refresh()
-        # P10C: sibling of the tenant switcher, not a merged concept -- a tenant switch rebuilds
-        # the whole authority context, an organization switch only rescopes the
-        # organization-owned adapters below. Reuses the same `platform_tenant` desktop API (P10C
-        # added its organization-switcher methods there, alongside the pre-existing tenant ones).
+
         self._organization_switcher = OrganizationSwitcherController(
             OrganizationSwitcherPresenter(tenant_api=tenant_api),
             self,

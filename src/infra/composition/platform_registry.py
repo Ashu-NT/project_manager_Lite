@@ -130,6 +130,9 @@ from src.core.platform.infrastructure.persistence.uow.site_unit_of_work import (
 from src.core.platform.infrastructure.persistence.uow.employee_unit_of_work import (
     SqlAlchemyEmployeeUnitOfWorkFactory,
 )
+from src.core.platform.infrastructure.persistence.uow.party_unit_of_work import (
+    SqlAlchemyPartyUnitOfWorkFactory,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.resources.resource import (
     SqlAlchemyResourceRepository,
 )
@@ -282,10 +285,7 @@ class PlatformServiceBundle:
     party_repo: PartyRepository
     tenant_context_service: TenantContextService
     platform_view_invalidation_channel: ViewInvalidationChannel
-    # Approval-P1: exposed so a module's own narrow, capability-specific canonical UnitOfWork
-    # (e.g. inventory_procurement's `RequisitionSubmissionUnitOfWork`) can share the SAME
-    # composition-owned dispatcher/bus every other Platform UnitOfWork factory already uses --
-    # never a second, module-local dispatcher/bus instance.
+   
     platform_transactional_dispatcher: TransactionalEventDispatcher
     platform_post_commit_bus: PostCommitEventPublisher
     platform_runtime_application_service: PlatformRuntimeApplicationService
@@ -405,10 +405,6 @@ def build_platform_service_bundle(
             _organization_profile_event_type, _organization_profile_view_invalidation_handler
         )
 
-    # P5B-3: direct Qt cutover for Module Entitlements, mirroring the Organization precedent
-    # above -- no legacy `modules_changed` bridge. All five Module Entitlement events collapse
-    # onto the SAME single mapping handler (the real UI consumers all re-read the whole
-    # entitlement collection in one call, never one module row at a time).
     _module_entitlement_view_invalidation_handler = build_module_entitlement_view_invalidation_handler(
         platform_view_invalidation_channel
     )
@@ -627,6 +623,14 @@ def build_platform_service_bundle(
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
     )
+    party_uow_session_factory = sessionmaker(bind=session.bind, future=True)
+    party_uow_factory = SqlAlchemyPartyUnitOfWorkFactory(
+        session_factory=party_uow_session_factory,
+        transactional_dispatcher=platform_transactional_dispatcher,
+        post_commit_bus=platform_post_commit_bus,
+        tenant_context_service=tenant_context_service,
+        user_session=user_session,
+    )
     party_service = PartyService(
         session=session,
         party_repo=repositories.party_repo,
@@ -635,6 +639,7 @@ def build_platform_service_bundle(
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
         overview_rollup_reader=overview_rollup_reader,
+        uow_factory=party_uow_factory,
     )
     site_uow_session_factory = sessionmaker(bind=session.bind, future=True)
     site_uow_factory = SqlAlchemySiteUnitOfWorkFactory(
