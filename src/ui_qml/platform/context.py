@@ -14,6 +14,9 @@ from src.ui_qml.platform.adapters.employee_view_invalidation_adapter import (
 from src.ui_qml.platform.adapters.department_view_invalidation_adapter import (
     DepartmentViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.site_view_invalidation_adapter import (
+    SiteViewInvalidationAdapter,
+)
 from src.ui_qml.platform.adapters.module_entitlement_view_invalidation_adapter import (
     ModuleEntitlementViewInvalidationAdapter,
 )
@@ -264,6 +267,16 @@ class PlatformWorkspaceCatalog(QObject):
             self._admin_workspace.refresh_departments
         )
 
+        self._site_view_invalidation_adapter = SiteViewInvalidationAdapter(
+            channel=view_invalidation_channel,
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+            parent=self,
+        )
+        self._site_view_invalidation_adapter.siteCollectionStale.connect(
+            self._admin_workspace.refresh_sites
+        )
+
     def _on_tenant_switched(self) -> None:
         self._organization_view_invalidation_adapter.set_active_tenant(
             self._tenant_switcher.activeTenantId
@@ -453,6 +466,10 @@ class PlatformWorkspaceCatalog(QObject):
             organization_id=self._active_organization_id(),
         )
         self._department_view_invalidation_adapter.set_active_scope(
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+        )
+        self._site_view_invalidation_adapter.set_active_scope(
             tenant_id=self._tenant_switcher.activeTenantId,
             organization_id=self._active_organization_id(),
         )

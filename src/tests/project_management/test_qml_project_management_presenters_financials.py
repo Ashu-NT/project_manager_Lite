@@ -5,6 +5,7 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
+from PySide6.QtCore import Qt
 
 from src.core.modules.project_management.api.desktop.financials import (
     FinancialCreateManualActualCommand,
@@ -263,3 +264,55 @@ def test_approve_actual_slot_propagates_backend_denial_without_crashing(controll
     assert controller.errorMessage == result["message"]
     assert controller.feedbackMessage == ""
     assert controller.isBusy is False
+
+
+def test_forecast_controller_keeps_master_and_detail_query_state_independent(
+    controller,
+) -> None:
+    controller.refresh = MagicMock()
+    controller._forecast_version_page = 4
+    controller._forecast_line_page = 3
+
+    controller.selectForecastVersion("forecast-2")
+    assert controller.selectedForecastId == "forecast-2"
+    assert controller._forecast_version_page == 4
+    assert controller._forecast_line_page == 1
+
+    controller._forecast_line_page = 3
+    controller.setForecastVersionSort("metaText", Qt.AscendingOrder.value)
+    assert controller._forecast_version_page == 1
+    assert controller._forecast_line_page == 3
+    assert controller.forecastVersionSortKey == "metaText"
+
+    controller._forecast_version_page = 4
+    controller.setForecastLineSort("supportingText", Qt.DescendingOrder.value)
+    assert controller._forecast_version_page == 4
+    assert controller._forecast_line_page == 1
+    assert controller.forecastLineSortKey == "supportingText"
+
+
+def test_forecast_controller_filter_and_project_reset_rules(controller) -> None:
+    controller.refresh = MagicMock()
+    controller._forecast_version_page = 5
+    controller._forecast_line_page = 4
+
+    controller.setForecastVersionFilters("alpha", "approved", "manual")
+    assert controller._forecast_version_page == 1
+    assert controller._forecast_line_page == 4
+    assert controller.forecastVersionSearch == "alpha"
+    assert controller.forecastVersionStatus == "approved"
+    assert controller.forecastGenerationMode == "manual"
+
+    controller.setForecastLineFilters("risk", "risk")
+    assert controller._forecast_line_page == 1
+    assert controller.forecastLineSearch == "risk"
+    assert controller.forecastLineSourceType == "risk"
+
+    controller._set_selected_project_id("project-a")
+    controller._set_selected_forecast_id("forecast-a")
+    controller._forecast_version_page = 3
+    controller._forecast_line_page = 2
+    controller.selectProject("project-b")
+    assert controller.selectedForecastId == ""
+    assert controller._forecast_version_page == 1
+    assert controller._forecast_line_page == 1

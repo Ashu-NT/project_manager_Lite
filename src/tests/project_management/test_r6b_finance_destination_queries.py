@@ -5,10 +5,16 @@ from decimal import Decimal
 from contextlib import contextmanager
 from unittest.mock import MagicMock, call
 
+import pytest
+from PySide6.QtCore import QObject, QUrl
+from PySide6.QtQml import QQmlComponent
 from sqlalchemy import event
 
 from src.core.modules.project_management.api.desktop.financials.models.configuration import (
     FinancialConfigurationWorkspaceDto,
+)
+from src.core.modules.project_management.api.desktop.financials import (
+    ProjectManagementFinancialsDesktopApi,
 )
 from src.core.modules.project_management.api.desktop.financials.models.cost_entries import (
     FinancialCostEntryPageDto,
@@ -36,7 +42,12 @@ from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
     FinancePageRequest,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.finance_forecast_facts import (
+    ForecastLineRequest,
+    ForecastVersionRequest,
+)
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
+from src.ui_qml.shell.qml_engine import create_qml_engine
 
 
 @contextmanager
@@ -159,6 +170,53 @@ def test_planning_planned_cost_tab_uses_bounded_reader_facade_only() -> None:
     )
     api.get_configuration_workspace.assert_not_called()
     api.get_finance_snapshot.assert_not_called()
+
+
+def test_planning_forecast_tab_uses_bounded_reader_facade_only() -> None:
+    api = MagicMock()
+    from src.core.modules.project_management.api.desktop.financials.models.forecasts import (
+        FinancialForecastWorkspaceDto,
+    )
+
+    api.get_forecast_workspace.return_value = FinancialForecastWorkspaceDto()
+    build_destination_state(
+        api,
+        destination="planning",
+        subsection="forecast",
+        selected_project_id="project-1",
+        selected_forecast_id="forecast-2",
+        forecast_version_page=2,
+        forecast_line_page=3,
+        forecast_version_sort_key="metaText",
+        forecast_version_sort_direction="asc",
+        forecast_line_sort_key="supportingText",
+        forecast_line_sort_direction="desc",
+        forecast_version_search="approved",
+        forecast_version_status="approved",
+        forecast_generation_mode="manual",
+        forecast_line_search="risk",
+        forecast_line_source_type="risk",
+    )
+
+    api.get_forecast_workspace.assert_called_once_with(
+        "project-1",
+        selected_forecast_id="forecast-2",
+        version_page=2,
+        line_page=3,
+        page_size=50,
+        version_sort_key="metaText",
+        version_sort_direction="asc",
+        line_sort_key="supportingText",
+        line_sort_direction="desc",
+        version_search="approved",
+        version_status="approved",
+        generation_mode="manual",
+        line_search="risk",
+        line_source_type="risk",
+    )
+    api.get_cost_forecast.assert_not_called()
+    api.list_forecast_versions.assert_not_called()
+    api.list_forecast_lines.assert_not_called()
 
 
 def test_budget_reader_pages_versions_and_selected_lines_authoritatively(services) -> None:
@@ -353,6 +411,247 @@ def test_planned_cost_reader_pages_versions_and_selected_lines_authoritatively(
     assert second_page.versions.items[0].id == second.id
     assert second_page.lines.items == ()
     assert second_page.selected_version_id == ""
+
+
+def _seed_forecast_reader(services):
+    project = services["project_service"].create_project(
+        "R6B forecast reader",
+        financial_currency_code="USD",
+    )
+    cost_code = services["financial_configuration_service"].create_cost_code(
+        code="R6B-ETC",
+        name="R6B ETC",
+    )
+    task = services["task_service"].create_task(
+        project.id,
+        "R6B Forecast Task",
+        wbs_code="2.1",
+    )
+    forecasts = services["forecast_version_service"]
+    first = forecasts.create_forecast(
+        project.id,
+        name="Alpha Forecast",
+        as_of_date=date(2026, 8, 1),
+        generation_mode=ForecastGenerationMode.MANUAL,
+        created_by="admin",
+    )
+    forecasts.add_line(
+        first.id,
+        cost_code_id=cost_code.id,
+        task_id=task.id,
+        description="Manual replacement ETC",
+        amount=Decimal("100.25"),
+        source_kind=ForecastLineSourceKind.MANUAL,
+        source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
+        created_by="admin",
+        expected_forecast_version=first.row_version,
+        period_start=date(2026, 9, 1),
+        period_end=date(2026, 9, 30),
+    )
+    first = forecasts.get_forecast(first.id)
+    forecasts.add_line(
+        first.id,
+        cost_code_id=cost_code.id,
+        description="Risk contingency",
+        amount=Decimal("50.10"),
+        source_kind=ForecastLineSourceKind.MANUAL,
+        source_type=ForecastLineSourceType.RISK,
+        source_reference_type="risk",
+        source_reference_id="risk-1",
+        source_snapshot_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
+        created_by="admin",
+        expected_forecast_version=first.row_version,
+    )
+    first = forecasts.get_forecast(first.id)
+    first = forecasts.submit_forecast(
+        first.id,
+        submitted_by="admin",
+        expected_version=first.row_version,
+    )
+    first = forecasts.approve_forecast(
+        first.id,
+        approved_by="admin",
+        expected_version=first.row_version,
+    )
+
+    second = forecasts.create_forecast(
+        project.id,
+        name="Zulu Forecast",
+        as_of_date=date(2026, 8, 2),
+        generation_mode=ForecastGenerationMode.MANUAL,
+        created_by="admin",
+    )
+    forecasts.add_line(
+        second.id,
+        cost_code_id=cost_code.id,
+        description="Second manual ETC",
+        amount=Decimal("200.05"),
+        source_kind=ForecastLineSourceKind.MANUAL,
+        source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
+        created_by="admin",
+        expected_forecast_version=second.row_version,
+    )
+    return project, first, second
+
+
+def test_forecast_reader_is_bounded_filtered_and_parent_authoritative(services) -> None:
+    project, first, second = _seed_forecast_reader(services)
+    query = services["finance_workspace_query"]
+
+    with _statement_count(services["session"]) as statements:
+        selected = query.get_forecast_workspace(
+            project.id,
+            selected_forecast_id=first.id,
+            version_request=ForecastVersionRequest(
+                page=1,
+                page_size=1,
+                sort_key="revision",
+                sort_direction="asc",
+                status="approved",
+                generation_mode="manual",
+            ),
+            line_request=ForecastLineRequest(
+                page=1,
+                page_size=1,
+                sort_key="supportingText",
+                sort_direction="desc",
+                source_type="risk",
+            ),
+        )
+
+    # Authorization plus version count/page, selected summary, and line count/page.
+    assert len(statements) <= 6
+    assert selected.versions.total == 1
+    assert selected.versions.items[0].id == first.id
+    assert selected.selected_forecast_id == first.id
+    assert selected.selected_forecast is not None
+    assert selected.selected_forecast.total_etc == Decimal("150.35")
+    assert selected.selected_forecast.line_count == 2
+    assert selected.lines.total == 1
+    assert selected.lines.items[0].source_type == "risk"
+    assert selected.lines.items[0].amount == Decimal("50.10")
+    assert selected.lines.items[0].source_reference_id == "risk-1"
+
+    second_page = query.get_forecast_workspace(
+        project.id,
+        version_request=ForecastVersionRequest(
+            page=2,
+            page_size=1,
+            sort_key="revision",
+            sort_direction="asc",
+        ),
+    )
+    assert second_page.versions.items[0].id == second.id
+    assert second_page.selected_forecast_id == ""
+    assert second_page.lines.items == ()
+
+    normalized = query.get_forecast_workspace(
+        project.id,
+        version_request=ForecastVersionRequest(sort_key="not-valid"),
+        line_request=ForecastLineRequest(sort_key="not-valid"),
+    )
+    assert normalized.versions.sort_key == "revision"
+    assert normalized.lines.sort_key == "title"
+
+    invalid = query.get_forecast_workspace(
+        project.id,
+        selected_forecast_id="not-in-this-project",
+    )
+    assert invalid.selected_forecast_id == ""
+    assert invalid.selected_forecast is None
+    assert invalid.lines.items == ()
+
+
+def test_forecast_reader_rejects_wrong_scope_and_serializes_decimal_strings(
+    services,
+) -> None:
+    project, first, _second = _seed_forecast_reader(services)
+    query = services["finance_workspace_query"]
+    scope = services["tenant_context_service"].require_active_scope_ids(
+        operation_label="test forecast scope"
+    )
+    wrong_scope = query._forecast_reader.list_versions(
+        tenant_id=scope.tenant_id,
+        organization_id="wrong-organization",
+        project_id=project.id,
+        request=ForecastVersionRequest(),
+    )
+    assert wrong_scope.total == 0
+    assert wrong_scope.items == ()
+
+    desktop = ProjectManagementFinancialsDesktopApi(finance_workspace_query=query)
+    dto = desktop.get_forecast_workspace(
+        project.id,
+        selected_forecast_id=first.id,
+        line_page=1,
+        page_size=1,
+    )
+    assert dto.selected_forecast_id == first.id
+    assert isinstance(dto.versions[0].state["totalEtc"], str)
+    assert dto.selected_forecast.fields[0][1] == "USD 150.35"
+    assert Decimal(dto.lines[0].state["amount"]) in {
+        Decimal("100.25"),
+        Decimal("50.10"),
+    }
+    assert isinstance(dto.lines[0].state["amount"], str)
+
+
+@pytest.mark.parametrize(
+    ("width", "height"),
+    ((1024, 640), (1280, 720), (1366, 768), (1440, 900), (1920, 1080)),
+)
+def test_forecast_master_detail_loads_at_supported_viewports(
+    qapp, width: int, height: int
+) -> None:
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    component.setData(
+        b"""
+import QtQuick
+import workspaces.financials.sections 1.0
+Window {
+    visible: true
+    FinancialsForecastSection {
+        id: section
+        objectName: "forecastSection"
+        anchors.fill: parent
+        forecastVersions: ({
+            "items": [{"id": "forecast-1"}],
+            "page": 1, "pageSize": 50, "total": 1
+        })
+        selectedForecastId: "forecast-1"
+        selectedForecast: ({
+            "id": "forecast-1", "title": "Forecast r1",
+            "statusLabel": "Approved", "subtitle": "As of 2026-08-01",
+            "fields": []
+        })
+        forecastLines: ({
+            "items": [{"id": "line-1"}],
+            "page": 1, "pageSize": 50, "total": 1
+        })
+    }
+}
+""",
+        QUrl(),
+    )
+    assert component.isReady(), [error.toString() for error in component.errors()]
+    root = component.create()
+    assert root is not None
+    root.setProperty("width", width)
+    root.setProperty("height", height)
+    root.show()
+    qapp.processEvents()
+
+    section = root.findChild(QObject, "forecastSection")
+    versions_table = root.findChild(QObject, "forecastVersionsTable")
+    lines_table = root.findChild(QObject, "forecastLinesTable")
+    assert section is not None
+    assert versions_table is not None
+    assert lines_table is not None
+    assert float(section.property("width")) == width
+    assert float(versions_table.property("width")) >= width - 2
+    assert float(lines_table.property("width")) >= width - 2
+    root.deleteLater()
 
 
 def test_cost_actuals_tab_loads_only_paged_actual_dependencies() -> None:

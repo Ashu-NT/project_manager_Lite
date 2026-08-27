@@ -12,14 +12,7 @@ from .overview_builder import build_overview
 from .record_mapper import to_record_view_model
 
 
-def build_workspace_state(
-    desktop_api,
-    *,
-    site_filter: str = "all",
-    storeroom_filter: str = "all",
-    supplier_filter: str = "all",
-    limit_filter: str = "200",
-) -> InventoryPricingWorkspaceViewModel:
+def build_site_reference_options(desktop_api):
     site_options = (
         InventorySelectorOptionViewModel(value="all", label="All sites"),
         *(
@@ -37,6 +30,18 @@ def build_workspace_state(
             for option in desktop_api.list_storeroom_options(active_only=None)
         ),
     )
+    return site_options, storeroom_options
+
+
+def build_workspace_state(
+    desktop_api,
+    *,
+    site_filter: str = "all",
+    storeroom_filter: str = "all",
+    supplier_filter: str = "all",
+    limit_filter: str = "200",
+) -> InventoryPricingWorkspaceViewModel:
+    site_options, storeroom_options = build_site_reference_options(desktop_api)
     supplier_options = (
         InventorySelectorOptionViewModel(value="all", label="All suppliers"),
         *(

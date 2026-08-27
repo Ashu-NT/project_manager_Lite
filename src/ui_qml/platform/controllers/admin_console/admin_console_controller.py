@@ -328,6 +328,9 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     def refresh_departments(self) -> None:
         self._department_controller.refresh()
 
+    def refresh_sites(self) -> None:
+        self._site_controller.refresh()
+
     @Slot(str, "QVariantMap", result=str)
     def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
         return generate_entity_code(self, entity_type, payload)

@@ -134,3 +134,11 @@ def refresh(ctrl) -> None:
         ctrl._set_error_message(str(exc))
     finally:
         ctrl._set_is_loading(False)
+
+
+def refresh_site_options(ctrl) -> None:
+    site_options, storeroom_options = (
+        ctrl._procurement_workspace_presenter.build_site_reference_options()
+    )
+    ctrl._set_site_options(serialize_selector_options(site_options))
+    ctrl._set_storeroom_options(serialize_selector_options(storeroom_options))

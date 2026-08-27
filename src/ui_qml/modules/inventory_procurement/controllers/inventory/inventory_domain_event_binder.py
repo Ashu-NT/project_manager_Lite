@@ -23,6 +23,5 @@ def bind_domain_events(ctrl) -> None:
         domain_events.inventory_reorder_policies_changed,
         domain_events.inventory_cycle_counts_changed,
         domain_events.parties_changed,
-        domain_events.sites_changed,
     ):
         ctrl._subscribe_domain_signal(signal, _on_domain_event)

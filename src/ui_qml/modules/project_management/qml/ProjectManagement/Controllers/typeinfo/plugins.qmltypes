@@ -195,6 +195,18 @@ Component {
     Property { name: "selectedForecastId"; type: "QString"; isReadonly: true }
     Property { name: "forecastVersions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "forecastLines"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedForecast"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "forecastVersionsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "forecastLinesTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "forecastVersionSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "forecastVersionSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "forecastLineSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "forecastLineSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "forecastVersionSearch"; type: "QString"; isReadonly: true }
+    Property { name: "forecastVersionStatus"; type: "QString"; isReadonly: true }
+    Property { name: "forecastGenerationMode"; type: "QString"; isReadonly: true }
+    Property { name: "forecastLineSearch"; type: "QString"; isReadonly: true }
+    Property { name: "forecastLineSourceType"; type: "QString"; isReadonly: true }
     Property { name: "selectedChangeId"; type: "QString"; isReadonly: true }
     Property { name: "financialChanges"; type: "QVariantMap"; isReadonly: true }
     Property { name: "financialChangeImpacts"; type: "QVariantMap"; isReadonly: true }
@@ -244,6 +256,12 @@ Component {
     Method { name: "setPlannedCostLineSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
     Method { name: "exportFinancials"; Parameter { name: "reportFormat"; type: "QString" } Parameter { name: "outputPath"; type: "QString" } }
     Method { name: "selectForecastVersion"; Parameter { name: "forecastId"; type: "QString" } }
+    Method { name: "setForecastVersionPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setForecastLinePage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setForecastVersionSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setForecastLineSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setForecastVersionFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "status"; type: "QString" } Parameter { name: "generationMode"; type: "QString" } }
+    Method { name: "setForecastLineFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "sourceType"; type: "QString" } }
     Method { name: "selectFinancialChange"; Parameter { name: "changeId"; type: "QString" } }
     Method { name: "selectVarianceBaseline"; Parameter { name: "baselineId"; type: "QString" } }
     Method { name: "createManualActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }

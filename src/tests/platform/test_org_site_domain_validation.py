@@ -267,6 +267,7 @@ def _make_site_service(monkeypatch: pytest.MonkeyPatch) -> tuple[SiteService, Or
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=_FakeTenantContext(organization_repo, organization.id),
         uow_factory=_FakeSiteUnitOfWorkFactory(site_repo, enterprise_audit_service),
+        clock=_FakeClock(),
     )
     return service, organization
 

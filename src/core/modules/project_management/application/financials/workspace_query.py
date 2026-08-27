@@ -42,6 +42,9 @@ from src.core.modules.project_management.contracts.reads.financials.finance_budg
 from src.core.modules.project_management.contracts.reads.financials.finance_planned_cost_reader import (
     FinancePlannedCostReader,
 )
+from src.core.modules.project_management.contracts.reads.financials.finance_forecast_reader import (
+    FinanceForecastReader,
+)
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
     FinanceBudgetWorkspaceFacts,
     FinancePageFacts,
@@ -49,6 +52,11 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_planned_cost_facts import (
     FinancePlannedCostWorkspaceFacts,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_forecast_facts import (
+    FinanceForecastWorkspaceFacts,
+    ForecastLineRequest,
+    ForecastVersionRequest,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
@@ -72,6 +80,7 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         resource_repo: ResourceRepository,
         budget_reader: FinanceBudgetReader | None = None,
         planned_cost_reader: FinancePlannedCostReader | None = None,
+        forecast_reader: FinanceForecastReader | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
         module_catalog_service=None,
@@ -85,6 +94,7 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         self._resource_repo = resource_repo
         self._budget_reader = budget_reader
         self._planned_cost_reader = planned_cost_reader
+        self._forecast_reader = forecast_reader
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
@@ -201,6 +211,76 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         )
         return FinancePlannedCostWorkspaceFacts(
             selected_version_id=normalized_version_id,
+            versions=versions,
+            lines=lines,
+        )
+
+    def get_forecast_workspace(
+        self,
+        project_id: str,
+        *,
+        selected_forecast_id: str = "",
+        version_request: ForecastVersionRequest | None = None,
+        line_request: ForecastLineRequest | None = None,
+    ) -> FinanceForecastWorkspaceFacts:
+        require_permission(
+            self._user_session,
+            "finance.read",
+            operation_label="view project forecasts",
+        )
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "finance.read",
+            operation_label="view project forecasts",
+        )
+        if self._forecast_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Finance Forecast Reader is not configured.")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view project forecasts"
+        )
+        versions = self._forecast_reader.list_versions(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            request=version_request or ForecastVersionRequest(),
+        )
+        requested_id = str(selected_forecast_id or "").strip()
+        selected = (
+            self._forecast_reader.get_version(
+                tenant_id=scope.tenant_id,
+                organization_id=scope.organization_id,
+                project_id=project_id,
+                forecast_id=requested_id,
+            )
+            if requested_id
+            else None
+        )
+        resolved_id = selected.id if selected is not None else ""
+        requested_lines = line_request or ForecastLineRequest()
+        lines = (
+            self._forecast_reader.list_lines(
+                tenant_id=scope.tenant_id,
+                organization_id=scope.organization_id,
+                project_id=project_id,
+                forecast_id=resolved_id,
+                request=requested_lines,
+            )
+            if resolved_id
+            else FinancePageFacts(
+                items=(),
+                total=0,
+                page=requested_lines.normalized_page,
+                page_size=requested_lines.normalized_page_size,
+                sort_key=requested_lines.normalized_sort_key,
+                sort_direction=(
+                    "asc" if requested_lines.sort_direction == "asc" else "desc"
+                ),
+            )
+        )
+        return FinanceForecastWorkspaceFacts(
+            selected_forecast_id=resolved_id,
+            selected_forecast=selected,
             versions=versions,
             lines=lines,
         )

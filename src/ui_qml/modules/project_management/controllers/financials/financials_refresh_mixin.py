@@ -8,7 +8,6 @@ from src.ui_qml.modules.project_management.controllers.common import (
     serialize_financials_collection_view_model,
     serialize_financials_commitment_summary_view_model,
     serialize_financials_detail_view_model,
-    serialize_financials_forecast_view_model,
     serialize_financials_overview_view_model,
     serialize_selector_options,
     serialize_workspace_view_model,
@@ -77,6 +76,21 @@ class FinancialsRefreshMixin:
                     self._commitment_sort_direction
                 ),
                 selected_forecast_id=self._selected_forecast_id or None,
+                forecast_version_page=self._forecast_version_page,
+                forecast_line_page=self._forecast_line_page,
+                forecast_version_sort_key=self._forecast_version_sort_key,
+                forecast_version_sort_direction=self._sort_direction_name(
+                    self._forecast_version_sort_direction
+                ),
+                forecast_line_sort_key=self._forecast_line_sort_key,
+                forecast_line_sort_direction=self._sort_direction_name(
+                    self._forecast_line_sort_direction
+                ),
+                forecast_version_search=self._forecast_version_search,
+                forecast_version_status=self._forecast_version_status,
+                forecast_generation_mode=self._forecast_generation_mode,
+                forecast_line_search=self._forecast_line_search,
+                forecast_line_source_type=self._forecast_line_source_type,
                 selected_budget_id=self._selected_budget_id or None,
                 budget_version_sort_key=self._budget_version_sort_key,
                 budget_version_sort_direction=self._sort_direction_name(
@@ -166,10 +180,10 @@ class FinancialsRefreshMixin:
                     line_direction=state.planned_cost_line_sort_direction,
                 )
             else:
-                self._set_forecast(
-                    serialize_financials_forecast_view_model(state.forecast)
-                )
                 self._set_selected_forecast_id(state.selected_forecast_id)
+                self._set_selected_forecast(
+                    serialize_financials_detail_view_model(state.selected_forecast)
+                )
                 self._set_forecast_versions(
                     serialize_financials_collection_view_model(
                         state.forecast_versions
@@ -178,6 +192,10 @@ class FinancialsRefreshMixin:
                 self._set_forecast_lines(
                     serialize_financials_collection_view_model(state.forecast_lines)
                 )
+                self._forecast_version_page = state.forecast_versions.page
+                self._forecast_line_page = state.forecast_lines.page
+                self._configuration_page_size = state.forecast_lines.page_size
+                self._set_forecast_query_state(state)
             return
 
         if destination == "costs":
@@ -321,6 +339,7 @@ class FinancialsRefreshMixin:
         self._set_notes([])
         self._set_forecast(default_forecast())
         self._set_selected_forecast_id("")
+        self._set_selected_forecast(default_detail())
         self._set_forecast_versions(default_collection())
         self._set_forecast_lines(default_collection())
         self._set_selected_change_id("")

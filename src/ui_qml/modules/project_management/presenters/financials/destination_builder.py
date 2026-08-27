@@ -21,11 +21,10 @@ from .billing_builder import build_billing_views
 from .cashflow_builder import build_cashflow_collection
 from .commitment_builder import build_commitment_collection, build_commitment_summary
 from .configuration_builder import build_finance_configuration_views
-from .forecast_builder import build_forecast_view_model
+from .forecast_workspace_builder import build_forecast_workspace_views
 from .ledger_builder import build_ledger_collection
 from .lifecycle_builder import (
     build_change_lifecycle_views,
-    build_forecast_lifecycle_views,
     build_variance_views,
 )
 from .overview_builder import build_overview
@@ -122,6 +121,17 @@ def build_destination_state(
     commitment_sort_key: str = "metaText",
     commitment_sort_direction: str = "desc",
     selected_forecast_id: str | None = None,
+    forecast_version_page: int = 1,
+    forecast_line_page: int = 1,
+    forecast_version_sort_key: str = "revision",
+    forecast_version_sort_direction: str = "desc",
+    forecast_line_sort_key: str = "title",
+    forecast_line_sort_direction: str = "asc",
+    forecast_version_search: str = "",
+    forecast_version_status: str = "",
+    forecast_generation_mode: str = "",
+    forecast_line_search: str = "",
+    forecast_line_source_type: str = "",
     selected_budget_id: str | None = None,
     budget_version_sort_key: str = "revision",
     budget_version_sort_direction: str = "desc",
@@ -214,19 +224,39 @@ def build_destination_state(
                     "planned_cost_line_sort_direction"
                 ],
             )
-        forecast = desktop_api.get_cost_forecast(project_id)
-        lifecycle = build_forecast_lifecycle_views(
-            desktop_api,
-            project_id=project_id,
-            selected_forecast_id=selected_forecast_id,
+        forecast = desktop_api.get_forecast_workspace(
+            project_id,
+            selected_forecast_id=selected_forecast_id or "",
+            version_page=forecast_version_page,
+            line_page=forecast_line_page,
+            page_size=configuration_page_size,
+            version_sort_key=forecast_version_sort_key,
+            version_sort_direction=forecast_version_sort_direction,
+            line_sort_key=forecast_line_sort_key,
+            line_sort_direction=forecast_line_sort_direction,
+            version_search=forecast_version_search,
+            version_status=forecast_version_status,
+            generation_mode=forecast_generation_mode,
+            line_search=forecast_line_search,
+            line_source_type=forecast_line_source_type,
         )
+        views = build_forecast_workspace_views(forecast)
         return FinancialsWorkspaceViewModel(
             overview=state.overview,
             selected_project_id=project_id,
-            forecast=build_forecast_view_model(forecast),
-            selected_forecast_id=lifecycle["selected_forecast_id"],
-            forecast_versions=lifecycle["forecast_versions"],
-            forecast_lines=lifecycle["forecast_lines"],
+            selected_forecast_id=views["selected_forecast_id"],
+            selected_forecast=views["selected_forecast"],
+            forecast_versions=views["forecast_versions"],
+            forecast_lines=views["forecast_lines"],
+            forecast_version_sort_key=views["forecast_version_sort_key"],
+            forecast_version_sort_direction=views["forecast_version_sort_direction"],
+            forecast_line_sort_key=views["forecast_line_sort_key"],
+            forecast_line_sort_direction=views["forecast_line_sort_direction"],
+            forecast_version_search=views["forecast_version_search"],
+            forecast_version_status=views["forecast_version_status"],
+            forecast_generation_mode=views["forecast_generation_mode"],
+            forecast_line_search=views["forecast_line_search"],
+            forecast_line_source_type=views["forecast_line_source_type"],
         )
 
     if destination == "costs":

@@ -18,10 +18,21 @@ Item {
     property var sourceAnalyticsModel: ({ "items": [] })
     property var costTypeAnalyticsModel: ({ "items": [] })
     property var overviewModel: ({ "title": "", "subtitle": "", "metrics": [] })
-    property var forecastModel: ({})
     property var forecastVersionsModel: ({ "items": [] })
     property var forecastLinesModel: ({ "items": [] })
+    property var selectedForecastModel: ({ "id": "", "fields": [] })
+    property var forecastVersionsTableModel: null
+    property var forecastLinesTableModel: null
     property string selectedForecastId: ""
+    property string forecastVersionSortKey: "revision"
+    property int forecastVersionSortDirection: Qt.DescendingOrder
+    property string forecastLineSortKey: "title"
+    property int forecastLineSortDirection: Qt.AscendingOrder
+    property string forecastVersionSearch: ""
+    property string forecastVersionStatus: ""
+    property string forecastGenerationMode: ""
+    property string forecastLineSearch: ""
+    property string forecastLineSourceType: ""
     property var financialChangesModel: ({ "items": [] })
     property var financialChangeImpactsModel: ({ "items": [] })
     property string selectedChangeId: ""
@@ -76,6 +87,12 @@ Item {
     signal plannedCostVersionSortRequested(string key, int direction)
     signal plannedCostLineSortRequested(string key, int direction)
     signal forecastSelected(string forecastId)
+    signal forecastVersionPageRequested(int page)
+    signal forecastLinePageRequested(int page)
+    signal forecastVersionSortRequested(string key, int direction)
+    signal forecastLineSortRequested(string key, int direction)
+    signal forecastVersionFiltersRequested(string search, string status, string generationMode)
+    signal forecastLineFiltersRequested(string search, string sourceType)
     signal financialChangeSelected(string changeId)
     signal varianceBaselineSelected(string baselineId)
     signal actualEntrySelected(string entryId)
@@ -248,13 +265,38 @@ Item {
         id: forecastComponent
         FinancialsForecastSection {
             width: parent ? parent.width : 0
-            forecastModel: root.forecastModel
             isBusy: root.isBusy
             forecastVersions: root.forecastVersionsModel
             forecastLines: root.forecastLinesModel
+            selectedForecast: root.selectedForecastModel
+            versionsTableModel: root.forecastVersionsTableModel
+            linesTableModel: root.forecastLinesTableModel
             selectedForecastId: root.selectedForecastId
+            versionSortKey: root.forecastVersionSortKey
+            versionSortDirection: root.forecastVersionSortDirection
+            lineSortKey: root.forecastLineSortKey
+            lineSortDirection: root.forecastLineSortDirection
+            versionSearch: root.forecastVersionSearch
+            versionStatus: root.forecastVersionStatus
+            generationMode: root.forecastGenerationMode
+            lineSearch: root.forecastLineSearch
+            lineSourceType: root.forecastLineSourceType
             onForecastSelected: function(forecastId) {
                 root.forecastSelected(forecastId)
+            }
+            onVersionPageRequested: function(page) { root.forecastVersionPageRequested(page) }
+            onLinePageRequested: function(page) { root.forecastLinePageRequested(page) }
+            onVersionSortRequested: function(key, direction) {
+                root.forecastVersionSortRequested(key, direction)
+            }
+            onLineSortRequested: function(key, direction) {
+                root.forecastLineSortRequested(key, direction)
+            }
+            onVersionFiltersRequested: function(search, status, generationMode) {
+                root.forecastVersionFiltersRequested(search, status, generationMode)
+            }
+            onLineFiltersRequested: function(search, sourceType) {
+                root.forecastLineFiltersRequested(search, sourceType)
             }
         }
     }

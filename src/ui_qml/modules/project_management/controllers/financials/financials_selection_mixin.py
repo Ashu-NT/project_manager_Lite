@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from src.ui_qml.modules.project_management.controllers.financials.financials_types import (
+    default_collection,
+    default_detail,
+)
+
 
 class FinancialsSelectionMixin:
     def _select_destination(self, destination: str) -> None:
@@ -39,6 +44,8 @@ class FinancialsSelectionMixin:
         self._actual_page = 1
         self._commitment_page = 1
         self._set_selected_forecast_id("")
+        self._forecast_version_page = 1
+        self._forecast_line_page = 1
         self._set_selected_budget_id("")
         self._set_selected_planned_cost_version_id("")
         self._set_selected_change_id("")
@@ -50,6 +57,82 @@ class FinancialsSelectionMixin:
         value = (forecast_id or "").strip()
         if value != self._selected_forecast_id:
             self._set_selected_forecast_id(value)
+            self._forecast_line_page = 1
+            self._set_selected_forecast(default_detail())
+            self._set_forecast_lines(default_collection())
+            self.refresh()
+
+    def _set_forecast_version_page(self, page: int) -> None:
+        normalized = max(1, int(page))
+        if normalized != self._forecast_version_page:
+            self._forecast_version_page = normalized
+            self.refresh()
+
+    def _set_forecast_line_page(self, page: int) -> None:
+        normalized = max(1, int(page))
+        if normalized != self._forecast_line_page:
+            self._forecast_line_page = normalized
+            self.refresh()
+
+    def _set_forecast_version_sort(self, key: str, direction: int) -> None:
+        normalized_key = str(key or "").strip()
+        if (
+            normalized_key != self._forecast_version_sort_key
+            or int(direction) != self._forecast_version_sort_direction
+        ):
+            self._forecast_version_sort_key = normalized_key
+            self._forecast_version_sort_direction = int(direction)
+            self._forecast_version_page = 1
+            self.forecastVersionSortKeyChanged.emit()
+            self.forecastVersionSortDirectionChanged.emit()
+            self.refresh()
+
+    def _set_forecast_line_sort(self, key: str, direction: int) -> None:
+        normalized_key = str(key or "").strip()
+        if (
+            normalized_key != self._forecast_line_sort_key
+            or int(direction) != self._forecast_line_sort_direction
+        ):
+            self._forecast_line_sort_key = normalized_key
+            self._forecast_line_sort_direction = int(direction)
+            self._forecast_line_page = 1
+            self.forecastLineSortKeyChanged.emit()
+            self.forecastLineSortDirectionChanged.emit()
+            self.refresh()
+
+    def _set_forecast_version_filters(
+        self, search: str, status: str, generation_mode: str
+    ) -> None:
+        values = (
+            str(search or "").strip(),
+            str(status or "").strip().lower(),
+            str(generation_mode or "").strip().lower(),
+        )
+        current = (
+            self._forecast_version_search,
+            self._forecast_version_status,
+            self._forecast_generation_mode,
+        )
+        if values != current:
+            (
+                self._forecast_version_search,
+                self._forecast_version_status,
+                self._forecast_generation_mode,
+            ) = values
+            self._forecast_version_page = 1
+            self.forecastFiltersChanged.emit()
+            self.refresh()
+
+    def _set_forecast_line_filters(self, search: str, source_type: str) -> None:
+        values = (
+            str(search or "").strip(),
+            str(source_type or "").strip().lower(),
+        )
+        current = (self._forecast_line_search, self._forecast_line_source_type)
+        if values != current:
+            self._forecast_line_search, self._forecast_line_source_type = values
+            self._forecast_line_page = 1
+            self.forecastFiltersChanged.emit()
             self.refresh()
 
     def _select_budget_version(self, budget_id: str) -> None:

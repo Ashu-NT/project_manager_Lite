@@ -83,6 +83,15 @@ from src.core.platform.domain.master_data.department.events import (
     DepartmentCreated,
     DepartmentProfileUpdated,
 )
+from src.core.platform.application.master_data.site.event_handlers.view_invalidation import (
+    build_site_list_view_invalidation_handler,
+)
+from src.core.platform.domain.master_data.site.events import (
+    SiteCreated,
+    SiteDisabled,
+    SiteEnabled,
+    SiteProfileUpdated,
+)
 from src.core.platform.application.tenant.modules.event_handlers.view_invalidation import (
     build_module_entitlement_view_invalidation_handler,
 )
@@ -468,6 +477,14 @@ def build_platform_service_bundle(
             _department_event_type, _department_list_view_invalidation_handler
         )
 
+    _site_list_view_invalidation_handler = build_site_list_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _site_event_type in (SiteCreated, SiteProfileUpdated, SiteEnabled, SiteDisabled):
+        platform_post_commit_bus.subscribe(
+            _site_event_type, _site_list_view_invalidation_handler
+        )
+
     approval_uow_session_factory = sessionmaker(bind=session.bind, future=True)
     approval_uow_factory = SqlAlchemyPlatformUnitOfWorkFactory(
         session_factory=approval_uow_session_factory,
@@ -636,6 +653,7 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
         overview_rollup_reader=overview_rollup_reader,
         uow_factory=site_uow_factory,
+        clock=SystemClock(),
     )
     department_uow_session_factory = sessionmaker(bind=session.bind, future=True)
     department_uow_factory = SqlAlchemyDepartmentUnitOfWorkFactory(

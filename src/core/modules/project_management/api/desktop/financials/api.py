@@ -22,6 +22,10 @@ from src.core.modules.project_management.contracts.reads.financials.sorting impo
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
     FinancePageRequest,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.finance_forecast_facts import (
+    ForecastLineRequest,
+    ForecastVersionRequest,
+)
 from src.core.modules.project_management.contracts.reads.pagination import (
     normalize_offset_for_total,
     normalize_page_for_total,
@@ -38,7 +42,10 @@ from src.core.modules.project_management.api.desktop.financials.models.commitmen
     FinancialCommitmentLinePageDto,
     FinancialCommitmentSummaryDto,
 )
-from src.core.modules.project_management.api.desktop.financials.models.forecasts import FinancialForecastDto
+from src.core.modules.project_management.api.desktop.financials.models.forecasts import (
+    FinancialForecastDto,
+    FinancialForecastWorkspaceDto,
+)
 from src.core.modules.project_management.api.desktop.financials.models.lifecycle import (
     FinancialBaselineVarianceDto,
     FinancialChangeDto,
@@ -124,6 +131,9 @@ from src.core.modules.project_management.api.desktop.financials.serializers.conf
     serialize_finance_budget_workspace,
     serialize_finance_configuration_workspace,
     serialize_finance_planned_cost_workspace,
+)
+from src.core.modules.project_management.api.desktop.financials.serializers.forecast_workspace_serializer import (
+    serialize_finance_forecast_workspace,
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.billing_serializer import (
     serialize_billing_preparation,
@@ -437,6 +447,56 @@ class ProjectManagementFinancialsDesktopApi:
         return tuple(
             serialize_forecast_version(item)
             for item in self._forecast_version_service.list_forecasts(project_id)
+        )
+
+    def get_forecast_workspace(
+        self,
+        project_id: str,
+        *,
+        selected_forecast_id: str = "",
+        version_page: int = 1,
+        line_page: int = 1,
+        page_size: int = 50,
+        version_sort_key: str = "revision",
+        version_sort_direction: str = "desc",
+        line_sort_key: str = "title",
+        line_sort_direction: str = "asc",
+        version_search: str = "",
+        version_status: str = "",
+        generation_mode: str = "",
+        line_search: str = "",
+        line_source_type: str = "",
+    ) -> FinancialForecastWorkspaceDto:
+        if not project_id or self._finance_workspace_query is None:
+            return FinancialForecastWorkspaceDto()
+        facts = self._finance_workspace_query.get_forecast_workspace(
+            project_id,
+            selected_forecast_id=selected_forecast_id,
+            version_request=ForecastVersionRequest(
+                page=version_page,
+                page_size=page_size,
+                sort_key=version_sort_key,
+                sort_direction=version_sort_direction,
+                search=version_search,
+                status=version_status,
+                generation_mode=generation_mode,
+            ),
+            line_request=ForecastLineRequest(
+                page=line_page,
+                page_size=page_size,
+                sort_key=line_sort_key,
+                sort_direction=line_sort_direction,
+                search=line_search,
+                source_type=line_source_type,
+            ),
+        )
+        return serialize_finance_forecast_workspace(
+            facts,
+            version_search=version_search,
+            version_status=version_status,
+            generation_mode=generation_mode,
+            line_search=line_search,
+            line_source_type=line_source_type,
         )
 
     def list_forecast_lines(

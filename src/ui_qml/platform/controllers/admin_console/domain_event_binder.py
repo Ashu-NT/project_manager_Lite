@@ -8,7 +8,6 @@ def bind_domain_events(controller) -> None:
         controller._request_domain_refresh()
 
     for signal in (
-        domain_events.sites_changed,
         domain_events.auth_changed,
         domain_events.parties_changed,
         domain_events.documents_changed,

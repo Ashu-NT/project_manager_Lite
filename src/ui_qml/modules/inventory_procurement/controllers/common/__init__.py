@@ -1,6 +1,9 @@
 from src.ui_qml.modules.inventory_procurement.controllers.common.mutation_runner import (
     run_mutation,
 )
+from src.ui_qml.modules.inventory_procurement.controllers.common.runtime_context import (
+    resolve_active_organization_id_from_runtime_api,
+)
 from src.ui_qml.modules.inventory_procurement.controllers.common.serializers import (
     serialize_activity_entries,
     serialize_catalog_detail_view_model,
@@ -19,6 +22,7 @@ from src.ui_qml.modules.inventory_procurement.controllers.common.workspace_contr
 
 __all__ = [
     "InventoryProcurementWorkspaceControllerBase",
+    "resolve_active_organization_id_from_runtime_api",
     "run_mutation",
     "serialize_activity_entries",
     "serialize_catalog_detail_view_model",

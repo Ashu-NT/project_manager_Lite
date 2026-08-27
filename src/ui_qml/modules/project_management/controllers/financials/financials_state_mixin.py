@@ -101,12 +101,66 @@ class FinancialsStateMixin:
     def _set_forecast_versions(self, value: FinancialsMap) -> None:
         if value != self._forecast_versions:
             self._forecast_versions = value
+            self._forecast_versions_table_model.set_rows(value.get("items", []))
             self.forecastVersionsChanged.emit()
 
     def _set_forecast_lines(self, value: FinancialsMap) -> None:
         if value != self._forecast_lines:
             self._forecast_lines = value
+            self._forecast_lines_table_model.set_rows(value.get("items", []))
             self.forecastLinesChanged.emit()
+
+    def _set_selected_forecast(self, value: FinancialsMap) -> None:
+        if value != self._selected_forecast:
+            self._selected_forecast = value
+            self.selectedForecastChanged.emit()
+
+    def _set_forecast_query_state(self, state) -> None:
+        version_order = (
+            Qt.DescendingOrder.value
+            if state.forecast_version_sort_direction == "desc"
+            else Qt.AscendingOrder.value
+        )
+        line_order = (
+            Qt.DescendingOrder.value
+            if state.forecast_line_sort_direction == "desc"
+            else Qt.AscendingOrder.value
+        )
+        if state.forecast_version_sort_key != self._forecast_version_sort_key:
+            self._forecast_version_sort_key = state.forecast_version_sort_key
+            self.forecastVersionSortKeyChanged.emit()
+        if version_order != self._forecast_version_sort_direction:
+            self._forecast_version_sort_direction = version_order
+            self.forecastVersionSortDirectionChanged.emit()
+        if state.forecast_line_sort_key != self._forecast_line_sort_key:
+            self._forecast_line_sort_key = state.forecast_line_sort_key
+            self.forecastLineSortKeyChanged.emit()
+        if line_order != self._forecast_line_sort_direction:
+            self._forecast_line_sort_direction = line_order
+            self.forecastLineSortDirectionChanged.emit()
+        filters = (
+            state.forecast_version_search,
+            state.forecast_version_status,
+            state.forecast_generation_mode,
+            state.forecast_line_search,
+            state.forecast_line_source_type,
+        )
+        current = (
+            self._forecast_version_search,
+            self._forecast_version_status,
+            self._forecast_generation_mode,
+            self._forecast_line_search,
+            self._forecast_line_source_type,
+        )
+        if filters != current:
+            (
+                self._forecast_version_search,
+                self._forecast_version_status,
+                self._forecast_generation_mode,
+                self._forecast_line_search,
+                self._forecast_line_source_type,
+            ) = filters
+            self.forecastFiltersChanged.emit()
 
     def _set_selected_change_id(self, value: str) -> None:
         if value != self._selected_change_id:

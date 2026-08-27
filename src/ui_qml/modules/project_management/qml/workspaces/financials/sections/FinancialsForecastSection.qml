@@ -1,153 +1,322 @@
 pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Layouts
+import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
-import App.Controls 1.0 as AppControls
 
 Item {
     id: root
 
-    property var forecastModel: ({
-        "basisLabel": "", "budgetLabel": "", "actualLabel": "",
-        "etcLabel": "", "eacLabel": "", "vacLabel": "",
-        "isOverBudget": false, "hasApprovedForecast": false,
-        "forecastRevision": null, "forecastAsOfLabel": "", "alertMessage": "", "metrics": []
-    })
-    property bool isBusy: false
+    property var selectedForecast: ({ "id": "", "fields": [], "emptyState": "" })
     property var forecastVersions: ({ "items": [] })
     property var forecastLines: ({ "items": [] })
+    property var versionsTableModel: null
+    property var linesTableModel: null
     property string selectedForecastId: ""
+    property string versionSortKey: "revision"
+    property int versionSortDirection: Qt.DescendingOrder
+    property string lineSortKey: "title"
+    property int lineSortDirection: Qt.AscendingOrder
+    property string versionSearch: ""
+    property string versionStatus: ""
+    property string generationMode: ""
+    property string lineSearch: ""
+    property string lineSourceType: ""
+    property bool isBusy: false
+
     signal forecastSelected(string forecastId)
+    signal versionPageRequested(int page)
+    signal linePageRequested(int page)
+    signal versionSortRequested(string key, int direction)
+    signal lineSortRequested(string key, int direction)
+    signal versionFiltersRequested(string search, string status, string generationMode)
+    signal lineFiltersRequested(string search, string sourceType)
 
-    implicitHeight: _col.implicitHeight
+    readonly property var _versionColumns: [
+        { "key": "title", "label": "Forecast", "flex": 1.5, "sortable": true },
+        { "key": "statusLabel", "label": "Status", "minWidth": 105, "flex": 0, "sortable": true },
+        { "key": "subtitle", "label": "As of / generation", "flex": 1.4, "sortable": true },
+        { "key": "supportingText", "label": "ETC / lines", "flex": 1.4, "sortable": true },
+        { "key": "metaText", "label": "Approval / version", "flex": 1.5, "sortable": true }
+    ]
+    readonly property var _lineColumns: [
+        { "key": "title", "label": "Description", "flex": 1.6, "sortable": true },
+        { "key": "subtitle", "label": "Cost code / task", "flex": 1.4, "sortable": true },
+        { "key": "statusLabel", "label": "Origin", "minWidth": 100, "flex": 0, "sortable": true },
+        { "key": "supportingText", "label": "Amount / source", "flex": 1.5, "sortable": true },
+        { "key": "metaText", "label": "Period / evidence", "flex": 1.8, "sortable": true }
+    ]
+    readonly property var _statusOptions: [
+        { "value": "", "label": "All statuses" },
+        { "value": "draft", "label": "Draft" },
+        { "value": "submitted", "label": "Submitted" },
+        { "value": "approved", "label": "Approved" },
+        { "value": "rejected", "label": "Rejected" },
+        { "value": "superseded", "label": "Superseded" }
+    ]
+    readonly property var _generationOptions: [
+        { "value": "", "label": "All generation modes" },
+        { "value": "automatic", "label": "Automatic" },
+        { "value": "manual", "label": "Manual" },
+        { "value": "hybrid", "label": "Hybrid" }
+    ]
+    readonly property var _sourceOptions: [
+        { "value": "", "label": "All source types" },
+        { "value": "remaining_plan", "label": "Remaining plan" },
+        { "value": "open_commitment", "label": "Open commitment" },
+        { "value": "risk", "label": "Risk contingency" },
+        { "value": "manual_estimate", "label": "Manual estimate" },
+        { "value": "base_forecast", "label": "Base forecast" },
+        { "value": "financial_change", "label": "Financial change" }
+    ]
 
-    Column {
-        id: _col
+    function _indexOf(model, value) {
+        for (let index = 0; index < model.length; index += 1) {
+            if (String(model[index].value) === String(value || "")) return index
+        }
+        return 0
+    }
+
+    function _versionFilters() {
+        const status = root._statusOptions[statusFilter.currentIndex]
+        const generation = root._generationOptions[generationFilter.currentIndex]
+        root.versionFiltersRequested(
+            root.versionSearch,
+            status ? String(status.value) : "",
+            generation ? String(generation.value) : ""
+        )
+    }
+
+    function _lineFilters() {
+        const source = root._sourceOptions[sourceFilter.currentIndex]
+        root.lineFiltersRequested(
+            root.lineSearch,
+            source ? String(source.value) : ""
+        )
+    }
+
+    implicitHeight: contentColumn.implicitHeight
+
+    ColumnLayout {
+        id: contentColumn
         width: parent.width
-        spacing: 0
+        spacing: Theme.AppTheme.spacingMd
 
-        AppWidgets.SectionHeading { width: parent.width; label: "Forecast" }
+        AppWidgets.SectionHeading {
+            Layout.fillWidth: true
+            label: "Forecast Versions"
+        }
 
-        AppWidgets.InlineMessage {
-            width: parent.width
-            visible: String(root.forecastModel.alertMessage || "").length > 0
-            tone: root.forecastModel.isOverBudget ? "danger" : "warning"
-            message: root.forecastModel.alertMessage || ""
+        AppWidgets.TableToolbar {
+            Layout.fillWidth: true
+            searchText: root.versionSearch
+            searchPlaceholder: "Search forecast name, notes, or creator..."
+            showFilter: false
+            showRefresh: false
+            isBusy: root.isBusy
+            onSearchChanged: function(text) {
+                const status = root._statusOptions[statusFilter.currentIndex]
+                const generation = root._generationOptions[generationFilter.currentIndex]
+                root.versionFiltersRequested(
+                    text,
+                    status ? String(status.value) : "",
+                    generation ? String(generation.value) : ""
+                )
+            }
+
+            AppControls.ComboBox {
+                id: statusFilter
+                implicitWidth: 145
+                textRole: "label"
+                model: root._statusOptions
+                currentIndex: root._indexOf(root._statusOptions, root.versionStatus)
+                onActivated: root._versionFilters()
+            }
+
+            AppControls.ComboBox {
+                id: generationFilter
+                implicitWidth: 190
+                textRole: "label"
+                model: root._generationOptions
+                currentIndex: root._indexOf(root._generationOptions, root.generationMode)
+                onActivated: root._versionFilters()
+            }
+        }
+
+        AppWidgets.EmptyState {
+            Layout.fillWidth: true
+            visible: (root.forecastVersions.items || []).length === 0
+            title: "No forecast versions"
+            message: root.forecastVersions.emptyState || "No forecasts match the current filters."
         }
 
         Item {
-            width: parent.width
-            implicitHeight: _fcastContent.implicitHeight + Theme.AppTheme.spacingMd * 2
-            height: implicitHeight
+            Layout.fillWidth: true
+            Layout.preferredHeight: 250
+            visible: (root.forecastVersions.items || []).length > 0
+
+            AppWidgets.DataTable {
+                objectName: "forecastVersionsTable"
+                anchors.fill: parent
+                columns: root._versionColumns
+                sourceModel: root.versionsTableModel
+                sortingMode: "server"
+                sortKey: root.versionSortKey
+                sortDirection: root.versionSortDirection
+                selectedRowId: root.selectedForecastId
+                loading: root.isBusy
+                emptyText: root.forecastVersions.emptyState || "No forecast versions."
+                onRowSelected: function(rowId) {
+                    root.forecastSelected(String(rowId || ""))
+                }
+                onSortRequested: function(key, direction) {
+                    root.versionSortRequested(key, direction)
+                }
+            }
+        }
+
+        AppWidgets.TablePaginationBar {
+            Layout.fillWidth: true
+            visible: Number(root.forecastVersions.total || 0)
+                > Number(root.forecastVersions.pageSize || 50)
+            currentPage: Number(root.forecastVersions.page || 1)
+            pageSize: Number(root.forecastVersions.pageSize || 50)
+            totalItems: Number(root.forecastVersions.total || 0)
+            busy: root.isBusy
+            onPageRequested: function(page) { root.versionPageRequested(page) }
+        }
+
+        AppWidgets.SectionCard {
+            Layout.fillWidth: true
+            visible: String(root.selectedForecast.id || "").length > 0
+            title: root.selectedForecast.title || "Selected Forecast"
 
             ColumnLayout {
-                id: _fcastContent
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.margins: Theme.AppTheme.spacingMd
+                width: parent ? parent.width : 0
                 spacing: Theme.AppTheme.spacingMd
 
                 AppControls.Label {
                     Layout.fillWidth: true
-                    visible: String(root.forecastModel.basisLabel || "").length > 0
-                    text: String(root.forecastModel.basisLabel || "")
-                        + (root.forecastModel.forecastRevision
-                            ? " r" + String(root.forecastModel.forecastRevision) : "")
-                        + (String(root.forecastModel.forecastAsOfLabel || "").length > 0
-                            ? " | As of " + String(root.forecastModel.forecastAsOfLabel) : "")
-                    color: Theme.AppTheme.textMuted
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.captionSize
+                    Layout.margins: Theme.AppTheme.spacingMd
+                    Layout.bottomMargin: 0
+                    text: (root.selectedForecast.statusLabel || "")
+                        + " | " + (root.selectedForecast.subtitle || "")
+                    color: Theme.AppTheme.textSecondary
+                    wrapMode: Text.WordWrap
                 }
 
                 GridLayout {
                     Layout.fillWidth: true
-                    columns: 4
-                    columnSpacing: Theme.AppTheme.spacingSm
+                    Layout.margins: Theme.AppTheme.spacingMd
+                    columns: width >= 900 ? 3 : (width >= 560 ? 2 : 1)
+                    columnSpacing: Theme.AppTheme.spacingLg
                     rowSpacing: Theme.AppTheme.spacingSm
 
                     Repeater {
-                        model: root.forecastModel.metrics || []
-
-                        delegate: Rectangle {
-                            id: _fcastCell
+                        model: root.selectedForecast.fields || []
+                        delegate: ColumnLayout {
+                            id: detailField
                             required property var modelData
                             Layout.fillWidth: true
-                            radius: Theme.AppTheme.radiusMd
-                            color: Theme.AppTheme.surfaceAlt
-                            implicitHeight: _fcastCellContent.implicitHeight + Theme.AppTheme.spacingSm * 2
-
-                            readonly property color _valueColor: {
-                                const hint = String(_fcastCell.modelData.colorHint || "")
-                                if (hint === "success") return Theme.AppTheme.success
-                                if (hint === "warning") return Theme.AppTheme.warning
-                                if (hint === "danger")  return Theme.AppTheme.danger
-                                return Theme.AppTheme.textPrimary
+                            AppControls.Label {
+                                Layout.fillWidth: true
+                                text: String(detailField.modelData.label || "")
+                                color: Theme.AppTheme.textMuted
                             }
-
-                            ColumnLayout {
-                                id: _fcastCellContent
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.top: parent.top
-                                anchors.margins: Theme.AppTheme.spacingSm
-                                spacing: 2
-
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    text: String(_fcastCell.modelData.label || "")
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                }
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    text: String(_fcastCell.modelData.value || "-")
-                                    color: _fcastCell._valueColor
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    font.bold: true
-                                    wrapMode: Text.NoWrap
-                                    elide: Text.ElideRight
-                                }
+                            AppControls.Label {
+                                Layout.fillWidth: true
+                                text: String(detailField.modelData.value || "-")
+                                font.bold: true
+                                wrapMode: Text.WordWrap
                             }
                         }
                     }
                 }
+            }
+        }
 
-                AppControls.Label {
-                    Layout.fillWidth: true
-                    visible: (root.forecastModel.metrics || []).length === 0
-                    text: "Select a project to view approved ETC, EAC, and variance."
-                    color: Theme.AppTheme.textMuted
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.smallSize
-                    wrapMode: Text.WordWrap
-                }
+        AppWidgets.EmptyState {
+            Layout.fillWidth: true
+            visible: root.selectedForecastId.length === 0
+            title: "Select a Forecast Version"
+            message: root.selectedForecast.emptyState
+                || "Choose a version above to inspect its authoritative ETC lines."
+        }
 
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 1
-                    color: Theme.AppTheme.divider
-                }
+        AppWidgets.SectionHeading {
+            Layout.fillWidth: true
+            visible: root.selectedForecastId.length > 0
+            label: "Selected Forecast Lines"
+        }
 
-                FinancialsCollectionBlock {
-                    Layout.fillWidth: true
-                    collection: root.forecastVersions
-                    selectable: true
-                    selectedId: root.selectedForecastId
-                    busy: root.isBusy
-                    onItemSelected: function(itemId) { root.forecastSelected(itemId) }
-                }
+        AppWidgets.TableToolbar {
+            Layout.fillWidth: true
+            visible: root.selectedForecastId.length > 0
+            searchText: root.lineSearch
+            searchPlaceholder: "Search description, cost code, task, or source..."
+            showFilter: false
+            showRefresh: false
+            isBusy: root.isBusy
+            onSearchChanged: function(text) {
+                const source = root._sourceOptions[sourceFilter.currentIndex]
+                root.lineFiltersRequested(
+                    text,
+                    source ? String(source.value) : ""
+                )
+            }
 
-                FinancialsCollectionBlock {
-                    Layout.fillWidth: true
-                    collection: root.forecastLines
-                    busy: root.isBusy
+            AppControls.ComboBox {
+                id: sourceFilter
+                implicitWidth: 180
+                textRole: "label"
+                model: root._sourceOptions
+                currentIndex: root._indexOf(root._sourceOptions, root.lineSourceType)
+                onActivated: root._lineFilters()
+            }
+        }
+
+        AppWidgets.EmptyState {
+            Layout.fillWidth: true
+            visible: root.selectedForecastId.length > 0
+                && (root.forecastLines.items || []).length === 0
+            title: "No forecast lines"
+            message: root.forecastLines.emptyState || "No lines match the current filters."
+        }
+
+        Item {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 290
+            visible: root.selectedForecastId.length > 0
+                && (root.forecastLines.items || []).length > 0
+
+            AppWidgets.DataTable {
+                objectName: "forecastLinesTable"
+                anchors.fill: parent
+                columns: root._lineColumns
+                sourceModel: root.linesTableModel
+                sortingMode: "server"
+                sortKey: root.lineSortKey
+                sortDirection: root.lineSortDirection
+                loading: root.isBusy
+                emptyText: root.forecastLines.emptyState || "No forecast lines."
+                onSortRequested: function(key, direction) {
+                    root.lineSortRequested(key, direction)
                 }
             }
+        }
+
+        AppWidgets.TablePaginationBar {
+            Layout.fillWidth: true
+            visible: root.selectedForecastId.length > 0
+                && Number(root.forecastLines.total || 0)
+                    > Number(root.forecastLines.pageSize || 50)
+            currentPage: Number(root.forecastLines.page || 1)
+            pageSize: Number(root.forecastLines.pageSize || 50)
+            totalItems: Number(root.forecastLines.total || 0)
+            busy: root.isBusy
+            onPageRequested: function(page) { root.linePageRequested(page) }
         }
     }
 }

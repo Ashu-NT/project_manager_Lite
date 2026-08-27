@@ -124,8 +124,18 @@ class FinancialsWorkspaceViewModel:
     cost_type_analytics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     forecast: FinancialsForecastViewModel = field(default_factory=FinancialsForecastViewModel)
     selected_forecast_id: str = ""
+    selected_forecast: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     forecast_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     forecast_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    forecast_version_sort_key: str = "revision"
+    forecast_version_sort_direction: str = "desc"
+    forecast_line_sort_key: str = "title"
+    forecast_line_sort_direction: str = "asc"
+    forecast_version_search: str = ""
+    forecast_version_status: str = ""
+    forecast_generation_mode: str = ""
+    forecast_line_search: str = ""
+    forecast_line_source_type: str = ""
     selected_change_id: str = ""
     financial_changes: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     financial_change_impacts: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))

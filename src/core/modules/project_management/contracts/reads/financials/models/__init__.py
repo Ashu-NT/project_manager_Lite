@@ -21,6 +21,13 @@ from .finance_planned_cost_facts import (
     PlannedCostLineFact,
     PlannedCostVersionFact,
 )
+from .finance_forecast_facts import (
+    FinanceForecastWorkspaceFacts,
+    ForecastLineFact,
+    ForecastLineRequest,
+    ForecastVersionFact,
+    ForecastVersionRequest,
+)
 
 __all__ = [
     "CostAggregateFact",
@@ -29,12 +36,17 @@ __all__ = [
     "FinanceBudgetWorkspaceFacts",
     "FinancePageFacts",
     "FinancePageRequest",
+    "FinanceForecastWorkspaceFacts",
     "FinancePlannedCostWorkspaceFacts",
     "FinanceLedgerFact",
     "FinanceOverviewFacts",
     "FinanceProjectFact",
     "FinanceSnapshotFacts",
     "LaborAssignmentFact",
+    "ForecastLineFact",
+    "ForecastLineRequest",
+    "ForecastVersionFact",
+    "ForecastVersionRequest",
     "PlannedCostLineFact",
     "PlannedCostVersionFact",
     "ProjectResourceFact",

@@ -373,10 +373,21 @@ AppLayouts.WorkspaceFrame {
                     costTypeAnalyticsModel: root.workspaceController
                         ? root.workspaceController.costTypeAnalytics : ({ "items": [] })
                     overviewModel: root.overviewModel
-                    forecastModel: root.workspaceController ? root.workspaceController.forecast : ({})
                     forecastVersionsModel: root.workspaceController ? root.workspaceController.forecastVersions : ({ "items": [] })
                     forecastLinesModel: root.workspaceController ? root.workspaceController.forecastLines : ({ "items": [] })
+                    selectedForecastModel: root.workspaceController ? root.workspaceController.selectedForecast : ({ "id": "", "fields": [] })
+                    forecastVersionsTableModel: root.workspaceController ? root.workspaceController.forecastVersionsTableModel : null
+                    forecastLinesTableModel: root.workspaceController ? root.workspaceController.forecastLinesTableModel : null
                     selectedForecastId: root.workspaceController ? root.workspaceController.selectedForecastId : ""
+                    forecastVersionSortKey: root.workspaceController ? root.workspaceController.forecastVersionSortKey : "revision"
+                    forecastVersionSortDirection: root.workspaceController ? root.workspaceController.forecastVersionSortDirection : Qt.DescendingOrder
+                    forecastLineSortKey: root.workspaceController ? root.workspaceController.forecastLineSortKey : "title"
+                    forecastLineSortDirection: root.workspaceController ? root.workspaceController.forecastLineSortDirection : Qt.AscendingOrder
+                    forecastVersionSearch: root.workspaceController ? root.workspaceController.forecastVersionSearch : ""
+                    forecastVersionStatus: root.workspaceController ? root.workspaceController.forecastVersionStatus : ""
+                    forecastGenerationMode: root.workspaceController ? root.workspaceController.forecastGenerationMode : ""
+                    forecastLineSearch: root.workspaceController ? root.workspaceController.forecastLineSearch : ""
+                    forecastLineSourceType: root.workspaceController ? root.workspaceController.forecastLineSourceType : ""
                     financialChangesModel: root.workspaceController ? root.workspaceController.financialChanges : ({ "items": [] })
                     financialChangeImpactsModel: root.workspaceController ? root.workspaceController.financialChangeImpacts : ({ "items": [] })
                     selectedChangeId: root.workspaceController ? root.workspaceController.selectedChangeId : ""
@@ -471,6 +482,26 @@ AppLayouts.WorkspaceFrame {
                     onForecastSelected: function(forecastId) {
                         if (root.workspaceController !== null)
                             root.workspaceController.selectForecastVersion(forecastId)
+                    }
+                    onForecastVersionPageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setForecastVersionPage(page)
+                    }
+                    onForecastLinePageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setForecastLinePage(page)
+                    }
+                    onForecastVersionSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setForecastVersionSort(key, direction)
+                    }
+                    onForecastLineSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setForecastLineSort(key, direction)
+                    }
+                    onForecastVersionFiltersRequested: function(search, status, generationMode) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setForecastVersionFilters(search, status, generationMode)
+                    }
+                    onForecastLineFiltersRequested: function(search, sourceType) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setForecastLineFilters(search, sourceType)
                     }
                     onFinancialChangeSelected: function(changeId) {
                         if (root.workspaceController !== null)

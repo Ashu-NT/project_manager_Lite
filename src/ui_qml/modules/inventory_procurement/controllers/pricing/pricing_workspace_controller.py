@@ -28,6 +28,7 @@ from .pricing_filter_handler import (
     set_supplier_filter,
 )
 from .pricing_refresh_service import refresh as _do_refresh
+from .pricing_refresh_service import refresh_site_options as _do_refresh_site_options
 from .pricing_selection_handler import (
     select_stock_signal,
     select_supplier_pricing,
@@ -238,6 +239,9 @@ class InventoryProcurementPricingWorkspaceController(
     @Slot()
     def refresh(self) -> None:
         _do_refresh(self)
+
+    def refresh_site_options(self) -> None:
+        _do_refresh_site_options(self)
 
     @Slot(str)
     def setSiteFilter(self, site_id: str) -> None:

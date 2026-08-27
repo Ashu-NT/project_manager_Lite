@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.common.ids import generate_id
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.platform.application.security.authorization import get_authorization_engine
@@ -25,7 +24,14 @@ from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.org.support import normalize_code
 from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 from src.core.platform.domain.master_data.site import Site
+from src.core.platform.domain.master_data.site.events import (
+    SiteCreated,
+    SiteDisabled,
+    SiteEnabled,
+    SiteProfileUpdated,
+)
 from src.core.platform.application.tenant.tenancy import TenantContextService
+from src.core.shared.time.clock import Clock
 
 if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
@@ -52,6 +58,7 @@ class SiteService:
         tenant_context_service: TenantContextService | None = None,
         overview_rollup_reader: PlatformOverviewRollupReader | None = None,
         uow_factory: SiteUnitOfWorkFactory,
+        clock: Clock,
     ):
         self._session = session
         self._site_repo = site_repo
@@ -61,6 +68,7 @@ class SiteService:
         self._tenant_context_service = tenant_context_service
         self._overview_rollup_reader = overview_rollup_reader
         self._uow_factory = uow_factory
+        self._clock = clock
 
     def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
         return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
@@ -156,6 +164,7 @@ class SiteService:
     ) -> Site:
         require_permission(self._user_session, "settings.manage", operation_label="create site")
         organization = self._active_organization()
+        tenant_id = organization.tenant_id
         now = datetime.now(timezone.utc)
         site = Site.create(
             organization_id=organization.id,
@@ -209,12 +218,19 @@ class SiteService:
                     commit=False,
                     fail_closed=True,
                 )
+                uow.record_event(
+                    SiteCreated(
+                        tenant_id=tenant_id,
+                        organization_id=organization.id,
+                        site_id=site.id,
+                        occurred_at=self._clock.now(),
+                    )
+                )
                 uow.commit()
             except IntegrityError as exc:
                 raise ValidationError(
                     "Site code already exists in the active organization.", code="SITE_CODE_EXISTS"
                 ) from exc
-        domain_events.sites_changed.emit(site.id)
         return site
 
     def update_site(
@@ -245,6 +261,7 @@ class SiteService:
     ) -> Site:
         require_permission(self._user_session, "settings.manage", operation_label="update site")
         organization = self._active_organization()
+        tenant_id = organization.tenant_id
         with self._uow_factory.create(context=self._new_context()) as uow:
             site = uow.sites.get(site_id)
             if site is None or site.organization_id != organization.id:
@@ -293,8 +310,35 @@ class SiteService:
                 opened_at=next_opened_at,
                 closed_at=next_closed_at,
                 notes=site.notes if notes is None else notes,
-                updated_at=now,
             )
+            availability_changed = is_active is not None and previous_is_active != bool(next_is_active)
+            profile_changed = (
+                candidate.site_code != site.site_code
+                or candidate.name != site.name
+                or candidate.description != site.description
+                or candidate.country != site.country
+                or candidate.region != site.region
+                or candidate.city != site.city
+                or candidate.address_line_1 != site.address_line_1
+                or candidate.address_line_2 != site.address_line_2
+                or candidate.postal_code != site.postal_code
+                or candidate.timezone != site.timezone
+                or candidate.currency_code != site.currency_code
+                or candidate.site_type != site.site_type
+                or candidate.default_calendar_id != site.default_calendar_id
+                or candidate.default_language != site.default_language
+                or candidate.notes != site.notes
+            )
+            if not availability_changed:
+                profile_changed = (
+                    profile_changed
+                    or candidate.status != site.status
+                    or candidate.opened_at != site.opened_at
+                    or candidate.closed_at != site.closed_at
+                )
+            if not profile_changed and not availability_changed:
+                return site
+            candidate = replace(candidate, updated_at=now)
             existing = uow.sites.get_by_code(organization.id, candidate.site_code)
             if existing is not None and existing.id != site.id:
                 raise ValidationError("Site code already exists in the active organization.", code="SITE_CODE_EXISTS")
@@ -320,12 +364,31 @@ class SiteService:
                     commit=False,
                     fail_closed=True,
                 )
+                occurred_at = self._clock.now()
+                if profile_changed:
+                    uow.record_event(
+                        SiteProfileUpdated(
+                            tenant_id=tenant_id,
+                            organization_id=organization.id,
+                            site_id=candidate.id,
+                            occurred_at=occurred_at,
+                        )
+                    )
+                if availability_changed:
+                    availability_event_cls = SiteEnabled if candidate.is_active else SiteDisabled
+                    uow.record_event(
+                        availability_event_cls(
+                            tenant_id=tenant_id,
+                            organization_id=organization.id,
+                            site_id=candidate.id,
+                            occurred_at=occurred_at,
+                        )
+                    )
                 uow.commit()
             except IntegrityError as exc:
                 raise ValidationError(
                     "Site code already exists in the active organization.", code="SITE_CODE_EXISTS"
                 ) from exc
-        domain_events.sites_changed.emit(candidate.id)
         return candidate
 
     def _active_organization(self) -> Organization:

@@ -61,6 +61,12 @@ class ProjectManagementFinancialsWorkspaceController(
     selectedForecastIdChanged = Signal()
     forecastVersionsChanged = Signal()
     forecastLinesChanged = Signal()
+    selectedForecastChanged = Signal()
+    forecastVersionSortKeyChanged = Signal()
+    forecastVersionSortDirectionChanged = Signal()
+    forecastLineSortKeyChanged = Signal()
+    forecastLineSortDirectionChanged = Signal()
+    forecastFiltersChanged = Signal()
     selectedChangeIdChanged = Signal()
     financialChangesChanged = Signal()
     financialChangeImpactsChanged = Signal()
@@ -132,8 +138,22 @@ class ProjectManagementFinancialsWorkspaceController(
         self._notes: list[str] = []
         self._forecast = default_forecast()
         self._selected_forecast_id = ""
+        self._selected_forecast = default_detail()
         self._forecast_versions = default_collection()
         self._forecast_lines = default_collection()
+        self._forecast_versions_table_model = DynamicTableModel(self)
+        self._forecast_lines_table_model = DynamicTableModel(self)
+        self._forecast_version_page = 1
+        self._forecast_line_page = 1
+        self._forecast_version_sort_key = "revision"
+        self._forecast_version_sort_direction = Qt.DescendingOrder.value
+        self._forecast_line_sort_key = "title"
+        self._forecast_line_sort_direction = Qt.AscendingOrder.value
+        self._forecast_version_search = ""
+        self._forecast_version_status = ""
+        self._forecast_generation_mode = ""
+        self._forecast_line_search = ""
+        self._forecast_line_source_type = ""
         self._selected_change_id = ""
         self._financial_changes = default_collection()
         self._financial_change_impacts = default_collection()
@@ -252,6 +272,46 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property("QVariantMap", notify=forecastLinesChanged)
     def forecastLines(self) -> FinancialsMap: return self._forecast_lines
+
+    @Property("QVariantMap", notify=selectedForecastChanged)
+    def selectedForecast(self) -> FinancialsMap: return self._selected_forecast
+
+    @Property(QObject, constant=True)
+    def forecastVersionsTableModel(self) -> DynamicTableModel:
+        return self._forecast_versions_table_model
+
+    @Property(QObject, constant=True)
+    def forecastLinesTableModel(self) -> DynamicTableModel:
+        return self._forecast_lines_table_model
+
+    @Property(str, notify=forecastVersionSortKeyChanged)
+    def forecastVersionSortKey(self) -> str: return self._forecast_version_sort_key
+
+    @Property(int, notify=forecastVersionSortDirectionChanged)
+    def forecastVersionSortDirection(self) -> int:
+        return self._forecast_version_sort_direction
+
+    @Property(str, notify=forecastLineSortKeyChanged)
+    def forecastLineSortKey(self) -> str: return self._forecast_line_sort_key
+
+    @Property(int, notify=forecastLineSortDirectionChanged)
+    def forecastLineSortDirection(self) -> int:
+        return self._forecast_line_sort_direction
+
+    @Property(str, notify=forecastFiltersChanged)
+    def forecastVersionSearch(self) -> str: return self._forecast_version_search
+
+    @Property(str, notify=forecastFiltersChanged)
+    def forecastVersionStatus(self) -> str: return self._forecast_version_status
+
+    @Property(str, notify=forecastFiltersChanged)
+    def forecastGenerationMode(self) -> str: return self._forecast_generation_mode
+
+    @Property(str, notify=forecastFiltersChanged)
+    def forecastLineSearch(self) -> str: return self._forecast_line_search
+
+    @Property(str, notify=forecastFiltersChanged)
+    def forecastLineSourceType(self) -> str: return self._forecast_line_source_type
 
     @Property(str, notify=selectedChangeIdChanged)
     def selectedChangeId(self) -> str: return self._selected_change_id
@@ -398,6 +458,32 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str)
     def selectForecastVersion(self, forecast_id: str) -> None:
         self._select_forecast_version(forecast_id)
+
+    @Slot(int)
+    def setForecastVersionPage(self, page: int) -> None:
+        self._set_forecast_version_page(page)
+
+    @Slot(int)
+    def setForecastLinePage(self, page: int) -> None:
+        self._set_forecast_line_page(page)
+
+    @Slot(str, int)
+    def setForecastVersionSort(self, key: str, direction: int) -> None:
+        self._set_forecast_version_sort(key, direction)
+
+    @Slot(str, int)
+    def setForecastLineSort(self, key: str, direction: int) -> None:
+        self._set_forecast_line_sort(key, direction)
+
+    @Slot(str, str, str)
+    def setForecastVersionFilters(
+        self, search: str, status: str, generation_mode: str
+    ) -> None:
+        self._set_forecast_version_filters(search, status, generation_mode)
+
+    @Slot(str, str)
+    def setForecastLineFilters(self, search: str, source_type: str) -> None:
+        self._set_forecast_line_filters(search, source_type)
 
     @Slot(str)
     def selectBudgetVersion(self, budget_id: str) -> None:
