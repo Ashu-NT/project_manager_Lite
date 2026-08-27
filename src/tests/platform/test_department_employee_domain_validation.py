@@ -7,6 +7,7 @@ from src.core.platform.application.master_data.employee.employee_service import 
 from src.core.platform.domain.master_data.employee import Employee, EmploymentType
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.site import Site
+from src.infra.time.system_clock import SystemClock
 
 
 class _FakeSession:
@@ -29,6 +30,9 @@ class _FakeTenantContext:
 
     def require_active_organization_id(self, *, operation_label: str) -> str:
         return self._organization.id
+
+    def require_active_tenant_id(self, *, operation_label: str) -> str:
+        return self._organization.tenant_id
 
 
 class _FakeEnterpriseAuditService:
@@ -412,6 +416,7 @@ def test_employee_service_uses_entity_validation_and_final_state(monkeypatch):
             departments=department_repo,
             enterprise_audit_service=enterprise_audit_service,
         ),
+        clock=SystemClock(),
     )
 
     created = service.create_employee(

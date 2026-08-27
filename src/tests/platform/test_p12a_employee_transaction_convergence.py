@@ -6,10 +6,10 @@ from src.core.platform.application.history.audit.enterprise_audit_service import
     EnterpriseAuditService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.domain.master_data.employee.events import EmployeeCreated, EmployeeProfileUpdated
 from src.core.platform.infrastructure.persistence.uow.employee_unit_of_work import (
     SqlAlchemyEmployeeUnitOfWork,
 )
-from src.core.shared.events.domain_events import domain_events
 
 _COUNTER = {"n": 0}
 
@@ -19,9 +19,11 @@ def _unique_code(prefix: str) -> str:
     return f"{prefix}-{_COUNTER['n']}"
 
 
-def _spy_signal(signal):
+def _spy(services, event_type):
     calls = []
-    signal.connect(lambda payload: calls.append(payload))
+    services["employee_service"]._uow_factory._post_commit_bus.subscribe(
+        event_type, lambda event, context: calls.append(event)
+    )
     return calls
 
 
@@ -65,38 +67,38 @@ def test_create_employee_repository_and_audit_share_the_uow_session(services, mo
     assert seen["uow_session"] is seen["audit_session"]
 
 
-def test_create_employee_success_commits_and_emits_only_after_commit(services):
+def test_create_employee_success_commits_and_records_event_only_after_commit(services):
     employee_service = services["employee_service"]
-    calls = _spy_signal(domain_events.employees_changed)
+    calls = _spy(services, EmployeeCreated)
 
     code = _unique_code("CREATE-OK")
     employee = employee_service.create_employee(employee_code=code, full_name="Create Ok")
 
     assert employee.employee_code == code
-    assert calls == [employee.id]
+    assert [e.employee_id for e in calls] == [employee.id]
     reloaded = employee_service._employee_repo.get(employee.id)
     assert reloaded is not None
     assert reloaded.employee_code == code
 
 
-def test_update_employee_success_commits_and_emits_only_after_commit(services):
+def test_update_employee_success_commits_and_records_event_only_after_commit(services):
     employee_service = services["employee_service"]
     employee = employee_service.create_employee(
         employee_code=_unique_code("UPDATE-OK"), full_name="Before Update"
     )
-    calls = _spy_signal(domain_events.employees_changed)
+    calls = _spy(services, EmployeeProfileUpdated)
 
     updated = employee_service.update_employee(
         employee.id, full_name="After Update", expected_version=employee.version
     )
 
     assert updated.full_name == "After Update"
-    assert calls == [updated.id]
+    assert [e.employee_id for e in calls] == [updated.id]
     reloaded = employee_service._employee_repo.get(employee.id)
     assert reloaded.full_name == "After Update"
 
 
-def test_create_employee_duplicate_code_validation_failure_rolls_back_and_emits_nothing(services, monkeypatch):
+def test_create_employee_duplicate_code_validation_failure_rolls_back_and_records_nothing(services, monkeypatch):
     employee_service = services["employee_service"]
     code = _unique_code("DUPE")
     employee_service.create_employee(employee_code=code, full_name="First")
@@ -110,7 +112,7 @@ def test_create_employee_duplicate_code_validation_failure_rolls_back_and_emits_
         return uow
 
     monkeypatch.setattr(type(employee_service._uow_factory), "create", _spy_create)
-    calls = _spy_signal(domain_events.employees_changed)
+    calls = _spy(services, EmployeeCreated)
 
     with pytest.raises(ValidationError, match="Employee code already exists"):
         employee_service.create_employee(employee_code=code, full_name="Second")
@@ -121,14 +123,14 @@ def test_create_employee_duplicate_code_validation_failure_rolls_back_and_emits_
     assert calls == []
 
 
-def test_update_employee_duplicate_code_validation_failure_rolls_back_and_emits_nothing(services):
+def test_update_employee_duplicate_code_validation_failure_rolls_back_and_records_nothing(services):
     employee_service = services["employee_service"]
     existing_code = _unique_code("DUPE-UPDATE-EXISTING")
     employee_service.create_employee(employee_code=existing_code, full_name="Existing")
     employee = employee_service.create_employee(
         employee_code=_unique_code("DUPE-UPDATE-TARGET"), full_name="Target"
     )
-    calls = _spy_signal(domain_events.employees_changed)
+    calls = _spy(services, EmployeeProfileUpdated)
 
     with pytest.raises(ValidationError, match="Employee code already exists"):
         employee_service.update_employee(
@@ -238,13 +240,13 @@ def test_cross_organization_update_is_denied_as_not_found(services):
     assert reloaded.full_name == "Home Org Employee"
 
 
-def test_create_employee_audit_failure_rolls_back_and_emits_nothing(services, monkeypatch):
+def test_create_employee_audit_failure_rolls_back_and_records_nothing(services, monkeypatch):
     def _fail_record(self, **kwargs):
         raise RuntimeError("simulated create_employee audit failure")
 
     monkeypatch.setattr(EnterpriseAuditService, "record", _fail_record)
     employee_service = services["employee_service"]
-    calls = _spy_signal(domain_events.employees_changed)
+    calls = _spy(services, EmployeeCreated)
     code = _unique_code("AUDITFAIL-CREATE")
 
     with pytest.raises(RuntimeError, match="simulated create_employee audit failure"):
@@ -255,7 +257,7 @@ def test_create_employee_audit_failure_rolls_back_and_emits_nothing(services, mo
     assert calls == []
 
 
-def test_update_employee_audit_failure_rolls_back_and_emits_nothing(services, monkeypatch):
+def test_update_employee_audit_failure_rolls_back_and_records_nothing(services, monkeypatch):
     employee_service = services["employee_service"]
     employee = employee_service.create_employee(
         employee_code=_unique_code("AUDITFAIL-UPDATE"), full_name="Before Audit Fail"
@@ -265,7 +267,7 @@ def test_update_employee_audit_failure_rolls_back_and_emits_nothing(services, mo
         raise RuntimeError("simulated update_employee audit failure")
 
     monkeypatch.setattr(EnterpriseAuditService, "record", _fail_record)
-    calls = _spy_signal(domain_events.employees_changed)
+    calls = _spy(services, EmployeeProfileUpdated)
 
     with pytest.raises(RuntimeError, match="simulated update_employee audit failure"):
         employee_service.update_employee(
@@ -278,7 +280,7 @@ def test_update_employee_audit_failure_rolls_back_and_emits_nothing(services, mo
     assert calls == []
 
 
-def test_create_employee_commit_failure_leaves_no_partial_state_and_emits_nothing(services, monkeypatch):
+def test_create_employee_commit_failure_leaves_no_partial_state_and_records_nothing(services, monkeypatch):
     employee_service = services["employee_service"]
 
     captured_uow = {}
@@ -295,7 +297,7 @@ def test_create_employee_commit_failure_leaves_no_partial_state_and_emits_nothin
         raise RuntimeError("simulated database commit failure")
 
     monkeypatch.setattr(SqlAlchemyEmployeeUnitOfWork, "commit", _fail_commit)
-    calls = _spy_signal(domain_events.employees_changed)
+    calls = _spy(services, EmployeeCreated)
 
     code = _unique_code("COMMITFAIL")
     with pytest.raises(RuntimeError, match="simulated database commit failure"):
@@ -308,7 +310,7 @@ def test_create_employee_commit_failure_leaves_no_partial_state_and_emits_nothin
     assert calls == []
 
 
-def test_update_employee_commit_failure_leaves_no_partial_state_and_emits_nothing(services, monkeypatch):
+def test_update_employee_commit_failure_leaves_no_partial_state_and_records_nothing(services, monkeypatch):
     employee_service = services["employee_service"]
     employee = employee_service.create_employee(
         employee_code=_unique_code("COMMITFAIL-UPDATE"), full_name="Before Commit Fail"
@@ -318,7 +320,7 @@ def test_update_employee_commit_failure_leaves_no_partial_state_and_emits_nothin
         raise RuntimeError("simulated database commit failure")
 
     monkeypatch.setattr(SqlAlchemyEmployeeUnitOfWork, "commit", _fail_commit)
-    calls = _spy_signal(domain_events.employees_changed)
+    calls = _spy(services, EmployeeProfileUpdated)
 
     with pytest.raises(RuntimeError, match="simulated database commit failure"):
         employee_service.update_employee(
@@ -333,7 +335,7 @@ def test_update_employee_commit_failure_leaves_no_partial_state_and_emits_nothin
 def test_no_global_mutation_session_touch_during_migrated_create(services):
     employee_service = services["employee_service"]
     legacy_session = employee_service._session
-    legacy_session.commit()  # settle any pending state from fixture setup
+    legacy_session.commit()
 
     employee_service.create_employee(employee_code=_unique_code("ISOLATED"), full_name="Isolated Employee")
 
@@ -363,41 +365,3 @@ def test_update_employee_uses_a_fresh_uow_distinct_from_the_legacy_session(servi
 
     assert updated.full_name == "After Update"
     assert seen["uow_session"] is not employee_service._session
-
-
-def test_admin_console_and_pm_resources_binders_still_react_to_employees_changed(services):
-    from src.ui_qml.platform.controllers.admin_console.domain_event_binder import bind_domain_events as bind_admin_domain_events
-    from src.ui_qml.modules.project_management.controllers.resources.resource_domain_event_binder import (
-        bind_resource_domain_events,
-    )
-
-    admin_refresh_calls = []
-    resource_refresh_calls = []
-
-    class _FakeController:
-        _selected_resource_id = None
-
-        def __init__(self):
-            self._domain_event_subscriptions = []
-
-        def _subscribe_domain_signal(self, signal, callback):
-            signal.connect(callback)
-            self._domain_event_subscriptions.append((signal, callback))
-
-    class _FakeAdminController(_FakeController):
-        def _request_domain_refresh(self):
-            admin_refresh_calls.append("refresh")
-
-    class _FakeResourceController(_FakeController):
-        def _request_domain_refresh(self):
-            resource_refresh_calls.append("refresh")
-
-    bind_admin_domain_events(_FakeAdminController())
-    bind_resource_domain_events(_FakeResourceController())
-
-    services["employee_service"].create_employee(
-        employee_code=_unique_code("ADMIN-PM-REFRESH"), full_name="Admin PM Refresh Employee"
-    )
-
-    assert admin_refresh_calls == ["refresh"]
-    assert resource_refresh_calls == ["refresh"]

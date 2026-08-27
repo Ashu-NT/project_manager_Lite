@@ -9,6 +9,7 @@ from src.core.modules.project_management.api.desktop import (
 from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceAvailabilityViewModel,
     ResourceCatalogWorkspaceViewModel,
+    ResourceEmployeeOptionViewModel,
 )
 
 from .context_builder import (
@@ -36,7 +37,7 @@ from .skills_builder import (
     remove_skill,
     update_skill,
 )
-from .workspace_builder import build_workspace_state
+from .workspace_builder import build_employee_options, build_workspace_state
 from .resource_mapper import to_resource_record_view_model
 from .detail_builder import build_detail_view_model, build_inspector_view_model
 
@@ -71,6 +72,9 @@ class ProjectResourcesWorkspacePresenter:
             sort_key=sort_key,
             sort_direction=sort_direction,
         )
+
+    def build_employee_options(self) -> tuple[ResourceEmployeeOptionViewModel, ...]:
+        return build_employee_options(self._desktop_api)
 
     def list_export_records(
         self,

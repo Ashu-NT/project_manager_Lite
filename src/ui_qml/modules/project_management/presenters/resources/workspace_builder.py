@@ -20,6 +20,27 @@ from .resource_mapper import to_resource_record_view_model
 from .selection import resolve_selected_resource_id
 
 
+def build_employee_options(
+    desktop_api: ProjectManagementResourcesDesktopApi,
+) -> tuple[ResourceEmployeeOptionViewModel, ...]:
+    return tuple(
+        ResourceEmployeeOptionViewModel(
+            value=option.value,
+            label=option.label,
+            name=option.name,
+            title=option.title,
+            contact=option.contact,
+            context=option.context,
+            department=option.department,
+            site=option.site,
+            department_id=option.department_id,
+            site_id=option.site_id,
+            is_active=option.is_active,
+        )
+        for option in desktop_api.list_employees()
+    )
+
+
 def build_workspace_state(
     desktop_api: ProjectManagementResourcesDesktopApi,
     *,
@@ -43,22 +64,7 @@ def build_workspace_state(
             for option in desktop_api.list_categories()
         ),
     )
-    employee_options = tuple(
-        ResourceEmployeeOptionViewModel(
-            value=option.value,
-            label=option.label,
-            name=option.name,
-            title=option.title,
-            contact=option.contact,
-            context=option.context,
-            department=option.department,
-            site=option.site,
-            department_id=option.department_id,
-            site_id=option.site_id,
-            is_active=option.is_active,
-        )
-        for option in desktop_api.list_employees()
-    )
+    employee_options = build_employee_options(desktop_api)
     normalized_search = (search_text or "").strip()
     normalized_active_filter = normalize_active_filter(active_filter)
     normalized_category_filter = normalize_category_filter(category_filter, category_options)

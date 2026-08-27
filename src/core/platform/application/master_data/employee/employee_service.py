@@ -28,12 +28,17 @@ from src.core.platform.contract.read.master_data.employee.employee_headcount_rea
 )
 from src.core.platform.common.ids import generate_id
 from src.core.platform.domain.master_data.employee import Employee, EmploymentType
+from src.core.platform.domain.master_data.employee.events import (
+    EmployeeCreated,
+    EmployeeProfileUpdated,
+)
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_events import domain_events
+from src.core.shared.time.clock import Clock
 
 if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
@@ -55,6 +60,7 @@ class EmployeeService:
         enterprise_audit_service: EnterpriseAuditService | None = None,
         headcount_reader: EmployeeHeadcountReader | None = None,
         uow_factory: EmployeeUnitOfWorkFactory,
+        clock: Clock,
     ):
         self._session = session
         self._employee_repo = employee_repo
@@ -64,6 +70,7 @@ class EmployeeService:
         self._organization_repo = organization_repo
         self._headcount_reader = headcount_reader
         self._uow_factory = uow_factory
+        self._clock = clock
         self._tenant_context_service = tenant_context_service or (
             TenantContextService(
                 organization_repo=organization_repo,
@@ -96,6 +103,9 @@ class EmployeeService:
     ) -> Employee:
         require_permission(self._user_session, "employee.manage", operation_label="create employee")
         organization_id = self._active_organization_id(operation_label="create employee")
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="create employee"
+        )
         employee = Employee.create(
             employee_code=employee_code,
             full_name=full_name,
@@ -141,10 +151,17 @@ class EmployeeService:
                     commit=False,
                     fail_closed=True,
                 )
+                uow.record_event(
+                    EmployeeCreated(
+                        tenant_id=tenant_id,
+                        organization_id=organization_id,
+                        employee_id=employee.id,
+                        occurred_at=self._clock.now(),
+                    )
+                )
                 uow.commit()
             except IntegrityError as exc:
                 raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS") from exc
-        domain_events.employees_changed.emit(employee.id)
         return employee
 
     def update_employee(
@@ -167,6 +184,9 @@ class EmployeeService:
     ) -> Employee:
         require_permission(self._user_session, "employee.manage", operation_label="update employee")
         organization_id = self._active_organization_id(operation_label="update employee")
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="update employee"
+        )
         with self._uow_factory.create(context=self._new_context()) as uow:
             employee = uow.employees.get_for_organization(employee_id, organization_id)
             if employee is None:
@@ -214,6 +234,22 @@ class EmployeeService:
                 is_active=bool(is_active) if is_active is not None else employee.is_active,
                 user_id=user_id if user_id is not None else employee.user_id,
             )
+            profile_changed = (
+                candidate.employee_code != employee.employee_code
+                or candidate.full_name != employee.full_name
+                or candidate.department_id != employee.department_id
+                or candidate.department != employee.department
+                or candidate.site_id != employee.site_id
+                or candidate.site_name != employee.site_name
+                or candidate.title != employee.title
+                or candidate.employment_type != employee.employment_type
+                or candidate.email != employee.email
+                or candidate.phone != employee.phone
+                or candidate.is_active != employee.is_active
+                or candidate.user_id != employee.user_id
+            )
+            if not profile_changed:
+                return employee
             if employee_code is not None:
                 existing = uow.employees.get_by_code_for_organization(
                     candidate.employee_code,
@@ -236,15 +272,19 @@ class EmployeeService:
                     commit=False,
                     fail_closed=True,
                 )
+                uow.record_event(
+                    EmployeeProfileUpdated(
+                        tenant_id=tenant_id,
+                        organization_id=organization_id,
+                        employee_id=candidate.id,
+                        occurred_at=self._clock.now(),
+                    )
+                )
                 uow.commit()
             except IntegrityError as exc:
                 raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS") from exc
-        # Only emit resources_changed once the linked-resource mutations above
-        # are actually durable — emitting inside sync_linked_employee_resources
-        # (before commit) would fire events for rows that could still roll back.
         for resource_id in touched_resource_ids:
             domain_events.resources_changed.emit(resource_id)
-        domain_events.employees_changed.emit(candidate.id)
         return candidate
 
     def list_employees(

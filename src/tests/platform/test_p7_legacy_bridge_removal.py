@@ -104,12 +104,12 @@ def test_subscribe_domain_change_no_longer_exists_on_any_controller_base():
 
 
 def test_all_still_unmodernized_signals_survive_with_real_direct_consumers():
-    """`organizations_changed` is deliberately absent from this list (P10D): Organization is now
-    fully modernized (create/profile/enable/disable are all typed events), so its legacy signal
-    was actually deleted, not merely left un-bridged like the ones below."""
+    """`organizations_changed`/`employees_changed` are deliberately absent from this list (P10D,
+    P12B): both capabilities are now fully modernized (create/profile events are typed), so their
+    legacy signals were actually deleted, not merely left un-bridged like the ones below."""
 
     for signal_name in (
-        "auth_changed", "employees_changed", "departments_changed",
+        "auth_changed", "departments_changed",
         "project_changed", "tasks_changed", "resources_changed",
         "sites_changed", "documents_changed", "parties_changed",
         "inventory_items_changed", "inventory_storerooms_changed",
@@ -378,26 +378,20 @@ def test_admin_console_domain_event_binder_never_touches_the_generic_bridge():
         assert forbidden not in source
 
 
-def test_admin_console_still_composite_refreshes_on_the_three_genuinely_unmodernized_signals(
+def test_admin_console_still_composite_refreshes_on_the_two_genuinely_unmodernized_signals(
     services,
 ):
-    """The composite coalesced-refresh responsibility (9 sub-controllers, one refresh cycle) is
-    real and still required for Employees/Departments/Auth, none of which route through the
-    (now-un-bridged) generic `domain_changed` mechanism -- confirmed via direct signal emission.
-    Organization is no longer in this list (P10D): it is fully modernized and routes through the
-    typed `organization_list` ViewInvalidation target instead, proved separately in
-    test_organization_creation_produces_exactly_the_typed_view_invalidation above and in the
-    P10D-specific test suite."""
+    """Organization and Employee are no longer in this list (P10D, P12B): both are fully
+    modernized and route through their own typed ViewInvalidation targets instead."""
     catalog = _catalog(services)
     admin = catalog.adminWorkspace
     refresh_calls = []
     admin.refresh = lambda: refresh_calls.append("refresh") or None
 
-    domain_events.employees_changed.emit(_unique("p7-admin-emp"))
     domain_events.departments_changed.emit(_unique("p7-admin-dept"))
     domain_events.auth_changed.emit(_unique("p7-admin-auth"))
 
-    assert refresh_calls == ["refresh", "refresh", "refresh"]
+    assert refresh_calls == ["refresh", "refresh"]
 
 
 # ---------------------------------------------------------------------------
@@ -411,7 +405,7 @@ def test_pm_dashboard_still_does_not_react_to_unrelated_capability_events(servic
     refresh_calls = []
     dashboard.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.employees_changed.emit(_unique("p7-dashboard-emp"))
+    domain_events.departments_changed.emit(_unique("p7-dashboard-dept"))
     domain_events.auth_changed.emit(_unique("p7-dashboard-auth"))
 
     assert refresh_calls == []

@@ -1115,6 +1115,7 @@ explicit citation back to this section, so it remains visible rather than quietl
 | `PlatformEvent` / `NotificationService` / `IntegrationEventEnvelope` (outbox/inbox) | **Kept as-is, exactly as planned** — confirmed still structurally distinct from `DomainEvent` (§26.1). |
 | Dead `session_scope()` | Reclaimed as planned. |
 | Organization update/set-active | **Not in the original table at all** — discovered during P7 to still use the direct (never-bridged) `organizations_changed` signal; P5A only ever typed `OrganizationCreated`. Documented as a correction, not migrated (§26.4). **Migrated (P10D):** `update_organization`/`enable_organization`/`disable_organization` now record `OrganizationProfileUpdated`/`OrganizationEnabled`/`OrganizationDisabled` on the same canonical `OrganizationUnitOfWork` `OrganizationCreated` already used, mapped onto the existing `organization_list` ViewInvalidation target. `organizations_changed` is deleted from `DomainEvents` entirely — zero remaining producers, zero remaining consumers. Session-context selection (`TenantContextService.set_active_organization`) was never in scope for this migration and produces no DomainEvent of any kind. |
+| Employee create/update | Not in the original table — `employees_changed` was a direct (never-bridged) legacy signal, un-typed prior to P12A/P12B. **Migrated (P12B):** `create_employee`/`update_employee` now record `EmployeeCreated`/`EmployeeProfileUpdated` on the canonical `EmployeeUnitOfWork` P12A converged onto, mapped onto a new `employee_list` ViewInvalidation target (`OrganizationScope`, matching Employee's actual ownership — organization-scoped, not tenant-wide). `employees_changed` is deleted from `DomainEvents` entirely — zero remaining producers, zero remaining consumers. `resources_changed` (Employee's other, PM-owned legacy signal, still emitted by `update_employee`'s linked-resource sync) is explicitly untouched — Resource capability remains NOT MODERNIZED. |
 
 No compatibility facades that outlive their own migration phase, and no straddling: per this
 codebase's existing hard rule (also stated in `docs/repo_structure_plan/EXECUTION_SPEC.md`), a
@@ -1539,6 +1540,39 @@ compatibility aliases, deprecated wrappers, or typed-event → legacy-signal bri
 genuinely still-live production dependency required temporary retention (the 26-signal allowlist
 itself, and `admin_console/domain_event_binder.py`). Future per-capability migrations should
 default to the same choice.
+
+**26.10 Employee: FULLY MODERNIZED (P12A/P12B).** P12A converged `create_employee`/
+`update_employee` off the shared, process-lifetime `Session` onto a canonical fresh-session
+`EmployeeUnitOfWork`/`EmployeeUnitOfWorkFactory` pair (mirroring `OrganizationUnitOfWork` exactly,
+including the injected `resource_repo_factory` seam so Platform's own infrastructure never imports
+`project_management`'s concrete `SqlAlchemyResourceRepository` directly — only the composition
+root, which already legitimately depends on both, knows that binding). P12B then recorded
+`EmployeeCreated`/`EmployeeProfileUpdated` on that same UoW, pre-commit, via `uow.record_event(...)`
+— no `EmployeeChanged` blanket event, no aggregate refactor. `update_employee` gained a genuine
+no-op guard (mirroring P10D's `update_organization`): a call whose fields are already identical to
+the persisted state performs no write, no audit entry, and records no event. Both events map onto
+one new `employee_list` ViewInvalidation target, `OrganizationScope`-filtered (Employee is
+organization-owned, not tenant-wide — confirmed via the same ownership check P11's audit already
+established for `employees_changed`). Both legacy consumers (`admin_console/domain_event_binder.py`,
+the PM Resources binder) had their direct `employees_changed` subscriptions removed. Admin Console
+gained a new narrow `refresh_employees()` delegating to its existing employee sub-controller's own
+`refresh()`. PM Resources needed a genuinely new narrow reload (`refresh_employee_options()`,
+rebuilding only its employee picker list) rather than reusing its existing coarse `refresh()`:
+`employees_changed` and `resources_changed` are NOT redundant there — an Employee profile change
+with no linked PM Resource produces only the former, and `resources_changed` (PM Resource row
+sync, still fully legacy, still unmodernized) already independently triggers PM Resources' full
+`refresh()` whenever a linked resource is actually touched. Wiring the new `employee_list` hint to
+the same coarse `refresh()` would have double-refreshed the workspace on every employee update that
+also touches a linked resource; wiring it to the new narrow reload instead means exactly one
+narrow-plus-one-full refresh happens on that path, never two full refreshes for one Employee
+transaction — verified directly by a dedicated regression test. `resources_changed` itself is
+completely untouched by this phase: still legacy, still emitted exactly where P12A left it, still
+consumed exactly as before. Resource capability remains NOT MODERNIZED — this phase did not
+redesign Employee↔PM-Resource synchronization, only stopped the Employee side from needlessly
+double-refreshing around it. `employees_changed` is now deleted from `DomainEvents` entirely (zero
+producers, zero consumers); the legacy Signal count on `DomainEvents` is 27 as of this phase,
+recomputed directly from `dataclasses.fields(domain_events)` rather than incrementally adjusting
+any previously-stated count.
 
 ## Alternatives Rejected
 

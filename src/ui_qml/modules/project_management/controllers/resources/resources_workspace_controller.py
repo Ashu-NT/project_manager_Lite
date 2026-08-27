@@ -59,6 +59,7 @@ from .resource_skills_handler import (
 from .resource_context_handler import (
     load_resource_activity,
     load_resource_assignments,
+    load_resource_employee_options,
     load_resource_projects,
 )
 from .resource_availability_handler import load_resource_availability
@@ -723,6 +724,9 @@ class ProjectManagementResourcesWorkspaceController(
     @Slot()
     def refreshResourceActivity(self) -> None:
         load_resource_activity(self, force=True)
+
+    def refresh_employee_options(self) -> None:
+        load_resource_employee_options(self)
 
     @Slot(str)
     def setResourceProjectsSearch(self, value: str) -> None:

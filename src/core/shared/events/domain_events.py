@@ -22,7 +22,6 @@ class DomainEvents:
     planned_costs_changed: Signal[str] = field(default_factory=Signal)
     register_changed: Signal[str] = field(default_factory=Signal)
     auth_changed: Signal[str] = field(default_factory=Signal)
-    employees_changed: Signal[str] = field(default_factory=Signal)
     sites_changed: Signal[str] = field(default_factory=Signal)
     departments_changed: Signal[str] = field(default_factory=Signal)
     documents_changed: Signal[str] = field(default_factory=Signal)

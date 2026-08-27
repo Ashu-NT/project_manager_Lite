@@ -69,6 +69,13 @@ from src.core.platform.domain.master_data.org.events import (
     OrganizationEnabled,
     OrganizationProfileUpdated,
 )
+from src.core.platform.application.master_data.employee.event_handlers.view_invalidation import (
+    build_employee_list_view_invalidation_handler,
+)
+from src.core.platform.domain.master_data.employee.events import (
+    EmployeeCreated,
+    EmployeeProfileUpdated,
+)
 from src.core.platform.application.tenant.modules.event_handlers.view_invalidation import (
     build_module_entitlement_view_invalidation_handler,
 )
@@ -430,6 +437,14 @@ def build_platform_service_bundle(
     for _approval_event_type in (ApprovalRequested, ApprovalApproved, ApprovalRejected):
         platform_post_commit_bus.subscribe(
             _approval_event_type, _approval_view_invalidation_handler
+        )
+
+    _employee_list_view_invalidation_handler = build_employee_list_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _employee_event_type in (EmployeeCreated, EmployeeProfileUpdated):
+        platform_post_commit_bus.subscribe(
+            _employee_event_type, _employee_list_view_invalidation_handler
         )
 
     approval_uow_session_factory = sessionmaker(bind=session.bind, future=True)
@@ -824,6 +839,7 @@ def build_platform_service_bundle(
         enterprise_audit_service=enterprise_audit_service,
         headcount_reader=employee_headcount_reader,
         uow_factory=employee_uow_factory,
+        clock=SystemClock(),
     )
     master_data_exchange_service = MasterDataExchangeService(
         site_service=site_service,

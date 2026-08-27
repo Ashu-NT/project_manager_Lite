@@ -25,16 +25,15 @@ def test_pm_tasks_workspace_queues_domain_refresh_while_busy(monkeypatch) -> Non
     assert refresh_calls == ["refresh"]
 
 
-def test_pm_resources_workspace_refreshes_on_resource_and_employee_events(monkeypatch) -> None:
+def test_pm_resources_workspace_refreshes_on_resource_events(monkeypatch) -> None:
     catalog = ProjectManagementWorkspaceCatalog()
     controller = catalog.resourcesWorkspace
     refresh_calls: list[str] = []
     monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
 
     domain_events.resources_changed.emit("res-1")
-    domain_events.employees_changed.emit("emp-1")
 
-    assert refresh_calls == ["refresh", "refresh"]
+    assert refresh_calls == ["refresh"]
 
 
 def test_pm_collaboration_workspace_refreshes_on_collaboration_workflow_events(monkeypatch) -> None:

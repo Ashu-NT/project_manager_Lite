@@ -11,6 +11,9 @@ from src.core.platform.api.desktop.integration import IntegrationCapabilityDeskt
 from src.ui_qml.platform.adapters.approval_view_invalidation_adapter import (
     ApprovalViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.employee_view_invalidation_adapter import (
+    EmployeeViewInvalidationAdapter,
+)
 from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import (
     TenantSwitcherPresenter,
 )
@@ -146,6 +149,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
             )
         )
         self._approval_view_invalidation_adapter: ApprovalViewInvalidationAdapter | None = None
+        self._employee_view_invalidation_adapter: EmployeeViewInvalidationAdapter | None = None
         self._pm_capability = PMCapabilityController(
             auth_engine=auth_engine,
             user_session_provider=user_session_provider,
@@ -205,6 +209,16 @@ class ProjectManagementWorkspaceCatalog(QObject):
                     desktop_api=self._resources_api
                 ),
                 parent=self,
+            )
+
+            self._employee_view_invalidation_adapter = EmployeeViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._employee_view_invalidation_adapter.employeeCollectionStale.connect(
+                self._resources_workspace.refresh_employee_options
             )
         return self._resources_workspace
 
@@ -418,6 +432,11 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self._pm_capability.refresh()
         if self._approval_view_invalidation_adapter is not None:
             self._approval_view_invalidation_adapter.set_active_scope(
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+            )
+        if self._employee_view_invalidation_adapter is not None:
+            self._employee_view_invalidation_adapter.set_active_scope(
                 tenant_id=self._active_tenant_id() or "",
                 organization_id=self._active_organization_id() or "",
             )

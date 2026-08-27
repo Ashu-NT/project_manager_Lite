@@ -38,10 +38,6 @@ def bind_resource_domain_events(controller) -> None:
         lambda _payload: controller._request_domain_refresh(),
     )
     controller._subscribe_domain_signal(
-        domain_events.employees_changed,
-        lambda _payload: controller._request_domain_refresh(),
-    )
-    controller._subscribe_domain_signal(
         domain_events.resources_changed,
         lambda resource_id: (
             _reload_if_loaded(controller, "activity")
