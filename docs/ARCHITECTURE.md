@@ -400,9 +400,11 @@ The Admin Console UI allows enabling/disabling an organization:
 1. User selects an organization from the list and triggers the availability action.
 2. `OrganizationService.enable_organization(org_id)` / `disable_organization(org_id)` is called.
 3. No other organization is affected.
-4. `domain_events.organizations_changed.emit(org.id)` triggers UI refresh (unchanged legacy presentation signal, pending a future DomainEvent/ViewInvalidation cutover).
+4. A committed transition records `OrganizationEnabled`/`OrganizationDisabled` (no event at all for a no-op call) → the existing `organization_list` ViewInvalidation target → `OrganizationViewInvalidationAdapter` → the Admin Console organization catalog and Settings organization profiles list both refresh (P10D; see below — the legacy `organizations_changed` presentation signal this step used to describe no longer exists).
 
 Selecting which organization a user is currently working in is a separate action, routed through `TenantContextService.set_active_organization(...)` (§3.6) — never through the availability mutation above.
+
+**Organization event modernization (P10D).** `update_organization`/`enable_organization`/`disable_organization` now record typed business events on the same canonical `OrganizationUnitOfWork` `create_organization` already used for `OrganizationCreated` (§3.6/P5A) — `OrganizationProfileUpdated` for a committed profile-field change, `OrganizationEnabled`/`OrganizationDisabled` for a committed `is_enabled` transition, both or either as actually happened for a mixed `update_organization` call, and *none* for a no-op call (a past-tense event must represent a real transition). All three map onto the existing `organization_list` ViewInvalidation target — never `organization_details`, which still has no real consumer — through the same shared adapter path `OrganizationCreated` already used; no `organization_details` hint, no new UI-facing signal. The legacy `organizations_changed` `Signal[str]` field is deleted from `DomainEvents` entirely (zero producers, zero consumers) — not merely unproduced. Session-context selection (`TenantContextService.set_active_organization`, §3.6) remains, as it always was, outside `DomainEvent` vocabulary: it is a session/security-context change, not a persisted Organization fact, and produces none of these events.
 
 ### 3.8 Organization Module Entitlements
 

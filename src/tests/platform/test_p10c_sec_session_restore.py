@@ -318,3 +318,72 @@ def test_single_enabled_organization_zero_grant_auto_select_still_works(services
     login_as(services, "sec-single-org-zero-grant-user", "StrongPass123")
 
     assert services["tenant_context_service"].get_active_organization_id() == default_org.id
+
+
+# ----------------------------------------------------------------------
+# 11. admin/tenant_admin/platform.admin restore-bypass consistency
+# ----------------------------------------------------------------------
+
+
+def test_admin_role_restore_bypasses_organization_scoped_access_check(services):
+    """The `is_admin_bypass` check in `build_principal` must apply to a RESTORE exactly as
+    `TenantContextService._can_access()` already applies it to a live switch -- an admin has no
+    organization-scoped RoleBinding at all (their authority is role-based, not scope-based), so
+    without this bypass their own persisted organization would be incorrectly rejected on every
+    login."""
+    organization_service = services["organization_service"]
+    org_a = organization_service.create_organization(
+        organization_code="SEC-ADMIN-BYPASS-A", display_name="Sec Admin Bypass A", is_enabled=True
+    )
+
+    _login_admin(services)
+    services["tenant_context_service"].set_active_organization(org_a.id)
+    assert services["user_session"].principal.scoped_access.get("organization", {}) == {}
+
+    _login_admin(services)
+
+    assert services["tenant_context_service"].get_active_organization_id() == org_a.id
+
+
+def test_tenant_admin_role_restore_bypasses_organization_scoped_access_check(services):
+    organization_service = services["organization_service"]
+    org_a = organization_service.create_organization(
+        organization_code="SEC-TENANT-ADMIN-BYPASS-A", display_name="Sec Tenant Admin Bypass A", is_enabled=True
+    )
+    user = _register_active_tenant_user(services, "sec-tenant-admin-user", role_names=["tenant_admin"])
+
+    login_as(services, "sec-tenant-admin-user", "StrongPass123")
+    services["tenant_context_service"].set_active_organization(org_a.id)
+    assert services["user_session"].principal.scoped_access.get("organization", {}) == {}
+
+    login_as(services, "sec-tenant-admin-user", "StrongPass123")
+
+    assert services["tenant_context_service"].get_active_organization_id() == org_a.id
+
+
+def test_non_admin_restore_is_not_granted_the_admin_bypass(services):
+    """Contrast case for the two tests above: an ordinary user with zero organization grants,
+    in a MULTI-org tenant (so the sole-enabled-org fallback cannot itself explain a restore),
+    must not have their persisted organization restored -- the bypass is role-specific, not a
+    side effect of `scoped_access["organization"]` being empty."""
+    organization_service = services["organization_service"]
+    org_a = organization_service.create_organization(
+        organization_code="SEC-NON-ADMIN-A", display_name="Sec Non Admin A", is_enabled=True
+    )
+    organization_service.create_organization(
+        organization_code="SEC-NON-ADMIN-B", display_name="Sec Non Admin B", is_enabled=True
+    )
+    user = _register_active_tenant_user(services, "sec-non-admin-user", role_names=["viewer"])
+    _grant(services, user_id=user.id, organization_id=org_a.id)
+
+    login_as(services, "sec-non-admin-user", "StrongPass123")
+    services["tenant_context_service"].set_active_organization(org_a.id)
+
+    _login_admin(services)
+    services["access_service"].remove_scope_grant(
+        scope_type="organization", scope_id=org_a.id, user_id=user.id
+    )
+
+    login_as(services, "sec-non-admin-user", "StrongPass123")
+
+    assert services["tenant_context_service"].get_active_organization_id() != org_a.id

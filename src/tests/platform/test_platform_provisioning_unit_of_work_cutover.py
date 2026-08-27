@@ -20,7 +20,6 @@ from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.infrastructure.persistence.platform_provisioning_unit_of_work import (
     SqlAlchemyPlatformProvisioningUnitOfWork,
 )
-from src.core.shared.events.domain_events import domain_events
 
 _COUNTER = {"n": 0}
 
@@ -147,8 +146,6 @@ def test_late_step_failure_rolls_back_organization_and_entitlements_together(ser
 def test_commit_failure_leaves_no_partial_provisioning_state(services, monkeypatch):
     app_service = services["platform_runtime_application_service"]
     organization_service = services["organization_service"]
-    signal_calls = []
-    domain_events.organizations_changed.connect(lambda org_id: signal_calls.append(org_id))
 
     captured_uow = {}
     original_create = type(app_service._provisioning_uow_factory).create
@@ -175,7 +172,6 @@ def test_commit_failure_leaves_no_partial_provisioning_state(services, monkeypat
     uow = captured_uow["uow"]
     assert uow._committed is False
     assert uow._closed is True
-    assert signal_calls == []
     assert organization_service._organization_repo.get_by_code(code) is None
 
 

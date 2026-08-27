@@ -1114,7 +1114,7 @@ explicit citation back to this section, so it remains visible rather than quietl
 | `ApprovalService`'s transaction convention | **Adapted exactly as planned** — migrated onto the canonical `UnitOfWork` in P4/P4-PRE. |
 | `PlatformEvent` / `NotificationService` / `IntegrationEventEnvelope` (outbox/inbox) | **Kept as-is, exactly as planned** — confirmed still structurally distinct from `DomainEvent` (§26.1). |
 | Dead `session_scope()` | Reclaimed as planned. |
-| Organization update/set-active | **Not in the original table at all** — discovered during P7 to still use the direct (never-bridged) `organizations_changed` signal; P5A only ever typed `OrganizationCreated`. Documented as a correction, not migrated (§26.4). |
+| Organization update/set-active | **Not in the original table at all** — discovered during P7 to still use the direct (never-bridged) `organizations_changed` signal; P5A only ever typed `OrganizationCreated`. Documented as a correction, not migrated (§26.4). **Migrated (P10D):** `update_organization`/`enable_organization`/`disable_organization` now record `OrganizationProfileUpdated`/`OrganizationEnabled`/`OrganizationDisabled` on the same canonical `OrganizationUnitOfWork` `OrganizationCreated` already used, mapped onto the existing `organization_list` ViewInvalidation target. `organizations_changed` is deleted from `DomainEvents` entirely — zero remaining producers, zero remaining consumers. Session-context selection (`TenantContextService.set_active_organization`) was never in scope for this migration and produces no DomainEvent of any kind. |
 
 No compatibility facades that outlive their own migration phase, and no straddling: per this
 codebase's existing hard rule (also stated in `docs/repo_structure_plan/EXECUTION_SPEC.md`), a
@@ -1467,14 +1467,34 @@ policy, not merely design).** For any NEW Platform capability:
 - UI staleness is expressed exclusively through `ViewInvalidationHint`, never a direct
   `DomainEvent` subscription from QML/a controller, and never a new `Signal[str]` field.
 
-**26.4 Organization remains PARTIALLY MODERNIZED — corrected, not silently upgraded.**
-`create_organization` is fully typed: `OrganizationCreated` → `ViewInvalidation` →
-`OrganizationViewInvalidationAdapter`, zero legacy signal involvement (confirmed:
-`organizations_changed` does not appear anywhere in `create_organization`'s own source).
-`update_organization`/`set_active_organization` — never in P5A's scope — still emit the direct,
+**26.4 Organization: FULLY MODERNIZED (P10D) — was PARTIALLY MODERNIZED, corrected not silently
+upgraded, as of the original writing below.** `create_organization` is fully typed:
+`OrganizationCreated` → `ViewInvalidation` → `OrganizationViewInvalidationAdapter`, zero legacy
+signal involvement (confirmed: `organizations_changed` does not appear anywhere in
+`create_organization`'s own source) — unchanged by P10D. As originally written here,
+`update_organization`/`set_active_organization` — never in P5A's scope — still emitted the direct,
 un-bridged `organizations_changed` signal, consumed directly by `settings_workspace_controller.py`
-and `admin_console/domain_event_binder.py`. No `OrganizationUpdated`/`OrganizationActivated` event
-was invented to close this gap; that remains a future, separate semantic-migration slice.
+and `admin_console/domain_event_binder.py`; no `OrganizationUpdated`/`OrganizationActivated` event
+had been invented to close that gap.
+
+**P10D closed it correctly, not with the forbidden shortcut:** `update_organization` now records
+`OrganizationProfileUpdated` (profile field changes) and/or `OrganizationEnabled`/
+`OrganizationDisabled` (availability changes, matching P10A's `is_enabled` semantics) as
+appropriate — never a generic `OrganizationChanged`/`OrganizationUpdated` blanket event, and never
+`OrganizationActivated`/`OrganizationSelected`/`TenantActiveOrganizationChanged` (P9A-R/P10A/P10B/
+P10C already settled that session-context selection is not a business fact and stays outside
+`DomainEvent` vocabulary entirely — `TenantContextService.set_active_organization` still produces
+none of these events). `enable_organization`/`disable_organization` record the same two
+availability events directly. All three route through the same canonical `OrganizationUnitOfWork`
+`uow.record_event(...)` pre-commit pattern `OrganizationCreated` established — no aggregate
+refactor, no new UoW ownership model. Both consumers (`settings_workspace_controller.py`,
+`admin_console/domain_event_binder.py`) had their direct `organizations_changed` subscriptions
+removed; both already had (from P5A/P6A) a narrow `refresh_organization_profiles()`/
+`refresh_organizations()` wired to the same `OrganizationViewInvalidationAdapter`
+`organizationCollectionStale` signal `OrganizationCreated` uses, so no new UI wiring was needed —
+only the legacy subscription removal. `organizations_changed` is now deleted from `DomainEvents`
+entirely (zero producers, zero consumers, zero remaining allowlist members referencing it as
+current).
 
 **26.5 Legacy `Signal[str]` allowlist policy — frozen, growth-blocked, deletion-open.** 26 fields
 remain on `DomainEvents` (`src/core/shared/events/domain_events.py`), enumerated exactly in §27's

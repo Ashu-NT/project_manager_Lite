@@ -61,8 +61,14 @@ from src.core.platform.infrastructure.persistence.read.overview.platform_overvie
 from src.core.platform.application.master_data.org.organization_service import OrganizationService
 from src.core.platform.application.master_data.org.event_handlers.view_invalidation import (
     build_organization_created_view_invalidation_handler,
+    build_organization_profile_view_invalidation_handler,
 )
-from src.core.platform.domain.master_data.org.events import OrganizationCreated
+from src.core.platform.domain.master_data.org.events import (
+    OrganizationCreated,
+    OrganizationDisabled,
+    OrganizationEnabled,
+    OrganizationProfileUpdated,
+)
 from src.core.platform.application.tenant.modules.event_handlers.view_invalidation import (
     build_module_entitlement_view_invalidation_handler,
 )
@@ -344,27 +350,25 @@ def build_platform_service_bundle(
         user_session=user_session,
         tenant_context_service=tenant_context_service,
     )
-    # P5A (ADR-005 Sections 7/8/12): ONE composition-owned `TransactionalEventDispatcher`/
-    # `PostCommitEventPublisher`/`ViewInvalidationChannel` per running app, shared by every
-    # Platform capability UnitOfWork factory below -- never one throwaway instance per factory.
-    # A handler registered once here (e.g. `OrganizationCreated`'s post-commit reactions) is
-    # reachable regardless of which UoW recorded the event, since they all publish through the
-    # SAME bus. Composition-root-scoped (one instance per `build_platform_registry()` call, i.e.
-    # per running app/test), never a module-level import singleton.
     platform_transactional_dispatcher = InProcessTransactionalEventDispatcher()
     platform_post_commit_bus = InProcessPostCommitEventBus()
     platform_view_invalidation_channel = InProcessViewInvalidationChannel()
-    # P5A + Organization-specific P6A cutover: no legacy `organizations_changed` compatibility
-    # bridge for creation -- the two real UI consumers (admin console organization list, settings
-    # organization profiles list) are migrated directly onto `ViewInvalidationChannel` via
-    # `OrganizationViewInvalidationAdapter` (src/ui_qml/platform/adapters/), since this app is
-    # pre-release and a temporary bridge would be dead code the moment it shipped.
-    # `update_organization`/`set_active_organization` still emit `organizations_changed` directly,
-    # unchanged -- only organization *creation* moved to the typed-event path.
+
     platform_post_commit_bus.subscribe(
         OrganizationCreated,
         build_organization_created_view_invalidation_handler(platform_view_invalidation_channel),
     )
+    _organization_profile_view_invalidation_handler = build_organization_profile_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _organization_profile_event_type in (
+        OrganizationProfileUpdated,
+        OrganizationEnabled,
+        OrganizationDisabled,
+    ):
+        platform_post_commit_bus.subscribe(
+            _organization_profile_event_type, _organization_profile_view_invalidation_handler
+        )
 
     # P5B-3: direct Qt cutover for Module Entitlements, mirroring the Organization precedent
     # above -- no legacy `modules_changed` bridge. All five Module Entitlement events collapse
@@ -667,14 +671,7 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
         user_session=user_session,
     )
-    # Legacy-signature `(tenant_id, scope_id) -> bool` resolvers -- consumed by
-    # `AccessControlService`'s own pre-flight `_assert_scope_exists` check (a separate,
-    # non-transactional read that happens before `RoleGovernanceService.assign_role` is ever
-    # called; see the session-bound resolvers below for the actual RoleGovernance mutation
-    # path) and by `AuthService`'s `canonical_scope_tenant_resolvers` (an unrelated,
-    # read-only effective-permissions computation, not audited or touched by P5C-1).
-    # "site" already uses the correct tenant-scoped `get_for_tenant` (P5C-1 reopened-storeroom
-    # fix) rather than the ambient-active-organization `get()`.
+
     scope_exists_resolvers = {
         "organization": lambda tenant_id, organization_id: (
             repositories.organization_repo.get_for_tenant(

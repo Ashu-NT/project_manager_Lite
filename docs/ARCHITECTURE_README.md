@@ -401,9 +401,11 @@ The Admin Console QML screen allows administrators to enable/disable an organiza
 
 1. Calls `OrganizationService.enable_organization(organization_id)` / `disable_organization(organization_id)`.
 2. Mutates only that one organization's `is_enabled` field.
-3. Emits `domain_events.organizations_changed` (unchanged legacy presentation signal).
+3. A real transition records `OrganizationEnabled`/`OrganizationDisabled` (P10D) → the existing `organization_list` ViewInvalidation target → both the Admin Console catalog and Settings organization profiles list refresh; a no-op call (already in the requested state) records nothing.
 
 Selecting which organization a user is currently working in is a separate action, via `TenantContextService.set_active_organization(...)` (§3.5) — never through the availability mutation above.
+
+**Organization event modernization (P10D).** `update_organization`/`enable_organization`/`disable_organization` now record typed events (`OrganizationProfileUpdated`/`OrganizationEnabled`/`OrganizationDisabled`) on the same canonical `OrganizationUnitOfWork` `OrganizationCreated` already used, exactly as-needed for whatever actually changed and never for a no-op. The legacy `organizations_changed` `Signal[str]` field is deleted from `DomainEvents` entirely. Session-context selection stays outside `DomainEvent` vocabulary, as it always was.
 
 ### 3.7 Module Entitlements
 

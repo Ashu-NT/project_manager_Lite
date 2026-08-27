@@ -104,9 +104,12 @@ def test_subscribe_domain_change_no_longer_exists_on_any_controller_base():
 
 
 def test_all_still_unmodernized_signals_survive_with_real_direct_consumers():
+    """`organizations_changed` is deliberately absent from this list (P10D): Organization is now
+    fully modernized (create/profile/enable/disable are all typed events), so its legacy signal
+    was actually deleted, not merely left un-bridged like the ones below."""
 
     for signal_name in (
-        "organizations_changed", "auth_changed", "employees_changed", "departments_changed",
+        "auth_changed", "employees_changed", "departments_changed",
         "project_changed", "tasks_changed", "resources_changed",
         "sites_changed", "documents_changed", "parties_changed",
         "inventory_items_changed", "inventory_storerooms_changed",
@@ -119,24 +122,25 @@ def test_all_still_unmodernized_signals_survive_with_real_direct_consumers():
 # ---------------------------------------------------------------------------
 
 
-def test_organization_creation_never_touches_organizations_changed(services):
-    """P5A: `create_organization` never emitted `organizations_changed` -- only
-    `update_organization`/`set_active_organization` still do, for their own genuinely-unmodernized
-    transitions."""
+def test_organization_creation_produces_exactly_the_typed_view_invalidation(services):
+    """P5A proved `create_organization` never emitted `organizations_changed`, back when
+    `update_organization`/`set_active_organization` still did for their own then-unmodernized
+    transitions. P10D modernized those too and deleted the legacy signal entirely (see
+    `test_organizations_changed_field_no_longer_exists` in test_p7b_dead_signal_cleanup.py and
+    `test_organization_has_no_legacy_signal_at_all` in
+    test_p8_platform_event_architecture_canonicalization.py) -- this test now only proves the
+    positive: creation still produces exactly the one typed `organization_list` invalidation."""
     catalog = _catalog(services)
     typed_calls = []
     catalog._organization_view_invalidation_adapter.organizationCollectionStale.connect(
         lambda: typed_calls.append("typed")
     )
-    legacy_calls = []
-    domain_events.organizations_changed.connect(lambda org_id: legacy_calls.append(org_id))
 
     services["organization_service"].create_organization(
         organization_code=_unique("P7-ORG"), display_name="P7 Organization"
     )
 
     assert typed_calls == ["typed"]
-    assert legacy_calls == []
 
 
 def test_module_entitlement_has_no_legacy_signal_at_all():
@@ -374,24 +378,26 @@ def test_admin_console_domain_event_binder_never_touches_the_generic_bridge():
         assert forbidden not in source
 
 
-def test_admin_console_still_composite_refreshes_on_the_four_genuinely_unmodernized_signals(
+def test_admin_console_still_composite_refreshes_on_the_three_genuinely_unmodernized_signals(
     services,
 ):
     """The composite coalesced-refresh responsibility (9 sub-controllers, one refresh cycle) is
-    real and still required for the update/activate-only slice of Organization plus
-    Employees/Departments/Auth, none of which route through the (now-un-bridged) generic
-    `domain_changed` mechanism -- confirmed via direct signal emission."""
+    real and still required for Employees/Departments/Auth, none of which route through the
+    (now-un-bridged) generic `domain_changed` mechanism -- confirmed via direct signal emission.
+    Organization is no longer in this list (P10D): it is fully modernized and routes through the
+    typed `organization_list` ViewInvalidation target instead, proved separately in
+    test_organization_creation_produces_exactly_the_typed_view_invalidation above and in the
+    P10D-specific test suite."""
     catalog = _catalog(services)
     admin = catalog.adminWorkspace
     refresh_calls = []
     admin.refresh = lambda: refresh_calls.append("refresh") or None
 
-    domain_events.organizations_changed.emit(_unique("p7-admin-org"))
     domain_events.employees_changed.emit(_unique("p7-admin-emp"))
     domain_events.departments_changed.emit(_unique("p7-admin-dept"))
     domain_events.auth_changed.emit(_unique("p7-admin-auth"))
 
-    assert refresh_calls == ["refresh", "refresh", "refresh", "refresh"]
+    assert refresh_calls == ["refresh", "refresh", "refresh"]
 
 
 # ---------------------------------------------------------------------------
@@ -405,7 +411,7 @@ def test_pm_dashboard_still_does_not_react_to_unrelated_capability_events(servic
     refresh_calls = []
     dashboard.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.organizations_changed.emit(_unique("p7-dashboard-org"))
+    domain_events.employees_changed.emit(_unique("p7-dashboard-emp"))
     domain_events.auth_changed.emit(_unique("p7-dashboard-auth"))
 
     assert refresh_calls == []

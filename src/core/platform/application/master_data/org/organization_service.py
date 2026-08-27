@@ -15,7 +15,6 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.platform.common.ids import generate_id
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.contract.persistence.organization_unit_of_work import (
     OrganizationUnitOfWorkFactory,
@@ -23,7 +22,12 @@ from src.core.platform.contract.persistence.organization_unit_of_work import (
 from src.core.platform.contract.read.overview.platform_overview_rollup_reader import PlatformOverviewRollupReader
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.domain.master_data.org.events import OrganizationCreated
+from src.core.platform.domain.master_data.org.events import (
+    OrganizationCreated,
+    OrganizationDisabled,
+    OrganizationEnabled,
+    OrganizationProfileUpdated,
+)
 from src.core.platform.domain.master_data.org.support import (
     DEFAULT_ORGANIZATION_CODE,
     DEFAULT_ORGANIZATION_CURRENCY,
@@ -210,6 +214,19 @@ class OrganizationService:
                 is_enabled=organization.is_enabled if is_enabled is None else is_enabled,
                 tenant_id=tenant_id,
             )
+            profile_changed = (
+                candidate.organization_code != organization.organization_code
+                or candidate.display_name != organization.display_name
+                or candidate.timezone_name != organization.timezone_name
+                or candidate.base_currency != organization.base_currency
+            )
+            availability_changed = candidate.is_enabled != organization.is_enabled
+            if not profile_changed and not availability_changed:
+                # No-op: nothing actually changes, so no write, no audit, no event -- mirrors
+                # `_set_organization_enabled`'s own no-op rule (P9A-R/P9B decision): a past-tense
+                # state-transition event must represent an actual transition (P10D).
+                return organization
+
             existing = uow.organizations.get_by_code_for_tenant(
                 candidate.organization_code,
                 tenant_id,
@@ -237,13 +254,43 @@ class OrganizationService:
                     commit=False,
                     fail_closed=True,
                 )
+                occurred_at = self._clock.now()
+                if profile_changed:
+                    uow.record_event(
+                        OrganizationProfileUpdated(
+                            tenant_id=tenant_id,
+                            organization_id=candidate.id,
+                            occurred_at=occurred_at,
+                        )
+                    )
+                if availability_changed:
+                    availability_event_cls = (
+                        OrganizationEnabled if candidate.is_enabled else OrganizationDisabled
+                    )
+                    uow.record_event(
+                        availability_event_cls(
+                            tenant_id=tenant_id,
+                            organization_id=candidate.id,
+                            occurred_at=occurred_at,
+                        )
+                    )
                 uow.commit()
             except IntegrityError as exc:
                 raise ValidationError(
                     "Organization code already exists.", code="ORGANIZATION_CODE_EXISTS"
                 ) from exc
 
-        domain_events.organizations_changed.emit(candidate.id)
+        if (
+            availability_changed
+            and not candidate.is_enabled
+            and self._user_session is not None
+            and self._user_session.active_organization_id() == candidate.id
+        ):
+            # P10C: disabling THIS session's own currently active organization (still possible
+            # through `update_organization`'s mixed profile+availability path, not only through
+            # `disable_organization`) must not leave the session pointed at it -- see
+            # `_set_organization_enabled`'s identical guard for the full rationale.
+            self._user_session.set_active_organization_id(None)
         return candidate
 
     def enable_organization(self, organization_id: str) -> Organization:
@@ -288,8 +335,15 @@ class OrganizationService:
                 commit=False,
                 fail_closed=True,
             )
+            availability_event_cls = OrganizationEnabled if is_enabled else OrganizationDisabled
+            uow.record_event(
+                availability_event_cls(
+                    tenant_id=tenant_id,
+                    organization_id=candidate.id,
+                    occurred_at=self._clock.now(),
+                )
+            )
             uow.commit()
-        domain_events.organizations_changed.emit(candidate.id)
         if (
             not is_enabled
             and self._user_session is not None

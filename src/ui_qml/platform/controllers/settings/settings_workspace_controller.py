@@ -7,7 +7,6 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.platform.presenters import (
     PlatformSettingsCatalogPresenter,
     PlatformSettingsWorkspacePresenter,
@@ -52,7 +51,6 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
         self._organization_profiles: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._integration_capabilities: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._lifecycle_options = [dict(option) for option in self._catalog_presenter.lifecycle_options()]
-        self._bind_domain_events()
 
     @Property("QVariantMap", notify=moduleEntitlementsChanged)
     def moduleEntitlements(self) -> dict[str, object]:
@@ -135,21 +133,6 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
 
     def _is_accessible(self) -> bool:
         return self._has_permission(WORKSPACE_PERMISSIONS["settings"])
-
-    def _bind_domain_events(self) -> None:
-        # P5B-3: module-entitlement-triggered refresh no longer goes through the legacy
-        # `modules_changed` signal -- it is now the ViewInvalidation-driven
-        # `refresh_module_entitlements()`, wired via `ModuleEntitlementViewInvalidationAdapter` in
-        # `context.py`, exactly mirroring how `create_organization` moved off `organizations_changed`
-        # in P5A/P6A. `update_organization`/`set_active_organization` still emit
-        # `organizations_changed` directly, unchanged.
-        self._subscribe_domain_signal(
-            domain_events.organizations_changed,
-            self._on_domain_event,
-        )
-
-    def _on_domain_event(self, _payload: object) -> None:
-        self._request_domain_refresh()
 
     def _apply_entitlement_action(
         self,

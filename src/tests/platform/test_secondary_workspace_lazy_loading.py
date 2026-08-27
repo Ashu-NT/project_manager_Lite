@@ -67,10 +67,16 @@ _CASES = [
     ),
 
     (
+        # P10D: Settings no longer subscribes to any legacy `domain_events` signal at all --
+        # module entitlements were already ViewInvalidation-driven, and organization changes
+        # (the last legacy subscription this controller had) are now typed events too, wired
+        # through `OrganizationViewInvalidationAdapter` directly in `context.py`. `None` here
+        # correctly excludes this case from the domain-event-reactivity test below, matching
+        # `adminSupportWorkspace`'s own already-`None` entry for the identical reason.
         "settingsWorkspace",
         PlatformSettingsCatalogPresenter,
         "build_module_entitlements",
-        domain_events.organizations_changed,
+        None,
         ("settings.manage",),
     ),
 ]

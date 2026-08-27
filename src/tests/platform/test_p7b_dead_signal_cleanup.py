@@ -137,13 +137,15 @@ def test_control_workspace_still_reacts_to_its_remaining_real_signals(services):
     assert refresh_calls == ["refresh"]
 
 
-def test_admin_console_still_reacts_to_its_remaining_seven_real_signals(services):
+def test_admin_console_still_reacts_to_its_remaining_six_real_signals(services):
+    """P10D: `organizations_changed` is gone (organization changes now flow through the typed
+    `organization_list` ViewInvalidation target, wired directly to `refresh_organizations()` in
+    `context.py`, not through this composite Signal list) -- six legacy signals remain here."""
     catalog = _catalog(services)
     admin = catalog.adminWorkspace
     refresh_calls = []
     admin.refresh = lambda: refresh_calls.append("refresh") or None
 
-    domain_events.organizations_changed.emit(_unique("p7b-org"))
     domain_events.sites_changed.emit(_unique("p7b-site"))
     domain_events.departments_changed.emit(_unique("p7b-dept"))
     domain_events.employees_changed.emit(_unique("p7b-emp"))
@@ -151,7 +153,7 @@ def test_admin_console_still_reacts_to_its_remaining_seven_real_signals(services
     domain_events.parties_changed.emit(_unique("p7b-party"))
     domain_events.documents_changed.emit(_unique("p7b-doc"))
 
-    assert refresh_calls == ["refresh"] * 7
+    assert refresh_calls == ["refresh"] * 6
 
 
 def test_pm_resources_workspace_still_reacts_to_resources_and_employees(services):
@@ -232,23 +234,34 @@ def test_final_signal_invariant_every_remaining_signal_has_a_source_reference_be
 
 def test_domain_event_binder_still_kept_unchanged_in_responsibility():
     """§10: still not deleted -- still real, direct, non-compatibility composite-refresh
-    coordination, now for 7 signals instead of 8 (`calendars_changed` removed)."""
+    coordination, now for 6 signals instead of 8 (`calendars_changed` removed by P7B,
+    `organizations_changed` removed by P10D -- organization changes route through the typed
+    `organization_list` ViewInvalidation target instead)."""
     import src.ui_qml.platform.controllers.admin_console.domain_event_binder as binder_module
 
     source = _strip_strings_and_comments(inspect.getsource(binder_module))
-    for forbidden in ("_subscribe_domain_change", "domain_changed", "_BRIDGE_SPECS", "calendars_changed"):
+    for forbidden in (
+        "_subscribe_domain_change", "domain_changed", "_BRIDGE_SPECS", "calendars_changed",
+        "organizations_changed",
+    ):
         assert forbidden not in source
     for still_present in (
-        "organizations_changed", "sites_changed", "departments_changed",
+        "sites_changed", "departments_changed",
         "employees_changed", "auth_changed", "parties_changed", "documents_changed",
     ):
         assert still_present in source
 
 
-def test_organizations_changed_untouched_by_p7b():
-    """§8: Organization's own real, direct legacy signal (update/set-active) is out of scope for
-    P7B and remains exactly as P7A left it."""
+def test_organizations_changed_field_no_longer_exists():
+    """P10D superseded P7B's own `test_organizations_changed_untouched_by_p7b` (which proved
+    Organization's legacy signal was deliberately OUT of P7B's scope and left exactly as P7A left
+    it) -- Organization event modernization is now complete: creation, profile updates, and
+    enable/disable are all typed events, and the legacy Signal field itself is deleted, not
+    merely unproduced."""
+    assert not hasattr(domain_events, "organizations_changed")
+
     import src.core.platform.application.master_data.org.organization_service as org_service_module
 
     source = inspect.getsource(org_service_module)
-    assert source.count("domain_events.organizations_changed.emit(") == 2
+    assert "organizations_changed" not in source
+    assert "domain_events" not in source

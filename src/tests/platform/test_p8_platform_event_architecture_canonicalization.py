@@ -90,11 +90,27 @@ def test_current_signals_are_a_subset_of_the_frozen_allowlist_not_equal():
     )
 
 
+DELETED_SINCE_FROZEN_ALLOWLIST_WAS_WRITTEN = frozenset(
+    {
+        "organizations_changed",  # P10D: Organization creation/profile/availability all
+        # modernized onto typed events (OrganizationCreated/OrganizationProfileUpdated/
+        # OrganizationEnabled/OrganizationDisabled); zero remaining producers or consumers.
+    }
+)
+
+
 def test_frozen_allowlist_matches_current_source_exactly_right_now():
     """Not a growth guard by itself (that's the subset test above) -- this one just keeps the
     allowlist honest at the moment it was written, so a future reader trusts the list actually
-    reflects current source rather than a stale copy-paste."""
-    assert _current_signal_names() == FROZEN_LEGACY_SIGNAL_ALLOWLIST
+    reflects current source rather than a stale copy-paste. `FROZEN_LEGACY_SIGNAL_ALLOWLIST`
+    itself stays frozen (an upper bound, never edited) per its own design intent -- real
+    deletions are tracked in `DELETED_SINCE_FROZEN_ALLOWLIST_WAS_WRITTEN` instead, so this
+    remains an exact, non-stale snapshot rather than silently drifting or needing the frozen set
+    itself rewritten every time a migration deletes one more legacy signal."""
+    assert (
+        _current_signal_names()
+        == FROZEN_LEGACY_SIGNAL_ALLOWLIST - DELETED_SINCE_FROZEN_ALLOWLIST_WAS_WRITTEN
+    )
 
 
 def test_a_hypothetical_new_signal_name_would_fail_the_subset_check():
@@ -218,6 +234,12 @@ def test_organization_create_path_has_zero_legacy_signal_involvement():
     )
     assert "organizations_changed" not in source
     assert "domain_events" not in source
+
+
+def test_organization_has_no_legacy_signal_at_all():
+    """P10D: create/profile-update/enable/disable are all typed events now -- the last legacy
+    Organization Signal field is gone, not merely unused."""
+    assert not hasattr(domain_events, "organizations_changed")
 
 
 def test_module_entitlement_has_no_legacy_signal_at_all():

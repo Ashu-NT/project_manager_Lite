@@ -1,9 +1,11 @@
-"""P5A + Organization-specific P6A cutover: end-to-end proof that Organization creation reaches
-the two real UI consumers (admin console organization list, settings organization profiles list)
-through `OrganizationCreated -> ViewInvalidationHint -> OrganizationViewInvalidationAdapter`,
-never the legacy `organizations_changed` signal -- and that `update_organization`/
-`enable_organization` (P10A: replaces the deleted `set_active_organization`) still reach them
-through the unchanged legacy path.
+"""P5A + Organization-specific P6A cutover, extended by P10D: end-to-end proof that Organization
+creation, profile updates, and enable/disable ALL reach the two real UI consumers (admin console
+organization list, settings organization profiles list) through
+`OrganizationCreated`/`OrganizationProfileUpdated`/`OrganizationEnabled`/`OrganizationDisabled`
+-> `ViewInvalidationHint` -> `OrganizationViewInvalidationAdapter` -- the legacy
+`organizations_changed` signal no longer exists at all (P10A already replaced the deleted
+`set_active_organization` with the narrower `enable_organization`; P10D finished the cutover for
+its own event emission).
 
 Uses the real `services` fixture (real Session, real UnitOfWorks, real composition-owned
 `ViewInvalidationChannel`) plus the real `build_desktop_api_registry`/`PlatformWorkspaceCatalog`
@@ -85,29 +87,42 @@ def test_no_refresh_signal_before_commit_and_none_on_rollback(services):
     assert refresh_calls == ["admin"]
 
 
-def test_update_and_enable_still_use_the_unchanged_legacy_signal_path(services):
-    """P5A implements only OrganizationCreated -- update/enable must keep working exactly as
-    before, via the legacy `organizations_changed` signal, untouched by this cutover. P10A deleted
-    `set_active_organization` (its persisted mutual-exclusion designation was legacy scaffolding)
-    in favor of the narrower `enable_organization`, which still emits the same unchanged signal."""
-    from src.core.shared.events.domain_events import domain_events
-
+def test_update_and_enable_now_also_use_the_typed_view_invalidation_path(services):
+    """P10D: `update_organization`/`enable_organization` no longer emit any legacy signal -- they
+    record `OrganizationProfileUpdated`/`OrganizationEnabled`, which reach the SAME real Qt
+    consumers `OrganizationCreated` already does, through the identical adapter path (not a
+    separate mechanism)."""
+    catalog = _catalog(services)
     organization_service = services["organization_service"]
     organization = organization_service.create_organization(
         organization_code=_unique_code("QTCUT-UPDATE"), display_name="Before Update", is_enabled=False
     )
+    catalog.adminWorkspace.organizations  # establish baseline read, post-creation
+    catalog.settingsWorkspace.refresh()
 
-    signal_calls = []
-    domain_events.organizations_changed.connect(lambda org_id: signal_calls.append(org_id))
+    refresh_calls = []
+    catalog.adminWorkspace._organization_controller.refresh_organizations = (
+        lambda: refresh_calls.append("admin-update") or None
+    )
+    catalog.settingsWorkspace.refresh_organization_profiles = (
+        lambda: refresh_calls.append("settings-update") or None
+    )
 
-    updated = organization_service.update_organization(
+    organization_service.update_organization(
         organization.id, expected_version=organization.version, display_name="After Update"
     )
-    assert signal_calls == [updated.id]
+    assert refresh_calls == ["admin-update", "settings-update"]
 
-    signal_calls.clear()
-    enabled = organization_service.enable_organization(organization.id)
-    assert signal_calls == [enabled.id]
+    refresh_calls.clear()
+    catalog.adminWorkspace._organization_controller.refresh_organizations = (
+        lambda: refresh_calls.append("admin-enable") or None
+    )
+    catalog.settingsWorkspace.refresh_organization_profiles = (
+        lambda: refresh_calls.append("settings-enable") or None
+    )
+
+    organization_service.enable_organization(organization.id)
+    assert refresh_calls == ["admin-enable", "settings-enable"]
 
 
 def test_adapter_only_reacts_to_the_currently_active_tenant(services):

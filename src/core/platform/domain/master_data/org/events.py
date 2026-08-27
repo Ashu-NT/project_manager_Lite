@@ -28,4 +28,42 @@ class OrganizationCreated:
     occurred_at: datetime
 
 
-__all__ = ["OrganizationCreated"]
+@dataclass(frozen=True, slots=True, kw_only=True)
+class OrganizationProfileUpdated:
+    """A committed change to one or more of an Organization's profile fields (code, display
+    name, timezone, base currency) -- never emitted for a no-op update (P10D). Identifiers only:
+    no handler needs the changed values themselves, only that the tenant's organization
+    collection is stale."""
+
+    tenant_id: str
+    organization_id: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class OrganizationEnabled:
+    """`Organization.is_enabled` committed False -> True (P10A availability semantics; never
+    emitted for an already-enabled organization). Not a session-selection event -- see
+    `TenantContextService.set_active_organization`, which remains untouched by this vocabulary."""
+
+    tenant_id: str
+    organization_id: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class OrganizationDisabled:
+    """`Organization.is_enabled` committed True -> False; never emitted for an already-disabled
+    organization. See `OrganizationEnabled`'s own note on session selection."""
+
+    tenant_id: str
+    organization_id: str
+    occurred_at: datetime
+
+
+__all__ = [
+    "OrganizationCreated",
+    "OrganizationDisabled",
+    "OrganizationEnabled",
+    "OrganizationProfileUpdated",
+]
