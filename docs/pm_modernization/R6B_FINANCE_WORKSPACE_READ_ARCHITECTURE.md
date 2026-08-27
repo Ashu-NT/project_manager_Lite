@@ -4,8 +4,9 @@
 
 **R6B NOT CLOSED.** Implementation is in progress. The six-destination shell,
 destination-scoped loading, bounded Overview projection, bounded Actual and
-Commitment lists, and authoritative Finance audit projection are implemented.
-Forecast, Rates, Financial Changes, Billing Schedule, Performance, and inspector
+Commitment lists, authoritative Finance audit projection, and the Budget,
+Planned Cost, and Forecast master-detail read cutovers are implemented. Rates,
+Financial Changes, Billing Schedule, Performance, and remaining inspector
 cutovers remain blocking.
 
 ## 2. R6A Decisions Applied
@@ -68,9 +69,11 @@ Implemented contracts normalize and allowlist Actual and Commitment sorts and
 bound page sizes. Overview accepts tenant, organization, project, and as-of.
 Finance audit accepts module, selected project workspace, a bounded limit, and
 an allowlist of Finance operation prefixes. Immutable page/filter/sort query
-objects are implemented for Budget and Planned Cost master/detail reads. They
-are still required for Forecast, Rate, Financial Change, Billing Schedule,
-Billing Preparation, and audit archive paging.
+objects are implemented for Budget, Planned Cost, and Forecast master-detail
+reads. Forecast has separate master and line requests with bounded pages,
+allowlisted sort keys, search/status/generation/source filters, and independent
+query state. Equivalent contracts are still required for Rate, Financial
+Change, Billing Schedule, Billing Preparation, and audit archive paging.
 
 ## 7. Reader Contracts
 
@@ -78,10 +81,13 @@ Billing Preparation, and audit archive paging.
 does not mutate or commit. `SqlAlchemyFinanceSnapshotReader.read_overview_facts`
 executes at most five statements. The enterprise audit repository projection
 returns immutable audit entities through the Platform desktop DTO boundary and
-performs one scoped statement. Budget and Planned Cost now use dedicated SQL
-Readers returning immutable scalar facts with count/data query pairs and stable
-ID tie-breakers. Remaining configuration reads still hydrate domain aggregates
-through repositories and therefore do not satisfy the final R6B Reader gate.
+performs one scoped statement. Budget, Planned Cost, and Forecast now use
+dedicated SQL Readers returning immutable scalar facts with count/data query
+pairs and stable ID tie-breakers. The Forecast Reader executes an independent
+selected-version aggregate query; authoritative total ETC and line count never
+depend on the visible line page. Remaining configuration reads still hydrate
+domain aggregates through repositories and therefore do not satisfy the final
+R6B Reader gate.
 
 ## 8. Desktop API
 
@@ -89,8 +95,10 @@ through repositories and therefore do not satisfy the final R6B Reader gate.
 `get_commitment_summary()` now maps the same bounded facts and no longer builds
 the full Finance snapshot. Actual and Commitment page APIs retain authoritative
 totals and sort state. The Platform Enterprise Audit desktop API now supports
-additive module, workspace, and operation-prefix filters. Destination-specific
-typed endpoints are still required for the remaining substantial collections.
+additive module, workspace, and operation-prefix filters. The Forecast desktop
+endpoint maps immutable facts to decimal-string DTOs and exposes selected
+parent evidence separately from paged line rows. Destination-specific typed
+endpoints are still required for the remaining substantial collections.
 
 ## 9. Overview Architecture
 
@@ -102,12 +110,13 @@ shown as `Not approved` or `Not available`, not a fabricated zero.
 ## 10. Planning Architecture
 
 Planning has Budgets, Planned Costs, and Forecast tabs and loads only the active
-tab. Budgets and Planned Costs now each use a paged/sorted immutable version
-Reader and an explicitly selected-version, paged/sorted line Reader; no first
-row is silently selected. Each service path is bounded to five statements
-including authorization and carries explicit tenant, organization, and project
-scope into every count/data statement. **Blocking:** Forecast versions/lines
-remain unbounded aggregate/service reads.
+tab. All three use a paged/sorted immutable version Reader and an explicitly
+selected-version, paged/sorted line Reader; no first row is silently selected.
+Forecast master search/status/generation filters and line search/source filters
+execute in SQL. Every Forecast count/data/detail statement carries explicit
+tenant, organization, project, and selected-parent scope. The selected Forecast
+summary carries authoritative ETC, currency, line count, revision, as-of,
+generation, lifecycle, and row-version evidence.
 
 ## 11. Costs Architecture
 
@@ -165,9 +174,11 @@ level deny-safe capability matrix still needs final integration coverage.
 
 Overview fails closed on source-currency mismatch. Canonical arithmetic remains
 `Decimal`; desktop monetary values use canonical decimal strings and formatted
-labels. QML performs no authoritative Finance calculation. No FX conversion was
-introduced. The remaining legacy snapshot/configuration reads must receive the
-same cross-currency characterization before cutover.
+labels. Forecast master, detail, and line amounts retain persisted currency and
+never convert through `float`. QML performs no authoritative Finance
+calculation. No FX conversion was introduced. The remaining legacy
+snapshot/configuration reads must receive the same cross-currency
+characterization before cutover.
 
 ## 18. As-of / Revision Semantics
 
@@ -178,18 +189,23 @@ DTOs must expose stable selected-parent revision/as-of evidence.
 
 ## 19. DataTable Standard
 
-Actuals, Commitments, Budgets, and Planned Costs use shared `DataTable` server
-mode. Their authoritative sort state resets page one on sort changes, survives
-refresh/page changes, and exposes server counts independent of the current
-page. The remaining enterprise collections still use custom collection
-sections and are not R6B complete.
+Actuals, Commitments, Budgets, Planned Costs, and both Forecast tables use
+shared `DataTable` server mode. Their authoritative sort state resets page one
+on sort changes, survives refresh/page changes, and exposes server counts
+independent of the current page. Forecast master and line state are independent:
+selecting a Forecast resets only the line page and clears stale detail/lines
+before refresh. The remaining enterprise collections still use custom
+collection sections and are not R6B complete.
 
 ## 20. Inspector Pattern
 
-The final ID-driven inspectors for Budget Version, Forecast Version, Cost Entry,
-Commitment, Rate Card, Financial Change, and Billing Preparation are not yet
-implemented. No new whole ORM/domain aggregate is passed into QML, but the
-absence of bounded detail readers remains a closure blocker.
+Forecast now has an ID-driven selected-version detail projection and bounded
+line detail. Source decisions are deliberately not prefetched: the current UI
+does not present a derivation inspector, and fetching every decision would
+violate the bounded read contract. If that surface is added later it must use a
+separate bounded selected-Forecast query. Final inspectors for Cost Entry,
+Commitment, Rate Card, Financial Change, and Billing Preparation remain
+blocking; no ORM/domain aggregate is passed into QML.
 
 ## 21. Lazy Loading
 
@@ -212,10 +228,14 @@ completed without reviving previously deleted emit-without-consumer signals.
 
 The controller captures request generation, project ID, destination, and
 subsection and rejects responses that no longer match. Project switches reset
-selected budget/planned-cost/forecast/change/baseline IDs and pages. Budget and
-Planned Cost selection is explicit and resets only its child-line page.
-Selected-parent request tokens for future Rate and Billing inspectors remain
-blocking.
+selected budget/planned-cost/forecast/change/baseline IDs and pages. Budget,
+Planned Cost, and Forecast selection is explicit and resets only its child-line
+page. Forecast selection immediately clears stale selected detail and lines;
+the request generation plus project/destination/subsection check rejects a
+response after a newer selection or scope request. Organization changes
+rebuild/revalidate the runtime-scoped controller and cannot reuse a selected
+Forecast from the previous scope. Selected-parent request tokens for future
+Rate and Billing inspectors remain blocking.
 
 ## 24. Tenant / Organization / Project Security
 
@@ -223,67 +243,92 @@ Overview receives explicit tenant/organization/project scope and validates the
 selected Project permission in the query service. Enterprise Audit always
 applies repository tenant and organization scope plus selected project
 workspace. Actuals and Commitments retain their service/repository scope. Budget
-and Planned Cost count/data statements receive and enforce tenant,
-organization, project, and selected-parent scope. New readers must preserve the
-same explicit scope and project visibility.
+Planned Cost, and Forecast count/data/detail statements receive and enforce
+tenant, organization, project, and selected-parent scope. `finance.read` and
+project visibility are checked before the Forecast Reader executes. New readers
+must preserve the same explicit scope and project visibility.
 
 ## 25. RLS Evidence
 
-No RLS policy was weakened. Existing Finance tables remain tenant/organization
-protected. **Blocking:** runtime-role PostgreSQL negative tests for every new
-R6B Reader and child-table bypass attempts have not yet been captured.
+No RLS policy was weakened. The Forecast Reader was exercised against the
+Docker PostgreSQL database through `app_runtime`, which is `NOSUPERUSER`,
+`NOBYPASSRLS`, and owns no protected tables. Cross-tenant/organization Forecast
+master access and direct foreign `project_finance_forecast_lines` access both
+returned zero rows. Runtime-role negative evidence remains blocking for later
+R6B Readers as they are introduced.
 
 ## 26. Responsive Results
 
 The six-destination page uses the existing responsive SectionDetailPage and a
-shared secondary tab bar with lazy content. QML lint is clean for the changed
-Finance files. **Blocking:** explicit visual evidence at 1024x640, 1280x720,
-1366x768, 1440x900, and 1920x1080 is not yet recorded, and the remaining table
-cutovers must be validated at those widths.
+shared secondary tab bar with lazy content. Forecast uses a stacked full-width
+master/detail layout rather than a permanently squeezing sidebar. Actual
+offscreen QML instantiation passes at 1024x640, 1280x720, 1366x768, 1440x900,
+and 1920x1080, with positive master/detail table width and no R6B-owned QML
+warning. Remaining table cutovers still require their own viewport evidence.
 
 ## 27. Performance Characterization
 
 Overview is capped at five SQL statements. Enterprise Finance Audit is one
-bounded SQL statement. Inactive destination suppression and shell-only entry
-are unit-tested. **Blocking:** statement counts for every Planning, Costs,
-Performance, Commercial, and Controls subsection and realistic memory/model
-bounds are incomplete.
+bounded SQL statement. Forecast pageable master reads use `COUNT + page` (two
+Reader statements), selected summary uses one statement, and pageable line
+reads use `COUNT + page` (two Reader statements). The selected Forecast query
+path is at most six statements including authorization. There is no N+1 or
+hidden full-line model. Inactive destination suppression and shell-only entry
+are unit-tested. Statement counts for the remaining Costs, Performance,
+Commercial, and Controls cutovers remain incomplete.
 
 ## 28. PostgreSQL Query Evidence
 
-The repository's existing Dockerized PostgreSQL test environment will be
-reused. **Blocking:** `EXPLAIN (ANALYZE, BUFFERS)` evidence has not yet been
-captured for material R6B list readers. No speculative index was added.
+The repository's existing Dockerized PostgreSQL 16 test environment is reused.
+Representative runtime-role `EXPLAIN (ANALYZE, BUFFERS)` execution measured
+approximately 0.14 ms for the Forecast master projection and 0.10 ms for the
+line projection on the focused fixture. Both plans were bounded by `LIMIT`; the
+existing scope, project/parent, cost-code, and task indexes cover the access
+shape. This small fixture is architecture evidence, not a scale benchmark. No
+speculative index was added; final 10k/50k certification remains an R6H gate.
 
 ## 29. Legacy Paths Removed
 
 The 13-peer Finance primary navigation and Controls pseudo-activity based on
 cost ledger rows are removed from production. The visible Cash Flow name is
-removed. No duplicate Finance route/workspace was added.
+removed. The active Forecast destination no longer invokes the aggregate
+snapshot forecast builder or lifecycle collection builder, and its legacy card
+collection was replaced in place by two server-mode tables. No duplicate
+Finance route/workspace was added.
 
 ## 30. Compatibility Paths Retained
 
-`presenters/financials/workspace_builder.py` and
+`presenters/financials/workspace_builder.py`, its legacy Forecast builder,
+Forecast lifecycle builder calls, and
 `ProjectFinancialsWorkspacePresenter.build_workspace_state()` are retained only
-for current tests/remaining migration references. `ProjectFinanceWorkspaceQuery`
-still powers configuration reads. **DELETE AFTER CUTOVER:** remove the
-monolithic workspace builder/method and replace/delete the aggregate-hydrating
-workspace query after all destination-specific Readers are proven. They are not
-permanent compatibility architecture and must not survive R6B closure.
+because the monolithic compatibility path and focused legacy delegation tests
+still consume them. The production Forecast destination has zero dependency on
+`get_cost_forecast()`, `list_forecast_versions()`, or
+`list_forecast_lines()`. `ProjectFinanceWorkspaceQuery` still powers remaining
+configuration reads. **DELETE AFTER CUTOVER:** remove these compatibility
+consumers and then delete the obsolete Forecast builders/API methods with the
+monolithic workspace method after every destination-specific Reader is proven.
+They are temporary and must not survive R6B closure.
 
 ## 31. Tests
 
-Current targeted evidence covers shell-only loading, Overview-only loading,
-destination suppression, Actual page arguments, authoritative audit scoping,
-Overview statement bounds, exact Budget/ETC/EAC/VAC facts, Commitment summary
-delegation without a second full snapshot, and Budget/Planned Cost cross-page
-ordering, explicit-parent line isolation, no-auto-selection behavior, and
-five-statement service bounds. Latest focused results: `10 passed` for the R6B
-destination/Reader suite and `24 passed` for Finance presenter/controller,
-legacy configuration, and desktop delegation regressions. Python compile and
-changed-Finance QML lint pass; the PM CQRS Reader architecture suite adds `21
-passed`. Broader Finance, PM, PostgreSQL, RLS, responsive, and final architecture
-gates remain pending.
+Current targeted evidence covers shell/destination suppression; Overview,
+Actual, Commitment, Budget, and Planned Cost regression; Forecast paging,
+filters, allowed/default sorts, cross-page order, explicit selection,
+authoritative parent totals, wrong-scope rejection, Decimal DTO serialization,
+controller reset rules, and all five required Forecast viewport sizes. The
+dedicated live PostgreSQL Forecast suite adds runtime-role statement bounds,
+cross-scope parent/child denial, and query-plan inspection. Python compilation,
+changed-Finance QML lint, PM CQRS Reader architecture, and `git diff --check`
+are required at each focused closure run. Latest Forecast closure evidence is
+`89 passed` for the focused Finance/Forecast/Planned Cost/controller/architecture
+matrix (including rapid A/B/C stale-response rejection and organization-context
+workspace refresh), `14 passed` for shared QML/runtime guardrails, and `3
+passed` against live PostgreSQL. Targeted Python compilation and Finance
+`qmllint` are clean.
+The R6B-owned diff check is clean; repository-wide diff checking is temporarily
+blocked by a concurrent Platform test edit with a trailing blank line. Broader
+Finance, PM, later-reader RLS, and final architecture gates remain pending.
 
 ## 32. Known Deferred R6C-R6H Work
 

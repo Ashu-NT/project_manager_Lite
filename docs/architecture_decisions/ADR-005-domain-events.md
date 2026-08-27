@@ -1117,6 +1117,7 @@ explicit citation back to this section, so it remains visible rather than quietl
 | Organization update/set-active | **Not in the original table at all** — discovered during P7 to still use the direct (never-bridged) `organizations_changed` signal; P5A only ever typed `OrganizationCreated`. Documented as a correction, not migrated (§26.4). **Migrated (P10D):** `update_organization`/`enable_organization`/`disable_organization` now record `OrganizationProfileUpdated`/`OrganizationEnabled`/`OrganizationDisabled` on the same canonical `OrganizationUnitOfWork` `OrganizationCreated` already used, mapped onto the existing `organization_list` ViewInvalidation target. `organizations_changed` is deleted from `DomainEvents` entirely — zero remaining producers, zero remaining consumers. Session-context selection (`TenantContextService.set_active_organization`) was never in scope for this migration and produces no DomainEvent of any kind. |
 | Employee create/update | Not in the original table — `employees_changed` was a direct (never-bridged) legacy signal, un-typed prior to P12A/P12B. **Migrated (P12B):** `create_employee`/`update_employee` now record `EmployeeCreated`/`EmployeeProfileUpdated` on the canonical `EmployeeUnitOfWork` P12A converged onto, mapped onto a new `employee_list` ViewInvalidation target (`OrganizationScope`, matching Employee's actual ownership — organization-scoped, not tenant-wide). `employees_changed` is deleted from `DomainEvents` entirely — zero remaining producers, zero remaining consumers. `resources_changed` (Employee's other, PM-owned legacy signal, still emitted by `update_employee`'s linked-resource sync) is explicitly untouched — Resource capability remains NOT MODERNIZED. |
 | Department create/update | Not in the original table — `departments_changed` was a direct (never-bridged) legacy signal, un-typed prior to P13A/P13B. **Migrated (P13B):** `create_department`/`update_department` now record `DepartmentCreated`/`DepartmentProfileUpdated` on the canonical `DepartmentUnitOfWork` P13A converged onto, mapped onto a new `department_list` ViewInvalidation target (`OrganizationScope`). `departments_changed` is deleted from `DomainEvents` entirely — zero remaining producers, zero remaining consumers (Admin Console was its only consumer, per P11's audit). |
+| Site create/update | Not in the original table — `sites_changed` was a direct (never-bridged) legacy signal, un-typed prior to P14A/P14B, with five real consumers (Admin Console plus Inventory/Pricing/Procurement/Reservations). **Migrated (P14B):** `create_site`/`update_site` (extracted into `site_commands.py` during this phase, off the canonical `SiteUnitOfWork` P14A converged onto) now record `SiteCreated`, `SiteProfileUpdated`, and — mirroring Organization's own `is_enabled`-boolean precedent — `SiteEnabled`/`SiteDisabled` for the one genuine lifecycle transition (`is_active`), mapped onto a new `site_list` ViewInvalidation target (`OrganizationScope`). A single mutation that changes both profile fields and availability in the same call records both distinct typed events (both still individually published on the post-commit bus) but the `site_list` handler coalesces them to one ViewInvalidation hint per commit (keyed on the UoW's `DomainEventContext.correlation_id`), so one Site mutation never causes more than one downstream refresh. `sites_changed` is deleted from `DomainEvents` entirely — zero remaining producers, zero remaining consumers. Of the five prior consumers: Admin Console got a new narrow `refresh_sites()`; Inventory/Pricing/Procurement each got a new narrow `refresh_site_options()` (rebuilding only their `site_options`/`storeroom_options` reference data, since storeroom labels embed the site name) via three new `SiteViewInvalidationAdapter` instances wired in a from-scratch ViewInvalidation seam built for `InventoryProcurementWorkspaceCatalog` (previously had none); Reservations had zero real Site dependency (confirmed by audit) and was simply dropped with no replacement wiring. |
 
 No compatibility facades that outlive their own migration phase, and no straddling: per this
 codebase's existing hard rule (also stated in `docs/repo_structure_plan/EXECUTION_SPEC.md`), a
@@ -1605,6 +1606,56 @@ cascade) was wired to a new `DepartmentViewInvalidationAdapter` in `context.py`,
 Employee/Organization adapter pattern exactly. `departments_changed` is now deleted from
 `DomainEvents` entirely (zero producers, zero consumers); the legacy Signal count is 26 as of this
 phase, recomputed directly from `dataclasses.fields(domain_events)`.
+
+**26.12 Site: FULLY MODERNIZED (P14A/P14B).** P14A converged `create_site`/`update_site` off the
+shared, process-lifetime `Session` onto a canonical fresh-session `SiteUnitOfWork`/
+`SiteUnitOfWorkFactory` pair — the smallest of the four UoWs, since Site has no cross-entity
+dependency at all beyond its own organization-ownership check. A P14A-FIX pass reverted a mistaken
+architecture line-budget increase on `site_service.py` (360→400): the file's 383→385-line growth
+across P14A was 2 real lines against a pre-existing, already-violated budget, not a new breach
+caused by the migration; the budget was restored to 360 and the pre-existing breach left visible.
+P14B then recorded `SiteCreated` on create, and on update recorded `SiteProfileUpdated` and/or
+`SiteEnabled`/`SiteDisabled` depending on which of two independent, correctly-distinguished
+concepts actually changed: Site's fifteen ordinary profile fields, and its one genuine lifecycle
+concept (`is_active`, with `opened_at`/`closed_at`/`status` as automatic derived side-effects of
+that single boolean, never independently-triggerable states — deliberately not modeled as
+`SiteOpened`/`SiteClosed`, which would have invented lifecycle vocabulary the domain doesn't have).
+A retroactive `opened_at`/`closed_at`/`status` correction made without an accompanying `is_active`
+flip still counts as a genuine profile change, since nothing about availability actually
+transitioned. `update_site` gained the same no-op discipline as Department: a call identical to the
+persisted state on every relevant field records zero events, zero audit entry, zero write, and
+does not bump `updated_at`. Both events map onto one new `site_list` ViewInvalidation target
+(`OrganizationScope`); because a single mixed update can legitimately record two typed events in
+one commit, the `site_list` handler deduplicates by the UoW's own `DomainEventContext
+.correlation_id` so one Site mutation never produces more than one `site_list` hint — the two
+business events themselves are still both published individually on the post-commit bus. To keep
+`site_service.py` under its (deliberately untouched, per explicit instruction) 360-line budget once
+this event-recording logic was added, `create_site`/`update_site` were extracted into a sibling
+`site_commands.py` module (with `site_context.py`/`site_utils.py` helpers), mirroring the
+`department_commands.py` split Department already used — `site_service.py` now only owns
+construction and the read-only query surface. All five prior `sites_changed` consumers were
+individually re-audited rather than mechanically rewired: Admin Console got a new narrow
+`refresh_sites()` (delegating to its existing Site sub-controller's own `refresh()`); Inventory,
+Pricing, and Procurement each have a genuine, narrow dependency on `site_options` and (since
+storeroom option labels embed the owning site's name) `storeroom_options`, so each gained a new
+`build_site_reference_options()`/`refresh_site_options()` pair and its own
+`SiteViewInvalidationAdapter` instance, wired inside a ViewInvalidation seam built from scratch for
+`InventoryProcurementWorkspaceCatalog` (which had none before this phase — no
+`_view_invalidation_channel`, no tenant/organization-id resolution helpers; a new local
+`resolve_active_organization_id_from_runtime_api`-equivalent was added under
+`inventory_procurement/controllers/common/` rather than cross-importing PM's own copy, to avoid an
+Inventory↔PM business-module coupling); Reservations had zero real Site dependency anywhere in its
+controller or presenter and was simply dropped from `sites_changed`'s subscribers with no
+replacement wiring at all. `sites_changed` is now deleted from `DomainEvents` entirely (zero
+producers, zero consumers); the legacy Signal count is 25 as of this phase, recomputed directly
+from `dataclasses.fields(domain_events)`. Two pre-existing, out-of-scope items remain unchanged and
+undisturbed by this phase: the Site ORM's non-timezone-aware `DateTime` columns
+(`opened_at`/`closed_at`/`created_at`/`updated_at`) — the root cause of a known naive-vs-aware
+`TypeError` whenever a previously-persisted, previously-active site is deactivated, reproduced
+identically before and after both P14A's and P14B's own changes — and Inventory's own business
+events, which remain fully legacy; this phase modernized only Site's producer side and its
+consumers' Site-specific reaction, never Inventory/Pricing/Procurement/Reservations' own domain
+events.
 
 ## Alternatives Rejected
 

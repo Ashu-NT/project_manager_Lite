@@ -231,7 +231,7 @@ def _make_organization_service(monkeypatch: pytest.MonkeyPatch) -> OrganizationS
 
 def _make_site_service(monkeypatch: pytest.MonkeyPatch) -> tuple[SiteService, Organization]:
     monkeypatch.setattr(
-        "src.core.platform.application.master_data.site.site_service.require_permission",
+        "src.core.platform.application.master_data.site.site_commands.require_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(

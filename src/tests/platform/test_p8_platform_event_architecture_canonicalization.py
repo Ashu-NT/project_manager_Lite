@@ -102,8 +102,8 @@ def test_a_hypothetical_deletion_still_passes_the_subset_check():
     signal being removed (as every future capability migration is expected to do) and confirm
     the subset check still passes without editing the allowlist or any deletion-tracking set --
     deleting a legacy signal requires zero test bookkeeping, only the subset relationship."""
-    assert "sites_changed" in _current_signal_names()
-    hypothetical_current = _current_signal_names() - {"sites_changed"}
+    assert "documents_changed" in _current_signal_names()
+    hypothetical_current = _current_signal_names() - {"documents_changed"}
     assert hypothetical_current <= FROZEN_LEGACY_SIGNAL_ALLOWLIST
 
 
@@ -247,6 +247,10 @@ def test_employee_has_no_legacy_signal_at_all():
 
 def test_department_has_no_legacy_signal_at_all():
     assert not hasattr(domain_events, "departments_changed")
+
+
+def test_site_has_no_legacy_signal_at_all():
+    assert not hasattr(domain_events, "sites_changed")
 
 
 def test_five_capability_mappers_never_import_domain_events_or_qt():

@@ -18,10 +18,15 @@ SITE_LIST_SCOPE_CODE = "site_list"
 
 
 def build_site_list_view_invalidation_handler(channel: ViewInvalidationChannel):
+    last_notified_correlation_id: list[str | None] = [None]
+
     def handle_site_list_event(
         event: SiteCreated | SiteProfileUpdated | SiteEnabled | SiteDisabled,
         context: DomainEventContext,
     ) -> None:
+        if context.correlation_id == last_notified_correlation_id[0]:
+            return
+        last_notified_correlation_id[0] = context.correlation_id
         channel.notify(
             ViewInvalidationHint(
                 scope=OrganizationScope(event.tenant_id, event.organization_id),

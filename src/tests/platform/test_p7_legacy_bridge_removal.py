@@ -104,15 +104,15 @@ def test_subscribe_domain_change_no_longer_exists_on_any_controller_base():
 
 
 def test_all_still_unmodernized_signals_survive_with_real_direct_consumers():
-    """`organizations_changed`/`employees_changed`/`departments_changed` are deliberately absent
-    from this list (P10D, P12B, P13B): all three capabilities are now fully modernized
-    (create/profile events are typed), so their legacy signals were actually deleted, not merely
-    left un-bridged like the ones below."""
+    """`organizations_changed`/`employees_changed`/`departments_changed`/`sites_changed` are
+    deliberately absent from this list (P10D, P12B, P13B, P14B): all four capabilities are now
+    fully modernized (create/profile events are typed), so their legacy signals were actually
+    deleted, not merely left un-bridged like the ones below."""
 
     for signal_name in (
         "auth_changed",
         "project_changed", "tasks_changed", "resources_changed",
-        "sites_changed", "documents_changed", "parties_changed",
+        "documents_changed", "parties_changed",
         "inventory_items_changed", "inventory_storerooms_changed",
     ):
         assert hasattr(domain_events, signal_name), f"{signal_name} was deleted, not just un-bridged"
@@ -270,32 +270,32 @@ def test_inventory_catalog_workspace_direct_wired_to_shared_master_document_and_
 
 
 def test_inventory_catalog_workspace_does_not_react_to_an_unrelated_shared_master_signal(services):
-    """`sites_changed` is a real shared-master signal, but NOT one the catalog workspace's own
-    binder ever subscribed to (only inventory/pricing/procurement/reservations did) -- direct
-    wiring must preserve that exact per-consumer scope, not widen it."""
+    """`auth_changed` is a real shared-master signal, but NOT one the catalog workspace's own
+    binder ever subscribed to -- direct wiring must preserve that exact per-consumer scope, not
+    widen it."""
     inventory_catalog = _inventory_catalog(services)
     controller = inventory_catalog.catalogWorkspace
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.sites_changed.emit(_unique("p7a-unrelated-site"))
+    domain_events.auth_changed.emit(_unique("p7a-unrelated-auth"))
 
     assert refresh_calls == []
 
 
-def test_inventory_workspace_direct_wired_to_shared_master_site_and_party(services):
-    """Inventory's `inventory` binder now connects directly to `sites_changed`/`parties_changed`
-    (its own cross-module shared-master dependency) -- no generic `category="shared_master"`
-    bridge filter involved."""
+def test_inventory_workspace_direct_wired_to_shared_master_party(services):
+    """Inventory's `inventory` binder still connects directly to `parties_changed` (its own
+    cross-module shared-master dependency) -- no generic `category="shared_master"` bridge filter
+    involved. `sites_changed` was removed by P14B: Site changes now reach this workspace only
+    through the narrow `refresh_site_options()` typed-event path, not this composite signal."""
     inventory_catalog = _inventory_catalog(services)
     controller = inventory_catalog.inventoryWorkspace
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.sites_changed.emit(_unique("p7a-inv-site"))
     domain_events.parties_changed.emit(_unique("p7a-inv-party"))
 
-    assert refresh_calls == ["refresh", "refresh"]
+    assert refresh_calls == ["refresh"]
 
 
 # ---------------------------------------------------------------------------
@@ -406,7 +406,7 @@ def test_pm_dashboard_still_does_not_react_to_unrelated_capability_events(servic
     refresh_calls = []
     dashboard.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.sites_changed.emit(_unique("p7-dashboard-site"))
+    domain_events.documents_changed.emit(_unique("p7-dashboard-doc"))
     domain_events.auth_changed.emit(_unique("p7-dashboard-auth"))
 
     assert refresh_calls == []

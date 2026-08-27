@@ -137,21 +137,21 @@ def test_control_workspace_still_reacts_to_its_remaining_real_signals(services):
     assert refresh_calls == ["refresh"]
 
 
-def test_admin_console_still_reacts_to_its_remaining_four_real_signals(services):
-    """P10D/P12B/P13B: `organizations_changed`/`employees_changed`/`departments_changed` are gone
-    (all three now flow through their own typed ViewInvalidation targets, wired directly in
-    `context.py`, not through this composite Signal list) -- four legacy signals remain here."""
+def test_admin_console_still_reacts_to_its_remaining_three_real_signals(services):
+    """P10D/P12B/P13B/P14B: `organizations_changed`/`employees_changed`/`departments_changed`/
+    `sites_changed` are all gone (all four now flow through their own typed ViewInvalidation
+    targets, wired directly in `context.py`, not through this composite Signal list) -- three
+    legacy signals remain here."""
     catalog = _catalog(services)
     admin = catalog.adminWorkspace
     refresh_calls = []
     admin.refresh = lambda: refresh_calls.append("refresh") or None
 
-    domain_events.sites_changed.emit(_unique("p7b-site"))
     domain_events.auth_changed.emit(_unique("p7b-auth"))
     domain_events.parties_changed.emit(_unique("p7b-party"))
     domain_events.documents_changed.emit(_unique("p7b-doc"))
 
-    assert refresh_calls == ["refresh"] * 4
+    assert refresh_calls == ["refresh"] * 3
 
 
 def test_pm_resources_workspace_still_reacts_to_resources(services):
@@ -231,20 +231,19 @@ def test_final_signal_invariant_every_remaining_signal_has_a_source_reference_be
 
 def test_domain_event_binder_still_kept_unchanged_in_responsibility():
     """§10: still not deleted -- still real, direct, non-compatibility composite-refresh
-    coordination, now for 4 signals instead of 8 (`calendars_changed` removed by P7B,
+    coordination, now for 3 signals instead of 8 (`calendars_changed` removed by P7B,
     `organizations_changed` removed by P10D, `employees_changed` removed by P12B,
-    `departments_changed` removed by P13B -- all four route through their own typed
-    ViewInvalidation targets instead)."""
+    `departments_changed` removed by P13B, `sites_changed` removed by P14B -- all five route
+    through their own typed ViewInvalidation targets instead)."""
     import src.ui_qml.platform.controllers.admin_console.domain_event_binder as binder_module
 
     source = _strip_strings_and_comments(inspect.getsource(binder_module))
     for forbidden in (
         "_subscribe_domain_change", "domain_changed", "_BRIDGE_SPECS", "calendars_changed",
-        "organizations_changed", "employees_changed", "departments_changed",
+        "organizations_changed", "employees_changed", "departments_changed", "sites_changed",
     ):
         assert forbidden not in source
     for still_present in (
-        "sites_changed",
         "auth_changed", "parties_changed", "documents_changed",
     ):
         assert still_present in source
