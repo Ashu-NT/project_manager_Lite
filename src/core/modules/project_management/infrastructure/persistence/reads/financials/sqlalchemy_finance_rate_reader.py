@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
@@ -193,8 +193,8 @@ class SqlAlchemyFinanceRateReader:
             select(func.count(RateCardLineORM.id))
             .select_from(RateCardLineORM)
             .join(ProjectRateCardORM, ProjectRateCardORM.id == RateCardLineORM.rate_card_id)
-            .outerjoin(ResourceORM, ResourceORM.id == RateCardLineORM.resource_id)
-            .outerjoin(DepartmentORM, DepartmentORM.id == RateCardLineORM.department_id)
+            .outerjoin(ResourceORM, _resource_join_scope())
+            .outerjoin(DepartmentORM, _department_join_scope())
             .where(*conditions)
         )
         total = int(self._session.scalar(count_stmt) or 0)
@@ -292,8 +292,8 @@ class SqlAlchemyFinanceRateReader:
             )
             .select_from(RateCardLineORM)
             .join(ProjectRateCardORM, ProjectRateCardORM.id == RateCardLineORM.rate_card_id)
-            .outerjoin(ResourceORM, ResourceORM.id == RateCardLineORM.resource_id)
-            .outerjoin(DepartmentORM, DepartmentORM.id == RateCardLineORM.department_id)
+            .outerjoin(ResourceORM, _resource_join_scope())
+            .outerjoin(DepartmentORM, _department_join_scope())
         )
 
     @staticmethod
@@ -348,6 +348,22 @@ def _selector(*, line, resource_name: str | None, department_name: str | None):
     if line.skill_code:
         return "skill", line.skill_code
     return "department", department_name or line.department_id or ""
+
+
+def _resource_join_scope():
+    return and_(
+        ResourceORM.id == RateCardLineORM.resource_id,
+        ResourceORM.tenant_id == RateCardLineORM.tenant_id,
+        ResourceORM.organization_id == RateCardLineORM.organization_id,
+    )
+
+
+def _department_join_scope():
+    return and_(
+        DepartmentORM.id == RateCardLineORM.department_id,
+        DepartmentORM.tenant_id == RateCardLineORM.tenant_id,
+        DepartmentORM.organization_id == RateCardLineORM.organization_id,
+    )
 
 
 def _effective_status_expression(as_of: date):

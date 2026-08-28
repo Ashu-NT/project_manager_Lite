@@ -221,6 +221,21 @@ Component {
     Property { name: "budgetLines"; type: "QVariantMap"; isReadonly: true }
     Property { name: "rateCards"; type: "QVariantMap"; isReadonly: true }
     Property { name: "rateLines"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedRateCardId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedRateCard"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "rateCardsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "rateLinesTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "rateCardSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "rateCardSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "rateLineSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "rateLineSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "rateCardSearch"; type: "QString"; isReadonly: true }
+    Property { name: "rateCardScope"; type: "QString"; isReadonly: true }
+    Property { name: "rateCardStatus"; type: "QString"; isReadonly: true }
+    Property { name: "rateLineSearch"; type: "QString"; isReadonly: true }
+    Property { name: "rateLineRateType"; type: "QString"; isReadonly: true }
+    Property { name: "rateLineStatus"; type: "QString"; isReadonly: true }
+    Property { name: "rateLineEffectiveStatus"; type: "QString"; isReadonly: true }
     Property { name: "plannedCostVersions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "plannedCostLines"; type: "QVariantMap"; isReadonly: true }
     Property { name: "plannedCostVersionsTableModel"; type: "QObject"; isReadonly: true }
@@ -262,6 +277,13 @@ Component {
     Method { name: "setForecastLineSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
     Method { name: "setForecastVersionFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "status"; type: "QString" } Parameter { name: "generationMode"; type: "QString" } }
     Method { name: "setForecastLineFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "sourceType"; type: "QString" } }
+    Method { name: "selectRateCard"; Parameter { name: "rateCardId"; type: "QString" } }
+    Method { name: "setRateCardPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setRateLinePage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setRateCardSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setRateLineSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setRateCardFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "scope"; type: "QString" } Parameter { name: "status"; type: "QString" } }
+    Method { name: "setRateLineFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "rateType"; type: "QString" } Parameter { name: "status"; type: "QString" } Parameter { name: "effectiveStatus"; type: "QString" } }
     Method { name: "selectFinancialChange"; Parameter { name: "changeId"; type: "QString" } }
     Method { name: "selectVarianceBaseline"; Parameter { name: "baselineId"; type: "QString" } }
     Method { name: "createManualActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
