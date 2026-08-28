@@ -167,15 +167,75 @@ class FinancialsStateMixin:
             self._selected_change_id = value
             self.selectedChangeIdChanged.emit()
 
+    def _set_selected_change(self, value: FinancialsMap) -> None:
+        if value != self._selected_change:
+            self._selected_change = value
+            self.selectedChangeChanged.emit()
+
     def _set_financial_changes(self, value: FinancialsMap) -> None:
         if value != self._financial_changes:
             self._financial_changes = value
+            self._financial_changes_table_model.set_rows(value.get("items", []))
             self.financialChangesChanged.emit()
 
     def _set_financial_change_impacts(self, value: FinancialsMap) -> None:
         if value != self._financial_change_impacts:
             self._financial_change_impacts = value
+            self._financial_change_impacts_table_model.set_rows(value.get("items", []))
             self.financialChangeImpactsChanged.emit()
+
+    def _set_financial_change_query_state(self, state) -> None:
+        change_order = (
+            Qt.DescendingOrder.value
+            if state.change_sort_direction == "desc"
+            else Qt.AscendingOrder.value
+        )
+        impact_order = (
+            Qt.DescendingOrder.value
+            if state.impact_sort_direction == "desc"
+            else Qt.AscendingOrder.value
+        )
+        if state.change_sort_key != self._change_sort_key:
+            self._change_sort_key = state.change_sort_key
+            self.changeSortKeyChanged.emit()
+        if change_order != self._change_sort_direction:
+            self._change_sort_direction = change_order
+            self.changeSortDirectionChanged.emit()
+        if state.impact_sort_key != self._impact_sort_key:
+            self._impact_sort_key = state.impact_sort_key
+            self.impactSortKeyChanged.emit()
+        if impact_order != self._impact_sort_direction:
+            self._impact_sort_direction = impact_order
+            self.impactSortDirectionChanged.emit()
+        filters = (
+            state.change_search,
+            state.change_status,
+            state.change_approval_status,
+            state.change_applied_state,
+            state.impact_search,
+            state.impact_type,
+            state.impact_applied_state,
+        )
+        current = (
+            self._change_search,
+            self._change_status,
+            self._change_approval_status,
+            self._change_applied_state,
+            self._impact_search,
+            self._impact_type,
+            self._impact_applied_state,
+        )
+        if filters != current:
+            (
+                self._change_search,
+                self._change_status,
+                self._change_approval_status,
+                self._change_applied_state,
+                self._impact_search,
+                self._impact_type,
+                self._impact_applied_state,
+            ) = filters
+            self.changeFiltersChanged.emit()
 
     def _set_commitment_summary(self, summary: FinancialsMap) -> None:
         if summary == self._commitment_summary:

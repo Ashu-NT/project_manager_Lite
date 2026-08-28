@@ -35,6 +35,25 @@ from .finance_rate_facts import (
     RateLineFact,
     RateLineRequest,
 )
+from .finance_change_facts import (
+    FinanceChangeWorkspaceFacts,
+    FinancialChangeDetailFact,
+    FinancialChangeImpactFact,
+    FinancialChangeImpactQuery,
+    FinancialChangeRequestQuery,
+    FinancialChangeSummaryFact,
+)
+from .finance_billing_facts import (
+    BillingPreparationDetailFact,
+    BillingPreparationLineFact,
+    BillingPreparationLineQuery,
+    BillingPreparationQuery,
+    BillingPreparationSummaryFact,
+    BillingProfileFact,
+    BillingScheduleFact,
+    BillingScheduleQuery,
+    FinanceBillingWorkspaceFacts,
+)
 
 __all__ = [
     "CostAggregateFact",
@@ -61,6 +80,21 @@ __all__ = [
     "RateCardRequest",
     "RateLineFact",
     "RateLineRequest",
+    "FinanceChangeWorkspaceFacts",
+    "FinancialChangeDetailFact",
+    "FinancialChangeImpactFact",
+    "FinancialChangeImpactQuery",
+    "FinancialChangeRequestQuery",
+    "FinancialChangeSummaryFact",
+    "BillingPreparationDetailFact",
+    "BillingPreparationLineFact",
+    "BillingPreparationLineQuery",
+    "BillingPreparationQuery",
+    "BillingPreparationSummaryFact",
+    "BillingProfileFact",
+    "BillingScheduleFact",
+    "BillingScheduleQuery",
+    "FinanceBillingWorkspaceFacts",
     "ProjectResourceFact",
     "ResourceFact",
     "TaskFact",

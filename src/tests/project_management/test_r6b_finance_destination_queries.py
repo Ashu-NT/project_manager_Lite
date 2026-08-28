@@ -20,6 +20,9 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
     FinancialCostEntryPageDto,
     FinancialManualActualOptionsDto,
 )
+from src.core.modules.project_management.api.desktop.financials.models.changes import (
+    FinancialChangeWorkspaceDto,
+)
 from src.core.modules.project_management.api.desktop.financials.models.options import (
     FinancialProjectOptionDescriptor,
 )
@@ -858,6 +861,55 @@ def test_controls_activity_uses_project_scoped_enterprise_audit_only() -> None:
     assert "project_budget." in query["operation_prefixes"]
     assert state.activity.total == 1
     assert state.activity.items[0].title == "Finance Manager - Project Budget Approve"
+
+
+def test_controls_changes_uses_bounded_master_detail_facade_only() -> None:
+    api = MagicMock()
+    api.get_change_workspace.return_value = FinancialChangeWorkspaceDto()
+
+    build_destination_state(
+        api,
+        destination="controls",
+        subsection="changes",
+        selected_project_id="project-1",
+        selected_change_id="change-2",
+        change_page=3,
+        impact_page=2,
+        configuration_page_size=25,
+        change_sort_key="title",
+        change_sort_direction="asc",
+        impact_sort_key="supportingText",
+        impact_sort_direction="desc",
+        change_search="scope",
+        change_status="pending_approval",
+        change_approval_status="pending",
+        change_applied_state="not_applied",
+        impact_search="task",
+        impact_type="schedule",
+        impact_applied_state="not_applied",
+    )
+
+    api.get_change_workspace.assert_called_once_with(
+        "project-1",
+        selected_change_id="change-2",
+        change_page=3,
+        impact_page=2,
+        page_size=25,
+        change_sort_key="title",
+        change_sort_direction="asc",
+        impact_sort_key="supportingText",
+        impact_sort_direction="desc",
+        change_search="scope",
+        change_status="pending_approval",
+        change_approval_status="pending",
+        change_applied_state="not_applied",
+        impact_search="task",
+        impact_type="schedule",
+        impact_applied_state="not_applied",
+    )
+    api.list_financial_changes.assert_not_called()
+    api.list_financial_change_impacts.assert_not_called()
+    api.get_configuration_workspace.assert_not_called()
 
 
 def test_enterprise_audit_projection_filters_module_workspace_and_operation(services) -> None:

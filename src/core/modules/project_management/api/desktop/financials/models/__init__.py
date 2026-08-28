@@ -52,6 +52,11 @@ from src.core.modules.project_management.api.desktop.financials.models.rates imp
     FinancialRateTableRecordDto,
     FinancialRateWorkspaceDto,
 )
+from src.core.modules.project_management.api.desktop.financials.models.changes import (
+    FinancialChangeDetailDto,
+    FinancialChangeTableRecordDto,
+    FinancialChangeWorkspaceDto,
+)
 
 __all__ = [
     "BaselineVarianceRecordDto",
@@ -77,6 +82,9 @@ __all__ = [
     "FinancialForecastVersionDto",
     "FinancialChangeDto",
     "FinancialChangeImpactDto",
+    "FinancialChangeDetailDto",
+    "FinancialChangeTableRecordDto",
+    "FinancialChangeWorkspaceDto",
     "FinancialBaselineVarianceDto",
     "FinancialBaselineVersionDto",
     "FinancialLedgerRowDto",

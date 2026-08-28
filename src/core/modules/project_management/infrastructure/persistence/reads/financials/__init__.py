@@ -4,6 +4,8 @@ from .sqlalchemy_finance_budget_reader import SqlAlchemyFinanceBudgetReader
 from .sqlalchemy_finance_planned_cost_reader import SqlAlchemyFinancePlannedCostReader
 from .sqlalchemy_finance_forecast_reader import SqlAlchemyFinanceForecastReader
 from .sqlalchemy_finance_rate_reader import SqlAlchemyFinanceRateReader
+from .sqlalchemy_finance_change_reader import SqlAlchemyFinanceChangeReader
+from .sqlalchemy_finance_billing_reader import SqlAlchemyFinanceBillingReader
 
 __all__ = [
     "SqlAlchemyEvmSeriesReader",
@@ -11,5 +13,7 @@ __all__ = [
     "SqlAlchemyFinancePlannedCostReader",
     "SqlAlchemyFinanceForecastReader",
     "SqlAlchemyFinanceRateReader",
+    "SqlAlchemyFinanceChangeReader",
+    "SqlAlchemyFinanceBillingReader",
     "SqlAlchemyFinanceSnapshotReader",
 ]

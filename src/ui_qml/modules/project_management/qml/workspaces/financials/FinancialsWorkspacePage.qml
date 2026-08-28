@@ -402,7 +402,21 @@ AppLayouts.WorkspaceFrame {
                     forecastLineSourceType: root.workspaceController ? root.workspaceController.forecastLineSourceType : ""
                     financialChangesModel: root.workspaceController ? root.workspaceController.financialChanges : ({ "items": [] })
                     financialChangeImpactsModel: root.workspaceController ? root.workspaceController.financialChangeImpacts : ({ "items": [] })
+                    selectedChangeModel: root.workspaceController ? root.workspaceController.selectedChange : ({ "id": "", "fields": [] })
+                    financialChangesTableModel: root.workspaceController ? root.workspaceController.financialChangesTableModel : null
+                    financialChangeImpactsTableModel: root.workspaceController ? root.workspaceController.financialChangeImpactsTableModel : null
                     selectedChangeId: root.workspaceController ? root.workspaceController.selectedChangeId : ""
+                    changeSortKey: root.workspaceController ? root.workspaceController.changeSortKey : "metaText"
+                    changeSortDirection: root.workspaceController ? root.workspaceController.changeSortDirection : Qt.DescendingOrder
+                    impactSortKey: root.workspaceController ? root.workspaceController.impactSortKey : "metaText"
+                    impactSortDirection: root.workspaceController ? root.workspaceController.impactSortDirection : Qt.AscendingOrder
+                    changeSearch: root.workspaceController ? root.workspaceController.changeSearch : ""
+                    changeStatus: root.workspaceController ? root.workspaceController.changeStatus : ""
+                    changeApprovalStatus: root.workspaceController ? root.workspaceController.changeApprovalStatus : ""
+                    changeAppliedState: root.workspaceController ? root.workspaceController.changeAppliedState : ""
+                    impactSearch: root.workspaceController ? root.workspaceController.impactSearch : ""
+                    impactType: root.workspaceController ? root.workspaceController.impactType : ""
+                    impactAppliedState: root.workspaceController ? root.workspaceController.impactAppliedState : ""
                     commitmentSummaryModel: root.workspaceController ? root.workspaceController.commitmentSummary : ({})
                     commitmentsModel: root.workspaceController ? root.workspaceController.commitments : ({})
                     commitmentsTableModel: root.workspaceController ? root.workspaceController.commitmentsTableModel : null
@@ -555,6 +569,26 @@ AppLayouts.WorkspaceFrame {
                     onFinancialChangeSelected: function(changeId) {
                         if (root.workspaceController !== null)
                             root.workspaceController.selectFinancialChange(changeId)
+                    }
+                    onFinancialChangePageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setFinancialChangePage(page)
+                    }
+                    onFinancialChangeImpactPageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setFinancialChangeImpactPage(page)
+                    }
+                    onFinancialChangeSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setFinancialChangeSort(key, direction)
+                    }
+                    onFinancialChangeImpactSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setFinancialChangeImpactSort(key, direction)
+                    }
+                    onFinancialChangeFiltersRequested: function(search, status, approvalStatus, appliedState) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setFinancialChangeFilters(search, status, approvalStatus, appliedState)
+                    }
+                    onFinancialChangeImpactFiltersRequested: function(search, impactType, appliedState) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setFinancialChangeImpactFilters(search, impactType, appliedState)
                     }
                     onVarianceBaselineSelected: function(baselineId) {
                         if (root.workspaceController !== null)

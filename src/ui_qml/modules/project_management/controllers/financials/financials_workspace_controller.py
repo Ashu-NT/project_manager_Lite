@@ -68,8 +68,14 @@ class ProjectManagementFinancialsWorkspaceController(
     forecastLineSortDirectionChanged = Signal()
     forecastFiltersChanged = Signal()
     selectedChangeIdChanged = Signal()
+    selectedChangeChanged = Signal()
     financialChangesChanged = Signal()
     financialChangeImpactsChanged = Signal()
+    changeSortKeyChanged = Signal()
+    changeSortDirectionChanged = Signal()
+    impactSortKeyChanged = Signal()
+    impactSortDirectionChanged = Signal()
+    changeFiltersChanged = Signal()
     commitmentSummaryChanged = Signal()
     commitmentsChanged = Signal()
     commitmentSortKeyChanged = Signal()
@@ -162,8 +168,24 @@ class ProjectManagementFinancialsWorkspaceController(
         self._forecast_line_search = ""
         self._forecast_line_source_type = ""
         self._selected_change_id = ""
+        self._selected_change = default_detail()
         self._financial_changes = default_collection()
         self._financial_change_impacts = default_collection()
+        self._financial_changes_table_model = DynamicTableModel(self)
+        self._financial_change_impacts_table_model = DynamicTableModel(self)
+        self._change_page = 1
+        self._impact_page = 1
+        self._change_sort_key = "metaText"
+        self._change_sort_direction = Qt.DescendingOrder.value
+        self._impact_sort_key = "metaText"
+        self._impact_sort_direction = Qt.AscendingOrder.value
+        self._change_search = ""
+        self._change_status = ""
+        self._change_approval_status = ""
+        self._change_applied_state = ""
+        self._impact_search = ""
+        self._impact_type = ""
+        self._impact_applied_state = ""
         self._commitment_summary = default_commitment_summary()
         self._commitments = default_collection()
         self._commitment_page = 1
@@ -339,11 +361,55 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property(str, notify=selectedChangeIdChanged)
     def selectedChangeId(self) -> str: return self._selected_change_id
 
+    @Property("QVariantMap", notify=selectedChangeChanged)
+    def selectedChange(self) -> FinancialsMap: return self._selected_change
+
     @Property("QVariantMap", notify=financialChangesChanged)
     def financialChanges(self) -> FinancialsMap: return self._financial_changes
 
     @Property("QVariantMap", notify=financialChangeImpactsChanged)
     def financialChangeImpacts(self) -> FinancialsMap: return self._financial_change_impacts
+
+    @Property(QObject, constant=True)
+    def financialChangesTableModel(self) -> DynamicTableModel:
+        return self._financial_changes_table_model
+
+    @Property(QObject, constant=True)
+    def financialChangeImpactsTableModel(self) -> DynamicTableModel:
+        return self._financial_change_impacts_table_model
+
+    @Property(str, notify=changeSortKeyChanged)
+    def changeSortKey(self) -> str: return self._change_sort_key
+
+    @Property(int, notify=changeSortDirectionChanged)
+    def changeSortDirection(self) -> int: return self._change_sort_direction
+
+    @Property(str, notify=impactSortKeyChanged)
+    def impactSortKey(self) -> str: return self._impact_sort_key
+
+    @Property(int, notify=impactSortDirectionChanged)
+    def impactSortDirection(self) -> int: return self._impact_sort_direction
+
+    @Property(str, notify=changeFiltersChanged)
+    def changeSearch(self) -> str: return self._change_search
+
+    @Property(str, notify=changeFiltersChanged)
+    def changeStatus(self) -> str: return self._change_status
+
+    @Property(str, notify=changeFiltersChanged)
+    def changeApprovalStatus(self) -> str: return self._change_approval_status
+
+    @Property(str, notify=changeFiltersChanged)
+    def changeAppliedState(self) -> str: return self._change_applied_state
+
+    @Property(str, notify=changeFiltersChanged)
+    def impactSearch(self) -> str: return self._impact_search
+
+    @Property(str, notify=changeFiltersChanged)
+    def impactType(self) -> str: return self._impact_type
+
+    @Property(str, notify=changeFiltersChanged)
+    def impactAppliedState(self) -> str: return self._impact_applied_state
 
     @Property("QVariantMap", notify=commitmentSummaryChanged)
     def commitmentSummary(self) -> FinancialsMap: return self._commitment_summary
@@ -590,6 +656,36 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str)
     def selectFinancialChange(self, change_id: str) -> None:
         self._select_financial_change(change_id)
+
+    @Slot(int)
+    def setFinancialChangePage(self, page: int) -> None:
+        self._set_financial_change_page(page)
+
+    @Slot(int)
+    def setFinancialChangeImpactPage(self, page: int) -> None:
+        self._set_financial_change_impact_page(page)
+
+    @Slot(str, int)
+    def setFinancialChangeSort(self, key: str, direction: int) -> None:
+        self._set_financial_change_sort(key, direction)
+
+    @Slot(str, int)
+    def setFinancialChangeImpactSort(self, key: str, direction: int) -> None:
+        self._set_financial_change_impact_sort(key, direction)
+
+    @Slot(str, str, str, str)
+    def setFinancialChangeFilters(
+        self, search: str, status: str, approval_status: str, applied_state: str
+    ) -> None:
+        self._set_financial_change_filters(
+            search, status, approval_status, applied_state
+        )
+
+    @Slot(str, str, str)
+    def setFinancialChangeImpactFilters(
+        self, search: str, impact_type: str, applied_state: str
+    ) -> None:
+        self._set_financial_change_impact_filters(search, impact_type, applied_state)
 
     @Slot(str)
     def selectVarianceBaseline(self, baseline_id: str) -> None:

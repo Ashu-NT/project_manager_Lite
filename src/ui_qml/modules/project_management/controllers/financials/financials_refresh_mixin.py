@@ -147,6 +147,23 @@ class FinancialsRefreshMixin:
                     self._planned_cost_line_sort_direction
                 ),
                 selected_change_id=self._selected_change_id or None,
+                change_page=self._change_page,
+                impact_page=self._impact_page,
+                change_sort_key=self._change_sort_key,
+                change_sort_direction=self._sort_direction_name(
+                    self._change_sort_direction
+                ),
+                impact_sort_key=self._impact_sort_key,
+                impact_sort_direction=self._sort_direction_name(
+                    self._impact_sort_direction
+                ),
+                change_search=self._change_search,
+                change_status=self._change_status,
+                change_approval_status=self._change_approval_status,
+                change_applied_state=self._change_applied_state,
+                impact_search=self._impact_search,
+                impact_type=self._impact_type,
+                impact_applied_state=self._impact_applied_state,
                 selected_baseline_id=self._selected_baseline_id or None,
             )
             if (
@@ -387,9 +404,15 @@ class FinancialsRefreshMixin:
             )
         elif subsection == "changes":
             self._set_selected_change_id(state.selected_change_id)
+            self._set_selected_change(
+                serialize_financials_detail_view_model(state.selected_change)
+            )
             self._set_financial_changes(
                 serialize_financials_collection_view_model(state.financial_changes)
             )
+            self._change_page = state.financial_changes.page
+            self._impact_page = state.financial_change_impacts.page
+            self._set_financial_change_query_state(state)
             self._set_financial_change_impacts(
                 serialize_financials_collection_view_model(
                     state.financial_change_impacts
@@ -418,6 +441,7 @@ class FinancialsRefreshMixin:
         self._set_forecast_versions(default_collection())
         self._set_forecast_lines(default_collection())
         self._set_selected_change_id("")
+        self._set_selected_change(default_detail())
         self._set_financial_changes(default_collection())
         self._set_financial_change_impacts(default_collection())
         self._set_commitment_summary(default_commitment_summary())

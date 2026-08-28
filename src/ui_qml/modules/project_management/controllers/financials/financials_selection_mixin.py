@@ -52,6 +52,9 @@ class FinancialsSelectionMixin:
         self._set_selected_budget_id("")
         self._set_selected_planned_cost_version_id("")
         self._set_selected_change_id("")
+        self._set_selected_change(default_detail())
+        self._change_page = 1
+        self._impact_page = 1
         self._set_selected_baseline_id("")
         self._reset_destination_state()
         self.refresh()
@@ -303,6 +306,96 @@ class FinancialsSelectionMixin:
         value = (change_id or "").strip()
         if value != self._selected_change_id:
             self._set_selected_change_id(value)
+            self._impact_page = 1
+            self._set_selected_change(default_detail())
+            self._set_financial_change_impacts(default_collection())
+            self.refresh()
+
+    def _set_financial_change_page(self, page: int) -> None:
+        normalized = max(1, int(page))
+        if normalized != self._change_page:
+            self._change_page = normalized
+            self.refresh()
+
+    def _set_financial_change_impact_page(self, page: int) -> None:
+        normalized = max(1, int(page))
+        if normalized != self._impact_page:
+            self._impact_page = normalized
+            self.refresh()
+
+    def _set_financial_change_sort(self, key: str, direction: int) -> None:
+        normalized_key = str(key or "").strip()
+        if (
+            normalized_key != self._change_sort_key
+            or int(direction) != self._change_sort_direction
+        ):
+            self._change_sort_key = normalized_key
+            self._change_sort_direction = int(direction)
+            self._change_page = 1
+            self.changeSortKeyChanged.emit()
+            self.changeSortDirectionChanged.emit()
+            self.refresh()
+
+    def _set_financial_change_impact_sort(self, key: str, direction: int) -> None:
+        normalized_key = str(key or "").strip()
+        if (
+            normalized_key != self._impact_sort_key
+            or int(direction) != self._impact_sort_direction
+        ):
+            self._impact_sort_key = normalized_key
+            self._impact_sort_direction = int(direction)
+            self._impact_page = 1
+            self.impactSortKeyChanged.emit()
+            self.impactSortDirectionChanged.emit()
+            self.refresh()
+
+    def _set_financial_change_filters(
+        self, search: str, status: str, approval_status: str, applied_state: str
+    ) -> None:
+        values = (
+            str(search or "").strip(),
+            str(status or "").strip().lower(),
+            str(approval_status or "").strip().lower(),
+            str(applied_state or "").strip().lower(),
+        )
+        current = (
+            self._change_search,
+            self._change_status,
+            self._change_approval_status,
+            self._change_applied_state,
+        )
+        if values != current:
+            (
+                self._change_search,
+                self._change_status,
+                self._change_approval_status,
+                self._change_applied_state,
+            ) = values
+            self._change_page = 1
+            self._impact_page = 1
+            self._set_selected_change_id("")
+            self._set_selected_change(default_detail())
+            self._set_financial_change_impacts(default_collection())
+            self.changeFiltersChanged.emit()
+            self.refresh()
+
+    def _set_financial_change_impact_filters(
+        self, search: str, impact_type: str, applied_state: str
+    ) -> None:
+        values = (
+            str(search or "").strip(),
+            str(impact_type or "").strip().lower(),
+            str(applied_state or "").strip().lower(),
+        )
+        current = (
+            self._impact_search,
+            self._impact_type,
+            self._impact_applied_state,
+        )
+        if values != current:
+            self._impact_search, self._impact_type, self._impact_applied_state = values
+            self._impact_page = 1
+            self.changeFiltersChanged.emit()
             self.refresh()
 
     def _select_variance_baseline(self, baseline_id: str) -> None:

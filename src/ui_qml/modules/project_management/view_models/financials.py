@@ -137,8 +137,20 @@ class FinancialsWorkspaceViewModel:
     forecast_line_search: str = ""
     forecast_line_source_type: str = ""
     selected_change_id: str = ""
+    selected_change: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     financial_changes: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     financial_change_impacts: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    change_sort_key: str = "metaText"
+    change_sort_direction: str = "desc"
+    impact_sort_key: str = "metaText"
+    impact_sort_direction: str = "asc"
+    change_search: str = ""
+    change_status: str = ""
+    change_approval_status: str = ""
+    change_applied_state: str = ""
+    impact_search: str = ""
+    impact_type: str = ""
+    impact_applied_state: str = ""
     commitment_summary: FinancialsCommitmentSummaryViewModel = field(default_factory=FinancialsCommitmentSummaryViewModel)
     commitments: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     commitment_sort_key: str = "metaText"

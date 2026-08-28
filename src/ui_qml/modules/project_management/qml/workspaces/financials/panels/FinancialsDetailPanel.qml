@@ -35,7 +35,21 @@ Item {
     property string forecastLineSourceType: ""
     property var financialChangesModel: ({ "items": [] })
     property var financialChangeImpactsModel: ({ "items": [] })
+    property var selectedChangeModel: ({ "id": "", "fields": [] })
+    property var financialChangesTableModel: null
+    property var financialChangeImpactsTableModel: null
     property string selectedChangeId: ""
+    property string changeSortKey: "metaText"
+    property int changeSortDirection: Qt.DescendingOrder
+    property string impactSortKey: "metaText"
+    property int impactSortDirection: Qt.AscendingOrder
+    property string changeSearch: ""
+    property string changeStatus: ""
+    property string changeApprovalStatus: ""
+    property string changeAppliedState: ""
+    property string impactSearch: ""
+    property string impactType: ""
+    property string impactAppliedState: ""
     property var commitmentSummaryModel: ({})
     property var commitmentsModel: ({ "items": [] })
     property var commitmentsTableModel: null
@@ -116,6 +130,12 @@ Item {
     signal rateCardFiltersRequested(string search, string scope, string status)
     signal rateLineFiltersRequested(string search, string rateType, string status, string effectiveStatus)
     signal financialChangeSelected(string changeId)
+    signal financialChangePageRequested(int page)
+    signal financialChangeImpactPageRequested(int page)
+    signal financialChangeSortRequested(string key, int direction)
+    signal financialChangeImpactSortRequested(string key, int direction)
+    signal financialChangeFiltersRequested(string search, string status, string approvalStatus, string appliedState)
+    signal financialChangeImpactFiltersRequested(string search, string impactType, string appliedState)
     signal varianceBaselineSelected(string baselineId)
     signal actualEntrySelected(string entryId)
     signal actualPageRequested(int page)
@@ -487,9 +507,34 @@ Item {
             width: parent ? parent.width : 0
             changes: root.financialChangesModel
             impacts: root.financialChangeImpactsModel
+            selectedChange: root.selectedChangeModel
+            changesTableModel: root.financialChangesTableModel
+            impactsTableModel: root.financialChangeImpactsTableModel
             selectedChangeId: root.selectedChangeId
+            changeSortKey: root.changeSortKey
+            changeSortDirection: root.changeSortDirection
+            impactSortKey: root.impactSortKey
+            impactSortDirection: root.impactSortDirection
+            changeSearch: root.changeSearch
+            changeStatus: root.changeStatus
+            changeApprovalStatus: root.changeApprovalStatus
+            changeAppliedState: root.changeAppliedState
+            impactSearch: root.impactSearch
+            impactType: root.impactType
+            impactAppliedState: root.impactAppliedState
+            busy: root.isBusy
             onChangeSelected: function(changeId) {
                 root.financialChangeSelected(changeId)
+            }
+            onChangePageRequested: function(page) { root.financialChangePageRequested(page) }
+            onImpactPageRequested: function(page) { root.financialChangeImpactPageRequested(page) }
+            onChangeSortRequested: function(key, direction) { root.financialChangeSortRequested(key, direction) }
+            onImpactSortRequested: function(key, direction) { root.financialChangeImpactSortRequested(key, direction) }
+            onChangeFiltersRequested: function(search, status, approvalStatus, appliedState) {
+                root.financialChangeFiltersRequested(search, status, approvalStatus, appliedState)
+            }
+            onImpactFiltersRequested: function(search, impactType, appliedState) {
+                root.financialChangeImpactFiltersRequested(search, impactType, appliedState)
             }
         }
     }

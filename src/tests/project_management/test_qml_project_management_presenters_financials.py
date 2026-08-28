@@ -498,6 +498,109 @@ def test_rate_refresh_rejects_stale_a_b_c_filter_responses(controller) -> None:
     controller._apply_destination_state.assert_called_once_with("costs", "rates", state_c)
 
 
+def test_change_master_detail_state_resets_independently(controller) -> None:
+    controller.refresh = MagicMock()
+    controller._change_page = 4
+    controller._impact_page = 3
+
+    controller.selectFinancialChange("change-2")
+    assert controller.selectedChangeId == "change-2"
+    assert controller._change_page == 4
+    assert controller._impact_page == 1
+
+    controller._change_page = 4
+    controller._impact_page = 3
+    controller.setFinancialChangeImpactFilters("task", "schedule", "not_applied")
+    assert controller._change_page == 4
+    assert controller._impact_page == 1
+    assert controller.selectedChangeId == "change-2"
+
+    controller._change_page = 5
+    controller._impact_page = 4
+    controller.setFinancialChangeFilters("scope", "draft", "", "not_applied")
+    assert controller._change_page == 1
+    assert controller._impact_page == 1
+    assert controller.selectedChangeId == ""
+
+    controller._set_selected_change_id("change-project-a")
+    controller._change_page = 3
+    controller._impact_page = 2
+    controller.selectProject("project-b")
+    assert controller.selectedChangeId == ""
+    assert controller._change_page == 1
+    assert controller._impact_page == 1
+
+
+def test_change_refresh_rejects_stale_a_b_c_selection_responses(controller) -> None:
+    controller._workspace_loaded = True
+    controller._shell_loaded = True
+    controller._active_destination = "controls"
+    controller._active_subsection = "changes"
+    controller._set_selected_project_id("project-a")
+    controller._set_selected_change_id("change-a")
+    state_a, state_b, state_c = object(), object(), object()
+    call_count = 0
+
+    def build_destination_state(**_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            controller._set_selected_change_id("change-b")
+            controller.refresh()
+            return state_a
+        if call_count == 2:
+            controller._set_selected_change_id("change-c")
+            controller.refresh()
+            return state_b
+        return state_c
+
+    controller._financials_workspace_presenter.build_destination_state = MagicMock(
+        side_effect=build_destination_state
+    )
+    controller._apply_destination_state = MagicMock()
+    controller.refresh()
+
+    assert call_count == 3
+    assert controller.selectedChangeId == "change-c"
+    controller._apply_destination_state.assert_called_once_with(
+        "controls", "changes", state_c
+    )
+
+
+def test_change_refresh_rejects_stale_a_b_c_filter_responses(controller) -> None:
+    controller._workspace_loaded = True
+    controller._shell_loaded = True
+    controller._active_destination = "controls"
+    controller._active_subsection = "changes"
+    controller._set_selected_project_id("project-a")
+    state_a, state_b, state_c = object(), object(), object()
+    call_count = 0
+
+    def build_destination_state(**_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            controller.setFinancialChangeFilters("filter-b", "draft", "", "")
+            return state_a
+        if call_count == 2:
+            controller.setFinancialChangeFilters("filter-c", "rejected", "", "")
+            return state_b
+        return state_c
+
+    controller._financials_workspace_presenter.build_destination_state = MagicMock(
+        side_effect=build_destination_state
+    )
+    controller._apply_destination_state = MagicMock()
+    controller.setFinancialChangeFilters("filter-a", "pending_approval", "", "")
+
+    assert call_count == 3
+    assert controller.changeSearch == "filter-c"
+    assert controller.changeStatus == "rejected"
+    controller._apply_destination_state.assert_called_once_with(
+        "controls", "changes", state_c
+    )
+
+
 def test_forecast_refresh_rejects_stale_a_b_c_selection_responses(controller) -> None:
     controller._workspace_loaded = True
     controller._shell_loaded = True

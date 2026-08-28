@@ -30,6 +30,10 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     RateCardRequest,
     RateLineRequest,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.finance_change_facts import (
+    FinancialChangeImpactQuery,
+    FinancialChangeRequestQuery,
+)
 from src.core.modules.project_management.contracts.reads.pagination import (
     normalize_offset_for_total,
     normalize_page_for_total,
@@ -70,6 +74,9 @@ from src.core.modules.project_management.api.desktop.financials.models.configura
 )
 from src.core.modules.project_management.api.desktop.financials.models.rates import (
     FinancialRateWorkspaceDto,
+)
+from src.core.modules.project_management.api.desktop.financials.models.changes import (
+    FinancialChangeWorkspaceDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.billing import (
     FinancialBillingPreparationDto,
@@ -147,6 +154,9 @@ from src.core.modules.project_management.api.desktop.financials.serializers.fore
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.rate_workspace_serializer import (
     serialize_finance_rate_workspace,
+)
+from src.core.modules.project_management.api.desktop.financials.serializers.change_workspace_serializer import (
+    serialize_finance_change_workspace,
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.billing_serializer import (
     serialize_billing_preparation,
@@ -584,6 +594,62 @@ class ProjectManagementFinancialsDesktopApi:
             line_status=line_status,
             line_effective_status=line_effective_status,
             as_of=as_of,
+        )
+
+    def get_change_workspace(
+        self,
+        project_id: str,
+        *,
+        selected_change_id: str = "",
+        change_page: int = 1,
+        impact_page: int = 1,
+        page_size: int = 50,
+        change_sort_key: str = "metaText",
+        change_sort_direction: str = "desc",
+        impact_sort_key: str = "metaText",
+        impact_sort_direction: str = "asc",
+        change_search: str = "",
+        change_status: str = "",
+        change_approval_status: str = "",
+        change_applied_state: str = "",
+        impact_search: str = "",
+        impact_type: str = "",
+        impact_applied_state: str = "",
+    ) -> FinancialChangeWorkspaceDto:
+        if not project_id or self._finance_workspace_query is None:
+            return FinancialChangeWorkspaceDto()
+        facts = self._finance_workspace_query.get_change_workspace(
+            project_id,
+            selected_change_id=selected_change_id,
+            change_request=FinancialChangeRequestQuery(
+                page=change_page,
+                page_size=page_size,
+                sort_key=change_sort_key,
+                sort_direction=change_sort_direction,
+                search=change_search,
+                status=change_status,
+                approval_status=change_approval_status,
+                applied_state=change_applied_state,
+            ),
+            impact_request=FinancialChangeImpactQuery(
+                page=impact_page,
+                page_size=page_size,
+                sort_key=impact_sort_key,
+                sort_direction=impact_sort_direction,
+                search=impact_search,
+                impact_type=impact_type,
+                applied_state=impact_applied_state,
+            ),
+        )
+        return serialize_finance_change_workspace(
+            facts,
+            change_search=change_search,
+            change_status=change_status,
+            change_approval_status=change_approval_status,
+            change_applied_state=change_applied_state,
+            impact_search=impact_search,
+            impact_type=impact_type,
+            impact_applied_state=impact_applied_state,
         )
 
     def list_forecast_lines(

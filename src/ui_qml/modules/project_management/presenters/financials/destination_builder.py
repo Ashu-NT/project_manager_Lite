@@ -21,13 +21,11 @@ from .billing_builder import build_billing_views
 from .cashflow_builder import build_cashflow_collection
 from .commitment_builder import build_commitment_collection, build_commitment_summary
 from .configuration_builder import build_finance_configuration_views
+from .change_workspace_builder import build_change_workspace_views
 from .forecast_workspace_builder import build_forecast_workspace_views
 from .rate_workspace_builder import build_rate_workspace_views
 from .ledger_builder import build_ledger_collection
-from .lifecycle_builder import (
-    build_change_lifecycle_views,
-    build_variance_views,
-)
+from .lifecycle_builder import build_variance_views
 from .overview_builder import build_overview
 from .selection import resolve_project_id
 
@@ -158,6 +156,19 @@ def build_destination_state(
     planned_cost_line_sort_key: str = "title",
     planned_cost_line_sort_direction: str = "asc",
     selected_change_id: str | None = None,
+    change_page: int = 1,
+    impact_page: int = 1,
+    change_sort_key: str = "metaText",
+    change_sort_direction: str = "desc",
+    impact_sort_key: str = "metaText",
+    impact_sort_direction: str = "asc",
+    change_search: str = "",
+    change_status: str = "",
+    change_approval_status: str = "",
+    change_applied_state: str = "",
+    impact_search: str = "",
+    impact_type: str = "",
+    impact_applied_state: str = "",
     selected_baseline_id: str | None = None,
 ) -> FinancialsWorkspaceViewModel:
     destination = normalize_destination(destination)
@@ -505,17 +516,44 @@ def build_destination_state(
             financial_profile=views["profile"],
         )
     if subsection == "changes":
-        changes = build_change_lifecycle_views(
-            desktop_api,
-            project_id=project_id,
-            selected_change_id=selected_change_id,
+        changes = build_change_workspace_views(
+            desktop_api.get_change_workspace(
+                project_id,
+                selected_change_id=selected_change_id or "",
+                change_page=change_page,
+                impact_page=impact_page,
+                page_size=configuration_page_size,
+                change_sort_key=change_sort_key,
+                change_sort_direction=change_sort_direction,
+                impact_sort_key=impact_sort_key,
+                impact_sort_direction=impact_sort_direction,
+                change_search=change_search,
+                change_status=change_status,
+                change_approval_status=change_approval_status,
+                change_applied_state=change_applied_state,
+                impact_search=impact_search,
+                impact_type=impact_type,
+                impact_applied_state=impact_applied_state,
+            )
         )
         return FinancialsWorkspaceViewModel(
             overview=state.overview,
             selected_project_id=project_id,
             selected_change_id=changes["selected_change_id"],
+            selected_change=changes["selected_change"],
             financial_changes=changes["financial_changes"],
             financial_change_impacts=changes["financial_change_impacts"],
+            change_sort_key=changes["change_sort_key"],
+            change_sort_direction=changes["change_sort_direction"],
+            impact_sort_key=changes["impact_sort_key"],
+            impact_sort_direction=changes["impact_sort_direction"],
+            change_search=changes["change_search"],
+            change_status=changes["change_status"],
+            change_approval_status=changes["change_approval_status"],
+            change_applied_state=changes["change_applied_state"],
+            impact_search=changes["impact_search"],
+            impact_type=changes["impact_type"],
+            impact_applied_state=changes["impact_applied_state"],
         )
     return FinancialsWorkspaceViewModel(
         overview=state.overview,
