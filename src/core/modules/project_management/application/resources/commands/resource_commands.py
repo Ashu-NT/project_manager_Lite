@@ -2,15 +2,9 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, timedelta
 from decimal import Decimal
 
 from src.core.modules.project_management.domain.enums import CostType, ResourceKind, WorkerType
-from src.core.modules.project_management.domain.financials.rate_cards import (
-    RateCardLine,
-    RateLineOrigin,
-    RateType,
-)
 from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
@@ -24,15 +18,6 @@ def _employee_contact(employee) -> str:
 
 
 class ResourceCommandMixin:
-    def _active_tenant_id(self, *, operation_label: str) -> str:
-        tenant_context = getattr(self, "_tenant_context_service", None)
-        if tenant_context is None:
-            raise BusinessRuleError(
-                f"Active tenant context is required for {operation_label}.",
-                code="TENANT_CONTEXT_REQUIRED",
-            )
-        return tenant_context.require_active_tenant_id(operation_label=operation_label)
-
     def _resolve_resource_code(self, code: str, name: str, *, exclude_id: str | None = None) -> str:
         """Normalize or generate a code unique in the active tenant/org scope."""
         from src.core.platform.common.code_generation import (
@@ -75,94 +60,6 @@ class ResourceCommandMixin:
                 "Worker type must be EMPLOYEE or EXTERNAL.",
                 code="RESOURCE_WORKER_TYPE_INVALID",
             ) from exc
-
-    def _current_legacy_rate_line(self, resource_id: str) -> RateCardLine | None:
-        rate_card_repo = getattr(self, "_project_rate_card_repo", None)
-        if rate_card_repo is None:
-            return None
-        for line in rate_card_repo.list_lines_in_scope(project_id=None):
-            if (
-                line.resource_id == resource_id
-                and line.origin == RateLineOrigin.LEGACY_SEEDED
-                and line.rate_type == RateType.COST
-                and line.is_active
-            ):
-                return line
-        return None
-
-    def _create_legacy_rate_line(self, resource: Resource, *, effective_from: date) -> None:
-        rate_card_repo = getattr(self, "_project_rate_card_repo", None)
-        if rate_card_repo is None:
-            raise BusinessRuleError(
-                "A rate card repository is required to seed a resource's labor rate.",
-                code="RATE_CARD_REPO_REQUIRED",
-            )
-        card = rate_card_repo.get_or_create_legacy_card(
-            tenant_id=self._active_tenant_id(operation_label="seed legacy rate line"),
-            organization_id=resource.organization_id,
-            currency_code=resource.currency_code,
-        )
-        line = RateCardLine.create(
-            tenant_id=self._active_tenant_id(operation_label="seed legacy rate line"),
-            organization_id=resource.organization_id,
-            rate_card_id=card.id,
-            rate_type=RateType.COST,
-            unit="HOUR",
-            rate_amount=resource.hourly_rate,
-            rate_currency=resource.currency_code,
-            origin=RateLineOrigin.LEGACY_SEEDED,
-            resource_id=resource.id,
-            effective_from=effective_from,
-        )
-        rate_card_repo.add_line(line)
-
-    def _supersede_legacy_rate_line(
-        self,
-        *,
-        resource: Resource,
-        previous_hourly_rate: Decimal,
-        effective_on: date | None,
-    ) -> None:
-        """Zero-rate transition matrix (ADR-PF-005 cutover): ``0`` always
-        means "not configured," never a real rate line. ``positive -> 0``
-        retires the current line with no replacement; every other
-        transition that actually changes the rate or its currency
-        deactivates-and-replaces (same-day) or closes-and-opens (a later
-        date) — never amends a line in place, for auditability."""
-        previous_rate = previous_hourly_rate
-        new_rate = resource.hourly_rate
-        if previous_rate == 0 and new_rate == 0:
-            return
-
-        assert effective_on is not None  # enforced by the caller's required-field check
-
-        if previous_rate == 0:
-            self._create_legacy_rate_line(resource, effective_from=effective_on)
-            return
-
-        current_line = self._current_legacy_rate_line(resource.id)
-        if current_line is None:
-            raise BusinessRuleError(
-                f"Resource '{resource.id}' has a positive rate but no active "
-                "legacy rate line was found to supersede.",
-                code="LEGACY_RATE_LINE_MISSING",
-            )
-
-        rate_card_repo = self._project_rate_card_repo
-        if current_line.effective_from == effective_on:
-            rate_card_repo.update_line(replace(current_line, is_active=False))
-        elif effective_on > current_line.effective_from:
-            rate_card_repo.update_line(
-                replace(current_line, effective_to=effective_on - timedelta(days=1))
-            )
-        else:
-            raise BusinessRuleError(
-                "A backdated rate change requires the dedicated rate-card workflow.",
-                code="LEGACY_RATE_BACKDATE_NOT_ALLOWED",
-            )
-
-        if new_rate > 0:
-            self._create_legacy_rate_line(resource, effective_from=effective_on)
 
     def _resolve_master_scope(
         self,
@@ -292,7 +189,6 @@ class ResourceCommandMixin:
         employee_id: str | None = None,
         department_id: str | None = None,
         site_id: str | None = None,
-        rate_effective_on: date | None = None,
     ) -> Resource:
         require_permission(self._user_session, "resource.manage", operation_label="create resource")
         organization_id = self._active_organization_id(operation_label="create resource")
@@ -333,15 +229,6 @@ class ResourceCommandMixin:
         )
         resource.code = self._resolve_resource_code(code, resource.name)
         self._resource_repo.add(resource)
-        if resource.hourly_rate > 0:
-            clock = getattr(self, "_clock", None)
-            effective_on = rate_effective_on or (clock.today() if clock is not None else None)
-            if effective_on is None:
-                raise BusinessRuleError(
-                    "A clock is required to seed a resource's labor rate.",
-                    code="RATE_CLOCK_REQUIRED",
-                )
-            self._create_legacy_rate_line(resource, effective_from=effective_on)
         self._stage_activity(resource, action="resource.created")
         self._session.flush()
         return resource
@@ -365,7 +252,6 @@ class ResourceCommandMixin:
         employee_id: str | None,
         department_id: str | None,
         site_id: str | None,
-        effective_on: date | None = None,
     ) -> Resource:
         require_permission(self._user_session, "resource.manage", operation_label="update resource")
         resource = self._resource_repo.get(resource_id)
@@ -414,26 +300,7 @@ class ResourceCommandMixin:
             department_id=department_id,
             site_id=site_id,
         )
-        rate_affecting_change = (
-            candidate.hourly_rate != resource.hourly_rate
-            or candidate.currency_code != resource.currency_code
-        )
-        if rate_affecting_change and effective_on is None:
-            clock = getattr(self, "_clock", None)
-            if clock is None:
-                raise BusinessRuleError(
-                    "A clock is required to date a resource rate change.",
-                    code="RATE_CLOCK_REQUIRED",
-                )
-            effective_on = clock.today()
-
         self._resource_repo.update(candidate)
-        if rate_affecting_change:
-            self._supersede_legacy_rate_line(
-                resource=candidate,
-                previous_hourly_rate=resource.hourly_rate,
-                effective_on=effective_on,
-            )
         self._stage_activity(candidate, action="resource.updated")
         self._session.flush()
         return candidate

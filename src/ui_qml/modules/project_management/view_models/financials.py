@@ -104,7 +104,6 @@ class FinancialsWorkspaceViewModel:
     activity: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     actual_sort_key: str = "metaText"
     actual_sort_direction: str = "desc"
-    forecast: FinancialsForecastViewModel = field(default_factory=FinancialsForecastViewModel)
     selected_forecast_id: str = ""
     selected_forecast: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     forecast_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))

@@ -13,4 +13,15 @@ class BaselineVarianceRecordDto:
     tone: str
 
 
-__all__ = ["BaselineVarianceRecordDto"]
+@dataclass(frozen=True)
+class FinancialBaselineVersionDto:
+    id: str
+    name: str
+    status: str
+    status_label: str
+    version: int
+    created_at_label: str
+    approved_at_label: str
+
+
+__all__ = ["BaselineVarianceRecordDto", "FinancialBaselineVersionDto"]

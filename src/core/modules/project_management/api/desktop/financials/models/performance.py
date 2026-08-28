@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import date
 
 from .baseline_variance import BaselineVarianceRecordDto
-from .lifecycle import FinancialBaselineVersionDto
+from .baseline_variance import FinancialBaselineVersionDto
 from .snapshots import FinancialPeriodRowDto
 
 
@@ -30,7 +30,7 @@ class FinancialEvmDto:
     forecast_revision: int | None = None
     forecast_as_of: date | None = None
     currency_code: str = ""
-    calculation_precision: str = "legacy_binary_float"
+    calculation_precision: str = "binary_float_r6e_debt"
     metrics: tuple[FinancialPerformanceMetricDto, ...] = field(default_factory=tuple)
     notes: str = ""
 

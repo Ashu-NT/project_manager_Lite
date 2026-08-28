@@ -101,19 +101,4 @@ class ProjectRateCardRepository(ABC):
         resolution."""
         ...
 
-    @abstractmethod
-    def get_or_create_legacy_card(
-        self, *, tenant_id: str, organization_id: str, currency_code: str
-    ) -> ProjectRateCard:
-        """Find this organization's one ``card_kind='legacy'`` card, or
-        create it if this is the first resource ever seeded for that
-        organization. Concurrency-safe: a concurrent creator racing on the
-        same organization is resolved by re-fetching, never by two legacy
-        cards existing side by side (enforced by a real partial unique
-        index, not just this method's own care). **Never commits** — the
-        caller's own transaction (resource + card, if newly created + rate
-        line) commits exactly once."""
-        ...
-
-
 __all__ = ["ProjectRateCardRepository"]

@@ -179,8 +179,18 @@ Component {
     Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
     Property { name: "activeDestination"; type: "QString"; isReadonly: true }
     Property { name: "activeSubsection"; type: "QString"; isReadonly: true }
-    Property { name: "cashflow"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "costPhasing"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "costPhasingBasis"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "evmBasis"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "evmMetrics"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "varianceMetrics"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "reportDefinitions"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "performanceAsOfDate"; type: "QString"; isReadonly: true }
+    Property { name: "costPhasingDateFrom"; type: "QString"; isReadonly: true }
+    Property { name: "costPhasingDateTo"; type: "QString"; isReadonly: true }
+    Property { name: "costPhasingGranularity"; type: "QString"; isReadonly: true }
     Property { name: "ledger"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "activity"; type: "QVariantMap"; isReadonly: true }
     Property { name: "ledgerTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "actualSortKey"; type: "QString"; isReadonly: true }
     Property { name: "actualSortDirection"; type: "int"; isReadonly: true }
@@ -188,10 +198,6 @@ Component {
     Property { name: "commitmentsTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "commitmentSortKey"; type: "QString"; isReadonly: true }
     Property { name: "commitmentSortDirection"; type: "int"; isReadonly: true }
-    Property { name: "sourceAnalytics"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "costTypeAnalytics"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "notes"; type: "QVariantList"; isReadonly: true }
-    Property { name: "forecast"; type: "QVariantMap"; isReadonly: true }
     Property { name: "selectedForecastId"; type: "QString"; isReadonly: true }
     Property { name: "forecastVersions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "forecastLines"; type: "QVariantMap"; isReadonly: true }
@@ -233,6 +239,13 @@ Component {
     Property { name: "financialProfile"; type: "QVariantMap"; isReadonly: true }
     Property { name: "budgetVersions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "budgetLines"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "budgetVersionsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "budgetLinesTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "selectedBudgetId"; type: "QString"; isReadonly: true }
+    Property { name: "budgetVersionSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "budgetVersionSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "budgetLineSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "budgetLineSortDirection"; type: "int"; isReadonly: true }
     Property { name: "rateCards"; type: "QVariantMap"; isReadonly: true }
     Property { name: "rateLines"; type: "QVariantMap"; isReadonly: true }
     Property { name: "selectedRateCardId"; type: "QString"; isReadonly: true }
@@ -287,26 +300,10 @@ Component {
     Property { name: "billingLineSourceType"; type: "QString"; isReadonly: true }
     Property { name: "billingLineSourceState"; type: "QString"; isReadonly: true }
     Property { name: "commercialProjection"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "activity"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "budgetVersionsTableModel"; type: "QObject"; isReadonly: true }
-    Property { name: "budgetLinesTableModel"; type: "QObject"; isReadonly: true }
-    Property { name: "selectedBudgetId"; type: "QString"; isReadonly: true }
-    Property { name: "budgetVersionSortKey"; type: "QString"; isReadonly: true }
-    Property { name: "budgetVersionSortDirection"; type: "int"; isReadonly: true }
-    Property { name: "budgetLineSortKey"; type: "QString"; isReadonly: true }
-    Property { name: "budgetLineSortDirection"; type: "int"; isReadonly: true }
     Method { name: "refresh" }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
     Method { name: "selectFinanceDestination"; Parameter { name: "destination"; type: "QString" } }
     Method { name: "selectFinanceSubsection"; Parameter { name: "subsection"; type: "QString" } }
-    Method { name: "selectBudgetVersion"; Parameter { name: "budgetId"; type: "QString" } }
-    Method { name: "setBudgetVersionPage"; Parameter { name: "page"; type: "int" } }
-    Method { name: "setBudgetVersionSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
-    Method { name: "setBudgetLineSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
-    Method { name: "selectPlannedCostVersion"; Parameter { name: "versionId"; type: "QString" } }
-    Method { name: "setPlannedCostVersionPage"; Parameter { name: "page"; type: "int" } }
-    Method { name: "setPlannedCostVersionSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
-    Method { name: "setPlannedCostLineSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
     Method { name: "exportFinancials"; Parameter { name: "reportFormat"; type: "QString" } Parameter { name: "outputPath"; type: "QString" } }
     Method { name: "selectForecastVersion"; Parameter { name: "forecastId"; type: "QString" } }
     Method { name: "setForecastVersionPage"; Parameter { name: "page"; type: "int" } }
@@ -330,6 +327,11 @@ Component {
     Method { name: "setFinancialChangeFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "status"; type: "QString" } Parameter { name: "approvalStatus"; type: "QString" } Parameter { name: "appliedState"; type: "QString" } }
     Method { name: "setFinancialChangeImpactFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "impactType"; type: "QString" } Parameter { name: "appliedState"; type: "QString" } }
     Method { name: "selectVarianceBaseline"; Parameter { name: "baselineId"; type: "QString" } }
+    Method { name: "setCostPhasingPreset"; Parameter { name: "months"; type: "int" } Parameter { name: "granularity"; type: "QString" } }
+    Method { name: "selectBudgetVersion"; Parameter { name: "budgetId"; type: "QString" } }
+    Method { name: "setBudgetVersionPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setBudgetVersionSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setBudgetLineSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
     Method { name: "selectBillingPreparation"; Parameter { name: "preparationId"; type: "QString" } }
     Method { name: "setBillingSchedulePage"; Parameter { name: "page"; type: "int" } }
     Method { name: "setBillingPreparationPage"; Parameter { name: "page"; type: "int" } }
@@ -349,6 +351,10 @@ Component {
     Method { name: "reverseActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "newFinancialCommandId"; type: "QString" }
     Method { name: "setConfigurationPage"; Parameter { name: "collection"; type: "QString" } Parameter { name: "page"; type: "int" } }
+    Method { name: "selectPlannedCostVersion"; Parameter { name: "versionId"; type: "QString" } }
+    Method { name: "setPlannedCostVersionPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setPlannedCostVersionSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
+    Method { name: "setPlannedCostLineSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
     Method { name: "setActualPage"; Parameter { name: "page"; type: "int" } }
     Method { name: "setActualPageSize"; Parameter { name: "pageSize"; type: "int" } }
     Method { name: "setActualSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
@@ -356,8 +362,6 @@ Component {
     Method { name: "setCommitmentPageSize"; Parameter { name: "pageSize"; type: "int" } }
     Method { name: "setCommitmentSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
 }
-
-
 Component {
     name: "ProjectManagementPortfolioWorkspaceController"
     accessSemantics: "reference"

@@ -97,6 +97,8 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
                 baseline_id=baseline_id,
             )
         except BusinessRuleError as exc:
+            if str(getattr(exc, "code", "")) == "PERMISSION_DENIED":
+                raise
             return self._unavailable_evm(
                 project_id=project_id,
                 as_of_date=resolved_as_of,
@@ -105,7 +107,7 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
                 reason=str(exc),
                 baseline_id=baseline_id,
             )
-        except Exception as exc:  # the legacy calculator has one known runtime path
+        except Exception as exc:  # R6E owns replacement of the current calculator.
             logger.exception(
                 "PM Performance EVM calculation unavailable project=%s as_of=%s",
                 project_id,

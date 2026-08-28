@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import inspect
-from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -10,32 +9,13 @@ import pytest
 from src.core.modules.project_management.api.desktop.financials.api import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.financials.builders import (
-    commitment_builder,
-    forecast_builder,
-)
+from src.core.modules.project_management.api.desktop.financials.builders import commitment_builder
 
 
 class _FinanceService:
     def __init__(self) -> None:
         self.snapshot_calls = 0
         self.overview_calls = 0
-
-    def get_finance_snapshot(self, project_id):
-        assert project_id == "project-1"
-        self.snapshot_calls += 1
-        return SimpleNamespace(
-            budget=Decimal("1000"),
-            actual=Decimal("400"),
-            committed=Decimal("150"),
-            available=Decimal("450"),
-            forecast_etc=Decimal("500"),
-            estimate_at_completion=Decimal("900"),
-            variance_at_completion=Decimal("100"),
-            approved_forecast_revision=3,
-            approved_forecast_as_of=date(2026, 8, 1),
-            commitment_rate_percent=Decimal("15"),
-        )
 
     def get_finance_overview(self, project_id):
         assert project_id == "project-1"
@@ -94,7 +74,7 @@ def _api(**dependencies) -> ProjectManagementFinancialsDesktopApi:
     )
 
 
-def test_financial_desktop_maps_approved_forecast_and_commitment_controls() -> None:
+def test_financial_desktop_maps_commitment_controls() -> None:
     finance_service = _FinanceService()
     api = ProjectManagementFinancialsDesktopApi(
         finance_service=finance_service,
@@ -103,23 +83,17 @@ def test_financial_desktop_maps_approved_forecast_and_commitment_controls() -> N
         ),
     )
 
-    forecast = api.get_cost_forecast("project-1")
     commitment = api.get_commitment_summary("project-1")
 
-    assert forecast.basis == "approved_forecast"
-    assert forecast.eac_label == "EUR 900.00"
-    assert forecast.forecast_revision == 3
     assert commitment.commitment_rate_pct == 15.0
     assert commitment.available_after_commitment_label == "EUR 450.00"
-    assert finance_service.snapshot_calls == 1
+    assert finance_service.snapshot_calls == 0
     assert finance_service.overview_calls == 1
 
 
 def test_financial_desktop_requires_canonical_finance_service() -> None:
     api = ProjectManagementFinancialsDesktopApi()
 
-    with pytest.raises(RuntimeError, match="finance service"):
-        api.get_cost_forecast("project-1")
     with pytest.raises(RuntimeError, match="finance service"):
         api.get_commitment_summary("project-1")
 
@@ -141,7 +115,7 @@ def test_financial_desktop_maps_paged_canonical_commitment_lines() -> None:
 
 
 def test_desktop_finance_builders_are_mapping_only() -> None:
-    source = inspect.getsource(forecast_builder) + inspect.getsource(commitment_builder)
+    source = inspect.getsource(commitment_builder)
 
     assert "max(" not in source
     assert "_compute_etc_eac" not in source

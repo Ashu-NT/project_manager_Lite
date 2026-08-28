@@ -128,7 +128,7 @@ def test_snapshot_reconciles_approved_budget_forecast_and_posted_actual(services
         (row.amount for row in snapshot.ledger if row.stage == "forecast"),
         start=Decimal("0"),
     ) == snapshot.forecast_etc
-    august = next(row for row in snapshot.cashflow if row.period_key == "2026-08")
+    august = next(row for row in snapshot.cost_phasing if row.period_key == "2026-08")
     assert august.actual == Decimal("25")
     assert august.forecast == Decimal("80")
     assert august.exposure == Decimal("105")

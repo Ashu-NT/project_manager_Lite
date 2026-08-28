@@ -68,7 +68,7 @@ class PerformanceEvmFact:
     tcpi_bac: float | None
     tcpi_eac: float | None
     notes: str
-    calculation_precision: str = "legacy_binary_float"
+    calculation_precision: str = "binary_float_debt"
 
 
 @dataclass(frozen=True, slots=True)

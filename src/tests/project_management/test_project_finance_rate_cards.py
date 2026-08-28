@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -29,27 +29,6 @@ def _line(**overrides) -> RateCardLine:
     )
     values.update(overrides)
     return RateCardLine.create(**values)
-
-
-def _resource_replacement(resource, **overrides) -> dict[str, object]:
-    values: dict[str, object] = {
-        "name": resource.name,
-        "code": resource.code,
-        "kind": resource.kind,
-        "role": resource.role,
-        "hourly_rate": resource.hourly_rate,
-        "cost_type": resource.cost_type,
-        "currency_code": resource.currency_code,
-        "capacity_percent": resource.capacity_percent,
-        "address": resource.address,
-        "contact": resource.contact,
-        "worker_type": resource.worker_type,
-        "employee_id": resource.employee_id,
-        "department_id": resource.department_id,
-        "site_id": resource.site_id,
-    }
-    values.update(overrides)
-    return values
 
 
 def test_rate_card_line_domain_validation() -> None:
@@ -115,41 +94,6 @@ def test_project_rate_card_scope() -> None:
     assert org_wide.is_organization_wide
     project_scoped = replace(org_wide, project_id="project-1")
     assert not project_scoped.is_organization_wide
-
-
-def test_get_or_create_legacy_card_is_idempotent(services) -> None:
-    from sqlalchemy import select
-
-    from src.core.modules.project_management.infrastructure.persistence.orm.rate_cards import (
-        ProjectRateCardORM,
-    )
-    from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_cards import (
-        SqlAlchemyProjectRateCardRepository,
-    )
-
-    session = services["session"]
-    repo = SqlAlchemyProjectRateCardRepository(session)
-    tenant_id, organization_id = _context_ids(services)
-
-    first = repo.get_or_create_legacy_card(
-        tenant_id=tenant_id, organization_id=organization_id, currency_code="USD"
-    )
-    assert first.is_legacy
-    session.flush()
-
-    second = repo.get_or_create_legacy_card(
-        tenant_id=tenant_id, organization_id=organization_id, currency_code="USD"
-    )
-    assert second.id == first.id
-
-    count = session.execute(
-        select(ProjectRateCardORM).where(
-            ProjectRateCardORM.tenant_id == tenant_id,
-            ProjectRateCardORM.organization_id == organization_id,
-            ProjectRateCardORM.card_kind == "legacy",
-        )
-    ).all()
-    assert len(count) == 1
 
 
 def _create_project_and_resource(services, *, name: str) -> tuple[str, str]:
@@ -457,209 +401,39 @@ def test_resolver_applies_a_single_modifier_and_snapshot_is_immutable(services) 
         snapshot.modifier_applied = None
 
 
-def _legacy_lines_for_resource(services, resource_id: str) -> list[RateCardLine]:
-    from sqlalchemy import select
+def test_resource_rate_metadata_does_not_manufacture_finance_rate_lines(services) -> None:
+    from sqlalchemy import func, select
 
-    from src.core.modules.project_management.infrastructure.persistence.mappers.rate_cards import (
-        rate_card_line_from_orm,
-    )
     from src.core.modules.project_management.infrastructure.persistence.orm.rate_cards import (
         RateCardLineORM,
     )
 
-    session = services["session"]
-    rows = session.execute(
-        select(RateCardLineORM).where(
-            RateCardLineORM.resource_id == resource_id,
-            RateCardLineORM.origin == RateLineOrigin.LEGACY_SEEDED.value,
+    resource_service = services["resource_service"]
+    resource = resource_service.create_resource(
+        "Operational Rate Metadata", role="Developer", hourly_rate=80.0, currency_code="eur"
+    )
+    resource_service.update_resource(
+        resource_id=resource.id,
+        expected_version=resource.version,
+        name=resource.name,
+        code=resource.code,
+        kind=resource.kind,
+        role=resource.role,
+        hourly_rate=Decimal("95"),
+        cost_type=resource.cost_type,
+        currency_code="USD",
+        capacity_percent=resource.capacity_percent,
+        address=resource.address,
+        contact=resource.contact,
+        worker_type=resource.worker_type,
+        employee_id=resource.employee_id,
+        department_id=resource.department_id,
+        site_id=resource.site_id,
+    )
+
+    line_count = services["session"].scalar(
+        select(func.count(RateCardLineORM.id)).where(
+            RateCardLineORM.resource_id == resource.id
         )
-    ).scalars().all()
-    return [rate_card_line_from_orm(row) for row in rows]
-
-
-def test_create_resource_seeds_legacy_rate_line_with_real_effective_from(services) -> None:
-    resource = services["resource_service"].create_resource(
-        "Seeded Dev", role="Developer", hourly_rate=90.0, currency_code="usd"
     )
-    lines = _legacy_lines_for_resource(services, resource.id)
-    assert len(lines) == 1
-    assert lines[0].effective_from is not None
-    assert lines[0].effective_from == date.today()
-    assert lines[0].rate_amount == Decimal("90.0")
-    assert lines[0].is_active
-
-
-def test_create_resource_with_zero_rate_seeds_no_line(services) -> None:
-    resource = services["resource_service"].create_resource(
-        "Zero Rate Dev", role="Developer", hourly_rate=0.0
-    )
-    assert _legacy_lines_for_resource(services, resource.id) == []
-
-
-def test_update_resource_requires_expected_version_for_rate_change(services) -> None:
-    resource_service = services["resource_service"]
-    resource = resource_service.create_resource(
-        "Version Required Dev", role="Developer", hourly_rate=90.0
-    )
-    with pytest.raises(TypeError, match="expected_version"):
-        resource_service.update_resource(
-            resource_id=resource.id,
-            effective_on=date.today(),
-            **_resource_replacement(resource, hourly_rate=100.0),
-        )
-
-
-def test_update_resource_defaults_rate_change_effective_date_from_service_clock(
-    services,
-) -> None:
-    resource_service = services["resource_service"]
-    resource = resource_service.create_resource(
-        "Effective On Required Dev", role="Developer", hourly_rate=90.0
-    )
-    effective_on = resource_service._clock.today()
-
-    resource_service.update_resource(
-        resource_id=resource.id,
-        expected_version=resource.version,
-        **_resource_replacement(resource, hourly_rate=100.0),
-    )
-
-    replacement = next(
-        line
-        for line in _legacy_lines_for_resource(services, resource.id)
-        if line.rate_amount == Decimal("100.0")
-    )
-    assert replacement.effective_from == effective_on
-
-
-def test_update_resource_ignores_unchanged_rate_fields_for_rate_policy(services) -> None:
-    resource_service = services["resource_service"]
-    resource = resource_service.create_resource(
-        "Unchanged Rate Dev", role="Developer", hourly_rate=90.0, currency_code="usd"
-    )
-
-    updated = resource_service.update_resource(
-        resource_id=resource.id,
-        expected_version=resource.version,
-        **_resource_replacement(
-            resource,
-            name="Renamed Unchanged Rate Dev",
-            hourly_rate=90.0,
-            currency_code="USD",
-        ),
-    )
-
-    assert updated.name == "Renamed Unchanged Rate Dev"
-    assert len(_legacy_lines_for_resource(services, resource.id)) == 1
-
-
-def test_update_resource_same_day_positive_to_positive_deactivates_and_replaces(
-    services,
-) -> None:
-    resource_service = services["resource_service"]
-    resource = resource_service.create_resource(
-        "Same Day Dev", role="Developer", hourly_rate=90.0
-    )
-    today = date.today()
-    updated = resource_service.update_resource(
-        resource_id=resource.id,
-        expected_version=resource.version,
-        effective_on=today,
-        **_resource_replacement(resource, hourly_rate=110.0),
-    )
-    lines = _legacy_lines_for_resource(services, updated.id)
-    assert len(lines) == 2
-    old_line = next(line for line in lines if line.rate_amount == Decimal("90.0"))
-    new_line = next(line for line in lines if line.rate_amount == Decimal("110.0"))
-    assert old_line.is_active is False
-    assert new_line.is_active is True
-    assert new_line.effective_from == today
-    assert new_line.effective_to is None
-
-
-def test_update_resource_later_date_positive_to_positive_closes_and_opens(services) -> None:
-    resource_service = services["resource_service"]
-    resource = resource_service.create_resource(
-        "Later Date Dev", role="Developer", hourly_rate=90.0
-    )
-    later = date.today() + timedelta(days=10)
-    resource_service.update_resource(
-        resource_id=resource.id,
-        expected_version=resource.version,
-        effective_on=later,
-        **_resource_replacement(resource, hourly_rate=120.0),
-    )
-    lines = _legacy_lines_for_resource(services, resource.id)
-    old_line = next(line for line in lines if line.rate_amount == Decimal("90.0"))
-    new_line = next(line for line in lines if line.rate_amount == Decimal("120.0"))
-    assert old_line.effective_to == later - timedelta(days=1)
-    assert old_line.is_active
-    assert new_line.effective_from == later
-    assert new_line.effective_to is None
-
-
-def test_update_resource_backdated_raises(services) -> None:
-    resource_service = services["resource_service"]
-    resource = resource_service.create_resource(
-        "Backdate Dev", role="Developer", hourly_rate=90.0
-    )
-    earlier = date.today() - timedelta(days=10)
-    with pytest.raises(BusinessRuleError, match="backdated"):
-        resource_service.update_resource(
-            resource_id=resource.id,
-            expected_version=resource.version,
-            effective_on=earlier,
-            **_resource_replacement(resource, hourly_rate=120.0),
-        )
-
-
-def test_update_resource_positive_to_zero_deactivates_with_no_replacement(services) -> None:
-    resource_service = services["resource_service"]
-    resource = resource_service.create_resource(
-        "Retiring Dev", role="Developer", hourly_rate=90.0
-    )
-    today = date.today()
-    resource_service.update_resource(
-        resource_id=resource.id,
-        expected_version=resource.version,
-        effective_on=today,
-        **_resource_replacement(resource, hourly_rate=0.0),
-    )
-    lines = _legacy_lines_for_resource(services, resource.id)
-    assert len(lines) == 1
-    assert lines[0].is_active is False
-
-
-def test_update_resource_zero_to_zero_touches_no_rate_line(services) -> None:
-    resource_service = services["resource_service"]
-    resource = resource_service.create_resource(
-        "Still Zero Dev", role="Developer", hourly_rate=0.0
-    )
-    resource_service.update_resource(
-        resource_id=resource.id,
-        expected_version=resource.version,
-        effective_on=date.today(),
-        **_resource_replacement(resource, hourly_rate=0.0),
-    )
-    assert _legacy_lines_for_resource(services, resource.id) == []
-
-
-def test_update_resource_currency_only_change_goes_through_supersession(services) -> None:
-    resource_service = services["resource_service"]
-    resource = resource_service.create_resource(
-        "Currency Change Dev", role="Developer", hourly_rate=80.0, currency_code="eur"
-    )
-    today = date.today()
-    resource_service.update_resource(
-        resource_id=resource.id,
-        expected_version=resource.version,
-        effective_on=today,
-        **_resource_replacement(resource, currency_code="usd"),
-    )
-    lines = _legacy_lines_for_resource(services, resource.id)
-    assert len(lines) == 2
-    old_line = next(line for line in lines if line.rate_currency == "EUR")
-    new_line = next(line for line in lines if line.rate_currency == "USD")
-    assert old_line.is_active is False
-    assert new_line.is_active is True
-    assert new_line.rate_amount == Decimal("80.0")
+    assert line_count == 0

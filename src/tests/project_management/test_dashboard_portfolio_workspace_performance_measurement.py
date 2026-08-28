@@ -69,7 +69,6 @@ def _seed_single_project_workspace(services):
         hourly_rate=80.0,
         capacity_percent=100.0,
         currency_code="EUR",
-        rate_effective_on=today,
     )
     project_resource = services["project_resource_service"].add_to_project(
         project_id=project.id,

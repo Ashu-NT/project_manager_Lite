@@ -13,16 +13,10 @@ from src.core.modules.project_management.contracts.reads import ReadSort
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_time_entry_version_migration_repairs_stamped_local_database(tmp_path) -> None:
-    database = tmp_path / "r5h-time-entry-repair.db"
+def test_fresh_baseline_contains_time_entry_version(tmp_path) -> None:
+    database = tmp_path / "r5h-time-entry-fresh.db"
     config = Config(str(ROOT / "infra/persistence/migrations/alembic.ini"))
     config.set_main_option("sqlalchemy.url", f"sqlite:///{database.as_posix()}")
-    command.upgrade(config, "d72f4a8c91be")
-    engine = sa.create_engine(config.get_main_option("sqlalchemy.url"), future=True)
-    with engine.begin() as connection:
-        connection.execute(sa.text("ALTER TABLE time_entries DROP COLUMN version"))
-    engine.dispose()
-
     command.upgrade(config, "head")
     engine = sa.create_engine(config.get_main_option("sqlalchemy.url"), future=True)
     columns = {

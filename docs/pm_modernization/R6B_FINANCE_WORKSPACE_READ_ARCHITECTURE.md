@@ -5,9 +5,9 @@
 **R6B NOT CLOSED.** Implementation is in progress. The six-destination shell,
 destination-scoped loading, bounded Overview projection, bounded Actual and
 Commitment lists, authoritative Finance audit projection, and the Budget,
-Planned Cost, Forecast, Rate Card/Rate Line, and Financial Change master-detail
-read cutovers are implemented. Billing Schedule, Performance, Financial Setup,
-and remaining inspector cutovers remain blocking.
+Planned Cost, Forecast, Rate Card/Rate Line, Financial Change, Billing, and
+Performance read cutovers are implemented. Financial Setup and final
+PostgreSQL/RLS/responsive reconciliation remain blocking.
 
 ## 2. R6A Decisions Applied
 
@@ -59,9 +59,9 @@ rails containing multiple meaningful groups.
 Production entry now loads workspace metadata, the project selector shell, and
 only the active destination/subsection. `destination_builder.py` is the current
 destination orchestrator. Overview and Finance audit use immutable read facts.
-Actuals and Commitments use existing bounded application queries. Remaining
-configuration/lifecycle/billing paths are documented below and must be replaced
-before closure.
+Actuals and Commitments use existing bounded application queries. Billing and
+Performance use destination-specific immutable read contracts. Financial Setup
+is the remaining configuration read cutover before closure.
 
 ## 6. Query Contracts
 
@@ -69,16 +69,17 @@ Implemented contracts normalize and allowlist Actual and Commitment sorts and
 bound page sizes. Overview accepts tenant, organization, project, and as-of.
 Finance audit accepts module, selected project workspace, a bounded limit, and
 an allowlist of Finance operation prefixes. Immutable page/filter/sort query
-objects are implemented for Budget, Planned Cost, Forecast, Rate, and Financial Change
-master-detail reads. Rates use separate card and line requests with bounded
+objects are implemented for Budget, Planned Cost, Forecast, Rate, Financial
+Change, Billing, and Performance reads. Rates use separate card and line requests with bounded
 pages, allowlisted sort keys, independent query state, card search/scope/status
 filters, and line search/type/status/effective-status filters. An explicit line
 `as_of` date supports historical effective-state queries; the current UI
 defaults to the current business date. Financial Changes use independent
 request and Impact queries with bounded pages, allowlisted sorts, stable ID
-tie-breakers, and search/status/approval/apply-state/type filters. Equivalent
-contracts are still required for Billing Schedule, Billing Preparation, and
-audit archive paging.
+tie-breakers, and search/status/approval/apply-state/type filters. Billing owns
+separate Schedule, Preparation, and Preparation Line requests. Performance owns
+explicit as-of/range/granularity contracts for EVM, Variance, Cost Phasing, and
+Reports. Audit archive paging remains outside the bounded latest-activity scope.
 
 ## 7. Reader Contracts
 
@@ -95,9 +96,11 @@ selected-card projection and never invokes rate resolution or hydrates Rate
 aggregates. The Financial Change Reader uses a two-statement request page, a
 one-statement selected-request detail, and a two-statement selected-parent
 Impact page. Approval, base-current, and applied-successor evidence are scalar
-server projections; no Change aggregate is passed to QML. Remaining
-configuration reads still hydrate domain aggregates
-through repositories and therefore do not satisfy the final R6B Reader gate.
+server projections; no Change aggregate is passed to QML. Billing uses bounded
+profile/master/detail/line projections. Performance uses a scoped SQL Reader
+for period facts and invokes existing EVM/Baseline authorities only through its
+application query boundary. Financial Setup is the remaining aggregate-backed
+configuration read that does not satisfy the final R6B Reader gate.
 
 ## 8. Desktop API
 
@@ -112,8 +115,9 @@ immutable card/line facts to desktop DTOs, preserves amounts as canonical
 decimal strings with explicit currency, and exposes selected-card evidence
 independently from paged lines. `get_change_workspace()` maps immutable request,
 detail, and typed-Impact facts to Decimal-string DTOs and preserves nullable
-governance/revision evidence. Destination-specific typed endpoints are still
-required for the remaining substantial collections.
+governance/revision evidence. Billing and Performance expose destination-
+specific typed endpoints; the removed monolithic desktop Finance surface is not
+retained as a fallback.
 
 ## 9. Overview Architecture
 
@@ -145,23 +149,28 @@ client-side scope merge occurs. No Rate write action was exposed. The
 manual-actual task selector still needs a server-backed option query before
 scale closure.
 
-The existing resolver precedence is unchanged: project resource/customer,
-project resource, project role/skill/department, organization resource,
-organization role/skill/department, then the organization legacy-seeded
-Resource hourly-rate line. Same-tier ambiguity remains fail-closed. The mutable
-Resource fallback is represented by a Finance line with `origin=legacy_seeded`;
-it remains active compatibility, not historical authority. Approved labor
-postings continue to retain immutable rate snapshots and are never recomputed
-from the current Rate Card or Resource hourly rate.
+The resolver precedence is project resource/customer, project resource,
+project role/skill/department, organization resource, then organization
+role/skill/department. Same-tier ambiguity remains fail-closed. Rate Cards are
+the only Finance rate authority. Resource `hourly_rate` remains operational
+resource metadata and no Resource command creates, supersedes, or deactivates a
+Finance Rate Line. The `legacy_seeded` origin, legacy-card discriminator,
+repository bridge, composition dependency, migration columns/index, and
+behavioral tests are deleted. Approved labor postings retain immutable rate
+snapshots and are never recomputed from a current Rate Card or Resource field.
 
 ## 12. Performance Architecture
 
-Variance, Cost Phasing, and Reports are grouped under Performance. Visible
-`Cash Flow` terminology has been removed; no cash authority was invented.
-**Blocking:** Cost Phasing and report basis still request the full Finance
-snapshot. Existing EVM/variance authority is preserved and its R6A defects stay
-deferred to R6E; R6B must add defensive/unavailable presentation without
-duplicating formulas.
+EVM, Variance, Cost Phasing, and Reports are grouped under Performance and load
+only the selected subsection. Visible `Cash Flow` terminology and its old
+presentation state are removed; Cost Phasing never claims cash authority. The
+bounded Reader applies tenant, organization, project, date-range, and
+month/quarter granularity directly in SQL and returns Decimal facts. EVM remains
+the single existing calculator authority until R6E and failures are converted
+to truthful unavailable state after authorization; permission denials still
+propagate. VAC and Budget Pressure remain distinct metrics with explicit sign
+conventions. Reports require report authorization and expose authoritative
+revision/as-of basis without loading the full Finance desktop snapshot.
 
 ## 13. Commercial Architecture
 
@@ -207,14 +216,13 @@ query service. QML visibility is not the security boundary.
 
 Overview fails closed on source-currency mismatch. Canonical arithmetic remains
 `Decimal`; desktop monetary values use canonical decimal strings and formatted
-labels. Forecast, Rate line, and Financial Change Impact amounts retain
-persisted currency and never
+labels. Forecast, Rate line, Financial Change Impact, Billing, and Performance
+amounts retain persisted currency and never
 convert through `float`. Rate Cards do not invent a parent currency that is not
 present in the authoritative schema; every line carries its persisted currency
 and no cross-currency comparison is performed. QML performs no authoritative
-Finance calculation. No FX conversion was introduced. The remaining legacy
-snapshot/configuration reads must receive the same cross-currency
-characterization before cutover.
+Finance calculation. No FX conversion was introduced. Financial Setup must
+receive the same cross-currency characterization before its final cutover.
 
 ## 18. As-of / Revision Semantics
 

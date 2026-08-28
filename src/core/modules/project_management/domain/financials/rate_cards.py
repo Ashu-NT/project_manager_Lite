@@ -28,7 +28,6 @@ class RateType(str, Enum):
 
 class RateLineOrigin(str, Enum):
     CONFIGURED = "configured"
-    LEGACY_SEEDED = "legacy_seeded"
 
 
 class RateModifier(str, Enum):
@@ -102,7 +101,6 @@ class ProjectRateCard:
     organization_id: str
     name: str
     project_id: str | None = None
-    card_kind: str | None = None
     version: int = 1
     is_active: bool = True
     created_at: datetime = field(default_factory=_utc_now)
@@ -130,21 +128,6 @@ class ProjectRateCard:
     @classmethod
     def _normalize_project_id(cls, value: object) -> str | None:
         return normalize_optional_identifier(value)
-
-    @field_validator("card_kind", mode="before")
-    @classmethod
-    def _normalize_card_kind(cls, value: object) -> str | None:
-        normalized = normalize_optional_text(value).lower() or None
-        if normalized is not None and normalized != "legacy":
-            raise ValidationError(
-                "Rate card kind must be 'legacy' or unset.",
-                code="RATE_CARD_CARD_KIND_INVALID",
-            )
-        return normalized
-
-    @property
-    def is_legacy(self) -> bool:
-        return self.card_kind == "legacy"
 
     @field_validator("version", mode="before")
     @classmethod
@@ -246,7 +229,7 @@ class RateCardLine:
             return RateLineOrigin(raw)
         except ValueError as exc:
             raise ValidationError(
-                "Rate line origin must be 'configured' or 'legacy_seeded'.",
+                "Rate line origin must be 'configured'.",
                 code="RATE_CARD_LINE_ORIGIN_INVALID",
             ) from exc
 

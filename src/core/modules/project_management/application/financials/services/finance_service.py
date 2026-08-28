@@ -28,8 +28,8 @@ from src.core.modules.project_management.application.financials.reporting.analyt
     build_dimension_analytics,
     build_source_analytics,
 )
-from src.core.modules.project_management.application.financials.cashflow.cashflow_builder import (
-    build_period_cashflow,
+from src.core.modules.project_management.application.financials.cost_phasing.cost_phasing_builder import (
+    build_period_cost_phasing,
 )
 from src.core.modules.project_management.application.financials.utils.helpers import (
     normalize_currency,
@@ -184,7 +184,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
                 "are reported separately and are not added to EAC again."
             )
         notes.append(
-            "Cash flow uses posting dates for actuals and approved forecast periods for ETC."
+            "Cost Phasing uses posting dates for actuals and approved forecast periods for ETC; it is not accounting cash flow."
         )
         can_read_sensitive = bool(
             self._user_session is not None
@@ -239,7 +239,9 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             sensitive_detail_included=can_read_sensitive,
             reconciliation=reconciliation,
             ledger=ledger,
-            cashflow=build_period_cashflow(ledger=ledger, period=period, as_of=as_of),
+            cost_phasing=build_period_cost_phasing(
+                ledger=ledger, period=period, as_of=as_of
+            ),
             by_source=build_source_analytics(source_breakdown.rows),
             by_cost_type=build_dimension_analytics(ledger=ledger, dimension="cost_type"),
             by_resource=(
@@ -356,14 +358,16 @@ class FinanceService(ProjectManagementModuleGuardMixin):
     def list_cost_ledger(self, project_id: str, *, as_of: date | None = None) -> list[FinanceLedgerRow]:
         return self.get_finance_snapshot(project_id, as_of=as_of).ledger
 
-    def get_cashflow_by_period(
+    def get_cost_phasing_by_period(
         self,
         project_id: str,
         *,
         as_of: date | None = None,
         period: str = "month",
     ) -> list[FinancePeriodRow]:
-        return self.get_finance_snapshot(project_id, as_of=as_of, period=period).cashflow
+        return self.get_finance_snapshot(
+            project_id, as_of=as_of, period=period
+        ).cost_phasing
 
     def get_expense_analytics(
         self,

@@ -64,8 +64,6 @@ def test_resource_dto_rejects_invalid_local_fields():
 
 
 def test_resource_service_update_validates_final_state_and_persists_code(services):
-    from datetime import date
-
     resource_service = services["resource_service"]
 
     resource = resource_service.create_resource(
@@ -93,7 +91,6 @@ def test_resource_service_update_validates_final_state_and_persists_code(service
         department_id=resource.department_id,
         site_id=resource.site_id,
         code="RES-REN-1",
-        effective_on=date.today(),
     )
 
     assert updated.name == "Electrical Crew A"

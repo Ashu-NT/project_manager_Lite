@@ -87,9 +87,9 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         self._clock = clock
         # Approval-P1: `submit_preparation`'s own canonical transaction owner -- the
         # preparation's submit transition, the governed `ApprovalRequest`, and both audit
-        # trails all commit atomically through this ONE fresh Session. Optional only so this
-        # constructor stays backward-compatible for any test double that never calls
-        # `submit_preparation`; production composition always supplies it.
+        # trails all commit atomically through this ONE fresh Session. This dependency is
+        # optional because approval-application composition never submits preparations;
+        # production submission composition always supplies it.
         self._submission_uow_factory = submission_uow_factory
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service

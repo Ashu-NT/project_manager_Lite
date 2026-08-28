@@ -136,10 +136,7 @@ def test_planning_budget_tab_does_not_query_cost_or_performance_reads() -> None:
     assert kwargs["selected_budget_id"] == ""
     assert kwargs["version_page"] == 1
     assert kwargs["line_page"] == 1
-    api.get_configuration_workspace.assert_not_called()
-    api.get_finance_snapshot.assert_not_called()
     api.list_cost_entries.assert_not_called()
-    api.get_billing_workspace.assert_not_called()
 
 
 def test_planning_planned_cost_tab_uses_bounded_reader_facade_only() -> None:
@@ -171,8 +168,6 @@ def test_planning_planned_cost_tab_uses_bounded_reader_facade_only() -> None:
         line_sort_key="supportingText",
         line_sort_direction="desc",
     )
-    api.get_configuration_workspace.assert_not_called()
-    api.get_finance_snapshot.assert_not_called()
 
 
 def test_planning_forecast_tab_uses_bounded_reader_facade_only() -> None:
@@ -217,9 +212,6 @@ def test_planning_forecast_tab_uses_bounded_reader_facade_only() -> None:
         line_search="risk",
         line_source_type="risk",
     )
-    api.get_cost_forecast.assert_not_called()
-    api.list_forecast_versions.assert_not_called()
-    api.list_forecast_lines.assert_not_called()
 
 
 def test_budget_reader_pages_versions_and_selected_lines_authoritatively(services) -> None:
@@ -816,9 +808,6 @@ def test_cost_actuals_tab_loads_only_paged_actual_dependencies() -> None:
     )
     api.get_manual_actual_options.assert_called_once_with("project-1")
     api.list_tasks.assert_called_once_with("project-1")
-    api.get_finance_snapshot.assert_not_called()
-    api.get_configuration_workspace.assert_not_called()
-    api.get_billing_workspace.assert_not_called()
 
 
 def test_controls_activity_uses_project_scoped_enterprise_audit_only() -> None:
@@ -907,9 +896,6 @@ def test_controls_changes_uses_bounded_master_detail_facade_only() -> None:
         impact_type="schedule",
         impact_applied_state="not_applied",
     )
-    api.list_financial_changes.assert_not_called()
-    api.list_financial_change_impacts.assert_not_called()
-    api.get_configuration_workspace.assert_not_called()
 
 
 def test_enterprise_audit_projection_filters_module_workspace_and_operation(services) -> None:

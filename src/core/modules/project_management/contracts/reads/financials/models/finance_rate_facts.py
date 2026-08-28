@@ -72,7 +72,6 @@ class RateCardFact:
     project_id: str | None
     scope: str
     is_active: bool
-    is_legacy: bool
     version: int
     line_count: int
     created_at: datetime

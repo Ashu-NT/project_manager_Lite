@@ -122,7 +122,7 @@ class FinanceSnapshot:
     sensitive_detail_included: bool
     reconciliation: FinanceReconciliation
     ledger: list[FinanceLedgerRow]
-    cashflow: list[FinancePeriodRow]
+    cost_phasing: list[FinancePeriodRow]
     by_source: list[FinanceAnalyticsRow]
     by_cost_type: list[FinanceAnalyticsRow]
     by_resource: list[FinanceAnalyticsRow]

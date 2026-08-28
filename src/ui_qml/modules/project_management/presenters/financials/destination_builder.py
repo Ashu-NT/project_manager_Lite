@@ -595,14 +595,7 @@ def build_destination_state(
         )
 
     if subsection == "setup":
-        configuration = desktop_api.get_configuration_workspace(
-            project_id,
-            page_size=configuration_page_size,
-            include_profile_details=True,
-            include_budgets=False,
-            include_rates=False,
-            include_planned_costs=False,
-        )
+        configuration = desktop_api.get_financial_setup_workspace(project_id)
         views = build_finance_configuration_views(configuration)
         return FinancialsWorkspaceViewModel(
             overview=state.overview,

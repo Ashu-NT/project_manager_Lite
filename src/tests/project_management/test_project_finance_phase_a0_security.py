@@ -15,6 +15,7 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.modules.project_management.access.policy import (
     PROJECT_SCOPE_ROLE_PERMISSIONS,
 )
+from src.core.modules.project_management.domain.financials.rate_cards import RateType
 
 
 def _login(services, username: str, password: str) -> None:
@@ -40,7 +41,19 @@ def _seed_labor_finance_project(services) -> str:
         "Engineer",
         hourly_rate=125.0,
         currency_code="EUR",
-        rate_effective_on=date(2026, 1, 5),
+    )
+    rate_card = services["rate_card_service"].create_rate_card(
+        name="Phase A0 Project Rates",
+        project_id=project.id,
+    )
+    services["rate_card_service"].create_line(
+        rate_card.id,
+        rate_type=RateType.COST,
+        unit="HOUR",
+        rate_amount=Decimal("125"),
+        rate_currency="EUR",
+        resource_id=resource.id,
+        effective_from=date(2026, 1, 5),
     )
     project_resource = services["project_resource_service"].add_to_project(
         project_id=project.id,

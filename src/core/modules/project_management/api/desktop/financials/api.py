@@ -131,7 +131,7 @@ from src.core.modules.project_management.api.desktop.financials.serializers.snap
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.configuration_serializer import (
     serialize_finance_budget_workspace,
-    serialize_finance_configuration_workspace,
+    serialize_finance_setup_workspace,
     serialize_finance_planned_cost_workspace,
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.forecast_workspace_serializer import (
@@ -793,33 +793,13 @@ class ProjectManagementFinancialsDesktopApi:
             raise ValueError("Financial report format must be 'xlsx' or 'pdf'.")
         return str(result)
 
-    def get_configuration_workspace(
-        self,
-        project_id: str,
-        *,
-        budget_line_page: int = 1,
-        rate_line_page: int = 1,
-        planned_cost_line_page: int = 1,
-        page_size: int = 50,
-        include_profile_details: bool = True,
-        include_budgets: bool = True,
-        include_rates: bool = True,
-        include_planned_costs: bool = True,
+    def get_financial_setup_workspace(
+        self, project_id: str
     ) -> FinancialConfigurationWorkspaceDto:
         if not project_id or self._finance_workspace_query is None:
             return FinancialConfigurationWorkspaceDto()
-        return serialize_finance_configuration_workspace(
-            self._finance_workspace_query.get(
-                project_id,
-                budget_line_page=budget_line_page,
-                rate_line_page=rate_line_page,
-                planned_cost_line_page=planned_cost_line_page,
-                page_size=page_size,
-                include_profile_details=include_profile_details,
-                include_budgets=include_budgets,
-                include_rates=include_rates,
-                include_planned_costs=include_planned_costs,
-            )
+        return serialize_finance_setup_workspace(
+            self._finance_workspace_query.get_setup_workspace(project_id)
         )
 
     def get_budget_workspace(

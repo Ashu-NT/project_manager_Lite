@@ -43,7 +43,7 @@ def build_rate_workspace_views(source: FinancialRateWorkspaceDto) -> dict[str, o
         ),
         "rate_cards": FinancialsCollectionViewModel(
             title="Rate Cards",
-            subtitle="Organization fallback and project override cards visible to this project.",
+            subtitle="Organization default and project override cards visible to this project.",
             empty_state="No Rate Cards match the current filters.",
             items=tuple(_record(item) for item in source.cards),
             page=source.card_page,

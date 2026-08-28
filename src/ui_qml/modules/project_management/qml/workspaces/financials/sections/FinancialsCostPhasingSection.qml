@@ -44,10 +44,10 @@ Item {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingSm
 
-                AppControls.Button { text: "6 months"; onClicked: root.presetRequested(6, root.granularity) }
-                AppControls.Button { text: "12 months"; onClicked: root.presetRequested(12, root.granularity) }
-                AppControls.Button { text: "24 months"; onClicked: root.presetRequested(24, root.granularity) }
-                AppControls.Button {
+                AppControls.SecondaryButton { text: "6 months"; onClicked: root.presetRequested(6, root.granularity) }
+                AppControls.SecondaryButton { text: "12 months"; onClicked: root.presetRequested(12, root.granularity) }
+                AppControls.SecondaryButton { text: "24 months"; onClicked: root.presetRequested(24, root.granularity) }
+                AppControls.SecondaryButton {
                     text: root.granularity === "quarter" ? "Quarterly" : "Monthly"
                     onClicked: root.presetRequested(0, root.granularity === "quarter" ? "month" : "quarter")
                 }

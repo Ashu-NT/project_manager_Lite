@@ -50,10 +50,6 @@ class ProjectRateCardORM(Base):
             name="uq_pf_rate_cards_scoped_id",
         ),
         CheckConstraint("version >= 1", name="ck_pf_rate_cards_version"),
-        CheckConstraint(
-            "card_kind IS NULL OR card_kind = 'legacy'",
-            name="ck_pf_rate_cards_card_kind",
-        ),
         {"info": {"rls_scope": "tenant_organization"}},
     )
 
@@ -66,12 +62,6 @@ class ProjectRateCardORM(Base):
     organization_id: Mapped[str] = mapped_column(String, nullable=False)
     project_id: Mapped[str | None] = mapped_column(String, nullable=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
-    # 'legacy' marks the one auto-seeded, organization-wide card that holds
-    # Resource.hourly_rate-derived fallback lines — NULL for every ordinary,
-    # user-created card. The partial unique index below (one legacy card
-    # per tenant/organization) is what makes get_or_create_legacy_card's
-    # find-or-create race-safe at the database level, not just in-process.
-    card_kind: Mapped[str | None] = mapped_column(String(16), nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=true()
@@ -82,16 +72,6 @@ class ProjectRateCardORM(Base):
 
 Index("idx_pf_rate_cards_scope", ProjectRateCardORM.tenant_id, ProjectRateCardORM.organization_id)
 Index("idx_pf_rate_cards_project", ProjectRateCardORM.project_id)
-Index(
-    "uq_pf_rate_cards_legacy_per_org",
-    ProjectRateCardORM.tenant_id,
-    ProjectRateCardORM.organization_id,
-    unique=True,
-    postgresql_where=(ProjectRateCardORM.card_kind == "legacy"),
-    sqlite_where=(ProjectRateCardORM.card_kind == "legacy"),
-)
-
-
 class RateCardLineORM(Base):
     __tablename__ = "project_finance_rate_card_lines"
     __table_args__ = (
@@ -110,7 +90,7 @@ class RateCardLineORM(Base):
             name="ck_pf_rate_card_lines_rate_type",
         ),
         CheckConstraint(
-            "origin IN ('configured', 'legacy_seeded')",
+            "origin = 'configured'",
             name="ck_pf_rate_card_lines_origin",
         ),
         CheckConstraint(

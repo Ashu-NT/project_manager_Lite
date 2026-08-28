@@ -87,19 +87,10 @@ def test_review_controller_and_presenter_do_not_own_personal_time_state() -> Non
     assert "add_time_entry" not in presenter
 
 
-def test_r5f_migration_repairs_a_pre_baseline_edit_database(tmp_path) -> None:
-    database = tmp_path / "r5f-repair.db"
+def test_fresh_baseline_contains_timesheet_period_version(tmp_path) -> None:
+    database = tmp_path / "r5f-fresh.db"
     config = Config(str(ROOT / "infra/persistence/migrations/alembic.ini"))
     config.set_main_option("sqlalchemy.url", f"sqlite:///{database.as_posix()}")
-    command.upgrade(config, "c817a91e5f24")
-    engine = sa.create_engine(config.get_main_option("sqlalchemy.url"), future=True)
-    with engine.begin() as connection:
-        connection.execute(sa.text("ALTER TABLE timesheet_periods DROP COLUMN version"))
-    assert "version" not in {
-        column["name"] for column in sa.inspect(engine).get_columns("timesheet_periods")
-    }
-    engine.dispose()
-
     command.upgrade(config, "head")
     engine = sa.create_engine(config.get_main_option("sqlalchemy.url"), future=True)
     columns = {

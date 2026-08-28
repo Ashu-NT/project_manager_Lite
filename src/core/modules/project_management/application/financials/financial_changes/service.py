@@ -113,9 +113,9 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         self._clock = clock
         # Approval-P1: `submit_change`'s own canonical transaction owner -- the financial
         # change, its base-version consistency checks, the governed `ApprovalRequest`, and both
-        # audit trails all commit atomically through this ONE fresh Session. Optional only so
-        # this constructor stays backward-compatible for any test double that never calls
-        # `submit_change`; production composition always supplies it.
+        # audit trails all commit atomically through this ONE fresh Session. This dependency
+        # is optional because approval-application composition never submits changes;
+        # production submission composition always supplies it.
         self._submission_uow_factory = submission_uow_factory
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service

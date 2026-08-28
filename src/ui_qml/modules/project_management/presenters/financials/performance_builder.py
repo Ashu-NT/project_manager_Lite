@@ -68,7 +68,7 @@ def build_evm_views(dto) -> dict[str, object]:
             ),
             FinancialsDetailFieldViewModel(
                 "Calculation precision",
-                "Legacy binary-float authority",
+                "Current binary-float authority",
                 "R6E owns the canonical Decimal replacement; this R6B read does not change formulas.",
             ),
         ),

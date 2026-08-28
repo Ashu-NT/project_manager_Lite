@@ -351,7 +351,7 @@ class ExcelReportRenderer:
             )
 
             row += 1
-            ws_f[f"A{row}"] = "Cashflow / Forecast by Period"
+            ws_f[f"A{row}"] = "Cost Phasing by Period"
             ws_f[f"A{row}"].font = header_font
             row += 1
             headers = ["Period", "Planned", "Committed", "Actual", "Forecast", "Exposure"]
@@ -362,7 +362,7 @@ class ExcelReportRenderer:
                 cell.alignment = center
                 cell.border = thin_border
             row += 1
-            for p in snap.cashflow:
+            for p in snap.cost_phasing:
                 values = [
                     p.period_key,
                     float(p.planned),

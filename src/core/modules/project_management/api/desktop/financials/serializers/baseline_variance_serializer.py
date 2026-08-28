@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from src.core.modules.project_management.api.desktop.financials.models.baseline_variance import BaselineVarianceRecordDto
+from src.core.modules.project_management.api.desktop.financials.models.baseline_variance import (
+    BaselineVarianceRecordDto,
+    FinancialBaselineVersionDto,
+)
 from src.core.modules.project_management.api.desktop.common.financial_formatting import format_signed_money
 from src.core.platform.finance.money import canonical_decimal_text
 
@@ -20,4 +23,17 @@ def serialize_variance_record(r) -> BaselineVarianceRecordDto:
     )
 
 
-__all__ = ["serialize_variance_record"]
+def serialize_baseline_version(value) -> FinancialBaselineVersionDto:
+    status = str(getattr(getattr(value, "status", ""), "value", getattr(value, "status", "")))
+    return FinancialBaselineVersionDto(
+        id=str(value.id),
+        name=str(value.name),
+        status=status,
+        status_label=status.replace("_", " ").title(),
+        version=int(value.version),
+        created_at_label=str(value.created_at or ""),
+        approved_at_label=str(value.approved_at or ""),
+    )
+
+
+__all__ = ["serialize_baseline_version", "serialize_variance_record"]

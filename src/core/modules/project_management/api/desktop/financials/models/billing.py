@@ -65,22 +65,7 @@ class FinancialBillingPreparationLineDto:
 
 
 @dataclass(frozen=True, slots=True)
-class FinancialBillingWorkspaceDto:
-    profile: FinancialBillingProfileDto = field(default_factory=FinancialBillingProfileDto)
-    schedule_lines: tuple[FinancialBillingScheduleLineDto, ...] = field(default_factory=tuple)
-    preparations: tuple[FinancialBillingPreparationDto, ...] = field(default_factory=tuple)
-    preparation_page: int = 1
-    preparation_page_size: int = 50
-    preparation_total: int = 0
-
-
-@dataclass(frozen=True, slots=True)
 class FinancialCommercialProjectionDto:
-    """ADR-PF-010's five commercial projections. contract_value/billable_amount/
-    externally_invoiced_amount/externally_paid_amount require only finance.read;
-    forecast_revenue_at_completion/revenue_basis/projected_margin_amount/
-    projected_margin_percent require finance.read_profitability and are blank
-    (profitability_detail_included=False) otherwise."""
 
     project_id: str = ""
     project_currency: str = ""
@@ -101,6 +86,5 @@ __all__ = [
     "FinancialBillingPreparationLineDto",
     "FinancialBillingProfileDto",
     "FinancialBillingScheduleLineDto",
-    "FinancialBillingWorkspaceDto",
     "FinancialCommercialProjectionDto",
 ]

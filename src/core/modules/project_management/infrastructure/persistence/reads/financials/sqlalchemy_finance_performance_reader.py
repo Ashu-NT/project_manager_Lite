@@ -1,14 +1,11 @@
 from __future__ import annotations
 
+from calendar import monthrange
 from datetime import date
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.application.financials.utils.helpers import (
-    normalize_period,
-    period_bounds,
-)
 from src.core.modules.project_management.contracts.reads.financials.models.finance_performance_facts import (
     CostPhasingFacts,
     CostPhasingPeriodFact,
@@ -64,9 +61,9 @@ class SqlAlchemyFinancePerformanceReader:
             resolved_anchor = anchor or query.date_to
             if resolved_anchor < query.date_from or resolved_anchor > query.date_to:
                 return
-            key, starts_on, ends_on = period_bounds(
+            key, starts_on, ends_on = self._period_bounds(
                 resolved_anchor,
-                normalize_period(query.granularity),
+                query.granularity,
             )
             bucket = buckets.setdefault(
                 key,
@@ -168,7 +165,7 @@ class SqlAlchemyFinancePerformanceReader:
             as_of_date=query.date_to,
             date_from=query.date_from,
             date_to=query.date_to,
-            granularity=normalize_period(query.granularity),
+            granularity=query.granularity,
             currency_code=currency,
             approved_budget_id=(
                 None if project.approved_budget_id is None else str(project.approved_budget_id)
@@ -186,6 +183,31 @@ class SqlAlchemyFinancePerformanceReader:
                 None if forecast is None else forecast.as_of_date
             ),
             periods=periods,
+        )
+
+    @staticmethod
+    def _period_bounds(anchor: date, granularity: str) -> tuple[str, date, date]:
+        if granularity == "quarter":
+            quarter = ((anchor.month - 1) // 3) + 1
+            start_month = (quarter - 1) * 3 + 1
+            end_month = start_month + 2
+            return (
+                f"{anchor.year}-Q{quarter}",
+                date(anchor.year, start_month, 1),
+                date(
+                    anchor.year,
+                    end_month,
+                    monthrange(anchor.year, end_month)[1],
+                ),
+            )
+        return (
+            f"{anchor.year}-{anchor.month:02d}",
+            date(anchor.year, anchor.month, 1),
+            date(
+                anchor.year,
+                anchor.month,
+                monthrange(anchor.year, anchor.month)[1],
+            ),
         )
 
     @staticmethod

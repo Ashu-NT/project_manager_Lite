@@ -13,7 +13,7 @@ from src.core.modules.project_management.application.financials.models.finance_m
 )
 
 
-def build_period_cashflow(
+def build_period_cost_phasing(
     *,
     ledger: list[FinanceLedgerRow],
     period: str,
@@ -63,4 +63,4 @@ def build_period_cashflow(
     return out
 
 
-__all__ = ["build_period_cashflow"]
+__all__ = ["build_period_cost_phasing"]

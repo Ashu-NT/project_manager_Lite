@@ -366,9 +366,7 @@ def build_project_management_service_bundle(
         task_workspace_reader=SqlAlchemyTaskWorkspaceReader(session=session),
         enterprise_resource_availability_service=enterprise_resource_availability,
     )
-    # Shared by ResourceService (legacy rate-line seeding/supersession) and
-    # RateCardResolver (RateSelectionSnapshot.resolved_at) — one time source,
-    # not two independent ways of asking "what time is it."
+    # The resolver owns the effective-time source for immutable rate snapshots.
     system_clock = SystemClock()
     resource_read_reader = SqlAlchemyResourceCatalogReader(session=session)
     resource_context_reader = SqlAlchemyResourceContextReader(session=session)
@@ -385,8 +383,6 @@ def build_project_management_service_bundle(
         activity_service=platform_services.activity_service,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
-        project_rate_card_repo=repositories.project_rate_card_repo,
-        clock=system_clock,
         resource_catalog_reader=resource_read_reader,
         resource_inspector_reader=resource_read_reader,
         resource_summary_reader=resource_read_reader,
@@ -495,11 +491,6 @@ def build_project_management_service_bundle(
     finance_workspace_query = ProjectFinanceWorkspaceQuery(
         profile_repo=repositories.project_financial_profile_repo,
         cost_code_repo=repositories.project_cost_code_repo,
-        budget_repo=repositories.project_budget_repo,
-        rate_card_repo=repositories.project_rate_card_repo,
-        planned_cost_repo=repositories.planned_cost_repo,
-        task_repo=repositories.task_repo,
-        resource_repo=repositories.resource_repo,
         budget_reader=SqlAlchemyFinanceBudgetReader(session=session),
         planned_cost_reader=SqlAlchemyFinancePlannedCostReader(session=session),
         forecast_reader=SqlAlchemyFinanceForecastReader(session=session),
