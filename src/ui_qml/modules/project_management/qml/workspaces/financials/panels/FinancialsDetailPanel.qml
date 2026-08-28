@@ -56,6 +56,21 @@ Item {
     property int budgetLineSortDirection: Qt.DescendingOrder
     property var rateCardsModel: ({ "items": [] })
     property var rateLinesModel: ({ "items": [] })
+    property var selectedRateCardModel: ({ "id": "", "fields": [] })
+    property var rateCardsTableModel: null
+    property var rateLinesTableModel: null
+    property string selectedRateCardId: ""
+    property string rateCardSortKey: "title"
+    property int rateCardSortDirection: Qt.AscendingOrder
+    property string rateLineSortKey: "title"
+    property int rateLineSortDirection: Qt.AscendingOrder
+    property string rateCardSearch: ""
+    property string rateCardScope: ""
+    property string rateCardStatus: ""
+    property string rateLineSearch: ""
+    property string rateLineRateType: ""
+    property string rateLineStatus: ""
+    property string rateLineEffectiveStatus: ""
     property var plannedCostVersionsModel: ({ "items": [] })
     property var plannedCostLinesModel: ({ "items": [] })
     property var plannedCostVersionsTableModel: null
@@ -93,6 +108,13 @@ Item {
     signal forecastLineSortRequested(string key, int direction)
     signal forecastVersionFiltersRequested(string search, string status, string generationMode)
     signal forecastLineFiltersRequested(string search, string sourceType)
+    signal rateCardSelected(string rateCardId)
+    signal rateCardPageRequested(int page)
+    signal rateLinePageRequested(int page)
+    signal rateCardSortRequested(string key, int direction)
+    signal rateLineSortRequested(string key, int direction)
+    signal rateCardFiltersRequested(string search, string scope, string status)
+    signal rateLineFiltersRequested(string search, string rateType, string status, string effectiveStatus)
     signal financialChangeSelected(string changeId)
     signal varianceBaselineSelected(string baselineId)
     signal actualEntrySelected(string entryId)
@@ -343,9 +365,32 @@ Item {
             width: parent ? parent.width : 0
             cards: root.rateCardsModel
             lines: root.rateLinesModel
+            selectedCard: root.selectedRateCardModel
+            cardsTableModel: root.rateCardsTableModel
+            linesTableModel: root.rateLinesTableModel
+            selectedCardId: root.selectedRateCardId
+            cardSortKey: root.rateCardSortKey
+            cardSortDirection: root.rateCardSortDirection
+            lineSortKey: root.rateLineSortKey
+            lineSortDirection: root.rateLineSortDirection
+            cardSearch: root.rateCardSearch
+            cardScope: root.rateCardScope
+            cardStatus: root.rateCardStatus
+            lineSearch: root.rateLineSearch
+            lineRateType: root.rateLineRateType
+            lineStatus: root.rateLineStatus
+            lineEffectiveStatus: root.rateLineEffectiveStatus
             busy: root.isBusy
-            onLinePageRequested: function(page) {
-                root.configurationPageRequested("rate_lines", page)
+            onCardSelected: function(rateCardId) { root.rateCardSelected(rateCardId) }
+            onCardPageRequested: function(page) { root.rateCardPageRequested(page) }
+            onLinePageRequested: function(page) { root.rateLinePageRequested(page) }
+            onCardSortRequested: function(key, direction) { root.rateCardSortRequested(key, direction) }
+            onLineSortRequested: function(key, direction) { root.rateLineSortRequested(key, direction) }
+            onCardFiltersRequested: function(search, scope, status) {
+                root.rateCardFiltersRequested(search, scope, status)
+            }
+            onLineFiltersRequested: function(search, rateType, status, effectiveStatus) {
+                root.rateLineFiltersRequested(search, rateType, status, effectiveStatus)
             }
         }
     }

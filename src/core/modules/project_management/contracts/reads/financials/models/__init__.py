@@ -28,6 +28,13 @@ from .finance_forecast_facts import (
     ForecastVersionFact,
     ForecastVersionRequest,
 )
+from .finance_rate_facts import (
+    FinanceRateWorkspaceFacts,
+    RateCardFact,
+    RateCardRequest,
+    RateLineFact,
+    RateLineRequest,
+)
 
 __all__ = [
     "CostAggregateFact",
@@ -47,8 +54,13 @@ __all__ = [
     "ForecastLineRequest",
     "ForecastVersionFact",
     "ForecastVersionRequest",
+    "FinanceRateWorkspaceFacts",
     "PlannedCostLineFact",
     "PlannedCostVersionFact",
+    "RateCardFact",
+    "RateCardRequest",
+    "RateLineFact",
+    "RateLineRequest",
     "ProjectResourceFact",
     "ResourceFact",
     "TaskFact",

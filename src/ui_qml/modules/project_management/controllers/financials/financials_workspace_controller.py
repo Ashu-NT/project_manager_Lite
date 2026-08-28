@@ -89,6 +89,13 @@ class ProjectManagementFinancialsWorkspaceController(
     budgetLineSortDirectionChanged = Signal()
     rateCardsChanged = Signal()
     rateLinesChanged = Signal()
+    selectedRateCardIdChanged = Signal()
+    selectedRateCardChanged = Signal()
+    rateCardSortKeyChanged = Signal()
+    rateCardSortDirectionChanged = Signal()
+    rateLineSortKeyChanged = Signal()
+    rateLineSortDirectionChanged = Signal()
+    rateFiltersChanged = Signal()
     plannedCostVersionsChanged = Signal()
     plannedCostLinesChanged = Signal()
     selectedPlannedCostVersionIdChanged = Signal()
@@ -182,6 +189,22 @@ class ProjectManagementFinancialsWorkspaceController(
         self._budget_line_sort_direction = Qt.DescendingOrder.value
         self._rate_cards = default_collection()
         self._rate_lines = default_collection()
+        self._selected_rate_card_id = ""
+        self._selected_rate_card = default_detail()
+        self._rate_cards_table_model = DynamicTableModel(self)
+        self._rate_lines_table_model = DynamicTableModel(self)
+        self._rate_card_page = 1
+        self._rate_card_sort_key = "title"
+        self._rate_card_sort_direction = Qt.AscendingOrder.value
+        self._rate_line_sort_key = "title"
+        self._rate_line_sort_direction = Qt.AscendingOrder.value
+        self._rate_card_search = ""
+        self._rate_card_scope = ""
+        self._rate_card_status = ""
+        self._rate_line_search = ""
+        self._rate_line_rate_type = ""
+        self._rate_line_status = ""
+        self._rate_line_effective_status = ""
         self._planned_cost_versions = default_collection()
         self._planned_cost_lines = default_collection()
         self._planned_cost_versions_table_model = DynamicTableModel(self)
@@ -391,6 +414,51 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property("QVariantMap", notify=rateLinesChanged)
     def rateLines(self) -> FinancialsMap: return self._rate_lines
 
+    @Property(str, notify=selectedRateCardIdChanged)
+    def selectedRateCardId(self) -> str: return self._selected_rate_card_id
+
+    @Property("QVariantMap", notify=selectedRateCardChanged)
+    def selectedRateCard(self) -> FinancialsMap: return self._selected_rate_card
+
+    @Property(QObject, constant=True)
+    def rateCardsTableModel(self) -> DynamicTableModel: return self._rate_cards_table_model
+
+    @Property(QObject, constant=True)
+    def rateLinesTableModel(self) -> DynamicTableModel: return self._rate_lines_table_model
+
+    @Property(str, notify=rateCardSortKeyChanged)
+    def rateCardSortKey(self) -> str: return self._rate_card_sort_key
+
+    @Property(int, notify=rateCardSortDirectionChanged)
+    def rateCardSortDirection(self) -> int: return self._rate_card_sort_direction
+
+    @Property(str, notify=rateLineSortKeyChanged)
+    def rateLineSortKey(self) -> str: return self._rate_line_sort_key
+
+    @Property(int, notify=rateLineSortDirectionChanged)
+    def rateLineSortDirection(self) -> int: return self._rate_line_sort_direction
+
+    @Property(str, notify=rateFiltersChanged)
+    def rateCardSearch(self) -> str: return self._rate_card_search
+
+    @Property(str, notify=rateFiltersChanged)
+    def rateCardScope(self) -> str: return self._rate_card_scope
+
+    @Property(str, notify=rateFiltersChanged)
+    def rateCardStatus(self) -> str: return self._rate_card_status
+
+    @Property(str, notify=rateFiltersChanged)
+    def rateLineSearch(self) -> str: return self._rate_line_search
+
+    @Property(str, notify=rateFiltersChanged)
+    def rateLineRateType(self) -> str: return self._rate_line_rate_type
+
+    @Property(str, notify=rateFiltersChanged)
+    def rateLineStatus(self) -> str: return self._rate_line_status
+
+    @Property(str, notify=rateFiltersChanged)
+    def rateLineEffectiveStatus(self) -> str: return self._rate_line_effective_status
+
     @Property("QVariantMap", notify=plannedCostVersionsChanged)
     def plannedCostVersions(self) -> FinancialsMap: return self._planned_cost_versions
 
@@ -484,6 +552,36 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str, str)
     def setForecastLineFilters(self, search: str, source_type: str) -> None:
         self._set_forecast_line_filters(search, source_type)
+
+    @Slot(str)
+    def selectRateCard(self, rate_card_id: str) -> None:
+        self._select_rate_card(rate_card_id)
+
+    @Slot(int)
+    def setRateCardPage(self, page: int) -> None:
+        self._set_rate_card_page(page)
+
+    @Slot(int)
+    def setRateLinePage(self, page: int) -> None:
+        self._set_rate_line_page(page)
+
+    @Slot(str, int)
+    def setRateCardSort(self, key: str, direction: int) -> None:
+        self._set_rate_card_sort(key, direction)
+
+    @Slot(str, int)
+    def setRateLineSort(self, key: str, direction: int) -> None:
+        self._set_rate_line_sort(key, direction)
+
+    @Slot(str, str, str)
+    def setRateCardFilters(self, search: str, scope: str, status: str) -> None:
+        self._set_rate_card_filters(search, scope, status)
+
+    @Slot(str, str, str, str)
+    def setRateLineFilters(
+        self, search: str, rate_type: str, status: str, effective_status: str
+    ) -> None:
+        self._set_rate_line_filters(search, rate_type, status, effective_status)
 
     @Slot(str)
     def selectBudgetVersion(self, budget_id: str) -> None:

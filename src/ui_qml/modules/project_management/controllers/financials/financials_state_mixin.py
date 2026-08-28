@@ -283,12 +283,77 @@ class FinancialsStateMixin:
     def _set_rate_cards(self, value: FinancialsMap) -> None:
         if value != self._rate_cards:
             self._rate_cards = value
+            self._rate_cards_table_model.set_rows(value.get("items", []))
             self.rateCardsChanged.emit()
 
     def _set_rate_lines(self, value: FinancialsMap) -> None:
         if value != self._rate_lines:
             self._rate_lines = value
+            self._rate_lines_table_model.set_rows(value.get("items", []))
             self.rateLinesChanged.emit()
+
+    def _set_selected_rate_card_id(self, value: str) -> None:
+        if value != self._selected_rate_card_id:
+            self._selected_rate_card_id = value
+            self.selectedRateCardIdChanged.emit()
+
+    def _set_selected_rate_card(self, value: FinancialsMap) -> None:
+        if value != self._selected_rate_card:
+            self._selected_rate_card = value
+            self.selectedRateCardChanged.emit()
+
+    def _set_rate_query_state(self, state) -> None:
+        card_order = (
+            Qt.DescendingOrder.value
+            if state.rate_card_sort_direction == "desc"
+            else Qt.AscendingOrder.value
+        )
+        line_order = (
+            Qt.DescendingOrder.value
+            if state.rate_line_sort_direction == "desc"
+            else Qt.AscendingOrder.value
+        )
+        if state.rate_card_sort_key != self._rate_card_sort_key:
+            self._rate_card_sort_key = state.rate_card_sort_key
+            self.rateCardSortKeyChanged.emit()
+        if card_order != self._rate_card_sort_direction:
+            self._rate_card_sort_direction = card_order
+            self.rateCardSortDirectionChanged.emit()
+        if state.rate_line_sort_key != self._rate_line_sort_key:
+            self._rate_line_sort_key = state.rate_line_sort_key
+            self.rateLineSortKeyChanged.emit()
+        if line_order != self._rate_line_sort_direction:
+            self._rate_line_sort_direction = line_order
+            self.rateLineSortDirectionChanged.emit()
+        filters = (
+            state.rate_card_search,
+            state.rate_card_scope,
+            state.rate_card_status,
+            state.rate_line_search,
+            state.rate_line_rate_type,
+            state.rate_line_status,
+            state.rate_line_effective_status,
+        )
+        current = (
+            self._rate_card_search,
+            self._rate_card_scope,
+            self._rate_card_status,
+            self._rate_line_search,
+            self._rate_line_rate_type,
+            self._rate_line_status,
+            self._rate_line_effective_status,
+        )
+        if filters != current:
+            (
+                self._rate_card_search,
+                self._rate_card_scope,
+                self._rate_card_status,
+                self._rate_line_search,
+                self._rate_line_rate_type,
+                self._rate_line_status,
+                self._rate_line_effective_status,
+            ) = filters
+            self.rateFiltersChanged.emit()
 
     def _set_planned_cost_versions(self, value: FinancialsMap) -> None:
         if value != self._planned_cost_versions:

@@ -38,12 +38,15 @@ class FinancialsSelectionMixin:
         self._budget_line_page = 1
         self._budget_version_page = 1
         self._rate_line_page = 1
+        self._rate_card_page = 1
         self._planned_cost_line_page = 1
         self._planned_cost_version_page = 1
         self._billing_preparation_page = 1
         self._actual_page = 1
         self._commitment_page = 1
         self._set_selected_forecast_id("")
+        self._set_selected_rate_card_id("")
+        self._set_selected_rate_card(default_detail())
         self._forecast_version_page = 1
         self._forecast_line_page = 1
         self._set_selected_budget_id("")
@@ -140,6 +143,95 @@ class FinancialsSelectionMixin:
         if value != self._selected_budget_id:
             self._set_selected_budget_id(value)
             self._budget_line_page = 1
+            self.refresh()
+
+    def _select_rate_card(self, rate_card_id: str) -> None:
+        value = str(rate_card_id or "").strip()
+        if value != self._selected_rate_card_id:
+            self._set_selected_rate_card_id(value)
+            self._rate_line_page = 1
+            self._set_selected_rate_card(default_detail())
+            self._set_rate_lines(default_collection())
+            self.refresh()
+
+    def _set_rate_card_page(self, page: int) -> None:
+        normalized = max(1, int(page))
+        if normalized != self._rate_card_page:
+            self._rate_card_page = normalized
+            self.refresh()
+
+    def _set_rate_line_page(self, page: int) -> None:
+        normalized = max(1, int(page))
+        if normalized != self._rate_line_page:
+            self._rate_line_page = normalized
+            self.refresh()
+
+    def _set_rate_card_sort(self, key: str, direction: int) -> None:
+        normalized_key = str(key or "").strip()
+        if (
+            normalized_key != self._rate_card_sort_key
+            or int(direction) != self._rate_card_sort_direction
+        ):
+            self._rate_card_sort_key = normalized_key
+            self._rate_card_sort_direction = int(direction)
+            self._rate_card_page = 1
+            self.rateCardSortKeyChanged.emit()
+            self.rateCardSortDirectionChanged.emit()
+            self.refresh()
+
+    def _set_rate_line_sort(self, key: str, direction: int) -> None:
+        normalized_key = str(key or "").strip()
+        if (
+            normalized_key != self._rate_line_sort_key
+            or int(direction) != self._rate_line_sort_direction
+        ):
+            self._rate_line_sort_key = normalized_key
+            self._rate_line_sort_direction = int(direction)
+            self._rate_line_page = 1
+            self.rateLineSortKeyChanged.emit()
+            self.rateLineSortDirectionChanged.emit()
+            self.refresh()
+
+    def _set_rate_card_filters(self, search: str, scope: str, status: str) -> None:
+        values = (
+            str(search or "").strip(),
+            str(scope or "").strip().lower(),
+            str(status or "").strip().lower(),
+        )
+        if values != (self._rate_card_search, self._rate_card_scope, self._rate_card_status):
+            self._rate_card_search, self._rate_card_scope, self._rate_card_status = values
+            self._rate_card_page = 1
+            self._rate_line_page = 1
+            self._set_selected_rate_card_id("")
+            self._set_selected_rate_card(default_detail())
+            self._set_rate_lines(default_collection())
+            self.rateFiltersChanged.emit()
+            self.refresh()
+
+    def _set_rate_line_filters(
+        self, search: str, rate_type: str, status: str, effective_status: str
+    ) -> None:
+        values = (
+            str(search or "").strip(),
+            str(rate_type or "").strip().lower(),
+            str(status or "").strip().lower(),
+            str(effective_status or "").strip().lower(),
+        )
+        current = (
+            self._rate_line_search,
+            self._rate_line_rate_type,
+            self._rate_line_status,
+            self._rate_line_effective_status,
+        )
+        if values != current:
+            (
+                self._rate_line_search,
+                self._rate_line_rate_type,
+                self._rate_line_status,
+                self._rate_line_effective_status,
+            ) = values
+            self._rate_line_page = 1
+            self.rateFiltersChanged.emit()
             self.refresh()
 
     def _set_budget_version_page(self, page: int) -> None:

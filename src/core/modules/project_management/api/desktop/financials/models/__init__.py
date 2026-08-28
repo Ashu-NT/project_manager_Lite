@@ -47,6 +47,11 @@ from src.core.modules.project_management.api.desktop.financials.models.snapshots
     FinancialPeriodRowDto,
     FinancialSnapshotDto,
 )
+from src.core.modules.project_management.api.desktop.financials.models.rates import (
+    FinancialRateCardDetailDto,
+    FinancialRateTableRecordDto,
+    FinancialRateWorkspaceDto,
+)
 
 __all__ = [
     "BaselineVarianceRecordDto",
@@ -80,6 +85,9 @@ __all__ = [
     "FinancialPeriodRowDto",
     "FinancialProjectOptionDescriptor",
     "FinancialProfileDto",
+    "FinancialRateCardDetailDto",
+    "FinancialRateTableRecordDto",
+    "FinancialRateWorkspaceDto",
     "FinancialSnapshotDto",
     "FinancialTaskOptionDescriptor",
 ]

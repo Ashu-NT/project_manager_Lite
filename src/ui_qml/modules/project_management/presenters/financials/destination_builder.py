@@ -22,6 +22,7 @@ from .cashflow_builder import build_cashflow_collection
 from .commitment_builder import build_commitment_collection, build_commitment_summary
 from .configuration_builder import build_finance_configuration_views
 from .forecast_workspace_builder import build_forecast_workspace_views
+from .rate_workspace_builder import build_rate_workspace_views
 from .ledger_builder import build_ledger_collection
 from .lifecycle_builder import (
     build_change_lifecycle_views,
@@ -110,6 +111,7 @@ def build_destination_state(
     budget_line_page: int = 1,
     budget_version_page: int = 1,
     rate_line_page: int = 1,
+    rate_card_page: int = 1,
     planned_cost_line_page: int = 1,
     billing_preparation_page: int = 1,
     configuration_page_size: int = 50,
@@ -132,6 +134,18 @@ def build_destination_state(
     forecast_generation_mode: str = "",
     forecast_line_search: str = "",
     forecast_line_source_type: str = "",
+    selected_rate_card_id: str | None = None,
+    rate_card_sort_key: str = "title",
+    rate_card_sort_direction: str = "asc",
+    rate_line_sort_key: str = "title",
+    rate_line_sort_direction: str = "asc",
+    rate_card_search: str = "",
+    rate_card_scope: str = "",
+    rate_card_status: str = "",
+    rate_line_search: str = "",
+    rate_line_rate_type: str = "",
+    rate_line_status: str = "",
+    rate_line_effective_status: str = "",
     selected_budget_id: str | None = None,
     budget_version_sort_key: str = "revision",
     budget_version_sort_direction: str = "desc",
@@ -329,21 +343,43 @@ def build_destination_state(
                 commitment_sort_key=result.sort_key,
                 commitment_sort_direction=result.sort_direction,
             )
-        configuration = desktop_api.get_configuration_workspace(
+        rates = desktop_api.get_rate_workspace(
             project_id,
-            rate_line_page=rate_line_page,
+            selected_rate_card_id=selected_rate_card_id or "",
+            card_page=rate_card_page,
+            line_page=rate_line_page,
             page_size=configuration_page_size,
-            include_profile_details=False,
-            include_budgets=False,
-            include_rates=True,
-            include_planned_costs=False,
+            card_sort_key=rate_card_sort_key,
+            card_sort_direction=rate_card_sort_direction,
+            line_sort_key=rate_line_sort_key,
+            line_sort_direction=rate_line_sort_direction,
+            card_search=rate_card_search,
+            card_scope=rate_card_scope,
+            card_status=rate_card_status,
+            line_search=rate_line_search,
+            line_rate_type=rate_line_rate_type,
+            line_status=rate_line_status,
+            line_effective_status=rate_line_effective_status,
         )
-        views = build_finance_configuration_views(configuration)
+        views = build_rate_workspace_views(rates)
         return FinancialsWorkspaceViewModel(
             overview=state.overview,
             selected_project_id=project_id,
             rate_cards=views["rate_cards"],
             rate_lines=views["rate_lines"],
+            selected_rate_card_id=views["selected_rate_card_id"],
+            selected_rate_card=views["selected_rate_card"],
+            rate_card_sort_key=views["rate_card_sort_key"],
+            rate_card_sort_direction=views["rate_card_sort_direction"],
+            rate_line_sort_key=views["rate_line_sort_key"],
+            rate_line_sort_direction=views["rate_line_sort_direction"],
+            rate_card_search=views["rate_card_search"],
+            rate_card_scope=views["rate_card_scope"],
+            rate_card_status=views["rate_card_status"],
+            rate_line_search=views["rate_line_search"],
+            rate_line_rate_type=views["rate_line_rate_type"],
+            rate_line_status=views["rate_line_status"],
+            rate_line_effective_status=views["rate_line_effective_status"],
         )
 
     if destination == "performance":

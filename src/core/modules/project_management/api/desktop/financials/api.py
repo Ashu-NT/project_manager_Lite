@@ -26,6 +26,10 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     ForecastLineRequest,
     ForecastVersionRequest,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.finance_rate_facts import (
+    RateCardRequest,
+    RateLineRequest,
+)
 from src.core.modules.project_management.contracts.reads.pagination import (
     normalize_offset_for_total,
     normalize_page_for_total,
@@ -63,6 +67,9 @@ from src.core.modules.project_management.api.desktop.financials.models.snapshots
 )
 from src.core.modules.project_management.api.desktop.financials.models.configuration import (
     FinancialConfigurationWorkspaceDto,
+)
+from src.core.modules.project_management.api.desktop.financials.models.rates import (
+    FinancialRateWorkspaceDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.billing import (
     FinancialBillingPreparationDto,
@@ -137,6 +144,9 @@ from src.core.modules.project_management.api.desktop.financials.serializers.conf
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.forecast_workspace_serializer import (
     serialize_finance_forecast_workspace,
+)
+from src.core.modules.project_management.api.desktop.financials.serializers.rate_workspace_serializer import (
+    serialize_finance_rate_workspace,
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.billing_serializer import (
     serialize_billing_preparation,
@@ -515,6 +525,65 @@ class ProjectManagementFinancialsDesktopApi:
             generation_mode=generation_mode,
             line_search=line_search,
             line_source_type=line_source_type,
+        )
+
+    def get_rate_workspace(
+        self,
+        project_id: str,
+        *,
+        selected_rate_card_id: str = "",
+        card_page: int = 1,
+        line_page: int = 1,
+        page_size: int = 50,
+        card_sort_key: str = "title",
+        card_sort_direction: str = "asc",
+        line_sort_key: str = "title",
+        line_sort_direction: str = "asc",
+        card_search: str = "",
+        card_scope: str = "",
+        card_status: str = "",
+        line_search: str = "",
+        line_rate_type: str = "",
+        line_status: str = "",
+        line_effective_status: str = "",
+        as_of: date | None = None,
+    ) -> FinancialRateWorkspaceDto:
+        if not project_id or self._finance_workspace_query is None:
+            return FinancialRateWorkspaceDto()
+        facts = self._finance_workspace_query.get_rate_workspace(
+            project_id,
+            selected_rate_card_id=selected_rate_card_id,
+            card_request=RateCardRequest(
+                page=card_page,
+                page_size=page_size,
+                sort_key=card_sort_key,
+                sort_direction=card_sort_direction,
+                search=card_search,
+                scope=card_scope,
+                status=card_status,
+            ),
+            line_request=RateLineRequest(
+                page=line_page,
+                page_size=page_size,
+                sort_key=line_sort_key,
+                sort_direction=line_sort_direction,
+                search=line_search,
+                rate_type=line_rate_type,
+                status=line_status,
+                effective_status=line_effective_status,
+                as_of=as_of,
+            ),
+        )
+        return serialize_finance_rate_workspace(
+            facts,
+            card_search=card_search,
+            card_scope=card_scope,
+            card_status=card_status,
+            line_search=line_search,
+            line_rate_type=line_rate_type,
+            line_status=line_status,
+            line_effective_status=line_effective_status,
+            as_of=as_of,
         )
 
     def list_forecast_lines(

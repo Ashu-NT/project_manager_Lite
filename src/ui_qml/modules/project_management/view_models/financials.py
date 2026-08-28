@@ -158,6 +158,19 @@ class FinancialsWorkspaceViewModel:
     budget_line_sort_direction: str = "desc"
     rate_cards: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     rate_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    selected_rate_card_id: str = ""
+    selected_rate_card: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
+    rate_card_sort_key: str = "title"
+    rate_card_sort_direction: str = "asc"
+    rate_line_sort_key: str = "title"
+    rate_line_sort_direction: str = "asc"
+    rate_card_search: str = ""
+    rate_card_scope: str = ""
+    rate_card_status: str = ""
+    rate_line_search: str = ""
+    rate_line_rate_type: str = ""
+    rate_line_status: str = ""
+    rate_line_effective_status: str = ""
     selected_planned_cost_version_id: str = ""
     planned_cost_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     planned_cost_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))

@@ -78,6 +78,7 @@ class FinancialsRefreshMixin:
                 budget_line_page=self._budget_line_page,
                 budget_version_page=self._budget_version_page,
                 rate_line_page=self._rate_line_page,
+                rate_card_page=self._rate_card_page,
                 planned_cost_line_page=self._planned_cost_line_page,
                 planned_cost_version_page=self._planned_cost_version_page,
                 billing_preparation_page=self._billing_preparation_page,
@@ -109,6 +110,22 @@ class FinancialsRefreshMixin:
                 forecast_generation_mode=self._forecast_generation_mode,
                 forecast_line_search=self._forecast_line_search,
                 forecast_line_source_type=self._forecast_line_source_type,
+                selected_rate_card_id=self._selected_rate_card_id or None,
+                rate_card_sort_key=self._rate_card_sort_key,
+                rate_card_sort_direction=self._sort_direction_name(
+                    self._rate_card_sort_direction
+                ),
+                rate_line_sort_key=self._rate_line_sort_key,
+                rate_line_sort_direction=self._sort_direction_name(
+                    self._rate_line_sort_direction
+                ),
+                rate_card_search=self._rate_card_search,
+                rate_card_scope=self._rate_card_scope,
+                rate_card_status=self._rate_card_status,
+                rate_line_search=self._rate_line_search,
+                rate_line_rate_type=self._rate_line_rate_type,
+                rate_line_status=self._rate_line_status,
+                rate_line_effective_status=self._rate_line_effective_status,
                 selected_budget_id=self._selected_budget_id or None,
                 budget_version_sort_key=self._budget_version_sort_key,
                 budget_version_sort_direction=self._sort_direction_name(
@@ -289,6 +306,10 @@ class FinancialsRefreshMixin:
                     state.commitment_sort_direction,
                 )
             else:
+                self._set_selected_rate_card_id(state.selected_rate_card_id)
+                self._set_selected_rate_card(
+                    serialize_financials_detail_view_model(state.selected_rate_card)
+                )
                 self._set_rate_cards(
                     serialize_financials_collection_view_model(state.rate_cards)
                 )
@@ -296,7 +317,9 @@ class FinancialsRefreshMixin:
                     serialize_financials_collection_view_model(state.rate_lines)
                 )
                 self._rate_line_page = state.rate_lines.page
+                self._rate_card_page = state.rate_cards.page
                 self._configuration_page_size = state.rate_lines.page_size
+                self._set_rate_query_state(state)
             return
 
         if destination == "performance":
@@ -410,6 +433,8 @@ class FinancialsRefreshMixin:
         self._set_selected_budget_id("")
         self._set_rate_cards(default_collection())
         self._set_rate_lines(default_collection())
+        self._set_selected_rate_card_id("")
+        self._set_selected_rate_card(default_detail())
         self._set_planned_cost_versions(default_collection())
         self._set_planned_cost_lines(default_collection())
         self._set_selected_planned_cost_version_id("")

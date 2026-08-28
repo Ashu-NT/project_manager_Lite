@@ -86,6 +86,7 @@ from src.core.modules.project_management.infrastructure.persistence.reads.financ
     SqlAlchemyFinanceBudgetReader,
     SqlAlchemyFinancePlannedCostReader,
     SqlAlchemyFinanceForecastReader,
+    SqlAlchemyFinanceRateReader,
     SqlAlchemyFinanceSnapshotReader,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
@@ -497,6 +498,7 @@ def build_project_management_service_bundle(
         budget_reader=SqlAlchemyFinanceBudgetReader(session=session),
         planned_cost_reader=SqlAlchemyFinancePlannedCostReader(session=session),
         forecast_reader=SqlAlchemyFinanceForecastReader(session=session),
+        rate_reader=SqlAlchemyFinanceRateReader(session=session),
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,

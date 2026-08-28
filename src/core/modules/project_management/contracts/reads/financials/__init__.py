@@ -4,6 +4,7 @@ from .finance_overview_reader import FinanceOverviewReader
 from .finance_budget_reader import FinanceBudgetReader
 from .finance_planned_cost_reader import FinancePlannedCostReader
 from .finance_forecast_reader import FinanceForecastReader
+from .finance_rate_reader import FinanceRateReader
 from .models.finance_snapshot_facts import EvmSeriesFacts, FinanceSnapshotFacts
 
 __all__ = [
@@ -15,4 +16,5 @@ __all__ = [
     "FinanceBudgetReader",
     "FinancePlannedCostReader",
     "FinanceForecastReader",
+    "FinanceRateReader",
 ]

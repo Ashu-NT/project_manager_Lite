@@ -425,6 +425,21 @@ AppLayouts.WorkspaceFrame {
                     budgetLineSortDirection: root.workspaceController ? root.workspaceController.budgetLineSortDirection : Qt.DescendingOrder
                     rateCardsModel: root.workspaceController ? root.workspaceController.rateCards : ({ "items": [] })
                     rateLinesModel: root.workspaceController ? root.workspaceController.rateLines : ({ "items": [] })
+                    selectedRateCardModel: root.workspaceController ? root.workspaceController.selectedRateCard : ({ "id": "", "fields": [] })
+                    rateCardsTableModel: root.workspaceController ? root.workspaceController.rateCardsTableModel : null
+                    rateLinesTableModel: root.workspaceController ? root.workspaceController.rateLinesTableModel : null
+                    selectedRateCardId: root.workspaceController ? root.workspaceController.selectedRateCardId : ""
+                    rateCardSortKey: root.workspaceController ? root.workspaceController.rateCardSortKey : "title"
+                    rateCardSortDirection: root.workspaceController ? root.workspaceController.rateCardSortDirection : Qt.AscendingOrder
+                    rateLineSortKey: root.workspaceController ? root.workspaceController.rateLineSortKey : "title"
+                    rateLineSortDirection: root.workspaceController ? root.workspaceController.rateLineSortDirection : Qt.AscendingOrder
+                    rateCardSearch: root.workspaceController ? root.workspaceController.rateCardSearch : ""
+                    rateCardScope: root.workspaceController ? root.workspaceController.rateCardScope : ""
+                    rateCardStatus: root.workspaceController ? root.workspaceController.rateCardStatus : ""
+                    rateLineSearch: root.workspaceController ? root.workspaceController.rateLineSearch : ""
+                    rateLineRateType: root.workspaceController ? root.workspaceController.rateLineRateType : ""
+                    rateLineStatus: root.workspaceController ? root.workspaceController.rateLineStatus : ""
+                    rateLineEffectiveStatus: root.workspaceController ? root.workspaceController.rateLineEffectiveStatus : ""
                     plannedCostVersionsModel: root.workspaceController ? root.workspaceController.plannedCostVersions : ({ "items": [] })
                     plannedCostLinesModel: root.workspaceController ? root.workspaceController.plannedCostLines : ({ "items": [] })
                     plannedCostVersionsTableModel: root.workspaceController ? root.workspaceController.plannedCostVersionsTableModel : null
@@ -514,6 +529,28 @@ AppLayouts.WorkspaceFrame {
                     onForecastLineFiltersRequested: function(search, sourceType) {
                         if (root.workspaceController !== null)
                             root.workspaceController.setForecastLineFilters(search, sourceType)
+                    }
+                    onRateCardSelected: function(rateCardId) {
+                        if (root.workspaceController !== null) root.workspaceController.selectRateCard(rateCardId)
+                    }
+                    onRateCardPageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setRateCardPage(page)
+                    }
+                    onRateLinePageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setRateLinePage(page)
+                    }
+                    onRateCardSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setRateCardSort(key, direction)
+                    }
+                    onRateLineSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setRateLineSort(key, direction)
+                    }
+                    onRateCardFiltersRequested: function(search, scope, status) {
+                        if (root.workspaceController !== null) root.workspaceController.setRateCardFilters(search, scope, status)
+                    }
+                    onRateLineFiltersRequested: function(search, rateType, status, effectiveStatus) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setRateLineFilters(search, rateType, status, effectiveStatus)
                     }
                     onFinancialChangeSelected: function(changeId) {
                         if (root.workspaceController !== null)

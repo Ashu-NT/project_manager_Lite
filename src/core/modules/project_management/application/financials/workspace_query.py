@@ -45,6 +45,9 @@ from src.core.modules.project_management.contracts.reads.financials.finance_plan
 from src.core.modules.project_management.contracts.reads.financials.finance_forecast_reader import (
     FinanceForecastReader,
 )
+from src.core.modules.project_management.contracts.reads.financials.finance_rate_reader import (
+    FinanceRateReader,
+)
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
     FinanceBudgetWorkspaceFacts,
     FinancePageFacts,
@@ -57,6 +60,11 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     FinanceForecastWorkspaceFacts,
     ForecastLineRequest,
     ForecastVersionRequest,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_rate_facts import (
+    FinanceRateWorkspaceFacts,
+    RateCardRequest,
+    RateLineRequest,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
@@ -81,6 +89,7 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         budget_reader: FinanceBudgetReader | None = None,
         planned_cost_reader: FinancePlannedCostReader | None = None,
         forecast_reader: FinanceForecastReader | None = None,
+        rate_reader: FinanceRateReader | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
         module_catalog_service=None,
@@ -95,6 +104,7 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         self._budget_reader = budget_reader
         self._planned_cost_reader = planned_cost_reader
         self._forecast_reader = forecast_reader
+        self._rate_reader = rate_reader
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
@@ -282,6 +292,89 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             selected_forecast_id=resolved_id,
             selected_forecast=selected,
             versions=versions,
+            lines=lines,
+        )
+
+    def get_rate_workspace(
+        self,
+        project_id: str,
+        *,
+        selected_rate_card_id: str = "",
+        card_request: RateCardRequest | None = None,
+        line_request: RateLineRequest | None = None,
+    ) -> FinanceRateWorkspaceFacts:
+        require_permission(
+            self._user_session,
+            "finance.read",
+            operation_label="view project rates",
+        )
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "finance.read",
+            operation_label="view project rates",
+        )
+        # Rates expose identified labor pricing; the established Finance policy
+        # denies this detail rather than returning a partial monetary projection.
+        require_permission(
+            self._user_session,
+            "finance.read_sensitive",
+            operation_label="view sensitive project rates",
+        )
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "finance.read_sensitive",
+            operation_label="view sensitive project rates",
+        )
+        if self._rate_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Finance Rate Reader is not configured.")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view project rates"
+        )
+        cards = self._rate_reader.list_cards(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            request=card_request or RateCardRequest(),
+        )
+        requested_id = str(selected_rate_card_id or "").strip()
+        selected = (
+            self._rate_reader.get_card(
+                tenant_id=scope.tenant_id,
+                organization_id=scope.organization_id,
+                project_id=project_id,
+                rate_card_id=requested_id,
+            )
+            if requested_id
+            else None
+        )
+        resolved_id = selected.id if selected is not None else ""
+        requested_lines = line_request or RateLineRequest()
+        lines = (
+            self._rate_reader.list_lines(
+                tenant_id=scope.tenant_id,
+                organization_id=scope.organization_id,
+                project_id=project_id,
+                rate_card_id=resolved_id,
+                request=requested_lines,
+            )
+            if resolved_id
+            else FinancePageFacts(
+                items=(),
+                total=0,
+                page=requested_lines.normalized_page,
+                page_size=requested_lines.normalized_page_size,
+                sort_key=requested_lines.normalized_sort_key,
+                sort_direction=(
+                    "asc" if requested_lines.sort_direction == "asc" else "desc"
+                ),
+            )
+        )
+        return FinanceRateWorkspaceFacts(
+            selected_rate_card_id=resolved_id,
+            selected_rate_card=selected,
+            cards=cards,
             lines=lines,
         )
 
