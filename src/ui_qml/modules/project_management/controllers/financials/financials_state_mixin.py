@@ -471,12 +471,94 @@ class FinancialsStateMixin:
     def _set_billing_schedule(self, value: FinancialsMap) -> None:
         if value != self._billing_schedule:
             self._billing_schedule = value
+            self._billing_schedule_table_model.set_rows(value.get("items", []))
             self.billingScheduleChanged.emit()
 
     def _set_billing_preparations(self, value: FinancialsMap) -> None:
         if value != self._billing_preparations:
             self._billing_preparations = value
+            self._billing_preparations_table_model.set_rows(value.get("items", []))
             self.billingPreparationsChanged.emit()
+
+    def _set_billing_preparation_lines(self, value: FinancialsMap) -> None:
+        if value != self._billing_preparation_lines:
+            self._billing_preparation_lines = value
+            self._billing_preparation_lines_table_model.set_rows(value.get("items", []))
+            self.billingPreparationLinesChanged.emit()
+
+    def _set_selected_billing_preparation_id(self, value: str) -> None:
+        if value != self._selected_billing_preparation_id:
+            self._selected_billing_preparation_id = value
+            self.selectedBillingPreparationIdChanged.emit()
+
+    def _set_selected_billing_preparation(self, value: FinancialsMap) -> None:
+        if value != self._selected_billing_preparation:
+            self._selected_billing_preparation = value
+            self.selectedBillingPreparationChanged.emit()
+
+    def _set_billing_query_state(self, state) -> None:
+        values = (
+            state.billing_schedule_sort_key,
+            Qt.DescendingOrder.value if state.billing_schedule_sort_direction == "desc" else Qt.AscendingOrder.value,
+            state.billing_preparation_sort_key,
+            Qt.DescendingOrder.value if state.billing_preparation_sort_direction == "desc" else Qt.AscendingOrder.value,
+            state.billing_line_sort_key,
+            Qt.DescendingOrder.value if state.billing_line_sort_direction == "desc" else Qt.AscendingOrder.value,
+            state.billing_schedule_search,
+            state.billing_schedule_status,
+            state.billing_schedule_source_state,
+            state.billing_preparation_search,
+            state.billing_preparation_status,
+            state.billing_preparation_method,
+            state.billing_preparation_approval_status,
+            state.billing_preparation_delivery_state,
+            state.billing_preparation_correction_state,
+            state.billing_line_search,
+            state.billing_line_source_type,
+            state.billing_line_source_state,
+        )
+        current = (
+            self._billing_schedule_sort_key,
+            self._billing_schedule_sort_direction,
+            self._billing_preparation_sort_key,
+            self._billing_preparation_sort_direction,
+            self._billing_line_sort_key,
+            self._billing_line_sort_direction,
+            self._billing_schedule_search,
+            self._billing_schedule_status,
+            self._billing_schedule_source_state,
+            self._billing_preparation_search,
+            self._billing_preparation_status,
+            self._billing_preparation_method,
+            self._billing_preparation_approval_status,
+            self._billing_preparation_delivery_state,
+            self._billing_preparation_correction_state,
+            self._billing_line_search,
+            self._billing_line_source_type,
+            self._billing_line_source_state,
+        )
+        if values != current:
+            (
+                self._billing_schedule_sort_key,
+                self._billing_schedule_sort_direction,
+                self._billing_preparation_sort_key,
+                self._billing_preparation_sort_direction,
+                self._billing_line_sort_key,
+                self._billing_line_sort_direction,
+                self._billing_schedule_search,
+                self._billing_schedule_status,
+                self._billing_schedule_source_state,
+                self._billing_preparation_search,
+                self._billing_preparation_status,
+                self._billing_preparation_method,
+                self._billing_preparation_approval_status,
+                self._billing_preparation_delivery_state,
+                self._billing_preparation_correction_state,
+                self._billing_line_search,
+                self._billing_line_source_type,
+                self._billing_line_source_state,
+            ) = values
+            self.billingQueryStateChanged.emit()
 
     def _set_commercial_projection(self, value: FinancialsMap) -> None:
         if value != self._commercial_projection:

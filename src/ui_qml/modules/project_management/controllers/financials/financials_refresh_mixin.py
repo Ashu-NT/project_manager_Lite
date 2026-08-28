@@ -164,6 +164,41 @@ class FinancialsRefreshMixin:
                 impact_search=self._impact_search,
                 impact_type=self._impact_type,
                 impact_applied_state=self._impact_applied_state,
+                selected_billing_preparation_id=(
+                    self._selected_billing_preparation_id or None
+                ),
+                billing_schedule_page=self._billing_schedule_page,
+                billing_line_page=self._billing_line_page,
+                billing_schedule_sort_key=self._billing_schedule_sort_key,
+                billing_schedule_sort_direction=self._sort_direction_name(
+                    self._billing_schedule_sort_direction
+                ),
+                billing_preparation_sort_key=self._billing_preparation_sort_key,
+                billing_preparation_sort_direction=self._sort_direction_name(
+                    self._billing_preparation_sort_direction
+                ),
+                billing_line_sort_key=self._billing_line_sort_key,
+                billing_line_sort_direction=self._sort_direction_name(
+                    self._billing_line_sort_direction
+                ),
+                billing_schedule_search=self._billing_schedule_search,
+                billing_schedule_status=self._billing_schedule_status,
+                billing_schedule_source_state=self._billing_schedule_source_state,
+                billing_preparation_search=self._billing_preparation_search,
+                billing_preparation_status=self._billing_preparation_status,
+                billing_preparation_method=self._billing_preparation_method,
+                billing_preparation_approval_status=(
+                    self._billing_preparation_approval_status
+                ),
+                billing_preparation_delivery_state=(
+                    self._billing_preparation_delivery_state
+                ),
+                billing_preparation_correction_state=(
+                    self._billing_preparation_correction_state
+                ),
+                billing_line_search=self._billing_line_search,
+                billing_line_source_type=self._billing_line_source_type,
+                billing_line_source_state=self._billing_line_source_state,
                 selected_baseline_id=self._selected_baseline_id or None,
             )
             if (
@@ -395,7 +430,23 @@ class FinancialsRefreshMixin:
                     state.billing_preparations
                 )
             )
+            self._set_selected_billing_preparation_id(
+                state.selected_billing_preparation_id
+            )
+            self._set_selected_billing_preparation(
+                serialize_financials_detail_view_model(
+                    state.selected_billing_preparation
+                )
+            )
+            self._set_billing_preparation_lines(
+                serialize_financials_collection_view_model(
+                    state.billing_preparation_lines
+                )
+            )
+            self._set_billing_query_state(state)
+            self._billing_schedule_page = state.billing_schedule.page
             self._billing_preparation_page = state.billing_preparations.page
+            self._billing_line_page = state.billing_preparation_lines.page
             return
 
         if subsection == "setup":
@@ -465,6 +516,9 @@ class FinancialsRefreshMixin:
         self._set_billing_profile(default_detail())
         self._set_billing_schedule(default_collection())
         self._set_billing_preparations(default_collection())
+        self._set_selected_billing_preparation_id("")
+        self._set_selected_billing_preparation(default_detail())
+        self._set_billing_preparation_lines(default_collection())
         self._set_commercial_projection(default_detail())
         self._loaded_destination_keys.clear()
 

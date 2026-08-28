@@ -193,6 +193,27 @@ class FinancialsWorkspaceViewModel:
     billing_profile: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     billing_schedule: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     billing_preparations: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    selected_billing_preparation_id: str = ""
+    selected_billing_preparation: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
+    billing_preparation_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    billing_schedule_sort_key: str = "supportingText"
+    billing_schedule_sort_direction: str = "asc"
+    billing_preparation_sort_key: str = "metaText"
+    billing_preparation_sort_direction: str = "desc"
+    billing_line_sort_key: str = "metaText"
+    billing_line_sort_direction: str = "asc"
+    billing_schedule_search: str = ""
+    billing_schedule_status: str = ""
+    billing_schedule_source_state: str = ""
+    billing_preparation_search: str = ""
+    billing_preparation_status: str = ""
+    billing_preparation_method: str = ""
+    billing_preparation_approval_status: str = ""
+    billing_preparation_delivery_state: str = ""
+    billing_preparation_correction_state: str = ""
+    billing_line_search: str = ""
+    billing_line_source_type: str = ""
+    billing_line_source_state: str = ""
     commercial_projection: FinancialsDetailViewModel = field(
         default_factory=FinancialsDetailViewModel
     )

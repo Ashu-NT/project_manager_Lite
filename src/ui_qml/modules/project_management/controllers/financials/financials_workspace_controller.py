@@ -112,6 +112,10 @@ class ProjectManagementFinancialsWorkspaceController(
     billingProfileChanged = Signal()
     billingScheduleChanged = Signal()
     billingPreparationsChanged = Signal()
+    billingPreparationLinesChanged = Signal()
+    selectedBillingPreparationChanged = Signal()
+    selectedBillingPreparationIdChanged = Signal()
+    billingQueryStateChanged = Signal()
     commercialProjectionChanged = Signal()
     activeDestinationChanged = Signal()
     activeSubsectionChanged = Signal()
@@ -240,6 +244,32 @@ class ProjectManagementFinancialsWorkspaceController(
         self._billing_profile = default_detail()
         self._billing_schedule = default_collection()
         self._billing_preparations = default_collection()
+        self._billing_preparation_lines = default_collection()
+        self._selected_billing_preparation_id = ""
+        self._selected_billing_preparation = default_detail()
+        self._billing_schedule_table_model = DynamicTableModel(self)
+        self._billing_preparations_table_model = DynamicTableModel(self)
+        self._billing_preparation_lines_table_model = DynamicTableModel(self)
+        self._billing_schedule_page = 1
+        self._billing_line_page = 1
+        self._billing_schedule_sort_key = "supportingText"
+        self._billing_schedule_sort_direction = Qt.AscendingOrder.value
+        self._billing_preparation_sort_key = "metaText"
+        self._billing_preparation_sort_direction = Qt.DescendingOrder.value
+        self._billing_line_sort_key = "metaText"
+        self._billing_line_sort_direction = Qt.AscendingOrder.value
+        self._billing_schedule_search = ""
+        self._billing_schedule_status = ""
+        self._billing_schedule_source_state = ""
+        self._billing_preparation_search = ""
+        self._billing_preparation_status = ""
+        self._billing_preparation_method = ""
+        self._billing_preparation_approval_status = ""
+        self._billing_preparation_delivery_state = ""
+        self._billing_preparation_correction_state = ""
+        self._billing_line_search = ""
+        self._billing_line_source_type = ""
+        self._billing_line_source_state = ""
         self._commercial_projection = default_detail()
         self._budget_line_page = 1
         self._rate_line_page = 1
@@ -568,6 +598,78 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property("QVariantMap", notify=billingPreparationsChanged)
     def billingPreparations(self) -> FinancialsMap: return self._billing_preparations
 
+    @Property("QVariantMap", notify=billingPreparationLinesChanged)
+    def billingPreparationLines(self) -> FinancialsMap: return self._billing_preparation_lines
+
+    @Property("QVariantMap", notify=selectedBillingPreparationChanged)
+    def selectedBillingPreparation(self) -> FinancialsMap: return self._selected_billing_preparation
+
+    @Property(str, notify=selectedBillingPreparationIdChanged)
+    def selectedBillingPreparationId(self) -> str: return self._selected_billing_preparation_id
+
+    @Property(QObject, constant=True)
+    def billingScheduleTableModel(self) -> DynamicTableModel: return self._billing_schedule_table_model
+
+    @Property(QObject, constant=True)
+    def billingPreparationsTableModel(self) -> DynamicTableModel: return self._billing_preparations_table_model
+
+    @Property(QObject, constant=True)
+    def billingPreparationLinesTableModel(self) -> DynamicTableModel: return self._billing_preparation_lines_table_model
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingScheduleSortKey(self) -> str: return self._billing_schedule_sort_key
+
+    @Property(int, notify=billingQueryStateChanged)
+    def billingScheduleSortDirection(self) -> int: return self._billing_schedule_sort_direction
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingPreparationSortKey(self) -> str: return self._billing_preparation_sort_key
+
+    @Property(int, notify=billingQueryStateChanged)
+    def billingPreparationSortDirection(self) -> int: return self._billing_preparation_sort_direction
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingLineSortKey(self) -> str: return self._billing_line_sort_key
+
+    @Property(int, notify=billingQueryStateChanged)
+    def billingLineSortDirection(self) -> int: return self._billing_line_sort_direction
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingScheduleSearch(self) -> str: return self._billing_schedule_search
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingScheduleStatus(self) -> str: return self._billing_schedule_status
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingScheduleSourceState(self) -> str: return self._billing_schedule_source_state
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingPreparationSearch(self) -> str: return self._billing_preparation_search
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingPreparationStatus(self) -> str: return self._billing_preparation_status
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingPreparationMethod(self) -> str: return self._billing_preparation_method
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingPreparationApprovalStatus(self) -> str: return self._billing_preparation_approval_status
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingPreparationDeliveryState(self) -> str: return self._billing_preparation_delivery_state
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingPreparationCorrectionState(self) -> str: return self._billing_preparation_correction_state
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingLineSearch(self) -> str: return self._billing_line_search
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingLineSourceType(self) -> str: return self._billing_line_source_type
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingLineSourceState(self) -> str: return self._billing_line_source_state
+
     @Property("QVariantMap", notify=commercialProjectionChanged)
     def commercialProjection(self) -> FinancialsMap: return self._commercial_projection
 
@@ -690,6 +792,40 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str)
     def selectVarianceBaseline(self, baseline_id: str) -> None:
         self._select_variance_baseline(baseline_id)
+
+    @Slot(str)
+    def selectBillingPreparation(self, preparation_id: str) -> None:
+        self._select_billing_preparation(preparation_id)
+
+    @Slot(int)
+    def setBillingSchedulePage(self, page: int) -> None: self._set_billing_schedule_page(page)
+
+    @Slot(int)
+    def setBillingPreparationPage(self, page: int) -> None: self._set_billing_preparation_page(page)
+
+    @Slot(int)
+    def setBillingLinePage(self, page: int) -> None: self._set_billing_line_page(page)
+
+    @Slot(str, int)
+    def setBillingScheduleSort(self, key: str, direction: int) -> None: self._set_billing_schedule_sort(key, direction)
+
+    @Slot(str, int)
+    def setBillingPreparationSort(self, key: str, direction: int) -> None: self._set_billing_preparation_sort(key, direction)
+
+    @Slot(str, int)
+    def setBillingLineSort(self, key: str, direction: int) -> None: self._set_billing_line_sort(key, direction)
+
+    @Slot(str, str, str)
+    def setBillingScheduleFilters(self, search: str, status: str, source_state: str) -> None:
+        self._set_billing_schedule_filters(search, status, source_state)
+
+    @Slot(str, str, str, str, str, str)
+    def setBillingPreparationFilters(self, search: str, status: str, method: str, approval_status: str, delivery_state: str, correction_state: str) -> None:
+        self._set_billing_preparation_filters(search, status, method, approval_status, delivery_state, correction_state)
+
+    @Slot(str, str, str)
+    def setBillingLineFilters(self, search: str, source_type: str, source_state: str) -> None:
+        self._set_billing_line_filters(search, source_type, source_state)
 
     @Slot("QVariantMap", result="QVariantMap")
     def createManualActual(self, payload: FinancialsMap) -> FinancialsMap: return self._create_manual_actual(payload)

@@ -34,6 +34,11 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     FinancialChangeImpactQuery,
     FinancialChangeRequestQuery,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
+    BillingPreparationLineQuery,
+    BillingPreparationQuery,
+    BillingScheduleQuery,
+)
 from src.core.modules.project_management.contracts.reads.pagination import (
     normalize_offset_for_total,
     normalize_page_for_total,
@@ -77,6 +82,9 @@ from src.core.modules.project_management.api.desktop.financials.models.rates imp
 )
 from src.core.modules.project_management.api.desktop.financials.models.changes import (
     FinancialChangeWorkspaceDto,
+)
+from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
+    FinancialBillingReadWorkspaceDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.billing import (
     FinancialBillingPreparationDto,
@@ -157,6 +165,9 @@ from src.core.modules.project_management.api.desktop.financials.serializers.rate
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.change_workspace_serializer import (
     serialize_finance_change_workspace,
+)
+from src.core.modules.project_management.api.desktop.financials.serializers.billing_workspace_serializer import (
+    serialize_finance_billing_workspace,
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.billing_serializer import (
     serialize_billing_preparation,
@@ -594,6 +605,86 @@ class ProjectManagementFinancialsDesktopApi:
             line_status=line_status,
             line_effective_status=line_effective_status,
             as_of=as_of,
+        )
+
+    def get_billing_read_workspace(
+        self,
+        project_id: str,
+        *,
+        selected_preparation_id: str = "",
+        schedule_page: int = 1,
+        preparation_page: int = 1,
+        line_page: int = 1,
+        page_size: int = 50,
+        schedule_sort_key: str = "supportingText",
+        schedule_sort_direction: str = "asc",
+        preparation_sort_key: str = "metaText",
+        preparation_sort_direction: str = "desc",
+        line_sort_key: str = "metaText",
+        line_sort_direction: str = "asc",
+        schedule_search: str = "",
+        schedule_status: str = "",
+        schedule_source_state: str = "",
+        preparation_search: str = "",
+        preparation_status: str = "",
+        preparation_method: str = "",
+        preparation_approval_status: str = "",
+        preparation_delivery_state: str = "",
+        preparation_correction_state: str = "",
+        line_search: str = "",
+        line_source_type: str = "",
+        line_source_state: str = "",
+    ) -> FinancialBillingReadWorkspaceDto:
+        if not project_id or self._finance_workspace_query is None:
+            return FinancialBillingReadWorkspaceDto()
+        facts = self._finance_workspace_query.get_billing_read_workspace(
+            project_id,
+            selected_preparation_id=selected_preparation_id,
+            schedule_request=BillingScheduleQuery(
+                page=schedule_page,
+                page_size=page_size,
+                sort_key=schedule_sort_key,
+                sort_direction=schedule_sort_direction,
+                search=schedule_search,
+                status=schedule_status,
+                source_state=schedule_source_state,
+            ),
+            preparation_request=BillingPreparationQuery(
+                page=preparation_page,
+                page_size=page_size,
+                sort_key=preparation_sort_key,
+                sort_direction=preparation_sort_direction,
+                search=preparation_search,
+                status=preparation_status,
+                billing_method=preparation_method,
+                approval_status=preparation_approval_status,
+                delivery_state=preparation_delivery_state,
+                correction_state=preparation_correction_state,
+            ),
+            line_request=BillingPreparationLineQuery(
+                page=line_page,
+                page_size=page_size,
+                sort_key=line_sort_key,
+                sort_direction=line_sort_direction,
+                search=line_search,
+                source_type=line_source_type,
+                source_state=line_source_state,
+            ),
+        )
+        return serialize_finance_billing_workspace(
+            facts,
+            schedule_search=schedule_search,
+            schedule_status=schedule_status,
+            schedule_source_state=schedule_source_state,
+            preparation_search=preparation_search,
+            preparation_status=preparation_status,
+            preparation_method=preparation_method,
+            preparation_approval_status=preparation_approval_status,
+            preparation_delivery_state=preparation_delivery_state,
+            preparation_correction_state=preparation_correction_state,
+            line_search=line_search,
+            line_source_type=line_source_type,
+            line_source_state=line_source_state,
         )
 
     def get_change_workspace(

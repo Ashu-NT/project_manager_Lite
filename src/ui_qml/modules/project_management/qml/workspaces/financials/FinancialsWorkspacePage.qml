@@ -466,6 +466,30 @@ AppLayouts.WorkspaceFrame {
                     billingProfileModel: root.workspaceController ? root.workspaceController.billingProfile : ({ "id": "", "fields": [] })
                     billingScheduleModel: root.workspaceController ? root.workspaceController.billingSchedule : ({ "items": [] })
                     billingPreparationsModel: root.workspaceController ? root.workspaceController.billingPreparations : ({ "items": [] })
+                    billingPreparationLinesModel: root.workspaceController ? root.workspaceController.billingPreparationLines : ({ "items": [] })
+                    selectedBillingPreparationModel: root.workspaceController ? root.workspaceController.selectedBillingPreparation : ({ "id": "", "fields": [] })
+                    billingScheduleTableModel: root.workspaceController ? root.workspaceController.billingScheduleTableModel : null
+                    billingPreparationsTableModel: root.workspaceController ? root.workspaceController.billingPreparationsTableModel : null
+                    billingPreparationLinesTableModel: root.workspaceController ? root.workspaceController.billingPreparationLinesTableModel : null
+                    selectedBillingPreparationId: root.workspaceController ? root.workspaceController.selectedBillingPreparationId : ""
+                    billingScheduleSortKey: root.workspaceController ? root.workspaceController.billingScheduleSortKey : "supportingText"
+                    billingScheduleSortDirection: root.workspaceController ? root.workspaceController.billingScheduleSortDirection : Qt.AscendingOrder
+                    billingPreparationSortKey: root.workspaceController ? root.workspaceController.billingPreparationSortKey : "metaText"
+                    billingPreparationSortDirection: root.workspaceController ? root.workspaceController.billingPreparationSortDirection : Qt.DescendingOrder
+                    billingLineSortKey: root.workspaceController ? root.workspaceController.billingLineSortKey : "metaText"
+                    billingLineSortDirection: root.workspaceController ? root.workspaceController.billingLineSortDirection : Qt.AscendingOrder
+                    billingScheduleSearch: root.workspaceController ? root.workspaceController.billingScheduleSearch : ""
+                    billingScheduleStatus: root.workspaceController ? root.workspaceController.billingScheduleStatus : ""
+                    billingScheduleSourceState: root.workspaceController ? root.workspaceController.billingScheduleSourceState : ""
+                    billingPreparationSearch: root.workspaceController ? root.workspaceController.billingPreparationSearch : ""
+                    billingPreparationStatus: root.workspaceController ? root.workspaceController.billingPreparationStatus : ""
+                    billingPreparationMethod: root.workspaceController ? root.workspaceController.billingPreparationMethod : ""
+                    billingPreparationApprovalStatus: root.workspaceController ? root.workspaceController.billingPreparationApprovalStatus : ""
+                    billingPreparationDeliveryState: root.workspaceController ? root.workspaceController.billingPreparationDeliveryState : ""
+                    billingPreparationCorrectionState: root.workspaceController ? root.workspaceController.billingPreparationCorrectionState : ""
+                    billingLineSearch: root.workspaceController ? root.workspaceController.billingLineSearch : ""
+                    billingLineSourceType: root.workspaceController ? root.workspaceController.billingLineSourceType : ""
+                    billingLineSourceState: root.workspaceController ? root.workspaceController.billingLineSourceState : ""
                     commercialProjectionModel: root.workspaceController
                         ? root.workspaceController.commercialProjection : ({ "id": "", "fields": [] })
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
@@ -589,6 +613,36 @@ AppLayouts.WorkspaceFrame {
                     onFinancialChangeImpactFiltersRequested: function(search, impactType, appliedState) {
                         if (root.workspaceController !== null)
                             root.workspaceController.setFinancialChangeImpactFilters(search, impactType, appliedState)
+                    }
+                    onBillingPreparationSelected: function(preparationId) {
+                        if (root.workspaceController !== null) root.workspaceController.selectBillingPreparation(preparationId)
+                    }
+                    onBillingSchedulePageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setBillingSchedulePage(page)
+                    }
+                    onBillingPreparationPageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setBillingPreparationPage(page)
+                    }
+                    onBillingLinePageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setBillingLinePage(page)
+                    }
+                    onBillingScheduleSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setBillingScheduleSort(key, direction)
+                    }
+                    onBillingPreparationSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setBillingPreparationSort(key, direction)
+                    }
+                    onBillingLineSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setBillingLineSort(key, direction)
+                    }
+                    onBillingScheduleFiltersRequested: function(search, status, sourceState) {
+                        if (root.workspaceController !== null) root.workspaceController.setBillingScheduleFilters(search, status, sourceState)
+                    }
+                    onBillingPreparationFiltersRequested: function(search, status, method, approvalStatus, deliveryState, correctionState) {
+                        if (root.workspaceController !== null) root.workspaceController.setBillingPreparationFilters(search, status, method, approvalStatus, deliveryState, correctionState)
+                    }
+                    onBillingLineFiltersRequested: function(search, sourceType, sourceState) {
+                        if (root.workspaceController !== null) root.workspaceController.setBillingLineFilters(search, sourceType, sourceState)
                     }
                     onVarianceBaselineSelected: function(baselineId) {
                         if (root.workspaceController !== null)

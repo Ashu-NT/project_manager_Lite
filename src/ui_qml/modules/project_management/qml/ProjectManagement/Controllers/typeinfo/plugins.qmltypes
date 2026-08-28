@@ -262,6 +262,30 @@ Component {
     Property { name: "billingProfile"; type: "QVariantMap"; isReadonly: true }
     Property { name: "billingSchedule"; type: "QVariantMap"; isReadonly: true }
     Property { name: "billingPreparations"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "billingPreparationLines"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedBillingPreparation"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedBillingPreparationId"; type: "QString"; isReadonly: true }
+    Property { name: "billingScheduleTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "billingPreparationsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "billingPreparationLinesTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "billingScheduleSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "billingScheduleSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "billingPreparationSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "billingPreparationSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "billingLineSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "billingLineSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "billingScheduleSearch"; type: "QString"; isReadonly: true }
+    Property { name: "billingScheduleStatus"; type: "QString"; isReadonly: true }
+    Property { name: "billingScheduleSourceState"; type: "QString"; isReadonly: true }
+    Property { name: "billingPreparationSearch"; type: "QString"; isReadonly: true }
+    Property { name: "billingPreparationStatus"; type: "QString"; isReadonly: true }
+    Property { name: "billingPreparationMethod"; type: "QString"; isReadonly: true }
+    Property { name: "billingPreparationApprovalStatus"; type: "QString"; isReadonly: true }
+    Property { name: "billingPreparationDeliveryState"; type: "QString"; isReadonly: true }
+    Property { name: "billingPreparationCorrectionState"; type: "QString"; isReadonly: true }
+    Property { name: "billingLineSearch"; type: "QString"; isReadonly: true }
+    Property { name: "billingLineSourceType"; type: "QString"; isReadonly: true }
+    Property { name: "billingLineSourceState"; type: "QString"; isReadonly: true }
     Property { name: "commercialProjection"; type: "QVariantMap"; isReadonly: true }
     Property { name: "activity"; type: "QVariantMap"; isReadonly: true }
     Property { name: "budgetVersionsTableModel"; type: "QObject"; isReadonly: true }
@@ -306,6 +330,16 @@ Component {
     Method { name: "setFinancialChangeFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "status"; type: "QString" } Parameter { name: "approvalStatus"; type: "QString" } Parameter { name: "appliedState"; type: "QString" } }
     Method { name: "setFinancialChangeImpactFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "impactType"; type: "QString" } Parameter { name: "appliedState"; type: "QString" } }
     Method { name: "selectVarianceBaseline"; Parameter { name: "baselineId"; type: "QString" } }
+    Method { name: "selectBillingPreparation"; Parameter { name: "preparationId"; type: "QString" } }
+    Method { name: "setBillingSchedulePage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setBillingPreparationPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setBillingLinePage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setBillingScheduleSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setBillingPreparationSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setBillingLineSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setBillingScheduleFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "status"; type: "QString" } Parameter { name: "sourceState"; type: "QString" } }
+    Method { name: "setBillingPreparationFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "status"; type: "QString" } Parameter { name: "method"; type: "QString" } Parameter { name: "approvalStatus"; type: "QString" } Parameter { name: "deliveryState"; type: "QString" } Parameter { name: "correctionState"; type: "QString" } }
+    Method { name: "setBillingLineFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "sourceType"; type: "QString" } Parameter { name: "sourceState"; type: "QString" } }
     Method { name: "createManualActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "createCostCode"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "submitActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }

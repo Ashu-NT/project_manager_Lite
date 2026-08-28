@@ -443,7 +443,86 @@ guardrails are `5 passed`; PM CQRS Reader architecture is `21 passed`; and live
 PostgreSQL Change tests are `3 passed`. Targeted compilation, changed-QML
 `qmllint`, and `git diff --check` are clean. No full PM suite was run.
 
-## 32. Known Deferred R6C-R6H Work
+## 32. Billing Schedule / Preparation Read Cutover
+
+**Status: COMPLETE.** The active Finance -> Commercial -> Billing destination
+no longer calls the domain-aggregate `get_billing_workspace()` path, the
+unbounded Schedule repository collection, or custom Preparation collection
+blocks. It now calls `get_billing_read_workspace()` through
+`ProjectFinanceWorkspaceQuery`, with `finance.read` and project permission
+checks before any Reader statement executes.
+
+The immutable read contract consists of a bounded scalar Billing Profile,
+`BillingScheduleQuery`, `BillingPreparationQuery`, and
+`BillingPreparationLineQuery`. Schedule, Preparation master, selected
+Preparation detail, and Preparation Lines repeat tenant, organization, and
+project predicates. The child Line query also joins the scoped parent
+Preparation. Sort keys are allowlisted, direction is normalized, pages are
+bounded to 200 rows, and every sort has a deterministic ID tie-breaker.
+
+The controller owns independent page, sort, and filter state for Schedule,
+Preparation master, and Preparation Lines. Preparation selection is explicit;
+there is no first-row auto-selection. Selection resets only Line paging and
+clears stale detail/Line models. Preparation filters clear incompatible
+selection; Schedule filters do not reset Preparation state. Project switching
+clears all Billing master/detail/line models and pages. Runtime organization
+switching continues through the established fail-closed controller/context
+rebuild. Request generation plus captured project/destination/subsection state
+rejects rapid Preparation A -> B -> C responses so only C may publish.
+
+The QML surface uses three shared `DataTable` instances with
+`sortingMode: "server"`: Billing Schedule, Billing Preparations, and selected
+Preparation Lines. Profile and selected detail are scalar cards; the tables and
+pagination remain separate. The stacked full-width layout avoids a permanently
+crushed master at 1024px and passed 1024x640, 1280x720, 1366x768, 1440x900,
+and 1920x1080. Targeted `qmllint` is silent.
+
+Billing Profile remains PM commercial setup, Schedule remains PM schedule
+evidence, Preparation remains the governed PM handoff package, Source Lock
+remains duplicate-source authority, and External Event remains append-only
+Accounting outcome evidence. The selected detail includes Platform approval,
+correction reference, authoritative total/line count, Source Lock aggregate,
+and latest external outcome without loading all lines or locks. Line facts
+preserve `approved_time`, `posted_cost`, `schedule_line`, and `adjustment`
+source types and stored quantity/rate/markup snapshots; historical rates are
+never re-resolved.
+
+Delivery wording is deliberately conservative. `delivery_pending` and
+`delivery_requested_at` mean only "Local handoff requested" and explicitly say
+that no durable Accounting queue, delivery, or acknowledgement is evidenced.
+Only a stored `ProjectBillingExternalEvent` is presented as an external
+Accounting outcome. No PM Invoice aggregate, write action, handoff command,
+human external-outcome mutation, Accounting delivery implementation, FX, mixed-
+currency aggregation, or QML monetary calculation was added. Monetary values
+remain `Decimal` through the Reader and canonical strings at the desktop
+boundary with explicit currency.
+
+Measured SQL is fixed: Profile `1`; Schedule `COUNT + page` (`2`);
+Preparation master `COUNT + page` (`2`); selected detail `1`; Lines
+`COUNT + page` (`2`). Latest Accounting outcome is joined into master/detail
+and Source Lock summary into detail, adding `0` separate statements and no
+N+1. Runtime-role PostgreSQL plans are bounded by `LIMIT` with scope/project or
+parent predicates. Existing scope/project, due-date, preparation-parent,
+Source Lock, and External Event access paths were sufficient for the focused
+fixture, so no speculative index or migration was added.
+
+Live PostgreSQL evidence ran through `app_runtime` (`NOSUPERUSER`,
+`NOBYPASSRLS`, non-owner): cross-tenant and cross-organization reads and direct
+attacks against Billing Profile, Schedule Line, Preparation, Preparation Line,
+Source Lock, and External Event returned zero foreign rows. The live Billing
+suite is `3 passed`. Billing/controller/viewport tests are `40 passed`; the
+existing R6B destination/presenter regression is `52 passed`. Targeted Python
+compilation passes. No full PM suite was run.
+
+**DELETE AFTER CUTOVER:** `get_billing_workspace()`,
+`billing_serializer.py`, `billing_builder.py`, and their domain-aggregate read
+DTOs remain solely for `presenters/financials/workspace_builder.py`, the
+monolithic compatibility presenter, and focused legacy delegation tests. The
+active Commercial destination has zero dependency on them. Delete that exact
+consumer and these legacy Billing paths during final R6B compatibility cleanup;
+they must not survive R6B closure.
+
+## 33. Known Deferred R6C-R6H Work
 
 - R6C: Budget/Forecast/Financial Change write UX, approvals, and UoW cleanup.
 - R6D: cost/rate/commitment write hardening.
@@ -455,11 +534,15 @@ PostgreSQL Change tests are `3 passed`. Targeted compilation, changed-QML
 - R6H: final 10k/50k certification, exhaustive child-table RLS attacks, five-
   viewport closure, and final dead-code/document closure.
 
-## 33. R6B Closure Decision
+## 34. R6B Closure Decision
 
 **R6B NOT CLOSED.** Blocking remediation is: replace all remaining unbounded
-configuration/billing collections with scoped immutable Readers and
+remaining configuration collections with scoped immutable Readers and
 server query state; add selected-parent bounded inspectors; eliminate full
 snapshot use from destination reads; complete targeted invalidation; capture
 PostgreSQL/RLS/query-plan and five-viewport evidence; delete the explicitly
 marked monolithic compatibility paths; and pass the full R6B exit gate.
+
+Billing Schedule and Billing Preparation read cutover is complete. Overall
+R6B remains open for the remaining non-Billing cutovers and final shared
+integration/compatibility cleanup. R6F and R6G were not started.

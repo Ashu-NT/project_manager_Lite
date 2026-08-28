@@ -152,7 +152,7 @@ class SqlAlchemyFinanceBillingReader:
 
     def list_preparations(self, *, tenant_id: str, organization_id: str, project_id: str, request: BillingPreparationQuery) -> FinancePageFacts[BillingPreparationSummaryFact]:
         correction = aliased(ProjectBillingPreparationORM)
-        latest = _latest_event_subquery()
+        latest = _latest_event_subquery(tenant_id, organization_id, project_id)
         approval_status = func.coalesce(ApprovalRequestORM.status, "")
         conditions = [
             ProjectBillingPreparationORM.tenant_id == tenant_id,
@@ -261,8 +261,8 @@ class SqlAlchemyFinanceBillingReader:
 
     def get_preparation(self, *, tenant_id: str, organization_id: str, project_id: str, preparation_id: str) -> BillingPreparationDetailFact | None:
         correction = aliased(ProjectBillingPreparationORM)
-        latest = _latest_event_subquery()
-        locks = _lock_summary_subquery()
+        latest = _latest_event_subquery(tenant_id, organization_id, project_id)
+        locks = _lock_summary_subquery(tenant_id, organization_id, project_id)
         row = self._session.execute(
             select(
                 ProjectBillingPreparationORM,
@@ -424,7 +424,7 @@ def _approval_join():
     )
 
 
-def _latest_event_subquery():
+def _latest_event_subquery(tenant_id: str, organization_id: str, project_id: str):
     ranked = select(
         ProjectBillingExternalEventORM.id,
         ProjectBillingExternalEventORM.tenant_id,
@@ -449,6 +449,10 @@ def _latest_event_subquery():
                 ProjectBillingExternalEventORM.id.desc(),
             ),
         ).label("row_number"),
+    ).where(
+        ProjectBillingExternalEventORM.tenant_id == tenant_id,
+        ProjectBillingExternalEventORM.organization_id == organization_id,
+        ProjectBillingExternalEventORM.project_id == project_id,
     ).subquery("ranked_billing_events")
     return select(*[ranked.c[name] for name in (
         "id", "tenant_id", "organization_id", "project_id", "preparation_id",
@@ -466,7 +470,7 @@ def _latest_event_join(latest):
     )
 
 
-def _lock_summary_subquery():
+def _lock_summary_subquery(tenant_id: str, organization_id: str, project_id: str):
     return select(
         ProjectBillingSourceLockORM.tenant_id,
         ProjectBillingSourceLockORM.organization_id,
@@ -476,6 +480,10 @@ def _lock_summary_subquery():
         func.sum(case((ProjectBillingSourceLockORM.status == "reserved", 1), else_=0)).label("reserved_count"),
         func.sum(case((ProjectBillingSourceLockORM.status == "finalized", 1), else_=0)).label("finalized_count"),
         func.sum(case((ProjectBillingSourceLockORM.status == "released", 1), else_=0)).label("released_count"),
+    ).where(
+        ProjectBillingSourceLockORM.tenant_id == tenant_id,
+        ProjectBillingSourceLockORM.organization_id == organization_id,
+        ProjectBillingSourceLockORM.project_id == project_id,
     ).group_by(
         ProjectBillingSourceLockORM.tenant_id,
         ProjectBillingSourceLockORM.organization_id,

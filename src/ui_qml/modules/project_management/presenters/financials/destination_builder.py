@@ -18,6 +18,7 @@ from src.ui_qml.modules.project_management.view_models.financials import (
 from .analytics_builder import build_analytics_collection
 from .audit_builder import build_finance_audit_collection
 from .billing_builder import build_billing_views
+from .billing_workspace_builder import build_billing_workspace_views
 from .cashflow_builder import build_cashflow_collection
 from .commitment_builder import build_commitment_collection, build_commitment_summary
 from .configuration_builder import build_finance_configuration_views
@@ -169,6 +170,27 @@ def build_destination_state(
     impact_search: str = "",
     impact_type: str = "",
     impact_applied_state: str = "",
+    selected_billing_preparation_id: str | None = None,
+    billing_schedule_page: int = 1,
+    billing_line_page: int = 1,
+    billing_schedule_sort_key: str = "supportingText",
+    billing_schedule_sort_direction: str = "asc",
+    billing_preparation_sort_key: str = "metaText",
+    billing_preparation_sort_direction: str = "desc",
+    billing_line_sort_key: str = "metaText",
+    billing_line_sort_direction: str = "asc",
+    billing_schedule_search: str = "",
+    billing_schedule_status: str = "",
+    billing_schedule_source_state: str = "",
+    billing_preparation_search: str = "",
+    billing_preparation_status: str = "",
+    billing_preparation_method: str = "",
+    billing_preparation_approval_status: str = "",
+    billing_preparation_delivery_state: str = "",
+    billing_preparation_correction_state: str = "",
+    billing_line_search: str = "",
+    billing_line_source_type: str = "",
+    billing_line_source_state: str = "",
     selected_baseline_id: str | None = None,
 ) -> FinancialsWorkspaceViewModel:
     destination = normalize_destination(destination)
@@ -485,11 +507,32 @@ def build_destination_state(
                     fields=fields,
                 ),
             )
-        billing = build_billing_views(
-            desktop_api.get_billing_workspace(
+        billing = build_billing_workspace_views(
+            desktop_api.get_billing_read_workspace(
                 project_id,
+                selected_preparation_id=selected_billing_preparation_id or "",
+                schedule_page=billing_schedule_page,
                 preparation_page=billing_preparation_page,
+                line_page=billing_line_page,
                 page_size=configuration_page_size,
+                schedule_sort_key=billing_schedule_sort_key,
+                schedule_sort_direction=billing_schedule_sort_direction,
+                preparation_sort_key=billing_preparation_sort_key,
+                preparation_sort_direction=billing_preparation_sort_direction,
+                line_sort_key=billing_line_sort_key,
+                line_sort_direction=billing_line_sort_direction,
+                schedule_search=billing_schedule_search,
+                schedule_status=billing_schedule_status,
+                schedule_source_state=billing_schedule_source_state,
+                preparation_search=billing_preparation_search,
+                preparation_status=billing_preparation_status,
+                preparation_method=billing_preparation_method,
+                preparation_approval_status=billing_preparation_approval_status,
+                preparation_delivery_state=billing_preparation_delivery_state,
+                preparation_correction_state=billing_preparation_correction_state,
+                line_search=billing_line_search,
+                line_source_type=billing_line_source_type,
+                line_source_state=billing_line_source_state,
             )
         )
         return FinancialsWorkspaceViewModel(
@@ -498,6 +541,27 @@ def build_destination_state(
             billing_profile=billing["billing_profile"],
             billing_schedule=billing["billing_schedule"],
             billing_preparations=billing["billing_preparations"],
+            selected_billing_preparation_id=billing["selected_billing_preparation_id"],
+            selected_billing_preparation=billing["selected_billing_preparation"],
+            billing_preparation_lines=billing["billing_preparation_lines"],
+            billing_schedule_sort_key=billing["billing_schedule_sort_key"],
+            billing_schedule_sort_direction=billing["billing_schedule_sort_direction"],
+            billing_preparation_sort_key=billing["billing_preparation_sort_key"],
+            billing_preparation_sort_direction=billing["billing_preparation_sort_direction"],
+            billing_line_sort_key=billing["billing_line_sort_key"],
+            billing_line_sort_direction=billing["billing_line_sort_direction"],
+            billing_schedule_search=billing["billing_schedule_search"],
+            billing_schedule_status=billing["billing_schedule_status"],
+            billing_schedule_source_state=billing["billing_schedule_source_state"],
+            billing_preparation_search=billing["billing_preparation_search"],
+            billing_preparation_status=billing["billing_preparation_status"],
+            billing_preparation_method=billing["billing_preparation_method"],
+            billing_preparation_approval_status=billing["billing_preparation_approval_status"],
+            billing_preparation_delivery_state=billing["billing_preparation_delivery_state"],
+            billing_preparation_correction_state=billing["billing_preparation_correction_state"],
+            billing_line_search=billing["billing_line_search"],
+            billing_line_source_type=billing["billing_line_source_type"],
+            billing_line_source_state=billing["billing_line_source_state"],
         )
 
     if subsection == "setup":

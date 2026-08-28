@@ -97,6 +97,30 @@ Item {
     property var billingProfileModel: ({ "id": "", "fields": [] })
     property var billingScheduleModel: ({ "items": [] })
     property var billingPreparationsModel: ({ "items": [] })
+    property var billingPreparationLinesModel: ({ "items": [] })
+    property var selectedBillingPreparationModel: ({ "id": "", "fields": [] })
+    property var billingScheduleTableModel: null
+    property var billingPreparationsTableModel: null
+    property var billingPreparationLinesTableModel: null
+    property string selectedBillingPreparationId: ""
+    property string billingScheduleSortKey: "supportingText"
+    property int billingScheduleSortDirection: Qt.AscendingOrder
+    property string billingPreparationSortKey: "metaText"
+    property int billingPreparationSortDirection: Qt.DescendingOrder
+    property string billingLineSortKey: "metaText"
+    property int billingLineSortDirection: Qt.AscendingOrder
+    property string billingScheduleSearch: ""
+    property string billingScheduleStatus: ""
+    property string billingScheduleSourceState: ""
+    property string billingPreparationSearch: ""
+    property string billingPreparationStatus: ""
+    property string billingPreparationMethod: ""
+    property string billingPreparationApprovalStatus: ""
+    property string billingPreparationDeliveryState: ""
+    property string billingPreparationCorrectionState: ""
+    property string billingLineSearch: ""
+    property string billingLineSourceType: ""
+    property string billingLineSourceState: ""
     property var commercialProjectionModel: ({ "id": "", "fields": [] })
     property bool isBusy: false
     property string selectedActualEntryId: ""
@@ -137,6 +161,16 @@ Item {
     signal financialChangeFiltersRequested(string search, string status, string approvalStatus, string appliedState)
     signal financialChangeImpactFiltersRequested(string search, string impactType, string appliedState)
     signal varianceBaselineSelected(string baselineId)
+    signal billingPreparationSelected(string preparationId)
+    signal billingSchedulePageRequested(int page)
+    signal billingPreparationPageRequested(int page)
+    signal billingLinePageRequested(int page)
+    signal billingScheduleSortRequested(string key, int direction)
+    signal billingPreparationSortRequested(string key, int direction)
+    signal billingLineSortRequested(string key, int direction)
+    signal billingScheduleFiltersRequested(string search, string status, string sourceState)
+    signal billingPreparationFiltersRequested(string search, string status, string method, string approvalStatus, string deliveryState, string correctionState)
+    signal billingLineFiltersRequested(string search, string sourceType, string sourceState)
     signal actualEntrySelected(string entryId)
     signal actualPageRequested(int page)
     signal actualPageSizeRequested(int pageSize)
@@ -454,9 +488,41 @@ Item {
             profile: root.billingProfileModel
             schedule: root.billingScheduleModel
             preparations: root.billingPreparationsModel
-            onPreparationPageRequested: function(page) {
-                root.configurationPageRequested("billing_preparations", page)
-            }
+            lines: root.billingPreparationLinesModel
+            selectedPreparation: root.selectedBillingPreparationModel
+            scheduleTableModel: root.billingScheduleTableModel
+            preparationsTableModel: root.billingPreparationsTableModel
+            linesTableModel: root.billingPreparationLinesTableModel
+            selectedPreparationId: root.selectedBillingPreparationId
+            scheduleSortKey: root.billingScheduleSortKey
+            scheduleSortDirection: root.billingScheduleSortDirection
+            preparationSortKey: root.billingPreparationSortKey
+            preparationSortDirection: root.billingPreparationSortDirection
+            lineSortKey: root.billingLineSortKey
+            lineSortDirection: root.billingLineSortDirection
+            scheduleSearch: root.billingScheduleSearch
+            scheduleStatus: root.billingScheduleStatus
+            scheduleSourceState: root.billingScheduleSourceState
+            preparationSearch: root.billingPreparationSearch
+            preparationStatus: root.billingPreparationStatus
+            preparationMethod: root.billingPreparationMethod
+            preparationApprovalStatus: root.billingPreparationApprovalStatus
+            preparationDeliveryState: root.billingPreparationDeliveryState
+            preparationCorrectionState: root.billingPreparationCorrectionState
+            lineSearch: root.billingLineSearch
+            lineSourceType: root.billingLineSourceType
+            lineSourceState: root.billingLineSourceState
+            busy: root.isBusy
+            onPreparationSelected: function(id) { root.billingPreparationSelected(id) }
+            onSchedulePageRequested: function(page) { root.billingSchedulePageRequested(page) }
+            onPreparationPageRequested: function(page) { root.billingPreparationPageRequested(page) }
+            onLinePageRequested: function(page) { root.billingLinePageRequested(page) }
+            onScheduleSortRequested: function(key, direction) { root.billingScheduleSortRequested(key, direction) }
+            onPreparationSortRequested: function(key, direction) { root.billingPreparationSortRequested(key, direction) }
+            onLineSortRequested: function(key, direction) { root.billingLineSortRequested(key, direction) }
+            onScheduleFiltersRequested: function(search, status, sourceState) { root.billingScheduleFiltersRequested(search, status, sourceState) }
+            onPreparationFiltersRequested: function(search, status, method, approvalStatus, deliveryState, correctionState) { root.billingPreparationFiltersRequested(search, status, method, approvalStatus, deliveryState, correctionState) }
+            onLineFiltersRequested: function(search, sourceType, sourceState) { root.billingLineFiltersRequested(search, sourceType, sourceState) }
         }
     }
 

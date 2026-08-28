@@ -641,6 +641,111 @@ def test_forecast_refresh_rejects_stale_a_b_c_selection_responses(controller) ->
     )
 
 
+def test_billing_selection_and_query_state_reset_only_dependent_pages(controller) -> None:
+    controller.refresh = MagicMock()
+    controller._billing_preparation_page = 4
+    controller._billing_line_page = 3
+
+    controller.selectBillingPreparation("preparation-a")
+
+    assert controller.selectedBillingPreparationId == "preparation-a"
+    assert controller._billing_preparation_page == 4
+    assert controller._billing_line_page == 1
+    controller.setBillingLineFilters("milestone", "schedule_line", "finalized")
+    assert controller._billing_preparation_page == 4
+    assert controller._billing_line_page == 1
+    assert controller.billingLineSearch == "milestone"
+
+
+def test_billing_refresh_rejects_stale_a_b_c_selection_responses(controller) -> None:
+    controller._workspace_loaded = True
+    controller._shell_loaded = True
+    controller._active_destination = "commercial"
+    controller._active_subsection = "billing"
+    controller._set_selected_project_id("project-a")
+    controller._set_selected_billing_preparation_id("preparation-a")
+    state_a, state_b, state_c = object(), object(), object()
+    call_count = 0
+
+    def build_destination_state(**_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            controller._set_selected_billing_preparation_id("preparation-b")
+            controller.refresh()
+            return state_a
+        if call_count == 2:
+            controller._set_selected_billing_preparation_id("preparation-c")
+            controller.refresh()
+            return state_b
+        return state_c
+
+    controller._financials_workspace_presenter.build_destination_state = MagicMock(
+        side_effect=build_destination_state
+    )
+    controller._apply_destination_state = MagicMock()
+    controller.refresh()
+
+    assert call_count == 3
+    assert controller.selectedBillingPreparationId == "preparation-c"
+    controller._apply_destination_state.assert_called_once_with(
+        "commercial", "billing", state_c
+    )
+
+
+def test_billing_project_switch_clears_master_detail_and_lines(controller) -> None:
+    controller.refresh = MagicMock()
+    controller._set_selected_project_id("project-a")
+    controller._set_selected_billing_preparation_id("preparation-a")
+    controller._billing_schedule_page = 3
+    controller._billing_preparation_page = 4
+    controller._billing_line_page = 2
+
+    controller.selectProject("project-b")
+
+    assert controller.selectedBillingPreparationId == ""
+    assert controller.billingSchedule["items"] == []
+    assert controller.billingPreparations["items"] == []
+    assert controller.billingPreparationLines["items"] == []
+    assert controller._billing_schedule_page == 1
+    assert controller._billing_preparation_page == 1
+    assert controller._billing_line_page == 1
+
+
+def test_billing_refresh_rejects_stale_a_b_c_filter_responses(controller) -> None:
+    controller._workspace_loaded = True
+    controller._shell_loaded = True
+    controller._active_destination = "commercial"
+    controller._active_subsection = "billing"
+    controller._set_selected_project_id("project-a")
+    state_a, state_b, state_c = object(), object(), object()
+    call_count = 0
+
+    def build_destination_state(**_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            controller.setBillingPreparationFilters("filter-b", "approved", "", "", "", "")
+            return state_a
+        if call_count == 2:
+            controller.setBillingPreparationFilters("filter-c", "rejected", "", "", "", "")
+            return state_b
+        return state_c
+
+    controller._financials_workspace_presenter.build_destination_state = MagicMock(
+        side_effect=build_destination_state
+    )
+    controller._apply_destination_state = MagicMock()
+    controller.setBillingPreparationFilters("filter-a", "submitted", "", "", "", "")
+
+    assert call_count == 3
+    assert controller.billingPreparationSearch == "filter-c"
+    assert controller.billingPreparationStatus == "rejected"
+    controller._apply_destination_state.assert_called_once_with(
+        "commercial", "billing", state_c
+    )
+
+
 def test_financials_refresh_logs_exception_context(controller, caplog) -> None:
     controller._workspace_loaded = True
     controller._shell_loaded = True

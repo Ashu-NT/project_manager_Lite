@@ -57,6 +57,11 @@ from src.core.modules.project_management.api.desktop.financials.models.changes i
     FinancialChangeTableRecordDto,
     FinancialChangeWorkspaceDto,
 )
+from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
+    FinancialBillingDetailDto,
+    FinancialBillingReadWorkspaceDto,
+    FinancialBillingTableRecordDto,
+)
 
 __all__ = [
     "BaselineVarianceRecordDto",
@@ -66,6 +71,9 @@ __all__ = [
     "FinancialBillingProfileDto",
     "FinancialBillingScheduleLineDto",
     "FinancialBillingWorkspaceDto",
+    "FinancialBillingDetailDto",
+    "FinancialBillingReadWorkspaceDto",
+    "FinancialBillingTableRecordDto",
     "FinancialCommercialProjectionDto",
     "FinancialCommitmentSummaryDto",
     "FinancialCommitmentLineDto",
