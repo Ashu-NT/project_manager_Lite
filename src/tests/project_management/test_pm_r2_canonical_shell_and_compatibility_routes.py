@@ -32,7 +32,7 @@ EXPECTED_DESTINATION_BY_ROUTE = {
     "project_management.tasks": ("tasks", "work", "tasks"),
     "project_management.scheduling": ("scheduling", "work", "planning"),
     "project_management.resources": ("resources", "workload", "resources"),
-    "project_management.timesheets": ("timesheets", "workload", "review_queue"),
+    "project_management.timesheets": ("timesheets", "work", "timesheets"),
     "project_management.financials": ("financials", "finance", ""),
     "project_management.register": ("register", "governance", "register"),
     "project_management.collaboration": ("collaboration", "governance", "collaboration"),

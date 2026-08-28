@@ -6,9 +6,15 @@ import logging
 from dataclasses import dataclass
 from time import perf_counter
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.platform.access import ScopedRolePolicy
+from src.core.modules.project_management.infrastructure.persistence.billing_preparation_submission_unit_of_work import (
+    SqlAlchemyBillingPreparationSubmissionUnitOfWorkFactory,
+)
+from src.core.modules.project_management.infrastructure.persistence.financial_change_submission_unit_of_work import (
+    SqlAlchemyFinancialChangeSubmissionUnitOfWorkFactory,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
     SqlAlchemyProjectRepository,
 )
@@ -69,6 +75,7 @@ from src.core.modules.project_management.application.financials import (
     ProjectBillingProfileService,
     ProcurementFinancialConsumer,
     ProjectFinanceWorkspaceQuery,
+    ProjectFinancePerformanceQuery,
     ProjectRateCardService,
     RateCardResolver,
 )
@@ -77,6 +84,13 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.financials import (
     SqlAlchemyEvmSeriesReader,
+    SqlAlchemyFinanceBudgetReader,
+    SqlAlchemyFinancePlannedCostReader,
+    SqlAlchemyFinanceForecastReader,
+    SqlAlchemyFinanceRateReader,
+    SqlAlchemyFinanceChangeReader,
+    SqlAlchemyFinanceBillingReader,
+    SqlAlchemyFinancePerformanceReader,
     SqlAlchemyFinanceSnapshotReader,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
@@ -119,8 +133,8 @@ from src.core.modules.project_management.infrastructure.persistence.reads.regist
     SqlAlchemyRegisterCatalogReader,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.timesheets import (
-    SqlAlchemyOwnerTimesheetReader,
     SqlAlchemyTimesheetReviewReader,
+    SqlAlchemyTimesheetWorkspaceReader,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.tasks import (
     SqlAlchemyTaskWorkspaceReader,
@@ -158,6 +172,7 @@ class ProjectManagementServiceBundle:
     commitment_service: ProjectCommitmentService
     planned_cost_service: PlannedCostService
     finance_workspace_query: ProjectFinanceWorkspaceQuery
+    finance_performance_query: ProjectFinancePerformanceQuery
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
     scheduling_engine: SchedulingEngine
@@ -272,7 +287,7 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         scope_organization_resolver=_time_scope_organization_id,
         approved_time_outbox_service=approved_time_outbox_service,
-        owner_timesheet_reader=SqlAlchemyOwnerTimesheetReader(session=session),
+        timesheet_workspace_reader=SqlAlchemyTimesheetWorkspaceReader(session=session),
         timesheet_review_reader=SqlAlchemyTimesheetReviewReader(session=session),
     )
     time_service: TimeService = timesheet_service
@@ -351,9 +366,7 @@ def build_project_management_service_bundle(
         task_workspace_reader=SqlAlchemyTaskWorkspaceReader(session=session),
         enterprise_resource_availability_service=enterprise_resource_availability,
     )
-    # Shared by ResourceService (legacy rate-line seeding/supersession) and
-    # RateCardResolver (RateSelectionSnapshot.resolved_at) — one time source,
-    # not two independent ways of asking "what time is it."
+    # The resolver owns the effective-time source for immutable rate snapshots.
     system_clock = SystemClock()
     resource_read_reader = SqlAlchemyResourceCatalogReader(session=session)
     resource_context_reader = SqlAlchemyResourceContextReader(session=session)
@@ -370,14 +383,13 @@ def build_project_management_service_bundle(
         activity_service=platform_services.activity_service,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
-        project_rate_card_repo=repositories.project_rate_card_repo,
-        clock=system_clock,
         resource_catalog_reader=resource_read_reader,
         resource_inspector_reader=resource_read_reader,
         resource_summary_reader=resource_read_reader,
         resource_projects_reader=resource_context_reader,
         resource_assignments_reader=resource_context_reader,
         resource_activity_reader=resource_context_reader,
+        resource_capability_reader=resource_context_reader,
         department_service=platform_services.department_service,
         site_service=platform_services.site_service,
     )
@@ -479,11 +491,13 @@ def build_project_management_service_bundle(
     finance_workspace_query = ProjectFinanceWorkspaceQuery(
         profile_repo=repositories.project_financial_profile_repo,
         cost_code_repo=repositories.project_cost_code_repo,
-        budget_repo=repositories.project_budget_repo,
-        rate_card_repo=repositories.project_rate_card_repo,
-        planned_cost_repo=repositories.planned_cost_repo,
-        task_repo=repositories.task_repo,
-        resource_repo=repositories.resource_repo,
+        budget_reader=SqlAlchemyFinanceBudgetReader(session=session),
+        planned_cost_reader=SqlAlchemyFinancePlannedCostReader(session=session),
+        forecast_reader=SqlAlchemyFinanceForecastReader(session=session),
+        rate_reader=SqlAlchemyFinanceRateReader(session=session),
+        change_reader=SqlAlchemyFinanceChangeReader(session=session),
+        billing_reader=SqlAlchemyFinanceBillingReader(session=session),
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )
@@ -543,6 +557,17 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
+
+    financial_change_submission_uow_session_factory = sessionmaker(
+        bind=platform_services.session.bind, future=True
+    )
+    financial_change_submission_uow_factory = SqlAlchemyFinancialChangeSubmissionUnitOfWorkFactory(
+        session_factory=financial_change_submission_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
     financial_change_service = FinancialChangeService(
         session=session,
         change_repo=repositories.financial_change_repo,
@@ -555,6 +580,7 @@ def build_project_management_service_bundle(
         task_service=task_service,
         approval_service=platform_services.approval_service,
         clock=system_clock,
+        submission_uow_factory=financial_change_submission_uow_factory,
         user_session=platform_services.user_session,
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,
@@ -571,6 +597,16 @@ def build_project_management_service_bundle(
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,
     )
+    billing_preparation_submission_uow_session_factory = sessionmaker(
+        bind=platform_services.session.bind, future=True
+    )
+    billing_preparation_submission_uow_factory = SqlAlchemyBillingPreparationSubmissionUnitOfWorkFactory(
+        session_factory=billing_preparation_submission_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
     billing_preparation_service = ProjectBillingPreparationService(
         session=session,
         billing_repo=repositories.project_billing_repo,
@@ -582,6 +618,7 @@ def build_project_management_service_bundle(
         approval_service=platform_services.approval_service,
         tenant_context_service=platform_services.tenant_context_service,
         clock=system_clock,
+        submission_uow_factory=billing_preparation_submission_uow_factory,
         user_session=platform_services.user_session,
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,
@@ -633,6 +670,15 @@ def build_project_management_service_bundle(
         approval_service=platform_services.approval_service,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
+    )
+    finance_performance_query = ProjectFinancePerformanceQuery(
+        performance_reader=SqlAlchemyFinancePerformanceReader(session=session),
+        overview_reader=SqlAlchemyFinanceSnapshotReader(session=session),
+        earned_value_authority=reporting_service,
+        baseline_variance_authority=baseline_service,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+        module_catalog_service=platform_services.module_catalog_service,
     )
     dashboard_service = DashboardService(
         reporting_service=reporting_service,
@@ -708,6 +754,7 @@ def build_project_management_service_bundle(
         commitment_service=commitment_service,
         planned_cost_service=planned_cost_service,
         finance_workspace_query=finance_workspace_query,
+        finance_performance_query=finance_performance_query,
         finance_service=finance_service,
         work_calendar_engine=work_calendar_engine,
         scheduling_engine=scheduling_engine,

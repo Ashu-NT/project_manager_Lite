@@ -19,4 +19,17 @@ class ResourceCertificationDesktopDto:
     version: int
 
 
-__all__ = ["ResourceCertificationDesktopDto"]
+@dataclass(frozen=True)
+class ResourceCertificationsPageDesktopDto:
+    items: tuple[ResourceCertificationDesktopDto, ...] = ()
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = 25
+    sort_key: str = "certificationName"
+    sort_direction: str = "asc"
+
+
+__all__ = [
+    "ResourceCertificationDesktopDto",
+    "ResourceCertificationsPageDesktopDto",
+]

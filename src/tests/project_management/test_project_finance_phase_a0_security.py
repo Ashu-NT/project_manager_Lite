@@ -15,6 +15,7 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.modules.project_management.access.policy import (
     PROJECT_SCOPE_ROLE_PERMISSIONS,
 )
+from src.core.modules.project_management.domain.financials.rate_cards import RateType
 
 
 def _login(services, username: str, password: str) -> None:
@@ -40,7 +41,19 @@ def _seed_labor_finance_project(services) -> str:
         "Engineer",
         hourly_rate=125.0,
         currency_code="EUR",
-        rate_effective_on=date(2026, 1, 5),
+    )
+    rate_card = services["rate_card_service"].create_rate_card(
+        name="Phase A0 Project Rates",
+        project_id=project.id,
+    )
+    services["rate_card_service"].create_line(
+        rate_card.id,
+        rate_type=RateType.COST,
+        unit="HOUR",
+        rate_amount=Decimal("125"),
+        rate_currency="EUR",
+        resource_id=resource.id,
+        effective_from=date(2026, 1, 5),
     )
     project_resource = services["project_resource_service"].add_to_project(
         project_id=project.id,
@@ -191,7 +204,7 @@ def test_global_sensitive_grant_does_not_bypass_project_scope(services):
 
 
 def _create_audited_cost_entry(services, *, command_id: str):
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         "Audited canonical cost",
         financial_currency_code=organization.base_currency,
@@ -232,7 +245,7 @@ def test_cost_entry_mutation_records_scoped_enterprise_audit(services):
 
 
 def test_cost_entry_mutation_rolls_back_when_required_audit_fails(services, monkeypatch):
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         "Fail-closed canonical cost audit",
         financial_currency_code=organization.base_currency,
@@ -518,21 +531,23 @@ def test_finance_project_scope_does_not_leak_across_projects(services):
 
 def test_finance_reporting_isolated_across_organizations(services):
     organization_service = services["organization_service"]
-    original_organization = organization_service.get_active_organization()
+    original_organization = services["tenant_context_service"].get_active_organization()
     project_id = _seed_labor_finance_project(services)
 
     other_organization = organization_service.create_organization(
         organization_code="F0-REPORTING-ISOLATION",
         display_name="F0 Reporting Isolation Org",
         base_currency="USD",
-        is_active=False,
+        is_enabled=False,
     )
-    organization_service.set_active_organization(other_organization.id)
+    organization_service.enable_organization(other_organization.id)
+    services["tenant_context_service"].set_active_organization(other_organization.id)
     try:
         with pytest.raises(NotFoundError, match="not found"):
             services["reporting_service"].get_cost_breakdown(project_id)
     finally:
-        organization_service.set_active_organization(original_organization.id)
+        organization_service.enable_organization(original_organization.id)
+        services["tenant_context_service"].set_active_organization(original_organization.id)
 
     # Visibility (and finance authorization) returns once back in-scope.
     assert services["reporting_service"].get_cost_breakdown(project_id) is not None

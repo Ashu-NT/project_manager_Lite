@@ -99,6 +99,24 @@ class TimesheetQueryMixin:
         self._require_time_read_permission("view timesheet period")
         return self._lookup_timesheet_period(resource_id=resource_id, period_start=period_start)
 
+    def get_timesheet_period_record(
+        self,
+        resource_id: str,
+        *,
+        period_start: date,
+    ) -> TimesheetPeriod | None:
+        """Return workflow state for internal task/time projections.
+
+        PM's resource-oriented workspace owns the scoped `get_timesheet_period`
+        query, so internal projections use this explicit domain-record name to
+        avoid accidentally bypassing or colliding with that scoped contract.
+        """
+        self._require_time_read_permission("view timesheet period")
+        return self._lookup_timesheet_period(
+            resource_id=resource_id,
+            period_start=period_start,
+        )
+
     def list_timesheet_periods_for_resource(self, resource_id: str) -> list[TimesheetPeriod]:
         self._require_time_read_permission("list timesheet periods")
         if self._timesheet_period_repo is None:

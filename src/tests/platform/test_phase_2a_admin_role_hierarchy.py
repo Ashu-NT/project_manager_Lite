@@ -328,7 +328,7 @@ def test_org_admin_is_effective_only_in_its_canonical_organization(services):
         "ORG-SCOPE-OTHER",
         "Other Scope Organization",
         tenant_id=tenant_id,
-        is_active=True,
+        is_enabled=True,
     )
     SqlAlchemyOrganizationRepository(session).add(other)
     session.flush()
@@ -422,8 +422,8 @@ def test_org_admin_binding_supports_organization_scope(services):
     active_tenant_id = tenant_context.get_active_tenant_id()
 
     org_repo = SqlAlchemyOrganizationRepository(session)
-    org_a = Organization.create("SCOPE-A", "Scope Org A", tenant_id=active_tenant_id, is_active=True)
-    org_b = Organization.create("SCOPE-B", "Scope Org B", tenant_id=active_tenant_id, is_active=False)
+    org_a = Organization.create("SCOPE-A", "Scope Org A", tenant_id=active_tenant_id, is_enabled=True)
+    org_b = Organization.create("SCOPE-B", "Scope Org B", tenant_id=active_tenant_id, is_enabled=False)
     org_repo.add(org_a)
     org_repo.add(org_b)
     session.flush()

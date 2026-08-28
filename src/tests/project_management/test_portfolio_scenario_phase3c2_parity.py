@@ -74,14 +74,12 @@ def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(service
         capacity_percent=100.0,
         hourly_rate=80.0,
         currency_code="EUR",
-        rate_effective_on=date(2024, 1, 8),
     )
     specialist = resources.create_resource(
         "Specialist",
         capacity_percent=50.0,
         hourly_rate=80.0,
         currency_code="EUR",
-        rate_effective_on=date(2024, 1, 8),
     )
     resources.create_resource(
         "Inactive capacity",

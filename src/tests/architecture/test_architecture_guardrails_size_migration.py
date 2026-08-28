@@ -44,14 +44,16 @@ def _migration_metadata():
         raw_down_revision = None
 
         for node in tree.body:
-            if not isinstance(node, ast.Assign):
+            if isinstance(node, ast.Assign):
+                targets = node.targets
+            elif isinstance(node, ast.AnnAssign):
+                targets = [node.target]
+            else:
                 continue
-            for target in node.targets:
-                if not isinstance(target, ast.Name):
-                    continue
-                if target.id == "revision":
+            for target in targets:
+                if isinstance(target, ast.Name) and target.id == "revision":
                     revision = ast.literal_eval(node.value)
-                elif target.id == "down_revision":
+                elif isinstance(target, ast.Name) and target.id == "down_revision":
                     raw_down_revision = ast.literal_eval(node.value)
 
         if not revision:

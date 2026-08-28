@@ -772,9 +772,9 @@ class ProjectManagementTasksWorkspaceController(
     def updateTaskTimeEntry(self, payload: dict[str, object]) -> dict[str, object]:
         return _mut.update_task_time_entry(self, payload)
 
-    @Slot(str, result="QVariantMap")
-    def deleteTaskTimeEntry(self, entry_id: str) -> dict[str, object]:
-        return _mut.delete_task_time_entry(self, entry_id)
+    @Slot(str, int, result="QVariantMap")
+    def deleteTaskTimeEntry(self, entry_id: str, expected_version: int) -> dict[str, object]:
+        return _mut.delete_task_time_entry(self, entry_id, expected_version)
 
     @Slot("QVariantMap", result="QVariantMap")
     def postTaskComment(self, payload: dict[str, object]) -> dict[str, object]:

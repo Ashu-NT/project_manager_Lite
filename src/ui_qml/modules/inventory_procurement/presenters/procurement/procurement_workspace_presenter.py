@@ -27,7 +27,11 @@ from .requisition_command_handler import (
     submit_requisition,
     update_requisition,
 )
-from .workspace_builder import build_workspace_state
+from .workspace_builder import (
+    build_party_reference_options,
+    build_site_reference_options,
+    build_workspace_state,
+)
 
 class InventoryProcurementProcurementWorkspacePresenter:
     def __init__(
@@ -62,6 +66,12 @@ class InventoryProcurementProcurementWorkspacePresenter:
             selected_requisition_id=selected_requisition_id,
             selected_purchase_order_id=selected_purchase_order_id,
         )
+
+    def build_site_reference_options(self):
+        return build_site_reference_options(self._desktop_api)
+
+    def build_party_reference_options(self):
+        return build_party_reference_options(self._desktop_api)
 
     def create_requisition(self, payload: dict[str, Any]) -> None:
         create_requisition(self._desktop_api, payload)

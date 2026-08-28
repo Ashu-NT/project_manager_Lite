@@ -62,6 +62,7 @@ def serialize_task_time_entries_page(page, *, resources_by_id: dict[str, object]
                 hours_label=format_entry_hours(row.hours),
                 note=row.note or "",
                 author_username=row.author_username or "unknown",
+                version=row.version,
             )
             for row in page.items
         ),

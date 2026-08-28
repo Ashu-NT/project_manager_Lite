@@ -18,6 +18,7 @@ from src.core.modules.project_management.application.financials import (
     ProjectBillingProfileService,
     ProjectCostEntryService,
     ProjectFinanceWorkspaceQuery,
+    ProjectFinancePerformanceQuery,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
@@ -63,6 +64,7 @@ class ProjectManagementDesktopRuntimeServices:
     dashboard_service: DashboardService | None
     finance_service: FinanceService | None
     finance_workspace_query: ProjectFinanceWorkspaceQuery | None
+    finance_performance_query: ProjectFinancePerformanceQuery | None
     financial_configuration_service: FinancialConfigurationService | None
     cost_entry_service: ProjectCostEntryService | None
     commitment_service: ProjectCommitmentService | None
@@ -95,6 +97,7 @@ def resolve_project_management_desktop_runtime_services(
     dashboard_service = services.get("dashboard_service")
     finance_service = services.get("finance_service")
     finance_workspace_query = services.get("finance_workspace_query")
+    finance_performance_query = services.get("finance_performance_query")
     financial_configuration_service = services.get("financial_configuration_service")
     cost_entry_service = services.get("cost_entry_service")
     commitment_service = services.get("commitment_service")
@@ -219,6 +222,11 @@ def resolve_project_management_desktop_runtime_services(
         reporting_service=(
             reporting_service
             if isinstance(reporting_service, ReportingService)
+            else None
+        ),
+        finance_performance_query=(
+            finance_performance_query
+            if isinstance(finance_performance_query, ProjectFinancePerformanceQuery)
             else None
         ),
         resource_workload_service=(

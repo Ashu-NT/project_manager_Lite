@@ -25,7 +25,7 @@ Item {
 
     signal addRequested(var payload)
     signal updateRequested(var payload)
-    signal deleteRequested(string entryId)
+    signal deleteRequested(string entryId, int expectedVersion)
     signal entrySelected(string entryId)
     signal resourceFilterRequested(string resourceId)
     signal pageRequested(int page)
@@ -206,7 +206,9 @@ Item {
                         isBusy: root.isBusy
                         onAddRequested: function(payload) { root.addRequested(payload) }
                         onUpdateRequested: function(payload) { root.updateRequested(payload) }
-                        onDeleteRequested: function(entryId) { root.deleteRequested(entryId) }
+                        onDeleteRequested: function(entryId, expectedVersion) {
+                            root.deleteRequested(entryId, expectedVersion)
+                        }
                         onCancelEditRequested: {
                             root.entrySelected("")
                             _logTimeEditor.resetForCreate()

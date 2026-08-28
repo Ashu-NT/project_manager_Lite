@@ -82,6 +82,7 @@ class TaskTimeEntryMixin:
                     hours=entry.hours,
                     note=entry.note,
                     author_username=entry.author_username,
+                    version=entry.version,
                 )
             )
 
@@ -133,22 +134,24 @@ class TaskTimeEntryMixin:
         self,
         entry_id: str,
         *,
+        expected_version: int,
         entry_date: date | None = None,
         hours: float | None = None,
         note: str | None = None,
     ) -> TimeEntry:
         return self._require_timesheet_service().update_time_entry(
             entry_id,
+            expected_version=expected_version,
             entry_date=entry_date,
             hours=hours,
             note=note,
         )
 
-    def delete_time_entry(self, entry_id: str) -> None:
-        self._require_timesheet_service().delete_time_entry(entry_id)
-
-    def get_timesheet_period(self, resource_id: str, *, period_start: date) -> TimesheetPeriod | None:
-        return self._require_timesheet_service().get_timesheet_period(resource_id, period_start=period_start)
+    def delete_time_entry(self, entry_id: str, *, expected_version: int) -> None:
+        self._require_timesheet_service().delete_time_entry(
+            entry_id,
+            expected_version=expected_version,
+        )
 
     def list_timesheet_periods_for_resource(self, resource_id: str) -> list[TimesheetPeriod]:
         return self._require_timesheet_service().list_timesheet_periods_for_resource(resource_id)

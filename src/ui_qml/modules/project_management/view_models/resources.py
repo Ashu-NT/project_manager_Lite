@@ -81,36 +81,6 @@ class ResourceInspectorViewModel:
     state: dict[str, Any] = field(default_factory=dict)
 
 @dataclass(frozen=True)
-class ResourceSkillViewModel:
-    id: str
-    skill_code: str
-    skill_name: str
-    proficiency: str
-    proficiency_label: str
-    notes: str
-    version: int
-
-@dataclass(frozen=True)
-class ResourceCertificationViewModel:
-    id: str
-    certification_code: str
-    certification_name: str
-    issued_date: str
-    expiry_date: str
-    certificate_number: str
-    issuer: str
-    notes: str
-    cert_status: str
-    cert_status_label: str
-    version: int
-
-
-@dataclass(frozen=True)
-class ResourceCapabilityCountsViewModel:
-    skill_count: int = 0
-    certification_count: int = 0
-
-@dataclass(frozen=True)
 class ResourceAvailabilityDayViewModel:
     work_date: str
     date_label: str
@@ -172,8 +142,6 @@ __all__ = [
     "ResourceCatalogMetricViewModel",
     "ResourceCatalogOverviewViewModel",
     "ResourceCatalogWorkspaceViewModel",
-    "ResourceCertificationViewModel",
-    "ResourceCapabilityCountsViewModel",
     "ResourceDetailFieldViewModel",
     "ResourceDetailViewModel",
     "ResourceEmployeeOptionViewModel",
@@ -181,5 +149,4 @@ __all__ = [
     "ResourceRecordViewModel",
     "ResourceSelectorOptionViewModel",
     "ResourceScopeOptionViewModel",
-    "ResourceSkillViewModel",
 ]

@@ -38,9 +38,8 @@ once. Any failure rolls all three back. Domain invalidation and immediate outbox
 dispatch occur only after commit. Audit metadata records actor, scope, reason,
 old/new state, period identity, and resulting version.
 
-The fresh pre-release baseline contains the version column. Guarded revision
-`d72f4a8c91be` repairs local databases stamped before that baseline edit and is
-a no-op for fresh databases that already contain the column.
+The fresh pre-release baseline contains the version column directly. No
+upgrade-only compatibility repair is retained.
 
 ## Authoritative Reads
 
@@ -91,8 +90,7 @@ temporary R5F transition code remains.
 - Transition/finance/N+1 targeted slice: `10 passed`.
 - Core R5F read/UI/transaction slice: `26 passed` after stale-test corrections.
 - R5F contract/presenter slice: `11 passed`.
-- Fresh and pre-baseline-edit migration paths: `2 passed`.
-- Live local database: revision `d72f4a8c91be`; `timesheet_periods.version` present.
+- Fresh-baseline migration path: passed with `timesheet_periods.version` present.
 - Direct touched-QML lint: clean after unused-import cleanup.
 - Python targeted compilation: passed.
 - One unrelated architecture test still detects the pre-existing stale

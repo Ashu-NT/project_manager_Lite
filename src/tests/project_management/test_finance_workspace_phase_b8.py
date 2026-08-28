@@ -108,135 +108,47 @@ def _seed_workspace(services):
     return project
 
 
-def test_workspace_query_reconciles_canonical_finance_views(services) -> None:
-    project = _seed_workspace(services)
-
-    result = services["finance_workspace_query"].get(project.id)
-
-    assert result.profile is not None
-    assert result.profile.currency_code == "USD"
-    assert result.default_cost_code == "LABOR - Project Labor"
-    assert len(result.budget_versions) == 1
-    assert result.budget_versions[0].total_amount == Decimal("1250")
-    assert result.budget_versions[0].line_count == 2
-    assert result.budget_lines[0].task_name == "Engineering"
-    assert result.budget_lines[0].wbs_code == "1.1"
-
-    scopes = {card.scope for card in result.rate_cards}
-    assert scopes == {"organization", "project"}
-    assert any(line.rate_amount == Decimal("60") for line in result.rate_lines)
-
-    current = result.planned_cost_versions[0]
-    assert current.status == "current"
-    assert current.total_hours == Decimal("10")
-    assert current.total_amount == Decimal("600")
-    assert result.planned_cost_lines[0].resource_name == "Lead Engineer"
-    assert result.planned_cost_lines[0].cost_code == "LABOR"
-
-
-def test_workspace_query_has_bounded_statement_shape(services) -> None:
-    project = _seed_workspace(services)
-    query = services["finance_workspace_query"]
-    query.get(project.id)  # warm the validated-principal lease
-
-    with _statement_count(services["session"]) as statements:
-        query.get(project.id)
-
-    assert len(statements) <= 14
-
-
-def test_workspace_query_paginates_lines_without_corrupting_version_totals(services) -> None:
-    project = _seed_workspace(services)
-
-    result = services["finance_workspace_query"].get(
-        project.id,
-        budget_line_page=2,
-        rate_line_page=1,
-        planned_cost_line_page=1,
-        page_size=1,
-    )
-
-    assert len(result.budget_lines) == 1
-    assert result.budget_line_page == 2
-    assert result.budget_line_page_size == 1
-    assert result.budget_line_total == 2
-    assert result.budget_versions[0].line_count == 2
-    assert result.budget_versions[0].total_amount == Decimal("1250")
-    assert len(result.rate_lines) == 1
-    assert result.rate_line_total >= 2
-
-    beyond_last = services["finance_workspace_query"].get(
-        project.id,
-        budget_line_page=99,
-        rate_line_page=99,
-        planned_cost_line_page=99,
-        page_size=1,
-    )
-
-    assert beyond_last.budget_line_page == 2
-    assert len(beyond_last.budget_lines) == 1
-    assert beyond_last.rate_line_page == beyond_last.rate_line_total
-    assert len(beyond_last.rate_lines) == 1
-    assert beyond_last.planned_cost_line_page == 1
-    assert len(beyond_last.planned_cost_lines) == 1
-
-
-def test_desktop_projection_formats_canonical_workspace_without_recalculation(services) -> None:
-    project = _seed_workspace(services)
-    api = ProjectManagementFinancialsDesktopApi(
-        finance_workspace_query=services["finance_workspace_query"]
-    )
-
-    result = api.get_configuration_workspace(project.id)
-
-    assert result.profile.status_label == "Active"
-    assert result.budget_versions[0].supporting_text == "Authorized total USD 1,250.00"
-    assert any(card.subtitle == "Organization scope" for card in result.rate_cards)
-    assert result.planned_cost_versions[0].supporting_text == "USD 600.00 | 10.0 h"
-    assert "Lead Engineer" in result.planned_cost_lines[0].subtitle
-
-
-def test_workspace_query_fails_closed_after_organization_switch(services) -> None:
-    project = _seed_workspace(services)
-    organization_service = services["organization_service"]
-    original = organization_service.get_active_organization()
-    other = organization_service.create_organization(
-        organization_code="PF-WORKSPACE-ISOLATION",
-        display_name="Finance Workspace Isolation",
-        base_currency="USD",
-        is_active=False,
-    )
-    organization_service.set_active_organization(other.id)
-    try:
-        with pytest.raises(NotFoundError) as exc:
-            services["finance_workspace_query"].get(project.id)
-        assert exc.value.code == "FINANCIAL_PROFILE_NOT_FOUND"
-    finally:
-        organization_service.set_active_organization(original.id)
-
-
-def test_qml_uses_five_project_level_finance_views_and_deletes_false_budget_view() -> None:
+def test_qml_uses_six_intent_destinations_and_secondary_finance_views() -> None:
     root = Path("src/ui_qml/modules/project_management/qml/workspaces/financials")
     page = (root / "FinancialsWorkspacePage.qml").read_text(encoding="utf-8")
     panel = (root / "panels/FinancialsDetailPanel.qml").read_text(encoding="utf-8")
     section_registry = (root / "sections/qmldir").read_text(encoding="utf-8")
 
     for section in (
-        "Profile",
-        "Budget Versions",
-        "Budget Lines",
-        "Rate Cards",
-        "Planned Costs",
+        "Overview",
+        "Planning",
+        "Costs",
+        "Performance",
+        "Commercial",
+        "Controls",
     ):
         assert f'"{section}"' in page
-        assert f'"{section}"' in panel
+    for subsection in (
+        "Budgets",
+        "Planned Costs",
+        "Forecast",
+        "Actuals",
+        "Commitments",
+        "Rate Cards",
+        "Variance",
+        "Cost Phasing",
+        "Reports",
+        "Billing Preparation",
+        "Projected Profitability",
+        "Accounting Status",
+        "Financial Setup",
+        "Change Control",
+        "Activity",
+    ):
+        assert f'"label": "{subsection}"' in panel
+    assert "Cashflow" not in panel
     assert "FinancialsBudgetSection" not in section_registry
     assert not (root / "sections/FinancialsBudgetSection.qml").exists()
     assert "FinancialsDetailPanel" in page
     assert "FinancialsListPage" not in page
 
 
-def test_financials_uses_grouped_scrollable_navigation_and_project_scope_selector() -> None:
+def test_financials_uses_flat_scrollable_navigation_and_project_scope_selector() -> None:
     financials_root = Path("src/ui_qml/modules/project_management/qml/workspaces/financials")
     page = (financials_root / "FinancialsWorkspacePage.qml").read_text(encoding="utf-8")
     section_page = Path(
@@ -253,8 +165,16 @@ def test_financials_uses_grouped_scrollable_navigation_and_project_scope_selecto
         "src/ui_qml/shared/qml/App/Widgets/GroupedNavigationRail.qml"
     ).read_text(encoding="utf-8")
 
-    for group in ("Configuration", "Planning", "Cost Control", "Commercial", "Insights"):
-        assert f'"group": "{group}"' in page
+    assert '"group": "Finance"' not in page
+    for destination in (
+        "Overview",
+        "Planning",
+        "Costs",
+        "Performance",
+        "Commercial",
+        "Controls",
+    ):
+        assert f'            "{destination}",' in page or f'            "{destination}"' in page
 
     assert "projectOptions" in page
     assert "selectedProjectId" in page

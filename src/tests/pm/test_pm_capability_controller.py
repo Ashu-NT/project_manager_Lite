@@ -224,6 +224,40 @@ def test_assignment_policy_evaluation_failures_are_blocking() -> None:
     assert preview["certsValid"] is False
 
 
+def test_assignment_mutation_reloads_authoritative_page_immediately() -> None:
+    from src.ui_qml.modules.project_management.controllers.tasks.pm_assignment_controller import (
+        PMAssignmentController,
+    )
+
+    presenter = MagicMock()
+    presenter.build_task_assignments_page.return_value = {
+        "items": [{"id": "assignment-1", "resourceName": "New Resource"}],
+        "total": 1,
+        "page": 1,
+        "pageSize": 25,
+        "sortKey": "resourceName",
+        "sortDirection": "asc",
+    }
+    facade_refresh = MagicMock()
+    controller = PMAssignmentController(
+        presenter=presenter,
+        facade_refresh=facade_refresh,
+        set_is_busy=lambda _value: None,
+        set_error_message=lambda _value: None,
+        set_feedback_message=lambda _value: None,
+    )
+    controller._task_id = "task-1"
+
+    result = controller.createAssignment({"taskId": "task-1"})
+
+    assert result["ok"] is True
+    presenter.create_assignment.assert_called_once()
+    presenter.build_task_assignments_page.assert_called_once()
+    assert controller.assignments["total"] == 1
+    assert controller.assignments["items"][0]["id"] == "assignment-1"
+    facade_refresh.assert_called_once()
+
+
 def test_qml_capability_fallbacks_and_row_actions_are_deny_safe() -> None:
     root = Path("src/ui_qml/modules/project_management/qml")
     projects = (root / "workspaces/projects/ProjectsWorkspacePage.qml").read_text(

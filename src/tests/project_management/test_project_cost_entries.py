@@ -50,7 +50,7 @@ def _source(*, command_id: str = "command-1", content_hash: str = "a" * 64):
 
 
 def _create_project_finance_setup(services):
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         "Canonical actuals",
         financial_currency_code=organization.base_currency,
@@ -389,21 +389,23 @@ def test_governed_cost_approval_applies_as_deciding_principal(
 def test_cost_entry_repository_isolates_active_organization(services) -> None:
     _organization, _project, _cost_code, _period, draft = _create_draft(services)
     organization_service = services["organization_service"]
-    original = organization_service.get_active_organization()
+    original = services["tenant_context_service"].get_active_organization()
     other = organization_service.create_organization(
         organization_code="COST2",
         display_name="Second cost organization",
         timezone_name="UTC",
         base_currency="EUR",
-        is_active=True,
+        is_enabled=True,
     )
-    organization_service.set_active_organization(other.id)
+    organization_service.enable_organization(other.id)
+    services["tenant_context_service"].set_active_organization(other.id)
     try:
         with pytest.raises(NotFoundError) as hidden:
             services["cost_entry_service"].get_entry(draft.id)
         assert getattr(hidden.value, "code", None) == "PROJECT_COST_ENTRY_NOT_FOUND"
     finally:
-        organization_service.set_active_organization(original.id)
+        organization_service.enable_organization(original.id)
+        services["tenant_context_service"].set_active_organization(original.id)
 
     assert services["cost_entry_service"].get_entry(draft.id).id == draft.id
 

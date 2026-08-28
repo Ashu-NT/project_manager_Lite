@@ -390,6 +390,22 @@ adapter design.
 - Tests: correct organization derivation from the grant itself, not the active-session organization (this is the direct regression test for the fix); tenant-scoped role events never leak across tenants; legacy `access_changed`/`auth_changed` (partial) bridged during migration.
 - Exit criteria: scope-derivation fix proven by a real cross-organization grant test; guardrail green.
 
+**Superseded (2026-08-25, P5C prerequisite audit + P5C-1 + P5C-2): the event vocabulary above
+was this discovery pass's preliminary guess, made before confirming that Access and RBAC are
+ONE persistence/business-fact capability, not two.** `AccessControlService.assign_scope_grant`/
+`remove_scope_grant` and every tenant-role assignment facade were confirmed to converge entirely
+on `RoleGovernanceService.assign_role`/`revoke_role_binding` -- there is no separate
+`ScopedAccessGrant` persistence table, so `ScopeAccessGranted`/`ScopeAccessRevoked`/
+`RoleAssignmentGranted`/`RoleAssignmentRevoked` would have been four names for the same one
+underlying fact. **Final vocabulary: exactly `RoleBindingAssigned`/`RoleBindingRevoked`**,
+implemented in P5C-2 (see `platform_domain_event_implementation_plan.md`'s P5C-2 section). The
+scope-derivation prerequisite this row anticipated was real, but ran deeper and reopened once
+(see item 7 above): the P5C prerequisite pass's own storeroom fix was itself incomplete, fully
+closed only in P5C-1, alongside the same defect confirmed in `project`/`site`. The payload the
+final events carry is `binding_id`/`principal_id`/`role_id`/`scope` (a typed
+`RoleBindingScope` union), not the flattened `user_id`/`scope_type`/`role_name` this row
+originally sketched.
+
 ### P5D — Tenant Membership
 
 - Events: `TenantMembershipActivated`, `TenantMembershipSuspended`, `TenantMembershipReactivated`, `TenantMembershipRemoved`.
@@ -400,6 +416,50 @@ adapter design.
 - Legacy compatibility: bridge the relevant slice of `auth_changed` until P6.
 - Exit criteria: all 4 transitions proven distinct and correctly scoped; guardrail green.
 
+**P5D-1 (2026-08-26, implemented): transaction convergence only, per this row's own
+sub-phasing.** `TenantMembershipService` now owns a canonical `TenantMembershipUnitOfWork`; the
+four events above are still unimplemented (P5D-2's job). P5D-1 additionally discovered and
+repaired a pre-existing P5C coverage gap: `TenantMembershipService` held two RoleGovernance-
+bypassing RoleBinding mutations (a direct `add()` on acceptance, a raw bulk-SQL revoke on
+removal) that P5C's own convergence/instrumentation passes never audited, since they only traced
+`RoleGovernanceService`'s own two mutation methods. Both now go through the same canonical
+mechanics (a new transaction-agnostic `role_binding_mutation_participant` module, reused by both
+`RoleGovernanceService` and `TenantMembershipService`) and correctly emit the existing P5C
+`RoleBindingAssigned`/`RoleBindingRevoked` events -- see
+`platform_domain_event_implementation_plan.md`'s P5D-1 section for the full writeup. Confirmed
+(not assumed): `suspend_member`/`reactivate_member` never touch RoleBinding rows, so neither
+transition participates in the RoleBinding event stream at all.
+
+**P5D-3 (2026-08-26, implemented; P5D now complete): ViewInvalidation + direct UI cutover, one
+target (`tenant_memberships`).** Re-tracing the real consumers post-P5C-3 found a THIRD
+membership-status-dependent read this row's own prior finding missed -- the admin overview's
+`user_summary` rollup metric, alongside the two originally-named lists -- all three now migrate
+onto `TenantMembershipViewInvalidationAdapter`. `auth_changed` was NOT deleted: 22 legitimate
+non-membership producers remain (password/MFA/session/registration/bootstrap/custom-role/
+federated-identity/user-account-activation facts), each still consumed by the same two
+pre-existing subscribers, which now also carry the new narrow membership wiring alongside the
+unchanged legacy one. See `platform_domain_event_implementation_plan.md`'s P5D-3 section for the
+full producer/consumer inventory and evidence.
+
+**P5D-2 (2026-08-26, implemented): all four events, exactly as listed above.** One event per
+non-trivial aggregate transition method actually invoked (`accept_invitation()` ->
+`TenantMembershipActivated`, `suspend()` -> `Suspended`, `reactivate()` -> `Reactivated`,
+`remove()` -> `Removed`) -- never derived from destination status. `revoke_invitation`
+(`invited -> removed`) was explicitly decided to be a distinct invitation-lifecycle fact, not a
+membership-removal fact, and emits no event at all -- see
+`platform_domain_event_implementation_plan.md`'s P5D-2 section for the full evidence. Event
+shape ended up exactly `membership_id`/`tenant_id`/`user_id`/`occurred_at` as this row
+anticipated, with no `organization_id`. P5D-3 (ViewInvalidation + Qt) remains not started.
+
+**P5 Closeout (2026-08-26, implemented): residual `auth_changed` audit.** The P5D-3 final
+report's own flagged concern -- `RoleGovernanceService`'s two `auth_changed` producers looking
+like legacy duplicates of the already-implemented RoleBinding ViewInvalidation path -- was
+confirmed and corrected: both removed, no bridge. `auth_changed` itself is NOT deleted globally;
+20 legitimate non-RoleBinding/non-membership producers remain (custom-role definition, session/
+authentication, user-account, password/MFA/federated-identity, registration/bootstrap). See
+`platform_domain_event_implementation_plan.md`'s "P5 Closeout" section for the full inventory,
+evidence, and the Legacy Signal Ownership Matrix that now bounds future modernization work.
+
 ### Approval — explicitly NOT a P5 slice yet
 
 Approval's events (`ApprovalRequested`/`Approved`/`Rejected`) are fully specified above (§3-§9)
@@ -408,6 +468,29 @@ field (or an equivalent, non-ambient resolution path) and (b) an explicit decisi
 aggregate-recording vs. application-authored recording (§8, §17) — both are small, well-scoped
 prerequisites, but they are prerequisites, not this discovery's job to resolve. Once decided,
 Approval slots in easily given P4's UoW work is already done.
+
+**Approval-SEM (2026-08-26, discovery complete; no code changed): both prerequisites resolved.**
+(a) `tenant_id` is already correctly stamped on the persisted ORM row by the repository
+(ambient, via `TenantScopedRepositorySupport`, the same pattern every other tenant-scoped
+repository in this codebase uses) -- the mapper simply never round-trips it to the domain
+dataclass; recommended fix is a pure domain-model/mapper addition, no schema migration needed.
+(b) application-authored recording is the correct, evidence-based choice (not merely
+convention-following) -- `ApprovalRequest` owns no transition methods today, and `ApprovalApproved`
+specifically is not a fact `ApprovalRequest` alone could ever honestly record, since it depends on
+the apply handler's own external orchestration outcome (traced in full: the handler runs BEFORE
+the status flip, inside the same transaction; a handler failure leaves the request PENDING
+forever -- there is no "approved but unapplied" state, reconfirming the prior rejection of a
+separate `ApprovalApplied` event). A third, previously-undercounted sequencing dependency was
+found: the grandfathered `request_change(commit=False)` path has THREE current callers, not two
+(`procurement_lifecycle.submit_requisition`, `FinancialChangeService.submit_change`,
+`ProjectBillingPreparationService.submit_preparation`), none yet on a canonical UoW -- a future
+`ApprovalRequested` producer needs either their transaction convergence first, or (recommended,
+smaller) a transaction-agnostic `ApprovalMutationParticipant`, mirroring
+`role_binding_mutation_participant.py`. Also newly confirmed: Approval is organization-scoped,
+not tenant-wide (unlike Membership/RoleGovernance) -- a future ViewInvalidation target needs
+`OrganizationScope`, not `TenantScope`. See `platform_domain_event_implementation_plan.md`'s
+"Approval-SEM" section for the full writeup, recommended event fields, and phased sequence
+(Approval-P1/P2/P3).
 
 ## 13. Implementation Order
 
@@ -480,9 +563,24 @@ the legacy mechanism until their own event slice (not part of P5A) is proposed.
 
 1. **`ApprovalRequest` has no `tenant_id` field.** Must be resolved (add the field, or a
    documented non-ambient resolution path) before any Approval event work begins.
+   **Resolved (2026-08-26, Approval-SEM):** the ORM row already carries a correctly-stamped
+   `tenant_id` (ambient, via the same `TenantScopedRepositorySupport` pattern every tenant-scoped
+   repository uses) — the mapper simply never round-trips it to the domain dataclass. Recommended
+   fix: add `tenant_id: str` to `ApprovalRequest` and map it both directions; no schema migration
+   needed. See `platform_domain_event_implementation_plan.md`'s "Approval-SEM" section.
 2. **`ApprovalRequest` has no `.approve()`/`.reject()` methods** — a decision is needed on
    whether to add them (enabling proper aggregate-recording, ADR-005's preferred shape) or accept
    application-authored recording as a documented, permanent-until-refactored choice.
+   **Resolved (2026-08-26, Approval-SEM): application-authored, evidence-based (not
+   convention-following).** `ApprovalApproved` is not a fact `ApprovalRequest` alone could ever
+   honestly record — it depends on the apply handler's own external orchestration outcome (the
+   handler runs BEFORE the status flip, inside the same transaction; a handler failure leaves the
+   request PENDING forever, reconfirming there is no separate `ApprovalApplied` fact). A related,
+   newly-found sequencing dependency: the grandfathered `request_change(commit=False)` caller-owned
+   path has THREE current callers (not two), none on a canonical UoW yet — recommended smallest
+   fix is a transaction-agnostic `ApprovalMutationParticipant`, mirroring `role_binding_mutation_
+   participant.py`, not converging all three callers' own transaction ownership first. See the
+   same Approval-SEM section for the full trace and recommended phased sequence.
 3. **`OrganizationActivated`'s sibling-deactivation gap** — should deactivating siblings produce
    its own fact/hint, or is "the active organization changed" sufficiently captured by a single
    event naming only the newly-activated organization? Needs a business-owner decision, not an
@@ -530,6 +628,26 @@ the legacy mechanism until their own event slice (not part of P5A) is proposed.
    which package owns `ScopeAccessGranted`/`Revoked`'s domain module.
 6. **Whether `DocumentLinked`/`DocumentUnlinked` (Class B) ever gets promoted to Class A** depends
    on a future, currently-nonexistent consumer — not a blocker, just explicitly deferred.
+7. **`assign_scope_grant`/`remove_scope_grant`'s ambient-tenant/missing-organization
+   scope-derivation bug (referenced above and in §7's producer table) — status update.**
+   **Resolved (2026-08-25, P5C prerequisite pass): fixed for storeroom** by changing
+   `_storeroom_exists` (`inventory_registry.py`) to compare the storeroom's own organization
+   against `organization_repo.get_for_tenant(...)` rather than the ambient active organization.
+   **REOPENED and CORRECTLY resolved (2026-08-25, P5C-1):** the prerequisite fix was incomplete
+   -- `_storeroom_exists`'s first line, `StoreroomRepository.get(storeroom_id)`, was itself
+   unconditionally filtered to the ambient active organization (a repository-level filter, one
+   layer beneath the resolver's own comparison logic the prerequisite pass fixed), and the
+   prerequisite's own regression test was a false negative (it flipped the DB `Organization
+   .is_active` flag, not the session-level active organization `require_active_scope_ids()`
+   actually reads, so it never exercised the real bug). P5C-1 closed this properly by adding a
+   genuinely tenant-scoped (non-active-org) `get_for_tenant()` read to `StoreroomRepository`
+   (and, since the same defect class was found to also affect `project` and `site`, to
+   `ProjectRepository`/`SiteRepository` as well) and rewriting the regression test to
+   manipulate the real session-level active organization. See
+   `platform_domain_event_implementation_plan.md`'s P5C-1 section for the full resource-resolver
+   audit table (organization/project/site/storeroom/department). The event-vocabulary
+   payload-enrichment prerequisite (`user_id`, `scope_type`, `role_name`) referenced above remains
+   outstanding, deferred to P5C-2.
 
 No factual contradiction was found in ADR-005/the Execution Plan/the Implementation Plan requiring
 a correction, **except one**: the Execution Plan's Phase 2B discovery table stated `access_changed`

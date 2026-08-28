@@ -94,6 +94,7 @@ Item {
                 hasResource: root._hasResource
                 canManageSkills: root.canManageSkills
                 isBusy: root.isBusy
+                availableHeight: root.availableHeight
                 onAddSkillRequested: root.addSkillRequested()
                 onAddCertificationRequested: root.addCertificationRequested()
                 onSkillSelectionChanged: function(skillId) {

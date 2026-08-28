@@ -56,8 +56,5 @@ class UserTenantMembershipRepository(ABC):
     @abstractmethod
     def list_memberships_for_user(self, user_id: str) -> list[UserTenantMembership]: ...
 
-    @abstractmethod
-    def deactivate(self, user_id: str, tenant_id: str) -> None: ...
-
 
 __all__ = ["TenantRepository", "UserTenantMembershipRepository"]

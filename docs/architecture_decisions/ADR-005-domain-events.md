@@ -1,6 +1,7 @@
 # ADR-005: Domain Events
 
-- Status: proposed (revision 8 — pre-release direct-convergence scope decision incorporated)
+- Status: accepted, Platform-scoped implementation complete through P8 (revision 9 — final
+  canonicalization; see §26)
 - Date: 2026-08-05, revised 2026-08-25 after a dedicated, evidence-based Platform-only
   architecture audit (`docs/platform_modernization/domain_event/platform_domain_event_audit.md`)
   found this design was not landing on the blank slate its earlier revisions assumed; revised
@@ -107,6 +108,19 @@ PM/Inventory audit performed to size this correctly, explicitly confirms what st
 the process-lifetime `Session` cannot be removed from `app_container` until Execution Plan Phases 3
 and 5 both close — this correction narrows *how* 2A-PRE converges the 8 services, it does not
 widen *what* 2A-PRE covers. See §24.
+
+**Round 9 (this revision) is the P8 closeout** — the Platform-scoped implementation (P0 through
+P8 of `platform_domain_event_implementation_plan.md`) is now complete and this ADR is updated to
+describe what was actually built, not merely what was planned. §26 (new) is the authoritative
+implementation-status section. In summary: five capabilities reached genuinely typed
+DomainEvent → ViewInvalidation → Qt adapter presentation (Module Entitlement, RoleBinding, Tenant
+Membership, Approval, and Organization's own `create` transition only); the legacy
+`domain_events`/`Signal`/`DomainChangeEvent` generic bridge described as a temporary migration aid
+in §23 below was not merely bridged down — it was deleted entirely (P7A), followed by two rounds
+of dead-signal deletion (P7B: zero-producer signals; P7C: zero-consumer signals, including their
+producers). §23's own table is corrected in place rather than left describing a bridge that no
+longer exists. Every other decision in this document (§1-§25) held as originally decided; none
+were reversed during implementation.
 
 ## Context
 
@@ -1072,6 +1086,8 @@ explicit citation back to this section, so it remains visible rather than quietl
 
 ### 23. Legacy Compatibility
 
+**As originally planned (below, unchanged from Round 6-8):**
+
 | Mechanism | Disposition |
 |---|---|
 | `domain_events` singleton / `Signal` / `DomainChangeEvent` | Bridge incrementally, module/capability by module/capability, per the execution plan; retire once every consumer has migrated |
@@ -1083,6 +1099,25 @@ explicit citation back to this section, so it remains visible rather than quietl
 | `NotificationService`/`Notification` | Kept as-is; unrelated to this migration |
 | `IntegrationEventEnvelope`/outbox-inbox (ADR-PF-011) | Kept as-is; unrelated mechanism, already correct |
 | Dead `session_scope()` | Reclaimed (§20) — zero callers, no migration cost |
+
+**As actually implemented (P8 closeout — see §26 for the full ledger):**
+
+| Mechanism | Actual final disposition |
+|---|---|
+| `domain_events` singleton / `Signal[str]` fields | **26 remain, LEGACY-ONLY, frozen allowlist** (§26.5) — not "bridged," never merged into anything typed. Each has a real producer and a real consumer, direct-wired (no generic routing of any kind). New Signal fields are architecture-guarded against; deletion remains unrestricted per-capability as each is semantically migrated. |
+| `_BRIDGE_SPECS` / `_wire_bridges` / `_build_bridge` / `domain_changed` / `DomainChangeEvent` / `_subscribe_domain_change` | **Deleted entirely (P7A)** — this went further than "bridge down and retire": the generic entity_type/scope_code dispatch mechanism itself was removed, not merely emptied. All 17 production callers were converted to direct `_subscribe_domain_signal(specific_signal, callback)` wiring first. |
+| `shared_master_changed` | **Deleted (P7)** — zero production consumers found; fully redundant with `domain_changed`'s own routing even before P7A removed that mechanism too. |
+| `costs_changed`, `calendars_changed` | **Deleted (P7B)** — zero production producers of any kind (direct or reflective), despite live UI consumers; the consumers were dead code by construction. |
+| `cost_entries_changed`, `commitments_changed`, `forecasts_changed`, `financial_changes_changed` | **Deleted (P7C)** — real producers (direct `.emit(` and reflective `ApprovalPostCommitEvent`), zero consumers of any kind; both the signals and their producer call sites were removed. |
+| `admin_console/domain_event_binder.py` | **KEPT, unchanged** — the P7 audit found it was never a generic bridge in the first place (it always subscribed directly to specific signals); it owns a real, still-required composite-refresh responsibility. Its own "R2" self-scheduled removal remains separate, future, not performed here. |
+| Three `workspace_controller_base.py` copies | **KEPT, all three, unchanged** — P6's own audit found the ViewInvalidation-adapter lifecycle was never duplicated across them in the first place (adapter construction lives at the catalog level, not any controller base); §13's shared adapter (`ScopedViewInvalidationSubscription`, composition-based) was built and adopted by all five capability adapters instead. |
+| `ApprovalService`'s transaction convention | **Adapted exactly as planned** — migrated onto the canonical `UnitOfWork` in P4/P4-PRE. |
+| `PlatformEvent` / `NotificationService` / `IntegrationEventEnvelope` (outbox/inbox) | **Kept as-is, exactly as planned** — confirmed still structurally distinct from `DomainEvent` (§26.1). |
+| Dead `session_scope()` | Reclaimed as planned. |
+| Organization update/set-active | **Not in the original table at all** — discovered during P7 to still use the direct (never-bridged) `organizations_changed` signal; P5A only ever typed `OrganizationCreated`. Documented as a correction, not migrated (§26.4). **Migrated (P10D):** `update_organization`/`enable_organization`/`disable_organization` now record `OrganizationProfileUpdated`/`OrganizationEnabled`/`OrganizationDisabled` on the same canonical `OrganizationUnitOfWork` `OrganizationCreated` already used, mapped onto the existing `organization_list` ViewInvalidation target. `organizations_changed` is deleted from `DomainEvents` entirely — zero remaining producers, zero remaining consumers. Session-context selection (`TenantContextService.set_active_organization`) was never in scope for this migration and produces no DomainEvent of any kind. |
+| Employee create/update | Not in the original table — `employees_changed` was a direct (never-bridged) legacy signal, un-typed prior to P12A/P12B. **Migrated (P12B):** `create_employee`/`update_employee` now record `EmployeeCreated`/`EmployeeProfileUpdated` on the canonical `EmployeeUnitOfWork` P12A converged onto, mapped onto a new `employee_list` ViewInvalidation target (`OrganizationScope`, matching Employee's actual ownership — organization-scoped, not tenant-wide). `employees_changed` is deleted from `DomainEvents` entirely — zero remaining producers, zero remaining consumers. `resources_changed` (Employee's other, PM-owned legacy signal, still emitted by `update_employee`'s linked-resource sync) is explicitly untouched — Resource capability remains NOT MODERNIZED. |
+| Department create/update | Not in the original table — `departments_changed` was a direct (never-bridged) legacy signal, un-typed prior to P13A/P13B. **Migrated (P13B):** `create_department`/`update_department` now record `DepartmentCreated`/`DepartmentProfileUpdated` on the canonical `DepartmentUnitOfWork` P13A converged onto, mapped onto a new `department_list` ViewInvalidation target (`OrganizationScope`). `departments_changed` is deleted from `DomainEvents` entirely — zero remaining producers, zero remaining consumers (Admin Console was its only consumer, per P11's audit). |
+| Site create/update | Not in the original table — `sites_changed` was a direct (never-bridged) legacy signal, un-typed prior to P14A/P14B, with five real consumers (Admin Console plus Inventory/Pricing/Procurement/Reservations). **Migrated (P14B):** `create_site`/`update_site` (extracted into `site_commands.py` during this phase, off the canonical `SiteUnitOfWork` P14A converged onto) now record `SiteCreated`, `SiteProfileUpdated`, and — mirroring Organization's own `is_enabled`-boolean precedent — `SiteEnabled`/`SiteDisabled` for the one genuine lifecycle transition (`is_active`), mapped onto a new `site_list` ViewInvalidation target (`OrganizationScope`). A single mutation that changes both profile fields and availability in the same call records both distinct typed events (both still individually published on the post-commit bus) but the `site_list` handler coalesces them to one ViewInvalidation hint per commit (keyed on the UoW's `DomainEventContext.correlation_id`), so one Site mutation never causes more than one downstream refresh. `sites_changed` is deleted from `DomainEvents` entirely — zero remaining producers, zero remaining consumers. Of the five prior consumers: Admin Console got a new narrow `refresh_sites()`; Inventory/Pricing/Procurement each got a new narrow `refresh_site_options()` (rebuilding only their `site_options`/`storeroom_options` reference data, since storeroom labels embed the site name) via three new `SiteViewInvalidationAdapter` instances wired in a from-scratch ViewInvalidation seam built for `InventoryProcurementWorkspaceCatalog` (previously had none); Reservations had zero real Site dependency (confirmed by audit) and was simply dropped with no replacement wiring. |
 
 No compatibility facades that outlive their own migration phase, and no straddling: per this
 codebase's existing hard rule (also stated in `docs/repo_structure_plan/EXECUTION_SPEC.md`), a
@@ -1369,6 +1404,258 @@ This ADR does **not**:
 - rename `PlatformEvent` as a blocking prerequisite (§19);
 - introduce a metrics/tracing platform (§18);
 - change ADR-PF-011's durable delivery semantics in any way (§11, §24).
+
+### 26. Implementation Status: P8 Closeout
+
+This section is the authoritative record of what the Platform-scoped implementation (P0-P8 of
+`platform_domain_event_implementation_plan.md`) actually built, as distinct from what earlier
+sections of this ADR proposed. Nothing in §1-§25 was reversed; this section records completion,
+scope, and the handful of corrections discovered along the way.
+
+**26.1 The five concepts remain distinct, exactly as designed.** Verified against current source,
+not merely restated from §1:
+
+1. **`DomainEvent`** (`src/core/shared/events/domain_event.py`) — a `Protocol` (`runtime_checkable`,
+   structural typing, zero base-class inheritance possible), the marker every module's own concrete
+   event dataclass satisfies. In-process only, business-vocabulary only, never a UI message, never
+   durable transport.
+2. **`DomainEventContext`** (`src/core/shared/events/domain_event_context.py`) — correlation/
+   causation/command metadata, kept off the business-fact dataclasses themselves exactly as §5
+   decided.
+3. **`ViewInvalidationHint`** (`src/core/shared/events/view_invalidation.py`) — a plain frozen
+   dataclass (scope/category/scope_code/entity_type/entity_id), never a business fact, never routed
+   through the same contract as a `DomainEvent`. Never crosses directly into QML/controller
+   presentation without going through a capability-specific Qt adapter (§15 below).
+4. **`IntegrationEventEnvelope`** (`src/core/platform/integration/events.py`) — a `pydantic.BaseModel`
+   (schema-versioned, `event_id`/`event_type`/`schema_version`/`aggregate_type`/`aggregate_id`/
+   `aggregate_version`/`payload`), structurally incapable of inheriting from the `DomainEvent`
+   `Protocol` or vice versa. Owned by ADR-PF-011, untouched by this migration.
+5. **`Notification`** (`src/core/platform/domain/events/notifications/notification.py`) and
+   **`PlatformEvent`** (`src/core/platform/domain/events/platform_events/platform_event.py`) —
+   persisted, user-facing communication and persisted governance/audit record respectively, both
+   confirmed still structurally separate from `DomainEvent`, never merged into one "universal event"
+   type as §25/Alternatives Rejected already forbid.
+
+**26.2 The canonical write/reaction pipeline is now real, not aspirational, for five capabilities.**
+Confirmed by source: `command/application operation → canonical UnitOfWork (`src/core/platform/
+contract/persistence/*_unit_of_work.py` + `src/core/platform/infrastructure/persistence/
+*_unit_of_work.py`) → aggregate-recorded DomainEvent (via `RecordsDomainEvents`,
+`src/core/shared/events/aggregate_events.py`) or a justified `uow.record_event(...)` call →
+`InProcessTransactionalEventDispatcher` (FAIL_FAST, pre-commit) → integration-event mapping/outbox
+staging before commit where ADR-PF-011 applies → database commit →
+`InProcessPostCommitEventBus` (ISOLATE_AND_CONTINUE, post-commit) → a per-capability mapper
+(`event_handlers/view_invalidation.py`) producing exactly one `ViewInvalidationHint` per target →
+`InProcessViewInvalidationChannel` → a capability-specific Qt adapter
+(`src/ui_qml/platform/adapters/*_view_invalidation_adapter.py`, all five now built on the shared
+`ScopedViewInvalidationSubscription` mechanics-only helper, §26.6) → a narrow controller/read-model
+refresh method. 15 typed `DomainEvent` classes exist across 5 capabilities: `OrganizationCreated`
+(1); `ModuleLicensed`/`ModuleLicenseRevoked`/`ModuleEnabled`/`ModuleDisabled`/
+`ModuleLifecycleTransitioned` (5); `RoleBindingAssigned`/`RoleBindingRevoked` (2);
+`TenantMembershipActivated`/`Suspended`/`Reactivated`/`Removed` (4);
+`ApprovalRequested`/`ApprovalApproved`/`ApprovalRejected` (3).
+
+**26.3 Canonical rules for new Platform semantic behavior (§4/§5/§6/§9 restated as binding
+policy, not merely design).** For any NEW Platform capability:
+- Prefer an aggregate that implements `RecordsDomainEvents` and records its own typed events; the
+  `uow.record_event(...)` escape hatch is allowed only for a legitimate application/orchestration
+  fact with no natural aggregate owner (§6) — never merely to tell the UI to refresh.
+- One `UnitOfWork` = one physical transaction = one fresh `Session` = owns commit/rollback = owns
+  the `DomainEvent` lifecycle for that transaction (§9). No nested participant commit.
+- Transactional handlers run pre-commit, FAIL_FAST (a failure rolls back the whole transaction).
+  Integration-event mapping/outbox staging happens before commit, in the same transaction, where
+  ADR-PF-011 applies. Post-commit handlers run only after a successful commit, ISOLATE_AND_CONTINUE
+  (one handler's failure never blocks a sibling or un-commits already-persisted state). No
+  post-commit publication ever follows a rollback or a commit failure — proven per-capability by
+  each phase's own audit/commit-failure regression tests.
+- UI staleness is expressed exclusively through `ViewInvalidationHint`, never a direct
+  `DomainEvent` subscription from QML/a controller, and never a new `Signal[str]` field.
+
+**26.4 Organization: FULLY MODERNIZED (P10D) — was PARTIALLY MODERNIZED, corrected not silently
+upgraded, as of the original writing below.** `create_organization` is fully typed:
+`OrganizationCreated` → `ViewInvalidation` → `OrganizationViewInvalidationAdapter`, zero legacy
+signal involvement (confirmed: `organizations_changed` does not appear anywhere in
+`create_organization`'s own source) — unchanged by P10D. As originally written here,
+`update_organization`/`set_active_organization` — never in P5A's scope — still emitted the direct,
+un-bridged `organizations_changed` signal, consumed directly by `settings_workspace_controller.py`
+and `admin_console/domain_event_binder.py`; no `OrganizationUpdated`/`OrganizationActivated` event
+had been invented to close that gap.
+
+**P10D closed it correctly, not with the forbidden shortcut:** `update_organization` now records
+`OrganizationProfileUpdated` (profile field changes) and/or `OrganizationEnabled`/
+`OrganizationDisabled` (availability changes, matching P10A's `is_enabled` semantics) as
+appropriate — never a generic `OrganizationChanged`/`OrganizationUpdated` blanket event, and never
+`OrganizationActivated`/`OrganizationSelected`/`TenantActiveOrganizationChanged` (P9A-R/P10A/P10B/
+P10C already settled that session-context selection is not a business fact and stays outside
+`DomainEvent` vocabulary entirely — `TenantContextService.set_active_organization` still produces
+none of these events). `enable_organization`/`disable_organization` record the same two
+availability events directly. All three route through the same canonical `OrganizationUnitOfWork`
+`uow.record_event(...)` pre-commit pattern `OrganizationCreated` established — no aggregate
+refactor, no new UoW ownership model. Both consumers (`settings_workspace_controller.py`,
+`admin_console/domain_event_binder.py`) had their direct `organizations_changed` subscriptions
+removed; both already had (from P5A/P6A) a narrow `refresh_organization_profiles()`/
+`refresh_organizations()` wired to the same `OrganizationViewInvalidationAdapter`
+`organizationCollectionStale` signal `OrganizationCreated` uses, so no new UI wiring was needed —
+only the legacy subscription removal. `organizations_changed` is now deleted from `DomainEvents`
+entirely (zero producers, zero consumers, zero remaining allowlist members referencing it as
+current).
+
+**26.5 Legacy `Signal[str]` allowlist policy — frozen, growth-blocked, deletion-open.** 26 fields
+remain on `DomainEvents` (`src/core/shared/events/domain_events.py`), enumerated exactly in §27's
+ledger and guarded by `test_p8_platform_event_architecture_canonicalization.py`'s allowlist test
+(`current_signal_names ⊆ frozen_allowlist`, never `==`) — a newly-added field not in the frozen
+set fails; deleting an allowlisted field (the expected outcome of each future capability's own
+semantic migration) always passes. These are grandfathered existing capabilities, not an approved
+mechanism for new work (§26.3). `admin_console/domain_event_binder.py` is classified as a
+**legacy-signal presentation coordinator** (direct-wired, real composite-refresh responsibility),
+never a generic compatibility bridge — its own "R2" removal remains separate, future work, not
+performed in P8.
+
+**26.6 P6's `ScopedViewInvalidationSubscription` composition choice, confirmed as the shared
+mechanics-only seam.** All five capability Qt adapters (Organization, Module Entitlement,
+RoleBinding, Tenant Membership, Approval) compose one or two instances of this helper rather than
+inheriting from a shared `QObject` base — chosen because each adapter's own Qt signal name is
+deliberately distinct presentation vocabulary, and RoleBinding's polymorphic scope model needs two
+simultaneous subscriptions (tenant-wide + exact-organization) that would strain a single-
+subscription base class. The helper owns subscribe/replace-filter/dispose lifecycle mechanics
+only — no capability names, no `DomainEvent` imports, no tenant/org discovery, no controller
+refresh methods, confirmed unchanged by P7A/P7B/P7C's own architecture guards.
+
+**26.7 `domain_events` singleton status: LEGACY-ONLY, not removable yet.** Still constructed and
+still live (26 real signal fields with real producers and consumers depend on it) — new Platform
+typed-event infrastructure (the five capabilities in §26.2) has zero dependency on it, confirmed
+by each capability's own mapper-module architecture guard (no `domain_events` import). It may be
+deleted only after the final remaining allowlisted `Signal` is semantically migrated to a typed
+`DomainEvent`/deleted outright — not before.
+
+**26.8 Explicitly deferred, not solved, by P8 (carried forward as pre-existing debt):** the ADR-004
+calendar transitional dependency (§22); the `SqlAlchemyApprovalRepository → project_management`'s
+`ProjectORM` concrete-import layering violation (§22, §25); observability/metrics/tracing (§18,
+§25 — no telemetry work was added in P8); PM/Inventory's own extensive, still-unmigrated
+`Signal[str]` usage (module-migration backlog, never a Platform-migration blocker); the seven
+auth-adjacent Platform capabilities still on `auth_changed` and its siblings (§27); the four
+architecture-suite baseline failures already known and unrelated to this migration (WBS/RLS/QML-
+layering/size-guardrail failures, unchanged in identity across every phase's regression run).
+
+**26.9 Pre-release migration policy, stated explicitly.** This application is pre-release: every
+phase from P4-PRE Round 8 onward chose direct convergence and deletion of obsolete paths over
+compatibility aliases, deprecated wrappers, or typed-event → legacy-signal bridges, except where a
+genuinely still-live production dependency required temporary retention (the 26-signal allowlist
+itself, and `admin_console/domain_event_binder.py`). Future per-capability migrations should
+default to the same choice.
+
+**26.10 Employee: FULLY MODERNIZED (P12A/P12B).** P12A converged `create_employee`/
+`update_employee` off the shared, process-lifetime `Session` onto a canonical fresh-session
+`EmployeeUnitOfWork`/`EmployeeUnitOfWorkFactory` pair (mirroring `OrganizationUnitOfWork` exactly,
+including the injected `resource_repo_factory` seam so Platform's own infrastructure never imports
+`project_management`'s concrete `SqlAlchemyResourceRepository` directly — only the composition
+root, which already legitimately depends on both, knows that binding). P12B then recorded
+`EmployeeCreated`/`EmployeeProfileUpdated` on that same UoW, pre-commit, via `uow.record_event(...)`
+— no `EmployeeChanged` blanket event, no aggregate refactor. `update_employee` gained a genuine
+no-op guard (mirroring P10D's `update_organization`): a call whose fields are already identical to
+the persisted state performs no write, no audit entry, and records no event. Both events map onto
+one new `employee_list` ViewInvalidation target, `OrganizationScope`-filtered (Employee is
+organization-owned, not tenant-wide — confirmed via the same ownership check P11's audit already
+established for `employees_changed`). Both legacy consumers (`admin_console/domain_event_binder.py`,
+the PM Resources binder) had their direct `employees_changed` subscriptions removed. Admin Console
+gained a new narrow `refresh_employees()` delegating to its existing employee sub-controller's own
+`refresh()`. PM Resources needed a genuinely new narrow reload (`refresh_employee_options()`,
+rebuilding only its employee picker list) rather than reusing its existing coarse `refresh()`:
+`employees_changed` and `resources_changed` are NOT redundant there — an Employee profile change
+with no linked PM Resource produces only the former, and `resources_changed` (PM Resource row
+sync, still fully legacy, still unmodernized) already independently triggers PM Resources' full
+`refresh()` whenever a linked resource is actually touched. Wiring the new `employee_list` hint to
+the same coarse `refresh()` would have double-refreshed the workspace on every employee update that
+also touches a linked resource; wiring it to the new narrow reload instead means exactly one
+narrow-plus-one-full refresh happens on that path, never two full refreshes for one Employee
+transaction — verified directly by a dedicated regression test. `resources_changed` itself is
+completely untouched by this phase: still legacy, still emitted exactly where P12A left it, still
+consumed exactly as before. Resource capability remains NOT MODERNIZED — this phase did not
+redesign Employee↔PM-Resource synchronization, only stopped the Employee side from needlessly
+double-refreshing around it. `employees_changed` is now deleted from `DomainEvents` entirely (zero
+producers, zero consumers); the legacy Signal count on `DomainEvents` is 27 as of this phase,
+recomputed directly from `dataclasses.fields(domain_events)` rather than incrementally adjusting
+any previously-stated count.
+
+**26.11 Department: FULLY MODERNIZED (P13A/P13B).** P13A converged `create_department`/
+`update_department` off the shared, process-lifetime `Session` onto a canonical fresh-session
+`DepartmentUnitOfWork`/`DepartmentUnitOfWorkFactory` pair. Both of Department's cross-entity
+dependencies (`SiteRepository` for site-organization validation, `EmployeeRepository` for
+manager-employee validation, plus `DepartmentRepository` itself for parent-department validation)
+are Platform-owned, so — unlike Employee's `resource_repo_factory` injection seam — no
+cross-module layering workaround was needed. A P13A-FIX pass closed a real integrity gap found
+during that convergence: manager-employee validation originally checked only that the Employee
+existed, not that it belonged to the active organization; both `create_department` and
+`update_department` now resolve the manager through the UoW's own organization-scoped
+`EmployeeRepository.get_for_organization(...)`, reusing the existing `DEPARTMENT_MANAGER_INVALID`
+error rather than inventing a new one. P13B then recorded `DepartmentCreated`/
+`DepartmentProfileUpdated` on that same UoW, pre-commit, via `uow.record_event(...)` — no
+`DepartmentChanged` blanket event. `update_department` gained a genuine no-op guard: a call whose
+user-controlled fields (code/name/description/site/parent/type/cost-center/manager/active/notes)
+are already identical to the persisted state performs no write, no audit entry, records no event,
+and — critically, since P13A had preserved an unconditional `updated_at=datetime.now(...)` bump on
+every update — no longer bumps `updated_at` either; the candidate is built without the timestamp
+touch, compared field-by-field, and the timestamp is only applied once a real change is confirmed.
+Both events map onto one new `department_list` ViewInvalidation target, `OrganizationScope`-
+filtered (Department is organization-owned, matching Employee's own scope choice). Department had
+only one legacy consumer (Admin Console, per P11's audit — unlike Employee's dual-consumer case,
+no duplicate-refresh concern existed here): its direct `departments_changed` subscription was
+removed from `admin_console/domain_event_binder.py`, and a new narrow
+`AdminConsoleController.refresh_departments()` (delegating to the existing Department
+sub-controller's own `refresh()`, the narrowest existing refresh path — no full-workspace
+cascade) was wired to a new `DepartmentViewInvalidationAdapter` in `context.py`, mirroring the
+Employee/Organization adapter pattern exactly. `departments_changed` is now deleted from
+`DomainEvents` entirely (zero producers, zero consumers); the legacy Signal count is 26 as of this
+phase, recomputed directly from `dataclasses.fields(domain_events)`.
+
+**26.12 Site: FULLY MODERNIZED (P14A/P14B).** P14A converged `create_site`/`update_site` off the
+shared, process-lifetime `Session` onto a canonical fresh-session `SiteUnitOfWork`/
+`SiteUnitOfWorkFactory` pair — the smallest of the four UoWs, since Site has no cross-entity
+dependency at all beyond its own organization-ownership check. A P14A-FIX pass reverted a mistaken
+architecture line-budget increase on `site_service.py` (360→400): the file's 383→385-line growth
+across P14A was 2 real lines against a pre-existing, already-violated budget, not a new breach
+caused by the migration; the budget was restored to 360 and the pre-existing breach left visible.
+P14B then recorded `SiteCreated` on create, and on update recorded `SiteProfileUpdated` and/or
+`SiteEnabled`/`SiteDisabled` depending on which of two independent, correctly-distinguished
+concepts actually changed: Site's fifteen ordinary profile fields, and its one genuine lifecycle
+concept (`is_active`, with `opened_at`/`closed_at`/`status` as automatic derived side-effects of
+that single boolean, never independently-triggerable states — deliberately not modeled as
+`SiteOpened`/`SiteClosed`, which would have invented lifecycle vocabulary the domain doesn't have).
+A retroactive `opened_at`/`closed_at`/`status` correction made without an accompanying `is_active`
+flip still counts as a genuine profile change, since nothing about availability actually
+transitioned. `update_site` gained the same no-op discipline as Department: a call identical to the
+persisted state on every relevant field records zero events, zero audit entry, zero write, and
+does not bump `updated_at`. Both events map onto one new `site_list` ViewInvalidation target
+(`OrganizationScope`); because a single mixed update can legitimately record two typed events in
+one commit, the `site_list` handler deduplicates by the UoW's own `DomainEventContext
+.correlation_id` so one Site mutation never produces more than one `site_list` hint — the two
+business events themselves are still both published individually on the post-commit bus. To keep
+`site_service.py` under its (deliberately untouched, per explicit instruction) 360-line budget once
+this event-recording logic was added, `create_site`/`update_site` were extracted into a sibling
+`site_commands.py` module (with `site_context.py`/`site_utils.py` helpers), mirroring the
+`department_commands.py` split Department already used — `site_service.py` now only owns
+construction and the read-only query surface. All five prior `sites_changed` consumers were
+individually re-audited rather than mechanically rewired: Admin Console got a new narrow
+`refresh_sites()` (delegating to its existing Site sub-controller's own `refresh()`); Inventory,
+Pricing, and Procurement each have a genuine, narrow dependency on `site_options` and (since
+storeroom option labels embed the owning site's name) `storeroom_options`, so each gained a new
+`build_site_reference_options()`/`refresh_site_options()` pair and its own
+`SiteViewInvalidationAdapter` instance, wired inside a ViewInvalidation seam built from scratch for
+`InventoryProcurementWorkspaceCatalog` (which had none before this phase — no
+`_view_invalidation_channel`, no tenant/organization-id resolution helpers; a new local
+`resolve_active_organization_id_from_runtime_api`-equivalent was added under
+`inventory_procurement/controllers/common/` rather than cross-importing PM's own copy, to avoid an
+Inventory↔PM business-module coupling); Reservations had zero real Site dependency anywhere in its
+controller or presenter and was simply dropped from `sites_changed`'s subscribers with no
+replacement wiring at all. `sites_changed` is now deleted from `DomainEvents` entirely (zero
+producers, zero consumers); the legacy Signal count is 25 as of this phase, recomputed directly
+from `dataclasses.fields(domain_events)`. Two pre-existing, out-of-scope items remain unchanged and
+undisturbed by this phase: the Site ORM's non-timezone-aware `DateTime` columns
+(`opened_at`/`closed_at`/`created_at`/`updated_at`) — the root cause of a known naive-vs-aware
+`TypeError` whenever a previously-persisted, previously-active site is deactivated, reproduced
+identically before and after both P14A's and P14B's own changes — and Inventory's own business
+events, which remain fully legacy; this phase modernized only Site's producer side and its
+consumers' Site-specific reaction, never Inventory/Pricing/Procurement/Reservations' own domain
+events.
 
 ## Alternatives Rejected
 

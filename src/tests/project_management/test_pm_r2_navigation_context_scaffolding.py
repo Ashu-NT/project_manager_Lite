@@ -34,7 +34,7 @@ def test_pm_canonical_route_id_value():
     assert PM_CANONICAL_ROUTE_ID == "project_management.workspace"
 
 
-def test_pm_workspace_keys_are_exactly_the_ten_legacy_capabilities():
+def test_pm_workspace_keys_cover_the_eleven_current_capabilities():
     assert set(PM_WORKSPACE_KEYS) == {
         "dashboard",
         "portfolio",
@@ -43,21 +43,25 @@ def test_pm_workspace_keys_are_exactly_the_ten_legacy_capabilities():
         "scheduling",
         "resources",
         "timesheets",
+        "review_queue",
         "financials",
         "register",
         "collaboration",
     }
-    assert len(PM_WORKSPACE_KEYS) == 10
+    assert len(PM_WORKSPACE_KEYS) == 11
 
 
 def test_pm_compatibility_route_ids_are_prefixed_workspace_keys():
     assert set(PM_COMPATIBILITY_ROUTE_IDS) == {
-        f"project_management.{key}" for key in PM_WORKSPACE_KEYS
+        f"project_management.{key}"
+        for key in PM_WORKSPACE_KEYS
+        if key != "review_queue"
     }
+    assert "project_management.review_queue" not in PM_COMPATIBILITY_ROUTE_IDS
     assert PM_CANONICAL_ROUTE_ID not in PM_COMPATIBILITY_ROUTE_IDS
 
 
-def test_all_ten_legacy_workspace_mappings_match_target_destinations():
+def test_all_current_workspace_mappings_match_target_destinations():
     expected = {
         "dashboard": ("overview", ""),
         "portfolio": ("portfolio", ""),
@@ -65,7 +69,8 @@ def test_all_ten_legacy_workspace_mappings_match_target_destinations():
         "tasks": ("work", "tasks"),
         "scheduling": ("work", "planning"),
         "resources": ("workload", "resources"),
-        "timesheets": ("workload", "review_queue"),
+        "timesheets": ("work", "timesheets"),
+        "review_queue": ("workload", "review_queue"),
         "financials": ("finance", ""),
         "register": ("governance", "register"),
         "collaboration": ("governance", "collaboration"),
@@ -114,11 +119,11 @@ def test_navigation_default_destination_is_dashboard_overview():
     assert controller.secondaryId == ""
 
 
-def test_navigation_items_cover_all_ten_workspaces_in_six_groups():
+def test_navigation_items_cover_all_eleven_workspaces_in_six_groups():
     controller = PMWorkspaceNavigationController()
     items = controller.navigationItems
 
-    assert len(items) == 10
+    assert len(items) == 11
     ids = {item["id"] for item in items}
     assert ids == set(PM_WORKSPACE_KEYS)
 
@@ -136,8 +141,8 @@ def test_navigation_items_cover_all_ten_workspaces_in_six_groups():
     }
     assert sorted(groups["Overview"]) == ["dashboard"]
     assert sorted(groups["Portfolio"]) == ["portfolio"]
-    assert sorted(groups["Work"]) == ["projects", "scheduling", "tasks"]
-    assert sorted(groups["Workload Management"]) == ["resources", "timesheets"]
+    assert sorted(groups["Work"]) == ["projects", "scheduling", "tasks", "timesheets"]
+    assert sorted(groups["Workload Management"]) == ["resources", "review_queue"]
     assert sorted(groups["Finance"]) == ["financials"]
     assert sorted(groups["Governance"]) == ["collaboration", "register"]
 
@@ -239,7 +244,7 @@ def test_apply_route_unknown_route_is_rejected():
     assert controller.workspaceKey == "dashboard"
 
 
-def test_all_ten_destinations_are_always_present_in_navigation_items():
+def test_all_current_destinations_are_always_present_in_navigation_items():
     """R2.14: PMCapabilityController's existing R1.8 facts (canApproveBaseline,
     canApplyLeveling, canManageSkills, canRequestAssignmentOverride, canImport,
     canApprovePmRequest) are all fine-grained ACTION-level permissions, not a

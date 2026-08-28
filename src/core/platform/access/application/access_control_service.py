@@ -9,7 +9,6 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.core.shared.events.domain_events import domain_events
 from src.core.platform.access.domain import (
     ScopedAccessGrant,
     ScopedRolePolicy,
@@ -26,6 +25,9 @@ from src.core.platform.application.security.auth.session.session_service import 
     refresh_current_session_if_user,
 )
 from src.core.platform.contract.repositories.security.auth import UserRepository
+from src.core.platform.domain.master_data.org.access_policy import (
+    ORGANIZATION_SCOPE_ROLE_CANONICAL_NAMES,
+)
 from src.core.platform.domain.tenant.tenancy import MEMBERSHIP_STATUS_ACTIVE
 
 if TYPE_CHECKING:
@@ -42,7 +44,7 @@ ScopeExistsResolver = Callable[[str, str], bool]
 
 # Scope types that write/read canonical role_bindings, translated to the
 # ScopedAccessGrant shape so the desktop API/QML contract stays unchanged.
-_CANONICAL_SCOPE_TYPES = frozenset({"project", "site", "storeroom"})
+_CANONICAL_SCOPE_TYPES = frozenset({"organization", "project", "site", "storeroom"})
 
 
 class AccessControlService:
@@ -196,7 +198,7 @@ class AccessControlService:
             role_name=role_name,
             permissions=permissions,
         )
-        domain_events.access_changed.emit(normalized_scope_id)
+
         self._refresh_current_session_if_needed(normalized_user_id)
         return grant
 
@@ -228,8 +230,11 @@ class AccessControlService:
             user_id=normalized_user_id,
             tenant_id=tenant_id,
         )
-        domain_events.access_changed.emit(normalized_scope_id)
+        # P5C-3: `access_changed` retired -- see `assign_scope_grant`'s own comment above.
         self._refresh_current_session_if_needed(user_id)
+        self._clear_active_organization_if_revoked(
+            normalized_scope_type, normalized_scope_id, normalized_user_id
+        )
 
     def _require_canonical_services(self):
         if (
@@ -246,7 +251,10 @@ class AccessControlService:
             )
         return self._role_governance_service, self._role_repo, self._role_binding_repo
 
-    _CANONICAL_ROLE_NAME_OVERRIDES: dict[tuple[str, str], str] = {}
+    _CANONICAL_ROLE_NAME_OVERRIDES: dict[tuple[str, str], str] = {
+        ("organization", choice): canonical_name
+        for choice, canonical_name in ORGANIZATION_SCOPE_ROLE_CANONICAL_NAMES.items()
+    }
 
     @classmethod
     def _canonical_role_name(cls, scope_type: str, scope_role: str) -> str:
@@ -492,6 +500,17 @@ class AccessControlService:
 
     def _refresh_current_session_if_needed(self, user_id: str) -> None:
         refresh_current_session_if_user(self._auth_service, user_id)
+
+    def _clear_active_organization_if_revoked(
+        self, scope_type: str, scope_id: str, user_id: str
+    ) -> None:
+        if scope_type != "organization" or self._user_session is None:
+            return
+        principal = self._user_session.principal
+        if principal is None or principal.user_id != user_id:
+            return
+        if self._user_session.active_organization_id() == scope_id:
+            self._user_session.set_active_organization_id(None)
 
 
 __all__ = ["AccessControlService", "ScopeExistsResolver"]

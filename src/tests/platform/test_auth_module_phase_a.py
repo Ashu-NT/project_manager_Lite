@@ -309,9 +309,10 @@ def test_auth_service_restores_last_active_context_on_reauthentication(services)
         display_name="Restore Org",
         timezone_name="UTC",
         base_currency="USD",
-        is_active=True,
+        is_enabled=True,
     )
-    organization_service.set_active_organization(restored_org.id)
+    organization_service.enable_organization(restored_org.id)
+    services["tenant_context_service"].set_active_organization(restored_org.id)
     current_principal = user_session.principal
 
     assert current_principal is not None

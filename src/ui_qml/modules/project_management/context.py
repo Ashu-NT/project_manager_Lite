@@ -8,12 +8,21 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
 
+from src.ui_qml.platform.adapters.approval_view_invalidation_adapter import (
+    ApprovalViewInvalidationAdapter,
+)
+from src.ui_qml.platform.adapters.employee_view_invalidation_adapter import (
+    EmployeeViewInvalidationAdapter,
+)
+from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import (
+    TenantSwitcherPresenter,
+)
 from src.ui_qml.modules.project_management.controllers import (
     ProjectManagementCollaborationWorkspaceController,
     ProjectManagementDashboardWorkspaceController,
     ProjectManagementFinancialsWorkspaceController,
     ProjectManagementPortfolioWorkspaceController,
-    ProjectManagementOwnerTimesheetsController,
+    ProjectManagementResourceTimesheetsController,
     ProjectManagementProjectsWorkspaceController,
     ProjectManagementRegisterWorkspaceController,
     ProjectManagementResourcesWorkspaceController,
@@ -43,8 +52,8 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectTimesheetsWorkspacePresenter,
     build_project_management_workspace_presenters,
 )
-from src.ui_qml.modules.project_management.presenters.owner_timesheets import (
-    OwnerTimesheetsPresenter,
+from src.ui_qml.modules.project_management.presenters.resource_timesheets import (
+    ResourceTimesheetsPresenter,
 )
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
@@ -127,6 +136,20 @@ class ProjectManagementWorkspaceCatalog(QObject):
             getattr(desktop_api_registry, "integration_capability", None)
             if desktop_api_registry is not None else None
         )
+
+        self._view_invalidation_channel = (
+            getattr(desktop_api_registry, "platform_view_invalidation_channel", None)
+            if desktop_api_registry is not None else None
+        )
+
+        self._tenant_switcher_presenter = TenantSwitcherPresenter(
+            tenant_api=(
+                getattr(desktop_api_registry, "platform_tenant", None)
+                if desktop_api_registry is not None else None
+            )
+        )
+        self._approval_view_invalidation_adapter: ApprovalViewInvalidationAdapter | None = None
+        self._employee_view_invalidation_adapter: EmployeeViewInvalidationAdapter | None = None
         self._pm_capability = PMCapabilityController(
             auth_engine=auth_engine,
             user_session_provider=user_session_provider,
@@ -145,8 +168,14 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self._tasks_workspace: ProjectManagementTasksWorkspaceController | None = None
         self._dashboard_workspace: ProjectManagementDashboardWorkspaceController | None = None
         self._collaboration_workspace: ProjectManagementCollaborationWorkspaceController | None = None
-        self._timesheets_workspace: ProjectManagementOwnerTimesheetsController | None = None
+        self._timesheets_workspace: ProjectManagementResourceTimesheetsController | None = None
         self._review_queue_workspace: ProjectManagementTimesheetsWorkspaceController | None = None
+
+    def _active_tenant_id(self) -> str | None:
+        try:
+            return self._tenant_switcher_presenter.get_active_tenant_id() or None
+        except Exception:
+            return None
 
     def _active_organization_id(self) -> str | None:
         runtime_api = self._platform_runtime_api
@@ -181,6 +210,16 @@ class ProjectManagementWorkspaceCatalog(QObject):
                 ),
                 parent=self,
             )
+
+            self._employee_view_invalidation_adapter = EmployeeViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._employee_view_invalidation_adapter.employeeCollectionStale.connect(
+                self._resources_workspace.refresh_employee_options
+            )
         return self._resources_workspace
 
     def _get_register_workspace(self) -> ProjectManagementRegisterWorkspaceController:
@@ -201,7 +240,12 @@ class ProjectManagementWorkspaceCatalog(QObject):
         if self._financials_workspace is None:
             self._financials_workspace = ProjectManagementFinancialsWorkspaceController(
                 financials_workspace_presenter=ProjectFinancialsWorkspacePresenter(
-                    desktop_api=self._financials_api
+                    desktop_api=self._financials_api,
+                    audit_api=getattr(
+                        self._desktop_api_registry,
+                        "platform_enterprise_audit",
+                        None,
+                    ),
                 ),
                 parent=self,
             )
@@ -262,12 +306,22 @@ class ProjectManagementWorkspaceCatalog(QObject):
                 ),
                 parent=self,
             )
+
+            self._approval_view_invalidation_adapter = ApprovalViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._approval_view_invalidation_adapter.approvalsStale.connect(
+                self._collaboration_workspace.refresh_approvals
+            )
         return self._collaboration_workspace
 
-    def _get_timesheets_workspace(self) -> ProjectManagementOwnerTimesheetsController:
+    def _get_timesheets_workspace(self) -> ProjectManagementResourceTimesheetsController:
         if self._timesheets_workspace is None:
-            self._timesheets_workspace = ProjectManagementOwnerTimesheetsController(
-                presenter=OwnerTimesheetsPresenter(desktop_api=self._timesheets_api),
+            self._timesheets_workspace = ProjectManagementResourceTimesheetsController(
+                presenter=ResourceTimesheetsPresenter(desktop_api=self._timesheets_api),
                 parent=self,
             )
         return self._timesheets_workspace
@@ -318,8 +372,8 @@ class ProjectManagementWorkspaceCatalog(QObject):
     def collaborationWorkspace(self) -> ProjectManagementCollaborationWorkspaceController:
         return self._get_collaboration_workspace()
 
-    @Property(ProjectManagementOwnerTimesheetsController, constant=True)
-    def timesheetsWorkspace(self) -> ProjectManagementOwnerTimesheetsController:
+    @Property(ProjectManagementResourceTimesheetsController, constant=True)
+    def timesheetsWorkspace(self) -> ProjectManagementResourceTimesheetsController:
         return self._get_timesheets_workspace()
 
     @Property(ProjectManagementTimesheetsWorkspaceController, constant=True)
@@ -376,6 +430,16 @@ class ProjectManagementWorkspaceCatalog(QObject):
     @Slot()
     def refreshCapabilities(self) -> None:
         self._pm_capability.refresh()
+        if self._approval_view_invalidation_adapter is not None:
+            self._approval_view_invalidation_adapter.set_active_scope(
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+            )
+        if self._employee_view_invalidation_adapter is not None:
+            self._employee_view_invalidation_adapter.set_active_scope(
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+            )
 
     @Slot(str, result=bool)
     def isModuleEnabled(self, module_code: str) -> bool:

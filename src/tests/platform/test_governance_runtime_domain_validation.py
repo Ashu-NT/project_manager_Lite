@@ -71,6 +71,7 @@ def test_approval_request_dto_normalizes_and_validates_fields():
         request_type="  PROJECT_COST.APPROVE  ",
         entity_type="  PROJECT_COST_ENTRY  ",
         entity_id="  entry-1  ",
+        tenant_id="  tenant-1  ",
         project_id="  project-1  ",
         organization_id="  org-1  ",
         payload={"amount": 2500},
@@ -99,6 +100,7 @@ def test_approval_request_dto_normalizes_and_validates_fields():
             request_type="baseline.create",
             entity_type="project_baseline",
             entity_id="baseline-1",
+            tenant_id="tenant-1",
             project_id="project-1",
             payload=["not", "a", "dict"],
         )

@@ -17,7 +17,15 @@ from src.core.platform.application.tenant.modules import ModuleCatalogService
 from src.core.platform.access import AccessControlService, ScopedRolePolicy, ScopedRolePolicyRegistry
 from src.core.platform.application.history.activity import ActivityService
 from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.infrastructure.persistence.unit_of_work import (
+from src.core.platform.application.approval.event_handlers.view_invalidation import (
+    build_approval_view_invalidation_handler,
+)
+from src.core.platform.domain.approval.events import (
+    ApprovalApproved,
+    ApprovalRejected,
+    ApprovalRequested,
+)
+from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
     SqlAlchemyPlatformUnitOfWorkFactory,
 )
 from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
@@ -26,6 +34,10 @@ from src.infra.events.in_process_transactional_event_dispatcher import (
 )
 from src.infra.events.in_process_view_invalidation_channel import InProcessViewInvalidationChannel
 from src.core.shared.events.view_invalidation import ViewInvalidationChannel
+from src.core.shared.events.domain_event_publisher import (
+    PostCommitEventPublisher,
+    TransactionalEventDispatcher,
+)
 from src.infra.time.system_clock import SystemClock
 from src.core.platform.application.history.audit import EnterpriseAuditService
 from src.core.platform.application.finance import FinancialPeriodService
@@ -49,8 +61,37 @@ from src.core.platform.infrastructure.persistence.read.overview.platform_overvie
 from src.core.platform.application.master_data.org.organization_service import OrganizationService
 from src.core.platform.application.master_data.org.event_handlers.view_invalidation import (
     build_organization_created_view_invalidation_handler,
+    build_organization_profile_view_invalidation_handler,
 )
-from src.core.platform.domain.master_data.org.events import OrganizationCreated
+from src.core.platform.domain.master_data.org.events import (
+    OrganizationCreated,
+    OrganizationDisabled,
+    OrganizationEnabled,
+    OrganizationProfileUpdated,
+)
+from src.core.platform.application.master_data.employee.event_handlers.view_invalidation import (
+    build_employee_list_view_invalidation_handler,
+)
+from src.core.platform.domain.master_data.employee.events import (
+    EmployeeCreated,
+    EmployeeProfileUpdated,
+)
+from src.core.platform.application.master_data.department.event_handlers.view_invalidation import (
+    build_department_list_view_invalidation_handler,
+)
+from src.core.platform.domain.master_data.department.events import (
+    DepartmentCreated,
+    DepartmentProfileUpdated,
+)
+from src.core.platform.application.master_data.site.event_handlers.view_invalidation import (
+    build_site_list_view_invalidation_handler,
+)
+from src.core.platform.domain.master_data.site.events import (
+    SiteCreated,
+    SiteDisabled,
+    SiteEnabled,
+    SiteProfileUpdated,
+)
 from src.core.platform.application.tenant.modules.event_handlers.view_invalidation import (
     build_module_entitlement_view_invalidation_handler,
 )
@@ -61,17 +102,51 @@ from src.core.platform.domain.tenant.modules.events import (
     ModuleLicensed,
     ModuleLifecycleTransitioned,
 )
-from src.core.platform.infrastructure.persistence.organization_unit_of_work import (
+from src.core.platform.application.security.authorization.roles.event_handlers.view_invalidation import (
+    build_role_binding_view_invalidation_handler,
+)
+from src.core.platform.application.tenant.tenancy.event_handlers.view_invalidation import (
+    build_tenant_membership_view_invalidation_handler,
+)
+from src.core.platform.domain.tenant.tenancy.events import (
+    TenantMembershipActivated,
+    TenantMembershipReactivated,
+    TenantMembershipRemoved,
+    TenantMembershipSuspended,
+)
+from src.core.platform.domain.security.authorization.roles.events import (
+    RoleBindingAssigned,
+    RoleBindingRevoked,
+)
+from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.persistence.platform_provisioning_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.department_unit_of_work import (
+    SqlAlchemyDepartmentUnitOfWorkFactory,
+)
+from src.core.platform.infrastructure.persistence.uow.site_unit_of_work import (
+    SqlAlchemySiteUnitOfWorkFactory,
+)
+from src.core.platform.infrastructure.persistence.uow.employee_unit_of_work import (
+    SqlAlchemyEmployeeUnitOfWorkFactory,
+)
+from src.core.platform.infrastructure.persistence.uow.party_unit_of_work import (
+    SqlAlchemyPartyUnitOfWorkFactory,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.resources.resource import (
+    SqlAlchemyResourceRepository,
+)
+from src.core.platform.infrastructure.persistence.uow.platform_provisioning_unit_of_work import (
     SqlAlchemyPlatformProvisioningUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.persistence.module_entitlement_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.module_entitlement_unit_of_work import (
     SqlAlchemyModuleEntitlementUnitOfWorkFactory,
 )
-from src.core.platform.infrastructure.persistence.role_governance_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.role_governance_unit_of_work import (
     SqlAlchemyRoleGovernanceUnitOfWorkFactory,
+)
+from src.core.platform.infrastructure.persistence.uow.tenant_membership_unit_of_work import (
+    SqlAlchemyTenantMembershipUnitOfWorkFactory,
 )
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
@@ -87,6 +162,11 @@ from src.core.platform.domain.master_data.site.access_policy import (
     SITE_SCOPE_ROLE_CHOICES,
     normalize_site_scope_role,
     resolve_site_scope_permissions,
+)
+from src.core.platform.domain.master_data.org.access_policy import (
+    ORGANIZATION_SCOPE_ROLE_CHOICES,
+    normalize_organization_scope_role,
+    resolve_organization_scope_permissions,
 )
 from src.core.platform.domain.tenant.tenancy import Tenant, UserTenantMembership
 from src.core.platform.application.tenant.tenancy import (
@@ -172,7 +252,7 @@ def _bootstrap_local_single_tenant_context(
 
     organizations = repositories.organization_repo.list_for_tenant(
         default_tenant.id,
-        active_only=True,
+        enabled_only=True,
     )
     if not organizations:
         organizations = repositories.organization_repo.list_for_tenant(
@@ -205,6 +285,9 @@ class PlatformServiceBundle:
     party_repo: PartyRepository
     tenant_context_service: TenantContextService
     platform_view_invalidation_channel: ViewInvalidationChannel
+   
+    platform_transactional_dispatcher: TransactionalEventDispatcher
+    platform_post_commit_bus: PostCommitEventPublisher
     platform_runtime_application_service: PlatformRuntimeApplicationService
     module_catalog_service: ModuleCatalogService
     auth_service: AuthService
@@ -302,32 +385,26 @@ def build_platform_service_bundle(
         user_session=user_session,
         tenant_context_service=tenant_context_service,
     )
-    # P5A (ADR-005 Sections 7/8/12): ONE composition-owned `TransactionalEventDispatcher`/
-    # `PostCommitEventPublisher`/`ViewInvalidationChannel` per running app, shared by every
-    # Platform capability UnitOfWork factory below -- never one throwaway instance per factory.
-    # A handler registered once here (e.g. `OrganizationCreated`'s post-commit reactions) is
-    # reachable regardless of which UoW recorded the event, since they all publish through the
-    # SAME bus. Composition-root-scoped (one instance per `build_platform_registry()` call, i.e.
-    # per running app/test), never a module-level import singleton.
     platform_transactional_dispatcher = InProcessTransactionalEventDispatcher()
     platform_post_commit_bus = InProcessPostCommitEventBus()
     platform_view_invalidation_channel = InProcessViewInvalidationChannel()
-    # P5A + Organization-specific P6A cutover: no legacy `organizations_changed` compatibility
-    # bridge for creation -- the two real UI consumers (admin console organization list, settings
-    # organization profiles list) are migrated directly onto `ViewInvalidationChannel` via
-    # `OrganizationViewInvalidationAdapter` (src/ui_qml/platform/adapters/), since this app is
-    # pre-release and a temporary bridge would be dead code the moment it shipped.
-    # `update_organization`/`set_active_organization` still emit `organizations_changed` directly,
-    # unchanged -- only organization *creation* moved to the typed-event path.
+
     platform_post_commit_bus.subscribe(
         OrganizationCreated,
         build_organization_created_view_invalidation_handler(platform_view_invalidation_channel),
     )
+    _organization_profile_view_invalidation_handler = build_organization_profile_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _organization_profile_event_type in (
+        OrganizationProfileUpdated,
+        OrganizationEnabled,
+        OrganizationDisabled,
+    ):
+        platform_post_commit_bus.subscribe(
+            _organization_profile_event_type, _organization_profile_view_invalidation_handler
+        )
 
-    # P5B-3: direct Qt cutover for Module Entitlements, mirroring the Organization precedent
-    # above -- no legacy `modules_changed` bridge. All five Module Entitlement events collapse
-    # onto the SAME single mapping handler (the real UI consumers all re-read the whole
-    # entitlement collection in one call, never one module row at a time).
     _module_entitlement_view_invalidation_handler = build_module_entitlement_view_invalidation_handler(
         platform_view_invalidation_channel
     )
@@ -340,6 +417,68 @@ def build_platform_service_bundle(
     ):
         platform_post_commit_bus.subscribe(
             _module_entitlement_event_type, _module_entitlement_view_invalidation_handler
+        )
+
+    _role_binding_view_invalidation_handler = build_role_binding_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _role_binding_event_type in (RoleBindingAssigned, RoleBindingRevoked):
+        platform_post_commit_bus.subscribe(
+            _role_binding_event_type, _role_binding_view_invalidation_handler
+        )
+
+    # P5D-3: direct Qt cutover for Tenant Membership, mirroring the Organization/RoleBinding
+    # precedent above -- no legacy `auth_changed` bridge. All four membership events collapse
+    # onto the SAME single mapping handler (every real UI consumer re-reads the whole
+    # membership-backed user list/rollup, never one membership row at a time).
+    _tenant_membership_view_invalidation_handler = build_tenant_membership_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _tenant_membership_event_type in (
+        TenantMembershipActivated,
+        TenantMembershipSuspended,
+        TenantMembershipReactivated,
+        TenantMembershipRemoved,
+    ):
+        platform_post_commit_bus.subscribe(
+            _tenant_membership_event_type, _tenant_membership_view_invalidation_handler
+        )
+
+    # Approval-P3: direct Qt cutover for Approval, mirroring the Organization/Module
+    # Entitlement/RoleBinding/TenantMembership precedent above -- no legacy `approvals_changed`
+    # bridge. All three Approval events collapse onto the SAME single mapping handler (every real
+    # UI consumer re-reads the whole approval-request collection, never one approval row at a
+    # time).
+    _approval_view_invalidation_handler = build_approval_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _approval_event_type in (ApprovalRequested, ApprovalApproved, ApprovalRejected):
+        platform_post_commit_bus.subscribe(
+            _approval_event_type, _approval_view_invalidation_handler
+        )
+
+    _employee_list_view_invalidation_handler = build_employee_list_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _employee_event_type in (EmployeeCreated, EmployeeProfileUpdated):
+        platform_post_commit_bus.subscribe(
+            _employee_event_type, _employee_list_view_invalidation_handler
+        )
+
+    _department_list_view_invalidation_handler = build_department_list_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _department_event_type in (DepartmentCreated, DepartmentProfileUpdated):
+        platform_post_commit_bus.subscribe(
+            _department_event_type, _department_list_view_invalidation_handler
+        )
+
+    _site_list_view_invalidation_handler = build_site_list_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _site_event_type in (SiteCreated, SiteProfileUpdated, SiteEnabled, SiteDisabled):
+        platform_post_commit_bus.subscribe(
+            _site_event_type, _site_list_view_invalidation_handler
         )
 
     approval_uow_session_factory = sessionmaker(bind=session.bind, future=True)
@@ -362,6 +501,7 @@ def build_platform_service_bundle(
         role_permission_repo=repositories.role_permission_repo,
         permission_repo=repositories.permission_repo,
         role_binding_repo=repositories.role_binding_repo,
+        clock=SystemClock(),
     )
     overview_rollup_reader = SqlAlchemyPlatformOverviewRollupReader(session)
     auth_service = AuthService(
@@ -462,19 +602,6 @@ def build_platform_service_bundle(
         user_session=user_session,
         platform_event_repo=repositories.platform_event_repo,
     )
-    tenant_membership_service = TenantMembershipService(
-        session=session,
-        tenant_repo=repositories.tenant_repo,
-        membership_repo=repositories.user_tenant_repo,
-        user_repo=repositories.user_repo,
-        role_repo=repositories.role_repo,
-        role_binding_repo=repositories.role_binding_repo,
-        auth_session_repo=repositories.auth_session_repo,
-        audit_repo=repositories.audit_entry_repo,
-        user_session=user_session,
-        tenant_context_service=tenant_context_service,
-        notification_service=notification_service,
-    )
     document_service = DocumentService(
         session=session,
         document_repo=repositories.document_repo,
@@ -496,6 +623,14 @@ def build_platform_service_bundle(
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
     )
+    party_uow_session_factory = sessionmaker(bind=session.bind, future=True)
+    party_uow_factory = SqlAlchemyPartyUnitOfWorkFactory(
+        session_factory=party_uow_session_factory,
+        transactional_dispatcher=platform_transactional_dispatcher,
+        post_commit_bus=platform_post_commit_bus,
+        tenant_context_service=tenant_context_service,
+        user_session=user_session,
+    )
     party_service = PartyService(
         session=session,
         party_repo=repositories.party_repo,
@@ -504,6 +639,16 @@ def build_platform_service_bundle(
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
         overview_rollup_reader=overview_rollup_reader,
+        uow_factory=party_uow_factory,
+        clock=SystemClock(),
+    )
+    site_uow_session_factory = sessionmaker(bind=session.bind, future=True)
+    site_uow_factory = SqlAlchemySiteUnitOfWorkFactory(
+        session_factory=site_uow_session_factory,
+        transactional_dispatcher=platform_transactional_dispatcher,
+        post_commit_bus=platform_post_commit_bus,
+        tenant_context_service=tenant_context_service,
+        user_session=user_session,
     )
     site_service = SiteService(
         session=session,
@@ -513,6 +658,16 @@ def build_platform_service_bundle(
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
         overview_rollup_reader=overview_rollup_reader,
+        uow_factory=site_uow_factory,
+        clock=SystemClock(),
+    )
+    department_uow_session_factory = sessionmaker(bind=session.bind, future=True)
+    department_uow_factory = SqlAlchemyDepartmentUnitOfWorkFactory(
+        session_factory=department_uow_session_factory,
+        transactional_dispatcher=platform_transactional_dispatcher,
+        post_commit_bus=platform_post_commit_bus,
+        tenant_context_service=tenant_context_service,
+        user_session=user_session,
     )
     department_service = DepartmentService(
         session=session,
@@ -524,6 +679,8 @@ def build_platform_service_bundle(
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
         overview_rollup_reader=overview_rollup_reader,
+        uow_factory=department_uow_factory,
+        clock=SystemClock(),
     )
 
     def _active_organization() -> Organization | None:
@@ -599,14 +756,7 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
         user_session=user_session,
     )
-    # Legacy-signature `(tenant_id, scope_id) -> bool` resolvers -- consumed by
-    # `AccessControlService`'s own pre-flight `_assert_scope_exists` check (a separate,
-    # non-transactional read that happens before `RoleGovernanceService.assign_role` is ever
-    # called; see the session-bound resolvers below for the actual RoleGovernance mutation
-    # path) and by `AuthService`'s `canonical_scope_tenant_resolvers` (an unrelated,
-    # read-only effective-permissions computation, not audited or touched by P5C-1).
-    # "site" already uses the correct tenant-scoped `get_for_tenant` (P5C-1 reopened-storeroom
-    # fix) rather than the ambient-active-organization `get()`.
+
     scope_exists_resolvers = {
         "organization": lambda tenant_id, organization_id: (
             repositories.organization_repo.get_for_tenant(
@@ -650,6 +800,7 @@ def build_platform_service_bundle(
         uow_factory=role_governance_uow_factory,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
+        clock=SystemClock(),
         scope_exists_resolvers=role_governance_scope_exists_resolvers,
         organization_owner_resolvers=role_governance_organization_owner_resolvers,
         allow_platform_customer_context=(
@@ -658,6 +809,23 @@ def build_platform_service_bundle(
         ),
     )
     auth_service.set_role_governance_service(role_governance_service)
+    tenant_membership_uow_session_factory = sessionmaker(bind=session.bind, future=True)
+    tenant_membership_uow_factory = SqlAlchemyTenantMembershipUnitOfWorkFactory(
+        session_factory=tenant_membership_uow_session_factory,
+        transactional_dispatcher=platform_transactional_dispatcher,
+        post_commit_bus=platform_post_commit_bus,
+    )
+    tenant_membership_service = TenantMembershipService(
+        uow_factory=tenant_membership_uow_factory,
+        clock=SystemClock(),
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+        notification_service=notification_service,
+        # P5D-1: the SAME resolver dict `RoleGovernanceService` uses -- membership's own
+        # removal cascade can revoke resource-scoped bindings too, so it needs the same
+        # organization-ownership derivation, not just the tenant-wide default grant's.
+        organization_owner_resolvers=role_governance_organization_owner_resolvers,
+    )
     service_principal_service = ServicePrincipalService(
         session=session,
         principal_repo=repositories.service_principal_repo,
@@ -682,6 +850,12 @@ def build_platform_service_bundle(
                     role_choices=SITE_SCOPE_ROLE_CHOICES,
                     normalize_role=normalize_site_scope_role,
                     resolve_permissions=resolve_site_scope_permissions,
+                ),
+                ScopedRolePolicy(
+                    scope_type="organization",
+                    role_choices=ORGANIZATION_SCOPE_ROLE_CHOICES,
+                    normalize_role=normalize_organization_scope_role,
+                    resolve_permissions=resolve_organization_scope_permissions,
                 ),
             )
         ),
@@ -708,6 +882,15 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
     )
     employee_headcount_reader = SqlAlchemyEmployeeHeadcountReader(session)
+    employee_uow_session_factory = sessionmaker(bind=session.bind, future=True)
+    employee_uow_factory = SqlAlchemyEmployeeUnitOfWorkFactory(
+        session_factory=employee_uow_session_factory,
+        transactional_dispatcher=platform_transactional_dispatcher,
+        post_commit_bus=platform_post_commit_bus,
+        tenant_context_service=tenant_context_service,
+        user_session=user_session,
+        resource_repo_factory=SqlAlchemyResourceRepository,
+    )
     employee_service = EmployeeService(
         session=session,
         employee_repo=repositories.employee_repo,
@@ -719,6 +902,8 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         headcount_reader=employee_headcount_reader,
+        uow_factory=employee_uow_factory,
+        clock=SystemClock(),
     )
     master_data_exchange_service = MasterDataExchangeService(
         site_service=site_service,
@@ -814,6 +999,8 @@ def build_platform_service_bundle(
         party_repo=repositories.party_repo,
         tenant_context_service=tenant_context_service,
         platform_view_invalidation_channel=platform_view_invalidation_channel,
+        platform_transactional_dispatcher=platform_transactional_dispatcher,
+        platform_post_commit_bus=platform_post_commit_bus,
         platform_runtime_application_service=platform_runtime_application_service,
         module_catalog_service=module_catalog_service,
         auth_service=auth_service,

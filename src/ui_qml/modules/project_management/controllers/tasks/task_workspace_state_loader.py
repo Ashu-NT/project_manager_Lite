@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 from src.ui_qml.modules.project_management.controllers.common import serialize_workspace_view_model
+from src.ui_qml.modules.project_management.controllers.tasks.task_lazy_section_loader import (
+    load_selected_task_assignments,
+)
 
 
 def do_refresh(controller) -> None:
+    loaded_assignment_task_id = controller._assignments_section_loaded_for_task_id
+    refreshed = False
     controller._set_is_loading(True)
     try:
         controller._set_error_message("")
@@ -38,10 +43,14 @@ def do_refresh(controller) -> None:
         controller._set_task_page_size(ws.page_size)
         controller._set_task_sort_key(ws.sort_key)
         controller._set_task_sort_direction(1 if ws.sort_direction == "desc" else 0)
+        refreshed = True
     except Exception as exc:  # pragma: no cover - defensive fallback
         controller._set_error_message(str(exc))
     finally:
         controller._set_is_loading(False)
+
+    if refreshed and loaded_assignment_task_id == controller._selected_task_id:
+        load_selected_task_assignments(controller, force=True)
 
 
 __all__ = ["do_refresh"]

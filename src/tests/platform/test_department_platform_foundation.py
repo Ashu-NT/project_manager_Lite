@@ -8,7 +8,7 @@ def test_department_service_scopes_department_master_data_by_active_organization
     department_service = services["department_service"]
     site_service = services["site_service"]
 
-    default_organization = organization_service.get_active_organization()
+    default_organization = services["tenant_context_service"].get_active_organization()
     site = site_service.create_site(site_code="HQ", name="Headquarters")
     created = department_service.create_department(
         department_code="OPS",
@@ -31,9 +31,10 @@ def test_department_service_scopes_department_master_data_by_active_organization
         display_name="North Division",
         timezone_name="Europe/Berlin",
         base_currency="EUR",
-        is_active=False,
+        is_enabled=False,
     )
-    organization_service.set_active_organization(second_organization.id)
+    organization_service.enable_organization(second_organization.id)
+    services["tenant_context_service"].set_active_organization(second_organization.id)
 
     assert department_service.get_context_organization().display_name == "North Division"
     assert department_service.list_departments() == []
@@ -42,7 +43,8 @@ def test_department_service_scopes_department_master_data_by_active_organization
     assert workshop.organization_id == second_organization.id
     assert [department.department_code for department in department_service.list_departments()] == ["ENG"]
 
-    organization_service.set_active_organization(default_organization.id)
+    organization_service.enable_organization(default_organization.id)
+    services["tenant_context_service"].set_active_organization(default_organization.id)
     assert department_service.get_context_organization().display_name == "Default Organization"
     assert [department.department_code for department in department_service.list_departments()] == ["OPS"]
 

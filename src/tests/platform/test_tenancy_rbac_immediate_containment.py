@@ -384,7 +384,7 @@ def test_tenant_switch_rebuilds_only_target_tenant_grants(services) -> None:
     )
     SqlAlchemyOrganizationRepository(session).add(target_organization)
     current_user_id = user_session.principal.user_id
-    current_organization = services["organization_service"].get_active_organization()
+    current_organization = services["tenant_context_service"].get_active_organization()
     assert current_organization is not None
     session.flush()
     org_viewer_role = auth._role_repo.get_by_name("org_viewer")

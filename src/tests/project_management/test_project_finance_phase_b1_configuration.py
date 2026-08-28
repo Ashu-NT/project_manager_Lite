@@ -193,25 +193,46 @@ def test_cost_code_hierarchy_restrictions_and_profile_lifecycle(services) -> Non
         )
 
 
+def test_create_cost_code_for_restricted_project_is_immediately_available(services) -> None:
+    project = services["project_service"].create_project("Restricted cost-code creation")
+    service = services["financial_configuration_service"]
+    profile = service.get_profile(project.id)
+    service.configure_profile(
+        project.id,
+        expected_version=profile.version,
+        cost_code_policy=CostCodePolicy.RESTRICTED,
+    )
+
+    created = service.create_cost_code(
+        code="FIELD.LABOR",
+        name="Field labor",
+        available_to_project_id=project.id,
+    )
+
+    assert [row.id for row in service.list_available_cost_codes(project.id)] == [created.id]
+
+
 def test_financial_configuration_repositories_isolate_active_organization(services) -> None:
     organization_service = services["organization_service"]
     configuration_service = services["financial_configuration_service"]
-    original_organization = organization_service.get_active_organization()
+    original_organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project("Organization A finance")
     code = configuration_service.create_cost_code(code="ORG-A", name="Organization A")
     other_organization = organization_service.create_organization(
         organization_code="PF-B1-OTHER",
         display_name="Project Finance Other",
         base_currency="USD",
-        is_active=False,
+        is_enabled=False,
     )
 
-    organization_service.set_active_organization(other_organization.id)
+    organization_service.enable_organization(other_organization.id)
+    services["tenant_context_service"].set_active_organization(other_organization.id)
     try:
         assert configuration_service._cost_code_repo.get(code.id) is None
         assert configuration_service._profile_repo.get_by_project(project.id) is None
     finally:
-        organization_service.set_active_organization(original_organization.id)
+        organization_service.enable_organization(original_organization.id)
+        services["tenant_context_service"].set_active_organization(original_organization.id)
 
     assert configuration_service._cost_code_repo.get(code.id).id == code.id
     assert configuration_service._profile_repo.get_by_project(project.id).project_id == project.id

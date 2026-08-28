@@ -235,7 +235,6 @@ class _FakeResourceService:
         employee_id: str | None = None,
         department_id: str | None = None,
         site_id: str | None = None,
-        effective_on=None,
     ) -> SimpleNamespace:
         resource = self._resources[resource_id]
         resource.code = code

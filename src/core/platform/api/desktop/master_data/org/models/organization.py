@@ -10,7 +10,7 @@ class OrganizationDto:
     display_name: str
     timezone_name: str
     base_currency: str
-    is_active: bool
+    is_enabled: bool
     version: int
 
 
@@ -20,7 +20,7 @@ class OrganizationProvisionCommand:
     display_name: str
     timezone_name: str
     base_currency: str
-    is_active: bool = True
+    is_enabled: bool = True
     initial_module_codes: tuple[str, ...] = field(default_factory=tuple)
 
 
@@ -31,5 +31,5 @@ class OrganizationUpdateCommand:
     display_name: str | None = None
     timezone_name: str | None = None
     base_currency: str | None = None
-    is_active: bool | None = None
+    is_enabled: bool | None = None
     expected_version: int | None = None

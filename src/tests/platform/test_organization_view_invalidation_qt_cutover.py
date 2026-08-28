@@ -1,8 +1,11 @@
-"""P5A + Organization-specific P6A cutover: end-to-end proof that Organization creation reaches
-the two real UI consumers (admin console organization list, settings organization profiles list)
-through `OrganizationCreated -> ViewInvalidationHint -> OrganizationViewInvalidationAdapter`,
-never the legacy `organizations_changed` signal -- and that `update_organization`/
-`set_active_organization` still reach them through the unchanged legacy path.
+"""P5A + Organization-specific P6A cutover, extended by P10D: end-to-end proof that Organization
+creation, profile updates, and enable/disable ALL reach the two real UI consumers (admin console
+organization list, settings organization profiles list) through
+`OrganizationCreated`/`OrganizationProfileUpdated`/`OrganizationEnabled`/`OrganizationDisabled`
+-> `ViewInvalidationHint` -> `OrganizationViewInvalidationAdapter` -- the legacy
+`organizations_changed` signal no longer exists at all (P10A already replaced the deleted
+`set_active_organization` with the narrower `enable_organization`; P10D finished the cutover for
+its own event emission).
 
 Uses the real `services` fixture (real Session, real UnitOfWorks, real composition-owned
 `ViewInvalidationChannel`) plus the real `build_desktop_api_registry`/`PlatformWorkspaceCatalog`
@@ -53,7 +56,7 @@ def test_provisioning_create_organization_refreshes_both_ui_consumers_identicall
     code = _unique_code("QTCUT-PROV")
     app_service.provision_organization(
         organization_code=code, display_name="Qt Cutover Provisioned Org",
-        timezone_name="UTC", base_currency="EUR", is_active=False, initial_module_codes=[],
+        timezone_name="UTC", base_currency="EUR", is_enabled=False, initial_module_codes=[],
     )
 
     admin_titles = [row["title"] for row in catalog.adminWorkspace.organizations["items"]]
@@ -84,27 +87,42 @@ def test_no_refresh_signal_before_commit_and_none_on_rollback(services):
     assert refresh_calls == ["admin"]
 
 
-def test_update_and_activate_still_use_the_unchanged_legacy_signal_path(services):
-    """P5A implements only OrganizationCreated -- update/activation must keep working exactly as
-    before, via the legacy `organizations_changed` signal, untouched by this cutover."""
-    from src.core.shared.events.domain_events import domain_events
-
+def test_update_and_enable_now_also_use_the_typed_view_invalidation_path(services):
+    """P10D: `update_organization`/`enable_organization` no longer emit any legacy signal -- they
+    record `OrganizationProfileUpdated`/`OrganizationEnabled`, which reach the SAME real Qt
+    consumers `OrganizationCreated` already does, through the identical adapter path (not a
+    separate mechanism)."""
+    catalog = _catalog(services)
     organization_service = services["organization_service"]
     organization = organization_service.create_organization(
-        organization_code=_unique_code("QTCUT-UPDATE"), display_name="Before Update"
+        organization_code=_unique_code("QTCUT-UPDATE"), display_name="Before Update", is_enabled=False
+    )
+    catalog.adminWorkspace.organizations  # establish baseline read, post-creation
+    catalog.settingsWorkspace.refresh()
+
+    refresh_calls = []
+    catalog.adminWorkspace._organization_controller.refresh_organizations = (
+        lambda: refresh_calls.append("admin-update") or None
+    )
+    catalog.settingsWorkspace.refresh_organization_profiles = (
+        lambda: refresh_calls.append("settings-update") or None
     )
 
-    signal_calls = []
-    domain_events.organizations_changed.connect(lambda org_id: signal_calls.append(org_id))
-
-    updated = organization_service.update_organization(
+    organization_service.update_organization(
         organization.id, expected_version=organization.version, display_name="After Update"
     )
-    assert signal_calls == [updated.id]
+    assert refresh_calls == ["admin-update", "settings-update"]
 
-    signal_calls.clear()
-    activated = organization_service.set_active_organization(organization.id)
-    assert signal_calls == [activated.id]
+    refresh_calls.clear()
+    catalog.adminWorkspace._organization_controller.refresh_organizations = (
+        lambda: refresh_calls.append("admin-enable") or None
+    )
+    catalog.settingsWorkspace.refresh_organization_profiles = (
+        lambda: refresh_calls.append("settings-enable") or None
+    )
+
+    organization_service.enable_organization(organization.id)
+    assert refresh_calls == ["admin-enable", "settings-enable"]
 
 
 def test_adapter_only_reacts_to_the_currently_active_tenant(services):
@@ -241,15 +259,23 @@ def test_real_tenant_switch_through_the_catalog_rewires_the_adapter_end_to_end(s
     organization yet, which `record_audit_entry`'s tenant/org scoping requires regardless of this
     cutover, and bootstrapping one collides on the DEFAULT organization_code's cross-tenant
     unique constraint in this shared test database -- both pre-existing, unrelated to this
-    hardening pass and to the adapter's own wiring, which is what this test actually verifies."""
-    from src.core.shared.events.view_invalidation import TenantWide
+    hardening pass and to the adapter's own wiring, which is what this test actually verifies.
+
+    P5C-3 note: `_current_filters()` now resolves THIS adapter's own tracked subscription by id,
+    rather than scanning the whole channel for any `TenantWide` instance -- `RoleBindingViewInvalidationAdapter`
+    also holds a `TenantWide` subscription (P5C-3), so a channel-wide scan would conflate the two
+    independent adapters' subscriptions."""
 
     catalog = _catalog(services)
     channel = services["platform_view_invalidation_channel"]
     adapter = catalog._organization_view_invalidation_adapter
 
     def _current_filters():
-        return [filt for filt, _handler in channel._subscriptions.values() if isinstance(filt, TenantWide)]
+        subscription = adapter._subscription._subscription
+        if subscription is None:
+            return []
+        entry = channel._subscriptions.get(subscription._subscription_id)
+        return [entry[0]] if entry is not None else []
 
     tenant_a = services["tenant_context_service"].get_active_tenant_id()
     assert any(f.tenant_id == tenant_a for f in _current_filters())
@@ -287,7 +313,7 @@ def test_admin_console_own_mutation_still_self_refreshes_via_existing_direct_pat
             "displayName": "Self Refresh Org",
             "timezoneName": "UTC",
             "baseCurrency": "USD",
-            "isActive": False,
+            "isEnabled": False,
             "initialModuleCodes": [],
         }
     )

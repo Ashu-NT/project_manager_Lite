@@ -10,6 +10,7 @@ from src.core.modules.project_management.domain.financials.planned_cost import (
     PLANNED_HOURS_PARTIALLY_ALLOCATED,
     PlannedCostVersionStatus,
 )
+from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 
@@ -33,6 +34,18 @@ def _setup_project(services, *, planned_hours: float = 40.0, hourly_rate: float 
     )
     resource = services["resource_service"].create_resource(
         "Engineer One", hourly_rate=hourly_rate, currency_code="USD"
+    )
+    rate_card = services["rate_card_service"].create_rate_card(
+        name="Planned Cost Project Rates",
+        project_id=project.id,
+    )
+    services["rate_card_service"].create_line(
+        rate_card.id,
+        rate_type=RateType.COST,
+        unit="HOUR",
+        rate_amount=Decimal(str(hourly_rate)),
+        rate_currency="USD",
+        resource_id=resource.id,
     )
     project_resource = services["project_resource_service"].add_to_project(
         project.id, resource.id, hourly_rate=hourly_rate, currency_code="USD",

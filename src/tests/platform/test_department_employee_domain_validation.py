@@ -7,6 +7,7 @@ from src.core.platform.application.master_data.employee.employee_service import 
 from src.core.platform.domain.master_data.employee import Employee, EmploymentType
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.site import Site
+from src.infra.time.system_clock import SystemClock
 
 
 class _FakeSession:
@@ -29,6 +30,9 @@ class _FakeTenantContext:
 
     def require_active_organization_id(self, *, operation_label: str) -> str:
         return self._organization.id
+
+    def require_active_tenant_id(self, *, operation_label: str) -> str:
+        return self._organization.tenant_id
 
 
 class _FakeEnterpriseAuditService:
@@ -140,6 +144,99 @@ class _FakeLinkedEmployeeResourceRepo:
         return None
 
 
+class _FakeEmployeeUnitOfWork:
+    def __init__(self, *, session, employees, resources, sites, departments, enterprise_audit_service, context):
+        self._session = session
+        self.employees = employees
+        self.resources = resources
+        self.sites = sites
+        self.departments = departments
+        self._enterprise_audit_service = enterprise_audit_service
+        self.context = context
+        self._committed = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None and not self._committed:
+            self._session.rollback()
+        return None
+
+    def record_event(self, event) -> None:
+        return None
+
+    def commit(self) -> None:
+        self._session.commit()
+        self._committed = True
+
+
+class _FakeEmployeeUnitOfWorkFactory:
+    def __init__(self, *, session, employees, resources, sites, departments, enterprise_audit_service):
+        self._session = session
+        self._employees = employees
+        self._resources = resources
+        self._sites = sites
+        self._departments = departments
+        self._enterprise_audit_service = enterprise_audit_service
+
+    def create(self, *, context):
+        return _FakeEmployeeUnitOfWork(
+            session=self._session,
+            employees=self._employees,
+            resources=self._resources,
+            sites=self._sites,
+            departments=self._departments,
+            enterprise_audit_service=self._enterprise_audit_service,
+            context=context,
+        )
+
+
+class _FakeDepartmentUnitOfWork:
+    def __init__(self, *, session, departments, sites, employees, enterprise_audit_service, context):
+        self._session = session
+        self.departments = departments
+        self.sites = sites
+        self.employees = employees
+        self._enterprise_audit_service = enterprise_audit_service
+        self.context = context
+        self._committed = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None and not self._committed:
+            self._session.rollback()
+        return None
+
+    def record_event(self, event) -> None:
+        return None
+
+    def commit(self) -> None:
+        self._session.commit()
+        self._committed = True
+
+
+class _FakeDepartmentUnitOfWorkFactory:
+    def __init__(self, *, session, departments, sites, employees, enterprise_audit_service):
+        self._session = session
+        self._departments = departments
+        self._sites = sites
+        self._employees = employees
+        self._enterprise_audit_service = enterprise_audit_service
+
+    def create(self, *, context):
+        return _FakeDepartmentUnitOfWork(
+            session=self._session,
+            departments=self._departments,
+            sites=self._sites,
+            employees=self._employees,
+            enterprise_audit_service=self._enterprise_audit_service,
+            context=context,
+        )
+
+
 def _make_organization() -> Organization:
     return Organization.create(
         organization_code="default",
@@ -206,15 +303,27 @@ def test_department_service_uses_entity_validation(monkeypatch):
     )
     site_repo.add(site)
 
+    session = _FakeSession()
+    department_repo = _FakeDepartmentRepo()
+    employee_repo = _FakeEmployeeRepo()
+    enterprise_audit_service = _FakeEnterpriseAuditService()
     service = DepartmentService(
-        session=_FakeSession(),
-        department_repo=_FakeDepartmentRepo(),
+        session=session,
+        department_repo=department_repo,
         organization_repo=object(),
         site_repo=site_repo,
-        employee_repo=_FakeEmployeeRepo(),
+        employee_repo=employee_repo,
         user_session=object(),
-        enterprise_audit_service=_FakeEnterpriseAuditService(),
+        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=_FakeTenantContext(organization),
+        uow_factory=_FakeDepartmentUnitOfWorkFactory(
+            session=session,
+            departments=department_repo,
+            sites=site_repo,
+            employees=employee_repo,
+            enterprise_audit_service=enterprise_audit_service,
+        ),
+        clock=SystemClock(),
     )
 
     created = service.create_department(
@@ -343,16 +452,28 @@ def test_employee_service_uses_entity_validation_and_final_state(monkeypatch):
     department_repo.add(department)
     department_repo.add(next_department)
 
+    session = _FakeSession()
+    resource_repo = _FakeLinkedEmployeeResourceRepo()
+    enterprise_audit_service = _FakeEnterpriseAuditService()
     service = EmployeeService(
-        session=_FakeSession(),
+        session=session,
         employee_repo=employee_repo,
-        resource_repo=_FakeLinkedEmployeeResourceRepo(),
+        resource_repo=resource_repo,
         site_repo=site_repo,
         department_repo=department_repo,
         organization_repo=object(),
         tenant_context_service=_FakeTenantContext(organization),
         user_session=object(),
-        enterprise_audit_service=_FakeEnterpriseAuditService(),
+        enterprise_audit_service=enterprise_audit_service,
+        uow_factory=_FakeEmployeeUnitOfWorkFactory(
+            session=session,
+            employees=employee_repo,
+            resources=resource_repo,
+            sites=site_repo,
+            departments=department_repo,
+            enterprise_audit_service=enterprise_audit_service,
+        ),
+        clock=SystemClock(),
     )
 
     created = service.create_employee(

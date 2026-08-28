@@ -2,16 +2,20 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+import logging
 from unittest.mock import MagicMock
 
 import pytest
+from PySide6.QtCore import Qt
 
 from src.core.modules.project_management.api.desktop.financials import (
+    FinancialCreateCostCodeCommand,
     FinancialCreateManualActualCommand,
     FinancialDecideActualCommand,
     FinancialPostActualCommand,
     FinancialReverseActualCommand,
     FinancialVersionedActualCommand,
+    ProjectManagementFinancialsDesktopApi,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.ui_qml.modules.project_management.controllers.financials.financials_workspace_controller import (
@@ -19,6 +23,7 @@ from src.ui_qml.modules.project_management.controllers.financials.financials_wor
 )
 from src.ui_qml.modules.project_management.presenters.financials.command_handler import (
     approve_actual,
+    create_cost_code,
     post_actual,
     reject_actual,
     reverse_actual,
@@ -49,6 +54,60 @@ class _RecordingDesktopApi:
 
     def reverse_actual(self, command):
         self.calls.append(("reverse_actual", command))
+
+    def create_cost_code(self, command):
+        self.calls.append(("create_cost_code", command))
+
+
+def test_create_cost_code_builds_project_available_command():
+    api = _RecordingDesktopApi()
+    create_cost_code(
+        api,
+        {
+            "projectId": "project-1",
+            "code": "LABOR.INTERNAL",
+            "name": "Internal labor",
+            "description": "Employee delivery time",
+        },
+    )
+
+    name, command = api.calls[0]
+    assert name == "create_cost_code"
+    assert command == FinancialCreateCostCodeCommand(
+        project_id="project-1",
+        code="LABOR.INTERNAL",
+        name="Internal labor",
+        description="Employee delivery time",
+    )
+
+
+def test_create_cost_code_desktop_api_preserves_project_availability_scope():
+    configuration_service = MagicMock()
+    configuration_service.create_cost_code.return_value = MagicMock(
+        id="cost-code-1",
+        code="LABOR.INTERNAL",
+        name="Internal labor",
+    )
+    api = ProjectManagementFinancialsDesktopApi(
+        financial_configuration_service=configuration_service
+    )
+
+    result = api.create_cost_code(
+        FinancialCreateCostCodeCommand(
+            project_id="project-1",
+            code="LABOR.INTERNAL",
+            name="Internal labor",
+            description="Employee delivery time",
+        )
+    )
+
+    configuration_service.create_cost_code.assert_called_once_with(
+        code="LABOR.INTERNAL",
+        name="Internal labor",
+        description="Employee delivery time",
+        available_to_project_id="project-1",
+    )
+    assert result.value == "cost-code-1"
 
 
 def test_submit_actual_builds_versioned_command():
@@ -159,6 +218,9 @@ class _FakeFinancialsWorkspacePresenter:
     def create_manual_actual(self, payload):
         self._record("create_manual_actual", payload)
 
+    def create_cost_code(self, payload):
+        self._record("create_cost_code", payload)
+
     def submit_actual(self, payload):
         self._record("submit_actual", payload)
 
@@ -212,6 +274,24 @@ def test_submit_actual_slot_delegates_and_reports_success(controller):
     ]
 
 
+def test_create_cost_code_slot_delegates_and_requests_refresh(controller):
+    controller._request_domain_refresh = MagicMock()
+    payload = {
+        "projectId": "project-1",
+        "code": "LABOR.INTERNAL",
+        "name": "Internal labor",
+    }
+
+    result = controller.createCostCode(payload)
+
+    assert result == {
+        "ok": True,
+        "message": "Cost code created and made available to the project.",
+    }
+    assert controller._fake_presenter.calls == [("create_cost_code", payload)]
+    controller._request_domain_refresh.assert_called_once_with()
+
+
 def test_approve_actual_slot_reports_success_message(controller):
     result = controller.approveActual({"entryId": "entry-1", "rowVersion": 1})
 
@@ -263,3 +343,424 @@ def test_approve_actual_slot_propagates_backend_denial_without_crashing(controll
     assert controller.errorMessage == result["message"]
     assert controller.feedbackMessage == ""
     assert controller.isBusy is False
+
+
+def test_forecast_controller_keeps_master_and_detail_query_state_independent(
+    controller,
+) -> None:
+    controller.refresh = MagicMock()
+    controller._forecast_version_page = 4
+    controller._forecast_line_page = 3
+
+    controller.selectForecastVersion("forecast-2")
+    assert controller.selectedForecastId == "forecast-2"
+    assert controller._forecast_version_page == 4
+    assert controller._forecast_line_page == 1
+
+    controller._forecast_line_page = 3
+    controller.setForecastVersionSort("metaText", Qt.AscendingOrder.value)
+    assert controller._forecast_version_page == 1
+    assert controller._forecast_line_page == 3
+    assert controller.forecastVersionSortKey == "metaText"
+
+    controller._forecast_version_page = 4
+    controller.setForecastLineSort("supportingText", Qt.DescendingOrder.value)
+    assert controller._forecast_version_page == 4
+    assert controller._forecast_line_page == 1
+    assert controller.forecastLineSortKey == "supportingText"
+
+
+def test_forecast_controller_filter_and_project_reset_rules(controller) -> None:
+    controller.refresh = MagicMock()
+    controller._forecast_version_page = 5
+    controller._forecast_line_page = 4
+
+    controller.setForecastVersionFilters("alpha", "approved", "manual")
+    assert controller._forecast_version_page == 1
+    assert controller._forecast_line_page == 4
+    assert controller.forecastVersionSearch == "alpha"
+    assert controller.forecastVersionStatus == "approved"
+    assert controller.forecastGenerationMode == "manual"
+
+    controller.setForecastLineFilters("risk", "risk")
+    assert controller._forecast_line_page == 1
+    assert controller.forecastLineSearch == "risk"
+    assert controller.forecastLineSourceType == "risk"
+
+    controller._set_selected_project_id("project-a")
+    controller._set_selected_forecast_id("forecast-a")
+    controller._forecast_version_page = 3
+    controller._forecast_line_page = 2
+    controller.selectProject("project-b")
+    assert controller.selectedForecastId == ""
+    assert controller._forecast_version_page == 1
+    assert controller._forecast_line_page == 1
+
+
+def test_rate_controller_keeps_master_and_detail_state_independent(controller) -> None:
+    controller.refresh = MagicMock()
+    controller._rate_card_page = 4
+    controller._rate_line_page = 3
+
+    controller.selectRateCard("card-2")
+    assert controller.selectedRateCardId == "card-2"
+    assert controller._rate_card_page == 4
+    assert controller._rate_line_page == 1
+
+    controller._rate_line_page = 3
+    controller.setRateCardSort("supportingText", Qt.DescendingOrder.value)
+    assert controller._rate_card_page == 1
+    assert controller._rate_line_page == 3
+
+    controller._rate_card_page = 4
+    controller.setRateLineFilters("engineer", "cost", "active", "current")
+    assert controller._rate_card_page == 4
+    assert controller._rate_line_page == 1
+
+    controller._rate_card_page = 5
+    controller._rate_line_page = 4
+    controller.setRateCardFilters("project", "project", "active")
+    assert controller._rate_card_page == 1
+    assert controller._rate_line_page == 1
+    assert controller.selectedRateCardId == ""
+
+    controller._set_selected_rate_card_id("card-project-a")
+    controller._rate_card_page = 3
+    controller._rate_line_page = 2
+    controller.selectProject("project-b")
+    assert controller.selectedRateCardId == ""
+    assert controller._rate_card_page == 1
+    assert controller._rate_line_page == 1
+
+
+def test_rate_refresh_rejects_stale_a_b_c_selection_responses(controller) -> None:
+    controller._workspace_loaded = True
+    controller._shell_loaded = True
+    controller._active_destination = "costs"
+    controller._active_subsection = "rates"
+    controller._set_selected_project_id("project-a")
+    controller._set_selected_rate_card_id("card-a")
+    state_a, state_b, state_c = object(), object(), object()
+    call_count = 0
+
+    def build_destination_state(**_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            controller._set_selected_rate_card_id("card-b")
+            controller.refresh()
+            return state_a
+        if call_count == 2:
+            controller._set_selected_rate_card_id("card-c")
+            controller.refresh()
+            return state_b
+        return state_c
+
+    controller._financials_workspace_presenter.build_destination_state = MagicMock(
+        side_effect=build_destination_state
+    )
+    controller._apply_destination_state = MagicMock()
+    controller.refresh()
+
+    assert call_count == 3
+    assert controller.selectedRateCardId == "card-c"
+    controller._apply_destination_state.assert_called_once_with("costs", "rates", state_c)
+
+
+def test_rate_refresh_rejects_stale_a_b_c_filter_responses(controller) -> None:
+    controller._workspace_loaded = True
+    controller._shell_loaded = True
+    controller._active_destination = "costs"
+    controller._active_subsection = "rates"
+    controller._set_selected_project_id("project-a")
+    state_a, state_b, state_c = object(), object(), object()
+    call_count = 0
+
+    def build_destination_state(**_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            controller.setRateCardFilters("filter-b", "all", "all")
+            return state_a
+        if call_count == 2:
+            controller.setRateCardFilters("filter-c", "all", "all")
+            return state_b
+        return state_c
+
+    controller._financials_workspace_presenter.build_destination_state = MagicMock(
+        side_effect=build_destination_state
+    )
+    controller._apply_destination_state = MagicMock()
+    controller.setRateCardFilters("filter-a", "all", "all")
+
+    assert call_count == 3
+    assert controller.rateCardSearch == "filter-c"
+    controller._apply_destination_state.assert_called_once_with("costs", "rates", state_c)
+
+
+def test_change_master_detail_state_resets_independently(controller) -> None:
+    controller.refresh = MagicMock()
+    controller._change_page = 4
+    controller._impact_page = 3
+
+    controller.selectFinancialChange("change-2")
+    assert controller.selectedChangeId == "change-2"
+    assert controller._change_page == 4
+    assert controller._impact_page == 1
+
+    controller._change_page = 4
+    controller._impact_page = 3
+    controller.setFinancialChangeImpactFilters("task", "schedule", "not_applied")
+    assert controller._change_page == 4
+    assert controller._impact_page == 1
+    assert controller.selectedChangeId == "change-2"
+
+    controller._change_page = 5
+    controller._impact_page = 4
+    controller.setFinancialChangeFilters("scope", "draft", "", "not_applied")
+    assert controller._change_page == 1
+    assert controller._impact_page == 1
+    assert controller.selectedChangeId == ""
+
+    controller._set_selected_change_id("change-project-a")
+    controller._change_page = 3
+    controller._impact_page = 2
+    controller.selectProject("project-b")
+    assert controller.selectedChangeId == ""
+    assert controller._change_page == 1
+    assert controller._impact_page == 1
+
+
+def test_change_refresh_rejects_stale_a_b_c_selection_responses(controller) -> None:
+    controller._workspace_loaded = True
+    controller._shell_loaded = True
+    controller._active_destination = "controls"
+    controller._active_subsection = "changes"
+    controller._set_selected_project_id("project-a")
+    controller._set_selected_change_id("change-a")
+    state_a, state_b, state_c = object(), object(), object()
+    call_count = 0
+
+    def build_destination_state(**_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            controller._set_selected_change_id("change-b")
+            controller.refresh()
+            return state_a
+        if call_count == 2:
+            controller._set_selected_change_id("change-c")
+            controller.refresh()
+            return state_b
+        return state_c
+
+    controller._financials_workspace_presenter.build_destination_state = MagicMock(
+        side_effect=build_destination_state
+    )
+    controller._apply_destination_state = MagicMock()
+    controller.refresh()
+
+    assert call_count == 3
+    assert controller.selectedChangeId == "change-c"
+    controller._apply_destination_state.assert_called_once_with(
+        "controls", "changes", state_c
+    )
+
+
+def test_change_refresh_rejects_stale_a_b_c_filter_responses(controller) -> None:
+    controller._workspace_loaded = True
+    controller._shell_loaded = True
+    controller._active_destination = "controls"
+    controller._active_subsection = "changes"
+    controller._set_selected_project_id("project-a")
+    state_a, state_b, state_c = object(), object(), object()
+    call_count = 0
+
+    def build_destination_state(**_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            controller.setFinancialChangeFilters("filter-b", "draft", "", "")
+            return state_a
+        if call_count == 2:
+            controller.setFinancialChangeFilters("filter-c", "rejected", "", "")
+            return state_b
+        return state_c
+
+    controller._financials_workspace_presenter.build_destination_state = MagicMock(
+        side_effect=build_destination_state
+    )
+    controller._apply_destination_state = MagicMock()
+    controller.setFinancialChangeFilters("filter-a", "pending_approval", "", "")
+
+    assert call_count == 3
+    assert controller.changeSearch == "filter-c"
+    assert controller.changeStatus == "rejected"
+    controller._apply_destination_state.assert_called_once_with(
+        "controls", "changes", state_c
+    )
+
+
+def test_forecast_refresh_rejects_stale_a_b_c_selection_responses(controller) -> None:
+    controller._workspace_loaded = True
+    controller._shell_loaded = True
+    controller._active_destination = "planning"
+    controller._active_subsection = "forecast"
+    controller._set_selected_project_id("project-a")
+    controller._set_selected_forecast_id("forecast-a")
+
+    state_a = object()
+    state_b = object()
+    state_c = object()
+    call_count = 0
+
+    def build_destination_state(**_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            controller._set_selected_forecast_id("forecast-b")
+            controller.refresh()
+            return state_a
+        if call_count == 2:
+            controller._set_selected_forecast_id("forecast-c")
+            controller.refresh()
+            return state_b
+        return state_c
+
+    controller._financials_workspace_presenter.build_destination_state = MagicMock(
+        side_effect=build_destination_state
+    )
+    controller._apply_destination_state = MagicMock()
+
+    controller.refresh()
+
+    assert call_count == 3
+    assert controller.selectedForecastId == "forecast-c"
+    controller._apply_destination_state.assert_called_once_with(
+        "planning", "forecast", state_c
+    )
+
+
+def test_billing_selection_and_query_state_reset_only_dependent_pages(controller) -> None:
+    controller.refresh = MagicMock()
+    controller._billing_preparation_page = 4
+    controller._billing_line_page = 3
+
+    controller.selectBillingPreparation("preparation-a")
+
+    assert controller.selectedBillingPreparationId == "preparation-a"
+    assert controller._billing_preparation_page == 4
+    assert controller._billing_line_page == 1
+    controller.setBillingLineFilters("milestone", "schedule_line", "finalized")
+    assert controller._billing_preparation_page == 4
+    assert controller._billing_line_page == 1
+    assert controller.billingLineSearch == "milestone"
+
+
+def test_billing_refresh_rejects_stale_a_b_c_selection_responses(controller) -> None:
+    controller._workspace_loaded = True
+    controller._shell_loaded = True
+    controller._active_destination = "commercial"
+    controller._active_subsection = "billing"
+    controller._set_selected_project_id("project-a")
+    controller._set_selected_billing_preparation_id("preparation-a")
+    state_a, state_b, state_c = object(), object(), object()
+    call_count = 0
+
+    def build_destination_state(**_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            controller._set_selected_billing_preparation_id("preparation-b")
+            controller.refresh()
+            return state_a
+        if call_count == 2:
+            controller._set_selected_billing_preparation_id("preparation-c")
+            controller.refresh()
+            return state_b
+        return state_c
+
+    controller._financials_workspace_presenter.build_destination_state = MagicMock(
+        side_effect=build_destination_state
+    )
+    controller._apply_destination_state = MagicMock()
+    controller.refresh()
+
+    assert call_count == 3
+    assert controller.selectedBillingPreparationId == "preparation-c"
+    controller._apply_destination_state.assert_called_once_with(
+        "commercial", "billing", state_c
+    )
+
+
+def test_billing_project_switch_clears_master_detail_and_lines(controller) -> None:
+    controller.refresh = MagicMock()
+    controller._set_selected_project_id("project-a")
+    controller._set_selected_billing_preparation_id("preparation-a")
+    controller._billing_schedule_page = 3
+    controller._billing_preparation_page = 4
+    controller._billing_line_page = 2
+
+    controller.selectProject("project-b")
+
+    assert controller.selectedBillingPreparationId == ""
+    assert controller.billingSchedule["items"] == []
+    assert controller.billingPreparations["items"] == []
+    assert controller.billingPreparationLines["items"] == []
+    assert controller._billing_schedule_page == 1
+    assert controller._billing_preparation_page == 1
+    assert controller._billing_line_page == 1
+
+
+def test_billing_refresh_rejects_stale_a_b_c_filter_responses(controller) -> None:
+    controller._workspace_loaded = True
+    controller._shell_loaded = True
+    controller._active_destination = "commercial"
+    controller._active_subsection = "billing"
+    controller._set_selected_project_id("project-a")
+    state_a, state_b, state_c = object(), object(), object()
+    call_count = 0
+
+    def build_destination_state(**_kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            controller.setBillingPreparationFilters("filter-b", "approved", "", "", "", "")
+            return state_a
+        if call_count == 2:
+            controller.setBillingPreparationFilters("filter-c", "rejected", "", "", "", "")
+            return state_b
+        return state_c
+
+    controller._financials_workspace_presenter.build_destination_state = MagicMock(
+        side_effect=build_destination_state
+    )
+    controller._apply_destination_state = MagicMock()
+    controller.setBillingPreparationFilters("filter-a", "submitted", "", "", "", "")
+
+    assert call_count == 3
+    assert controller.billingPreparationSearch == "filter-c"
+    assert controller.billingPreparationStatus == "rejected"
+    controller._apply_destination_state.assert_called_once_with(
+        "commercial", "billing", state_c
+    )
+
+
+def test_financials_refresh_logs_exception_context(controller, caplog) -> None:
+    controller._workspace_loaded = True
+    controller._shell_loaded = True
+    controller._set_selected_project_id("project-a")
+    controller._financials_workspace_presenter.build_destination_state = MagicMock(
+        side_effect=RuntimeError("overview read failed")
+    )
+
+    with caplog.at_level(
+        logging.INFO,
+        logger="src.ui_qml.modules.project_management.controllers.financials.financials_refresh_mixin",
+    ):
+        controller.refresh()
+
+    assert controller.errorMessage == "overview read failed"
+    assert "PM financials refresh failed" in caplog.text
+    assert "project='project-a' destination=overview subsection=summary" in caplog.text
+    assert "RuntimeError: overview read failed" in caplog.text

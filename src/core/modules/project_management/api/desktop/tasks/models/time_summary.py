@@ -42,6 +42,7 @@ class TaskTimeEntryDesktopDto:
     hours_label: str
     note: str
     author_username: str
+    version: int
 
 
 @dataclass(frozen=True)

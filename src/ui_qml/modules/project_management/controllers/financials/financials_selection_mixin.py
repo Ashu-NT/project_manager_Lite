@@ -1,33 +1,501 @@
 from __future__ import annotations
 
+from src.ui_qml.modules.project_management.controllers.financials.financials_types import (
+    default_collection,
+    default_detail,
+)
+
 
 class FinancialsSelectionMixin:
+    def _select_destination(self, destination: str) -> None:
+        normalized = str(destination or "").strip().lower()
+        if normalized not in self._finance_destinations:
+            normalized = "overview"
+        if normalized == self._active_destination:
+            return
+        self._active_destination = normalized
+        self._active_subsection = self._finance_subsections[normalized][0]
+        self.activeDestinationChanged.emit()
+        self.activeSubsectionChanged.emit()
+        self.refresh()
+
+    def _select_subsection(self, subsection: str) -> None:
+        allowed = self._finance_subsections[self._active_destination]
+        normalized = str(subsection or "").strip().lower()
+        if normalized not in allowed:
+            normalized = allowed[0]
+        if normalized == self._active_subsection:
+            return
+        self._active_subsection = normalized
+        self.activeSubsectionChanged.emit()
+        self.refresh()
+
     def _select_project(self, project_id: str) -> None:
         normalized_value = (project_id or "").strip()
         if normalized_value == self._selected_project_id:
             return
         self._set_selected_project_id(normalized_value)
         self._budget_line_page = 1
+        self._budget_version_page = 1
         self._rate_line_page = 1
+        self._rate_card_page = 1
         self._planned_cost_line_page = 1
+        self._planned_cost_version_page = 1
         self._billing_preparation_page = 1
+        self._billing_schedule_page = 1
+        self._billing_line_page = 1
+        self._set_selected_billing_preparation_id("")
+        self._set_selected_billing_preparation(default_detail())
         self._actual_page = 1
         self._commitment_page = 1
         self._set_selected_forecast_id("")
+        self._set_selected_rate_card_id("")
+        self._set_selected_rate_card(default_detail())
+        self._forecast_version_page = 1
+        self._forecast_line_page = 1
+        self._set_selected_budget_id("")
+        self._set_selected_planned_cost_version_id("")
         self._set_selected_change_id("")
+        self._set_selected_change(default_detail())
+        self._change_page = 1
+        self._impact_page = 1
         self._set_selected_baseline_id("")
+        self._reset_destination_state()
         self.refresh()
 
     def _select_forecast_version(self, forecast_id: str) -> None:
         value = (forecast_id or "").strip()
         if value != self._selected_forecast_id:
             self._set_selected_forecast_id(value)
+            self._forecast_line_page = 1
+            self._set_selected_forecast(default_detail())
+            self._set_forecast_lines(default_collection())
+            self.refresh()
+
+    def _set_forecast_version_page(self, page: int) -> None:
+        normalized = max(1, int(page))
+        if normalized != self._forecast_version_page:
+            self._forecast_version_page = normalized
+            self.refresh()
+
+    def _set_forecast_line_page(self, page: int) -> None:
+        normalized = max(1, int(page))
+        if normalized != self._forecast_line_page:
+            self._forecast_line_page = normalized
+            self.refresh()
+
+    def _set_forecast_version_sort(self, key: str, direction: int) -> None:
+        normalized_key = str(key or "").strip()
+        if (
+            normalized_key != self._forecast_version_sort_key
+            or int(direction) != self._forecast_version_sort_direction
+        ):
+            self._forecast_version_sort_key = normalized_key
+            self._forecast_version_sort_direction = int(direction)
+            self._forecast_version_page = 1
+            self.forecastVersionSortKeyChanged.emit()
+            self.forecastVersionSortDirectionChanged.emit()
+            self.refresh()
+
+    def _set_forecast_line_sort(self, key: str, direction: int) -> None:
+        normalized_key = str(key or "").strip()
+        if (
+            normalized_key != self._forecast_line_sort_key
+            or int(direction) != self._forecast_line_sort_direction
+        ):
+            self._forecast_line_sort_key = normalized_key
+            self._forecast_line_sort_direction = int(direction)
+            self._forecast_line_page = 1
+            self.forecastLineSortKeyChanged.emit()
+            self.forecastLineSortDirectionChanged.emit()
+            self.refresh()
+
+    def _set_forecast_version_filters(
+        self, search: str, status: str, generation_mode: str
+    ) -> None:
+        values = (
+            str(search or "").strip(),
+            str(status or "").strip().lower(),
+            str(generation_mode or "").strip().lower(),
+        )
+        current = (
+            self._forecast_version_search,
+            self._forecast_version_status,
+            self._forecast_generation_mode,
+        )
+        if values != current:
+            (
+                self._forecast_version_search,
+                self._forecast_version_status,
+                self._forecast_generation_mode,
+            ) = values
+            self._forecast_version_page = 1
+            self.forecastFiltersChanged.emit()
+            self.refresh()
+
+    def _set_forecast_line_filters(self, search: str, source_type: str) -> None:
+        values = (
+            str(search or "").strip(),
+            str(source_type or "").strip().lower(),
+        )
+        current = (self._forecast_line_search, self._forecast_line_source_type)
+        if values != current:
+            self._forecast_line_search, self._forecast_line_source_type = values
+            self._forecast_line_page = 1
+            self.forecastFiltersChanged.emit()
+            self.refresh()
+
+    def _select_budget_version(self, budget_id: str) -> None:
+        value = (budget_id or "").strip()
+        if value != self._selected_budget_id:
+            self._set_selected_budget_id(value)
+            self._budget_line_page = 1
+            self.refresh()
+
+    def _select_rate_card(self, rate_card_id: str) -> None:
+        value = str(rate_card_id or "").strip()
+        if value != self._selected_rate_card_id:
+            self._set_selected_rate_card_id(value)
+            self._rate_line_page = 1
+            self._set_selected_rate_card(default_detail())
+            self._set_rate_lines(default_collection())
+            self.refresh()
+
+    def _set_rate_card_page(self, page: int) -> None:
+        normalized = max(1, int(page))
+        if normalized != self._rate_card_page:
+            self._rate_card_page = normalized
+            self.refresh()
+
+    def _set_rate_line_page(self, page: int) -> None:
+        normalized = max(1, int(page))
+        if normalized != self._rate_line_page:
+            self._rate_line_page = normalized
+            self.refresh()
+
+    def _set_rate_card_sort(self, key: str, direction: int) -> None:
+        normalized_key = str(key or "").strip()
+        if (
+            normalized_key != self._rate_card_sort_key
+            or int(direction) != self._rate_card_sort_direction
+        ):
+            self._rate_card_sort_key = normalized_key
+            self._rate_card_sort_direction = int(direction)
+            self._rate_card_page = 1
+            self.rateCardSortKeyChanged.emit()
+            self.rateCardSortDirectionChanged.emit()
+            self.refresh()
+
+    def _set_rate_line_sort(self, key: str, direction: int) -> None:
+        normalized_key = str(key or "").strip()
+        if (
+            normalized_key != self._rate_line_sort_key
+            or int(direction) != self._rate_line_sort_direction
+        ):
+            self._rate_line_sort_key = normalized_key
+            self._rate_line_sort_direction = int(direction)
+            self._rate_line_page = 1
+            self.rateLineSortKeyChanged.emit()
+            self.rateLineSortDirectionChanged.emit()
+            self.refresh()
+
+    def _set_rate_card_filters(self, search: str, scope: str, status: str) -> None:
+        values = (
+            str(search or "").strip(),
+            str(scope or "").strip().lower(),
+            str(status or "").strip().lower(),
+        )
+        if values != (self._rate_card_search, self._rate_card_scope, self._rate_card_status):
+            self._rate_card_search, self._rate_card_scope, self._rate_card_status = values
+            self._rate_card_page = 1
+            self._rate_line_page = 1
+            self._set_selected_rate_card_id("")
+            self._set_selected_rate_card(default_detail())
+            self._set_rate_lines(default_collection())
+            self.rateFiltersChanged.emit()
+            self.refresh()
+
+    def _set_rate_line_filters(
+        self, search: str, rate_type: str, status: str, effective_status: str
+    ) -> None:
+        values = (
+            str(search or "").strip(),
+            str(rate_type or "").strip().lower(),
+            str(status or "").strip().lower(),
+            str(effective_status or "").strip().lower(),
+        )
+        current = (
+            self._rate_line_search,
+            self._rate_line_rate_type,
+            self._rate_line_status,
+            self._rate_line_effective_status,
+        )
+        if values != current:
+            (
+                self._rate_line_search,
+                self._rate_line_rate_type,
+                self._rate_line_status,
+                self._rate_line_effective_status,
+            ) = values
+            self._rate_line_page = 1
+            self.rateFiltersChanged.emit()
+            self.refresh()
+
+    def _set_budget_version_page(self, page: int) -> None:
+        normalized_page = max(1, int(page))
+        if normalized_page != self._budget_version_page:
+            self._budget_version_page = normalized_page
+            self.refresh()
+
+    def _set_budget_version_sort(self, sort_key: str, sort_direction: int) -> None:
+        key = str(sort_key or "").strip()
+        if key != self._budget_version_sort_key or int(sort_direction) != self._budget_version_sort_direction:
+            self._budget_version_sort_key = key
+            self._budget_version_sort_direction = int(sort_direction)
+            self._budget_version_page = 1
+            self.budgetVersionSortKeyChanged.emit()
+            self.budgetVersionSortDirectionChanged.emit()
+            self.refresh()
+
+    def _set_budget_line_sort(self, sort_key: str, sort_direction: int) -> None:
+        key = str(sort_key or "").strip()
+        if key != self._budget_line_sort_key or int(sort_direction) != self._budget_line_sort_direction:
+            self._budget_line_sort_key = key
+            self._budget_line_sort_direction = int(sort_direction)
+            self._budget_line_page = 1
+            self.budgetLineSortKeyChanged.emit()
+            self.budgetLineSortDirectionChanged.emit()
+            self.refresh()
+
+    def _select_planned_cost_version(self, version_id: str) -> None:
+        value = (version_id or "").strip()
+        if value != self._selected_planned_cost_version_id:
+            self._set_selected_planned_cost_version_id(value)
+            self._planned_cost_line_page = 1
+            self.refresh()
+
+    def _set_planned_cost_version_page(self, page: int) -> None:
+        normalized_page = max(1, int(page))
+        if normalized_page != self._planned_cost_version_page:
+            self._planned_cost_version_page = normalized_page
+            self.refresh()
+
+    def _set_planned_cost_version_sort(self, sort_key: str, sort_direction: int) -> None:
+        key = str(sort_key or "").strip()
+        if (
+            key != self._planned_cost_version_sort_key
+            or int(sort_direction) != self._planned_cost_version_sort_direction
+        ):
+            self._planned_cost_version_sort_key = key
+            self._planned_cost_version_sort_direction = int(sort_direction)
+            self._planned_cost_version_page = 1
+            self.plannedCostVersionSortKeyChanged.emit()
+            self.plannedCostVersionSortDirectionChanged.emit()
+            self.refresh()
+
+    def _set_planned_cost_line_sort(self, sort_key: str, sort_direction: int) -> None:
+        key = str(sort_key or "").strip()
+        if (
+            key != self._planned_cost_line_sort_key
+            or int(sort_direction) != self._planned_cost_line_sort_direction
+        ):
+            self._planned_cost_line_sort_key = key
+            self._planned_cost_line_sort_direction = int(sort_direction)
+            self._planned_cost_line_page = 1
+            self.plannedCostLineSortKeyChanged.emit()
+            self.plannedCostLineSortDirectionChanged.emit()
             self.refresh()
 
     def _select_financial_change(self, change_id: str) -> None:
         value = (change_id or "").strip()
         if value != self._selected_change_id:
             self._set_selected_change_id(value)
+            self._impact_page = 1
+            self._set_selected_change(default_detail())
+            self._set_financial_change_impacts(default_collection())
+            self.refresh()
+
+    def _set_financial_change_page(self, page: int) -> None:
+        normalized = max(1, int(page))
+        if normalized != self._change_page:
+            self._change_page = normalized
+            self.refresh()
+
+    def _set_financial_change_impact_page(self, page: int) -> None:
+        normalized = max(1, int(page))
+        if normalized != self._impact_page:
+            self._impact_page = normalized
+            self.refresh()
+
+    def _set_financial_change_sort(self, key: str, direction: int) -> None:
+        normalized_key = str(key or "").strip()
+        if (
+            normalized_key != self._change_sort_key
+            or int(direction) != self._change_sort_direction
+        ):
+            self._change_sort_key = normalized_key
+            self._change_sort_direction = int(direction)
+            self._change_page = 1
+            self.changeSortKeyChanged.emit()
+            self.changeSortDirectionChanged.emit()
+            self.refresh()
+
+    def _set_financial_change_impact_sort(self, key: str, direction: int) -> None:
+        normalized_key = str(key or "").strip()
+        if (
+            normalized_key != self._impact_sort_key
+            or int(direction) != self._impact_sort_direction
+        ):
+            self._impact_sort_key = normalized_key
+            self._impact_sort_direction = int(direction)
+            self._impact_page = 1
+            self.impactSortKeyChanged.emit()
+            self.impactSortDirectionChanged.emit()
+            self.refresh()
+
+    def _set_financial_change_filters(
+        self, search: str, status: str, approval_status: str, applied_state: str
+    ) -> None:
+        values = (
+            str(search or "").strip(),
+            str(status or "").strip().lower(),
+            str(approval_status or "").strip().lower(),
+            str(applied_state or "").strip().lower(),
+        )
+        current = (
+            self._change_search,
+            self._change_status,
+            self._change_approval_status,
+            self._change_applied_state,
+        )
+        if values != current:
+            (
+                self._change_search,
+                self._change_status,
+                self._change_approval_status,
+                self._change_applied_state,
+            ) = values
+            self._change_page = 1
+            self._impact_page = 1
+            self._set_selected_change_id("")
+            self._set_selected_change(default_detail())
+            self._set_financial_change_impacts(default_collection())
+            self.changeFiltersChanged.emit()
+            self.refresh()
+
+    def _set_financial_change_impact_filters(
+        self, search: str, impact_type: str, applied_state: str
+    ) -> None:
+        values = (
+            str(search or "").strip(),
+            str(impact_type or "").strip().lower(),
+            str(applied_state or "").strip().lower(),
+        )
+        current = (
+            self._impact_search,
+            self._impact_type,
+            self._impact_applied_state,
+        )
+        if values != current:
+            self._impact_search, self._impact_type, self._impact_applied_state = values
+            self._impact_page = 1
+            self.changeFiltersChanged.emit()
+            self.refresh()
+
+    def _select_billing_preparation(self, preparation_id: str) -> None:
+        value = str(preparation_id or "").strip()
+        if value != self._selected_billing_preparation_id:
+            self._set_selected_billing_preparation_id(value)
+            self._billing_line_page = 1
+            self._set_selected_billing_preparation(default_detail())
+            self._set_billing_preparation_lines(default_collection())
+            self.refresh()
+
+    def _set_billing_schedule_page(self, page: int) -> None:
+        value = max(1, int(page))
+        if value != self._billing_schedule_page:
+            self._billing_schedule_page = value
+            self.refresh()
+
+    def _set_billing_preparation_page(self, page: int) -> None:
+        value = max(1, int(page))
+        if value != self._billing_preparation_page:
+            self._billing_preparation_page = value
+            self.refresh()
+
+    def _set_billing_line_page(self, page: int) -> None:
+        value = max(1, int(page))
+        if value != self._billing_line_page:
+            self._billing_line_page = value
+            self.refresh()
+
+    def _set_billing_schedule_sort(self, key: str, direction: int) -> None:
+        self._set_billing_sort("schedule", key, direction)
+
+    def _set_billing_preparation_sort(self, key: str, direction: int) -> None:
+        self._set_billing_sort("preparation", key, direction)
+
+    def _set_billing_line_sort(self, key: str, direction: int) -> None:
+        self._set_billing_sort("line", key, direction)
+
+    def _set_billing_sort(self, target: str, key: str, direction: int) -> None:
+        key_attribute = f"_billing_{target}_sort_key"
+        direction_attribute = f"_billing_{target}_sort_direction"
+        page_attribute = {
+            "schedule": "_billing_schedule_page",
+            "preparation": "_billing_preparation_page",
+            "line": "_billing_line_page",
+        }[target]
+        normalized_key = str(key or "").strip()
+        normalized_direction = int(direction)
+        if (
+            normalized_key != getattr(self, key_attribute)
+            or normalized_direction != getattr(self, direction_attribute)
+        ):
+            setattr(self, key_attribute, normalized_key)
+            setattr(self, direction_attribute, normalized_direction)
+            setattr(self, page_attribute, 1)
+            self.billingQueryStateChanged.emit()
+            self.refresh()
+
+    def _set_billing_schedule_filters(self, search: str, status: str, source_state: str) -> None:
+        values = tuple(str(value or "").strip().lower() if index else str(value or "").strip() for index, value in enumerate((search, status, source_state)))
+        current = (self._billing_schedule_search, self._billing_schedule_status, self._billing_schedule_source_state)
+        if values != current:
+            self._billing_schedule_search, self._billing_schedule_status, self._billing_schedule_source_state = values
+            self._billing_schedule_page = 1
+            self.billingQueryStateChanged.emit()
+            self.refresh()
+
+    def _set_billing_preparation_filters(self, search: str, status: str, method: str, approval_status: str, delivery_state: str, correction_state: str) -> None:
+        raw = (search, status, method, approval_status, delivery_state, correction_state)
+        values = tuple(str(value or "").strip() if index == 0 else str(value or "").strip().lower() for index, value in enumerate(raw))
+        current = (
+            self._billing_preparation_search, self._billing_preparation_status,
+            self._billing_preparation_method, self._billing_preparation_approval_status,
+            self._billing_preparation_delivery_state, self._billing_preparation_correction_state,
+        )
+        if values != current:
+            (
+                self._billing_preparation_search, self._billing_preparation_status,
+                self._billing_preparation_method, self._billing_preparation_approval_status,
+                self._billing_preparation_delivery_state, self._billing_preparation_correction_state,
+            ) = values
+            self._billing_preparation_page = 1
+            self._billing_line_page = 1
+            self._set_selected_billing_preparation_id("")
+            self._set_selected_billing_preparation(default_detail())
+            self._set_billing_preparation_lines(default_collection())
+            self.billingQueryStateChanged.emit()
+            self.refresh()
+
+    def _set_billing_line_filters(self, search: str, source_type: str, source_state: str) -> None:
+        values = (str(search or "").strip(), str(source_type or "").strip().lower(), str(source_state or "").strip().lower())
+        current = (self._billing_line_search, self._billing_line_source_type, self._billing_line_source_state)
+        if values != current:
+            self._billing_line_search, self._billing_line_source_type, self._billing_line_source_state = values
+            self._billing_line_page = 1
+            self.billingQueryStateChanged.emit()
             self.refresh()
 
     def _select_variance_baseline(self, baseline_id: str) -> None:

@@ -37,7 +37,7 @@ def test_platform_runtime_desktop_api_provisions_organization_with_initial_modul
             display_name="Operations Hub",
             timezone_name="Africa/Lagos",
             base_currency="USD",
-            is_active=False,
+            is_enabled=False,
             initial_module_codes=(),
         )
     )
@@ -48,7 +48,8 @@ def test_platform_runtime_desktop_api_provisions_organization_with_initial_modul
     assert services["module_catalog_service"].current_context_label() == "Default Organization"
     assert services["module_catalog_service"].is_enabled("project_management") is True
 
-    services["organization_service"].set_active_organization(result.data.id)
+    services["organization_service"].enable_organization(result.data.id)
+    services["tenant_context_service"].set_active_organization(result.data.id)
     assert services["module_catalog_service"].current_context_label() == "Operations Hub"
     assert services["module_catalog_service"].is_enabled("project_management") is False
 
@@ -67,7 +68,15 @@ def test_platform_runtime_desktop_api_maps_validation_errors(services):
     assert result.error.code == "MODULE_NOT_AVAILABLE"
 
 
-def test_platform_runtime_desktop_api_maps_permission_denied_org_switch(services):
+def test_platform_runtime_desktop_api_maps_permission_denied_enable_organization(services):
+    """P10A: `PlatformRuntimeDesktopApi.set_active_organization` (session switching, gated
+    identically to organization access) was deleted -- the desktop API no longer exposes any
+    session-switch action at all (P10C, not yet built, will add one calling
+    `TenantContextService.set_active_organization` directly; see
+    `test_platform_runtime_application_service.py` for that mechanism's own denial coverage).
+    `enable_organization` is the desktop API's remaining organization-scoped write, gated by
+    `settings.manage` -- this test replaces the retired switch-permission test with equivalent
+    coverage of that gate's own desktop-API error mapping."""
     api = PlatformRuntimeDesktopApi(
         platform_runtime_application_service=services["platform_runtime_application_service"]
     )
@@ -81,7 +90,7 @@ def test_platform_runtime_desktop_api_maps_permission_denied_org_switch(services
         display_name="East Division",
         timezone_name="Asia/Dubai",
         base_currency="AED",
-        is_active=False,
+        is_enabled=False,
     )
     user_session.set_principal(
         UserSessionPrincipal(
@@ -101,7 +110,7 @@ def test_platform_runtime_desktop_api_maps_permission_denied_org_switch(services
     )
     user_session.set_active_organization_id(default_organization.id)
 
-    result = api.set_active_organization(second.id)
+    result = api.enable_organization(second.id)
 
     assert result.ok is False
     assert result.data is None

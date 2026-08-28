@@ -19,7 +19,6 @@ from src.core.modules.project_management.infrastructure.approval.project_cost_ap
     ProjectCostApprovalParticipant,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.contract.models.approval.contracts import ApprovalPostCommitEvent
 from src.core.platform.domain.approval import ApprovalRequest
 from src.infra.composition.approval_apply_dependencies.project_cost import (
     build_project_cost_approval_deps,
@@ -39,7 +38,7 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _submitted_entry(services, session):
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     project = _make_project(services)
     cost_entry_service = services["cost_entry_service"]
     cost_code = services["financial_configuration_service"].create_cost_code(
@@ -64,6 +63,7 @@ def _approval_request(entry, *, expected_version: int, notes: str = "") -> Appro
         request_type="project_cost.approve",
         entity_type="project_cost_entry",
         entity_id=entry.id,
+        tenant_id=entry.tenant_id,
         project_id=entry.project_id,
         organization_id=entry.organization_id,
         payload={
@@ -87,7 +87,7 @@ def _deps(services, session):
 
 def test_participant_apply_approves_entry_on_the_supplied_session(services, session):
     _login(services, "admin", "ChangeMe123!")
-    project, entry = _submitted_entry(services, session)
+    _, entry = _submitted_entry(services, session)
 
     deps = _deps(services, session)
     request = _approval_request(entry, expected_version=entry.row_version)
@@ -96,9 +96,7 @@ def test_participant_apply_approves_entry_on_the_supplied_session(services, sess
 
     approved = deps.cost_entry_service._entry_repo.get(entry.id)
     assert approved.status == ProjectCostEntryStatus.APPROVED
-    assert result.post_commit_events == (
-        ApprovalPostCommitEvent("cost_entries_changed", project.id),
-    )
+    assert result.post_commit_events == ()
 
 
 def test_participant_never_calls_commit_or_rollback(services, session, monkeypatch):

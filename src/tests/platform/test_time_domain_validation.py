@@ -125,10 +125,14 @@ class _FakeTimeEntryRepo:
     def get(self, entry_id: str) -> TimeEntry | None:
         return self._rows.get(entry_id)
 
-    def update(self, entry: TimeEntry) -> None:
+    def update(self, entry: TimeEntry, *, expected_version: int) -> TimeEntry:
+        assert self._rows[entry.id].version == expected_version
+        entry.version += 1
         self._rows[entry.id] = entry
+        return entry
 
-    def delete(self, entry_id: str) -> None:
+    def delete(self, entry_id: str, *, expected_version: int) -> None:
+        assert self._rows[entry_id].version == expected_version
         self._rows.pop(entry_id, None)
 
     def list_by_work_allocation(self, work_allocation_id: str) -> list[TimeEntry]:
@@ -332,6 +336,7 @@ def test_time_service_uses_entity_validation_for_entries_and_periods(monkeypatch
 
     updated = service.update_time_entry(
         entry.id,
+        expected_version=entry.version,
         hours="5.5",
         note="  Revised work  ",
     )

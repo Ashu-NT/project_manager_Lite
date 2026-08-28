@@ -1,12 +1,14 @@
 """Financial desktop DTO models."""
 
-from src.core.modules.project_management.api.desktop.financials.models.baseline_variance import BaselineVarianceRecordDto
+from src.core.modules.project_management.api.desktop.financials.models.baseline_variance import (
+    BaselineVarianceRecordDto,
+    FinancialBaselineVersionDto,
+)
 from src.core.modules.project_management.api.desktop.financials.models.billing import (
     FinancialBillingPreparationDto,
     FinancialBillingPreparationLineDto,
     FinancialBillingProfileDto,
     FinancialBillingScheduleLineDto,
-    FinancialBillingWorkspaceDto,
     FinancialCommercialProjectionDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.commitments import (
@@ -27,34 +29,53 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
     FinancialCostEntryPageDto,
     FinancialManualActualOptionsDto,
 )
-from src.core.modules.project_management.api.desktop.financials.models.forecasts import FinancialForecastDto
-from src.core.modules.project_management.api.desktop.financials.models.lifecycle import (
-    FinancialBaselineVarianceDto,
-    FinancialBaselineVersionDto,
-    FinancialChangeDto,
-    FinancialChangeImpactDto,
-    FinancialForecastLineDto,
-    FinancialForecastVersionDto,
-)
 from src.core.modules.project_management.api.desktop.financials.models.options import (
     FinancialProjectOptionDescriptor,
     FinancialTaskOptionDescriptor,
 )
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
-    FinancialAnalyticsRowDto,
-    FinancialLedgerRowDto,
+    FinancialOverviewDto,
     FinancialPeriodRowDto,
-    FinancialSnapshotDto,
+)
+from src.core.modules.project_management.api.desktop.financials.models.rates import (
+    FinancialRateCardDetailDto,
+    FinancialRateTableRecordDto,
+    FinancialRateWorkspaceDto,
+)
+from src.core.modules.project_management.api.desktop.financials.models.changes import (
+    FinancialChangeDetailDto,
+    FinancialChangeTableRecordDto,
+    FinancialChangeWorkspaceDto,
+)
+from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
+    FinancialBillingDetailDto,
+    FinancialBillingReadWorkspaceDto,
+    FinancialBillingTableRecordDto,
+)
+from src.core.modules.project_management.api.desktop.financials.models.performance import (
+    FinancialCostPhasingDto,
+    FinancialEvmDto,
+    FinancialPerformanceMetricDto,
+    FinancialReportDefinitionDto,
+    FinancialReportsDto,
+    FinancialVarianceWorkspaceDto,
 )
 
 __all__ = [
     "BaselineVarianceRecordDto",
-    "FinancialAnalyticsRowDto",
     "FinancialBillingPreparationDto",
     "FinancialBillingPreparationLineDto",
     "FinancialBillingProfileDto",
     "FinancialBillingScheduleLineDto",
-    "FinancialBillingWorkspaceDto",
+    "FinancialBillingDetailDto",
+    "FinancialBillingReadWorkspaceDto",
+    "FinancialBillingTableRecordDto",
+    "FinancialCostPhasingDto",
+    "FinancialEvmDto",
+    "FinancialPerformanceMetricDto",
+    "FinancialReportDefinitionDto",
+    "FinancialReportsDto",
+    "FinancialVarianceWorkspaceDto",
     "FinancialCommercialProjectionDto",
     "FinancialCommitmentSummaryDto",
     "FinancialCommitmentLineDto",
@@ -66,18 +87,17 @@ __all__ = [
     "FinancialCostEntryApprovalDto",
     "FinancialCostEntryDto",
     "FinancialCostEntryPageDto",
-    "FinancialForecastDto",
-    "FinancialForecastLineDto",
-    "FinancialForecastVersionDto",
-    "FinancialChangeDto",
-    "FinancialChangeImpactDto",
-    "FinancialBaselineVarianceDto",
+    "FinancialChangeDetailDto",
+    "FinancialChangeTableRecordDto",
+    "FinancialChangeWorkspaceDto",
     "FinancialBaselineVersionDto",
-    "FinancialLedgerRowDto",
     "FinancialManualActualOptionsDto",
+    "FinancialOverviewDto",
     "FinancialPeriodRowDto",
     "FinancialProjectOptionDescriptor",
     "FinancialProfileDto",
-    "FinancialSnapshotDto",
+    "FinancialRateCardDetailDto",
+    "FinancialRateTableRecordDto",
+    "FinancialRateWorkspaceDto",
     "FinancialTaskOptionDescriptor",
 ]

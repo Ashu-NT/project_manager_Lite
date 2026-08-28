@@ -5,11 +5,29 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
 from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
+from src.ui_qml.platform.adapters.approval_view_invalidation_adapter import (
+    ApprovalViewInvalidationAdapter,
+)
+from src.ui_qml.platform.adapters.employee_view_invalidation_adapter import (
+    EmployeeViewInvalidationAdapter,
+)
+from src.ui_qml.platform.adapters.department_view_invalidation_adapter import (
+    DepartmentViewInvalidationAdapter,
+)
+from src.ui_qml.platform.adapters.site_view_invalidation_adapter import (
+    SiteViewInvalidationAdapter,
+)
 from src.ui_qml.platform.adapters.module_entitlement_view_invalidation_adapter import (
     ModuleEntitlementViewInvalidationAdapter,
 )
 from src.ui_qml.platform.adapters.organization_view_invalidation_adapter import (
     OrganizationViewInvalidationAdapter,
+)
+from src.ui_qml.platform.adapters.role_binding_view_invalidation_adapter import (
+    RoleBindingViewInvalidationAdapter,
+)
+from src.ui_qml.platform.adapters.tenant_membership_view_invalidation_adapter import (
+    TenantMembershipViewInvalidationAdapter,
 )
 from src.ui_qml.platform.controllers.admin_console import PlatformAdminWorkspaceController
 from src.ui_qml.platform.controllers.identity_access.access import (
@@ -18,8 +36,12 @@ from src.ui_qml.platform.controllers.identity_access.access import (
 from src.ui_qml.platform.controllers.support import PlatformSupportWorkspaceController
 from src.ui_qml.platform.controllers.control import PlatformControlWorkspaceController
 from src.ui_qml.platform.controllers.settings import PlatformSettingsWorkspaceController
-from src.ui_qml.platform.controllers.tenants import TenantSwitcherController
+from src.ui_qml.platform.controllers.tenants import (
+    OrganizationSwitcherController,
+    TenantSwitcherController,
+)
 from src.ui_qml.platform.presenters import (
+    OrganizationSwitcherPresenter,
     PlatformAccessWorkspacePresenter,
     PlatformAdminWorkspacePresenter,
     PlatformControlQueuePresenter,
@@ -154,13 +176,14 @@ class PlatformWorkspaceCatalog(QObject):
             self,
         )
         self._tenant_switcher.refresh()
+
+        self._organization_switcher = OrganizationSwitcherController(
+            OrganizationSwitcherPresenter(tenant_api=tenant_api),
+            self,
+        )
+        self._organization_switcher.refresh()
         self._route_by_id = {route.route_id: route for route in build_platform_routes()}
 
-        # P5A + Organization-specific P6A cutover: the two real Organization-creation UI
-        # consumers (admin console organization list, settings organization profiles list) react
-        # to the typed OrganizationCreated event via this Qt adapter, never the legacy
-        # organizations_changed signal -- which remains wired, unchanged, for
-        # update/activation-triggered refreshes only.
         view_invalidation_channel = (
             getattr(desktop_api_registry, "platform_view_invalidation_channel", None)
             if desktop_api_registry is not None
@@ -177,25 +200,9 @@ class PlatformWorkspaceCatalog(QObject):
         self._organization_view_invalidation_adapter.organizationCollectionStale.connect(
             self._settings_workspace.refresh_organization_profiles
         )
-        # Tenant-scope hardening: a single adapter instance persists across a tenant switch (the
-        # QML controller tree is never reconstructed), so it must be re-scoped to whichever
-        # tenant is now active -- otherwise it would keep matching the PREVIOUS tenant's
-        # organization-collection invalidations (or, with the earlier AllTenants() subscription,
-        # every tenant's), never correctly following the switch.
         self._tenant_switcher.tenantSwitched.connect(self._on_tenant_switched)
-
-        # P5B-3: direct Qt cutover for Module Entitlements, mirroring the Organization precedent
-        # above -- no legacy `modules_changed` bridge. Organization-scoped
-        # (`ExactOrganization(tenant_id, organization_id)`, never tenant-wide), so it must follow
-        # BOTH a tenant switch and an organization switch -- re-scoped via
-        # `refreshCurrentPermissions()`, the existing hook the QML shell already calls
-        # immediately after either (`PlatformWorkspacePage.qml`'s `ContextBar.onTenantSelected`/
-        # `onOrganizationSelected`), since this desktop shell has no separate, dedicated
-        # "organization switched" Qt signal the way `TenantSwitcherController.tenantSwitched`
-        # exists for tenants. Only the settings workspace's `moduleEntitlements` list is a real
-        # consumer here -- tracing the other two former `modules_changed` subscribers (control,
-        # access) end-to-end found neither reads any module-entitlement-derived state, so neither
-        # is migrated (see the P5B-3 report).
+        self._tenant_switcher.tenantSwitched.connect(self.refreshAllWorkspaces)
+        self._organization_switcher.organizationSwitched.connect(self.refreshAllWorkspaces)
         self._module_entitlement_view_invalidation_adapter = ModuleEntitlementViewInvalidationAdapter(
             channel=view_invalidation_channel,
             tenant_id=self._tenant_switcher.activeTenantId,
@@ -205,11 +212,76 @@ class PlatformWorkspaceCatalog(QObject):
         self._module_entitlement_view_invalidation_adapter.moduleEntitlementsStale.connect(
             self._settings_workspace.refresh_module_entitlements
         )
+        self._role_binding_view_invalidation_adapter = RoleBindingViewInvalidationAdapter(
+            channel=view_invalidation_channel,
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+            parent=self,
+        )
+        self._role_binding_view_invalidation_adapter.roleBindingsStale.connect(
+            self._admin_access_workspace.refresh_role_bindings
+        )
+
+        self._tenant_membership_view_invalidation_adapter = TenantMembershipViewInvalidationAdapter(
+            channel=view_invalidation_channel,
+            tenant_id=self._tenant_switcher.activeTenantId,
+            parent=self,
+        )
+        self._tenant_membership_view_invalidation_adapter.membershipDataStale.connect(
+            self._admin_workspace.refresh_users
+        )
+        self._tenant_membership_view_invalidation_adapter.membershipDataStale.connect(
+            self._admin_access_workspace.refresh_security_users
+        )
+
+        self._approval_view_invalidation_adapter = ApprovalViewInvalidationAdapter(
+            channel=view_invalidation_channel,
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+            parent=self,
+        )
+        self._approval_view_invalidation_adapter.approvalsStale.connect(
+            self._control_workspace.refresh_approvals
+        )
+
+        self._employee_view_invalidation_adapter = EmployeeViewInvalidationAdapter(
+            channel=view_invalidation_channel,
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+            parent=self,
+        )
+        self._employee_view_invalidation_adapter.employeeCollectionStale.connect(
+            self._admin_workspace.refresh_employees
+        )
+
+        self._department_view_invalidation_adapter = DepartmentViewInvalidationAdapter(
+            channel=view_invalidation_channel,
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+            parent=self,
+        )
+        self._department_view_invalidation_adapter.departmentCollectionStale.connect(
+            self._admin_workspace.refresh_departments
+        )
+
+        self._site_view_invalidation_adapter = SiteViewInvalidationAdapter(
+            channel=view_invalidation_channel,
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+            parent=self,
+        )
+        self._site_view_invalidation_adapter.siteCollectionStale.connect(
+            self._admin_workspace.refresh_sites
+        )
 
     def _on_tenant_switched(self) -> None:
         self._organization_view_invalidation_adapter.set_active_tenant(
             self._tenant_switcher.activeTenantId
         )
+        self._tenant_membership_view_invalidation_adapter.set_active_tenant(
+            self._tenant_switcher.activeTenantId
+        )
+        self._organization_switcher.refresh()
 
     def _active_organization_id(self) -> str:
         if self._runtime_api is None:
@@ -242,6 +314,10 @@ class PlatformWorkspaceCatalog(QObject):
     @Property(TenantSwitcherController, constant=True)
     def tenantSwitcher(self) -> TenantSwitcherController:
         return self._tenant_switcher
+
+    @Property(OrganizationSwitcherController, constant=True)
+    def organizationSwitcher(self) -> OrganizationSwitcherController:
+        return self._organization_switcher
 
     @Slot(str, result="QVariantMap")
     def workspace(self, route_id: str) -> dict[str, str]:
@@ -287,6 +363,7 @@ class PlatformWorkspaceCatalog(QObject):
     def refreshAllWorkspaces(self) -> None:
         for controller in (
             self._tenant_switcher,
+            self._organization_switcher,
             self._admin_workspace,
             self._admin_access_workspace,
             self._admin_support_workspace,
@@ -368,17 +445,28 @@ class PlatformWorkspaceCatalog(QObject):
 
     @Slot()
     def refreshCurrentPermissions(self) -> None:
-        """Call after a tenant/organization switch or re-authentication so
-        nav/action visibility reflects the new session's actual authority.
-
-        P5B-3: also the re-scoping hook for `ModuleEntitlementViewInvalidationAdapter` -- this
-        desktop shell has no dedicated "organization switched" Qt signal the way
-        `TenantSwitcherController.tenantSwitched` exists for tenants, but the QML shell already
-        calls this method immediately after BOTH a tenant switch and an organization switch
-        (`PlatformWorkspacePage.qml`'s `ContextBar.onTenantSelected`/`onOrganizationSelected`), so
-        re-scoping here correctly follows either kind of switch."""
         self._reload_current_permissions()
         self._module_entitlement_view_invalidation_adapter.set_active_scope(
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+        )
+        self._role_binding_view_invalidation_adapter.set_active_scope(
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+        )
+        self._approval_view_invalidation_adapter.set_active_scope(
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+        )
+        self._employee_view_invalidation_adapter.set_active_scope(
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+        )
+        self._department_view_invalidation_adapter.set_active_scope(
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+        )
+        self._site_view_invalidation_adapter.set_active_scope(
             tenant_id=self._tenant_switcher.activeTenantId,
             organization_id=self._active_organization_id(),
         )

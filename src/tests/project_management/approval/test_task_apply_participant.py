@@ -49,11 +49,15 @@ def _make_task(services, name: str = "Task Approval Participant Constraint"):
     return project, task
 
 
-def _dependency_add_request(project, predecessor, successor) -> ApprovalRequest:
+def _dependency_add_request(services, project, predecessor, successor) -> ApprovalRequest:
+    tenant_id = services["tenant_context_service"].require_active_tenant_id(
+        operation_label="test approval request"
+    )
     return ApprovalRequest.create(
         request_type="dependency.add",
         entity_type="task_dependency",
         entity_id=successor.id,
+        tenant_id=tenant_id,
         project_id=project.id,
         organization_id=project.organization_id,
         payload={
@@ -69,11 +73,15 @@ def _dependency_add_request(project, predecessor, successor) -> ApprovalRequest:
     )
 
 
-def _constraint_update_request(project, task, *, constraint_type, constraint_date) -> ApprovalRequest:
+def _constraint_update_request(services, project, task, *, constraint_type, constraint_date) -> ApprovalRequest:
+    tenant_id = services["tenant_context_service"].require_active_tenant_id(
+        operation_label="test approval request"
+    )
     return ApprovalRequest.create(
         request_type="task.constraint.update",
         entity_type="task",
         entity_id=task.id,
+        tenant_id=tenant_id,
         project_id=project.id,
         organization_id=project.organization_id,
         payload={
@@ -104,7 +112,7 @@ def test_participant_apply_dependency_add_adds_dependency_on_the_supplied_sessio
     project, a, b = _make_two_tasks(services)
 
     deps = _deps(services, session)
-    request = _dependency_add_request(project, a, b)
+    request = _dependency_add_request(services, project, a, b)
 
     result = TaskApprovalParticipant().apply_dependency_add(request, deps)
 
@@ -126,7 +134,7 @@ def test_participant_apply_task_constraint_update_updates_task_on_the_supplied_s
     # A Friday -- a working day, matching test_task_constraint_governance.py's pattern.
     constraint_date = date(2026, 9, 18)
     request = _constraint_update_request(
-        project, task, constraint_type=ConstraintType.MUST_START_ON, constraint_date=constraint_date
+        services, project, task, constraint_type=ConstraintType.MUST_START_ON, constraint_date=constraint_date
     )
 
     result = TaskApprovalParticipant().apply_task_constraint_update(request, deps)
@@ -146,7 +154,7 @@ def test_participant_never_calls_commit_or_rollback(services, session, monkeypat
     _login(services, "admin", "ChangeMe123!")
     project, a, b = _make_two_tasks(services)
     deps = _deps(services, session)
-    request = _dependency_add_request(project, a, b)
+    request = _dependency_add_request(services, project, a, b)
 
     def _forbidden(*_args, **_kwargs):
         raise AssertionError("the participant must never commit or roll back its own Session")

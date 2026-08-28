@@ -1,24 +1,12 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
-import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
 import support.sections 1.0 as SupportSections
 
-// R5.5: Settings' "Diagnostics" destination. Absorbs the former Admin
-// Console "Support" leaf (Release Management/Runtime Status/Incident
-// Diagnostics/Runtime Paths/Support Activity -- all real, backend-driven,
-// reused verbatim from AdminSupportSection.qml's panel wiring) alongside
-// Settings' own pre-existing "sysinfo" overview content (Organization
-// Profiles/Module Catalog/Platform Capabilities), organized into three
-// labeled groups rather than a flat dump, per the approved plan:
-//   - System Information   (Settings' own overview cards, unchanged)
-//   - Runtime & Operations (Runtime Status, Runtime Paths, Release Mgmt)
-//   - Support & Troubleshooting (Incident Diagnostics, Support Activity)
 ColumnLayout {
     id: root
     spacing: 0
@@ -38,14 +26,6 @@ ColumnLayout {
 
     readonly property bool _supportBusy: root.supportController ? root.supportController.isBusy : false
     property var _pendingInstallPayload: null
-
-    Connections {
-        target: root.supportController
-        function onSupportSettingsChanged() { releasePanel.syncFromController() }
-        function onIncidentIdChanged() {
-            diagnosticsPanel.incidentId = root.supportController ? root.supportController.incidentId : ""
-        }
-    }
 
     FileDialog {
         id: diagnosticsSaveDialog
@@ -67,7 +47,7 @@ ColumnLayout {
         title: "Install Update"
         subtitle: "The app will download the installer, prepare the Windows update handoff, then close and relaunch automatically. Continue?"
         primaryText: "Install Now"; primaryIcon: "approve"
-        primaryEnabled: !root._supportBusy; width: 460
+        primaryEnabled: !root._supportBusy
         onAccepted: {
             installDialog.close()
             if (root.supportController && root._pendingInstallPayload)
@@ -124,13 +104,6 @@ ColumnLayout {
                     supportSettings: root.supportSettings
                     updateStatus: root.updateStatus
                     isBusy: root._supportBusy
-
-                    function syncFromController() {
-                        const ch = String(root.supportSettings.updateChannel || "stable")
-                        for (let i = 0; i < model.count; i++) {
-                            if (String((model.get(i) || {}).value || "") === ch) { currentIndex = i; break }
-                        }
-                    }
 
                     onSaveSettingsRequested: function(ch, auto, manifest) { if (root.supportController) root.supportController.saveSettings({ "updateChannel": ch, "updateAutoCheck": auto, "updateManifestSource": manifest }) }
                     onCheckUpdatesRequested: function(ch, auto, manifest) { if (root.supportController) root.supportController.checkForUpdates({ "updateChannel": ch, "updateAutoCheck": auto, "updateManifestSource": manifest }) }

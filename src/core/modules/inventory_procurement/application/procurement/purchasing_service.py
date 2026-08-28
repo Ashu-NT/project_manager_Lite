@@ -23,6 +23,9 @@ from src.core.modules.inventory_procurement.application.procurement.purchasing_r
 from src.core.modules.inventory_procurement.application.procurement.purchasing_support import (
     PurchasingSupportMixin,
 )
+from src.core.modules.inventory_procurement.contracts.persistence.purchase_order_submission_unit_of_work import (
+    PurchaseOrderSubmissionUnitOfWorkFactory,
+)
 from src.core.modules.inventory_procurement.contracts.repositories.inventory import (
     StockBalanceRepository,
 )
@@ -47,6 +50,7 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
 )
 from src.core.modules.inventory_procurement.application.common.support import normalize_optional_text
 from src.core.shared.events.domain_events import domain_events
+from src.core.shared.time.clock import Clock
 
 
 class PurchasingService(
@@ -75,6 +79,8 @@ class PurchasingService(
         item_service: ItemMasterService,
         stock_service: StockControlService,
         approval_service: ApprovalService,
+        purchase_order_submission_uow_factory: PurchaseOrderSubmissionUnitOfWorkFactory | None = None,
+        clock: Clock | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
         activity_service=None,
@@ -99,6 +105,18 @@ class PurchasingService(
         self._item_service: ItemMasterService = item_service
         self._stock_service: StockControlService = stock_service
         self._approval_service: ApprovalService = approval_service
+        # Approval-P1: `submit_purchase_order`'s own canonical transaction owner -- the purchase
+        # order transition, the governed `ApprovalRequest`, and the Approval audit trail all
+        # commit atomically through this ONE fresh Session. Optional only so this constructor
+        # stays backward-compatible for any test double that never calls `submit_purchase_order`;
+        # production composition always supplies it.
+        self._purchase_order_submission_uow_factory = purchase_order_submission_uow_factory
+        # Approval-P2: `occurred_at` on the `ApprovalRequested` recorded by
+        # `submit_purchase_order` comes from this Clock, never `datetime.now()`. Optional only so
+        # this constructor stays backward-compatible for the apply-participant's own fresh,
+        # submission-unrelated `PurchasingService` instance; production composition always
+        # supplies a real `SystemClock()`.
+        self._clock = clock
         self._user_session = user_session
         self._activity_service = activity_service
         self._document_integration_service: DocumentIntegrationService | None = document_integration_service

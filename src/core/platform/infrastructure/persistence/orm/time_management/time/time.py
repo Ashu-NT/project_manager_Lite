@@ -73,6 +73,7 @@ class TimeEntryORM(Base):
     author_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
 Index("idx_time_entries_tenant", TimeEntryORM.tenant_id)

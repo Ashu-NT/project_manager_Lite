@@ -180,6 +180,7 @@ class TaskQueryMixin:
         self,
         *,
         project_id: str | None = None,
+        resource_id: str | None = None,
         search_text: str = "",
         status: str = "all",
         priority: str = "all",
@@ -317,6 +318,7 @@ class TaskQueryMixin:
         self,
         *,
         project_id: str | None = None,
+        resource_id: str | None = None,
     ) -> list[TimesheetAssignmentContext]:
         require_permission(
             self._user_session,
@@ -332,7 +334,8 @@ class TaskQueryMixin:
                 operation_label="list timesheet assignments",
             )
         rows = self._assignment_repo.list_timesheet_contexts(
-            project_id=normalized_project_id
+            project_id=normalized_project_id,
+            resource_id=str(resource_id or "").strip() or None,
         )
         if normalized_project_id is not None:
             return rows

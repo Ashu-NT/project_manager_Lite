@@ -88,7 +88,7 @@ from src.ui_qml.platform.controllers.organization.organizations.organization_con
 )
 from src.ui_qml.platform.controllers.organization.organizations.actions import (
     create_organization,
-    set_active_organization,
+    enable_organization,
     update_organization,
 )
 from src.ui_qml.platform.controllers.organization.parties.party_controller import (
@@ -117,7 +117,7 @@ from src.ui_qml.platform.controllers.common import PlatformWorkspaceControllerBa
 
 from .domain_event_binder import bind_domain_events
 from .entity_code_dispatch import generate_entity_code
-from .refresh_coordinator import do_refresh
+from .refresh_coordinator import do_refresh, refresh_overview
 from .signal_binder import bind_child_signals
 
 QML_IMPORT_NAME = "Platform.Controllers"
@@ -318,6 +318,19 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         creation."""
         self._organization_controller.refresh_organizations()
 
+    def refresh_users(self) -> None:
+        self._user_controller.refresh()
+        refresh_overview(self)
+
+    def refresh_employees(self) -> None:
+        self._employee_controller.refresh()
+
+    def refresh_departments(self) -> None:
+        self._department_controller.refresh()
+
+    def refresh_sites(self) -> None:
+        self._site_controller.refresh()
+
     @Slot(str, "QVariantMap", result=str)
     def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
         return generate_entity_code(self, entity_type, payload)
@@ -333,8 +346,8 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         return update_organization(self, payload)
 
     @Slot(str, result="QVariantMap")
-    def setActiveOrganization(self, organization_id: str) -> dict[str, object]:
-        return set_active_organization(self, organization_id)
+    def enableOrganization(self, organization_id: str) -> dict[str, object]:
+        return enable_organization(self, organization_id)
 
     # ── Calendar slots ────────────────────────────────────────────────────
 

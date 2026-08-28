@@ -47,7 +47,6 @@ def _seed_portfolio(services, *, project_count: int) -> tuple[str, str]:
             hourly_rate=75.0,
             capacity_percent=100.0,
             currency_code="EUR",
-            rate_effective_on=date(2024, 1, 8),
         )
         project_resource = project_resource_service.add_to_project(
             project_id=project.id,

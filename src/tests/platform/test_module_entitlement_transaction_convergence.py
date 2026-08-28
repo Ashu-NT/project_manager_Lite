@@ -30,7 +30,7 @@ import inspect
 import pytest
 
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.infrastructure.persistence.module_entitlement_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.module_entitlement_unit_of_work import (
     SqlAlchemyModuleEntitlementUnitOfWork,
 )
 
@@ -44,7 +44,7 @@ def _unique_code(prefix: str) -> str:
 
 def test_fresh_session_per_module_command_call(services, monkeypatch):
     module_catalog = services["module_catalog_service"]
-    active_org = services["organization_service"].get_active_organization()
+    active_org = services["tenant_context_service"].get_active_organization()
     seen_sessions = []
     original_create = type(module_catalog._uow_factory).create
 
@@ -65,7 +65,7 @@ def test_fresh_session_per_module_command_call(services, monkeypatch):
 
 def test_repository_and_audit_share_the_uow_session(services, monkeypatch):
     module_catalog = services["module_catalog_service"]
-    active_org = services["organization_service"].get_active_organization()
+    active_org = services["tenant_context_service"].get_active_organization()
     seen = {}
     original_create = type(module_catalog._uow_factory).create
 
@@ -89,7 +89,7 @@ def test_audit_entry_is_atomic_with_the_entitlement_write(services, monkeypatch)
     write and its audit entry share one fresh UoW Session -- a commit failure rolls back both
     together (proven structurally: the UoW's own `_committed`/`_closed` state)."""
     module_catalog = services["module_catalog_service"]
-    active_org = services["organization_service"].get_active_organization()
+    active_org = services["tenant_context_service"].get_active_organization()
     captured_uow = {}
     original_create = type(module_catalog._uow_factory).create
 
@@ -119,7 +119,7 @@ def test_audit_entry_is_atomic_with_the_entitlement_write(services, monkeypatch)
 
 def test_no_global_mutation_session_touch(services):
     module_catalog = services["module_catalog_service"]
-    active_org = services["organization_service"].get_active_organization()
+    active_org = services["tenant_context_service"].get_active_organization()
     legacy_session = services["session"]
     legacy_session.commit()
 
@@ -145,17 +145,17 @@ def test_non_active_organization_mutation_affects_only_that_organization(service
     organization_service = services["organization_service"]
     module_catalog = services["module_catalog_service"]
 
-    org_a1 = organization_service.get_active_organization()
+    org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique_code("NONACTIVE"), display_name="Non-Active Org A2", is_active=False
+        organization_code=_unique_code("NONACTIVE"), display_name="Non-Active Org A2", is_enabled=False
     )
-    assert organization_service.get_active_organization().id == org_a1.id
+    assert services["tenant_context_service"].get_active_organization().id == org_a1.id
 
     entitlement_a2 = module_catalog.disable_module(org_a2.id, "project_management")
     assert entitlement_a2.enabled is False
 
     # A1 (still active throughout -- never switched) must be completely unaffected.
-    assert organization_service.get_active_organization().id == org_a1.id
+    assert services["tenant_context_service"].get_active_organization().id == org_a1.id
     entitlement_a1 = module_catalog.get_entitlement("project_management")
     assert entitlement_a1.enabled is True
 

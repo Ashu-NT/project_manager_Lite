@@ -83,6 +83,11 @@ def project_fact_statement(*, tenant_id: str, organization_id: str, project_id: 
         .correlate(ProjectORM)
         .scalar_subquery()
     )
+    approved_budget_at = (
+        select(ProjectBudgetORM.approved_at)
+        .where(ProjectBudgetORM.id == approved_budget_id)
+        .scalar_subquery()
+    )
     return select(
         ProjectORM.id,
         ProjectORM.tenant_id,
@@ -94,6 +99,7 @@ def project_fact_statement(*, tenant_id: str, organization_id: str, project_id: 
         .where(ProjectBudgetORM.id == approved_budget_id)
         .scalar_subquery()
         .label("approved_budget_revision"),
+        approved_budget_at.label("approved_budget_at"),
         ProjectORM.start_date,
         ProjectORM.end_date,
     ).join(
@@ -137,9 +143,15 @@ def approved_forecast_facts_statement(
 
 
 def approved_forecast_line_facts_statement(
-    *, tenant_id: str, organization_id: str, project_id: str, forecast_id: str
+    *,
+    tenant_id: str,
+    organization_id: str,
+    project_id: str,
+    forecast_id: str,
+    date_from: date | None = None,
+    date_to: date | None = None,
 ) -> SqlSelect:
-    return (
+    stmt = (
         select(
             ForecastLineORM.id,
             ForecastLineORM.task_id,
@@ -168,6 +180,60 @@ def approved_forecast_line_facts_statement(
             ),
         )
         .order_by(ForecastLineORM.period_start, ForecastLineORM.id)
+    )
+    if date_from is not None:
+        stmt = stmt.where(
+            or_(
+                ForecastLineORM.period_end.is_(None),
+                ForecastLineORM.period_end >= date_from,
+            )
+        )
+    if date_to is not None:
+        stmt = stmt.where(
+            or_(
+                ForecastLineORM.period_start.is_(None),
+                ForecastLineORM.period_start <= date_to,
+            )
+        )
+    return stmt
+
+
+def approved_forecast_total_statement(
+    *,
+    tenant_id: str,
+    organization_id: str,
+    project_id: str,
+    forecast_id: str,
+    project_currency: str,
+) -> SqlSelect:
+    currency_matches = func.upper(ForecastLineORM.currency_code) == project_currency
+    return (
+        select(
+            func.coalesce(
+                func.sum(case((currency_matches, ForecastLineORM.amount), else_=0)),
+                0,
+            ).label("total_amount"),
+            func.coalesce(
+                func.sum(case((currency_matches, 0), else_=1)),
+                0,
+            ).label("currency_mismatch_count"),
+        )
+        .join(ProjectForecastORM, ProjectForecastORM.id == ForecastLineORM.forecast_id)
+        .join(ProjectORM, ProjectORM.id == ForecastLineORM.project_id)
+        .where(
+            ForecastLineORM.tenant_id == tenant_id,
+            ForecastLineORM.organization_id == organization_id,
+            ForecastLineORM.project_id == project_id,
+            ForecastLineORM.forecast_id == forecast_id,
+            ProjectForecastORM.tenant_id == tenant_id,
+            ProjectForecastORM.organization_id == organization_id,
+            ProjectForecastORM.project_id == project_id,
+            _project_scope(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+            ),
+        )
     )
 
 
@@ -223,7 +289,12 @@ def evm_baseline_task_facts_statement(
 
 
 def planned_cost_facts_statement(
-    *, tenant_id: str, organization_id: str, project_id: str, as_of: date
+    *,
+    tenant_id: str,
+    organization_id: str,
+    project_id: str,
+    as_of: date,
+    date_from: date | None = None,
 ) -> SqlSelect:
     version_id = (
         select(ProjectPlannedCostVersionORM.id)
@@ -243,6 +314,28 @@ def planned_cost_facts_statement(
         .limit(1)
         .scalar_subquery()
     )
+    if date_from is not None:
+        version_id = (
+            select(ProjectPlannedCostVersionORM.id)
+            .join(ProjectORM, ProjectORM.id == ProjectPlannedCostVersionORM.project_id)
+            .where(
+                ProjectPlannedCostVersionORM.tenant_id == tenant_id,
+                ProjectPlannedCostVersionORM.organization_id == organization_id,
+                ProjectPlannedCostVersionORM.project_id == project_id,
+                ProjectPlannedCostVersionORM.as_of.between(date_from, as_of),
+                _project_scope(
+                    tenant_id=tenant_id,
+                    organization_id=organization_id,
+                    project_id=project_id,
+                ),
+            )
+            .order_by(
+                ProjectPlannedCostVersionORM.as_of.desc(),
+                ProjectPlannedCostVersionORM.revision.desc(),
+            )
+            .limit(1)
+            .scalar_subquery()
+        )
     return (
         select(
             ProjectPlannedCostLineORM.id,
@@ -272,9 +365,14 @@ def planned_cost_facts_statement(
 
 
 def commitment_facts_statement(
-    *, tenant_id: str, organization_id: str, project_id: str, as_of: date
+    *,
+    tenant_id: str,
+    organization_id: str,
+    project_id: str,
+    as_of: date,
+    date_from: date | None = None,
 ) -> SqlSelect:
-    return (
+    stmt = (
         select(
             ProjectCommitmentLineORM.id,
             ProjectCommitmentLineORM.task_id,
@@ -304,10 +402,23 @@ def commitment_facts_statement(
         )
         .order_by(ProjectCommitmentLineORM.id)
     )
+    if date_from is not None:
+        stmt = stmt.where(
+            or_(
+                ProjectCommitmentLineORM.order_date.is_(None),
+                ProjectCommitmentLineORM.order_date >= date_from,
+            )
+        )
+    return stmt
 
 
 def actual_cost_facts_statement(
-    *, tenant_id: str, organization_id: str, project_id: str, as_of: date
+    *,
+    tenant_id: str,
+    organization_id: str,
+    project_id: str,
+    as_of: date,
+    date_from: date | None = None,
 ) -> SqlSelect:
     cost_type = case(
         (ProjectCostEntryORM.posting_purpose == "labor_actual", literal("LABOR")),
@@ -319,7 +430,7 @@ def actual_cost_facts_statement(
         (ProjectCostEntryORM.posting_purpose == "receipt_accrual", literal("PROCUREMENT_ACTUAL")),
         else_=literal("MANUAL_ACTUAL"),
     )
-    return (
+    stmt = (
         select(
             ProjectCostEntryORM.id,
             ProjectCostEntryORM.task_id,
@@ -349,6 +460,106 @@ def actual_cost_facts_statement(
             ProjectCostEntryORM.posting_date <= as_of,
         )
         .order_by(ProjectCostEntryORM.posting_date, ProjectCostEntryORM.id)
+    )
+    if date_from is not None:
+        stmt = stmt.where(ProjectCostEntryORM.posting_date >= date_from)
+    return stmt
+
+
+def actual_cost_total_statement(
+    *,
+    tenant_id: str,
+    organization_id: str,
+    project_id: str,
+    as_of: date,
+    project_currency: str,
+) -> SqlSelect:
+    transaction_matches = func.upper(ProjectCostEntryORM.currency_code) == project_currency
+    base_matches = and_(
+        func.upper(ProjectCostEntryORM.base_currency_code) == project_currency,
+        ProjectCostEntryORM.base_amount.is_not(None),
+    )
+    amount = case(
+        (transaction_matches, ProjectCostEntryORM.amount),
+        (base_matches, ProjectCostEntryORM.base_amount),
+        else_=0,
+    )
+    currency_matches = or_(transaction_matches, base_matches)
+    return (
+        select(
+            func.coalesce(func.sum(amount), 0).label("total_amount"),
+            func.coalesce(
+                func.sum(case((currency_matches, 0), else_=1)),
+                0,
+            ).label("currency_mismatch_count"),
+        )
+        .join(ProjectORM, ProjectORM.id == ProjectCostEntryORM.project_id)
+        .where(
+            ProjectCostEntryORM.tenant_id == tenant_id,
+            ProjectCostEntryORM.organization_id == organization_id,
+            ProjectCostEntryORM.project_id == project_id,
+            ProjectCostEntryORM.status.in_(("posted", "reversed")),
+            ProjectCostEntryORM.posting_date <= as_of,
+            _project_scope(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+            ),
+        )
+    )
+
+
+def commitment_total_statement(
+    *,
+    tenant_id: str,
+    organization_id: str,
+    project_id: str,
+    as_of: date,
+    project_currency: str,
+) -> SqlSelect:
+    transaction_matches = func.upper(ProjectCommitmentLineORM.currency_code) == project_currency
+    base_matches = func.upper(ProjectCommitmentLineORM.base_currency_code) == project_currency
+    transaction_remaining = ProjectCommitmentLineORM.amount - ProjectCommitmentLineORM.matched_amount
+    base_remaining = (
+        ProjectCommitmentLineORM.base_amount
+        - ProjectCommitmentLineORM.matched_amount * ProjectCommitmentLineORM.exchange_rate
+    )
+    amount = case(
+        (
+            transaction_matches,
+            case((transaction_remaining > 0, transaction_remaining), else_=0),
+        ),
+        (
+            base_matches,
+            case((base_remaining > 0, base_remaining), else_=0),
+        ),
+        else_=0,
+    )
+    currency_matches = or_(transaction_matches, base_matches)
+    return (
+        select(
+            func.coalesce(func.sum(amount), 0).label("total_amount"),
+            func.coalesce(
+                func.sum(case((currency_matches, 0), else_=1)),
+                0,
+            ).label("currency_mismatch_count"),
+        )
+        .join(ProjectORM, ProjectORM.id == ProjectCommitmentLineORM.project_id)
+        .where(
+            ProjectCommitmentLineORM.tenant_id == tenant_id,
+            ProjectCommitmentLineORM.organization_id == organization_id,
+            ProjectCommitmentLineORM.project_id == project_id,
+            ProjectCommitmentLineORM.state.not_in(("closed", "cancelled")),
+            or_(
+                ProjectCommitmentLineORM.order_date.is_(None),
+                ProjectCommitmentLineORM.order_date <= as_of,
+            ),
+            _project_scope(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+            ),
+        )
     )
 
 
@@ -408,9 +619,12 @@ def resource_facts_statement(
 __all__ = [
     "approved_forecast_facts_statement",
     "approved_forecast_line_facts_statement",
+    "approved_forecast_total_statement",
     "actual_cost_facts_statement",
+    "actual_cost_total_statement",
     "assignment_facts_statement",
     "commitment_facts_statement",
+    "commitment_total_statement",
     "evm_baseline_statement",
     "evm_baseline_task_facts_statement",
     "planned_cost_facts_statement",

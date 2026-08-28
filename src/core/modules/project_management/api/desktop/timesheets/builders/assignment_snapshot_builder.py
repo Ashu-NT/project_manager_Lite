@@ -77,7 +77,7 @@ def build_assignment_snapshot(
         context.resource_id,
         period_start=selected_period_start,
     )
-    period = timesheet_service.get_timesheet_period(
+    period = timesheet_service.get_timesheet_period_record(
         context.resource_id,
         period_start=selected_period_start,
     )

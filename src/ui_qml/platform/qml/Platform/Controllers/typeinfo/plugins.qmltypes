@@ -53,7 +53,7 @@ Module {
         Method { name: "refresh" }
         Method { name: "createOrganization"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "updateOrganization"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
-        Method { name: "setActiveOrganization"; type: "QVariantMap"; Parameter { name: "organizationId"; type: "QString" } }
+        Method { name: "enableOrganization"; type: "QVariantMap"; Parameter { name: "organizationId"; type: "QString" } }
         Method { name: "updateCalendar"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "addCalendarHoliday"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "deleteCalendarHoliday"; type: "QVariantMap"; Parameter { name: "holidayId"; type: "QString" } }

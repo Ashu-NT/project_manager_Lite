@@ -17,13 +17,19 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     ResourceFact,
     TaskFact,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.finance_overview_facts import (
+    FinanceOverviewFacts,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from .statements.finance_snapshot_statements import (
     actual_cost_facts_statement,
+    actual_cost_total_statement,
     approved_forecast_facts_statement,
     approved_forecast_line_facts_statement,
+    approved_forecast_total_statement,
     assignment_facts_statement,
     commitment_facts_statement,
+    commitment_total_statement,
     planned_cost_facts_statement,
     project_fact_statement,
     project_resource_facts_statement,
@@ -37,6 +43,106 @@ class SqlAlchemyFinanceSnapshotReader:
 
     def __init__(self, *, session: Session) -> None:
         self._session = session
+
+    def read_overview_facts(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        as_of: date,
+    ) -> FinanceOverviewFacts | None:
+        """Read bounded control totals without hydrating detailed finance rows."""
+        project_row = self._session.execute(
+            project_fact_statement(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+            )
+        ).one_or_none()
+        if project_row is None:
+            return None
+
+        project_currency = str(project_row.currency_code).strip().upper()
+        forecast_row = self._session.execute(
+            approved_forecast_facts_statement(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+                as_of=as_of,
+            )
+        ).one_or_none()
+        actual_row = self._session.execute(
+            actual_cost_total_statement(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+                as_of=as_of,
+                project_currency=project_currency,
+            )
+        ).one()
+        commitment_row = self._session.execute(
+            commitment_total_statement(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+                as_of=as_of,
+                project_currency=project_currency,
+            )
+        ).one()
+        self._require_aggregate_currency(actual_row, source_label="Posted actual")
+        self._require_aggregate_currency(commitment_row, source_label="Commitment")
+
+        forecast_total = None
+        if forecast_row is not None:
+            forecast_total_row = self._session.execute(
+                approved_forecast_total_statement(
+                    tenant_id=tenant_id,
+                    organization_id=organization_id,
+                    project_id=project_id,
+                    forecast_id=str(forecast_row.id),
+                    project_currency=project_currency,
+                )
+            ).one()
+            self._require_aggregate_currency(
+                forecast_total_row,
+                source_label="Approved forecast",
+            )
+            forecast_total = Decimal(forecast_total_row.total_amount or 0)
+
+        return FinanceOverviewFacts(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            project_id=project_id,
+            as_of=as_of,
+            currency_code=project_currency,
+            control=FinanceControlFact(
+                approved_budget=Decimal(project_row.approved_budget or 0),
+                posted_actual=Decimal(actual_row.total_amount or 0),
+                open_commitment=Decimal(commitment_row.total_amount or 0),
+                forecast_etc=forecast_total,
+            ),
+            approved_budget_id=(
+                None
+                if project_row.approved_budget_id is None
+                else str(project_row.approved_budget_id)
+            ),
+            approved_budget_revision=(
+                None
+                if project_row.approved_budget_revision is None
+                else int(project_row.approved_budget_revision)
+            ),
+            approved_budget_at=project_row.approved_budget_at,
+            approved_forecast_id=(
+                None if forecast_row is None else str(forecast_row.id)
+            ),
+            approved_forecast_revision=(
+                None if forecast_row is None else int(forecast_row.revision)
+            ),
+            approved_forecast_as_of=(
+                None if forecast_row is None else forecast_row.as_of_date
+            ),
+        )
 
     def read_facts(
         self,
@@ -343,6 +449,14 @@ class SqlAlchemyFinanceSnapshotReader:
             )
         )
         return planned + forecasts + commitments + actuals
+
+    @staticmethod
+    def _require_aggregate_currency(row, *, source_label: str) -> None:
+        if int(row.currency_mismatch_count or 0) > 0:
+            raise BusinessRuleError(
+                f"{source_label} currency cannot be reconciled to project currency.",
+                code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
+            )
 
     @staticmethod
     def _aggregate(

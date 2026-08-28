@@ -9,9 +9,7 @@ from src.core.modules.project_management.api.desktop import (
 from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceAvailabilityViewModel,
     ResourceCatalogWorkspaceViewModel,
-    ResourceCertificationViewModel,
-    ResourceCapabilityCountsViewModel,
-    ResourceSkillViewModel,
+    ResourceEmployeeOptionViewModel,
 )
 
 from .context_builder import (
@@ -22,7 +20,7 @@ from .context_builder import (
 from .availability_builder import build_resource_availability_state
 from .certifications_builder import (
     add_certification,
-    build_certifications_state,
+    build_certifications_page,
     remove_certification,
     update_certification,
 )
@@ -33,8 +31,13 @@ from .command_handler import (
     suggest_code,
     update_resource,
 )
-from .skills_builder import add_skill, build_skills_state, remove_skill, update_skill
-from .workspace_builder import build_workspace_state
+from .skills_builder import (
+    add_skill,
+    build_skills_page,
+    remove_skill,
+    update_skill,
+)
+from .workspace_builder import build_employee_options, build_workspace_state
 from .resource_mapper import to_resource_record_view_model
 from .detail_builder import build_detail_view_model, build_inspector_view_model
 
@@ -69,6 +72,9 @@ class ProjectResourcesWorkspacePresenter:
             sort_key=sort_key,
             sort_direction=sort_direction,
         )
+
+    def build_employee_options(self) -> tuple[ResourceEmployeeOptionViewModel, ...]:
+        return build_employee_options(self._desktop_api)
 
     def list_export_records(
         self,
@@ -146,22 +152,13 @@ class ProjectResourcesWorkspacePresenter:
             end_date=end_date,
         )
 
-    def build_skills_state(self, resource_id: str) -> tuple[ResourceSkillViewModel, ...]:
-        return build_skills_state(self._desktop_api, resource_id)
+    def build_resource_skills_page(self, resource_id: str, **query) -> dict[str, object]:
+        return build_skills_page(self._desktop_api, resource_id, **query)
 
-    def build_capability_counts(
-        self, resource_id: str
-    ) -> ResourceCapabilityCountsViewModel:
-        counts = self._desktop_api.get_resource_capability_counts(resource_id)
-        return ResourceCapabilityCountsViewModel(
-            skill_count=counts.skill_count,
-            certification_count=counts.certification_count,
-        )
-
-    def build_certifications_state(
-        self, resource_id: str
-    ) -> tuple[ResourceCertificationViewModel, ...]:
-        return build_certifications_state(self._desktop_api, resource_id)
+    def build_resource_certifications_page(
+        self, resource_id: str, **query
+    ) -> dict[str, object]:
+        return build_certifications_page(self._desktop_api, resource_id, **query)
 
     def add_skill(self, resource_id: str, payload: dict[str, Any]) -> None:
         add_skill(self._desktop_api, resource_id, payload)

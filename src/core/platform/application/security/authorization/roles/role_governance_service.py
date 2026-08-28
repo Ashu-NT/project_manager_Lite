@@ -15,7 +15,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
     record_authorization_denial,
     require_permission,
 )
-from src.core.platform.contract.persistence.role_governance_unit_of_work import (
+from src.core.platform.contract.uow.role_governance_unit_of_work import (
     RoleGovernanceUnitOfWorkFactory,
 )
 from src.core.platform.domain.security.auth import (
@@ -34,6 +34,13 @@ from src.core.platform.application.security.authorization.roles.role_binding_sco
     ResourceBindingScope,
     TenantBindingScope,
 )
+from src.core.platform.application.security.authorization.roles.role_binding_mutation_participant import (
+    create_role_binding_using,
+    recover_from_concurrent_assignment,
+    resolve_domain_scope_for_binding,
+    resolved_scope_to_domain_scope,
+    revoke_role_binding_using,
+)
 from src.core.platform.domain.security.authorization.enforcement.sod import SeparationOfDutiesPolicy
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
@@ -43,7 +50,7 @@ from src.core.platform.common.exceptions import (
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.platform.common.ids import generate_id
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
+from src.core.shared.time.clock import Clock
 
 
 ROLE_ASSIGN_PERMISSION = "auth.role.assign"
@@ -61,6 +68,7 @@ class RoleGovernanceService:
         uow_factory: RoleGovernanceUnitOfWorkFactory,
         user_session: UserSessionContext,
         tenant_context_service: TenantContextService,
+        clock: Clock,
         scope_exists_resolvers: dict[str, ScopeExistsResolver] | None = None,
         organization_owner_resolvers: dict[str, OrganizationOwnerResolver] | None = None,
         sod_policy: SeparationOfDutiesPolicy | None = None,
@@ -69,6 +77,7 @@ class RoleGovernanceService:
         self._uow_factory = uow_factory
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
+        self._clock = clock
         self._scope_exists_resolvers = {
             normalize_role_scope_type(scope_type): resolver
             for scope_type, resolver in dict(
@@ -320,78 +329,40 @@ class RoleGovernanceService:
                 additional_role_id=role.id,
             )
 
-            now = datetime.now(timezone.utc)
-            uow.role_bindings.revoke_expired_for_assignment(
+            # P5D-1: the actual RoleBinding identity/no-op/audit/event mechanics now live in the
+            # shared, transaction-agnostic `role_binding_mutation_participant` module -- reused
+            # verbatim by `TenantMembershipService`'s own canonical transaction, never
+            # duplicated.
+            binding, is_noop = create_role_binding_using(
+                role_bindings_repo=uow.role_bindings,
+                audit_repo=uow.audit,
+                clock=self._clock,
+                record_event=uow.record_event,
                 principal_id=target.id,
                 role_id=role.id,
                 tenant_id=tenant_id,
-                actual_scope_type=scope_type,
-                actual_scope_id=normalized_scope_id,
-                as_of=now,
-            )
-            existing = uow.role_bindings.get_active_for_assignment(
-                principal_id=target.id,
-                role_id=role.id,
-                tenant_id=tenant_id,
-                actual_scope_type=scope_type,
-                actual_scope_id=normalized_scope_id,
-            )
-            if existing is not None:
-                # No-op: an identical active binding already exists -- no write, no audit.
-                # P5C-2 rule (already true here): no transition -> no event.
-                return existing
-
-            binding = RoleBinding.create(
-                principal_id=target.id,
-                role_id=role.id,
-                tenant_id=tenant_id,
-                actual_scope_type=scope_type,
-                actual_scope_id=normalized_scope_id,
-                assigned_by=actor.user_id,
+                scope_type=scope_type,
+                scope_id=normalized_scope_id,
+                domain_scope=resolved_scope_to_domain_scope(resolved_scope),
+                actor=actor,
                 expires_at=expires_at,
             )
+            if is_noop:
+                # No-op: an identical active binding already exists -- no write, no audit, no
+                # event, and (per this early `return` from inside the `with` block) no commit
+                # and no post-commit legacy signal either.
+                return binding
             try:
-                uow.role_bindings.add(binding)
-                self._record_audit(
-                    uow.audit,
-                    actor=actor,
-                    tenant_id=tenant_id,
-                    operation="permission_change",
-                    entity_type="role_binding",
-                    entity_id=binding.id,
-                    action="auth.role.binding.assigned",
-                    metadata={
-                        "target_user_id": target.id,
-                        "role_id": role.id,
-                        "scope_type": scope_type,
-                        "scope_id": normalized_scope_id,
-                        "organization_id": _resolved_organization_id(resolved_scope),
-                        "expires_at": (
-                            binding.expires_at.isoformat()
-                            if binding.expires_at is not None
-                            else None
-                        ),
-                    },
-                )
                 uow.commit()
             except IntegrityError:
-                existing = uow.role_bindings.get_active_for_assignment(
+                return recover_from_concurrent_assignment(
+                    uow.role_bindings,
                     principal_id=target.id,
                     role_id=role.id,
                     tenant_id=tenant_id,
-                    actual_scope_type=scope_type,
-                    actual_scope_id=normalized_scope_id,
+                    scope_type=scope_type,
+                    scope_id=normalized_scope_id,
                 )
-                if existing is not None:
-                    return existing
-                raise BusinessRuleError(
-                    "The canonical role was assigned concurrently.",
-                    code="ROLE_BINDING_CONCURRENT_ASSIGNMENT",
-                )
-        # Post-commit, outside the `with` block (the UoW is already closed): the legacy
-        # notification and the current-principal runtime-authorization refresh, in that order.
-        # Never before commit -- a rolled-back transaction must never be observable here.
-        domain_events.auth_changed.emit(target.id)
         return binding
 
     def revoke_role_binding(self, binding_id: str) -> RoleBinding:
@@ -421,33 +392,29 @@ class RoleGovernanceService:
                 scope_id=binding.actual_scope_id,
                 enforce_permission_snapshot=False,
             )
-            revoked_at = datetime.now(timezone.utc)
-            uow.role_bindings.revoke(
-                binding.id,
-                revoked_at=revoked_at,
-            )
-            self._record_audit(
-                uow.audit,
-                actor=actor,
+            # Captured BEFORE mutation (item 13): the authoritative scope identity for the
+            # event must reflect the binding as it was administered, never re-derived from the
+            # current desktop UI scope after the fact.
+            domain_scope = resolve_domain_scope_for_binding(
+                session=uow.session,
                 tenant_id=tenant_id,
-                operation="delete",
-                entity_type="role_binding",
-                entity_id=binding.id,
-                action="auth.role.binding.revoked",
-                metadata={
-                    "target_user_id": binding.principal_id,
-                    "role_id": binding.role_id,
-                    "scope_type": binding.actual_scope_type,
-                    "scope_id": binding.actual_scope_id,
-                },
+                scope_type=binding.actual_scope_type,
+                scope_id=binding.actual_scope_id,
+                organization_owner_resolvers=self._organization_owner_resolvers,
+            )
+            # P5D-1: shared with `TenantMembershipService`'s own cascade revocation -- see
+            # `role_binding_mutation_participant.py`.
+            binding = revoke_role_binding_using(
+                role_bindings_repo=uow.role_bindings,
+                audit_repo=uow.audit,
+                clock=self._clock,
+                record_event=uow.record_event,
+                binding=binding,
+                domain_scope=domain_scope,
+                actor=actor,
             )
             uow.commit()
-        domain_events.auth_changed.emit(binding.principal_id)
-        return replace(
-            binding,
-            revoked_at=revoked_at,
-            version=binding.version + 1,
-        )
+        return binding
 
     def _require_principal(self):
         principal = self._user_session.principal
@@ -837,10 +804,6 @@ class RoleGovernanceService:
             audit_repo.add_platform(entry)
         else:
             audit_repo.add_for_tenant(entry, tenant_id)
-
-
-def _resolved_organization_id(resolved_scope: ResolvedRoleBindingScope) -> str | None:
-    return getattr(resolved_scope, "organization_id", None)
 
 
 __all__ = [

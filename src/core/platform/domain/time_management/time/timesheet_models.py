@@ -80,6 +80,7 @@ class TimeEntry:
     department_name: str = ""
     site_id: str | None = None
     site_name: str = ""
+    version: int = 1
 
     @field_validator("work_allocation_id", mode="before")
     @classmethod
@@ -139,6 +140,23 @@ class TimeEntry:
     @classmethod
     def _validate_datetimes(cls, value: object) -> datetime | None:
         return _validate_optional_datetime(value, code="TIME_ENTRY_TIMESTAMP_INVALID")
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def _validate_version(cls, value: object) -> int:
+        try:
+            version = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError(
+                "Time entry version must be a positive integer.",
+                code="TIME_ENTRY_VERSION_INVALID",
+            ) from exc
+        if version < 1:
+            raise ValidationError(
+                "Time entry version must be a positive integer.",
+                code="TIME_ENTRY_VERSION_INVALID",
+            )
+        return version
 
     @model_validator(mode="after")
     def _validate_owner_state(self) -> "TimeEntry":

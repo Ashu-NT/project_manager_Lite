@@ -24,6 +24,10 @@ Item {
     signal exportRequested()
     signal createRequested()
 
+    function restoreTableFocus() {
+        resourcesTable.forceActiveFocus()
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingSm
@@ -97,6 +101,7 @@ Item {
 
             AppWidgets.DataTable {
                 id: resourcesTable
+                objectName: "resourcesCatalogTable"
                 anchors.top: parent.top
                 anchors.left: parent.left
                 anchors.right: parent.right

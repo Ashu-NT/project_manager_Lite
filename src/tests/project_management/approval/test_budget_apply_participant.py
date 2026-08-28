@@ -62,6 +62,7 @@ def _approval_request(budget, *, expected_version: int, notes: str = "") -> Appr
         request_type="budget.approve",
         entity_type="project_budget",
         entity_id=budget.id,
+        tenant_id=budget.tenant_id,
         project_id=budget.project_id,
         organization_id=budget.organization_id,
         payload={

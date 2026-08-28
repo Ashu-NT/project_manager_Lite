@@ -38,7 +38,7 @@ class PlatformOrganizationCatalogPresenter:
                 empty_state="Platform runtime API is not connected in this QML preview.",
             )
 
-        result = self._runtime_api.list_organizations(active_only=None)
+        result = self._runtime_api.list_organizations(enabled_only=None)
         if not result.ok or result.data is None:
             message = result.error.message if result.error is not None else "Unable to load organizations."
             return PlatformWorkspaceActionListViewModel(
@@ -47,10 +47,12 @@ class PlatformOrganizationCatalogPresenter:
                 empty_state=message,
             )
 
-        active_name = next((row.display_name for row in result.data if row.is_active), "No active organization")
+        # P10A: multiple organizations may be enabled simultaneously in the same tenant -- no
+        # single "active" designee to name, so the subtitle reports a count instead.
+        enabled_count = sum(1 for row in result.data if row.is_enabled)
         return PlatformWorkspaceActionListViewModel(
             title="Organizations",
-            subtitle=f"Install profiles and hosting boundaries. Active: {active_name}.",
+            subtitle=f"Install profiles and hosting boundaries. {enabled_count} of {len(result.data)} enabled.",
             empty_state="No organizations are available yet.",
             items=tuple(self._serialize_organization(row) for row in result.data),
         )
@@ -80,7 +82,7 @@ class PlatformOrganizationCatalogPresenter:
 
         existing: set[str] = set()
         if self._runtime_api is not None:
-            result = self._runtime_api.list_organizations(active_only=None)
+            result = self._runtime_api.list_organizations(enabled_only=None)
             if result.ok and result.data is not None:
                 existing = {str(row.organization_code or "").upper() for row in result.data}
         name = string_value(payload, "displayName")
@@ -100,7 +102,7 @@ class PlatformOrganizationCatalogPresenter:
                 display_name=string_value(payload, "displayName"),
                 timezone_name=string_value(payload, "timezoneName", default="UTC"),
                 base_currency=string_value(payload, "baseCurrency", default="USD").upper(),
-                is_active=bool_value(payload, "isActive", default=True),
+                is_enabled=bool_value(payload, "isEnabled", default=True),
                 initial_module_codes=tuple_of_strings(payload, "initialModuleCodes"),
             )
         )
@@ -115,27 +117,27 @@ class PlatformOrganizationCatalogPresenter:
                 display_name=string_value(payload, "displayName"),
                 timezone_name=string_value(payload, "timezoneName", default="UTC"),
                 base_currency=string_value(payload, "baseCurrency", default="USD").upper(),
-                is_active=bool_value(payload, "isActive", default=True),
+                is_enabled=bool_value(payload, "isEnabled", default=True),
                 expected_version=int_value(payload, "expectedVersion"),
             )
         )
 
-    def set_active_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+    def enable_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
         if self._runtime_api is None:
             return preview_error_result("Platform runtime API is not connected in this QML preview.")
-        return self._runtime_api.set_active_organization(organization_id)
+        return self._runtime_api.enable_organization(organization_id)
 
     @staticmethod
     def _serialize_organization(row: OrganizationDto) -> PlatformWorkspaceActionItemViewModel:
         return PlatformWorkspaceActionItemViewModel(
             id=row.id,
             title=row.display_name,
-            status_label="Active" if row.is_active else "Inactive",
+            status_label="Enabled" if row.is_enabled else "Disabled",
             subtitle=f"{row.organization_code} | {row.timezone_name}",
             supporting_text=f"Base currency: {row.base_currency}",
             meta_text=f"Version {row.version}",
             can_primary_action=True,
-            can_secondary_action=not row.is_active,
+            can_secondary_action=not row.is_enabled,
             state={
                 "id": row.id,
                 "organizationId": row.id,
@@ -143,7 +145,7 @@ class PlatformOrganizationCatalogPresenter:
                 "displayName": row.display_name,
                 "timezoneName": row.timezone_name,
                 "baseCurrency": row.base_currency,
-                "isActive": row.is_active,
+                "isEnabled": row.is_enabled,
                 "version": row.version,
             },
         )

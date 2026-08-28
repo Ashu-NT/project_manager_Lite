@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
+    FinancialCreateCostCodeCommand,
     FinancialCreateManualActualCommand,
     FinancialDecideActualCommand,
     FinancialPostActualCommand,
@@ -19,6 +20,22 @@ from .validation import (
     require_int,
     require_text,
 )
+
+def create_cost_code(
+    desktop_api: ProjectManagementFinancialsDesktopApi,
+    payload: dict[str, Any],
+) -> None:
+    desktop_api.create_cost_code(
+        FinancialCreateCostCodeCommand(
+            project_id=require_text(
+                payload, "projectId", "Select a project before creating a cost code."
+            ),
+            code=require_text(payload, "code", "Cost code is required."),
+            name=require_text(payload, "name", "Cost-code name is required."),
+            description=optional_text(payload, "description") or "",
+        )
+    )
+
 
 def create_manual_actual(
     desktop_api: ProjectManagementFinancialsDesktopApi,
@@ -108,6 +125,7 @@ def reverse_actual(
 
 __all__ = [
     "approve_actual",
+    "create_cost_code",
     "create_manual_actual",
     "post_actual",
     "reject_actual",

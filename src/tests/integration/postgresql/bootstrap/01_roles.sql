@@ -1,0 +1,34 @@
+\set ON_ERROR_STOP on
+
+CREATE ROLE r5h_migrator
+    LOGIN
+    PASSWORD 'r5h_migrator_test_only'
+    NOSUPERUSER
+    NOCREATEDB
+    NOCREATEROLE
+    NOINHERIT
+    NOBYPASSRLS;
+
+CREATE ROLE app_runtime
+    LOGIN
+    PASSWORD 'app_runtime_test_only'
+    NOSUPERUSER
+    NOCREATEDB
+    NOCREATEROLE
+    NOINHERIT
+    NOBYPASSRLS;
+
+ALTER DATABASE project_manager_r5h OWNER TO r5h_migrator;
+REVOKE ALL ON DATABASE project_manager_r5h FROM PUBLIC;
+GRANT CONNECT, TEMPORARY ON DATABASE project_manager_r5h TO r5h_migrator;
+GRANT CONNECT ON DATABASE project_manager_r5h TO app_runtime;
+
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+GRANT ALL ON SCHEMA public TO r5h_migrator;
+GRANT USAGE ON SCHEMA public TO app_runtime;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE r5h_migrator IN SCHEMA public
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_runtime;
+ALTER DEFAULT PRIVILEGES FOR ROLE r5h_migrator IN SCHEMA public
+    GRANT USAGE, SELECT ON SEQUENCES TO app_runtime;
+

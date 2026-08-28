@@ -83,7 +83,15 @@ def _task(session, tid, pid):
 
 def _resource(session, rid):
     org_id = _ensure_org(session)
-    return _add(session, ResourceORM(id=rid, name=rid.upper(), organization_id=org_id))
+    return _add(
+        session,
+        ResourceORM(
+            id=rid,
+            tenant_id=_DEFAULT_TENANT_ID,
+            name=rid.upper(),
+            organization_id=org_id,
+        ),
+    )
 
 
 def _project_resource(session, prid, pid, rid):

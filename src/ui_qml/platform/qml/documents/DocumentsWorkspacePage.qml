@@ -223,6 +223,7 @@ AppLayouts.WorkspaceFrame {
         sourceComponent: Component {
             AdminDialogs.AdminDialogHost {
                 workspaceController: root.workspaceController
+                platformCatalog: root.platformCatalog
             }
         }
     }

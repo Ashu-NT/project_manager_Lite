@@ -26,6 +26,16 @@ def test_fresh_baseline_creates_effective_dated_rate_card_schema_without_legacy_
             column["name"]
             for column in inspector.get_columns("project_finance_rate_card_lines")
         }
+        card_columns = {
+            column["name"]
+            for column in inspector.get_columns("project_finance_rate_cards")
+        }
+        line_checks = {
+            check["name"]: check["sqltext"]
+            for check in inspector.get_check_constraints(
+                "project_finance_rate_card_lines"
+            )
+        }
         card_count = connection.execute(
             sa.text("SELECT COUNT(*) FROM project_finance_rate_cards")
         ).scalar_one()
@@ -47,6 +57,9 @@ def test_fresh_baseline_creates_effective_dated_rate_card_schema_without_legacy_
         "rate_currency",
         "origin",
     }.issubset(line_columns)
+    assert "card_kind" not in card_columns
+    assert "legacy_seeded" not in str(line_checks)
+    assert "origin = 'configured'" in line_checks["ck_pf_rate_card_lines_origin"]
     assert card_count == 0
     assert line_count == 0
     engine.dispose()

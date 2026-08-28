@@ -5,7 +5,6 @@ from src.ui_qml.modules.project_management.view_models.financials import (
     FinancialsCollectionViewModel,
     FinancialsCommitmentSummaryViewModel,
     FinancialsDetailViewModel,
-    FinancialsForecastViewModel,
     FinancialsOverviewViewModel,
     FinancialsRecordViewModel,
 )
@@ -54,28 +53,6 @@ def serialize_financials_record_view_models(
         }
         for view_model in view_models
     ]
-
-
-def serialize_financials_forecast_view_model(
-    vm: FinancialsForecastViewModel,
-) -> dict[str, object]:
-    return {
-        "basisLabel": vm.basis_label,
-        "budgetLabel": vm.budget_label,
-        "actualLabel": vm.actual_label,
-        "etcLabel": vm.etc_label,
-        "eacLabel": vm.eac_label,
-        "vacLabel": vm.vac_label,
-        "isOverBudget": vm.is_over_budget,
-        "hasApprovedForecast": vm.has_approved_forecast,
-        "forecastRevision": vm.forecast_revision,
-        "forecastAsOfLabel": vm.forecast_as_of_label,
-        "alertMessage": vm.alert_message,
-        "metrics": [
-            {"label": m.label, "value": m.value, "colorHint": m.color_hint}
-            for m in vm.metrics
-        ],
-    }
 
 
 def serialize_financials_commitment_summary_view_model(
@@ -148,7 +125,6 @@ __all__ = [
     "serialize_financials_collection_view_model",
     "serialize_financials_commitment_summary_view_model",
     "serialize_financials_detail_view_model",
-    "serialize_financials_forecast_view_model",
     "serialize_financials_overview_view_model",
     "serialize_financials_record_view_models",
 ]

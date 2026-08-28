@@ -37,12 +37,13 @@ _DELAYED_FOREIGN_KEYS = (
     ('fk_employees_site_id_sites', 'employees', 'sites', ['site_id'], ['id'], 'SET NULL'),
     ('fk_employees_tenant_id_tenants', 'employees', 'tenants', ['tenant_id'], ['id'], 'RESTRICT'),
     ('fk_employees_user_id_users', 'employees', 'users', ['user_id'], ['id'], 'SET NULL'),
+    ('fk_resources_site_id_sites', 'resources', 'sites', ['site_id'], ['id'], 'SET NULL'),
 )
 
 
 def _create_delayed_foreign_keys(bind) -> None:
     if bind.dialect.name == 'sqlite':
-        for table_name in ('departments', 'employees'):
+        for table_name in ('departments', 'employees', 'resources'):
             with op.batch_alter_table(table_name, schema=None) as batch_op:
                 for name, source, target, local, remote, ondelete in _DELAYED_FOREIGN_KEYS:
                     if source == table_name:
@@ -54,7 +55,7 @@ def _create_delayed_foreign_keys(bind) -> None:
 
 def _drop_delayed_foreign_keys(bind) -> None:
     if bind.dialect.name == 'sqlite':
-        for table_name in ('employees', 'departments'):
+        for table_name in ('resources', 'employees', 'departments'):
             with op.batch_alter_table(table_name, schema=None) as batch_op:
                 for name, source, _target, _local, _remote, _ondelete in reversed(_DELAYED_FOREIGN_KEYS):
                     if source == table_name:
@@ -256,7 +257,7 @@ def upgrade() -> None:
     sa.Column('display_name', sa.String(length=256), nullable=False),
     sa.Column('timezone_name', sa.String(length=128), server_default='UTC', nullable=False),
     sa.Column('base_currency', sa.String(length=8), server_default='EUR', nullable=False),
-    sa.Column('is_active', sa.Boolean(), server_default='1', nullable=False),
+    sa.Column('is_enabled', sa.Boolean(), server_default='1', nullable=False),
     sa.Column('version', sa.Integer(), server_default='1', nullable=False),
     sa.ForeignKeyConstraint(['tenant_id'], ['tenants.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id'),
@@ -264,7 +265,7 @@ def upgrade() -> None:
     sa.UniqueConstraint('tenant_id', 'id', name='uq_organizations_tenant_id')
     )
     with op.batch_alter_table('organizations', schema=None) as batch_op:
-        batch_op.create_index('idx_organizations_active', ['is_active'], unique=False)
+        batch_op.create_index('idx_organizations_enabled', ['is_enabled'], unique=False)
         batch_op.create_index('idx_organizations_code', ['organization_code'], unique=True)
         batch_op.create_index('idx_organizations_tenant', ['tenant_id'], unique=False)
 
@@ -440,6 +441,8 @@ def upgrade() -> None:
     sa.Column('details_json', sa.Text(), server_default='{}', nullable=False),
     sa.Column('context_json', sa.Text(), server_default='{}', nullable=False),
     sa.Column('parent_entity_id', sa.String(), nullable=True),
+    sa.Column('related_entity_type', sa.String(length=64), nullable=True),
+    sa.Column('related_entity_id', sa.String(), nullable=True),
     sa.Column('icon', sa.String(length=64), nullable=True),
     sa.Column('color', sa.String(length=32), nullable=True),
     sa.Column('visibility', sa.String(length=32), server_default='workspace', nullable=False),
@@ -452,6 +455,7 @@ def upgrade() -> None:
         batch_op.create_index('idx_activity_entity', ['entity_type', 'entity_id'], unique=False)
         batch_op.create_index('idx_activity_module_entity', ['module', 'entity_type', 'entity_id'], unique=False)
         batch_op.create_index('idx_activity_org_timestamp', ['organization_id', 'timestamp'], unique=False)
+        batch_op.create_index('idx_activity_related', ['related_entity_type', 'related_entity_id', 'timestamp'], unique=False)
         batch_op.create_index('idx_activity_tenant_timestamp', ['tenant_id', 'timestamp'], unique=False)
         batch_op.create_index('idx_activity_workspace', ['workspace_id', 'timestamp'], unique=False)
 
@@ -809,7 +813,7 @@ def upgrade() -> None:
     sa.Column('external_reference', sa.String(length=128), nullable=True),
     sa.Column('effective_from', sa.Date(), nullable=True),
     sa.Column('effective_to', sa.Date(), nullable=True),
-    sa.Column('is_active', sa.Boolean(), server_default=sa.text('1'), nullable=False),
+    sa.Column('is_active', sa.Boolean(), server_default=sa.true(), nullable=False),
     sa.Column('version', sa.Integer(), server_default='1', nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
@@ -854,7 +858,6 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['department_id'], ['departments.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['employee_id'], ['employees.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['site_id'], ['sites.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['tenant_id'], ['tenants.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -1917,8 +1920,8 @@ def upgrade() -> None:
     sa.Column('cost_code_policy', sa.String(length=16), server_default='all_active', nullable=False),
     sa.Column('financial_start_date', sa.Date(), nullable=True),
     sa.Column('financial_end_date', sa.Date(), nullable=True),
-    sa.Column('is_funded', sa.Boolean(), server_default=sa.text('0'), nullable=False),
-    sa.Column('is_billable', sa.Boolean(), server_default=sa.text('0'), nullable=False),
+    sa.Column('is_funded', sa.Boolean(), server_default=sa.false(), nullable=False),
+    sa.Column('is_billable', sa.Boolean(), server_default=sa.false(), nullable=False),
     sa.Column('default_cost_code_id', sa.String(), nullable=True),
     sa.Column('version', sa.Integer(), server_default='1', nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
@@ -1946,12 +1949,10 @@ def upgrade() -> None:
     sa.Column('organization_id', sa.String(), nullable=False),
     sa.Column('project_id', sa.String(), nullable=True),
     sa.Column('name', sa.String(length=256), nullable=False),
-    sa.Column('card_kind', sa.String(length=16), nullable=True),
     sa.Column('version', sa.Integer(), server_default='1', nullable=False),
-    sa.Column('is_active', sa.Boolean(), server_default=sa.text('1'), nullable=False),
+    sa.Column('is_active', sa.Boolean(), server_default=sa.true(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
-    sa.CheckConstraint("card_kind IS NULL OR card_kind = 'legacy'", name='ck_pf_rate_cards_card_kind'),
     sa.CheckConstraint('version >= 1', name='ck_pf_rate_cards_version'),
     sa.ForeignKeyConstraint(['tenant_id', 'organization_id', 'project_id'], ['projects.tenant_id', 'projects.organization_id', 'projects.id'], name='fk_pf_rate_cards_scoped_project', ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['tenant_id', 'organization_id'], ['organizations.tenant_id', 'organizations.id'], name='fk_pf_rate_cards_scoped_organization', ondelete='CASCADE'),
@@ -1963,7 +1964,6 @@ def upgrade() -> None:
     with op.batch_alter_table('project_finance_rate_cards', schema=None) as batch_op:
         batch_op.create_index('idx_pf_rate_cards_project', ['project_id'], unique=False)
         batch_op.create_index('idx_pf_rate_cards_scope', ['tenant_id', 'organization_id'], unique=False)
-        batch_op.create_index('uq_pf_rate_cards_legacy_per_org', ['tenant_id', 'organization_id'], unique=True, postgresql_where=sa.text("card_kind = 'legacy'"), sqlite_where=sa.text("card_kind = 'legacy'"))
 
     op.create_table('project_resources',
     sa.Column('id', sa.String(), nullable=False),
@@ -2646,7 +2646,7 @@ def upgrade() -> None:
     sa.Column('department_id', sa.String(), nullable=True),
     sa.Column('effective_from', sa.Date(), nullable=True),
     sa.Column('effective_to', sa.Date(), nullable=True),
-    sa.Column('is_active', sa.Boolean(), server_default=sa.text('1'), nullable=False),
+    sa.Column('is_active', sa.Boolean(), server_default=sa.true(), nullable=False),
     sa.Column('unit', sa.String(length=32), nullable=False),
     sa.Column('rate_amount', sa.Numeric(precision=19, scale=8), nullable=False),
     sa.Column('rate_currency', sa.String(length=8), nullable=False),
@@ -2656,7 +2656,7 @@ def upgrade() -> None:
     sa.Column('version', sa.Integer(), server_default='1', nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
-    sa.CheckConstraint("origin IN ('configured', 'legacy_seeded')", name='ck_pf_rate_card_lines_origin'),
+    sa.CheckConstraint("origin = 'configured'", name='ck_pf_rate_card_lines_origin'),
     sa.CheckConstraint("rate_type IN ('cost', 'billing')", name='ck_pf_rate_card_lines_rate_type'),
     sa.CheckConstraint('(customer_party_id IS NULL AND contract_reference IS NULL) OR (customer_party_id IS NOT NULL AND contract_reference IS NOT NULL)', name='ck_pf_rate_card_lines_customer_contract'),
     sa.CheckConstraint('NOT (resource_id IS NOT NULL AND (role IS NOT NULL OR skill_code IS NOT NULL OR department_id IS NOT NULL))', name='ck_pf_rate_card_lines_selection_key_exclusive'),
@@ -2693,6 +2693,7 @@ def upgrade() -> None:
     )
     with op.batch_alter_table('task_assignments', schema=None) as batch_op:
         batch_op.create_index('idx_task_assignments_project_resource', ['project_resource_id'], unique=False)
+        batch_op.create_index('idx_task_assignments_resource', ['resource_id'], unique=False)
         batch_op.create_index('ux_task_assignments_task_resource', ['task_id', 'resource_id'], unique=True)
 
     op.create_table('task_comments',
@@ -3052,6 +3053,7 @@ def upgrade() -> None:
     sa.Column('author_username', sa.String(length=128), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('version', sa.Integer(), server_default='1', nullable=False),
     sa.ForeignKeyConstraint(['assignment_id'], ['task_assignments.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['department_id'], ['departments.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['employee_id'], ['employees.id'], ondelete='SET NULL'),
@@ -3226,6 +3228,7 @@ def downgrade() -> None:
     op.drop_table('task_comments')
     with op.batch_alter_table('task_assignments', schema=None) as batch_op:
         batch_op.drop_index('ux_task_assignments_task_resource')
+        batch_op.drop_index('idx_task_assignments_resource')
         batch_op.drop_index('idx_task_assignments_project_resource')
 
     op.drop_table('task_assignments')
@@ -3354,7 +3357,6 @@ def downgrade() -> None:
 
     op.drop_table('project_resources')
     with op.batch_alter_table('project_finance_rate_cards', schema=None) as batch_op:
-        batch_op.drop_index('uq_pf_rate_cards_legacy_per_org', postgresql_where=sa.text("card_kind = 'legacy'"), sqlite_where=sa.text("card_kind = 'legacy'"))
         batch_op.drop_index('idx_pf_rate_cards_scope')
         batch_op.drop_index('idx_pf_rate_cards_project')
 
@@ -3686,6 +3688,7 @@ def downgrade() -> None:
     with op.batch_alter_table('activity_entries', schema=None) as batch_op:
         batch_op.drop_index('idx_activity_workspace')
         batch_op.drop_index('idx_activity_tenant_timestamp')
+        batch_op.drop_index('idx_activity_related')
         batch_op.drop_index('idx_activity_org_timestamp')
         batch_op.drop_index('idx_activity_module_entity')
         batch_op.drop_index('idx_activity_entity')
@@ -3726,7 +3729,7 @@ def downgrade() -> None:
     with op.batch_alter_table('organizations', schema=None) as batch_op:
         batch_op.drop_index('idx_organizations_tenant')
         batch_op.drop_index('idx_organizations_code')
-        batch_op.drop_index('idx_organizations_active')
+        batch_op.drop_index('idx_organizations_enabled')
 
     op.drop_table('organizations')
     with op.batch_alter_table('notifications', schema=None) as batch_op:

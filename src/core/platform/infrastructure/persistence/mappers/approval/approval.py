@@ -24,6 +24,7 @@ def _from_json(raw: str | None) -> dict[str, Any]:
 def approval_to_orm(request: ApprovalRequest) -> ApprovalRequestORM:
     return ApprovalRequestORM(
         id=request.id,
+        tenant_id=request.tenant_id,
         request_type=request.request_type,
         entity_type=request.entity_type,
         entity_id=request.entity_id,
@@ -44,6 +45,7 @@ def approval_to_orm(request: ApprovalRequest) -> ApprovalRequestORM:
 def approval_from_orm(obj: ApprovalRequestORM) -> ApprovalRequest:
     return ApprovalRequest(
         id=obj.id,
+        tenant_id=obj.tenant_id,
         request_type=obj.request_type,
         entity_type=obj.entity_type,
         entity_id=obj.entity_id,

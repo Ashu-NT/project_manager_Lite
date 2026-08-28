@@ -130,17 +130,18 @@ def test_financial_period_service_enforces_overlap_concurrency_audit_and_posting
 def test_financial_period_repository_isolates_active_organization(services) -> None:
     service = services["financial_period_service"]
     organization_service = services["organization_service"]
-    original = organization_service.get_active_organization()
+    original = services["tenant_context_service"].get_active_organization()
     first = _create_period(service)
     second_organization = organization_service.create_organization(
         organization_code="FIN2",
         display_name="Second finance organization",
         timezone_name="UTC",
         base_currency="EUR",
-        is_active=True,
+        is_enabled=True,
     )
 
-    organization_service.set_active_organization(second_organization.id)
+    organization_service.enable_organization(second_organization.id)
+    services["tenant_context_service"].set_active_organization(second_organization.id)
     try:
         assert service.list_periods() == []
         with pytest.raises(NotFoundError):
@@ -149,7 +150,8 @@ def test_financial_period_repository_isolates_active_organization(services) -> N
         assert second.code == first.code
         assert second.organization_id == second_organization.id
     finally:
-        organization_service.set_active_organization(original.id)
+        organization_service.enable_organization(original.id)
+        services["tenant_context_service"].set_active_organization(original.id)
 
     assert [period.id for period in service.list_periods()] == [first.id]
 

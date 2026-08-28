@@ -3,17 +3,21 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.read.overview.platform_overview_rollup_reader import (
     DepartmentRollupSummary,
     PlatformOverviewRollupReader,
 )
 from src.core.platform.contract.repositories.master_data.department.contracts import DepartmentRepository
+from src.core.platform.contract.uow.department_unit_of_work import DepartmentUnitOfWorkFactory
 from src.core.platform.domain.master_data.department import Department
 from src.core.platform.contract.repositories.master_data.employee.contracts import EmployeeRepository
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 from src.core.platform.application.tenant.tenancy import TenantContextService
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.time.clock import Clock
 
 from .department_access import require_department_read_access
 from .department_context import active_organization
@@ -34,6 +38,8 @@ class DepartmentService:
         enterprise_audit_service=None,
         tenant_context_service: TenantContextService | None = None,
         overview_rollup_reader: PlatformOverviewRollupReader | None = None,
+        uow_factory: DepartmentUnitOfWorkFactory,
+        clock: Clock,
     ):
         self._session = session
         self._department_repo = department_repo
@@ -44,6 +50,11 @@ class DepartmentService:
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
         self._overview_rollup_reader = overview_rollup_reader
+        self._uow_factory = uow_factory
+        self._clock = clock
+
+    def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
 
     def list_departments(self, *, active_only: bool | None = None) -> list[Department]:
         return _queries.list_departments(self, active_only=active_only)

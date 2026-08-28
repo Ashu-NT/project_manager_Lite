@@ -592,9 +592,12 @@ AppLayouts.WorkspaceFrame {
                             }
                         }
                     }
-                    onTimeDeleteRequested: function(entryId) {
+                    onTimeDeleteRequested: function(entryId, expectedVersion) {
                         if (root.workspaceController !== null) {
-                            const result = root.workspaceController.deleteTaskTimeEntry(entryId)
+                            const result = root.workspaceController.deleteTaskTimeEntry(
+                                entryId,
+                                expectedVersion
+                            )
                             if (result && result.ok === true) {
                                 tasksDetailPanel.resetTimeEntryEditor()
                             }

@@ -32,6 +32,33 @@ class _FakeEnterpriseAuditService:
         return None
 
 
+class _FakePartyUnitOfWork:
+    def __init__(self, party_repo: "_FakePartyRepo", enterprise_audit_service) -> None:
+        self.parties = party_repo
+        self._enterprise_audit_service = enterprise_audit_service
+
+    def __enter__(self) -> "_FakePartyUnitOfWork":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        return None
+
+    def commit(self) -> None:
+        return None
+
+    def record_event(self, event) -> None:
+        return None
+
+
+class _FakePartyUnitOfWorkFactory:
+    def __init__(self, party_repo: "_FakePartyRepo", enterprise_audit_service) -> None:
+        self._party_repo = party_repo
+        self._enterprise_audit_service = enterprise_audit_service
+
+    def create(self, *, context) -> _FakePartyUnitOfWork:
+        return _FakePartyUnitOfWork(self._party_repo, self._enterprise_audit_service)
+
+
 class _FakePartyRepo:
     def __init__(self) -> None:
         self._rows: dict[str, Party] = {}
@@ -85,13 +112,16 @@ def _make_service(monkeypatch: pytest.MonkeyPatch) -> PartyService:
         "src.core.platform.application.master_data.party.party_service.require_any_permission",
         lambda *args, **kwargs: None,
     )
+    party_repo = _FakePartyRepo()
+    enterprise_audit_service = _FakeEnterpriseAuditService()
     return PartyService(
         session=_FakeSession(),
-        party_repo=_FakePartyRepo(),
+        party_repo=party_repo,
         organization_repo=object(),
         user_session=object(),
-        enterprise_audit_service=_FakeEnterpriseAuditService(),
+        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=_FakeTenantContext(_make_organization()),
+        uow_factory=_FakePartyUnitOfWorkFactory(party_repo, enterprise_audit_service),
     )
 
 

@@ -49,7 +49,8 @@ from .resource_skills_handler import (
     add_certification,
     add_skill,
     load_skills_and_certs,
-    reload_skills_and_certs,
+    reload_certifications,
+    reload_skills,
     remove_certification,
     remove_skill,
     update_certification,
@@ -58,6 +59,7 @@ from .resource_skills_handler import (
 from .resource_context_handler import (
     load_resource_activity,
     load_resource_assignments,
+    load_resource_employee_options,
     load_resource_projects,
 )
 from .resource_availability_handler import load_resource_availability
@@ -160,6 +162,20 @@ class ProjectManagementResourcesWorkspaceController(
         self._resource_certifications: list[dict[str, object]] = []
         self._resource_skill_count = 0
         self._resource_certification_count = 0
+        self._resource_skills_search = ""
+        self._resource_skills_proficiency = "all"
+        self._resource_skills_page = 1
+        self._resource_skills_page_size = 25
+        self._resource_skills_total = 0
+        self._resource_skills_sort_key = "skillName"
+        self._resource_skills_sort_direction = 0
+        self._resource_certifications_search = ""
+        self._resource_certifications_status = "all"
+        self._resource_certifications_page = 1
+        self._resource_certifications_page_size = 25
+        self._resource_certifications_total = 0
+        self._resource_certifications_sort_key = "certificationName"
+        self._resource_certifications_sort_direction = 0
         self._resource_projects = default_resource_context_page()
         self._resource_projects_loading = False
         self._resource_projects_loaded_for = ""
@@ -347,6 +363,62 @@ class ProjectManagementResourcesWorkspaceController(
     @Property(int, notify=resourceCertificationCountChanged)
     def resourceCertificationCount(self) -> int:
         return self._resource_certification_count
+
+    @Property(str, notify=resourceSkillsChanged)
+    def resourceSkillsSearch(self) -> str:
+        return self._resource_skills_search
+
+    @Property(str, notify=resourceSkillsChanged)
+    def resourceSkillsProficiency(self) -> str:
+        return self._resource_skills_proficiency
+
+    @Property(int, notify=resourceSkillsChanged)
+    def resourceSkillsPage(self) -> int:
+        return self._resource_skills_page
+
+    @Property(int, notify=resourceSkillsChanged)
+    def resourceSkillsPageSize(self) -> int:
+        return self._resource_skills_page_size
+
+    @Property(int, notify=resourceSkillsChanged)
+    def resourceSkillsTotal(self) -> int:
+        return self._resource_skills_total
+
+    @Property(str, notify=resourceSkillsChanged)
+    def resourceSkillsSortKey(self) -> str:
+        return self._resource_skills_sort_key
+
+    @Property(int, notify=resourceSkillsChanged)
+    def resourceSkillsSortDirection(self) -> int:
+        return self._resource_skills_sort_direction
+
+    @Property(str, notify=resourceCertificationsChanged)
+    def resourceCertificationsSearch(self) -> str:
+        return self._resource_certifications_search
+
+    @Property(str, notify=resourceCertificationsChanged)
+    def resourceCertificationsStatus(self) -> str:
+        return self._resource_certifications_status
+
+    @Property(int, notify=resourceCertificationsChanged)
+    def resourceCertificationsPage(self) -> int:
+        return self._resource_certifications_page
+
+    @Property(int, notify=resourceCertificationsChanged)
+    def resourceCertificationsPageSize(self) -> int:
+        return self._resource_certifications_page_size
+
+    @Property(int, notify=resourceCertificationsChanged)
+    def resourceCertificationsTotal(self) -> int:
+        return self._resource_certifications_total
+
+    @Property(str, notify=resourceCertificationsChanged)
+    def resourceCertificationsSortKey(self) -> str:
+        return self._resource_certifications_sort_key
+
+    @Property(int, notify=resourceCertificationsChanged)
+    def resourceCertificationsSortDirection(self) -> int:
+        return self._resource_certifications_sort_direction
 
     @Property(QObject, constant=True)
     def resourceSkillsTableModel(self) -> DynamicTableModel:
@@ -562,6 +634,74 @@ class ProjectManagementResourcesWorkspaceController(
         load_skills_and_certs(self, resource_id)
 
     @Slot()
+    def refreshResourceSkills(self) -> None:
+        reload_skills(self, self._selected_resource_id)
+
+    @Slot(str)
+    def setResourceSkillsSearch(self, value: str) -> None:
+        self._resource_skills_search = str(value or "").strip()
+        self._resource_skills_page = 1
+        reload_skills(self, self._selected_resource_id)
+
+    @Slot(str)
+    def setResourceSkillsProficiency(self, value: str) -> None:
+        self._resource_skills_proficiency = str(value or "all").strip().lower()
+        self._resource_skills_page = 1
+        reload_skills(self, self._selected_resource_id)
+
+    @Slot(int)
+    def setResourceSkillsPage(self, value: int) -> None:
+        self._resource_skills_page = max(1, int(value))
+        reload_skills(self, self._selected_resource_id)
+
+    @Slot(int)
+    def setResourceSkillsPageSize(self, value: int) -> None:
+        self._resource_skills_page_size = max(1, int(value))
+        self._resource_skills_page = 1
+        reload_skills(self, self._selected_resource_id)
+
+    @Slot(str, int)
+    def setResourceSkillsSort(self, key: str, direction: int) -> None:
+        self._resource_skills_sort_key = str(key or "skillName")
+        self._resource_skills_sort_direction = int(direction)
+        self._resource_skills_page = 1
+        reload_skills(self, self._selected_resource_id)
+
+    @Slot()
+    def refreshResourceCertifications(self) -> None:
+        reload_certifications(self, self._selected_resource_id)
+
+    @Slot(str)
+    def setResourceCertificationsSearch(self, value: str) -> None:
+        self._resource_certifications_search = str(value or "").strip()
+        self._resource_certifications_page = 1
+        reload_certifications(self, self._selected_resource_id)
+
+    @Slot(str)
+    def setResourceCertificationsStatus(self, value: str) -> None:
+        self._resource_certifications_status = str(value or "all").strip().lower()
+        self._resource_certifications_page = 1
+        reload_certifications(self, self._selected_resource_id)
+
+    @Slot(int)
+    def setResourceCertificationsPage(self, value: int) -> None:
+        self._resource_certifications_page = max(1, int(value))
+        reload_certifications(self, self._selected_resource_id)
+
+    @Slot(int)
+    def setResourceCertificationsPageSize(self, value: int) -> None:
+        self._resource_certifications_page_size = max(1, int(value))
+        self._resource_certifications_page = 1
+        reload_certifications(self, self._selected_resource_id)
+
+    @Slot(str, int)
+    def setResourceCertificationsSort(self, key: str, direction: int) -> None:
+        self._resource_certifications_sort_key = str(key or "certificationName")
+        self._resource_certifications_sort_direction = int(direction)
+        self._resource_certifications_page = 1
+        reload_certifications(self, self._selected_resource_id)
+
+    @Slot()
     def loadResourceProjects(self) -> None:
         load_resource_projects(self)
 
@@ -584,6 +724,9 @@ class ProjectManagementResourcesWorkspaceController(
     @Slot()
     def refreshResourceActivity(self) -> None:
         load_resource_activity(self, force=True)
+
+    def refresh_employee_options(self) -> None:
+        load_resource_employee_options(self)
 
     @Slot(str)
     def setResourceProjectsSearch(self, value: str) -> None:

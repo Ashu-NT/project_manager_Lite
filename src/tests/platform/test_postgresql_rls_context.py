@@ -10,6 +10,7 @@ from src.infra.persistence.db.postgresql_rls import (
     worker_tenant_scope,
 )
 from src.infra.persistence.migrations.helpers.postgresql_rls import (
+    build_parent_scoped_rls_enable_statements,
     build_nullable_tenant_audit_rls_enable_statements,
     build_tenant_only_rls_enable_statements,
     build_tenant_organization_rls_enable_statements,
@@ -18,6 +19,8 @@ from src.infra.persistence.migrations.helpers.rls_classification import (
     ALL_CLASSIFIED_TABLES,
     INTENTIONAL_RLS_EXCLUSION_TABLES,
     NULLABLE_TENANT_AUDIT_TABLES,
+    PARENT_SCOPED_RLS_PREDICATES,
+    PARENT_SCOPED_RLS_TABLES,
     TENANT_AND_ORGANIZATION_TABLES,
     TENANT_ONLY_TABLES,
     validate_rls_classification,
@@ -103,6 +106,7 @@ def test_every_application_table_has_exactly_one_rls_classification():
         TENANT_AND_ORGANIZATION_TABLES,
         TENANT_ONLY_TABLES,
         NULLABLE_TENANT_AUDIT_TABLES,
+        PARENT_SCOPED_RLS_TABLES,
         INTENTIONAL_RLS_EXCLUSION_TABLES,
     )
     assert set(Base.metadata.tables) == set(ALL_CLASSIFIED_TABLES)
@@ -133,6 +137,39 @@ def test_tenant_organization_policy_sql_is_explicit_and_forced():
     assert any("FOR DELETE USING" in statement for statement in statements)
     assert all("app.tenant_id" in statement for statement in statements[2:])
     assert all("app.organization_id" in statement for statement in statements[2:])
+
+
+def test_r5_parent_scoped_children_have_forced_direct_rls_policies():
+    expected = {
+        "project_resources",
+        "resource_certifications",
+        "resource_skills",
+        "task_assignments",
+        "task_skill_requirements",
+        "tasks",
+    }
+
+    assert expected <= PARENT_SCOPED_RLS_TABLES
+    assert expected.isdisjoint(INTENTIONAL_RLS_EXCLUSION_TABLES)
+    for table in expected:
+        statements = build_parent_scoped_rls_enable_statements(
+            table,
+            predicate=PARENT_SCOPED_RLS_PREDICATES[table],
+            quote=lambda identifier: f'"{identifier}"',
+        )
+        assert statements[:2] == (
+            f'ALTER TABLE "{table}" ENABLE ROW LEVEL SECURITY',
+            f'ALTER TABLE "{table}" FORCE ROW LEVEL SECURITY',
+        )
+        assert any("FOR SELECT USING (EXISTS" in statement for statement in statements)
+        assert any("FOR INSERT WITH CHECK (EXISTS" in statement for statement in statements)
+        assert any(
+            "FOR UPDATE" in statement and "WITH CHECK (EXISTS" in statement
+            for statement in statements
+        )
+        assert any("FOR DELETE USING (EXISTS" in statement for statement in statements)
+        assert all("app.tenant_id" in statement for statement in statements[2:])
+        assert all("app.organization_id" in statement for statement in statements[2:])
 
 
 def test_tenant_only_policy_does_not_require_organization_context():

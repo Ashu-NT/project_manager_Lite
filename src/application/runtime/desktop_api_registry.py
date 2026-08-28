@@ -95,10 +95,7 @@ from src.core.platform.application.master_data.site.site_service import SiteServ
 class DesktopApiRegistry:
     integration_capability: IntegrationCapabilityDesktopApi
     platform_runtime: PlatformRuntimeDesktopApi
-    # P5A + Organization-specific P6A cutover: the transport-independent ViewInvalidationChannel,
-    # exposed here (not a Qt type) so the ui_qml layer can build its own Qt adapter
-    # (OrganizationViewInvalidationAdapter) on top of it. No Qt/PySide6 dependency belongs in this
-    # file -- see src/ui_qml/platform/adapters/ for the actual Qt-facing translation.
+
     platform_view_invalidation_channel: ViewInvalidationChannel | None
     platform_calendar: None  # removed â€” use platform_enterprise_calendar instead
     platform_enterprise_calendar: EnterpriseCalendarDesktopApi | None
@@ -201,6 +198,18 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     access_scope_type_choices: list[tuple[str, str]] = []
     access_scope_option_loaders: dict[str, object] = {}
     access_scope_disabled_hints: dict[str, str] = {}
+    organization_service = services.get("organization_service")
+    if organization_service is not None and hasattr(organization_service, "list_organizations"):
+        access_scope_type_choices.append(("Organization", "organization"))
+        access_scope_option_loaders["organization"] = lambda: [
+            (
+                organization.display_name
+                if organization.is_enabled
+                else f"{organization.display_name} (disabled)",
+                organization.id,
+            )
+            for organization in organization_service.list_organizations(enabled_only=None)
+        ]
     if project_service is not None and hasattr(project_service, "list_projects"):
         access_scope_type_choices.append(("Project", "project"))
         access_scope_option_loaders["project"] = lambda: [

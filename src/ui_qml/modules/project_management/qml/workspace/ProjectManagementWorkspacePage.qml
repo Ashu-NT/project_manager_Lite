@@ -83,7 +83,7 @@ Item {
                         { key: "projects", file: "../workspaces/projects/ProjectsWorkspacePage.qml" },
                         { key: "tasks", file: "../workspaces/tasks/TasksWorkspacePage.qml" },
                         { key: "scheduling", file: "../workspaces/scheduling/SchedulingWorkspacePage.qml" },
-                        { key: "timesheets", file: "../workspaces/owner_timesheets/OwnerTimesheetsPage.qml" },
+                        { key: "timesheets", file: "../workspaces/resource_timesheets/ResourceTimesheetsPage.qml" },
                         { key: "resources", file: "../workspaces/resources/ResourcesWorkspacePage.qml" },
                         { key: "review_queue", file: "../workspaces/timesheets/TimesheetsWorkspacePage.qml" },
                         { key: "financials", file: "../workspaces/financials/FinancialsWorkspacePage.qml" },

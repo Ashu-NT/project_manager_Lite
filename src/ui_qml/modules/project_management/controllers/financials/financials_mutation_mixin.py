@@ -40,6 +40,18 @@ class FinancialsMutationMixin:
             set_feedback_message=self._set_feedback_message,
         )
 
+    def _create_cost_code(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._financials_workspace_presenter.create_cost_code(
+                dict(payload)
+            ),
+            success_message="Cost code created and made available to the project.",
+            on_success=self._request_domain_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
     def _submit_actual(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(
             operation=lambda: self._financials_workspace_presenter.submit_actual(

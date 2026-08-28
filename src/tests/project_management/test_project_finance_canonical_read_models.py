@@ -14,7 +14,7 @@ from src.core.modules.project_management.domain.financials.forecast import (
 
 
 def _approved_controls(services):
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         "Canonical finance read model",
         financial_currency_code=organization.base_currency,
@@ -128,7 +128,7 @@ def test_snapshot_reconciles_approved_budget_forecast_and_posted_actual(services
         (row.amount for row in snapshot.ledger if row.stage == "forecast"),
         start=Decimal("0"),
     ) == snapshot.forecast_etc
-    august = next(row for row in snapshot.cashflow if row.period_key == "2026-08")
+    august = next(row for row in snapshot.cost_phasing if row.period_key == "2026-08")
     assert august.actual == Decimal("25")
     assert august.forecast == Decimal("80")
     assert august.exposure == Decimal("105")

@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 
 Item {
     id: root
@@ -9,11 +8,6 @@ Item {
     property var taskOptions: []
     property var manualActualOptions: ({ "currencyCode": "", "costCodes": [], "entryKinds": [] })
 
-    // The workspace controller's mutation slots (createManualActual,
-    // submitActual, approveActual, rejectActual, postActual, reverseActual)
-    // all return run_mutation()'s {"ok": bool, "message": str} contract.
-    // Close the dialog only once the backend actually confirms success;
-    // otherwise keep it open and show the real failure message.
     function _handleResult(dialog, result) {
         if (result && result.ok) {
             dialog.close()
@@ -27,6 +21,11 @@ Item {
             ? root.workspaceController.newFinancialCommandId() : ""
         editorDialog.errorMessage = ""
         editorDialog.open()
+    }
+
+    function openCreateCostCodeDialog() {
+        costCodeEditorDialog.errorMessage = ""
+        costCodeEditorDialog.open()
     }
 
     // Opens the shared reject/post/reverse decision dialog for the given
@@ -54,6 +53,19 @@ Item {
             if (!root.workspaceController) return
             const result = root.workspaceController.createManualActual(payload)
             root._handleResult(editorDialog, result)
+        }
+    }
+
+    CostCodeEditorDialog {
+        id: costCodeEditorDialog
+
+        selectedProjectId: root.selectedProjectId
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+
+        onSubmitted: function(payload) {
+            if (!root.workspaceController) return
+            const result = root.workspaceController.createCostCode(payload)
+            root._handleResult(costCodeEditorDialog, result)
         }
     }
 

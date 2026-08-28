@@ -27,6 +27,7 @@ def time_entry_to_orm(entry: TimeEntry) -> TimeEntryORM:
         author_username=entry.author_username,
         created_at=entry.created_at,
         updated_at=entry.updated_at,
+        version=entry.version,
     )
 
 
@@ -55,6 +56,7 @@ def time_entry_from_orm(obj: TimeEntryORM) -> TimeEntry:
         author_username=obj.author_username,
         created_at=obj.created_at,
         updated_at=obj.updated_at,
+        version=obj.version,
     )
 
 

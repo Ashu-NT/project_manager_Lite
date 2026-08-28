@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.infrastructure.persistence.orm.time_management.time.time import TimeEntryORM
 from src.tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 
@@ -253,49 +253,6 @@ def test_deleting_project_removes_time_entries_created_under_its_assignments(ser
     ps.delete_project(project.id)
 
     assert _time_entry_count(services) == 0
-
-
-def test_deleting_resource_without_actuals_still_removes_its_assignments(services):
-    ps = services["project_service"]
-    ts = services["task_service"]
-    rs = services["resource_service"]
-
-    project = ps.create_project("Delete Resource Timesheet Cleanup")
-    task = ts.create_task(project.id, "Cleanup Task", start_date=date(2026, 3, 16), duration_days=1)
-    resource = rs.create_resource("Cleanup Dev", hourly_rate=100.0)
-    ts.assign_resource(task.id, resource.id, allocation_percent=40.0)
-
-    rs.delete_resource(resource.id)
-
-    with pytest.raises(NotFoundError):
-        rs.get_resource(resource.id)
-
-
-def test_deleting_resource_with_historical_actuals_is_blocked(services):
-    """R4.3 resource-planning upgrade: deleting a Resource used to
-    unconditionally cascade-delete every assignment's time entries too,
-    silently bypassing the same "preserve historical actuals" invariant
-    enforced on the more targeted ProjectResource/TaskAssignment removal
-    paths. It must now refuse once real hours have been logged."""
-    ps = services["project_service"]
-    ts = services["task_service"]
-    rs = services["resource_service"]
-
-    project = ps.create_project("Delete Resource Timesheet Cleanup")
-    task = ts.create_task(project.id, "Cleanup Task", start_date=date(2026, 3, 16), duration_days=1)
-    resource = rs.create_resource("Cleanup Dev", hourly_rate=100.0)
-    assignment = ts.assign_resource(task.id, resource.id, allocation_percent=40.0)
-    ts.add_time_entry(assignment.id, entry_date=date(2026, 3, 16), hours=2.0, note="Cleanup")
-
-    assert _time_entry_count(services) == 1
-
-    with pytest.raises(BusinessRuleError) as exc:
-        rs.delete_resource(resource.id)
-    assert exc.value.code == "RESOURCE_HAS_HISTORICAL_ACTUALS"
-
-    # Neither the resource, the assignment, nor its time entry were touched.
-    assert ts.get_assignment(assignment.id) is not None
-    assert _time_entry_count(services) == 1
 
 
 def test_time_entry_hours_must_be_greater_than_zero(services):

@@ -38,7 +38,7 @@ def _register_and_login(services, username: str, *, role_names: list[str]) -> No
 
 
 def _setup_billable_project(services, *, name: str = "Billing Command Surface", create_period: bool = True):
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         name, financial_currency_code=organization.base_currency
     )

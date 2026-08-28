@@ -23,12 +23,12 @@ AppLayouts.WorkspaceFrame {
     readonly property var overviewModel: root.workspaceController
         ? root.workspaceController.overview
         : ({ "title": root.workspaceModel.title, "subtitle": root.workspaceModel.summary, "metrics": [] })
-    readonly property var cashflowModel: root.workspaceController
-        ? root.workspaceController.cashflow : ({ "items": [] })
+    readonly property var costPhasingModel: root.workspaceController
+        ? root.workspaceController.costPhasing : ({ "items": [] })
     readonly property var ledgerModel: root.workspaceController
         ? root.workspaceController.ledger : ({ "items": [] })
-    readonly property var sourceAnalyticsModel: root.workspaceController
-        ? root.workspaceController.sourceAnalytics : ({ "items": [] })
+    readonly property var activityModel: root.workspaceController
+        ? root.workspaceController.activity : ({ "items": [] })
     readonly property var baselineVarianceModel: root.workspaceController
         ? (root.workspaceController.baselineVariance || []) : []
 
@@ -49,23 +49,18 @@ AppLayouts.WorkspaceFrame {
     }
 
     readonly property var _detailSections: {
-        const sections = [
-            { "label": "Profile", "group": "Configuration" },
-            { "label": "Budget Versions", "group": "Planning" },
-            { "label": "Budget Lines", "group": "Planning" },
-            { "label": "Rate Cards", "group": "Configuration" },
-            { "label": "Planned Costs", "group": "Planning" },
-            { "label": "Actuals", "group": "Cost Control" },
-            { "label": "Forecast", "group": "Planning" },
-            { "label": "Change Control", "group": "Cost Control" },
-            { "label": "Commitments", "group": "Cost Control" },
-            { "label": "Billing Preparation", "group": "Commercial" }
+        return [
+            "Overview",
+            "Planning",
+            "Costs",
+            "Performance",
+            "Commercial",
+            "Controls"
         ]
-        sections.push({ "label": "Variance", "group": "Insights" })
-        sections.push({ "label": "Reports", "group": "Insights" })
-        sections.push({ "label": "Activity", "group": "Insights" })
-        return sections
     }
+    readonly property var _destinationIds: [
+        "overview", "planning", "costs", "performance", "commercial", "controls"
+    ]
     readonly property string _activeDetailSection: {
         if (!root.detailPage) return ""
         const index = root.detailPage.activeSectionIndex
@@ -74,7 +69,20 @@ AppLayouts.WorkspaceFrame {
         return typeof entry === "string" ? entry : String(entry.label || "")
     }
     readonly property var _detailActions: {
-        if (root._activeDetailSection === "Actuals") {
+        if (root.workspaceController
+                && root.workspaceController.activeDestination === "controls"
+                && root.workspaceController.activeSubsection === "setup") return [
+            {
+                "id": "add_cost_code",
+                "label": "New Cost Code",
+                "icon": "add",
+                "enabled": !root.workspaceController.isBusy,
+                "danger": false
+            }
+        ]
+        if (root.workspaceController
+                && root.workspaceController.activeDestination === "costs"
+                && root.workspaceController.activeSubsection === "actuals") {
             const selected = root._selectedActualEntry()
             const state = selected ? (selected.state || {}) : {}
             const busy = root.workspaceController ? root.workspaceController.isBusy : false
@@ -83,10 +91,7 @@ AppLayouts.WorkspaceFrame {
                     "id": "add_manual_actual",
                     "label": "New Manual Actual",
                     "icon": "add",
-                    "enabled": !busy && root.workspaceController
-                        ? root.workspaceController.selectedProjectId.length > 0
-                            && (root.workspaceController.manualActualOptions.costCodes || []).length > 0
-                        : false,
+                    "enabled": !busy,
                     "danger": false
                 },
                 Boolean(state.canSubmit) ? {
@@ -126,7 +131,9 @@ AppLayouts.WorkspaceFrame {
                 } : null
             ].filter(Boolean)
         }
-        if (root._activeDetailSection === "Reports") return [
+        if (root.workspaceController
+                && root.workspaceController.activeDestination === "performance"
+                && root.workspaceController.activeSubsection === "reports") return [
             {
                 "id": "export_excel",
                 "label": "Export Excel",
@@ -220,7 +227,21 @@ AppLayouts.WorkspaceFrame {
                 showDelete: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                 sections: root._detailSections
-                Component.onCompleted: scrollToSection(root._pendingDetailSection)
+                Component.onCompleted: {
+                    scrollToSection(root._pendingDetailSection)
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.selectFinanceDestination(
+                            root._destinationIds[activeSectionIndex] || "overview"
+                        )
+                    }
+                }
+                onSectionChanged: function(index) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.selectFinanceDestination(
+                            root._destinationIds[index] || "overview"
+                        )
+                    }
+                }
 
                 Rectangle {
                     property bool detailPagePinned: true
@@ -295,6 +316,10 @@ AppLayouts.WorkspaceFrame {
                     busy: root.workspaceController ? root.workspaceController.isBusy : false
                     actions: root._detailActions
                     onActionTriggered: function(actionId) {
+                        if (actionId === "add_cost_code") {
+                            dialogHostLoader.invoke("openCreateCostCodeDialog")
+                            return
+                        }
                         if (actionId === "add_manual_actual") {
                             dialogHostLoader.invoke("openCreateManualActualDialog")
                             return
@@ -342,23 +367,62 @@ AppLayouts.WorkspaceFrame {
 
                 Panels.FinancialsDetailPanel {
                     width: parent ? parent.width : 0
-                    detailPage: detailPageLoader.item
-                    cashflowModel: root.cashflowModel
+                    activeDestination: root.workspaceController
+                        ? root.workspaceController.activeDestination : "overview"
+                    activeSubsection: root.workspaceController
+                        ? root.workspaceController.activeSubsection : "summary"
+                    costPhasingModel: root.costPhasingModel
+                    costPhasingBasisModel: root.workspaceController ? root.workspaceController.costPhasingBasis : ({ "fields": [] })
+                    evmBasisModel: root.workspaceController ? root.workspaceController.evmBasis : ({ "fields": [] })
+                    evmMetricsModel: root.workspaceController ? root.workspaceController.evmMetrics : ({ "items": [] })
+                    varianceMetricsModel: root.workspaceController ? root.workspaceController.varianceMetrics : ({ "items": [] })
+                    reportDefinitionsModel: root.workspaceController ? root.workspaceController.reportDefinitions : ({ "items": [] })
+                    costPhasingDateFrom: root.workspaceController ? root.workspaceController.costPhasingDateFrom : ""
+                    costPhasingDateTo: root.workspaceController ? root.workspaceController.costPhasingDateTo : ""
+                    costPhasingGranularity: root.workspaceController ? root.workspaceController.costPhasingGranularity : "month"
+                    onCostPhasingPresetRequested: function(months, granularity) {
+                        if (root.workspaceController) root.workspaceController.setCostPhasingPreset(months, granularity)
+                    }
                     ledgerModel: root.ledgerModel
+                    activityModel: root.activityModel
                     ledgerTableModel: root.workspaceController ? root.workspaceController.ledgerTableModel : null
                     selectedActualEntryId: root._selectedActualEntryId
                     actualSortKey: root.workspaceController ? root.workspaceController.actualSortKey : "metaText"
                     actualSortDirection: root.workspaceController ? root.workspaceController.actualSortDirection : Qt.DescendingOrder
                     onActualEntrySelected: function(entryId) { root._selectedActualEntryId = entryId }
-                    sourceAnalyticsModel: root.sourceAnalyticsModel
                     overviewModel: root.overviewModel
-                    forecastModel: root.workspaceController ? root.workspaceController.forecast : ({})
                     forecastVersionsModel: root.workspaceController ? root.workspaceController.forecastVersions : ({ "items": [] })
                     forecastLinesModel: root.workspaceController ? root.workspaceController.forecastLines : ({ "items": [] })
+                    selectedForecastModel: root.workspaceController ? root.workspaceController.selectedForecast : ({ "id": "", "fields": [] })
+                    forecastVersionsTableModel: root.workspaceController ? root.workspaceController.forecastVersionsTableModel : null
+                    forecastLinesTableModel: root.workspaceController ? root.workspaceController.forecastLinesTableModel : null
                     selectedForecastId: root.workspaceController ? root.workspaceController.selectedForecastId : ""
+                    forecastVersionSortKey: root.workspaceController ? root.workspaceController.forecastVersionSortKey : "revision"
+                    forecastVersionSortDirection: root.workspaceController ? root.workspaceController.forecastVersionSortDirection : Qt.DescendingOrder
+                    forecastLineSortKey: root.workspaceController ? root.workspaceController.forecastLineSortKey : "title"
+                    forecastLineSortDirection: root.workspaceController ? root.workspaceController.forecastLineSortDirection : Qt.AscendingOrder
+                    forecastVersionSearch: root.workspaceController ? root.workspaceController.forecastVersionSearch : ""
+                    forecastVersionStatus: root.workspaceController ? root.workspaceController.forecastVersionStatus : ""
+                    forecastGenerationMode: root.workspaceController ? root.workspaceController.forecastGenerationMode : ""
+                    forecastLineSearch: root.workspaceController ? root.workspaceController.forecastLineSearch : ""
+                    forecastLineSourceType: root.workspaceController ? root.workspaceController.forecastLineSourceType : ""
                     financialChangesModel: root.workspaceController ? root.workspaceController.financialChanges : ({ "items": [] })
                     financialChangeImpactsModel: root.workspaceController ? root.workspaceController.financialChangeImpacts : ({ "items": [] })
+                    selectedChangeModel: root.workspaceController ? root.workspaceController.selectedChange : ({ "id": "", "fields": [] })
+                    financialChangesTableModel: root.workspaceController ? root.workspaceController.financialChangesTableModel : null
+                    financialChangeImpactsTableModel: root.workspaceController ? root.workspaceController.financialChangeImpactsTableModel : null
                     selectedChangeId: root.workspaceController ? root.workspaceController.selectedChangeId : ""
+                    changeSortKey: root.workspaceController ? root.workspaceController.changeSortKey : "metaText"
+                    changeSortDirection: root.workspaceController ? root.workspaceController.changeSortDirection : Qt.DescendingOrder
+                    impactSortKey: root.workspaceController ? root.workspaceController.impactSortKey : "metaText"
+                    impactSortDirection: root.workspaceController ? root.workspaceController.impactSortDirection : Qt.AscendingOrder
+                    changeSearch: root.workspaceController ? root.workspaceController.changeSearch : ""
+                    changeStatus: root.workspaceController ? root.workspaceController.changeStatus : ""
+                    changeApprovalStatus: root.workspaceController ? root.workspaceController.changeApprovalStatus : ""
+                    changeAppliedState: root.workspaceController ? root.workspaceController.changeAppliedState : ""
+                    impactSearch: root.workspaceController ? root.workspaceController.impactSearch : ""
+                    impactType: root.workspaceController ? root.workspaceController.impactType : ""
+                    impactAppliedState: root.workspaceController ? root.workspaceController.impactAppliedState : ""
                     commitmentSummaryModel: root.workspaceController ? root.workspaceController.commitmentSummary : ({})
                     commitmentsModel: root.workspaceController ? root.workspaceController.commitments : ({})
                     commitmentsTableModel: root.workspaceController ? root.workspaceController.commitmentsTableModel : null
@@ -372,18 +436,101 @@ AppLayouts.WorkspaceFrame {
                     financialProfileModel: root.workspaceController ? root.workspaceController.financialProfile : ({})
                     budgetVersionsModel: root.workspaceController ? root.workspaceController.budgetVersions : ({ "items": [] })
                     budgetLinesModel: root.workspaceController ? root.workspaceController.budgetLines : ({ "items": [] })
+                    budgetVersionsTableModel: root.workspaceController ? root.workspaceController.budgetVersionsTableModel : null
+                    budgetLinesTableModel: root.workspaceController ? root.workspaceController.budgetLinesTableModel : null
+                    selectedBudgetId: root.workspaceController ? root.workspaceController.selectedBudgetId : ""
+                    budgetVersionSortKey: root.workspaceController ? root.workspaceController.budgetVersionSortKey : "revision"
+                    budgetVersionSortDirection: root.workspaceController ? root.workspaceController.budgetVersionSortDirection : Qt.DescendingOrder
+                    budgetLineSortKey: root.workspaceController ? root.workspaceController.budgetLineSortKey : "metaText"
+                    budgetLineSortDirection: root.workspaceController ? root.workspaceController.budgetLineSortDirection : Qt.DescendingOrder
                     rateCardsModel: root.workspaceController ? root.workspaceController.rateCards : ({ "items": [] })
                     rateLinesModel: root.workspaceController ? root.workspaceController.rateLines : ({ "items": [] })
+                    selectedRateCardModel: root.workspaceController ? root.workspaceController.selectedRateCard : ({ "id": "", "fields": [] })
+                    rateCardsTableModel: root.workspaceController ? root.workspaceController.rateCardsTableModel : null
+                    rateLinesTableModel: root.workspaceController ? root.workspaceController.rateLinesTableModel : null
+                    selectedRateCardId: root.workspaceController ? root.workspaceController.selectedRateCardId : ""
+                    rateCardSortKey: root.workspaceController ? root.workspaceController.rateCardSortKey : "title"
+                    rateCardSortDirection: root.workspaceController ? root.workspaceController.rateCardSortDirection : Qt.AscendingOrder
+                    rateLineSortKey: root.workspaceController ? root.workspaceController.rateLineSortKey : "title"
+                    rateLineSortDirection: root.workspaceController ? root.workspaceController.rateLineSortDirection : Qt.AscendingOrder
+                    rateCardSearch: root.workspaceController ? root.workspaceController.rateCardSearch : ""
+                    rateCardScope: root.workspaceController ? root.workspaceController.rateCardScope : ""
+                    rateCardStatus: root.workspaceController ? root.workspaceController.rateCardStatus : ""
+                    rateLineSearch: root.workspaceController ? root.workspaceController.rateLineSearch : ""
+                    rateLineRateType: root.workspaceController ? root.workspaceController.rateLineRateType : ""
+                    rateLineStatus: root.workspaceController ? root.workspaceController.rateLineStatus : ""
+                    rateLineEffectiveStatus: root.workspaceController ? root.workspaceController.rateLineEffectiveStatus : ""
                     plannedCostVersionsModel: root.workspaceController ? root.workspaceController.plannedCostVersions : ({ "items": [] })
                     plannedCostLinesModel: root.workspaceController ? root.workspaceController.plannedCostLines : ({ "items": [] })
+                    plannedCostVersionsTableModel: root.workspaceController ? root.workspaceController.plannedCostVersionsTableModel : null
+                    plannedCostLinesTableModel: root.workspaceController ? root.workspaceController.plannedCostLinesTableModel : null
+                    selectedPlannedCostVersionId: root.workspaceController ? root.workspaceController.selectedPlannedCostVersionId : ""
+                    plannedCostVersionSortKey: root.workspaceController ? root.workspaceController.plannedCostVersionSortKey : "revision"
+                    plannedCostVersionSortDirection: root.workspaceController ? root.workspaceController.plannedCostVersionSortDirection : Qt.DescendingOrder
+                    plannedCostLineSortKey: root.workspaceController ? root.workspaceController.plannedCostLineSortKey : "title"
+                    plannedCostLineSortDirection: root.workspaceController ? root.workspaceController.plannedCostLineSortDirection : Qt.AscendingOrder
                     billingProfileModel: root.workspaceController ? root.workspaceController.billingProfile : ({ "id": "", "fields": [] })
                     billingScheduleModel: root.workspaceController ? root.workspaceController.billingSchedule : ({ "items": [] })
                     billingPreparationsModel: root.workspaceController ? root.workspaceController.billingPreparations : ({ "items": [] })
+                    billingPreparationLinesModel: root.workspaceController ? root.workspaceController.billingPreparationLines : ({ "items": [] })
+                    selectedBillingPreparationModel: root.workspaceController ? root.workspaceController.selectedBillingPreparation : ({ "id": "", "fields": [] })
+                    billingScheduleTableModel: root.workspaceController ? root.workspaceController.billingScheduleTableModel : null
+                    billingPreparationsTableModel: root.workspaceController ? root.workspaceController.billingPreparationsTableModel : null
+                    billingPreparationLinesTableModel: root.workspaceController ? root.workspaceController.billingPreparationLinesTableModel : null
+                    selectedBillingPreparationId: root.workspaceController ? root.workspaceController.selectedBillingPreparationId : ""
+                    billingScheduleSortKey: root.workspaceController ? root.workspaceController.billingScheduleSortKey : "supportingText"
+                    billingScheduleSortDirection: root.workspaceController ? root.workspaceController.billingScheduleSortDirection : Qt.AscendingOrder
+                    billingPreparationSortKey: root.workspaceController ? root.workspaceController.billingPreparationSortKey : "metaText"
+                    billingPreparationSortDirection: root.workspaceController ? root.workspaceController.billingPreparationSortDirection : Qt.DescendingOrder
+                    billingLineSortKey: root.workspaceController ? root.workspaceController.billingLineSortKey : "metaText"
+                    billingLineSortDirection: root.workspaceController ? root.workspaceController.billingLineSortDirection : Qt.AscendingOrder
+                    billingScheduleSearch: root.workspaceController ? root.workspaceController.billingScheduleSearch : ""
+                    billingScheduleStatus: root.workspaceController ? root.workspaceController.billingScheduleStatus : ""
+                    billingScheduleSourceState: root.workspaceController ? root.workspaceController.billingScheduleSourceState : ""
+                    billingPreparationSearch: root.workspaceController ? root.workspaceController.billingPreparationSearch : ""
+                    billingPreparationStatus: root.workspaceController ? root.workspaceController.billingPreparationStatus : ""
+                    billingPreparationMethod: root.workspaceController ? root.workspaceController.billingPreparationMethod : ""
+                    billingPreparationApprovalStatus: root.workspaceController ? root.workspaceController.billingPreparationApprovalStatus : ""
+                    billingPreparationDeliveryState: root.workspaceController ? root.workspaceController.billingPreparationDeliveryState : ""
+                    billingPreparationCorrectionState: root.workspaceController ? root.workspaceController.billingPreparationCorrectionState : ""
+                    billingLineSearch: root.workspaceController ? root.workspaceController.billingLineSearch : ""
+                    billingLineSourceType: root.workspaceController ? root.workspaceController.billingLineSourceType : ""
+                    billingLineSourceState: root.workspaceController ? root.workspaceController.billingLineSourceState : ""
+                    commercialProjectionModel: root.workspaceController
+                        ? root.workspaceController.commercialProjection : ({ "id": "", "fields": [] })
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                    onSubsectionRequested: function(subsection) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.selectFinanceSubsection(subsection)
+                    }
                     onConfigurationPageRequested: function(collection, page) {
                         if (root.workspaceController !== null) {
                             root.workspaceController.setConfigurationPage(collection, page)
                         }
+                    }
+                    onBudgetVersionSelected: function(budgetId) {
+                        if (root.workspaceController !== null) root.workspaceController.selectBudgetVersion(budgetId)
+                    }
+                    onBudgetVersionPageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setBudgetVersionPage(page)
+                    }
+                    onBudgetVersionSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setBudgetVersionSort(key, direction)
+                    }
+                    onBudgetLineSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setBudgetLineSort(key, direction)
+                    }
+                    onPlannedCostVersionSelected: function(versionId) {
+                        if (root.workspaceController !== null) root.workspaceController.selectPlannedCostVersion(versionId)
+                    }
+                    onPlannedCostVersionPageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setPlannedCostVersionPage(page)
+                    }
+                    onPlannedCostVersionSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setPlannedCostVersionSort(key, direction)
+                    }
+                    onPlannedCostLineSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setPlannedCostLineSort(key, direction)
                     }
                     onActualPageRequested: function(page) {
                         if (root.workspaceController !== null) root.workspaceController.setActualPage(page)
@@ -407,9 +554,101 @@ AppLayouts.WorkspaceFrame {
                         if (root.workspaceController !== null)
                             root.workspaceController.selectForecastVersion(forecastId)
                     }
+                    onForecastVersionPageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setForecastVersionPage(page)
+                    }
+                    onForecastLinePageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setForecastLinePage(page)
+                    }
+                    onForecastVersionSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setForecastVersionSort(key, direction)
+                    }
+                    onForecastLineSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setForecastLineSort(key, direction)
+                    }
+                    onForecastVersionFiltersRequested: function(search, status, generationMode) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setForecastVersionFilters(search, status, generationMode)
+                    }
+                    onForecastLineFiltersRequested: function(search, sourceType) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setForecastLineFilters(search, sourceType)
+                    }
+                    onRateCardSelected: function(rateCardId) {
+                        if (root.workspaceController !== null) root.workspaceController.selectRateCard(rateCardId)
+                    }
+                    onRateCardPageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setRateCardPage(page)
+                    }
+                    onRateLinePageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setRateLinePage(page)
+                    }
+                    onRateCardSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setRateCardSort(key, direction)
+                    }
+                    onRateLineSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setRateLineSort(key, direction)
+                    }
+                    onRateCardFiltersRequested: function(search, scope, status) {
+                        if (root.workspaceController !== null) root.workspaceController.setRateCardFilters(search, scope, status)
+                    }
+                    onRateLineFiltersRequested: function(search, rateType, status, effectiveStatus) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setRateLineFilters(search, rateType, status, effectiveStatus)
+                    }
                     onFinancialChangeSelected: function(changeId) {
                         if (root.workspaceController !== null)
                             root.workspaceController.selectFinancialChange(changeId)
+                    }
+                    onFinancialChangePageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setFinancialChangePage(page)
+                    }
+                    onFinancialChangeImpactPageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setFinancialChangeImpactPage(page)
+                    }
+                    onFinancialChangeSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setFinancialChangeSort(key, direction)
+                    }
+                    onFinancialChangeImpactSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setFinancialChangeImpactSort(key, direction)
+                    }
+                    onFinancialChangeFiltersRequested: function(search, status, approvalStatus, appliedState) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setFinancialChangeFilters(search, status, approvalStatus, appliedState)
+                    }
+                    onFinancialChangeImpactFiltersRequested: function(search, impactType, appliedState) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setFinancialChangeImpactFilters(search, impactType, appliedState)
+                    }
+                    onBillingPreparationSelected: function(preparationId) {
+                        if (root.workspaceController !== null) root.workspaceController.selectBillingPreparation(preparationId)
+                    }
+                    onBillingSchedulePageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setBillingSchedulePage(page)
+                    }
+                    onBillingPreparationPageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setBillingPreparationPage(page)
+                    }
+                    onBillingLinePageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setBillingLinePage(page)
+                    }
+                    onBillingScheduleSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setBillingScheduleSort(key, direction)
+                    }
+                    onBillingPreparationSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setBillingPreparationSort(key, direction)
+                    }
+                    onBillingLineSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setBillingLineSort(key, direction)
+                    }
+                    onBillingScheduleFiltersRequested: function(search, status, sourceState) {
+                        if (root.workspaceController !== null) root.workspaceController.setBillingScheduleFilters(search, status, sourceState)
+                    }
+                    onBillingPreparationFiltersRequested: function(search, status, method, approvalStatus, deliveryState, correctionState) {
+                        if (root.workspaceController !== null) root.workspaceController.setBillingPreparationFilters(search, status, method, approvalStatus, deliveryState, correctionState)
+                    }
+                    onBillingLineFiltersRequested: function(search, sourceType, sourceState) {
+                        if (root.workspaceController !== null) root.workspaceController.setBillingLineFilters(search, sourceType, sourceState)
                     }
                     onVarianceBaselineSelected: function(baselineId) {
                         if (root.workspaceController !== null)

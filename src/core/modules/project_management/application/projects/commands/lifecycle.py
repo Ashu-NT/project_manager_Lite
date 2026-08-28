@@ -486,6 +486,7 @@ class ProjectLifecycleMixin:
                 if self._time_entry_repo is not None:
                     for assignment in assignments:
                         self._time_entry_repo.delete_by_assignment(assignment.id)
+                    self._session.flush()
                 self._assignment_repo.delete_by_task(task.id)
                 self._task_repo.delete(task.id)
 

@@ -5,18 +5,23 @@ from typing import Callable
 
 from PySide6.QtCore import QCoreApplication
 
+from src.core.shared.events.domain_events import domain_events
+
 logger = logging.getLogger(__name__)
 
 
 def bind_portfolio_domain_events(controller: object) -> None:
-    controller._subscribe_domain_change(
-        "portfolio_entity",
-        "project",
-        "project_tasks",
-        "project_costs",
-        "resource",
-        scope_code="project_management",
-    )
+
+    def _on_domain_event(_payload: object) -> None:
+        controller._request_domain_refresh()
+
+    for signal in (
+        domain_events.portfolio_changed,
+        domain_events.project_changed,
+        domain_events.tasks_changed,
+        domain_events.resources_changed,
+    ):
+        controller._subscribe_domain_signal(signal, _on_domain_event)
 
 
 def portfolio_request_domain_refresh(

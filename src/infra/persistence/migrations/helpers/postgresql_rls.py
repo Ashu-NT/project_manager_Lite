@@ -92,6 +92,36 @@ def build_tenant_organization_rls_disable_statements(
     )
 
 
+def build_parent_scoped_rls_enable_statements(
+    table_name: str,
+    *,
+    predicate: str,
+    quote: Callable[[str], str],
+) -> tuple[str, ...]:
+    """Build forced RLS for a child whose scope is resolved through its parent."""
+    normalized_predicate = str(predicate or "").strip()
+    if not normalized_predicate:
+        raise ValueError("A parent-scoped RLS predicate is required.")
+    return _scoped_policy_statements(
+        table_name,
+        policy_scope="parent_scope",
+        predicate=normalized_predicate,
+        quote=quote,
+    )
+
+
+def build_parent_scoped_rls_disable_statements(
+    table_name: str,
+    *,
+    quote: Callable[[str], str],
+) -> tuple[str, ...]:
+    return _scoped_policy_teardown_statements(
+        table_name,
+        policy_scope="parent_scope",
+        quote=quote,
+    )
+
+
 def build_tenant_only_rls_enable_statements(
     table_name: str,
     *,
@@ -184,6 +214,33 @@ def disable_tenant_organization_rls(operations: Any, bind: Any, table_name: str)
     )
 
 
+def enable_parent_scoped_rls(
+    operations: Any,
+    bind: Any,
+    table_name: str,
+    predicate: str,
+) -> None:
+    quote = bind.dialect.identifier_preparer.quote
+    _execute_statements(
+        operations,
+        bind,
+        build_parent_scoped_rls_enable_statements(
+            table_name,
+            predicate=predicate,
+            quote=quote,
+        ),
+    )
+
+
+def disable_parent_scoped_rls(operations: Any, bind: Any, table_name: str) -> None:
+    quote = bind.dialect.identifier_preparer.quote
+    _execute_statements(
+        operations,
+        bind,
+        build_parent_scoped_rls_disable_statements(table_name, quote=quote),
+    )
+
+
 def enable_tenant_only_rls(operations: Any, bind: Any, table_name: str) -> None:
     quote = bind.dialect.identifier_preparer.quote
     _execute_statements(
@@ -221,6 +278,8 @@ def disable_nullable_tenant_audit_rls(operations: Any, bind: Any, table_name: st
 
 
 __all__ = [
+    "build_parent_scoped_rls_disable_statements",
+    "build_parent_scoped_rls_enable_statements",
     "build_nullable_tenant_audit_rls_disable_statements",
     "build_nullable_tenant_audit_rls_enable_statements",
     "build_tenant_only_rls_disable_statements",
@@ -228,9 +287,11 @@ __all__ = [
     "build_tenant_organization_rls_disable_statements",
     "build_tenant_organization_rls_enable_statements",
     "disable_nullable_tenant_audit_rls",
+    "disable_parent_scoped_rls",
     "disable_tenant_only_rls",
     "disable_tenant_organization_rls",
     "enable_nullable_tenant_audit_rls",
+    "enable_parent_scoped_rls",
     "enable_tenant_only_rls",
     "enable_tenant_organization_rls",
 ]

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from collections.abc import Sequence
+
+from sqlalchemy import false, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.platform.contract.repositories.history.audit.contracts import AuditRepository
@@ -51,6 +53,9 @@ class SqlAlchemyAuditRepository(TenantScopedRepositorySupport, AuditRepository):
         operation: str | None = None,
         severity: str | None = None,
         compliance_tag: str | None = None,
+        module: str | None = None,
+        workspace_id: str | None = None,
+        operation_prefixes: Sequence[str] | None = None,
     ) -> list[AuditEntry]:
         ctx = self._context(operation_label="list audit entries")
         stmt = select(AuditEntryORM).where(
@@ -65,6 +70,12 @@ class SqlAlchemyAuditRepository(TenantScopedRepositorySupport, AuditRepository):
             stmt = stmt.where(AuditEntryORM.severity == severity)
         if compliance_tag is not None:
             stmt = stmt.where(AuditEntryORM.compliance_tag == compliance_tag)
+        stmt = self._apply_projection_filters(
+            stmt,
+            module=module,
+            workspace_id=workspace_id,
+            operation_prefixes=operation_prefixes,
+        )
         stmt = stmt.order_by(AuditEntryORM.timestamp.desc()).limit(max(1, int(limit)))
         rows = self.session.execute(stmt).scalars().all()
         return [audit_entry_from_orm(row) for row in rows]
@@ -77,6 +88,9 @@ class SqlAlchemyAuditRepository(TenantScopedRepositorySupport, AuditRepository):
         entity_type: str | None = None,
         operation: str | None = None,
         severity: str | None = None,
+        module: str | None = None,
+        workspace_id: str | None = None,
+        operation_prefixes: Sequence[str] | None = None,
     ) -> list[AuditEntry]:
         ctx = self._context(operation_label="list audit entries for organization")
         if not self._organization_in_scope(ctx, organization_id):
@@ -91,9 +105,38 @@ class SqlAlchemyAuditRepository(TenantScopedRepositorySupport, AuditRepository):
             stmt = stmt.where(AuditEntryORM.operation == operation)
         if severity is not None:
             stmt = stmt.where(AuditEntryORM.severity == severity)
+        stmt = self._apply_projection_filters(
+            stmt,
+            module=module,
+            workspace_id=workspace_id,
+            operation_prefixes=operation_prefixes,
+        )
         stmt = stmt.order_by(AuditEntryORM.timestamp.desc()).limit(max(1, int(limit)))
         rows = self.session.execute(stmt).scalars().all()
         return [audit_entry_from_orm(row) for row in rows]
+
+    @staticmethod
+    def _apply_projection_filters(
+        stmt,
+        *,
+        module: str | None,
+        workspace_id: str | None,
+        operation_prefixes: Sequence[str] | None,
+    ):
+        if module is not None:
+            stmt = stmt.where(AuditEntryORM.module == module)
+        if workspace_id is not None:
+            stmt = stmt.where(AuditEntryORM.workspace_id == workspace_id)
+        if operation_prefixes is not None:
+            prefixes = tuple(
+                str(prefix).strip() for prefix in operation_prefixes if str(prefix).strip()
+            )
+            stmt = stmt.where(
+                or_(*(AuditEntryORM.operation.startswith(prefix) for prefix in prefixes))
+                if prefixes
+                else false()
+            )
+        return stmt
 
 
 __all__ = ["SqlAlchemyAuditRepository"]

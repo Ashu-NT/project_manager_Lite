@@ -1,17 +1,6 @@
-"""ADR-PF-005 precedence policy — pure, no I/O.
-
-Kept separate from ``RateCardResolver`` (orchestration: fetching the
-resource, candidate lines, and skills) so the classification and
-tie-breaking rules can be unit-tested directly against plain constructed
-values, with no database or repository involved.
-"""
-
 from __future__ import annotations
 
-from src.core.modules.project_management.domain.financials.rate_cards import (
-    RateCardLine,
-    RateLineOrigin,
-)
+from src.core.modules.project_management.domain.financials.rate_cards import RateCardLine
 from src.core.platform.common.exceptions import BusinessRuleError
 
 
@@ -26,14 +15,14 @@ def classify_line(
     customer_party_id: str | None,
     contract_reference: str | None,
 ) -> int | None:
-    """Return this line's ADR-PF-005 precedence level (1-6) against the
+    """Return this line's ADR-PF-005 precedence level (1-5) against the
     given resource/context, or ``None`` if it does not match at all.
     """
     if line.resource_id:
         if line.resource_id != resource_id:
             return None
         if not is_project_scoped:
-            return 6 if line.origin == RateLineOrigin.LEGACY_SEEDED else 4
+            return 4
         if line.customer_party_id:
             if (
                 line.customer_party_id == customer_party_id

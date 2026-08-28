@@ -14,6 +14,7 @@ Item {
     property bool canManageSkills: false
     property bool isBusy: false
     property int activeTabIndex: 0
+    property real availableHeight: 0
 
     signal addSkillRequested()
     signal addCertificationRequested()
@@ -93,6 +94,7 @@ Item {
                 hasResource: root.hasResource
                 canManageSkills: root.canManageSkills
                 isBusy: root.isBusy
+                availableHeight: Math.max(300, root.availableHeight - 56)
                 onAddSkillRequested: root.addSkillRequested()
                 onSelectionChanged: function(skillId) {
                     root.skillSelectionChanged(String(skillId || ""))
@@ -109,6 +111,7 @@ Item {
                 hasResource: root.hasResource
                 canManageSkills: root.canManageSkills
                 isBusy: root.isBusy
+                availableHeight: Math.max(300, root.availableHeight - 56)
                 onAddCertificationRequested: root.addCertificationRequested()
                 onSelectionChanged: function(certId) {
                     root.certificationSelectionChanged(String(certId || ""))

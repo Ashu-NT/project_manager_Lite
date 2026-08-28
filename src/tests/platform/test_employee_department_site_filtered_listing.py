@@ -121,7 +121,7 @@ def test_department_filter_from_foreign_organization_yields_no_rows(services):
     department_service = services["department_service"]
     organization_service = services["organization_service"]
 
-    default_organization = organization_service.get_active_organization()
+    default_organization = services["tenant_context_service"].get_active_organization()
     dept_in_default_org = department_service.create_department(
         department_code="FILT-CROSS-D", name="Cross Dept", is_active=True
     )
@@ -132,16 +132,18 @@ def test_department_filter_from_foreign_organization_yields_no_rows(services):
         display_name="Cross Org",
         timezone_name="UTC",
         base_currency="USD",
-        is_active=False,
+        is_enabled=False,
     )
-    organization_service.set_active_organization(second_organization.id)
+    organization_service.enable_organization(second_organization.id)
+    services["tenant_context_service"].set_active_organization(second_organization.id)
 
     # Same department_id, but now scoped to a different active organization
     # -- must not resolve to the first organization's employees.
     rows = employee_service.list_employees(department_id=dept_in_default_org.id)
     assert rows == []
 
-    organization_service.set_active_organization(default_organization.id)
+    organization_service.enable_organization(default_organization.id)
+    services["tenant_context_service"].set_active_organization(default_organization.id)
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.history.audit.models.audit_entry import AuditEntryDto
@@ -37,6 +39,9 @@ class PlatformEnterpriseAuditDesktopApi:
         entity_type: str | None = None,
         operation: str | None = None,
         severity: str | None = None,
+        module: str | None = None,
+        workspace_id: str | None = None,
+        operation_prefixes: Sequence[str] | None = None,
     ) -> DesktopApiResult[tuple[AuditEntryDto, ...]]:
         return execute_desktop_operation(
             lambda: tuple(
@@ -46,6 +51,9 @@ class PlatformEnterpriseAuditDesktopApi:
                     entity_type=entity_type,
                     operation=operation,
                     severity=severity,
+                    module=module,
+                    workspace_id=workspace_id,
+                    operation_prefixes=operation_prefixes,
                 )
             )
         )

@@ -8,10 +8,14 @@ from src.core.modules.project_management.api.desktop.timesheets.models.options i
 def build_assignment_options(
     *,
     project_id: str | None = None,
+    resource_id: str | None = None,
     task_service=None,
 ) -> tuple[TimesheetAssignmentOptionDescriptor, ...]:
     if task_service is None:
         return ()
+    query_kwargs = {"project_id": project_id}
+    if resource_id is not None:
+        query_kwargs["resource_id"] = resource_id
     options = [
         TimesheetAssignmentOptionDescriptor(
             value=row.assignment_id,
@@ -23,9 +27,7 @@ def build_assignment_options(
             resource_id=row.resource_id,
             resource_name=row.resource_name,
         )
-        for row in task_service.list_timesheet_assignment_contexts(
-            project_id=project_id
-        )
+        for row in task_service.list_timesheet_assignment_contexts(**query_kwargs)
     ]
     options.sort(key=lambda option: option.label.casefold())
     return tuple(options)

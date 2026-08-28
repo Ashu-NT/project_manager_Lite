@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -199,32 +198,3 @@ def test_fresh_baseline_project_billing_schema_round_trips(tmp_path) -> None:
     engine = sa.create_engine(config.get_main_option("sqlalchemy.url"), future=True)
     assert "project_billing_profiles" not in sa.inspect(engine).get_table_names()
     engine.dispose()
-
-
-def test_desktop_billing_workspace_is_empty_before_profile_configuration() -> None:
-    class ProfileService:
-        @staticmethod
-        def get_profile(project_id: str):
-            assert project_id == "project-1"
-            return None
-
-        @staticmethod
-        def list_schedule(project_id: str):  # pragma: no cover - must remain lazy
-            raise AssertionError("Schedule must not load without a billing profile")
-
-    class PreparationService:
-        @staticmethod
-        def list_preparations(*args, **kwargs):  # pragma: no cover - must remain lazy
-            raise AssertionError("Preparations must not load without a billing profile")
-
-    api = ProjectManagementFinancialsDesktopApi(
-        billing_profile_service=ProfileService(),
-        billing_preparation_service=PreparationService(),
-    )
-
-    workspace = api.get_billing_workspace("project-1")
-
-    assert workspace.profile.id == ""
-    assert workspace.schedule_lines == ()
-    assert workspace.preparations == ()
-    assert workspace.preparation_total == 0

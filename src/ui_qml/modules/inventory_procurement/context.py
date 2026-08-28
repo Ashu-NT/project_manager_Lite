@@ -3,6 +3,12 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.platform.adapters.site_view_invalidation_adapter import (
+    SiteViewInvalidationAdapter,
+)
+from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import (
+    TenantSwitcherPresenter,
+)
 from src.ui_qml.modules.inventory_procurement.controllers import (
     InventoryProcurementCatalogWorkspaceController,
     InventoryProcurementDashboardWorkspaceController,
@@ -12,6 +18,7 @@ from src.ui_qml.modules.inventory_procurement.controllers import (
     InventoryProcurementReservationsWorkspaceController,
 )
 from src.ui_qml.modules.inventory_procurement.controllers.common import (
+    resolve_active_organization_id_from_runtime_api,
     serialize_workspace_view_model,
 )
 from src.ui_qml.modules.inventory_procurement.presenters import (
@@ -39,6 +46,20 @@ class InventoryProcurementWorkspaceCatalog(QObject):
     ) -> None:
         super().__init__(parent)
         self._presenters = build_inventory_procurement_workspace_presenters()
+        self._platform_runtime_api = (
+            getattr(desktop_api_registry, "platform_runtime", None)
+            if desktop_api_registry is not None else None
+        )
+        self._view_invalidation_channel = (
+            getattr(desktop_api_registry, "platform_view_invalidation_channel", None)
+            if desktop_api_registry is not None else None
+        )
+        self._tenant_switcher_presenter = TenantSwitcherPresenter(
+            tenant_api=(
+                getattr(desktop_api_registry, "platform_tenant", None)
+                if desktop_api_registry is not None else None
+            )
+        )
         dashboard_api = getattr(
             desktop_api_registry,
             "inventory_procurement_dashboard",
@@ -94,6 +115,15 @@ class InventoryProcurementWorkspaceCatalog(QObject):
             activity_api=platform_activity,
             parent=self,
         )
+        self._inventory_site_view_invalidation_adapter = SiteViewInvalidationAdapter(
+            channel=self._view_invalidation_channel,
+            tenant_id=self._active_tenant_id() or "",
+            organization_id=self._active_organization_id() or "",
+            parent=self,
+        )
+        self._inventory_site_view_invalidation_adapter.siteCollectionStale.connect(
+            self._inventory_workspace.refresh_site_options
+        )
         self._reservations_workspace = (
             InventoryProcurementReservationsWorkspaceController(
                 workspace_presenter=InventoryProcurementWorkspacePresenter(
@@ -118,6 +148,15 @@ class InventoryProcurementWorkspaceCatalog(QObject):
                 parent=self,
             )
         )
+        self._procurement_site_view_invalidation_adapter = SiteViewInvalidationAdapter(
+            channel=self._view_invalidation_channel,
+            tenant_id=self._active_tenant_id() or "",
+            organization_id=self._active_organization_id() or "",
+            parent=self,
+        )
+        self._procurement_site_view_invalidation_adapter.siteCollectionStale.connect(
+            self._procurement_workspace.refresh_site_options
+        )
         self._pricing_workspace = InventoryProcurementPricingWorkspaceController(
             workspace_presenter=InventoryProcurementWorkspacePresenter(
                 "inventory_procurement.pricing"
@@ -128,6 +167,15 @@ class InventoryProcurementWorkspaceCatalog(QObject):
             activity_api=platform_activity,
             parent=self,
         )
+        self._pricing_site_view_invalidation_adapter = SiteViewInvalidationAdapter(
+            channel=self._view_invalidation_channel,
+            tenant_id=self._active_tenant_id() or "",
+            organization_id=self._active_organization_id() or "",
+            parent=self,
+        )
+        self._pricing_site_view_invalidation_adapter.siteCollectionStale.connect(
+            self._pricing_workspace.refresh_site_options
+        )
         self._dashboard_workspace = InventoryProcurementDashboardWorkspaceController(
             workspace_presenter=InventoryProcurementWorkspacePresenter(
                 "inventory_procurement.dashboard"
@@ -137,6 +185,21 @@ class InventoryProcurementWorkspaceCatalog(QObject):
             ),
             parent=self,
         )
+
+    def _active_tenant_id(self) -> str | None:
+        try:
+            return self._tenant_switcher_presenter.get_active_tenant_id() or None
+        except Exception:
+            return None
+
+    def _active_organization_id(self) -> str | None:
+        runtime_api = self._platform_runtime_api
+        if runtime_api is None:
+            return None
+        try:
+            return resolve_active_organization_id_from_runtime_api(runtime_api)
+        except Exception:
+            return None
 
     @Property(InventoryProcurementCatalogWorkspaceController, constant=True)
     def catalogWorkspace(self) -> InventoryProcurementCatalogWorkspaceController:
@@ -177,6 +240,7 @@ class InventoryProcurementWorkspaceCatalog(QObject):
 
     @Slot()
     def refreshAllWorkspaces(self) -> None:
+        self.refreshCapabilities()
         for controller in (
             self._catalog_workspace,
             self._inventory_workspace,
@@ -188,6 +252,20 @@ class InventoryProcurementWorkspaceCatalog(QObject):
             refresh = getattr(controller, "refresh", None)
             if callable(refresh):
                 refresh()
+
+    @Slot()
+    def refreshCapabilities(self) -> None:
+        tenant_id = self._active_tenant_id() or ""
+        organization_id = self._active_organization_id() or ""
+        for adapter in (
+            self._inventory_site_view_invalidation_adapter,
+            self._pricing_site_view_invalidation_adapter,
+            self._procurement_site_view_invalidation_adapter,
+        ):
+            adapter.set_active_scope(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+            )
 
 
 __all__ = ["InventoryProcurementWorkspaceCatalog"]

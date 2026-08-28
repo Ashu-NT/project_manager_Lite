@@ -71,6 +71,7 @@ def _normalize_payload(value: object) -> dict[str, Any]:
 @validated_dataclass
 class ApprovalRequest:
     id: str
+    tenant_id: str
     request_type: str
     entity_type: str
     entity_id: str
@@ -94,6 +95,15 @@ class ApprovalRequest:
             message="Approval request type is required.",
             code="APPROVAL_REQUEST_TYPE_REQUIRED",
         ).lower()
+
+    @field_validator("tenant_id", mode="before")
+    @classmethod
+    def _validate_tenant_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Approval request tenant ID is required.",
+            code="APPROVAL_TENANT_ID_REQUIRED",
+        )
 
     @field_validator("entity_type", mode="before")
     @classmethod
@@ -162,6 +172,7 @@ class ApprovalRequest:
         entity_type: str,
         entity_id: str,
         *,
+        tenant_id: str,
         project_id: str | None,
         organization_id: str | None = None,
         payload: dict[str, Any] | None = None,
@@ -170,6 +181,7 @@ class ApprovalRequest:
     ) -> "ApprovalRequest":
         return ApprovalRequest(
             id=generate_id(),
+            tenant_id=tenant_id,
             request_type=request_type,
             entity_type=entity_type,
             entity_id=entity_id,

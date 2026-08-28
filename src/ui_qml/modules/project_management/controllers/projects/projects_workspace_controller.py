@@ -456,6 +456,11 @@ class ProjectManagementProjectsWorkspaceController(
                 else Qt.AscendingOrder.value
             )
         except Exception as exc:  # pragma: no cover - defensive fallback
+            # P10C-FIX: a failed refresh (e.g. no active organization context after a switch,
+            # revocation, or disable; or the module not licensed in the now-current
+            # tenant/organization) must not leave the PREVIOUS organization's rows on screen
+            # alongside the error -- clear them rather than merely reporting the failure.
+            self._set_projects({})
             self._set_error_message(str(exc))
         finally:
             self._set_is_loading(False)

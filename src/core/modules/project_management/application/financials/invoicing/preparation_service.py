@@ -35,14 +35,22 @@ from src.core.modules.project_management.gateway.billing.accounting_billing impo
     BillingPreparationLinePayload,
     ProjectBillingPreparationPayload,
 )
+from src.core.modules.project_management.contracts.persistence.billing_preparation_submission_unit_of_work import (
+    BillingPreparationSubmissionUnitOfWorkFactory,
+)
+from src.core.platform.application.approval.approval_mutation_participant import (
+    request_approval_using,
+)
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.finance.financial_period_service import FinancialPeriodService
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.ids import generate_id
 from src.core.platform.finance import DecimalQuantity, Money
 from src.core.platform.integration.canonical_json import canonical_json_sha256
 from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_events import domain_events
 
 
@@ -62,6 +70,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         approval_service: ApprovalService,
         tenant_context_service: TenantContextService,
         clock: Clock,
+        submission_uow_factory: BillingPreparationSubmissionUnitOfWorkFactory | None = None,
         user_session=None,
         enterprise_audit_service=None,
         module_catalog_service=None,
@@ -76,6 +85,12 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         self._approval_service = approval_service
         self._tenant_context_service = tenant_context_service
         self._clock = clock
+        # Approval-P1: `submit_preparation`'s own canonical transaction owner -- the
+        # preparation's submit transition, the governed `ApprovalRequest`, and both audit
+        # trails all commit atomically through this ONE fresh Session. This dependency is
+        # optional because approval-application composition never submits preparations;
+        # production submission composition always supplies it.
+        self._submission_uow_factory = submission_uow_factory
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
@@ -293,34 +308,49 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         )
         return self._reserve(preparation, line, expected_row_version)
 
+    def _new_submission_context(self) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id())
+
     def submit_preparation(
         self, preparation_id: str, *, expected_row_version: int
     ) -> ProjectBillingPreparation:
-        preparation = self._require_preparation(preparation_id)
-        self._require(preparation.project_id, "finance.manage", "submit billing preparation")
-        if preparation.row_version != expected_row_version:
-            raise BusinessRuleError("Billing preparation changed.", code="STALE_WRITE")
-        now = self._clock.now()
-        request = self._approval_service.request_change(
-            request_type="project_billing_preparation.approve",
-            entity_type="project_billing_preparation",
-            entity_id=preparation.id,
-            project_id=preparation.project_id,
-            module="project_management",
-            payload={"preparation_id": preparation.id, "expected_version": expected_row_version},
-            commit=False,
-        )
-        preparation.submit(
-            submitted_by=self._actor_id(), submitted_at=now, approval_request_id=request.id
-        )
-        self._write(
-            "submit",
-            preparation,
-            lambda: self._billing_repo.update_preparation(
-                preparation, expected_row_version=expected_row_version
-            ),
-            emit=False,
-        )
+        if self._submission_uow_factory is None:
+            raise BusinessRuleError(
+                "Billing preparation submission requires a configured transaction owner.",
+                code="BILLING_PREPARATION_SUBMISSION_UOW_REQUIRED",
+            )
+        with self._submission_uow_factory.create(context=self._new_submission_context()) as uow:
+            preparation = uow.billing.get_preparation(preparation_id)
+            if preparation is None:
+                raise NotFoundError(
+                    "Billing preparation not found.", code="BILLING_PREPARATION_NOT_FOUND"
+                )
+            self._require(preparation.project_id, "finance.manage", "submit billing preparation")
+            if preparation.row_version != expected_row_version:
+                raise BusinessRuleError("Billing preparation changed.", code="STALE_WRITE")
+            now = self._clock.now()
+            principal = self._user_session.principal if self._user_session else None
+            request = request_approval_using(
+                approval_repo=uow.approvals,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                clock=self._clock,
+                record_event=uow.record_event,
+                request_type="project_billing_preparation.approve",
+                entity_type="project_billing_preparation",
+                entity_id=preparation.id,
+                tenant_id=preparation.tenant_id,
+                organization_id=preparation.organization_id,
+                project_id=preparation.project_id,
+                payload={"preparation_id": preparation.id, "expected_version": expected_row_version},
+                requested_by_user_id=principal.user_id if principal else None,
+                requested_by_username=principal.username if principal else None,
+            )
+            preparation.submit(
+                submitted_by=self._actor_id(), submitted_at=now, approval_request_id=request.id
+            )
+            uow.billing.update_preparation(preparation, expected_row_version=expected_row_version)
+            self._audit_using(uow, "submit", preparation)
+            uow.commit()
         self._approval_service.publish_requested(request)
         domain_events.billing_preparations_changed.emit(preparation.project_id)
         return preparation
@@ -629,8 +659,12 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         return str(actor_id)
 
     def _audit(self, operation: str, entity) -> None:
+        self._audit_using(self, operation, entity)
+
+    @staticmethod
+    def _audit_using(owner, operation: str, entity) -> None:
         record_audit_entry(
-            self,
+            owner,
             operation=f"project_billing_preparation.{operation}",
             entity_type=type(entity).__name__,
             entity_id=entity.id,

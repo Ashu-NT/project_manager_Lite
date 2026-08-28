@@ -48,11 +48,15 @@ def _project_with_tasks(services):
     return project
 
 
-def _approval_request(project, *, name: str = "My Baseline") -> ApprovalRequest:
+def _approval_request(services, project, *, name: str = "My Baseline") -> ApprovalRequest:
+    tenant_id = services["tenant_context_service"].require_active_tenant_id(
+        operation_label="test approval request"
+    )
     return ApprovalRequest.create(
         request_type="baseline.create",
         entity_type="project_baseline",
         entity_id=project.id,
+        tenant_id=tenant_id,
         project_id=project.id,
         organization_id=project.organization_id,
         payload={
@@ -80,7 +84,7 @@ def test_participant_apply_creates_baseline_on_the_supplied_session(services, se
     project = _project_with_tasks(services)
 
     deps = _deps(services, session)
-    request = _approval_request(project)
+    request = _approval_request(services, project)
 
     result = BaselineApprovalParticipant().apply(request, deps)
 
@@ -101,7 +105,7 @@ def test_participant_never_calls_commit_or_rollback(services, session, monkeypat
     _login(services, "admin", "ChangeMe123!")
     project = _project_with_tasks(services)
     deps = _deps(services, session)
-    request = _approval_request(project)
+    request = _approval_request(services, project)
 
     def _forbidden(*_args, **_kwargs):
         raise AssertionError("the participant must never commit or roll back its own Session")

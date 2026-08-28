@@ -80,6 +80,7 @@ def build_principal(
             if session_tenant_id == resolved_tenant_id
             else None
         )
+        organization_id_is_persisted_restore = resolved_organization_id is not None
         if (
             resolved_tenant_id is not None
             and resolved_organization_id is None
@@ -103,6 +104,7 @@ def build_principal(
         resolved_organization_id = (
             str(active_organization_id or "").strip() or None
         )
+        organization_id_is_persisted_restore = False
 
     if service._tenant_context_service is not None:
         try:
@@ -123,6 +125,9 @@ def build_principal(
                     resolved_tenant_id
                 )
             )
+            # The persisted value (if any) was just rejected on tenant/availability grounds --
+            # whatever this fallback resolves to is a fresh auto-select, not a restore of it.
+            organization_id_is_persisted_restore = False
 
     if (
         is_platform_operator
@@ -142,6 +147,31 @@ def build_principal(
         )
     )
     scoped_access = canonical_authority.scoped_access
+
+    if organization_id_is_persisted_restore and resolved_organization_id is not None:
+        is_admin_bypass = (
+            "admin" in canonical_authority.role_names
+            or "tenant_admin" in canonical_authority.role_names
+            or "platform.admin" in canonical_authority.permissions
+        )
+        if not is_admin_bypass and resolved_organization_id not in scoped_access.get("organization", {}):
+            resolved_organization_id = (
+                service._tenant_context_service.initial_organization_id_for_tenant(
+                    resolved_tenant_id
+                )
+                if service._tenant_context_service is not None and resolved_tenant_id is not None
+                else None
+            )
+            canonical_authority = (
+                service._require_canonical_role_resolver().resolve_principal_authority(
+                    user.id,
+                    tenant_id=resolved_tenant_id,
+                    organization_id=resolved_organization_id,
+                    cutover_resource_scope_types=RESOURCE_ROLE_SCOPE_TYPES,
+                )
+            )
+            scoped_access = canonical_authority.scoped_access
+
     project_access = dict(scoped_access.get("project", {}))
     return UserSessionPrincipal(
         user_id=user.id,

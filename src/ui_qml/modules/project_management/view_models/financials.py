@@ -68,27 +68,6 @@ class FinancialsCollectionViewModel:
     total: int = 0
 
 @dataclass(frozen=True)
-class FinancialsForecastMetricViewModel:
-    label: str
-    value: str
-    color_hint: str = ""  # "success", "warning", "danger", or ""
-
-@dataclass(frozen=True)
-class FinancialsForecastViewModel:
-    basis_label: str = ""
-    budget_label: str = ""
-    actual_label: str = ""
-    etc_label: str = ""
-    eac_label: str = ""
-    vac_label: str = ""
-    is_over_budget: bool = False
-    has_approved_forecast: bool = False
-    forecast_revision: int | None = None
-    forecast_as_of_label: str = ""
-    alert_message: str = ""
-    metrics: tuple[FinancialsForecastMetricViewModel, ...] = field(default_factory=tuple)
-
-@dataclass(frozen=True)
 class FinancialsCommitmentSummaryViewModel:
     approved_budget_label: str = ""
     posted_actual_label: str = ""
@@ -115,19 +94,44 @@ class FinancialsWorkspaceViewModel:
         default_factory=FinancialsManualActualOptionsViewModel
     )
     selected_project_id: str = ""
-    cashflow: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    cost_phasing: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    cost_phasing_basis: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
+    evm_basis: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
+    evm_metrics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    variance_metrics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    report_definitions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     ledger: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    activity: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     actual_sort_key: str = "metaText"
     actual_sort_direction: str = "desc"
-    source_analytics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
-    cost_type_analytics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
-    forecast: FinancialsForecastViewModel = field(default_factory=FinancialsForecastViewModel)
     selected_forecast_id: str = ""
+    selected_forecast: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     forecast_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     forecast_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    forecast_version_sort_key: str = "revision"
+    forecast_version_sort_direction: str = "desc"
+    forecast_line_sort_key: str = "title"
+    forecast_line_sort_direction: str = "asc"
+    forecast_version_search: str = ""
+    forecast_version_status: str = ""
+    forecast_generation_mode: str = ""
+    forecast_line_search: str = ""
+    forecast_line_source_type: str = ""
     selected_change_id: str = ""
+    selected_change: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     financial_changes: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     financial_change_impacts: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    change_sort_key: str = "metaText"
+    change_sort_direction: str = "desc"
+    impact_sort_key: str = "metaText"
+    impact_sort_direction: str = "asc"
+    change_search: str = ""
+    change_status: str = ""
+    change_approval_status: str = ""
+    change_applied_state: str = ""
+    impact_search: str = ""
+    impact_type: str = ""
+    impact_applied_state: str = ""
     commitment_summary: FinancialsCommitmentSummaryViewModel = field(default_factory=FinancialsCommitmentSummaryViewModel)
     commitments: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     commitment_sort_key: str = "metaText"
@@ -138,16 +142,62 @@ class FinancialsWorkspaceViewModel:
     variance_basis: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     report_basis: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     financial_profile: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
+    selected_budget_id: str = ""
     budget_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     budget_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    budget_version_sort_key: str = "revision"
+    budget_version_sort_direction: str = "desc"
+    budget_line_sort_key: str = "metaText"
+    budget_line_sort_direction: str = "desc"
     rate_cards: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     rate_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    selected_rate_card_id: str = ""
+    selected_rate_card: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
+    rate_card_sort_key: str = "title"
+    rate_card_sort_direction: str = "asc"
+    rate_line_sort_key: str = "title"
+    rate_line_sort_direction: str = "asc"
+    rate_card_search: str = ""
+    rate_card_scope: str = ""
+    rate_card_status: str = ""
+    rate_line_search: str = ""
+    rate_line_rate_type: str = ""
+    rate_line_status: str = ""
+    rate_line_effective_status: str = ""
+    selected_planned_cost_version_id: str = ""
     planned_cost_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     planned_cost_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    planned_cost_version_sort_key: str = "revision"
+    planned_cost_version_sort_direction: str = "desc"
+    planned_cost_line_sort_key: str = "title"
+    planned_cost_line_sort_direction: str = "asc"
     billing_profile: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     billing_schedule: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     billing_preparations: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
-    notes: tuple[str, ...] = field(default_factory=tuple)
+    selected_billing_preparation_id: str = ""
+    selected_billing_preparation: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
+    billing_preparation_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    billing_schedule_sort_key: str = "supportingText"
+    billing_schedule_sort_direction: str = "asc"
+    billing_preparation_sort_key: str = "metaText"
+    billing_preparation_sort_direction: str = "desc"
+    billing_line_sort_key: str = "metaText"
+    billing_line_sort_direction: str = "asc"
+    billing_schedule_search: str = ""
+    billing_schedule_status: str = ""
+    billing_schedule_source_state: str = ""
+    billing_preparation_search: str = ""
+    billing_preparation_status: str = ""
+    billing_preparation_method: str = ""
+    billing_preparation_approval_status: str = ""
+    billing_preparation_delivery_state: str = ""
+    billing_preparation_correction_state: str = ""
+    billing_line_search: str = ""
+    billing_line_source_type: str = ""
+    billing_line_source_state: str = ""
+    commercial_projection: FinancialsDetailViewModel = field(
+        default_factory=FinancialsDetailViewModel
+    )
     empty_state: str = ""
 
 __all__ = [
@@ -156,8 +206,6 @@ __all__ = [
     "FinancialsCommitmentSummaryViewModel",
     "FinancialsDetailFieldViewModel",
     "FinancialsDetailViewModel",
-    "FinancialsForecastMetricViewModel",
-    "FinancialsForecastViewModel",
     "FinancialsMetricViewModel",
     "FinancialsManualActualOptionsViewModel",
     "FinancialsOverviewViewModel",

@@ -8,6 +8,7 @@ import App.Theme 1.0 as Theme
 
 AppControls.CenteredDialog {
     id: root
+    objectName: "resourcesFilterPopup"
 
     property var workspaceController: null
     property var state: null
@@ -17,7 +18,7 @@ AppControls.CenteredDialog {
     property string _draftCategory: "all"
 
     title: "Filter Resources"
-    width: 340
+    width: 440
     padding: 0
     modal: true
     focus: true
@@ -29,6 +30,7 @@ AppControls.CenteredDialog {
     }
 
     contentItem: ColumnLayout {
+        objectName: "resourcesFilterContent"
         spacing: Theme.AppTheme.spacingMd
 
         Item { Layout.preferredHeight: Theme.AppTheme.spacingXs }
@@ -93,6 +95,7 @@ AppControls.CenteredDialog {
         }
 
         RowLayout {
+            objectName: "resourcesFilterActions"
             Layout.fillWidth: true
             Layout.leftMargin: Theme.AppTheme.dialogPadding
             Layout.rightMargin: Theme.AppTheme.dialogPadding

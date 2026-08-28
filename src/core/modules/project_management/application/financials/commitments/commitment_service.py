@@ -68,7 +68,6 @@ from src.core.platform.finance import (
 )
 from src.core.platform.integration.canonical_json import canonical_json_sha256
 from src.core.shared.audit import record_audit_entry
-from src.core.shared.events.domain_events import domain_events
 
 
 _SOURCE_STATE_MAP = {
@@ -286,7 +285,7 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             return line
         self._record_line_audit(operation, line)
         if commit:
-            self._commit_and_emit(line.project_id)
+            self._commit(line.project_id)
         else:
             self._session.flush()
         return line
@@ -519,7 +518,7 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             ) from exc
         self._record_match_audit("match", match, line)
         if commit:
-            self._commit_and_emit(line.project_id)
+            self._commit(line.project_id)
         else:
             self._session.flush()
         return match
@@ -585,7 +584,7 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
                 code="PROJECT_COMMITMENT_MATCH_REVERSAL_CONFLICT",
             ) from exc
         self._record_match_audit("reverse_match", reversal, line)
-        self._commit_and_emit(line.project_id)
+        self._commit(line.project_id)
         return reversal
 
     def _get_or_create_header(
@@ -873,9 +872,8 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             fail_closed=True,
         )
 
-    def _commit_and_emit(self, project_id: str) -> None:
+    def _commit(self, project_id: str) -> None:
         self._session.commit()
-        domain_events.commitments_changed.emit(project_id)
 
 
 __all__ = ["ProjectCommitmentService"]

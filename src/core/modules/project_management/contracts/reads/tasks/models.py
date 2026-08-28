@@ -197,6 +197,7 @@ class TaskTimeEntryRow:
     hours: float
     note: str
     author_username: str | None
+    version: int
 
 
 @dataclass(frozen=True, slots=True)

@@ -99,6 +99,152 @@ def _draft_change(services, project):
     )
 
 
+def test_submit_change_uses_a_fresh_uow_session_shared_by_the_approval_request(
+    services, monkeypatch
+) -> None:
+    """Approval-P1: `submit_change` is converged onto `FinancialChangeSubmissionUnitOfWork` --
+    a genuinely fresh Session per call, distinct from the shared legacy Session, with the
+    financial change update and the Approval request sharing that one Session/transaction."""
+    _login(services, "admin", "ChangeMe123!")
+    project, code, budget, budget_line, _forecast, _forecast_line = _seed_approved_finance(
+        services
+    )
+    changes = services["financial_change_service"]
+    change = _draft_change(services, project)
+    changes.add_impact(
+        change.id,
+        impact_type=FinancialChangeImpactType.BUDGET,
+        description="Increase approved scope",
+        amount=Decimal("10"),
+        cost_code_id=code.id,
+        target_line_id=budget_line.id,
+        expected_change_version=change.row_version,
+    )
+    change = changes.get_change(change.id)
+
+    seen_uows = []
+    original_create = type(changes._submission_uow_factory).create
+
+    def _spy_create(self, *, context):
+        uow = original_create(self, context=context)
+        seen_uows.append(uow)
+        return uow
+
+    monkeypatch.setattr(type(changes._submission_uow_factory), "create", _spy_create)
+    submitted = changes.submit_change(
+        change.id,
+        submitted_by=services["user_session"].principal.user_id,
+        expected_version=change.row_version,
+    )
+
+    assert len(seen_uows) == 1
+    uow = seen_uows[0]
+    assert uow._session is not changes._session
+    assert uow.changes.session is uow._session
+    assert uow.approvals.session is uow._session
+    assert uow._enterprise_audit_service._session is uow._session
+    assert submitted.status is FinancialChangeStatus.PENDING_APPROVAL
+
+
+def test_submit_change_commit_failure_rolls_back_change_and_approval_request_together(
+    services, monkeypatch
+) -> None:
+    """Approval-P1 (§23-26): a commit failure inside `submit_change`'s canonical UoW must roll
+    back the WHOLE transaction -- the financial change must remain in its pre-submit state, and
+    no `ApprovalRequest` may have been persisted independently of its host command."""
+    from src.core.modules.project_management.infrastructure.persistence.financial_change_submission_unit_of_work import (
+        SqlAlchemyFinancialChangeSubmissionUnitOfWork,
+    )
+
+    _login(services, "admin", "ChangeMe123!")
+    project, code, budget, budget_line, _forecast, _forecast_line = _seed_approved_finance(
+        services
+    )
+    changes = services["financial_change_service"]
+    change = _draft_change(services, project)
+    changes.add_impact(
+        change.id,
+        impact_type=FinancialChangeImpactType.BUDGET,
+        description="Increase approved scope",
+        amount=Decimal("10"),
+        cost_code_id=code.id,
+        target_line_id=budget_line.id,
+        expected_change_version=change.row_version,
+    )
+    change = changes.get_change(change.id)
+    pending_count_before = len(services["approval_service"].list_pending(project_id=project.id))
+
+    def _fail_commit(self):
+        raise RuntimeError("simulated financial change submission commit failure")
+
+    monkeypatch.setattr(SqlAlchemyFinancialChangeSubmissionUnitOfWork, "commit", _fail_commit)
+
+    with pytest.raises(RuntimeError, match="simulated financial change submission commit failure"):
+        changes.submit_change(
+            change.id,
+            submitted_by=services["user_session"].principal.user_id,
+            expected_version=change.row_version,
+        )
+
+    monkeypatch.undo()
+    reloaded = changes.get_change(change.id)
+    assert reloaded.status is FinancialChangeStatus.DRAFT
+    pending_after = services["approval_service"].list_pending(project_id=project.id)
+    assert len(pending_after) == pending_count_before
+
+
+def test_submit_change_audit_failure_rolls_back_change_and_approval_request_together(
+    services, monkeypatch
+) -> None:
+
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
+
+    _login(services, "admin", "ChangeMe123!")
+    project, code, budget, budget_line, _forecast, _forecast_line = _seed_approved_finance(
+        services
+    )
+    changes = services["financial_change_service"]
+    change = _draft_change(services, project)
+    changes.add_impact(
+        change.id,
+        impact_type=FinancialChangeImpactType.BUDGET,
+        description="Increase approved scope",
+        amount=Decimal("10"),
+        cost_code_id=code.id,
+        target_line_id=budget_line.id,
+        expected_change_version=change.row_version,
+    )
+    change = changes.get_change(change.id)
+    pending_count_before = len(services["approval_service"].list_pending(project_id=project.id))
+
+    call_count = {"n": 0}
+    original_record = EnterpriseAuditService.record
+
+    def _fail_on_second_call(self, **kwargs):
+        call_count["n"] += 1
+        if call_count["n"] >= 2:
+            raise RuntimeError("simulated host audit failure after mutation and staging")
+        return original_record(self, **kwargs)
+
+    monkeypatch.setattr(EnterpriseAuditService, "record", _fail_on_second_call)
+
+    with pytest.raises(RuntimeError, match="simulated host audit failure after mutation and staging"):
+        changes.submit_change(
+            change.id,
+            submitted_by=services["user_session"].principal.user_id,
+            expected_version=change.row_version,
+        )
+
+    assert call_count["n"] >= 2
+    monkeypatch.undo()
+    reloaded = changes.get_change(change.id)
+    assert reloaded.status is FinancialChangeStatus.DRAFT
+    pending_after = services["approval_service"].list_pending(project_id=project.id)
+    assert len(pending_after) == pending_count_before
+
+
 def test_negative_financial_delta_requires_an_exact_target() -> None:
     with pytest.raises(ValidationError):
         FinancialChangeImpact.create(

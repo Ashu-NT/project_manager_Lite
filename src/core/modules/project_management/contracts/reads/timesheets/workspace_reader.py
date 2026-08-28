@@ -48,6 +48,14 @@ class TimesheetResourceReadPage:
 
 
 @dataclass(frozen=True, slots=True)
+class TimesheetWorkspaceAccessFact:
+    actor_user_id: str
+    available_scopes: tuple[TimesheetScope, ...]
+    default_scope: TimesheetScope
+    mine_resource: TimesheetResourceFact | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class TimesheetPeriodFact:
     period_id: str
     resource_id: str
@@ -102,6 +110,7 @@ class TimesheetEntryFact:
     task_name: str
     activity_type: str
     updated_at: datetime | None
+    version: int
     can_edit: bool = False
     can_delete: bool = False
 
@@ -208,4 +217,5 @@ __all__ = [
     "TimesheetResourceSelectorCriteria",
     "TimesheetScope",
     "TimesheetWorkspaceReader",
+    "TimesheetWorkspaceAccessFact",
 ]

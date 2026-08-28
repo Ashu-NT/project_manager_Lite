@@ -126,3 +126,72 @@ def test_build_desktop_api_registry_exposes_platform_control_adapters(services):
     assert registry.platform_enterprise_audit is not None
     assert registry.platform_enterprise_audit.list_recent(limit=5).ok is True
 
+
+def test_build_desktop_api_registry_exposes_organization_as_an_access_scope_type(services):
+    organization_service = services["organization_service"]
+    other_org = organization_service.create_organization(
+        organization_code="DESKTOP-ORG-B", display_name="Desktop Access Org B", is_enabled=True,
+    )
+    registry = build_desktop_api_registry(services)
+
+    scope_types_result = registry.platform_access.list_scope_types()
+    assert scope_types_result.ok is True
+    scope_type_values = {row.value for row in scope_types_result.data}
+    assert "organization" in scope_type_values
+    organization_choice = next(row for row in scope_types_result.data if row.value == "organization")
+    assert organization_choice.enabled is True
+
+    targets_result = registry.platform_access.list_scope_targets("organization")
+    assert targets_result.ok is True
+    target_ids = {row.id for row in targets_result.data}
+    # Only the current tenant's organizations appear -- the loader is backed by
+    # `OrganizationService.list_organizations`, which is tenant-scoped by construction.
+    assert other_org.id in target_ids
+    assert all(row.scope_type == "organization" for row in targets_result.data)
+
+    role_choices_result = registry.platform_access.list_scope_role_choices("organization")
+    assert role_choices_result.ok is True
+    assert role_choices_result.data == ("viewer", "member", "admin")
+
+    tenant_id = services["tenant_context_service"].require_active_tenant_id(
+        operation_label="prepare desktop organization access test user"
+    )
+    user = services["auth_service"].register_user(
+        "desktop-org-access",
+        "StrongPass123",
+        role_names=["viewer"],
+        tenant_id=tenant_id,
+    )
+
+    assign_result = registry.platform_access.assign_scope_grant(
+        ScopedAccessGrantAssignCommand(
+            scope_type="organization",
+            scope_id=other_org.id,
+            user_id=user.id,
+            scope_role="viewer",
+        )
+    )
+    list_result = registry.platform_access.list_scope_grants(
+        scope_type="organization", scope_id=other_org.id
+    )
+
+    assert assign_result.ok is True
+    assert assign_result.data.scope_type == "organization"
+    assert list_result.ok is True
+    assert [row.user_id for row in list_result.data] == [user.id]
+
+    remove_result = registry.platform_access.remove_scope_grant(
+        ScopedAccessGrantRemoveCommand(
+            scope_type="organization",
+            scope_id=other_org.id,
+            user_id=user.id,
+        )
+    )
+    refreshed_result = registry.platform_access.list_scope_grants(
+        scope_type="organization", scope_id=other_org.id
+    )
+
+    assert remove_result.ok is True
+    assert refreshed_result.ok is True
+    assert refreshed_result.data == ()
+

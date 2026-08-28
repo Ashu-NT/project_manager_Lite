@@ -276,6 +276,8 @@ def test_platform_master_data_services_use_runtime_tenant_context() -> None:
         organization_repo=org_repo,
         user_session=user_session,
         tenant_context_service=tenant_context,
+        uow_factory=object(),
+        clock=object(),
     )
     department_service = DepartmentService(
         session=object(),
@@ -283,6 +285,8 @@ def test_platform_master_data_services_use_runtime_tenant_context() -> None:
         organization_repo=org_repo,
         user_session=user_session,
         tenant_context_service=tenant_context,
+        uow_factory=object(),
+        clock=object(),
     )
     party_service = PartyService(
         session=object(),
@@ -290,6 +294,7 @@ def test_platform_master_data_services_use_runtime_tenant_context() -> None:
         organization_repo=org_repo,
         user_session=user_session,
         tenant_context_service=tenant_context,
+        uow_factory=object(),
     )
     document_service = DocumentService(
         session=object(),

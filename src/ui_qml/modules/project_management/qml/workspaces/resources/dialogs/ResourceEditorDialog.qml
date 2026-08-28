@@ -24,6 +24,8 @@ AppWidgets.EntityDialog {
     readonly property bool personKindSelected: root.currentKindValue() === "PERSON"
     readonly property bool employeeWorkerSelected: root.personKindSelected
         && String(root.currentWorkerTypeValue() || "") === "EMPLOYEE"
+    readonly property bool directoryIdentitySelected: root.personKindSelected
+        && String((root.employeeOptions[employeeCombo.currentIndex] || { "value": "" }).value || "").length > 0
 
     signal submitted(var payload)
 
@@ -76,7 +78,7 @@ AppWidgets.EntityDialog {
 
     function applyEmployeeDefaults() {
         var option = root.selectedEmployeeOption()
-        if (!root.employeeWorkerSelected) {
+        if (!root.directoryIdentitySelected) {
             employeeContextValue.text = "-"
             return
         }
@@ -124,7 +126,7 @@ AppWidgets.EntityDialog {
             "address": addressField.text,
             "contact": contactField.text,
             "workerType": root.currentWorkerTypeValue(),
-            "employeeId": root.employeeWorkerSelected
+            "employeeId": root.personKindSelected
                 ? String((root.employeeOptions[employeeCombo.currentIndex] || { "value": "" }).value || "") : "",
             "departmentId": String((root.departmentOptions[departmentCombo.currentIndex] || { "value": "" }).value || ""),
             "siteId": String((root.siteOptions[siteCombo.currentIndex] || { "value": "" }).value || ""),
@@ -198,8 +200,9 @@ AppWidgets.EntityDialog {
 
         AppWidgets.FormField {
             Layout.fillWidth: true
-            label: "Employee"
-            AppControls.ComboBox { id: employeeCombo; Layout.fillWidth: true; model: root.employeeOptions; textRole: "label"; enabled: root.employeeWorkerSelected; onCurrentIndexChanged: root.applyEmployeeDefaults() }
+            label: root.employeeWorkerSelected ? "Employee identity" : "Login identity (optional)"
+            required: root.employeeWorkerSelected
+            AppControls.ComboBox { id: employeeCombo; Layout.fillWidth: true; model: root.employeeOptions; textRole: "label"; enabled: root.personKindSelected; onCurrentIndexChanged: root.applyEmployeeDefaults() }
         }
 
         AppWidgets.FormField {
@@ -211,26 +214,26 @@ AppWidgets.EntityDialog {
         AppWidgets.FormField {
             Layout.fillWidth: true
             label: "Department"
-            AppControls.ComboBox { id: departmentCombo; Layout.fillWidth: true; model: root.departmentOptions; textRole: "label"; enabled: !root.employeeWorkerSelected }
+            AppControls.ComboBox { id: departmentCombo; Layout.fillWidth: true; model: root.departmentOptions; textRole: "label"; enabled: !root.directoryIdentitySelected }
         }
 
         AppWidgets.FormField {
             Layout.fillWidth: true
             label: "Site"
-            AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label"; enabled: !root.employeeWorkerSelected }
+            AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label"; enabled: !root.directoryIdentitySelected }
         }
 
         AppWidgets.FormField {
             Layout.fillWidth: true
             label: "Resource name"
             required: true
-            AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Electrical Crew"; readOnly: root.employeeWorkerSelected }
+            AppControls.TextField { id: nameField; Layout.fillWidth: true; placeholderText: "Electrical Crew"; readOnly: root.directoryIdentitySelected }
         }
 
         AppWidgets.FormField {
             Layout.fillWidth: true
             label: "Role"
-            AppControls.TextField { id: roleField; Layout.fillWidth: true; placeholderText: "Lead Technician"; readOnly: root.employeeWorkerSelected }
+            AppControls.TextField { id: roleField; Layout.fillWidth: true; placeholderText: "Lead Technician"; readOnly: root.directoryIdentitySelected }
         }
 
         AppWidgets.FormField {
@@ -268,7 +271,7 @@ AppWidgets.EntityDialog {
         AppWidgets.FormField {
             Layout.fillWidth: true
             label: "Contact"
-            AppControls.TextField { id: contactField; Layout.fillWidth: true; placeholderText: "name@example.com"; readOnly: root.employeeWorkerSelected }
+            AppControls.TextField { id: contactField; Layout.fillWidth: true; placeholderText: "name@example.com"; readOnly: root.directoryIdentitySelected }
         }
     }
 }

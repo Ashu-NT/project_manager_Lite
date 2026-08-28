@@ -41,6 +41,7 @@ from src.core.modules.project_management.api.desktop.resources.models.availabili
 )
 from src.core.modules.project_management.api.desktop.resources.models.certifications import (
     ResourceCertificationDesktopDto,
+    ResourceCertificationsPageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.resources.models.options import (
     ResourceCategoryDescriptor,
@@ -55,11 +56,9 @@ from src.core.modules.project_management.api.desktop.resources.models.resources 
     ResourceInspectorDesktopDto,
     ResourceSummaryDesktopDto,
 )
-from src.core.modules.project_management.api.desktop.resources.models.capability import (
-    ResourceCapabilityCountsDesktopDto,
-)
 from src.core.modules.project_management.api.desktop.resources.models.skills import (
     ResourceSkillDesktopDto,
+    ResourceSkillsPageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.resources.serializers.certification_serializer import (
     serialize_certification,
@@ -341,34 +340,45 @@ class ProjectManagementResourcesDesktopApi:
             change_type=ResourceMasterChangeType.PURGED,
         )
 
-    def list_resource_skills(
+    def list_resource_skills_page(
         self,
         resource_id: str,
-    ) -> tuple[ResourceSkillDesktopDto, ...]:
-        service = self._require_resource_service()
-        skills = service.list_resource_skills(resource_id)
-        return tuple(serialize_skill(skill) for skill in skills)
-
-    def get_resource_capability_counts(
-        self, resource_id: str
-    ) -> ResourceCapabilityCountsDesktopDto:
-        counts = self._require_resource_service().get_resource_capability_counts(
-            resource_id
+        *,
+        search_text: str = "",
+        proficiency: str = "all",
+        page: int = 1,
+        page_size: int = 25,
+        sort_key: str = "skillName",
+        sort_direction: str = "asc",
+    ) -> ResourceSkillsPageDesktopDto:
+        result = self._require_resource_service().query_resource_skills_page(
+            resource_id,
+            search_text=search_text,
+            proficiency=None if proficiency == "all" else proficiency,
+            page=page,
+            page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
         )
-        return ResourceCapabilityCountsDesktopDto(
-            skill_count=counts.skill_count,
-            certification_count=counts.certification_count,
-        )
-
-    def list_resource_certifications(
-        self,
-        resource_id: str,
-    ) -> tuple[ResourceCertificationDesktopDto, ...]:
-        service = self._require_resource_service()
-        certifications = service.list_resource_certifications(resource_id)
-        return tuple(
-            serialize_certification(certification)
-            for certification in certifications
+        return ResourceSkillsPageDesktopDto(
+            items=tuple(
+                ResourceSkillDesktopDto(
+                    id=item.skill_id,
+                    resource_id=item.resource_id,
+                    skill_code=item.skill_code,
+                    skill_name=item.skill_name,
+                    proficiency=item.proficiency,
+                    proficiency_label=item.proficiency.replace("_", " ").title(),
+                    notes=item.notes,
+                    version=item.version,
+                )
+                for item in result.items
+            ),
+            filtered_total=result.filtered_total,
+            page=result.page,
+            page_size=result.page_size,
+            sort_key=result.sort.key,
+            sort_direction=result.sort.direction.value,
         )
 
     def add_resource_skill(
@@ -385,6 +395,51 @@ class ProjectManagementResourcesDesktopApi:
                 notes=command.notes,
             ),
             change_type=ResourceCapabilityChangeType.ADDED,
+        )
+
+    def list_resource_certifications_page(
+        self,
+        resource_id: str,
+        *,
+        search_text: str = "",
+        status: str = "all",
+        page: int = 1,
+        page_size: int = 25,
+        sort_key: str = "certificationName",
+        sort_direction: str = "asc",
+    ) -> ResourceCertificationsPageDesktopDto:
+        result = self._require_resource_service().query_resource_certifications_page(
+            resource_id,
+            search_text=search_text,
+            status=None if status == "all" else status,
+            page=page,
+            page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
+        )
+        return ResourceCertificationsPageDesktopDto(
+            items=tuple(
+                ResourceCertificationDesktopDto(
+                    id=item.certification_id,
+                    resource_id=item.resource_id,
+                    certification_code=item.certification_code,
+                    certification_name=item.certification_name,
+                    issued_date=(item.issued_date.isoformat() if item.issued_date else None),
+                    expiry_date=(item.expiry_date.isoformat() if item.expiry_date else None),
+                    certificate_number=item.certificate_number,
+                    issuer=item.issuer,
+                    notes=item.notes,
+                    cert_status=item.cert_status,
+                    cert_status_label=item.cert_status.replace("-", " ").title(),
+                    version=item.version,
+                )
+                for item in result.items
+            ),
+            filtered_total=result.filtered_total,
+            page=result.page,
+            page_size=result.page_size,
+            sort_key=result.sort.key,
+            sort_direction=result.sort.direction.value,
         )
         return serialize_skill(skill)
 

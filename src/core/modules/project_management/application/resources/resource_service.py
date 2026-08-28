@@ -18,7 +18,6 @@ from src.core.modules.project_management.application.resources.queries.resource_
     ResourceContextQueryMixin,
 )
 from src.core.modules.project_management.contracts.repositories.projects.project import ProjectResourceRepository
-from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_cards import ProjectRateCardRepository
 from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
 from src.core.modules.project_management.contracts.reads.resources import (
     ResourceCatalogReader,
@@ -27,6 +26,7 @@ from src.core.modules.project_management.contracts.reads.resources import (
     ResourceActivityReader,
     ResourceAssignmentsReader,
     ResourceProjectsReader,
+    ResourceCapabilityReader,
 )
 from src.core.modules.project_management.contracts.repositories.resources.skills import (
     ResourceCertificationRepository,
@@ -35,7 +35,6 @@ from src.core.modules.project_management.contracts.repositories.resources.skills
 from src.core.modules.project_management.contracts.repositories.tasks.task import AssignmentRepository
 from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository
 from src.core.platform.contract.repositories.master_data.employee.contracts import EmployeeRepository
-from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 
 
@@ -63,14 +62,13 @@ class ResourceService(
         activity_service=None,
         module_catalog_service=None,
         tenant_context_service=None,
-        project_rate_card_repo: ProjectRateCardRepository | None = None,
-        clock: Clock | None = None,
         resource_catalog_reader: ResourceCatalogReader | None = None,
         resource_inspector_reader: ResourceInspectorReader | None = None,
         resource_summary_reader: ResourceSummaryReader | None = None,
         resource_projects_reader: ResourceProjectsReader | None = None,
         resource_assignments_reader: ResourceAssignmentsReader | None = None,
         resource_activity_reader: ResourceActivityReader | None = None,
+        resource_capability_reader: ResourceCapabilityReader | None = None,
         department_service=None,
         site_service=None,
     ):
@@ -86,14 +84,13 @@ class ResourceService(
         self._activity_service = activity_service
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
-        self._project_rate_card_repo: ProjectRateCardRepository | None = project_rate_card_repo
-        self._clock: Clock | None = clock
         self._resource_catalog_reader = resource_catalog_reader
         self._resource_inspector_reader = resource_inspector_reader
         self._resource_summary_reader = resource_summary_reader
         self._resource_projects_reader = resource_projects_reader
         self._resource_assignments_reader = resource_assignments_reader
         self._resource_activity_reader = resource_activity_reader
+        self._resource_capability_reader = resource_capability_reader
         self._department_service = department_service
         self._site_service = site_service
 

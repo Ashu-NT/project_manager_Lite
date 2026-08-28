@@ -93,8 +93,12 @@ def update_task_time_entry(controller, payload: dict[str, object]) -> dict[str, 
     return controller._time_ctrl.updateTaskTimeEntry(payload)
 
 
-def delete_task_time_entry(controller, entry_id: str) -> dict[str, object]:
-    return controller._time_ctrl.deleteTaskTimeEntry(entry_id)
+def delete_task_time_entry(
+    controller,
+    entry_id: str,
+    expected_version: int,
+) -> dict[str, object]:
+    return controller._time_ctrl.deleteTaskTimeEntry(entry_id, expected_version)
 
 
 def post_task_comment(controller, payload: dict[str, object]) -> dict[str, object]:

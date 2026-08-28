@@ -68,7 +68,7 @@ def test_pm_tasks_detail_loading(tmp_path: Path, qapp) -> None:
 
     assert controller.assignmentOptions[0]["label"] == "Alex Taylor (90.00 EUR/hr)"
     assert controller.assignments["items"][0]["title"] == "Alex Taylor"
-    assert controller.selectedAssignmentId == ""
+    assert controller.selectedAssignmentId == "assign-1"
 
     controller.loadSelectedTaskDependencies()
 

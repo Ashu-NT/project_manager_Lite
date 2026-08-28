@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from src.ui_qml.modules.project_management.controllers.common import (
+    serialize_resource_employee_option_view_models,
+)
+
 
 def _direction(value: int) -> str:
     return "desc" if int(value) else "asc"
@@ -155,9 +159,18 @@ def clear_resource_context(controller) -> None:
     controller._clear_resource_activity()
 
 
+def load_resource_employee_options(controller) -> None:
+    controller._set_employee_options(
+        serialize_resource_employee_option_view_models(
+            controller._resources_workspace_presenter.build_employee_options()
+        )
+    )
+
+
 __all__ = [
     "clear_resource_context",
     "load_resource_activity",
     "load_resource_assignments",
+    "load_resource_employee_options",
     "load_resource_projects",
 ]

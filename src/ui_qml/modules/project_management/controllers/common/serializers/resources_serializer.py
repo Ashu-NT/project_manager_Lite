@@ -3,12 +3,10 @@ from __future__ import annotations
 from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceAvailabilityViewModel,
     ResourceCatalogOverviewViewModel,
-    ResourceCertificationViewModel,
     ResourceDetailViewModel,
     ResourceEmployeeOptionViewModel,
     ResourceInspectorViewModel,
     ResourceRecordViewModel,
-    ResourceSkillViewModel,
 )
 
 
@@ -88,52 +86,6 @@ def serialize_resource_record_view_models(
             "state": dict(view_model.state),
         }
         for view_model in view_models
-    ]
-
-
-def serialize_resource_skill_view_models(
-    view_models: tuple[ResourceSkillViewModel, ...],
-) -> list[dict[str, object]]:
-    return [
-        {
-            "id": vm.id,
-            "title": vm.skill_name or vm.skill_code,
-            "subtitle": vm.skill_code,
-            "statusLabel": vm.proficiency_label,
-            "metaText": vm.notes or "",
-            "skillCode": vm.skill_code,
-            "skillName": vm.skill_name,
-            "proficiency": vm.proficiency,
-            "proficiencyLabel": vm.proficiency_label,
-            "notes": vm.notes,
-            "version": vm.version,
-        }
-        for vm in view_models
-    ]
-
-
-def serialize_resource_certification_view_models(
-    view_models: tuple[ResourceCertificationViewModel, ...],
-) -> list[dict[str, object]]:
-    return [
-        {
-            "id": vm.id,
-            "title": vm.certification_name or vm.certification_code,
-            "subtitle": vm.certification_code,
-            "statusLabel": vm.cert_status,
-            "metaText": vm.expiry_date or "",
-            "certificationCode": vm.certification_code,
-            "certificationName": vm.certification_name,
-            "issuedDate": vm.issued_date or "",
-            "expiryDate": vm.expiry_date or "",
-            "certificateNumber": vm.certificate_number,
-            "issuer": vm.issuer,
-            "notes": vm.notes,
-            "certStatus": vm.cert_status,
-            "certStatusLabel": vm.cert_status_label,
-            "version": vm.version,
-        }
-        for vm in view_models
     ]
 
 
@@ -227,10 +179,8 @@ def serialize_resource_inspector_view_model(
 __all__ = [
     "serialize_resource_availability_view_model",
     "serialize_resource_catalog_overview_view_model",
-    "serialize_resource_certification_view_models",
     "serialize_resource_detail_view_model",
     "serialize_resource_employee_option_view_models",
     "serialize_resource_inspector_view_model",
     "serialize_resource_record_view_models",
-    "serialize_resource_skill_view_models",
 ]

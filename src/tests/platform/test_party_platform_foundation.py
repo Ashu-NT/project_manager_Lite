@@ -7,7 +7,7 @@ def test_party_service_scopes_party_master_data_by_active_organization(services)
     organization_service = services["organization_service"]
     party_service = services["party_service"]
 
-    default_organization = organization_service.get_active_organization()
+    default_organization = services["tenant_context_service"].get_active_organization()
     created = party_service.create_party(
         party_code="SUP-001",
         party_name="North Supply",
@@ -27,9 +27,10 @@ def test_party_service_scopes_party_master_data_by_active_organization(services)
         display_name="Operations Hub",
         timezone_name="Europe/Berlin",
         base_currency="EUR",
-        is_active=False,
+        is_enabled=False,
     )
-    organization_service.set_active_organization(second_organization.id)
+    organization_service.enable_organization(second_organization.id)
+    services["tenant_context_service"].set_active_organization(second_organization.id)
 
     assert party_service.get_context_organization().display_name == "Operations Hub"
     assert party_service.list_parties() == []

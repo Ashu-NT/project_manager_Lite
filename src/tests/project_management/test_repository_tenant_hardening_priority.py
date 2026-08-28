@@ -55,7 +55,8 @@ from src.tests.project_management._test_repository_tenant_hardening_helpers impo
 def test_priority_pm_repositories_hide_other_organization_rows(services):
     seeded = _seed_priority_pm_rows(services)
     organization_service = services["organization_service"]
-    organization_service.set_active_organization(seeded["default_org"].id)
+    organization_service.enable_organization(seeded["default_org"].id)
+    services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
 
     task_repo = services["task_service"]._task_repo
     assignment_repo = services["task_service"]._assignment_repo
@@ -105,7 +106,8 @@ def test_priority_pm_repositories_hide_other_organization_rows(services):
 def test_priority_pm_repositories_scope_mutations_to_active_organization(services):
     seeded = _seed_priority_pm_rows(services)
     organization_service = services["organization_service"]
-    organization_service.set_active_organization(seeded["default_org"].id)
+    organization_service.enable_organization(seeded["default_org"].id)
+    services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
 
     task_repo = services["task_service"]._task_repo
     assignment_repo = services["task_service"]._assignment_repo
@@ -129,7 +131,8 @@ def test_priority_pm_repositories_scope_mutations_to_active_organization(service
     task_repo.delete(seeded["task_b1"])
     services["session"].commit()
 
-    organization_service.set_active_organization(seeded["other_org"].id)
+    organization_service.enable_organization(seeded["other_org"].id)
+    services["tenant_context_service"].set_active_organization(seeded["other_org"].id)
 
     assert task_repo.get(seeded["task_b1"]) is not None
     assert assignment_repo.get(seeded["assignment_b"]) is not None
@@ -142,7 +145,8 @@ def test_priority_pm_repositories_scope_mutations_to_active_organization(service
 def test_priority_pm_repositories_reject_cross_organization_updates(services):
     seeded = _seed_priority_pm_rows(services)
     organization_service = services["organization_service"]
-    organization_service.set_active_organization(seeded["default_org"].id)
+    organization_service.enable_organization(seeded["default_org"].id)
+    services["tenant_context_service"].set_active_organization(seeded["default_org"].id)
 
     task_repo = services["task_service"]._task_repo
     assignment_repo = services["task_service"]._assignment_repo

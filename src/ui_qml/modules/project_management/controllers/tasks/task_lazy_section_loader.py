@@ -14,10 +14,14 @@ def load_task_assignments_and_dependencies(controller) -> None:
     load_selected_task_dependencies(controller)
 
 
-def load_selected_task_assignments(controller) -> None:
+def load_selected_task_assignments(controller, *, force: bool = False) -> None:
     if not controller._selected_task_id:
         return
-    if controller._assignments_section_loaded_for_task_id == controller._selected_task_id:
+    if (
+        not force
+        and controller._assignments_section_loaded_for_task_id
+        == controller._selected_task_id
+    ):
         return
     controller._set_is_loading(True)
     try:
@@ -29,10 +33,15 @@ def load_selected_task_assignments(controller) -> None:
         controller._assignments_ctrl._update(ws)
         controller._assignments_section_loaded_for_task_id = controller._selected_task_id
         if not controller._selected_assignment_id:
-            assignment_items = getattr(ws.assignments, "items", ()) or ()
+            assignment_items = controller._assignments_ctrl.assignments.get("items", [])
             if assignment_items:
                 first = assignment_items[0]
-                controller._set_selected_assignment_id(str(getattr(first, "id", "") or ""))
+                first_id = (
+                    first.get("id", "")
+                    if isinstance(first, dict)
+                    else getattr(first, "id", "")
+                )
+                controller._set_selected_assignment_id(str(first_id or ""))
     except Exception as exc:
         controller._set_section_error("assignments", str(exc))
     finally:

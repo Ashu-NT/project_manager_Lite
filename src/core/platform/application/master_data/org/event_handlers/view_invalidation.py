@@ -13,7 +13,12 @@ matching itself. The P6 Qt adapter consumes `ViewInvalidationHint`, never this e
 
 from __future__ import annotations
 
-from src.core.platform.domain.master_data.org.events import OrganizationCreated
+from src.core.platform.domain.master_data.org.events import (
+    OrganizationCreated,
+    OrganizationDisabled,
+    OrganizationEnabled,
+    OrganizationProfileUpdated,
+)
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import (
     OrganizationScope,
@@ -54,8 +59,28 @@ def build_organization_created_view_invalidation_handler(channel: ViewInvalidati
     return handle_organization_created
 
 
+def build_organization_profile_view_invalidation_handler(channel: ViewInvalidationChannel):
+
+    def handle_organization_profile_event(
+        event: OrganizationProfileUpdated | OrganizationEnabled | OrganizationDisabled,
+        context: DomainEventContext,
+    ) -> None:
+        channel.notify(
+            ViewInvalidationHint(
+                scope=TenantScope(event.tenant_id),
+                category=ORGANIZATION_CATEGORY,
+                scope_code=ORGANIZATION_LIST_SCOPE_CODE,
+                entity_type="organization",
+                entity_id=None,
+            )
+        )
+
+    return handle_organization_profile_event
+
+
 __all__ = [
     "build_organization_created_view_invalidation_handler",
+    "build_organization_profile_view_invalidation_handler",
     "ORGANIZATION_CATEGORY",
     "ORGANIZATION_LIST_SCOPE_CODE",
     "ORGANIZATION_DETAILS_SCOPE_CODE",

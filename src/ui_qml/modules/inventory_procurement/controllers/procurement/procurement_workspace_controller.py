@@ -43,6 +43,8 @@ from .procurement_purchase_order_handler import (
 )
 from .procurement_receipt_handler import post_receipt
 from .procurement_refresh_service import refresh as _do_refresh
+from .procurement_refresh_service import refresh_party_options as _do_refresh_party_options
+from .procurement_refresh_service import refresh_site_options as _do_refresh_site_options
 from .procurement_requisition_handler import (
     add_requisition_line,
     cancel_requisition,
@@ -373,6 +375,12 @@ class InventoryProcurementProcurementWorkspaceController(
     @Slot()
     def refresh(self) -> None:
         _do_refresh(self)
+
+    def refresh_site_options(self) -> None:
+        _do_refresh_site_options(self)
+
+    def refresh_party_options(self) -> None:
+        _do_refresh_party_options(self)
 
     @Slot(str)
     def setSearchText(self, search_text: str) -> None:

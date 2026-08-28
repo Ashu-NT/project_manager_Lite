@@ -8,31 +8,38 @@ from src.core.modules.project_management.api.desktop import (
     ResourceRemoveSkillCommand,
     ResourceUpdateSkillCommand,
 )
-from src.ui_qml.modules.project_management.view_models.resources import (
-    ResourceSkillViewModel,
-)
-
 from .validation import optional_text, require_text
 
-def build_skills_state(
+
+def build_skills_page(
     desktop_api: ProjectManagementResourcesDesktopApi,
     resource_id: str,
-) -> tuple[ResourceSkillViewModel, ...]:
-    if not resource_id:
-        return ()
-    skills = desktop_api.list_resource_skills(resource_id)
-    return tuple(
-        ResourceSkillViewModel(
-            id=s.id,
-            skill_code=s.skill_code,
-            skill_name=s.skill_name,
-            proficiency=s.proficiency,
-            proficiency_label=s.proficiency_label,
-            notes=s.notes,
-            version=s.version,
-        )
-        for s in skills
-    )
+    **query,
+) -> dict[str, object]:
+    page = desktop_api.list_resource_skills_page(resource_id, **query)
+    return {
+        "items": [
+            {
+                "id": skill.id,
+                "title": skill.skill_name,
+                "subtitle": skill.skill_code,
+                "statusLabel": skill.proficiency_label,
+                "metaText": skill.notes or "-",
+                "skillCode": skill.skill_code,
+                "skillName": skill.skill_name,
+                "proficiency": skill.proficiency,
+                "proficiencyLabel": skill.proficiency_label,
+                "notes": skill.notes,
+                "version": skill.version,
+            }
+            for skill in page.items
+        ],
+        "total": page.filtered_total,
+        "page": page.page,
+        "pageSize": page.page_size,
+        "sortKey": page.sort_key,
+        "sortDirection": page.sort_direction,
+    }
 
 def add_skill(
     desktop_api: ProjectManagementResourcesDesktopApi,
@@ -42,8 +49,10 @@ def add_skill(
     command = ResourceAddSkillCommand(
         resource_id=resource_id,
         skill_code=require_text(payload, "skillCode", "Skill code is required."),
-        skill_name=optional_text(payload, "skillName") or payload.get("skillCode", ""),
-        proficiency=optional_text(payload, "proficiency") or "intermediate",
+        skill_name=require_text(payload, "skillName", "Skill name is required."),
+        proficiency=require_text(
+            payload, "proficiency", "Skill proficiency is required."
+        ),
         notes=optional_text(payload, "notes") or "",
     )
     desktop_api.add_resource_skill(command)
@@ -73,8 +82,10 @@ def update_skill(
             skill_id=require_text(payload, "skillId", "Skill ID is required."),
             expected_version=int(payload.get("expectedVersion", 0) or 0),
             skill_code=require_text(payload, "skillCode", "Skill code is required."),
-            skill_name=optional_text(payload, "skillName") or payload.get("skillCode", ""),
-            proficiency=optional_text(payload, "proficiency") or "intermediate",
+            skill_name=require_text(payload, "skillName", "Skill name is required."),
+            proficiency=require_text(
+                payload, "proficiency", "Skill proficiency is required."
+            ),
             notes=optional_text(payload, "notes") or "",
         )
     )

@@ -8,6 +8,7 @@ import App.Theme 1.0 as Theme
 
 AppControls.CenteredDialog {
     id: root
+    objectName: "reviewQueueFilterPopup"
 
     property var workspaceController: null
     property var state: null
@@ -18,7 +19,7 @@ AppControls.CenteredDialog {
     property string _draftResourceId: "all"
 
     title: "Filter Review Queue"
-    width: 360
+    width: 440
     padding: 0
     modal: true
     focus: true
@@ -31,6 +32,7 @@ AppControls.CenteredDialog {
     }
 
     contentItem: ColumnLayout {
+        objectName: "reviewQueueFilterContent"
         spacing: Theme.AppTheme.spacingMd
 
         Item { Layout.preferredHeight: Theme.AppTheme.spacingXs }
@@ -121,6 +123,7 @@ AppControls.CenteredDialog {
             color: Theme.AppTheme.textMuted
         }
         RowLayout {
+            objectName: "reviewQueueFilterActions"
             Layout.fillWidth: true
             spacing: Theme.AppTheme.spacingSm
 

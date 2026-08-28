@@ -47,6 +47,9 @@ from src.ui_qml.platform.presenters.organization.sites.site_catalog_presenter im
 from src.ui_qml.platform.presenters.support.support_workspace_presenter import (
     PlatformSupportWorkspacePresenter,
 )
+from src.ui_qml.platform.presenters.tenants.organization_switcher_presenter import (
+    OrganizationSwitcherPresenter,
+)
 from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import TenantSwitcherPresenter
 from src.ui_qml.platform.presenters.identity_access.users.user_catalog_presenter import (
     PlatformUserCatalogPresenter,
@@ -62,6 +65,7 @@ __all__ = [
     "PlatformDocumentCatalogPresenter",
     "PlatformDocumentManagementPresenter",
     "PlatformEmployeeCatalogPresenter",
+    "OrganizationSwitcherPresenter",
     "PlatformOrganizationCatalogPresenter",
     "PlatformPartyCatalogPresenter",
     "PlatformRuntimePresenter",

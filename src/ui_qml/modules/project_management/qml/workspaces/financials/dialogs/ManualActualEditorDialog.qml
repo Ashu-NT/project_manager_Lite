@@ -7,11 +7,13 @@ import App.Theme 1.0 as Theme
 
 AppWidgets.EntityDialog {
     id: root
+    objectName: "manualActualEditorDialog"
 
     property var taskOptions: []
     property var actualOptions: ({ "currencyCode": "", "costCodes": [], "entryKinds": [] })
     property string selectedProjectId: ""
     property string commandId: ""
+    readonly property bool hasActiveCostCodes: (root.actualOptions.costCodes || []).length > 0
 
     signal submitted(var payload)
 
@@ -22,6 +24,12 @@ AppWidgets.EntityDialog {
     subtitle: "Create a governed draft actual or adjustment. Submission, approval, and posting remain separate actions."
     primaryText: "Create Draft"
     primaryIcon: "add"
+    primaryEnabled: root.selectedProjectId.length > 0 && root.hasActiveCostCodes
+    infoMessage: root.selectedProjectId.length === 0
+        ? "Select a project before creating a manual actual."
+        : (!root.hasActiveCostCodes
+            ? "No active cost code is configured for this project. Open Controls > Financial Setup and choose New Cost Code."
+            : "")
 
     onAccepted: root.submitDialog()
     onRejected: root.close()
@@ -64,7 +72,7 @@ AppWidgets.EntityDialog {
             root.errorMessage = "Amount is required."
             return
         }
-        if ((root.actualOptions.costCodes || []).length === 0) {
+        if (!root.hasActiveCostCodes) {
             root.errorMessage = "Configure an active project cost code before creating an actual."
             return
         }

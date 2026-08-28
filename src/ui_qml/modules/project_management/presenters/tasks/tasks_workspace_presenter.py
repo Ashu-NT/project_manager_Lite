@@ -426,8 +426,12 @@ class ProjectTasksWorkspacePresenter:
     def update_task_time_entry(self, payload: dict[str, Any]) -> None:
         update_task_time_entry(self._timesheets_desktop_api, payload)
 
-    def delete_task_time_entry(self, entry_id: str) -> None:
-        delete_task_time_entry(self._timesheets_desktop_api, entry_id)
+    def delete_task_time_entry(self, entry_id: str, expected_version: int) -> None:
+        delete_task_time_entry(
+            self._timesheets_desktop_api,
+            entry_id,
+            expected_version,
+        )
 
     def delete_assignment(self, assignment_id: str) -> None:
         delete_assignment(self._desktop_api, assignment_id)

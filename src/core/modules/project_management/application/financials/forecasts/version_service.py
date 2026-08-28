@@ -41,7 +41,6 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
 )
 from src.core.shared.audit import record_audit_entry
-from src.core.shared.events.domain_events import domain_events
 
 
 _OPEN_CONSTRAINT = "uq_pf_forecasts_one_open_per_project"
@@ -154,7 +153,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         except IntegrityError as exc:
             self._translate_create_conflict(exc)
         self._record_forecast_audit("create", forecast)
-        self._commit_and_emit(forecast.project_id)
+        self._commit(forecast.project_id)
         return forecast
 
     def add_line(
@@ -209,7 +208,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
             forecast, expected_row_version=expected_forecast_version
         )
         self._record_line_audit("add", line, forecast)
-        self._commit_and_emit(forecast.project_id)
+        self._commit(forecast.project_id)
         return line
 
     def update_line(
@@ -260,7 +259,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
             forecast, expected_row_version=expected_forecast_version
         )
         self._record_line_audit("update", line, forecast)
-        self._commit_and_emit(forecast.project_id)
+        self._commit(forecast.project_id)
         return line
 
     def delete_line(
@@ -282,7 +281,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
             forecast, expected_row_version=expected_forecast_version
         )
         self._record_line_audit("delete", line, forecast)
-        self._commit_and_emit(forecast.project_id)
+        self._commit(forecast.project_id)
 
     def submit_forecast(
         self,
@@ -310,7 +309,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         )
         self._forecast_repo.update(forecast, expected_row_version=expected_version)
         self._record_forecast_audit("submit", forecast)
-        self._commit_and_emit(forecast.project_id)
+        self._commit(forecast.project_id)
         return forecast
 
     def approve_forecast(
@@ -351,7 +350,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
                 ) from exc
             raise
         self._record_forecast_audit("approve", forecast)
-        self._commit_and_emit(forecast.project_id)
+        self._commit(forecast.project_id)
         return forecast
 
     def reject_forecast(
@@ -375,7 +374,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         )
         self._forecast_repo.update(forecast, expected_row_version=expected_version)
         self._record_forecast_audit("reject", forecast)
-        self._commit_and_emit(forecast.project_id)
+        self._commit(forecast.project_id)
         return forecast
 
     def delete_forecast(self, forecast_id: str, *, expected_version: int) -> None:
@@ -386,7 +385,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
             forecast_id, expected_row_version=expected_version
         )
         self._record_forecast_audit("delete", forecast)
-        self._commit_and_emit(forecast.project_id)
+        self._commit(forecast.project_id)
 
     def _require_mutable_forecast(
         self, forecast_id: str, expected_version: int, operation: str
@@ -572,13 +571,12 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
             fail_closed=True,
         )
 
-    def _commit_and_emit(self, project_id: str) -> None:
+    def _commit(self, project_id: str) -> None:
         try:
             self._session.commit()
         except Exception:
             self._session.rollback()
             raise
-        domain_events.forecasts_changed.emit(project_id)
 
 
 __all__ = ["ForecastVersionService"]

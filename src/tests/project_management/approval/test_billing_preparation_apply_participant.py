@@ -39,7 +39,7 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _setup_billable_project(services, *, suffix: str):
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         f"Billing Approval Project {suffix}", financial_currency_code=organization.base_currency
     )
@@ -115,6 +115,132 @@ def _deps(services, session):
         user_session=services["user_session"],
         tenant_context_service=services["tenant_context_service"],
     )
+
+
+def test_submit_preparation_uses_a_fresh_uow_session_shared_by_the_approval_request(
+    services, monkeypatch
+):
+    """Approval-P1: `submit_preparation` is converged onto
+    `BillingPreparationSubmissionUnitOfWork` -- a genuinely fresh Session per call, distinct
+    from the shared legacy Session, with the preparation update and the Approval request sharing
+    that one Session/transaction."""
+    _login(services, "admin", "ChangeMe123!")
+    project = _setup_billable_project(services, suffix="UOW")
+    billing_profile_service = services["billing_profile_service"]
+    profile = billing_profile_service.create_profile(
+        project.id,
+        contract_reference="CONTRACT-UOW",
+        contract_value=Decimal("50000"),
+        customer_party_id="party-1",
+    )
+    profile = billing_profile_service.activate_profile(
+        project.id, expected_row_version=profile.row_version
+    )
+    line = billing_profile_service.add_schedule_line(
+        project.id, name="Milestone 1", amount=Decimal("24000"), due_date=date(2026, 8, 20)
+    )
+    line = billing_profile_service.mark_schedule_line_ready(
+        line.id, expected_row_version=line.row_version
+    )
+    billing_preparation_service = services["billing_preparation_service"]
+    preparation = billing_preparation_service.create_preparation(
+        project.id,
+        preparation_number="BP-APPROVAL-UOW",
+        period_start=date(2026, 8, 1),
+        period_end=date(2026, 8, 31),
+        idempotency_key="billing-approval-key-uow",
+    )
+    billing_preparation_service.add_fixed_price_source(
+        preparation.id, schedule_line_id=line.id, expected_row_version=preparation.row_version
+    )
+    preparation = billing_preparation_service.get_preparation(preparation.id)
+
+    seen_uows = []
+    original_create = type(billing_preparation_service._submission_uow_factory).create
+
+    def _spy_create(self, *, context):
+        uow = original_create(self, context=context)
+        seen_uows.append(uow)
+        return uow
+
+    monkeypatch.setattr(
+        type(billing_preparation_service._submission_uow_factory), "create", _spy_create
+    )
+    submitted = billing_preparation_service.submit_preparation(
+        preparation.id, expected_row_version=preparation.row_version
+    )
+
+    assert len(seen_uows) == 1
+    uow = seen_uows[0]
+    assert uow._session is not billing_preparation_service._session
+    assert uow.billing.session is uow._session
+    assert uow.approvals.session is uow._session
+    assert uow._enterprise_audit_service._session is uow._session
+    assert submitted.status == BillingPreparationStatus.SUBMITTED
+
+
+def test_submit_preparation_audit_failure_rolls_back_preparation_and_approval_request_together(
+    services, monkeypatch
+):
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
+
+    _login(services, "admin", "ChangeMe123!")
+    project = _setup_billable_project(services, suffix="AUDITFAIL")
+    billing_profile_service = services["billing_profile_service"]
+    profile = billing_profile_service.create_profile(
+        project.id,
+        contract_reference="CONTRACT-AUDITFAIL",
+        contract_value=Decimal("50000"),
+        customer_party_id="party-1",
+    )
+    profile = billing_profile_service.activate_profile(
+        project.id, expected_row_version=profile.row_version
+    )
+    line = billing_profile_service.add_schedule_line(
+        project.id, name="Milestone 1", amount=Decimal("24000"), due_date=date(2026, 8, 20)
+    )
+    line = billing_profile_service.mark_schedule_line_ready(
+        line.id, expected_row_version=line.row_version
+    )
+    billing_preparation_service = services["billing_preparation_service"]
+    preparation = billing_preparation_service.create_preparation(
+        project.id,
+        preparation_number="BP-APPROVAL-AUDITFAIL",
+        period_start=date(2026, 8, 1),
+        period_end=date(2026, 8, 31),
+        idempotency_key="billing-approval-key-auditfail",
+    )
+    billing_preparation_service.add_fixed_price_source(
+        preparation.id, schedule_line_id=line.id, expected_row_version=preparation.row_version
+    )
+    preparation = billing_preparation_service.get_preparation(preparation.id)
+    pending_count_before = len(services["approval_service"].list_pending(project_id=project.id))
+
+    call_count = {"n": 0}
+    original_record = EnterpriseAuditService.record
+
+    def _fail_on_second_call(self, **kwargs):
+        call_count["n"] += 1
+        if call_count["n"] >= 2:
+            raise RuntimeError("simulated host audit failure after mutation and staging")
+        return original_record(self, **kwargs)
+
+    monkeypatch.setattr(EnterpriseAuditService, "record", _fail_on_second_call)
+
+    with pytest.raises(RuntimeError, match="simulated host audit failure after mutation and staging"):
+        billing_preparation_service.submit_preparation(
+            preparation.id, expected_row_version=preparation.row_version
+        )
+
+    assert call_count["n"] >= 2
+    monkeypatch.undo()
+    reloaded = billing_preparation_service.get_preparation(preparation.id)
+    assert reloaded.status == BillingPreparationStatus.DRAFT
+    assert reloaded.approval_request_id is None
+    pending_after = services["approval_service"].list_pending(project_id=project.id)
+    assert len(pending_after) == pending_count_before
 
 
 def test_participant_apply_approves_preparation_on_the_supplied_session(services, session):

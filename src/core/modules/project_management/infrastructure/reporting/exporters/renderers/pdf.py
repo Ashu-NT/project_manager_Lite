@@ -245,11 +245,11 @@ class PdfReportRenderer:
             story.append(table)
             story.append(Spacer(1, 12))
 
-            if snap.cashflow:
-                story.append(Paragraph("Cashflow / Forecast by Period (Top 18)", styles["Heading3"]))
+            if snap.cost_phasing:
+                story.append(Paragraph("Cost Phasing by Period (Top 18)", styles["Heading3"]))
                 story.append(Spacer(1, 6))
                 cash_rows = [["Period", "Planned", "Committed", "Actual", "Forecast", "Exposure"]]
-                for p in snap.cashflow[:18]:
+                for p in snap.cost_phasing[:18]:
                     cash_rows.append([
                         p.period_key,
                         f"{float(p.planned or 0.0):.2f}",

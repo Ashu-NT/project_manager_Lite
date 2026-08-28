@@ -21,7 +21,6 @@ def test_capacity_reader_preserves_cross_project_demand_and_utilization(services
         capacity_percent=100.0,
         hourly_rate=80.0,
         currency_code="EUR",
-        rate_effective_on=date(2024, 1, 8),
     )
     allocations = (("Alpha", 60.0), ("Beta", 70.0))
     project_ids: list[str] = []

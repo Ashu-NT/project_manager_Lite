@@ -92,6 +92,10 @@ def refresh(ctrl) -> None:
         )
         ctrl._set_empty_state(workspace_state.empty_state)
     except Exception as exc:  # pragma: no cover - defensive fallback
+        # P10C-FIX: a failed refresh (e.g. no active organization context after a switch,
+        # revocation, or disable) must not leave the PREVIOUS organization's rows on screen
+        # alongside the error -- clear them rather than merely reporting the failure.
+        ctrl._set_items({})
         ctrl._set_error_message(str(exc))
     finally:
         ctrl._set_is_loading(False)

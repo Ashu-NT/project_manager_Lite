@@ -49,17 +49,13 @@ def _restricted_principal(original_principal):
         permissions=frozenset(),
     )
 
-
-# Each entry: (controller attribute on the catalog, presenter class whose
-# unconditionally-called refresh() method we count fetches by, that
-# method's name, a domain event signal the controller listens to, and the
-# permission code(s) that gate it -- None for Support, which has no gate).
 _CASES = [
     (
+
         "adminAccessWorkspace",
         PlatformAccessWorkspacePresenter,
         "build_security_users",
-        domain_events.access_changed,
+        domain_events.auth_changed,
         ("access.manage",),
     ),
     (
@@ -69,22 +65,18 @@ _CASES = [
         None,
         None,
     ),
+
     (
-        "controlWorkspace",
-        PlatformControlQueuePresenter,
-        "build_approval_queue",
-        domain_events.approvals_changed,
-        ("approval.request", "approval.decide", "audit.read"),
-    ),
-    (
-        # P5B-3: `modules_changed` retired -- module-entitlement-triggered refresh now flows
-        # through `ModuleEntitlementViewInvalidationAdapter`, not a legacy Signal, so this case
-        # uses `organizations_changed` (still legacy-signal-driven) to exercise the same
-        # lazy-loading lifecycle against `refresh()`'s still-coarse full reload.
+        # P10D: Settings no longer subscribes to any legacy `domain_events` signal at all --
+        # module entitlements were already ViewInvalidation-driven, and organization changes
+        # (the last legacy subscription this controller had) are now typed events too, wired
+        # through `OrganizationViewInvalidationAdapter` directly in `context.py`. `None` here
+        # correctly excludes this case from the domain-event-reactivity test below, matching
+        # `adminSupportWorkspace`'s own already-`None` entry for the identical reason.
         "settingsWorkspace",
         PlatformSettingsCatalogPresenter,
         "build_module_entitlements",
-        domain_events.organizations_changed,
+        None,
         ("settings.manage",),
     ),
 ]

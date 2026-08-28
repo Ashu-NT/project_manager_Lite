@@ -99,6 +99,7 @@ class AssignmentRepository(ABC):
         *,
         project_id: str | None = None,
         assignment_id: str | None = None,
+        resource_id: str | None = None,
     ) -> list[TimesheetAssignmentContext]: ...
 
 

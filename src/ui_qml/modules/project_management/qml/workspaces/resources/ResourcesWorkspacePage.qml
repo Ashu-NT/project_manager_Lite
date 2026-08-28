@@ -78,6 +78,7 @@ AppLayouts.WorkspaceFrame {
     function _clearInspector() {
         compactInspector.close()
         if (root.workspaceController !== null) root.workspaceController.selectResource("")
+        Qt.callLater(listPage.restoreTableFocus)
     }
 
     function _openSelectedResource() {
@@ -219,6 +220,7 @@ AppLayouts.WorkspaceFrame {
                 id: filterPopup
                 workspaceController: root.workspaceController
                 state: state
+                onClosed: Qt.callLater(listPage.restoreTableFocus)
             }
 
         }

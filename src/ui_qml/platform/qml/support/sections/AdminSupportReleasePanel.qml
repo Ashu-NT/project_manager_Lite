@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -17,6 +16,22 @@ ColumnLayout {
     signal checkUpdatesRequested(string channel, bool autoCheck, string manifestSource)
     signal installUpdateRequested(string channel, bool autoCheck, string manifestSource)
     signal openDownloadRequested()
+
+    function syncFromController() {
+        const channel = String(root.supportSettings.updateChannel || "stable")
+        const options = root.supportSettings.channelOptions || []
+        for (let i = 0; i < options.length; i++) {
+            if (String((options[i] || {}).value || "") === channel) {
+                channelCombo.currentIndex = i
+                break
+            }
+        }
+        autoCheckBox.checked = Boolean(root.supportSettings.updateAutoCheck)
+        manifestField.text = String(root.supportSettings.updateManifestSource || "")
+    }
+
+    onSupportSettingsChanged: Qt.callLater(root.syncFromController)
+    Component.onCompleted: root.syncFromController()
 
     Layout.fillWidth:  true
     Layout.fillHeight: true
@@ -50,6 +65,7 @@ ColumnLayout {
                 AppControls.Label { text: "Channel"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize; font.bold: true }
                 AppControls.ComboBox {
                     id: channelCombo
+                    objectName: "supportUpdateChannelCombo"
                     Layout.fillWidth: true
                     enabled:  !root.isBusy
                     model:    root.supportSettings.channelOptions || []
@@ -59,6 +75,7 @@ ColumnLayout {
 
             AppControls.CheckBox {
                 id: autoCheckBox
+                objectName: "supportAutoCheckBox"
                 Layout.alignment: Qt.AlignBottom
                 text:    "Auto-check at startup"
                 enabled: !root.isBusy
@@ -72,6 +89,7 @@ ColumnLayout {
             AppControls.Label { text: "Manifest Source"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize; font.bold: true }
             AppControls.TextField {
                 id: manifestField
+                objectName: "supportManifestField"
                 Layout.fillWidth: true
                 enabled:         !root.isBusy
                 placeholderText: "Update manifest URL or path"

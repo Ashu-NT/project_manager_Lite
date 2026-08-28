@@ -1,4 +1,4 @@
-﻿import QtQuick.tooling 1.2
+import QtQuick.tooling 1.2
 
 Module {
 Component {
@@ -15,7 +15,7 @@ Component {
     Property { name: "schedulingWorkspace"; type: "ProjectManagementSchedulingWorkspaceController"; isReadonly: true }
     Property { name: "tasksWorkspace"; type: "ProjectManagementTasksWorkspaceController"; isReadonly: true }
     Property { name: "dashboardWorkspace"; type: "ProjectManagementDashboardWorkspaceController"; isReadonly: true }
-    Property { name: "timesheetsWorkspace"; type: "ProjectManagementOwnerTimesheetsController"; isReadonly: true }
+    Property { name: "timesheetsWorkspace"; type: "ProjectManagementResourceTimesheetsController"; isReadonly: true }
     Property { name: "reviewQueueWorkspace"; type: "ProjectManagementTimesheetsWorkspaceController"; isReadonly: true }
     Property { name: "pmCapabilityController"; type: "PMCapabilityController"; isReadonly: true }
     Property { name: "pmNavigation"; type: "PMWorkspaceNavigationController"; isReadonly: true }
@@ -177,8 +177,20 @@ Component {
     Property { name: "taskOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "manualActualOptions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
-    Property { name: "cashflow"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "activeDestination"; type: "QString"; isReadonly: true }
+    Property { name: "activeSubsection"; type: "QString"; isReadonly: true }
+    Property { name: "costPhasing"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "costPhasingBasis"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "evmBasis"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "evmMetrics"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "varianceMetrics"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "reportDefinitions"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "performanceAsOfDate"; type: "QString"; isReadonly: true }
+    Property { name: "costPhasingDateFrom"; type: "QString"; isReadonly: true }
+    Property { name: "costPhasingDateTo"; type: "QString"; isReadonly: true }
+    Property { name: "costPhasingGranularity"; type: "QString"; isReadonly: true }
     Property { name: "ledger"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "activity"; type: "QVariantMap"; isReadonly: true }
     Property { name: "ledgerTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "actualSortKey"; type: "QString"; isReadonly: true }
     Property { name: "actualSortDirection"; type: "int"; isReadonly: true }
@@ -186,16 +198,38 @@ Component {
     Property { name: "commitmentsTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "commitmentSortKey"; type: "QString"; isReadonly: true }
     Property { name: "commitmentSortDirection"; type: "int"; isReadonly: true }
-    Property { name: "sourceAnalytics"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "costTypeAnalytics"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "notes"; type: "QVariantList"; isReadonly: true }
-    Property { name: "forecast"; type: "QVariantMap"; isReadonly: true }
     Property { name: "selectedForecastId"; type: "QString"; isReadonly: true }
     Property { name: "forecastVersions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "forecastLines"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedForecast"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "forecastVersionsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "forecastLinesTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "forecastVersionSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "forecastVersionSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "forecastLineSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "forecastLineSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "forecastVersionSearch"; type: "QString"; isReadonly: true }
+    Property { name: "forecastVersionStatus"; type: "QString"; isReadonly: true }
+    Property { name: "forecastGenerationMode"; type: "QString"; isReadonly: true }
+    Property { name: "forecastLineSearch"; type: "QString"; isReadonly: true }
+    Property { name: "forecastLineSourceType"; type: "QString"; isReadonly: true }
     Property { name: "selectedChangeId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedChange"; type: "QVariantMap"; isReadonly: true }
     Property { name: "financialChanges"; type: "QVariantMap"; isReadonly: true }
     Property { name: "financialChangeImpacts"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "financialChangesTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "financialChangeImpactsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "changeSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "changeSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "impactSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "impactSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "changeSearch"; type: "QString"; isReadonly: true }
+    Property { name: "changeStatus"; type: "QString"; isReadonly: true }
+    Property { name: "changeApprovalStatus"; type: "QString"; isReadonly: true }
+    Property { name: "changeAppliedState"; type: "QString"; isReadonly: true }
+    Property { name: "impactSearch"; type: "QString"; isReadonly: true }
+    Property { name: "impactType"; type: "QString"; isReadonly: true }
+    Property { name: "impactAppliedState"; type: "QString"; isReadonly: true }
     Property { name: "commitmentSummary"; type: "QVariantMap"; isReadonly: true }
     Property { name: "baselineVariance"; type: "QVariantList"; isReadonly: true }
     Property { name: "selectedBaselineId"; type: "QString"; isReadonly: true }
@@ -205,20 +239,111 @@ Component {
     Property { name: "financialProfile"; type: "QVariantMap"; isReadonly: true }
     Property { name: "budgetVersions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "budgetLines"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "budgetVersionsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "budgetLinesTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "selectedBudgetId"; type: "QString"; isReadonly: true }
+    Property { name: "budgetVersionSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "budgetVersionSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "budgetLineSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "budgetLineSortDirection"; type: "int"; isReadonly: true }
     Property { name: "rateCards"; type: "QVariantMap"; isReadonly: true }
     Property { name: "rateLines"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedRateCardId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedRateCard"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "rateCardsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "rateLinesTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "rateCardSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "rateCardSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "rateLineSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "rateLineSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "rateCardSearch"; type: "QString"; isReadonly: true }
+    Property { name: "rateCardScope"; type: "QString"; isReadonly: true }
+    Property { name: "rateCardStatus"; type: "QString"; isReadonly: true }
+    Property { name: "rateLineSearch"; type: "QString"; isReadonly: true }
+    Property { name: "rateLineRateType"; type: "QString"; isReadonly: true }
+    Property { name: "rateLineStatus"; type: "QString"; isReadonly: true }
+    Property { name: "rateLineEffectiveStatus"; type: "QString"; isReadonly: true }
     Property { name: "plannedCostVersions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "plannedCostLines"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "plannedCostVersionsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "plannedCostLinesTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "selectedPlannedCostVersionId"; type: "QString"; isReadonly: true }
+    Property { name: "plannedCostVersionSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "plannedCostVersionSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "plannedCostLineSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "plannedCostLineSortDirection"; type: "int"; isReadonly: true }
     Property { name: "billingProfile"; type: "QVariantMap"; isReadonly: true }
     Property { name: "billingSchedule"; type: "QVariantMap"; isReadonly: true }
     Property { name: "billingPreparations"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "billingPreparationLines"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedBillingPreparation"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedBillingPreparationId"; type: "QString"; isReadonly: true }
+    Property { name: "billingScheduleTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "billingPreparationsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "billingPreparationLinesTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "billingScheduleSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "billingScheduleSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "billingPreparationSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "billingPreparationSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "billingLineSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "billingLineSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "billingScheduleSearch"; type: "QString"; isReadonly: true }
+    Property { name: "billingScheduleStatus"; type: "QString"; isReadonly: true }
+    Property { name: "billingScheduleSourceState"; type: "QString"; isReadonly: true }
+    Property { name: "billingPreparationSearch"; type: "QString"; isReadonly: true }
+    Property { name: "billingPreparationStatus"; type: "QString"; isReadonly: true }
+    Property { name: "billingPreparationMethod"; type: "QString"; isReadonly: true }
+    Property { name: "billingPreparationApprovalStatus"; type: "QString"; isReadonly: true }
+    Property { name: "billingPreparationDeliveryState"; type: "QString"; isReadonly: true }
+    Property { name: "billingPreparationCorrectionState"; type: "QString"; isReadonly: true }
+    Property { name: "billingLineSearch"; type: "QString"; isReadonly: true }
+    Property { name: "billingLineSourceType"; type: "QString"; isReadonly: true }
+    Property { name: "billingLineSourceState"; type: "QString"; isReadonly: true }
+    Property { name: "commercialProjection"; type: "QVariantMap"; isReadonly: true }
     Method { name: "refresh" }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
+    Method { name: "selectFinanceDestination"; Parameter { name: "destination"; type: "QString" } }
+    Method { name: "selectFinanceSubsection"; Parameter { name: "subsection"; type: "QString" } }
     Method { name: "exportFinancials"; Parameter { name: "reportFormat"; type: "QString" } Parameter { name: "outputPath"; type: "QString" } }
     Method { name: "selectForecastVersion"; Parameter { name: "forecastId"; type: "QString" } }
+    Method { name: "setForecastVersionPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setForecastLinePage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setForecastVersionSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setForecastLineSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setForecastVersionFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "status"; type: "QString" } Parameter { name: "generationMode"; type: "QString" } }
+    Method { name: "setForecastLineFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "sourceType"; type: "QString" } }
+    Method { name: "selectRateCard"; Parameter { name: "rateCardId"; type: "QString" } }
+    Method { name: "setRateCardPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setRateLinePage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setRateCardSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setRateLineSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setRateCardFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "scope"; type: "QString" } Parameter { name: "status"; type: "QString" } }
+    Method { name: "setRateLineFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "rateType"; type: "QString" } Parameter { name: "status"; type: "QString" } Parameter { name: "effectiveStatus"; type: "QString" } }
     Method { name: "selectFinancialChange"; Parameter { name: "changeId"; type: "QString" } }
+    Method { name: "setFinancialChangePage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setFinancialChangeImpactPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setFinancialChangeSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setFinancialChangeImpactSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setFinancialChangeFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "status"; type: "QString" } Parameter { name: "approvalStatus"; type: "QString" } Parameter { name: "appliedState"; type: "QString" } }
+    Method { name: "setFinancialChangeImpactFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "impactType"; type: "QString" } Parameter { name: "appliedState"; type: "QString" } }
     Method { name: "selectVarianceBaseline"; Parameter { name: "baselineId"; type: "QString" } }
+    Method { name: "setCostPhasingPreset"; Parameter { name: "months"; type: "int" } Parameter { name: "granularity"; type: "QString" } }
+    Method { name: "selectBudgetVersion"; Parameter { name: "budgetId"; type: "QString" } }
+    Method { name: "setBudgetVersionPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setBudgetVersionSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setBudgetLineSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "selectBillingPreparation"; Parameter { name: "preparationId"; type: "QString" } }
+    Method { name: "setBillingSchedulePage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setBillingPreparationPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setBillingLinePage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setBillingScheduleSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setBillingPreparationSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setBillingLineSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setBillingScheduleFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "status"; type: "QString" } Parameter { name: "sourceState"; type: "QString" } }
+    Method { name: "setBillingPreparationFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "status"; type: "QString" } Parameter { name: "method"; type: "QString" } Parameter { name: "approvalStatus"; type: "QString" } Parameter { name: "deliveryState"; type: "QString" } Parameter { name: "correctionState"; type: "QString" } }
+    Method { name: "setBillingLineFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "sourceType"; type: "QString" } Parameter { name: "sourceState"; type: "QString" } }
     Method { name: "createManualActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "createCostCode"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "submitActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "approveActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "rejectActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
@@ -226,6 +351,10 @@ Component {
     Method { name: "reverseActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "newFinancialCommandId"; type: "QString" }
     Method { name: "setConfigurationPage"; Parameter { name: "collection"; type: "QString" } Parameter { name: "page"; type: "int" } }
+    Method { name: "selectPlannedCostVersion"; Parameter { name: "versionId"; type: "QString" } }
+    Method { name: "setPlannedCostVersionPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setPlannedCostVersionSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
+    Method { name: "setPlannedCostLineSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
     Method { name: "setActualPage"; Parameter { name: "page"; type: "int" } }
     Method { name: "setActualPageSize"; Parameter { name: "pageSize"; type: "int" } }
     Method { name: "setActualSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
@@ -233,8 +362,6 @@ Component {
     Method { name: "setCommitmentPageSize"; Parameter { name: "pageSize"; type: "int" } }
     Method { name: "setCommitmentSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
 }
-
-
 Component {
     name: "ProjectManagementPortfolioWorkspaceController"
     accessSemantics: "reference"
@@ -778,10 +905,10 @@ Component {
 }
 
 Component {
-    name: "ProjectManagementOwnerTimesheetsController"
+    name: "ProjectManagementResourceTimesheetsController"
     accessSemantics: "reference"
     prototype: "ProjectManagementWorkspaceControllerBase"
-    exports: ["ProjectManagement.Controllers/ProjectManagementOwnerTimesheetsController 1.0"]
+    exports: ["ProjectManagement.Controllers/ProjectManagementResourceTimesheetsController 1.0"]
     Property { name: "period"; type: "QVariantMap"; isReadonly: true }
     Property { name: "entries"; type: "QVariantList"; isReadonly: true }
     Property { name: "entryTableModel"; type: "QObject"; isReadonly: true }
@@ -801,7 +928,21 @@ Component {
     Property { name: "historyPageSize"; type: "int"; isReadonly: true }
     Property { name: "historyTotal"; type: "int"; isReadonly: true }
     Property { name: "selectedPeriodStart"; type: "QString"; isReadonly: true }
+    Property { name: "selectedScope"; type: "QString"; isReadonly: true }
+    Property { name: "scopeOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "canSelectScope"; type: "bool"; isReadonly: true }
+    Property { name: "canSelectResource"; type: "bool"; isReadonly: true }
+    Property { name: "selectedResourceId"; type: "QString"; isReadonly: true }
+    Property { name: "resourceSearchText"; type: "QString"; isReadonly: true }
+    Property { name: "resourceOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "resourcePage"; type: "int"; isReadonly: true }
+    Property { name: "resourcePageSize"; type: "int"; isReadonly: true }
+    Property { name: "resourceTotal"; type: "int"; isReadonly: true }
     Method { name: "refresh" }
+    Method { name: "setTimesheetScope"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "selectTimesheetResource"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "setResourceSearchText"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "setResourcePage"; Parameter { name: "value"; type: "int" } }
     Method { name: "shiftPeriod"; Parameter { name: "offset"; type: "int" } }
     Method { name: "selectCurrentPeriod" }
     Method { name: "selectPeriod"; Parameter { name: "value"; type: "QString" } }

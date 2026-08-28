@@ -250,6 +250,9 @@ class ProjectManagementCollaborationWorkspaceController(
     def _on_domain_event(self, _payload: object) -> None:
         self._request_domain_refresh()
 
+    def refresh_approvals(self) -> None:
+        self._request_domain_refresh()
+
     # ── State setters ─────────────────────────────────────────────────
 
     def _set_overview(self, overview: dict[str, object]) -> None:

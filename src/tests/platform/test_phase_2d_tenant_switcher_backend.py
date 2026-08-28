@@ -126,7 +126,9 @@ def test_list_accessible_tenants_inactive_membership_excluded(services):
     ut_repo.add(UserTenantMembership.create(user_id=user_id, tenant_id=t_inactive.id))
     services["session"].flush()
 
-    ut_repo.deactivate(user_id, t_inactive.id)
+    # P5D-1: `deactivate()` was removed (dead, zero-production-caller convenience method) --
+    # the equivalent direct repository sequence for test setup.
+    ut_repo.update(ut_repo.get(user_id, t_inactive.id).suspend())
     services["session"].flush()
 
     accessible = svc.list_accessible_tenants()

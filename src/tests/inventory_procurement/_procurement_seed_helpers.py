@@ -23,11 +23,11 @@ from src.core.platform.domain.master_data.party import PartyType
 def _seed_procurement_scope_rows(services) -> dict[str, str]:
     session = services["session"]
     organization_service = services["organization_service"]
-    current_org = organization_service.get_active_organization()
+    current_org = services["tenant_context_service"].get_active_organization()
     other_org = organization_service.create_organization(
         organization_code="PROC-TENANT-OPS",
         display_name="Procurement Tenant Operations",
-        timezone_name="UTC", base_currency="USD", is_active=False,
+        timezone_name="UTC", base_currency="USD", is_enabled=False,
     )
     site_service = services["site_service"]
     item_service = services["inventory_item_service"]
@@ -57,9 +57,11 @@ def _seed_procurement_scope_rows(services) -> dict[str, str]:
         return {"site_id": site.id, "item_id": item.id, "storeroom_id": storeroom.id, "supplier_id": supplier.id}
 
     current_refs = build_reference_rows("CUR")
-    organization_service.set_active_organization(other_org.id)
+    organization_service.enable_organization(other_org.id)
+    services["tenant_context_service"].set_active_organization(other_org.id)
     other_refs = build_reference_rows("OTH")
-    organization_service.set_active_organization(current_org.id)
+    organization_service.enable_organization(current_org.id)
+    services["tenant_context_service"].set_active_organization(current_org.id)
 
     current_requisition = PurchaseRequisitionORM(
         id="req-current-scope", tenant_id=current_tenant_id,

@@ -1,5 +1,8 @@
 """Financial desktop commands."""
 
+from src.core.modules.project_management.api.desktop.financials.commands.configuration import (
+    FinancialCreateCostCodeCommand,
+)
 from src.core.modules.project_management.api.desktop.financials.commands.cost_entries import (
     FinancialCreateManualActualCommand,
     FinancialDecideActualCommand,
@@ -28,6 +31,7 @@ __all__ = [
     "FinancialAddFixedPriceBillingSourceCommand",
     "FinancialCreateBillingPreparationCommand",
     "FinancialCreateBillingProfileCommand",
+    "FinancialCreateCostCodeCommand",
     "FinancialCreateManualActualCommand",
     "FinancialDecideActualCommand",
     "FinancialMarkBillingScheduleLineReadyCommand",

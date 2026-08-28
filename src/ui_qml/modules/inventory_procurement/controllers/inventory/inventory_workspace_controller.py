@@ -43,6 +43,8 @@ from .inventory_mutation_handler import (
     update_storeroom,
 )
 from .inventory_refresh_service import refresh as _do_refresh
+from .inventory_refresh_service import refresh_party_options as _do_refresh_party_options
+from .inventory_refresh_service import refresh_site_options as _do_refresh_site_options
 from .inventory_selection_handler import (
     select_balance,
     select_location,
@@ -399,6 +401,12 @@ class InventoryProcurementInventoryWorkspaceController(
     @Slot()
     def refresh(self) -> None:
         _do_refresh(self)
+
+    def refresh_site_options(self) -> None:
+        _do_refresh_site_options(self)
+
+    def refresh_party_options(self) -> None:
+        _do_refresh_party_options(self)
 
     @Slot(str)
     def setSearchText(self, search_text: str) -> None:

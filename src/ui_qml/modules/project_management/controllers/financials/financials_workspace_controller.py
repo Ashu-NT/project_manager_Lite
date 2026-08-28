@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import calendar
+from datetime import date
 from uuid import uuid4
 
 from PySide6.QtCore import Property, QObject, Qt, Signal, Slot
@@ -17,7 +19,6 @@ from src.ui_qml.modules.project_management.controllers.financials.financials_typ
     FinancialsObjectList,
     default_collection,
     default_commitment_summary,
-    default_forecast,
     default_overview,
     default_detail,
 )
@@ -26,6 +27,10 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectManagementWorkspacePresenter,
 )
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+from src.ui_qml.modules.project_management.presenters.financials.destination_builder import (
+    FINANCE_DESTINATIONS,
+    FINANCE_SUBSECTIONS,
+)
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -45,20 +50,35 @@ class ProjectManagementFinancialsWorkspaceController(
     taskOptionsChanged = Signal()
     manualActualOptionsChanged = Signal()
     selectedProjectIdChanged = Signal()
-    cashflowChanged = Signal()
+    costPhasingChanged = Signal()
+    costPhasingBasisChanged = Signal()
+    evmBasisChanged = Signal()
+    evmMetricsChanged = Signal()
+    varianceMetricsChanged = Signal()
+    reportDefinitionsChanged = Signal()
+    performanceQueryStateChanged = Signal()
     ledgerChanged = Signal()
+    activityChanged = Signal()
     actualSortKeyChanged = Signal()
     actualSortDirectionChanged = Signal()
-    sourceAnalyticsChanged = Signal()
-    costTypeAnalyticsChanged = Signal()
-    notesChanged = Signal()
-    forecastChanged = Signal()
     selectedForecastIdChanged = Signal()
     forecastVersionsChanged = Signal()
     forecastLinesChanged = Signal()
+    selectedForecastChanged = Signal()
+    forecastVersionSortKeyChanged = Signal()
+    forecastVersionSortDirectionChanged = Signal()
+    forecastLineSortKeyChanged = Signal()
+    forecastLineSortDirectionChanged = Signal()
+    forecastFiltersChanged = Signal()
     selectedChangeIdChanged = Signal()
+    selectedChangeChanged = Signal()
     financialChangesChanged = Signal()
     financialChangeImpactsChanged = Signal()
+    changeSortKeyChanged = Signal()
+    changeSortDirectionChanged = Signal()
+    impactSortKeyChanged = Signal()
+    impactSortDirectionChanged = Signal()
+    changeFiltersChanged = Signal()
     commitmentSummaryChanged = Signal()
     commitmentsChanged = Signal()
     commitmentSortKeyChanged = Signal()
@@ -71,13 +91,37 @@ class ProjectManagementFinancialsWorkspaceController(
     financialProfileChanged = Signal()
     budgetVersionsChanged = Signal()
     budgetLinesChanged = Signal()
+    selectedBudgetIdChanged = Signal()
+    budgetVersionSortKeyChanged = Signal()
+    budgetVersionSortDirectionChanged = Signal()
+    budgetLineSortKeyChanged = Signal()
+    budgetLineSortDirectionChanged = Signal()
     rateCardsChanged = Signal()
     rateLinesChanged = Signal()
+    selectedRateCardIdChanged = Signal()
+    selectedRateCardChanged = Signal()
+    rateCardSortKeyChanged = Signal()
+    rateCardSortDirectionChanged = Signal()
+    rateLineSortKeyChanged = Signal()
+    rateLineSortDirectionChanged = Signal()
+    rateFiltersChanged = Signal()
     plannedCostVersionsChanged = Signal()
     plannedCostLinesChanged = Signal()
+    selectedPlannedCostVersionIdChanged = Signal()
+    plannedCostVersionSortKeyChanged = Signal()
+    plannedCostVersionSortDirectionChanged = Signal()
+    plannedCostLineSortKeyChanged = Signal()
+    plannedCostLineSortDirectionChanged = Signal()
     billingProfileChanged = Signal()
     billingScheduleChanged = Signal()
     billingPreparationsChanged = Signal()
+    billingPreparationLinesChanged = Signal()
+    selectedBillingPreparationChanged = Signal()
+    selectedBillingPreparationIdChanged = Signal()
+    billingQueryStateChanged = Signal()
+    commercialProjectionChanged = Signal()
+    activeDestinationChanged = Signal()
+    activeSubsectionChanged = Signal()
 
     def __init__(
         self,
@@ -103,21 +147,58 @@ class ProjectManagementFinancialsWorkspaceController(
         }
         self._selected_project_id = ""
         self._ledger_table_model = DynamicTableModel(self)
-        self._cashflow = default_collection()
+        self._cost_phasing = default_collection()
+        self._cost_phasing_basis = default_detail()
+        self._evm_basis = default_detail()
+        self._evm_metrics = default_collection()
+        self._variance_metrics = default_collection()
+        self._report_definitions = default_collection()
+        today = date.today()
+        self._performance_as_of_date = today
+        self._cost_phasing_date_from = date(today.year - 1, today.month, 1)
+        self._cost_phasing_date_to = today
+        self._cost_phasing_granularity = "month"
         self._ledger = default_collection()
+        self._activity = default_collection()
         self._actual_page = 1
         self._actual_sort_key = "metaText"
         self._actual_sort_direction = Qt.DescendingOrder.value
-        self._source_analytics = default_collection()
-        self._cost_type_analytics = default_collection()
-        self._notes: list[str] = []
-        self._forecast = default_forecast()
         self._selected_forecast_id = ""
+        self._selected_forecast = default_detail()
         self._forecast_versions = default_collection()
         self._forecast_lines = default_collection()
+        self._forecast_versions_table_model = DynamicTableModel(self)
+        self._forecast_lines_table_model = DynamicTableModel(self)
+        self._forecast_version_page = 1
+        self._forecast_line_page = 1
+        self._forecast_version_sort_key = "revision"
+        self._forecast_version_sort_direction = Qt.DescendingOrder.value
+        self._forecast_line_sort_key = "title"
+        self._forecast_line_sort_direction = Qt.AscendingOrder.value
+        self._forecast_version_search = ""
+        self._forecast_version_status = ""
+        self._forecast_generation_mode = ""
+        self._forecast_line_search = ""
+        self._forecast_line_source_type = ""
         self._selected_change_id = ""
+        self._selected_change = default_detail()
         self._financial_changes = default_collection()
         self._financial_change_impacts = default_collection()
+        self._financial_changes_table_model = DynamicTableModel(self)
+        self._financial_change_impacts_table_model = DynamicTableModel(self)
+        self._change_page = 1
+        self._impact_page = 1
+        self._change_sort_key = "metaText"
+        self._change_sort_direction = Qt.DescendingOrder.value
+        self._impact_sort_key = "metaText"
+        self._impact_sort_direction = Qt.AscendingOrder.value
+        self._change_search = ""
+        self._change_status = ""
+        self._change_approval_status = ""
+        self._change_applied_state = ""
+        self._impact_search = ""
+        self._impact_type = ""
+        self._impact_applied_state = ""
         self._commitment_summary = default_commitment_summary()
         self._commitments = default_collection()
         self._commitment_page = 1
@@ -133,18 +214,86 @@ class ProjectManagementFinancialsWorkspaceController(
         self._financial_profile = default_detail()
         self._budget_versions = default_collection()
         self._budget_lines = default_collection()
+        self._budget_versions_table_model = DynamicTableModel(self)
+        self._budget_lines_table_model = DynamicTableModel(self)
+        self._selected_budget_id = ""
+        self._budget_version_page = 1
+        self._budget_version_sort_key = "revision"
+        self._budget_version_sort_direction = Qt.DescendingOrder.value
+        self._budget_line_sort_key = "metaText"
+        self._budget_line_sort_direction = Qt.DescendingOrder.value
         self._rate_cards = default_collection()
         self._rate_lines = default_collection()
+        self._selected_rate_card_id = ""
+        self._selected_rate_card = default_detail()
+        self._rate_cards_table_model = DynamicTableModel(self)
+        self._rate_lines_table_model = DynamicTableModel(self)
+        self._rate_card_page = 1
+        self._rate_card_sort_key = "title"
+        self._rate_card_sort_direction = Qt.AscendingOrder.value
+        self._rate_line_sort_key = "title"
+        self._rate_line_sort_direction = Qt.AscendingOrder.value
+        self._rate_card_search = ""
+        self._rate_card_scope = ""
+        self._rate_card_status = ""
+        self._rate_line_search = ""
+        self._rate_line_rate_type = ""
+        self._rate_line_status = ""
+        self._rate_line_effective_status = ""
         self._planned_cost_versions = default_collection()
         self._planned_cost_lines = default_collection()
+        self._planned_cost_versions_table_model = DynamicTableModel(self)
+        self._planned_cost_lines_table_model = DynamicTableModel(self)
+        self._selected_planned_cost_version_id = ""
+        self._planned_cost_version_page = 1
+        self._planned_cost_version_sort_key = "revision"
+        self._planned_cost_version_sort_direction = Qt.DescendingOrder.value
+        self._planned_cost_line_sort_key = "title"
+        self._planned_cost_line_sort_direction = Qt.AscendingOrder.value
         self._billing_profile = default_detail()
         self._billing_schedule = default_collection()
         self._billing_preparations = default_collection()
+        self._billing_preparation_lines = default_collection()
+        self._selected_billing_preparation_id = ""
+        self._selected_billing_preparation = default_detail()
+        self._billing_schedule_table_model = DynamicTableModel(self)
+        self._billing_preparations_table_model = DynamicTableModel(self)
+        self._billing_preparation_lines_table_model = DynamicTableModel(self)
+        self._billing_schedule_page = 1
+        self._billing_line_page = 1
+        self._billing_schedule_sort_key = "supportingText"
+        self._billing_schedule_sort_direction = Qt.AscendingOrder.value
+        self._billing_preparation_sort_key = "metaText"
+        self._billing_preparation_sort_direction = Qt.DescendingOrder.value
+        self._billing_line_sort_key = "metaText"
+        self._billing_line_sort_direction = Qt.AscendingOrder.value
+        self._billing_schedule_search = ""
+        self._billing_schedule_status = ""
+        self._billing_schedule_source_state = ""
+        self._billing_preparation_search = ""
+        self._billing_preparation_status = ""
+        self._billing_preparation_method = ""
+        self._billing_preparation_approval_status = ""
+        self._billing_preparation_delivery_state = ""
+        self._billing_preparation_correction_state = ""
+        self._billing_line_search = ""
+        self._billing_line_source_type = ""
+        self._billing_line_source_state = ""
+        self._commercial_projection = default_detail()
         self._budget_line_page = 1
         self._rate_line_page = 1
         self._planned_cost_line_page = 1
         self._billing_preparation_page = 1
         self._configuration_page_size = 50
+        self._finance_destinations = FINANCE_DESTINATIONS
+        self._finance_subsections = FINANCE_SUBSECTIONS
+        self._active_destination = "overview"
+        self._active_subsection = "summary"
+        self._workspace_loaded = False
+        self._shell_loaded = False
+        self._refresh_generation = 0
+        self._loaded_destination_keys: set[tuple[str, str, str]] = set()
+        self._invalidated_destinations: set[str] = set(FINANCE_DESTINATIONS)
         self._bind_domain_events()
         self.refresh()
 
@@ -163,11 +312,47 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property(str, notify=selectedProjectIdChanged)
     def selectedProjectId(self) -> str: return self._selected_project_id
 
-    @Property("QVariantMap", notify=cashflowChanged)
-    def cashflow(self) -> FinancialsMap: return self._cashflow
+    @Property(str, notify=activeDestinationChanged)
+    def activeDestination(self) -> str: return self._active_destination
+
+    @Property(str, notify=activeSubsectionChanged)
+    def activeSubsection(self) -> str: return self._active_subsection
+
+    @Property("QVariantMap", notify=costPhasingChanged)
+    def costPhasing(self) -> FinancialsMap: return self._cost_phasing
+
+    @Property("QVariantMap", notify=costPhasingBasisChanged)
+    def costPhasingBasis(self) -> FinancialsMap: return self._cost_phasing_basis
+
+    @Property("QVariantMap", notify=evmBasisChanged)
+    def evmBasis(self) -> FinancialsMap: return self._evm_basis
+
+    @Property("QVariantMap", notify=evmMetricsChanged)
+    def evmMetrics(self) -> FinancialsMap: return self._evm_metrics
+
+    @Property("QVariantMap", notify=varianceMetricsChanged)
+    def varianceMetrics(self) -> FinancialsMap: return self._variance_metrics
+
+    @Property("QVariantMap", notify=reportDefinitionsChanged)
+    def reportDefinitions(self) -> FinancialsMap: return self._report_definitions
+
+    @Property(str, notify=performanceQueryStateChanged)
+    def performanceAsOfDate(self) -> str: return self._performance_as_of_date.isoformat()
+
+    @Property(str, notify=performanceQueryStateChanged)
+    def costPhasingDateFrom(self) -> str: return self._cost_phasing_date_from.isoformat()
+
+    @Property(str, notify=performanceQueryStateChanged)
+    def costPhasingDateTo(self) -> str: return self._cost_phasing_date_to.isoformat()
+
+    @Property(str, notify=performanceQueryStateChanged)
+    def costPhasingGranularity(self) -> str: return self._cost_phasing_granularity
 
     @Property("QVariantMap", notify=ledgerChanged)
     def ledger(self) -> FinancialsMap: return self._ledger
+
+    @Property("QVariantMap", notify=activityChanged)
+    def activity(self) -> FinancialsMap: return self._activity
 
     @Property(QObject, constant=True)
     def ledgerTableModel(self) -> DynamicTableModel: return self._ledger_table_model
@@ -178,18 +363,6 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property(int, notify=actualSortDirectionChanged)
     def actualSortDirection(self) -> int: return self._actual_sort_direction
 
-    @Property("QVariantMap", notify=sourceAnalyticsChanged)
-    def sourceAnalytics(self) -> FinancialsMap: return self._source_analytics
-
-    @Property("QVariantMap", notify=costTypeAnalyticsChanged)
-    def costTypeAnalytics(self) -> FinancialsMap: return self._cost_type_analytics
-
-    @Property("QVariantList", notify=notesChanged)
-    def notes(self) -> list[str]: return self._notes
-
-    @Property("QVariantMap", notify=forecastChanged)
-    def forecast(self) -> FinancialsMap: return self._forecast
-
     @Property(str, notify=selectedForecastIdChanged)
     def selectedForecastId(self) -> str: return self._selected_forecast_id
 
@@ -199,14 +372,98 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property("QVariantMap", notify=forecastLinesChanged)
     def forecastLines(self) -> FinancialsMap: return self._forecast_lines
 
+    @Property("QVariantMap", notify=selectedForecastChanged)
+    def selectedForecast(self) -> FinancialsMap: return self._selected_forecast
+
+    @Property(QObject, constant=True)
+    def forecastVersionsTableModel(self) -> DynamicTableModel:
+        return self._forecast_versions_table_model
+
+    @Property(QObject, constant=True)
+    def forecastLinesTableModel(self) -> DynamicTableModel:
+        return self._forecast_lines_table_model
+
+    @Property(str, notify=forecastVersionSortKeyChanged)
+    def forecastVersionSortKey(self) -> str: return self._forecast_version_sort_key
+
+    @Property(int, notify=forecastVersionSortDirectionChanged)
+    def forecastVersionSortDirection(self) -> int:
+        return self._forecast_version_sort_direction
+
+    @Property(str, notify=forecastLineSortKeyChanged)
+    def forecastLineSortKey(self) -> str: return self._forecast_line_sort_key
+
+    @Property(int, notify=forecastLineSortDirectionChanged)
+    def forecastLineSortDirection(self) -> int:
+        return self._forecast_line_sort_direction
+
+    @Property(str, notify=forecastFiltersChanged)
+    def forecastVersionSearch(self) -> str: return self._forecast_version_search
+
+    @Property(str, notify=forecastFiltersChanged)
+    def forecastVersionStatus(self) -> str: return self._forecast_version_status
+
+    @Property(str, notify=forecastFiltersChanged)
+    def forecastGenerationMode(self) -> str: return self._forecast_generation_mode
+
+    @Property(str, notify=forecastFiltersChanged)
+    def forecastLineSearch(self) -> str: return self._forecast_line_search
+
+    @Property(str, notify=forecastFiltersChanged)
+    def forecastLineSourceType(self) -> str: return self._forecast_line_source_type
+
     @Property(str, notify=selectedChangeIdChanged)
     def selectedChangeId(self) -> str: return self._selected_change_id
+
+    @Property("QVariantMap", notify=selectedChangeChanged)
+    def selectedChange(self) -> FinancialsMap: return self._selected_change
 
     @Property("QVariantMap", notify=financialChangesChanged)
     def financialChanges(self) -> FinancialsMap: return self._financial_changes
 
     @Property("QVariantMap", notify=financialChangeImpactsChanged)
     def financialChangeImpacts(self) -> FinancialsMap: return self._financial_change_impacts
+
+    @Property(QObject, constant=True)
+    def financialChangesTableModel(self) -> DynamicTableModel:
+        return self._financial_changes_table_model
+
+    @Property(QObject, constant=True)
+    def financialChangeImpactsTableModel(self) -> DynamicTableModel:
+        return self._financial_change_impacts_table_model
+
+    @Property(str, notify=changeSortKeyChanged)
+    def changeSortKey(self) -> str: return self._change_sort_key
+
+    @Property(int, notify=changeSortDirectionChanged)
+    def changeSortDirection(self) -> int: return self._change_sort_direction
+
+    @Property(str, notify=impactSortKeyChanged)
+    def impactSortKey(self) -> str: return self._impact_sort_key
+
+    @Property(int, notify=impactSortDirectionChanged)
+    def impactSortDirection(self) -> int: return self._impact_sort_direction
+
+    @Property(str, notify=changeFiltersChanged)
+    def changeSearch(self) -> str: return self._change_search
+
+    @Property(str, notify=changeFiltersChanged)
+    def changeStatus(self) -> str: return self._change_status
+
+    @Property(str, notify=changeFiltersChanged)
+    def changeApprovalStatus(self) -> str: return self._change_approval_status
+
+    @Property(str, notify=changeFiltersChanged)
+    def changeAppliedState(self) -> str: return self._change_applied_state
+
+    @Property(str, notify=changeFiltersChanged)
+    def impactSearch(self) -> str: return self._impact_search
+
+    @Property(str, notify=changeFiltersChanged)
+    def impactType(self) -> str: return self._impact_type
+
+    @Property(str, notify=changeFiltersChanged)
+    def impactAppliedState(self) -> str: return self._impact_applied_state
 
     @Property("QVariantMap", notify=commitmentSummaryChanged)
     def commitmentSummary(self) -> FinancialsMap: return self._commitment_summary
@@ -247,17 +504,114 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property("QVariantMap", notify=budgetLinesChanged)
     def budgetLines(self) -> FinancialsMap: return self._budget_lines
 
+    @Property(QObject, constant=True)
+    def budgetVersionsTableModel(self) -> DynamicTableModel:
+        return self._budget_versions_table_model
+
+    @Property(QObject, constant=True)
+    def budgetLinesTableModel(self) -> DynamicTableModel:
+        return self._budget_lines_table_model
+
+    @Property(str, notify=selectedBudgetIdChanged)
+    def selectedBudgetId(self) -> str: return self._selected_budget_id
+
+    @Property(str, notify=budgetVersionSortKeyChanged)
+    def budgetVersionSortKey(self) -> str: return self._budget_version_sort_key
+
+    @Property(int, notify=budgetVersionSortDirectionChanged)
+    def budgetVersionSortDirection(self) -> int:
+        return self._budget_version_sort_direction
+
+    @Property(str, notify=budgetLineSortKeyChanged)
+    def budgetLineSortKey(self) -> str: return self._budget_line_sort_key
+
+    @Property(int, notify=budgetLineSortDirectionChanged)
+    def budgetLineSortDirection(self) -> int: return self._budget_line_sort_direction
+
     @Property("QVariantMap", notify=rateCardsChanged)
     def rateCards(self) -> FinancialsMap: return self._rate_cards
 
     @Property("QVariantMap", notify=rateLinesChanged)
     def rateLines(self) -> FinancialsMap: return self._rate_lines
 
+    @Property(str, notify=selectedRateCardIdChanged)
+    def selectedRateCardId(self) -> str: return self._selected_rate_card_id
+
+    @Property("QVariantMap", notify=selectedRateCardChanged)
+    def selectedRateCard(self) -> FinancialsMap: return self._selected_rate_card
+
+    @Property(QObject, constant=True)
+    def rateCardsTableModel(self) -> DynamicTableModel: return self._rate_cards_table_model
+
+    @Property(QObject, constant=True)
+    def rateLinesTableModel(self) -> DynamicTableModel: return self._rate_lines_table_model
+
+    @Property(str, notify=rateCardSortKeyChanged)
+    def rateCardSortKey(self) -> str: return self._rate_card_sort_key
+
+    @Property(int, notify=rateCardSortDirectionChanged)
+    def rateCardSortDirection(self) -> int: return self._rate_card_sort_direction
+
+    @Property(str, notify=rateLineSortKeyChanged)
+    def rateLineSortKey(self) -> str: return self._rate_line_sort_key
+
+    @Property(int, notify=rateLineSortDirectionChanged)
+    def rateLineSortDirection(self) -> int: return self._rate_line_sort_direction
+
+    @Property(str, notify=rateFiltersChanged)
+    def rateCardSearch(self) -> str: return self._rate_card_search
+
+    @Property(str, notify=rateFiltersChanged)
+    def rateCardScope(self) -> str: return self._rate_card_scope
+
+    @Property(str, notify=rateFiltersChanged)
+    def rateCardStatus(self) -> str: return self._rate_card_status
+
+    @Property(str, notify=rateFiltersChanged)
+    def rateLineSearch(self) -> str: return self._rate_line_search
+
+    @Property(str, notify=rateFiltersChanged)
+    def rateLineRateType(self) -> str: return self._rate_line_rate_type
+
+    @Property(str, notify=rateFiltersChanged)
+    def rateLineStatus(self) -> str: return self._rate_line_status
+
+    @Property(str, notify=rateFiltersChanged)
+    def rateLineEffectiveStatus(self) -> str: return self._rate_line_effective_status
+
     @Property("QVariantMap", notify=plannedCostVersionsChanged)
     def plannedCostVersions(self) -> FinancialsMap: return self._planned_cost_versions
 
     @Property("QVariantMap", notify=plannedCostLinesChanged)
     def plannedCostLines(self) -> FinancialsMap: return self._planned_cost_lines
+
+    @Property(QObject, constant=True)
+    def plannedCostVersionsTableModel(self) -> DynamicTableModel:
+        return self._planned_cost_versions_table_model
+
+    @Property(QObject, constant=True)
+    def plannedCostLinesTableModel(self) -> DynamicTableModel:
+        return self._planned_cost_lines_table_model
+
+    @Property(str, notify=selectedPlannedCostVersionIdChanged)
+    def selectedPlannedCostVersionId(self) -> str:
+        return self._selected_planned_cost_version_id
+
+    @Property(str, notify=plannedCostVersionSortKeyChanged)
+    def plannedCostVersionSortKey(self) -> str:
+        return self._planned_cost_version_sort_key
+
+    @Property(int, notify=plannedCostVersionSortDirectionChanged)
+    def plannedCostVersionSortDirection(self) -> int:
+        return self._planned_cost_version_sort_direction
+
+    @Property(str, notify=plannedCostLineSortKeyChanged)
+    def plannedCostLineSortKey(self) -> str:
+        return self._planned_cost_line_sort_key
+
+    @Property(int, notify=plannedCostLineSortDirectionChanged)
+    def plannedCostLineSortDirection(self) -> int:
+        return self._planned_cost_line_sort_direction
 
     @Property("QVariantMap", notify=billingProfileChanged)
     def billingProfile(self) -> FinancialsMap: return self._billing_profile
@@ -268,11 +622,132 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property("QVariantMap", notify=billingPreparationsChanged)
     def billingPreparations(self) -> FinancialsMap: return self._billing_preparations
 
+    @Property("QVariantMap", notify=billingPreparationLinesChanged)
+    def billingPreparationLines(self) -> FinancialsMap: return self._billing_preparation_lines
+
+    @Property("QVariantMap", notify=selectedBillingPreparationChanged)
+    def selectedBillingPreparation(self) -> FinancialsMap: return self._selected_billing_preparation
+
+    @Property(str, notify=selectedBillingPreparationIdChanged)
+    def selectedBillingPreparationId(self) -> str: return self._selected_billing_preparation_id
+
+    @Property(QObject, constant=True)
+    def billingScheduleTableModel(self) -> DynamicTableModel: return self._billing_schedule_table_model
+
+    @Property(QObject, constant=True)
+    def billingPreparationsTableModel(self) -> DynamicTableModel: return self._billing_preparations_table_model
+
+    @Property(QObject, constant=True)
+    def billingPreparationLinesTableModel(self) -> DynamicTableModel: return self._billing_preparation_lines_table_model
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingScheduleSortKey(self) -> str: return self._billing_schedule_sort_key
+
+    @Property(int, notify=billingQueryStateChanged)
+    def billingScheduleSortDirection(self) -> int: return self._billing_schedule_sort_direction
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingPreparationSortKey(self) -> str: return self._billing_preparation_sort_key
+
+    @Property(int, notify=billingQueryStateChanged)
+    def billingPreparationSortDirection(self) -> int: return self._billing_preparation_sort_direction
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingLineSortKey(self) -> str: return self._billing_line_sort_key
+
+    @Property(int, notify=billingQueryStateChanged)
+    def billingLineSortDirection(self) -> int: return self._billing_line_sort_direction
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingScheduleSearch(self) -> str: return self._billing_schedule_search
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingScheduleStatus(self) -> str: return self._billing_schedule_status
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingScheduleSourceState(self) -> str: return self._billing_schedule_source_state
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingPreparationSearch(self) -> str: return self._billing_preparation_search
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingPreparationStatus(self) -> str: return self._billing_preparation_status
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingPreparationMethod(self) -> str: return self._billing_preparation_method
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingPreparationApprovalStatus(self) -> str: return self._billing_preparation_approval_status
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingPreparationDeliveryState(self) -> str: return self._billing_preparation_delivery_state
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingPreparationCorrectionState(self) -> str: return self._billing_preparation_correction_state
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingLineSearch(self) -> str: return self._billing_line_search
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingLineSourceType(self) -> str: return self._billing_line_source_type
+
+    @Property(str, notify=billingQueryStateChanged)
+    def billingLineSourceState(self) -> str: return self._billing_line_source_state
+
+    @Property("QVariantMap", notify=commercialProjectionChanged)
+    def commercialProjection(self) -> FinancialsMap: return self._commercial_projection
+
     @Slot()
     def refresh(self) -> None: self._refresh()
 
     @Slot(str)
     def selectProject(self, project_id: str) -> None: self._select_project(project_id)
+
+    @Slot(str)
+    def selectFinanceDestination(self, destination: str) -> None:
+        self._select_destination(destination)
+
+    @Slot(str)
+    def selectFinanceSubsection(self, subsection: str) -> None:
+        self._select_subsection(subsection)
+
+    @Slot(int, str)
+    def setCostPhasingPreset(self, months: int, granularity: str) -> None:
+        requested_months = int(months)
+        if requested_months <= 0:
+            requested_months = max(
+                1,
+                (self._cost_phasing_date_to.year - self._cost_phasing_date_from.year) * 12
+                + self._cost_phasing_date_to.month
+                - self._cost_phasing_date_from.month,
+            )
+        bounded_months = min(requested_months, 36)
+        normalized_granularity = str(granularity or "").strip().lower()
+        if normalized_granularity not in {"month", "quarter"}:
+            self._set_error_message("Cost Phasing granularity must be month or quarter.")
+            return
+        range_to = self._performance_as_of_date
+        index = range_to.year * 12 + range_to.month - bounded_months
+        year, month_index = divmod(index, 12)
+        month = month_index + 1
+        range_from = date(
+            year,
+            month,
+            min(range_to.day, calendar.monthrange(year, month)[1]),
+        )
+        changed = (
+            range_from != self._cost_phasing_date_from
+            or range_to != self._cost_phasing_date_to
+            or normalized_granularity != self._cost_phasing_granularity
+        )
+        if not changed:
+            return
+        self._cost_phasing_date_from = range_from
+        self._cost_phasing_date_to = range_to
+        self._cost_phasing_granularity = normalized_granularity
+        self.performanceQueryStateChanged.emit()
+        if self._active_destination == "performance" and self._active_subsection == "cost_phasing":
+            self.refresh()
 
     @Slot(str, str)
     def exportFinancials(self, report_format: str, output_path: str) -> None:
@@ -282,16 +757,143 @@ class ProjectManagementFinancialsWorkspaceController(
     def selectForecastVersion(self, forecast_id: str) -> None:
         self._select_forecast_version(forecast_id)
 
+    @Slot(int)
+    def setForecastVersionPage(self, page: int) -> None:
+        self._set_forecast_version_page(page)
+
+    @Slot(int)
+    def setForecastLinePage(self, page: int) -> None:
+        self._set_forecast_line_page(page)
+
+    @Slot(str, int)
+    def setForecastVersionSort(self, key: str, direction: int) -> None:
+        self._set_forecast_version_sort(key, direction)
+
+    @Slot(str, int)
+    def setForecastLineSort(self, key: str, direction: int) -> None:
+        self._set_forecast_line_sort(key, direction)
+
+    @Slot(str, str, str)
+    def setForecastVersionFilters(
+        self, search: str, status: str, generation_mode: str
+    ) -> None:
+        self._set_forecast_version_filters(search, status, generation_mode)
+
+    @Slot(str, str)
+    def setForecastLineFilters(self, search: str, source_type: str) -> None:
+        self._set_forecast_line_filters(search, source_type)
+
+    @Slot(str)
+    def selectRateCard(self, rate_card_id: str) -> None:
+        self._select_rate_card(rate_card_id)
+
+    @Slot(int)
+    def setRateCardPage(self, page: int) -> None:
+        self._set_rate_card_page(page)
+
+    @Slot(int)
+    def setRateLinePage(self, page: int) -> None:
+        self._set_rate_line_page(page)
+
+    @Slot(str, int)
+    def setRateCardSort(self, key: str, direction: int) -> None:
+        self._set_rate_card_sort(key, direction)
+
+    @Slot(str, int)
+    def setRateLineSort(self, key: str, direction: int) -> None:
+        self._set_rate_line_sort(key, direction)
+
+    @Slot(str, str, str)
+    def setRateCardFilters(self, search: str, scope: str, status: str) -> None:
+        self._set_rate_card_filters(search, scope, status)
+
+    @Slot(str, str, str, str)
+    def setRateLineFilters(
+        self, search: str, rate_type: str, status: str, effective_status: str
+    ) -> None:
+        self._set_rate_line_filters(search, rate_type, status, effective_status)
+
+    @Slot(str)
+    def selectBudgetVersion(self, budget_id: str) -> None:
+        self._select_budget_version(budget_id)
+
     @Slot(str)
     def selectFinancialChange(self, change_id: str) -> None:
         self._select_financial_change(change_id)
+
+    @Slot(int)
+    def setFinancialChangePage(self, page: int) -> None:
+        self._set_financial_change_page(page)
+
+    @Slot(int)
+    def setFinancialChangeImpactPage(self, page: int) -> None:
+        self._set_financial_change_impact_page(page)
+
+    @Slot(str, int)
+    def setFinancialChangeSort(self, key: str, direction: int) -> None:
+        self._set_financial_change_sort(key, direction)
+
+    @Slot(str, int)
+    def setFinancialChangeImpactSort(self, key: str, direction: int) -> None:
+        self._set_financial_change_impact_sort(key, direction)
+
+    @Slot(str, str, str, str)
+    def setFinancialChangeFilters(
+        self, search: str, status: str, approval_status: str, applied_state: str
+    ) -> None:
+        self._set_financial_change_filters(
+            search, status, approval_status, applied_state
+        )
+
+    @Slot(str, str, str)
+    def setFinancialChangeImpactFilters(
+        self, search: str, impact_type: str, applied_state: str
+    ) -> None:
+        self._set_financial_change_impact_filters(search, impact_type, applied_state)
 
     @Slot(str)
     def selectVarianceBaseline(self, baseline_id: str) -> None:
         self._select_variance_baseline(baseline_id)
 
+    @Slot(str)
+    def selectBillingPreparation(self, preparation_id: str) -> None:
+        self._select_billing_preparation(preparation_id)
+
+    @Slot(int)
+    def setBillingSchedulePage(self, page: int) -> None: self._set_billing_schedule_page(page)
+
+    @Slot(int)
+    def setBillingPreparationPage(self, page: int) -> None: self._set_billing_preparation_page(page)
+
+    @Slot(int)
+    def setBillingLinePage(self, page: int) -> None: self._set_billing_line_page(page)
+
+    @Slot(str, int)
+    def setBillingScheduleSort(self, key: str, direction: int) -> None: self._set_billing_schedule_sort(key, direction)
+
+    @Slot(str, int)
+    def setBillingPreparationSort(self, key: str, direction: int) -> None: self._set_billing_preparation_sort(key, direction)
+
+    @Slot(str, int)
+    def setBillingLineSort(self, key: str, direction: int) -> None: self._set_billing_line_sort(key, direction)
+
+    @Slot(str, str, str)
+    def setBillingScheduleFilters(self, search: str, status: str, source_state: str) -> None:
+        self._set_billing_schedule_filters(search, status, source_state)
+
+    @Slot(str, str, str, str, str, str)
+    def setBillingPreparationFilters(self, search: str, status: str, method: str, approval_status: str, delivery_state: str, correction_state: str) -> None:
+        self._set_billing_preparation_filters(search, status, method, approval_status, delivery_state, correction_state)
+
+    @Slot(str, str, str)
+    def setBillingLineFilters(self, search: str, source_type: str, source_state: str) -> None:
+        self._set_billing_line_filters(search, source_type, source_state)
+
     @Slot("QVariantMap", result="QVariantMap")
     def createManualActual(self, payload: FinancialsMap) -> FinancialsMap: return self._create_manual_actual(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def createCostCode(self, payload: FinancialsMap) -> FinancialsMap: return self._create_cost_code(payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def submitActual(self, payload: FinancialsMap) -> FinancialsMap: return self._submit_actual(payload)
@@ -314,6 +916,34 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str, int)
     def setConfigurationPage(self, collection: str, page: int) -> None:
         self._set_configuration_page(collection, page)
+
+    @Slot(int)
+    def setBudgetVersionPage(self, page: int) -> None:
+        self._set_budget_version_page(page)
+
+    @Slot(str, int)
+    def setBudgetVersionSort(self, sort_key: str, sort_direction: int) -> None:
+        self._set_budget_version_sort(sort_key, sort_direction)
+
+    @Slot(str, int)
+    def setBudgetLineSort(self, sort_key: str, sort_direction: int) -> None:
+        self._set_budget_line_sort(sort_key, sort_direction)
+
+    @Slot(str)
+    def selectPlannedCostVersion(self, version_id: str) -> None:
+        self._select_planned_cost_version(version_id)
+
+    @Slot(int)
+    def setPlannedCostVersionPage(self, page: int) -> None:
+        self._set_planned_cost_version_page(page)
+
+    @Slot(str, int)
+    def setPlannedCostVersionSort(self, sort_key: str, sort_direction: int) -> None:
+        self._set_planned_cost_version_sort(sort_key, sort_direction)
+
+    @Slot(str, int)
+    def setPlannedCostLineSort(self, sort_key: str, sort_direction: int) -> None:
+        self._set_planned_cost_line_sort(sort_key, sort_direction)
 
     @Slot(int)
     def setActualPage(self, page: int) -> None: self._set_actual_page(page)

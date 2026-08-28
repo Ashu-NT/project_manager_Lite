@@ -1,14 +1,3 @@
-"""P5C-1 (Role Governance Transaction & Scope Convergence): `RoleGovernanceService` cut over from
-the shared, process-lifetime `Session` and inline `commit()`/`rollback()` onto a canonical,
-fresh-session `RoleGovernanceUnitOfWork` for all four mutation methods
-(`assign_role`/`revoke_role_binding`/`create_delegation_policy`/`revoke_delegation_policy`).
-Mirrors `test_organization_service_unit_of_work_cutover.py`/
-`test_module_entitlement_transaction_convergence.py` (P4B/P5B's own equivalents).
-
-This phase is transaction/scope convergence only -- no `RoleBindingAssigned`/`RoleBindingRevoked`
-DomainEvent, no ViewInvalidation, no Qt migration, no `access_changed`/`auth_changed` removal.
-`test_role_governance_p5c1_does_not_add_p5c2_event_vocabulary` enforces that phase boundary.
-"""
 
 from __future__ import annotations
 
@@ -22,7 +11,7 @@ from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
     SqlAlchemyRoleBindingRepository,
 )
-from src.core.platform.infrastructure.persistence.role_governance_unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.role_governance_unit_of_work import (
     SqlAlchemyRoleGovernanceUnitOfWork,
 )
 from src.tests.ui_runtime_helpers import login_as
@@ -170,20 +159,12 @@ def test_commit_failure_rolls_back_binding_and_audit_together(services, monkeypa
 
     monkeypatch.setattr(SqlAlchemyRoleGovernanceUnitOfWork, "commit", _fail_commit)
 
-    seen_signals = []
-    from src.core.shared.events.domain_events import domain_events
-
-    domain_events.auth_changed.connect(seen_signals.append)
-    try:
-        with pytest.raises(RuntimeError, match="simulated role governance commit failure"):
-            role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
-    finally:
-        domain_events.auth_changed.disconnect(seen_signals.append)
+    with pytest.raises(RuntimeError, match="simulated role governance commit failure"):
+        role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
 
     uow = captured_uow["uow"]
     assert uow._committed is False
     assert uow._closed is True
-    assert seen_signals == []  # no legacy notification for a rolled-back mutation
     persisted = SqlAlchemyRoleBindingRepository(services["session"]).get_active_for_assignment(
         principal_id=target.id,
         role_id=target_role.id,
@@ -306,6 +287,58 @@ def test_project_role_assignment_in_a_non_active_organization_remains_a_confirme
     assert binding.actual_scope_id == project_a1.id
 
 
+def test_project_role_assignment_reverse_direction_active_a2_target_in_a1(services):
+
+    tenant_context_service = services["tenant_context_service"]
+    org_a1_id = tenant_context_service.get_active_organization_id()
+
+    org_a2 = services["organization_service"].create_organization(
+        organization_code=_unique_code("P5C1-PROJ-REV-A2"), display_name="P5C-1 Project Reverse Org A2", is_enabled=True
+    )
+    # Build project_a1 while A1 is still ambiently active (it already deactivated A1's DB flag
+    # as a side effect, but the AMBIENT session org has not moved yet).
+    project_a1 = services["project_service"].create_project("P5C-1 Reverse Direction Project A1")
+    assert project_a1.organization_id == org_a1_id
+
+    tenant_context_service.set_active_organization(org_a2.id)
+    assert tenant_context_service.get_active_organization_id() == org_a2.id
+
+    auth = services["auth_service"]
+    tenant_id = _tenant_id(services)
+    actor = auth.register_user(
+        _unique_code("p5c1-project-rev-actor"), "P5C1Actor123!", role_names=["tenant_admin"], tenant_id=tenant_id
+    )
+    target = auth.register_user(
+        _unique_code("p5c1-project-rev-target"), "P5C1Target123!", role_names=[], tenant_id=tenant_id
+    )
+    actor_role = auth._role_repo.get_by_name("tenant_admin")
+    project_role = auth._role_repo.get_by_name("project_viewer")
+    services["role_governance_service"].create_delegation_policy(
+        actor_role_id=actor_role.id,
+        assignable_role_id=project_role.id,
+        target_scope_type="project",
+        tenant_id=tenant_id,
+    )
+    _switch_session_to_actor(
+        services,
+        actor,
+        tenant_id=tenant_id,
+        organization_id=org_a2.id,
+        extra_permissions=("auth.role.assign",),
+    )
+
+    binding = services["role_governance_service"].assign_role(
+        target_user_id=target.id,
+        role_id=project_role.id,
+        actual_scope_id=project_a1.id,
+    )
+    assert tenant_context_service.get_active_organization_id() == org_a2.id  # never switched
+    assert binding.actual_scope_id == project_a1.id
+
+    services["role_governance_service"].revoke_role_binding(binding.id)
+    assert tenant_context_service.get_active_organization_id() == org_a2.id  # still never switched
+
+
 def test_site_role_assignment_targets_a_non_active_organization(services):
     """Same fix, "site" scope: `SiteRepository.get_for_tenant()` backs the "site" resolver
     registered directly on `role_governance_service` at construction time in
@@ -367,7 +400,7 @@ def test_organization_scoped_role_assignment_targets_a_non_active_organization(s
     org_a2 = services["organization_service"].create_organization(
         organization_code=_unique_code("P5C1-ORG-SCOPE-A2"),
         display_name="P5C-1 Org Scope A2",
-        is_active=False,
+        is_enabled=False,
     )
     assert tenant_context_service.get_active_organization_id() == org_a1_id  # unaffected
 
@@ -410,13 +443,47 @@ def test_department_role_assignment_remains_unreachable_and_undocumented_as_a_ne
     it from scratch (a `ScopedRolePolicy`, role choices, a delegation-namespace convention, a
     catalog role) is a materially larger feature addition than closing an existing resolver's
     ambient-scope defect, so it is documented here, not implemented, and stays out of P5C-1's
-    boundary."""
+    boundary.
+
+    Item 4 evidence (full trace, not an unchecked assumption): organization ownership IS
+    trivially derivable for department -- `DepartmentORM.organization_id` is a required column,
+    identical in shape to `Site`/`Storeroom` -- so this is NOT a
+    "P5C-1 RESOURCE OWNERSHIP MODEL BLOCKER" (ownership needs no domain redesign to derive). The
+    repository read (`DepartmentRepository.get()`) is confirmed to share the SAME ambient-active-
+    organization filter class already fixed for project/site/storeroom -- proven directly below,
+    not merely inferred from reading the source -- but fixing it is moot while no
+    `scope_exists_resolver`/catalog role exists to ever reach it, and wiring the whole feature is
+    the out-of-boundary part, not the ownership-derivation part."""
     role_governance_service = services["role_governance_service"]
     assert role_governance_service._scope_exists_resolvers.get("department") is None
     assert role_governance_service._organization_owner_resolvers.get("department") is None
     assert not any(
         role.allowed_scope_type == "department" for role in services["auth_service"]._role_repo.list_all()
     )
+
+    tenant_context_service = services["tenant_context_service"]
+    org_a1_id = tenant_context_service.get_active_organization_id()
+    department_a1 = services["department_service"].create_department(
+        department_code=_unique_code("P5C1-DEPT-A1"), name="P5C-1 Department A1"
+    )
+    assert department_a1.organization_id == org_a1_id  # ownership trivially derivable
+
+    org_a2 = services["organization_service"].create_organization(
+        organization_code=_unique_code("P5C1-DEPT-A2"), display_name="P5C-1 Department Org A2", is_enabled=True
+    )
+    tenant_context_service.set_active_organization(org_a2.id)
+
+    from src.core.platform.infrastructure.persistence.repositories.master_data.department.departments import (
+        SqlAlchemyDepartmentRepository,
+    )
+
+    department_repo = SqlAlchemyDepartmentRepository(services["session"])
+    department_repo._tenant_context_service = tenant_context_service
+    # Confirmed: the SAME ambient-active-organization defect class already fixed for
+    # project/site/storeroom also exists here at the repository level -- department A1 is
+    # invisible while A2 is active, exactly like the pre-fix storeroom bug.
+    assert department_repo.get(department_a1.id) is None
+    assert not hasattr(department_repo, "get_for_tenant")
 
 
 def test_storeroom_role_assignment_rejects_a_foreign_tenant_storeroom(services):
@@ -469,7 +536,7 @@ def test_storeroom_role_assignment_rejects_a_foreign_tenant_storeroom(services):
             tenant_id=foreign_tenant_id,
             organization_code=_unique_code("P5C1FORG"),
             display_name="Foreign Org",
-            is_active=True,
+            is_enabled=True,
             version=1,
         )
     )
@@ -670,13 +737,17 @@ def test_role_governance_service_has_no_inline_commit_or_rollback_or_global_sess
         assert forbidden not in source
 
 
-def test_role_governance_p5c1_does_not_add_p5c2_event_vocabulary():
-    """The service's docstrings legitimately MENTION the future `RoleBindingAssigned`/
-    `RoleBindingRevoked` vocabulary (item 38's "future event field documentation"
-    requirement) -- what must not exist yet is an actual emission of anything beyond the
-    single retained legacy signal, or any ViewInvalidation/Qt dependency."""
+def test_role_governance_emits_no_legacy_signal_and_no_view_invalidation_or_qt_vocabulary():
+    """P5C-2 legitimately added `RoleBindingAssigned`/`RoleBindingRevoked` (see
+    `test_role_binding_events.py`); this guard asserts what must still never exist -- any legacy
+    Signal emission at all (P5 closeout, 2026-08-26: `auth_changed.emit(...)` removed from both
+    `assign_role`/`revoke_role_binding` as a confirmed pure legacy duplicate of the
+    already-implemented RoleBinding ViewInvalidation path), and no ViewInvalidation/Qt dependency
+    (P5C-3's concern -- RoleGovernanceService itself stays a pure DomainEvent recorder, never a
+    ViewInvalidation producer or Qt-aware component)."""
     source = _role_governance_service_source()
     emitted_signals = set(re.findall(r"domain_events\.(\w+)\.emit\(", source))
-    assert emitted_signals == {"auth_changed"}
+    assert emitted_signals == set()
+    assert "domain_events" not in source
     for forbidden in ("ViewInvalidation", "PySide6", "ui_qml"):
         assert forbidden not in source

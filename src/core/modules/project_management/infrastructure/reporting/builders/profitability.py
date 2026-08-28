@@ -67,9 +67,8 @@ class ReportingProfitabilityMixin:
         if self._project_repo.get(project_id) is None:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
         profile = self._billing_repo.get_profile(project_id)
-        # list_preparations requires an existing billing profile (raises
-        # otherwise) -- mirror get_billing_workspace's existing "if profile:"
-        # guard rather than calling it unconditionally.
+        # list_preparations requires an existing billing profile, so avoid the
+        # repository call when commercial billing has not been configured.
         preparations = self._all_billing_preparations(project_id) if profile else []
 
         billable_amount = Decimal("0")
@@ -82,8 +81,7 @@ class ReportingProfitabilityMixin:
             # A preparation's invoice reference and its reconciliation are
             # set on *different* events, not carried forward onto whichever
             # event happens to be latest -- checking only the latest event
-            # (as get_billing_workspace's display view correctly does, for
-            # "current status") would silently lose the invoice reference
+            # (as a current-status projection does) would silently lose the invoice reference
             # once a later RECONCILED event supersedes it. Aggregation needs
             # the full history: has this preparation *ever* been invoiced /
             # *ever* been reconciled.

@@ -90,6 +90,7 @@ def test_project_management_timesheets_desktop_api_supports_assignment_periods_a
     updated_entry = api.update_time_entry(
         SimpleNamespace(
             entry_id=created_entry.entry_id,
+            expected_version=created_entry.version,
             entry_date=date(2026, 5, 3),
             hours=7.5,
             note="Cable tray installation revised",
@@ -120,7 +121,10 @@ def test_project_management_timesheets_desktop_api_supports_assignment_periods_a
         expected_version=locked_period.version,
         note="Reopened for correction.",
     )
-    api.delete_time_entry(created_entry.entry_id)
+    api.delete_time_entry(
+        created_entry.entry_id,
+        expected_version=updated_entry.version,
+    )
 
     assert updated_entry.hours_label == "7.50h"
     assert snapshot.assignment.resource_name == "Electrical Crew"

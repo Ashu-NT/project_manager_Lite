@@ -124,14 +124,15 @@ def test_resource_workload_requires_resource_read(services) -> None:
 def test_resource_workload_fails_closed_after_organization_switch(services) -> None:
     resource = services["resource_service"].create_resource("R5D scoped resource")
     organization_service = services["organization_service"]
-    original = organization_service.get_active_organization()
+    original = services["tenant_context_service"].get_active_organization()
     other = organization_service.create_organization(
         organization_code="R5D-OTHER",
         display_name="R5D Other Organization",
         base_currency="EUR",
-        is_active=False,
+        is_enabled=False,
     )
-    organization_service.set_active_organization(other.id)
+    organization_service.enable_organization(other.id)
+    services["tenant_context_service"].set_active_organization(other.id)
     try:
         with pytest.raises(NotFoundError):
             services["resource_workload_service"].read(
@@ -140,7 +141,8 @@ def test_resource_workload_fails_closed_after_organization_switch(services) -> N
                 end_date=date.today() + timedelta(days=6),
             )
     finally:
-        organization_service.set_active_organization(original.id)
+        organization_service.enable_organization(original.id)
+        services["tenant_context_service"].set_active_organization(original.id)
 
 
 def test_resource_availability_qml_uses_authoritative_detail_contract() -> None:

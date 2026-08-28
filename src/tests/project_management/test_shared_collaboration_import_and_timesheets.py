@@ -40,10 +40,15 @@ def test_time_entries_roll_up_assignment_hours_and_replace_aggregate_edit(servic
     assert len(ts.list_time_entries_for_assignment(assignment.id)) == 2
     assert ts.get_assignment(assignment.id).hours_logged == pytest.approx(5.5)
 
-    ts.update_time_entry(first.id, hours=3.0, note="Design workshop")
+    ts.update_time_entry(
+        first.id,
+        expected_version=first.version,
+        hours=3.0,
+        note="Design workshop",
+    )
     assert ts.get_assignment(assignment.id).hours_logged == pytest.approx(6.0)
 
-    ts.delete_time_entry(second.id)
+    ts.delete_time_entry(second.id, expected_version=second.version)
     remaining = ts.list_time_entries_for_assignment(assignment.id)
     assert len(remaining) == 1
     assert ts.get_assignment(assignment.id).hours_logged == pytest.approx(3.0)
@@ -213,11 +218,20 @@ def test_timesheet_period_submission_blocks_edits_for_that_month_only(services):
             note="Blocked follow-up",
         )
     with pytest.raises(ValidationError, match="submitted"):
-        ts.update_time_entry(march_entry.id, hours=5.0)
+        ts.update_time_entry(
+            march_entry.id,
+            expected_version=march_entry.version,
+            hours=5.0,
+        )
     with pytest.raises(ValidationError, match="submitted"):
-        ts.delete_time_entry(march_entry.id)
+        ts.delete_time_entry(march_entry.id, expected_version=march_entry.version)
 
-    ts.update_time_entry(april_entry.id, hours=3.0, note="April still editable")
+    ts.update_time_entry(
+        april_entry.id,
+        expected_version=april_entry.version,
+        hours=3.0,
+        note="April still editable",
+    )
     assert ts.get_assignment(assignment.id).hours_logged == pytest.approx(7.0)
 
 
@@ -247,7 +261,11 @@ def test_timesheet_period_lock_unlock_and_approval_state_transitions(services):
     assert approved.locked_at is None
 
     with pytest.raises(ValidationError, match="approved"):
-        ts.update_time_entry(may_entry.id, hours=7.0)
+        ts.update_time_entry(
+            may_entry.id,
+            expected_version=may_entry.version,
+            hours=7.0,
+        )
 
     locked = ts.lock_timesheet_period(
         approved.period_id,
@@ -269,9 +287,7 @@ def test_data_import_service_imports_projects_resources_tasks_and_rejects_legacy
     ps = services["project_service"]
     ts = services["task_service"]
     rs = services["resource_service"]
-    expected_currency = services[
-        "organization_service"
-    ].get_active_organization().base_currency
+    expected_currency = services["tenant_context_service"].get_active_organization().base_currency
 
     tmp = create_test_workspace("import")
     try:

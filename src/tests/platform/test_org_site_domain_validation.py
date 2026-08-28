@@ -64,16 +64,10 @@ class _FakeOrganizationRepo:
                 return row
         return None
 
-    def get_active(self) -> Organization | None:
-        active = [row for row in self._rows.values() if row.is_active]
-        if not active:
-            return None
-        return sorted(active, key=lambda row: row.display_name)[0]
-
-    def list_all(self, *, active_only: bool | None = None) -> list[Organization]:
+    def list_all(self, *, enabled_only: bool | None = None) -> list[Organization]:
         rows = list(self._rows.values())
-        if active_only is not None:
-            rows = [row for row in rows if row.is_active is bool(active_only)]
+        if enabled_only is not None:
+            rows = [row for row in rows if row.is_enabled is bool(enabled_only)]
         return sorted(rows, key=lambda row: row.display_name)
 
     def get_for_tenant(self, organization_id: str, tenant_id: str) -> Organization | None:
@@ -88,29 +82,19 @@ class _FakeOrganizationRepo:
                 return row
         return None
 
-    def get_active_for_tenant(self, tenant_id: str) -> Organization | None:
-        active = [
-            row
-            for row in self._rows.values()
-            if row.tenant_id == tenant_id and row.is_active
-        ]
-        if not active:
-            return None
-        return sorted(active, key=lambda row: row.display_name)[0]
-
     def list_for_tenant(
         self,
         tenant_id: str,
         *,
-        active_only: bool | None = None,
+        enabled_only: bool | None = None,
     ) -> list[Organization]:
         rows = [
             row
             for row in self._rows.values()
             if row.tenant_id == tenant_id
         ]
-        if active_only is not None:
-            rows = [row for row in rows if row.is_active is bool(active_only)]
+        if enabled_only is not None:
+            rows = [row for row in rows if row.is_enabled is bool(enabled_only)]
         return sorted(rows, key=lambda row: row.display_name)
 
 
@@ -161,6 +145,33 @@ class _FakeTenantContext:
 
     def get_active_organization(self) -> Organization | None:
         return self._organization_repo.get(self._organization_id)
+
+
+class _FakeSiteUnitOfWork:
+    def __init__(self, site_repo: "_FakeSiteRepo", enterprise_audit_service) -> None:
+        self.sites = site_repo
+        self._enterprise_audit_service = enterprise_audit_service
+
+    def __enter__(self) -> "_FakeSiteUnitOfWork":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        return None
+
+    def commit(self) -> None:
+        return None
+
+    def record_event(self, event) -> None:
+        return None
+
+
+class _FakeSiteUnitOfWorkFactory:
+    def __init__(self, site_repo: "_FakeSiteRepo", enterprise_audit_service) -> None:
+        self._site_repo = site_repo
+        self._enterprise_audit_service = enterprise_audit_service
+
+    def create(self, *, context) -> _FakeSiteUnitOfWork:
+        return _FakeSiteUnitOfWork(self._site_repo, self._enterprise_audit_service)
 
 
 class _FakeSiteRepo:
@@ -220,7 +231,7 @@ def _make_organization_service(monkeypatch: pytest.MonkeyPatch) -> OrganizationS
 
 def _make_site_service(monkeypatch: pytest.MonkeyPatch) -> tuple[SiteService, Organization]:
     monkeypatch.setattr(
-        "src.core.platform.application.master_data.site.site_service.require_permission",
+        "src.core.platform.application.master_data.site.site_commands.require_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
@@ -246,13 +257,17 @@ def _make_site_service(monkeypatch: pytest.MonkeyPatch) -> tuple[SiteService, Or
     )
     organization_repo.add(organization)
 
+    site_repo = _FakeSiteRepo()
+    enterprise_audit_service = _FakeEnterpriseAuditService()
     service = SiteService(
         session=_FakeSession(),
-        site_repo=_FakeSiteRepo(),
+        site_repo=site_repo,
         organization_repo=organization_repo,
         user_session=object(),
-        enterprise_audit_service=_FakeEnterpriseAuditService(),
+        enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=_FakeTenantContext(organization_repo, organization.id),
+        uow_factory=_FakeSiteUnitOfWorkFactory(site_repo, enterprise_audit_service),
+        clock=_FakeClock(),
     )
     return service, organization
 
@@ -308,14 +323,14 @@ def test_organization_service_uses_entity_validation_and_final_state(monkeypatch
         display_name="  Default Organization  ",
         timezone_name="  UTC  ",
         base_currency=" eur ",
-        is_active=True,
+        is_enabled=True,
     )
     second = service.create_organization(
         organization_code=" north ",
         display_name="  North Division  ",
         timezone_name=" Europe/Berlin ",
         base_currency=" usd ",
-        is_active=False,
+        is_enabled=False,
     )
 
     assert created.organization_code == "DEFAULT"
@@ -327,15 +342,16 @@ def test_organization_service_uses_entity_validation_and_final_state(monkeypatch
         second.id,
         expected_version=second.version,
         display_name="  North Ops  ",
-        is_active=True,
+        is_enabled=True,
     )
 
     assert activated.display_name == "North Ops"
-    assert activated.is_active is True
+    assert activated.is_enabled is True
     assert activated.version == 2
+    # P10A: enabling `second` never disables `created` -- no mutual exclusion.
     reloaded_first = service._organization_repo.get(created.id)
     assert reloaded_first is not None
-    assert reloaded_first.is_active is False
+    assert reloaded_first.is_enabled is True
 
     with pytest.raises(ValidationError) as exc_name:
         service.update_organization(
@@ -344,10 +360,6 @@ def test_organization_service_uses_entity_validation_and_final_state(monkeypatch
             display_name=" ",
         )
     assert exc_name.value.code == "ORGANIZATION_NAME_REQUIRED"
-
-    switched = service.set_active_organization(created.id)
-    assert switched.id == created.id
-    assert service._user_session.active_organization_id == created.id
 
 
 def test_site_dto_normalizes_and_validates_fields():

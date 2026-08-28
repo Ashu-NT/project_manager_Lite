@@ -9,6 +9,7 @@ from openpyxl import load_workbook
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.modules.project_management.domain.enums import DependencyType
+from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.modules.project_management.infrastructure.reporting import api as reporting_api
 from src.core.modules.project_management.infrastructure.reporting.models.contexts import (
     FinanceLedgerExportPage,
@@ -51,7 +52,18 @@ def _setup_report_project(services):
         "Developer",
         hourly_rate=100.0,
         currency_code="USD",
-        rate_effective_on=date(2023, 11, 6),
+    )
+    rate_card = services["rate_card_service"].create_rate_card(
+        name="Export Project Rates",
+        project_id=pid,
+    )
+    services["rate_card_service"].create_line(
+        rate_card.id,
+        rate_type=RateType.COST,
+        unit="HOUR",
+        rate_amount=100,
+        rate_currency="USD",
+        resource_id=res.id,
     )
     assignment = ts.assign_resource(t1.id, res.id, allocation_percent=50.0)
     ts.set_assignment_hours(assignment.id, 4.0)

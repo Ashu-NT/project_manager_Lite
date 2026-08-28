@@ -1,13 +1,3 @@
-from .owner_reader import (
-    OwnerTimesheetEntryCriteria,
-    OwnerTimesheetEntryFact,
-    OwnerTimesheetEntryReadPage,
-    OwnerTimesheetHistoryCriteria,
-    OwnerTimesheetHistoryReadPage,
-    OwnerTimesheetIdentityFact,
-    OwnerTimesheetPeriodFact,
-    OwnerTimesheetReader,
-)
 from .review_reader import (
     ReviewQueueItemType,
     TimesheetReviewCriteria,
@@ -29,17 +19,10 @@ from .workspace_reader import (
     TimesheetResourceSelectorCriteria,
     TimesheetScope,
     TimesheetWorkspaceReader,
+    TimesheetWorkspaceAccessFact,
 )
 
 __all__ = [
-    "OwnerTimesheetEntryCriteria",
-    "OwnerTimesheetEntryFact",
-    "OwnerTimesheetEntryReadPage",
-    "OwnerTimesheetHistoryCriteria",
-    "OwnerTimesheetHistoryReadPage",
-    "OwnerTimesheetIdentityFact",
-    "OwnerTimesheetPeriodFact",
-    "OwnerTimesheetReader",
     "ReviewQueueItemType",
     "TimesheetReviewCriteria",
     "TimesheetReviewInspectorFact",
@@ -58,4 +41,5 @@ __all__ = [
     "TimesheetResourceSelectorCriteria",
     "TimesheetScope",
     "TimesheetWorkspaceReader",
+    "TimesheetWorkspaceAccessFact",
 ]

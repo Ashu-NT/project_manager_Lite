@@ -5,7 +5,7 @@ import logging
 
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import ConcurrencyError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.domain.time_management.time import TimesheetPeriod, TimesheetPeriodStatus
 from src.core.platform.application.time_management.time.timesheet_query import TimesheetPeriodAggregate
@@ -22,10 +22,16 @@ class TimesheetPeriodsMixin:
         period_start: date,
         expected_version: int | None = None,
         note: str = "",
+        _required_permission: str = "timesheet.submit",
     ) -> TimesheetPeriodAggregate:
+        if _required_permission not in {"timesheet.submit", "timesheet.submit_on_behalf"}:
+            raise BusinessRuleError(
+                "Timesheet submission permission is invalid.",
+                code="TIMESHEET_SUBMIT_PERMISSION_INVALID",
+            )
         require_permission(
             self._user_session,
-            "timesheet.submit",
+            _required_permission,
             operation_label="submit timesheet period",
         )
         entries = self.list_time_entries_for_resource_period(

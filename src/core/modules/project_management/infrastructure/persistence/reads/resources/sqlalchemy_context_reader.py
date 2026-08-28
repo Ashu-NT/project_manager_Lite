@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from sqlalchemy import and_, case, false, func, or_, select
@@ -13,6 +13,10 @@ from src.core.modules.project_management.contracts.reads.resources import (
     ResourceAssignmentReadPage,
     ResourceProjectFact,
     ResourceProjectReadPage,
+    ResourceCertificationFact,
+    ResourceCertificationReadPage,
+    ResourceSkillFact,
+    ResourceSkillReadPage,
 )
 from src.core.modules.project_management.contracts.reads.sorting import (
     ReadSort,
@@ -24,6 +28,10 @@ from src.core.modules.project_management.infrastructure.persistence.orm.project 
     ProjectResourceORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.modules.project_management.infrastructure.persistence.orm.skills import (
+    ResourceCertificationORM,
+    ResourceSkillORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.task import (
     TaskAssignmentORM,
     TaskORM,
@@ -77,6 +85,16 @@ def _activity_category(action: str) -> str:
     if normalized.startswith("time") or normalized.startswith("timesheet"):
         return "work"
     return "resource"
+
+
+def _certification_status(expiry_date: date | None, as_of: date) -> str:
+    if expiry_date is None:
+        return "no-expiry"
+    if expiry_date < as_of:
+        return "expired"
+    if expiry_date <= as_of + timedelta(days=30):
+        return "expiring-soon"
+    return "valid"
 
 
 class SqlAlchemyResourceContextReader:
@@ -355,6 +373,234 @@ class SqlAlchemyResourceContextReader:
                     response_status=str(row[15] or "pending"),
                     project_resource_id=str(row[16]) if row[16] else None,
                     assignment_version=int(row[17] or 1),
+                )
+                for row in rows
+            ),
+            filtered_total=filtered_total,
+            page=page,
+            page_size=page_size,
+            sort=sort,
+        )
+
+    def read_skills_page(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        resource_id: str,
+        search_text: str,
+        proficiency: str | None,
+        page: int,
+        page_size: int,
+        sort: ReadSort,
+    ) -> ResourceSkillReadPage:
+        filters = [
+            *_scoped_resource_filter(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                resource_id=resource_id,
+            )
+        ]
+        if proficiency:
+            filters.append(func.lower(ResourceSkillORM.proficiency) == proficiency)
+        normalized_search = str(search_text or "").strip()
+        if normalized_search:
+            pattern = _contains_pattern(normalized_search)
+            filters.append(
+                or_(
+                    func.lower(ResourceSkillORM.skill_name).like(pattern, escape="\\"),
+                    func.lower(ResourceSkillORM.skill_code).like(pattern, escape="\\"),
+                    func.lower(func.coalesce(ResourceSkillORM.notes, "")).like(
+                        pattern, escape="\\"
+                    ),
+                )
+            )
+        from_clause = ResourceSkillORM.__table__.join(
+            ResourceORM, ResourceORM.id == ResourceSkillORM.resource_id
+        )
+        filtered_total = int(
+            self._session.scalar(
+                select(func.count(ResourceSkillORM.id))
+                .select_from(from_clause)
+                .where(*filters)
+            )
+            or 0
+        )
+        proficiency_rank = case(
+            (func.lower(ResourceSkillORM.proficiency) == "beginner", 1),
+            (func.lower(ResourceSkillORM.proficiency) == "intermediate", 2),
+            (func.lower(ResourceSkillORM.proficiency) == "advanced", 3),
+            (func.lower(ResourceSkillORM.proficiency) == "expert", 4),
+            else_=0,
+        )
+        order_by = stable_order_by(
+            sort=sort,
+            expressions={
+                "skillName": (func.lower(ResourceSkillORM.skill_name),),
+                "skillCode": (func.lower(ResourceSkillORM.skill_code),),
+                "proficiency": (proficiency_rank,),
+                "notes": (func.lower(func.coalesce(ResourceSkillORM.notes, "")),),
+            },
+            default_key="skillName",
+            tie_breakers=(ResourceSkillORM.id,),
+        )
+        rows = self._session.execute(
+            select(
+                ResourceSkillORM.id,
+                ResourceSkillORM.resource_id,
+                ResourceSkillORM.skill_code,
+                ResourceSkillORM.skill_name,
+                ResourceSkillORM.proficiency,
+                ResourceSkillORM.notes,
+                ResourceSkillORM.version,
+            )
+            .select_from(from_clause)
+            .where(*filters)
+            .order_by(*order_by)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        ).all()
+        return ResourceSkillReadPage(
+            items=tuple(
+                ResourceSkillFact(
+                    skill_id=str(row[0]),
+                    resource_id=str(row[1]),
+                    skill_code=str(row[2] or ""),
+                    skill_name=str(row[3] or ""),
+                    proficiency=str(row[4] or "intermediate"),
+                    notes=str(row[5] or ""),
+                    version=int(row[6] or 1),
+                )
+                for row in rows
+            ),
+            filtered_total=filtered_total,
+            page=page,
+            page_size=page_size,
+            sort=sort,
+        )
+
+    def read_certifications_page(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        resource_id: str,
+        search_text: str,
+        status: str | None,
+        as_of: date,
+        page: int,
+        page_size: int,
+        sort: ReadSort,
+    ) -> ResourceCertificationReadPage:
+        expiring_cutoff = as_of + timedelta(days=30)
+        filters = [
+            *_scoped_resource_filter(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                resource_id=resource_id,
+            )
+        ]
+        if status == "no-expiry":
+            filters.append(ResourceCertificationORM.expiry_date.is_(None))
+        elif status == "expired":
+            filters.append(ResourceCertificationORM.expiry_date < as_of)
+        elif status == "expiring-soon":
+            filters.extend(
+                (
+                    ResourceCertificationORM.expiry_date >= as_of,
+                    ResourceCertificationORM.expiry_date <= expiring_cutoff,
+                )
+            )
+        elif status == "valid":
+            filters.append(ResourceCertificationORM.expiry_date > expiring_cutoff)
+        normalized_search = str(search_text or "").strip()
+        if normalized_search:
+            pattern = _contains_pattern(normalized_search)
+            filters.append(
+                or_(
+                    func.lower(ResourceCertificationORM.certification_name).like(
+                        pattern, escape="\\"
+                    ),
+                    func.lower(ResourceCertificationORM.certification_code).like(
+                        pattern, escape="\\"
+                    ),
+                    func.lower(func.coalesce(ResourceCertificationORM.issuer, "")).like(
+                        pattern, escape="\\"
+                    ),
+                    func.lower(
+                        func.coalesce(ResourceCertificationORM.certificate_number, "")
+                    ).like(pattern, escape="\\"),
+                )
+            )
+        from_clause = ResourceCertificationORM.__table__.join(
+            ResourceORM, ResourceORM.id == ResourceCertificationORM.resource_id
+        )
+        filtered_total = int(
+            self._session.scalar(
+                select(func.count(ResourceCertificationORM.id))
+                .select_from(from_clause)
+                .where(*filters)
+            )
+            or 0
+        )
+        status_rank = case(
+            (ResourceCertificationORM.expiry_date.is_(None), 0),
+            (ResourceCertificationORM.expiry_date < as_of, 3),
+            (ResourceCertificationORM.expiry_date <= expiring_cutoff, 2),
+            else_=1,
+        )
+        order_by = stable_order_by(
+            sort=sort,
+            expressions={
+                "certificationName": (
+                    func.lower(ResourceCertificationORM.certification_name),
+                ),
+                "certificationCode": (
+                    func.lower(ResourceCertificationORM.certification_code),
+                ),
+                "statusLabel": (status_rank,),
+                "issuedDate": (ResourceCertificationORM.issued_date,),
+                "expiryDate": (ResourceCertificationORM.expiry_date,),
+                "issuer": (
+                    func.lower(func.coalesce(ResourceCertificationORM.issuer, "")),
+                ),
+            },
+            default_key="certificationName",
+            tie_breakers=(ResourceCertificationORM.id,),
+        )
+        rows = self._session.execute(
+            select(
+                ResourceCertificationORM.id,
+                ResourceCertificationORM.resource_id,
+                ResourceCertificationORM.certification_code,
+                ResourceCertificationORM.certification_name,
+                ResourceCertificationORM.issued_date,
+                ResourceCertificationORM.expiry_date,
+                ResourceCertificationORM.certificate_number,
+                ResourceCertificationORM.issuer,
+                ResourceCertificationORM.notes,
+                ResourceCertificationORM.version,
+            )
+            .select_from(from_clause)
+            .where(*filters)
+            .order_by(*order_by)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        ).all()
+        return ResourceCertificationReadPage(
+            items=tuple(
+                ResourceCertificationFact(
+                    certification_id=str(row[0]),
+                    resource_id=str(row[1]),
+                    certification_code=str(row[2] or ""),
+                    certification_name=str(row[3] or ""),
+                    issued_date=row[4],
+                    expiry_date=row[5],
+                    certificate_number=str(row[6] or ""),
+                    issuer=str(row[7] or ""),
+                    notes=str(row[8] or ""),
+                    cert_status=_certification_status(row[5], as_of),
+                    version=int(row[9] or 1),
                 )
                 for row in rows
             ),

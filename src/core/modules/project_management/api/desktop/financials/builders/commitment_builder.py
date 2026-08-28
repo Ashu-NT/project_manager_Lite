@@ -35,25 +35,34 @@ def build_commitment_line_dto(line) -> FinancialCommitmentLineDto:
 def build_commitment_summary_dto(
     project_id: str,
     *,
-    snapshot,
+    facts,
     currency: str | None = None,
 ) -> FinancialCommitmentSummaryDto:
-    available = snapshot.available
+    resolved_currency = currency or facts.currency_code
+    available = (
+        facts.available_after_commitment if facts.approved_budget_id else None
+    )
     return FinancialCommitmentSummaryDto(
         project_id=project_id,
-        approved_budget=canonical_decimal_text(snapshot.budget),
-        approved_budget_label=format_money(snapshot.budget, currency),
-        posted_actual=canonical_decimal_text(snapshot.actual),
-        posted_actual_label=format_money(snapshot.actual, currency),
-        open_commitment=canonical_decimal_text(snapshot.committed),
-        open_commitment_label=format_money(snapshot.committed, currency),
+        approved_budget=canonical_decimal_text(facts.approved_budget),
+        approved_budget_label=(
+            format_money(facts.approved_budget, resolved_currency)
+            if facts.approved_budget_id
+            else "Not budgeted"
+        ),
+        posted_actual=canonical_decimal_text(facts.posted_actual),
+        posted_actual_label=format_money(facts.posted_actual, resolved_currency),
+        open_commitment=canonical_decimal_text(facts.open_commitment),
+        open_commitment_label=format_money(facts.open_commitment, resolved_currency),
         available_after_commitment=(
             None if available is None else canonical_decimal_text(available)
         ),
         available_after_commitment_label=(
-            "Not budgeted" if available is None else format_money(available, currency)
+            "Not budgeted"
+            if available is None
+            else format_money(available, resolved_currency)
         ),
-        commitment_rate_pct=round(float(snapshot.commitment_rate_percent), 1),
+        commitment_rate_pct=round(float(facts.control.commitment_rate_percent), 1),
     )
 
 

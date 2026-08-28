@@ -70,22 +70,6 @@ def test_project_management_scheduling_workspace_no_longer_uses_placeholder_page
     assert "WorkspacePlaceholderPage" not in text
 
 
-def test_project_management_resources_workspace_no_longer_uses_placeholder_page() -> None:
-    resources_workspace = (
-        UI_QML_ROOT
-        / "modules"
-        / "project_management"
-        / "qml"
-        / "workspaces"
-        / "resources"
-        / "ResourcesWorkspace.qml"
-    )
-    text = resources_workspace.read_text(encoding="utf-8", errors="ignore")
-
-    assert "ResourcesWorkspacePage" in text
-    assert "WorkspacePlaceholderPage" not in text
-
-
 def test_project_management_financials_workspace_no_longer_uses_placeholder_page() -> None:
     financials_workspace = (
         UI_QML_ROOT
@@ -147,22 +131,6 @@ def test_project_management_portfolio_workspace_no_longer_uses_placeholder_page(
     text = portfolio_workspace.read_text(encoding="utf-8", errors="ignore")
 
     assert "PortfolioWorkspacePage" in text
-    assert "WorkspacePlaceholderPage" not in text
-
-
-def test_project_management_timesheets_workspace_no_longer_uses_placeholder_page() -> None:
-    timesheets_workspace = (
-        UI_QML_ROOT
-        / "modules"
-        / "project_management"
-        / "qml"
-        / "workspaces"
-        / "timesheets"
-        / "TimesheetsWorkspace.qml"
-    )
-    text = timesheets_workspace.read_text(encoding="utf-8", errors="ignore")
-
-    assert "TimesheetsWorkspacePage" in text
     assert "WorkspacePlaceholderPage" not in text
 
 

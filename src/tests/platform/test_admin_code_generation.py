@@ -13,7 +13,7 @@ class _FakeRuntimeApi:
     def __init__(self, codes):
         self._codes = list(codes)
 
-    def list_organizations(self, *, active_only=None):
+    def list_organizations(self, *, enabled_only=None):
         return SimpleNamespace(
             ok=True,
             data=[SimpleNamespace(organization_code=code) for code in self._codes],

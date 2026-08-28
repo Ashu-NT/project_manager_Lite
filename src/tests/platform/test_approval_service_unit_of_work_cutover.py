@@ -12,7 +12,7 @@ import pytest
 
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.approval import ApprovalStatus
-from src.core.platform.infrastructure.persistence.unit_of_work import (
+from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
     SqlAlchemyPlatformUnitOfWork,
 )
 
@@ -65,8 +65,15 @@ def _submitted_budget(services, session):
 
 def _request_budget_approval_as_a_different_user(services, budget):
     """Requests as a fresh, non-admin user, then logs back in as admin -- so admin (the eventual
-    decider) never becomes the requester, avoiding the (correctly enforced) self-decision rule."""
+    decider) never becomes the requester, avoiding the (correctly enforced) self-decision rule.
+
+    P10A: a fresh login's active-organization auto-select is genuinely ambiguous once more than
+    one organization is enabled simultaneously -- pin it explicitly to whatever was active
+    immediately before the switch rather than relying on that heuristic."""
+    active_organization_id = services["tenant_context_service"].get_active_organization_id()
     _login_as_fresh_requester(services)
+    if active_organization_id:
+        services["user_session"].set_active_organization_id(active_organization_id)
     approvals = services["approval_service"]
     request = approvals.request_change(
         request_type="budget.approve",
@@ -232,29 +239,53 @@ def test_request_change_default_mode_uses_a_fresh_uow_session(services, session,
     assert request.status == ApprovalStatus.PENDING
 
 
-def test_request_change_caller_owned_mode_still_uses_the_caller_session_unchanged(
-    services, session
-):
-    """The documented, still-valid exception (ADR-005 Section 24, Round 8): callers composing
-    request_change(commit=False) into their own transaction must see byte-for-byte unchanged
-    behavior -- staged on the caller's own Session, never a fresh UoW."""
+def test_request_change_fails_closed_when_the_approval_audit_write_fails(services, monkeypatch):
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
+
     _login_as_fresh_requester(services)
     approvals = services["approval_service"]
 
-    request = approvals.request_change(
-        request_type="baseline.create",
-        entity_type="project_baseline",
-        entity_id=f"probe-entity-caller-owned-{_REQUESTER_COUNTER['n']}",
-        project_id=None,
-        payload={"name": "Probe caller-owned"},
-        commit=False,
-    )
-    # Staged (flushed) but not committed -- visible via the same session, not yet durable.
-    assert session.in_transaction()
-    reloaded = approvals._approval_repo.get(request.id)
-    assert reloaded is not None
-    session.rollback()
-    assert approvals._approval_repo.get(request.id) is None
+    def _fail_record(self, **kwargs):
+        raise RuntimeError("simulated standalone request_change audit failure")
+
+    monkeypatch.setattr(EnterpriseAuditService, "record", _fail_record)
+
+    entity_id = f"probe-entity-audit-fail-{_REQUESTER_COUNTER['n']}"
+    with pytest.raises(RuntimeError, match="simulated standalone request_change audit failure"):
+        approvals.request_change(
+            request_type="baseline.create",
+            entity_type="project_baseline",
+            entity_id=entity_id,
+            project_id=None,
+            payload={"name": "Probe audit failure"},
+        )
+
+    monkeypatch.undo()
+    matching = [row for row in approvals.list_pending() if row.entity_id == entity_id]
+    assert matching == []
+
+
+def test_request_change_has_no_commit_parameter(services):
+    """Approval-P1 (§13/§38): `request_change(commit=False)` no longer exists -- every former
+    caller-owned-transaction path now calls `request_approval_using(...)` directly inside its own
+    canonical UoW instead of composing into this method. No deprecated compatibility argument is
+    left on the signature."""
+    import inspect
+
+    approvals = services["approval_service"]
+    params = inspect.signature(approvals.request_change).parameters
+    assert "commit" not in params
+    with pytest.raises(TypeError):
+        approvals.request_change(
+            request_type="baseline.create",
+            entity_type="project_baseline",
+            entity_id="probe-entity-no-commit-param",
+            project_id=None,
+            payload={"name": "Probe"},
+            commit=False,
+        )
 
 
 def test_shared_legacy_session_is_not_touched_by_approval_mutation(services, session):

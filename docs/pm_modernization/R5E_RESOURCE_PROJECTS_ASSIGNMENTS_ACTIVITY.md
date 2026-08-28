@@ -2,7 +2,7 @@
 
 ## 1. Status
 
-Implementation complete. Targeted backend, security, performance, migration, QML lint, and offscreen runtime validation pass. The developer AppData SQLite database must apply revision `c817a91e5f24` after the currently running app releases its database lock; normal next startup runs it automatically.
+Implementation complete. Targeted backend, security, performance, migration, QML lint, and offscreen runtime validation pass. Because the application is pre-release, the Activity correlation schema is part of the authoritative fresh baseline and no upgrade-only compatibility revision is retained.
 
 ## 2. Scope
 
@@ -98,7 +98,7 @@ Projects, Assignments, and Activity were instantiated offscreen at `1024x640`, `
 
 ## 25. Query Plans / Indexes
 
-Existing `idx_project_resource_resource` supports Resource Projects. R5E adds `idx_task_assignments_resource` for Resource Assignments and `idx_activity_related(related_entity_type, related_entity_id, timestamp)` for shared-ledger correlation. Existing Task Project, TimeEntry assignment, Activity entity, tenant/org timestamp, and workspace indexes support joins and scope. Forward Alembic revision `c817a91e5f24` owns the new columns/indexes; the old baseline no longer duplicates them. PostgreSQL EXPLAIN was unavailable in this SQLite development run.
+Existing `idx_project_resource_resource` supports Resource Projects. The fresh baseline includes `idx_task_assignments_resource` for Resource Assignments and `idx_activity_related(related_entity_type, related_entity_id, timestamp)` for shared-ledger correlation. Existing Task Project, TimeEntry assignment, Activity entity, tenant/org timestamp, and workspace indexes support joins and scope. PostgreSQL EXPLAIN was unavailable in this SQLite development run.
 
 ## 26. Projects Performance
 

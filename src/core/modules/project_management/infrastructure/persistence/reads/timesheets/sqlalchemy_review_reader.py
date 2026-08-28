@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from collections import defaultdict
-
-from sqlalchemy import and_, case, exists, func, or_, select
+from sqlalchemy import and_, case, func, or_, select, union
 from sqlalchemy.orm import Session, aliased
 
 from src.core.modules.project_management.contracts.reads.timesheets import (
@@ -69,20 +67,49 @@ class SqlAlchemyTimesheetReviewReader:
             TimeEntryORM.assignment_id,
             TimeEntryORM.work_allocation_id,
         )
-        resource_assignment = aliased(TaskAssignmentORM)
-        entry_matches_resource = or_(
-            and_(
-                TimeEntryORM.employee_id.is_not(None),
-                ResourceORM.employee_id.is_not(None),
-                TimeEntryORM.employee_id == ResourceORM.employee_id,
-            ),
-            exists(
-                select(resource_assignment.id).where(
-                    resource_assignment.id == allocation_id,
-                    resource_assignment.resource_id == TimesheetPeriodORM.resource_id,
+        def build_entry_ownership(*, name: str, resource_ids=None):
+            assignment_owner = aliased(
+                TaskAssignmentORM, name=f"{name}_assignment_owner"
+            )
+            employee_owner = aliased(ResourceORM, name=f"{name}_employee_owner")
+            assignment_stmt = (
+                select(
+                    TimeEntryORM.id.label("entry_id"),
+                    assignment_owner.resource_id.label("resource_id"),
                 )
-            ),
-        )
+                .join(assignment_owner, assignment_owner.id == allocation_id)
+                .where(
+                    TimeEntryORM.tenant_id == tenant_id,
+                    TimeEntryORM.organization_id == organization_id,
+                )
+            )
+            employee_stmt = (
+                select(
+                    TimeEntryORM.id.label("entry_id"),
+                    employee_owner.id.label("resource_id"),
+                )
+                .join(
+                    employee_owner,
+                    and_(
+                        employee_owner.employee_id == TimeEntryORM.employee_id,
+                        employee_owner.tenant_id == tenant_id,
+                        employee_owner.organization_id == organization_id,
+                    ),
+                )
+                .where(
+                    TimeEntryORM.tenant_id == tenant_id,
+                    TimeEntryORM.organization_id == organization_id,
+                    TimeEntryORM.employee_id.is_not(None),
+                )
+            )
+            if resource_ids is not None:
+                assignment_stmt = assignment_stmt.where(
+                    assignment_owner.resource_id.in_(resource_ids)
+                )
+                employee_stmt = employee_stmt.where(employee_owner.id.in_(resource_ids))
+            return union(assignment_stmt, employee_stmt).cte(name)
+
+        entry_ownership = build_entry_ownership(name="review_entry_ownership")
         project_id = case(
             (
                 (func.lower(func.coalesce(TimeEntryORM.scope_type, "")) == "project")
@@ -92,7 +119,7 @@ class SqlAlchemyTimesheetReviewReader:
             else_=TaskORM.project_id,
         )
 
-        def joined(stmt):
+        def joined(stmt, *, ownership=entry_ownership):
             return (
                 stmt.select_from(TimesheetPeriodORM)
                 .join(
@@ -104,13 +131,17 @@ class SqlAlchemyTimesheetReviewReader:
                     ),
                 )
                 .join(
+                    ownership,
+                    ownership.c.resource_id == TimesheetPeriodORM.resource_id,
+                )
+                .join(
                     TimeEntryORM,
                     and_(
+                        TimeEntryORM.id == ownership.c.entry_id,
                         TimeEntryORM.tenant_id == tenant_id,
                         TimeEntryORM.organization_id == organization_id,
                         TimeEntryORM.entry_date >= TimesheetPeriodORM.period_start,
                         TimeEntryORM.entry_date <= TimesheetPeriodORM.period_end,
-                        entry_matches_resource,
                     ),
                 )
                 .outerjoin(
@@ -212,15 +243,88 @@ class SqlAlchemyTimesheetReviewReader:
                 )
             )
 
-        period_ids = (
-            joined(select(TimesheetPeriodORM.id.label("period_id")))
-            .where(*filters)
-            .group_by(TimesheetPeriodORM.id)
-            .subquery()
+        period_sort_expressions = {
+            "resource": (func.lower(ResourceORM.name),),
+            "title": (func.lower(ResourceORM.name),),
+            "period": (TimesheetPeriodORM.period_start, TimesheetPeriodORM.period_end),
+            "status": (TimesheetPeriodORM.status,),
+            "statusLabel": (TimesheetPeriodORM.status,),
+            "submittedAt": (TimesheetPeriodORM.submitted_at,),
+            "metaText": (TimesheetPeriodORM.submitted_at,),
+        }
+        fast_page = (
+            allowed_project_ids is None
+            and not criteria.project_id
+            and not criteria.search_text
+            and criteria.sort.key in period_sort_expressions
         )
-        total = int(self._session.scalar(select(func.count()).select_from(period_ids)) or 0)
-        selected_period_ids = select(period_ids.c.period_id)
+        summary_offset = (page - 1) * page_size
+        if fast_page:
+            scoped_periods = (
+                select(TimesheetPeriodORM.id.label("period_id"))
+                .select_from(TimesheetPeriodORM)
+                .join(
+                    ResourceORM,
+                    and_(
+                        ResourceORM.id == TimesheetPeriodORM.resource_id,
+                        ResourceORM.tenant_id == tenant_id,
+                        ResourceORM.organization_id == organization_id,
+                    ),
+                )
+                .where(
+                    TimesheetPeriodORM.tenant_id == tenant_id,
+                    TimesheetPeriodORM.organization_id == organization_id,
+                    *filters,
+                )
+            )
+            total = int(
+                self._session.scalar(
+                    select(func.count()).select_from(scoped_periods.order_by(None).subquery())
+                )
+                or 0
+            )
+            selected_page = (
+                scoped_periods.order_by(
+                    *stable_order_by(
+                        sort=criteria.sort,
+                        expressions=period_sort_expressions,
+                        default_key="submittedAt",
+                        tie_breakers=(TimesheetPeriodORM.id,),
+                    )
+                )
+                .offset(summary_offset)
+                .limit(page_size)
+                .cte("review_page_periods")
+            )
+            selected_period_ids = select(selected_page.c.period_id)
+            selected_resource_ids = (
+                select(TimesheetPeriodORM.resource_id)
+                .join(
+                    selected_page,
+                    selected_page.c.period_id == TimesheetPeriodORM.id,
+                )
+            )
+            page_entry_ownership = build_entry_ownership(
+                name="review_page_entry_ownership",
+                resource_ids=selected_resource_ids,
+            )
+            summary_offset = 0
+        else:
+            period_ids = (
+                joined(select(TimesheetPeriodORM.id.label("period_id")))
+                .where(*filters)
+                .group_by(TimesheetPeriodORM.id)
+                .subquery()
+            )
+            total = int(self._session.scalar(select(func.count()).select_from(period_ids)) or 0)
+            selected_period_ids = select(period_ids.c.period_id)
 
+        summary_ownership = page_entry_ownership if fast_page else entry_ownership
+        project_ids_aggregate = (
+            func.array_agg(func.distinct(project_id)).filter(project_id.is_not(None))
+            if self._session.get_bind().dialect.name == "postgresql"
+            else func.group_concat(func.distinct(project_id))
+        )
         summary_stmt = joined(
             select(
                 TimesheetPeriodORM.id,
@@ -243,7 +347,9 @@ class SqlAlchemyTimesheetReviewReader:
                 func.count(
                     func.distinct(case((TaskORM.id.is_(None), TimeEntryORM.id)))
                 ).label("generic_entry_count"),
-            )
+                project_ids_aggregate.label("project_ids"),
+            ),
+            ownership=summary_ownership,
         ).where(TimesheetPeriodORM.id.in_(selected_period_ids)).group_by(
             TimesheetPeriodORM.id,
             TimesheetPeriodORM.version,
@@ -279,28 +385,15 @@ class SqlAlchemyTimesheetReviewReader:
                     tie_breakers=(TimesheetPeriodORM.id,),
                 )
             )
-            .offset((page - 1) * page_size)
+            .offset(summary_offset)
             .limit(page_size)
         ).all()
 
-        page_period_ids = tuple(str(row[0]) for row in summary_rows)
-        projects_by_period: dict[str, set[str]] = defaultdict(set)
-        if page_period_ids:
-            project_rows = self._session.execute(
-                joined(
-                    select(
-                        TimesheetPeriodORM.id,
-                        project_id.label("project_id"),
-                    )
-                )
-                .where(
-                    TimesheetPeriodORM.id.in_(page_period_ids),
-                    project_id.is_not(None),
-                )
-                .distinct()
-            ).all()
-            for period_id_value, project_id_value in project_rows:
-                projects_by_period[str(period_id_value)].add(str(project_id_value))
+        def project_ids_from(value) -> tuple[str, ...]:
+            if value is None:
+                return ()
+            values = value if isinstance(value, (list, tuple)) else str(value).split(",")
+            return tuple(sorted({str(item) for item in values if str(item or "").strip()}))
 
         return TimesheetReviewReadPage(
             items=tuple(
@@ -324,7 +417,7 @@ class SqlAlchemyTimesheetReviewReader:
                     project_count=int(row[15] or 0),
                     task_count=int(row[16] or 0),
                     generic_entry_count=int(row[17] or 0),
-                    project_ids=tuple(sorted(projects_by_period[str(row[0])])),
+                    project_ids=project_ids_from(row[18]),
                 )
                 for row in summary_rows
             ),

@@ -121,26 +121,30 @@ def test_inventory_manager_can_create_storerooms_under_shared_sites(services):
 def test_inventory_foundation_rejects_out_of_scope_shared_references(services):
     auth = services["auth_service"]
     organization_service = services["organization_service"]
-    default_org = organization_service.get_active_organization()
+    default_org = services["tenant_context_service"].get_active_organization()
     other_org = organization_service.create_organization(
         organization_code="INV-OPS",
         display_name="Inventory Operations",
         timezone_name="Europe/Berlin",
         base_currency="EUR",
-        is_active=False,
+        is_enabled=False,
     )
 
-    organization_service.set_active_organization(other_org.id)
+    organization_service.enable_organization(other_org.id)
+    services["tenant_context_service"].set_active_organization(other_org.id)
     foreign_site = services["site_service"].create_site(site_code="EXT", name="External Site")
     foreign_party = services["party_service"].create_party(
         party_code="SUP-EXT",
         party_name="External Supply",
         party_type=PartyType.SUPPLIER,
     )
-    organization_service.set_active_organization(default_org.id)
+    organization_service.enable_organization(default_org.id)
+    services["tenant_context_service"].set_active_organization(default_org.id)
 
     auth.register_user("inventory-scope-user", "StrongPass123", role_names=["inventory_manager"])
     login_as(services, "inventory-scope-user", "StrongPass123")
+
+    services["user_session"].set_active_organization_id(default_org.id)
 
     with pytest.raises(NotFoundError, match="Site not found"):
         services["inventory_service"].create_storeroom(

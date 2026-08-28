@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from src.core.platform.api.desktop.support._support import execute_desktop_operation
+from src.core.platform.api.desktop.support._support import (
+    execute_desktop_operation,
+    serialize_organization,
+)
 from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
 from src.core.platform.api.desktop.tenant.tenancy.models.tenant import (
     TenantCreateCommand,
     TenantDto,
@@ -15,7 +19,10 @@ from src.core.platform.application.tenant.tenancy.tenant_context import TenantCo
 
 
 class PlatformTenantDesktopApi:
-    """Desktop-facing adapter for tenant switching and listing accessible tenants."""
+    """Desktop-facing adapter for tenant switching, listing accessible tenants, and (P10C)
+    Organization Switcher session-context operations -- organization availability
+    (enable/disable) and organization-scoped access grants remain on `PlatformRuntimeDesktopApi`
+    and `PlatformAccessDesktopApi` respectively; this class owns session/working-context only."""
 
     def __init__(
         self,
@@ -33,6 +40,28 @@ class PlatformTenantDesktopApi:
             lambda: tuple(
                 self._serialize_tenant(t)
                 for t in self._tenant_admin_service.list_accessible_tenants()
+            )
+        )
+
+    def list_accessible_organizations(self) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
+        return execute_desktop_operation(
+            lambda: tuple(
+                serialize_organization(o)
+                for o in self._tenant_context_service.list_accessible_organizations()
+            )
+        )
+
+    def get_active_organization(self) -> DesktopApiResult[OrganizationDto | None]:
+        return execute_desktop_operation(
+            lambda: serialize_organization(organization)
+            if (organization := self._tenant_context_service.get_active_organization()) is not None
+            else None
+        )
+
+    def switch_to_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+        return execute_desktop_operation(
+            lambda: serialize_organization(
+                self._tenant_context_service.set_active_organization(organization_id)
             )
         )
 

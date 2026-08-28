@@ -10,6 +10,7 @@ Item {
     id: root
 
     property var reportBasis: ({ "title": "", "statusLabel": "", "emptyState": "", "fields": [] })
+    property var reportDefinitions: ({ "items": [] })
 
     implicitHeight: _column.implicitHeight
 
@@ -85,7 +86,12 @@ Item {
             Layout.fillWidth: true
             visible: (root.reportBasis.fields || []).length > 0
             tone: "info"
-            message: "Excel and PDF use the same canonical snapshot, reconciliation controls, version basis, and permission-filtered source projection."
+            message: "Excel and PDF are generated from authoritative Finance reads with reconciliation controls, explicit version basis, and permission-filtered source sections."
+        }
+
+        FinancialsCollectionBlock {
+            Layout.fillWidth: true
+            collection: root.reportDefinitions
         }
     }
 }

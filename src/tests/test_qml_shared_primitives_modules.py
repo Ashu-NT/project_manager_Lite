@@ -56,7 +56,7 @@ def test_qml_project_management_modules_exist() -> None:
         QML_PM_CONTROLLERS / "typeinfo" / "scheduling.fragment",
         QML_PM_CONTROLLERS / "typeinfo" / "tasks.fragment",
     QML_PM_CONTROLLERS / "typeinfo" / "timesheets.fragment",
-    QML_PM_CONTROLLERS / "typeinfo" / "owner_timesheets.fragment",
+    QML_PM_CONTROLLERS / "typeinfo" / "resource_timesheets.fragment",
         QML_PM_CONTROLLERS / "typeinfo" / "dashboard.fragment",
         QML_PM_CONTROLLERS / "typeinfo" / "catalog.fragment",
         UI_QML_ROOT

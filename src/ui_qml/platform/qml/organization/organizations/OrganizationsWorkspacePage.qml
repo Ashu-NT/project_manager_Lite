@@ -37,7 +37,7 @@ AppLayouts.WorkspaceFrame {
     property string selectedRowId: ""
     property bool detailOpen: false
 
-    // RBAC: gates create/edit/set-active buttons -- a client-side UX
+    // RBAC: gates create/edit/enable buttons -- a client-side UX
     // optimization mirroring PlatformNavigation's own destination gate;
     // the backend enforces "settings.manage" independently regardless.
     readonly property bool _canWrite: root.platformCatalog
@@ -131,13 +131,13 @@ AppLayouts.WorkspaceFrame {
                 busy: root.busy
                 editActionLabel: "Edit"
                 showEditAction: root._canWrite
-                secondaryActionLabel: "Set Active"
+                secondaryActionLabel: "Enable"
                 showSecondaryAction: root._canWrite
 
                 onCloseRequested: root.selectedRowId = ""
                 onEditRequested: root.openEdit(root.selectedRowId)
                 onSecondaryActionRequested: {
-                    if (root.workspaceController) root.workspaceController.setActiveOrganization(root.selectedRowId)
+                    if (root.workspaceController) root.workspaceController.enableOrganization(root.selectedRowId)
                 }
             }
         }
@@ -162,9 +162,9 @@ AppLayouts.WorkspaceFrame {
                     onActionRequested: function(actionId) {
                         if (actionId === "edit") {
                             root.openEdit(root.selectedRowId)
-                        } else if (actionId === "set_active") {
+                        } else if (actionId === "enable") {
                             if (root.workspaceController)
-                                root.workspaceController.setActiveOrganization(root.selectedRowId)
+                                root.workspaceController.enableOrganization(root.selectedRowId)
                         } else if (actionId === "refresh") {
                             if (root.workspaceController)
                                 root.workspaceController.refresh()
@@ -182,6 +182,7 @@ AppLayouts.WorkspaceFrame {
         sourceComponent: Component {
             AdminDialogs.AdminDialogHost {
                 workspaceController: root.workspaceController
+                platformCatalog: root.platformCatalog
             }
         }
     }

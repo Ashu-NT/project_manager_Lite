@@ -9,6 +9,17 @@ from sqlalchemy import select
 from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import AuditEntryORM
+from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
+    SqlAlchemyAuditRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
+    SqlAlchemyAuthSessionRepository,
+    SqlAlchemyRoleBindingRepository,
+    SqlAlchemyRoleRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import (
+    SqlAlchemyUserTenantMembershipRepository,
+)
 from src.core.platform.domain.tenant.tenancy import (
     MEMBERSHIP_STATUS_ACTIVE,
     MEMBERSHIP_STATUS_INVITED,
@@ -18,6 +29,27 @@ from src.core.platform.domain.tenant.tenancy import (
 
 
 _PASSWORD = "StrongPass123!"
+
+
+# P5D-1: `TenantMembershipService` no longer stores individual repository attributes (it holds
+# only a `TenantMembershipUnitOfWorkFactory`, per the canonical-transaction-ownership cutover) --
+# mirrors the established post-cutover test pattern from `test_role_governance_unit_of_work_
+# cutover.py`/`test_role_binding_events.py`: read persisted state back via a fresh repository
+# bound to the shared test session, never via a service-internal attribute.
+def _membership_repo(services):
+    return SqlAlchemyUserTenantMembershipRepository(services["session"])
+
+
+def _role_repo(services):
+    return SqlAlchemyRoleRepository(services["session"])
+
+
+def _role_binding_repo(services):
+    return SqlAlchemyRoleBindingRepository(services["session"])
+
+
+def _auth_session_repo(services):
+    return SqlAlchemyAuthSessionRepository(services["session"])
 
 
 def _register_user(services, username: str):
@@ -64,7 +96,7 @@ def test_invitation_acceptance_is_self_scoped_atomic_and_one_time(
         expires_at=datetime.now(timezone.utc) + timedelta(days=2),
     )
 
-    stored = membership_service._membership_repo.get(target.id, tenant_id)
+    stored = _membership_repo(services).get(target.id, tenant_id)
     assert stored is not None
     assert stored.status == MEMBERSHIP_STATUS_INVITED
     assert stored.invitation_token_hash != issued.token
@@ -77,14 +109,14 @@ def test_invitation_acceptance_is_self_scoped_atomic_and_one_time(
 
     assert accepted.status == MEMBERSHIP_STATUS_ACTIVE
     assert accepted.invitation_token_hash is None
-    assert membership_service._membership_repo.is_active_member(
+    assert _membership_repo(services).is_active_member(
         target.id,
         tenant_id,
     )
-    viewer = membership_service._role_repo.get_by_name("viewer")
+    viewer = _role_repo(services).get_by_name("viewer")
     assert viewer is not None
     active_bindings = (
-        membership_service._role_binding_repo.list_active_for_principal(
+        _role_binding_repo(services).list_active_for_principal(
             target.id,
             tenant_id=tenant_id,
         )
@@ -116,7 +148,7 @@ def test_invitation_cannot_be_accepted_by_another_authenticated_user(
         membership_service.accept_invitation(issued.token)
 
     assert mismatch_error.value.code == "TENANT_INVITATION_TARGET_MISMATCH"
-    stored = membership_service._membership_repo.get(
+    stored = _membership_repo(services).get(
         target.id,
         issued.membership.tenant_id,
     )
@@ -164,7 +196,7 @@ def test_membership_administration_invalidates_only_affected_sessions(
     authenticated = _set_user_principal(services, target.username)
     accepted = membership_service.accept_invitation(issued.token)
     tenant_context.set_active_tenant(tenant_id)
-    target_sessions = membership_service._auth_session_repo.list_by_user(
+    target_sessions = _auth_session_repo(services).list_by_user(
         authenticated.id
     )
     assert any(
@@ -178,7 +210,7 @@ def test_membership_administration_invalidates_only_affected_sessions(
     assert suspended.status == MEMBERSHIP_STATUS_SUSPENDED
     assert all(
         auth_session.revoked_at is not None
-        for auth_session in membership_service._auth_session_repo.list_by_user(
+        for auth_session in _auth_session_repo(services).list_by_user(
             target.id
         )
         if auth_session.last_active_tenant_id == tenant_id
@@ -189,7 +221,7 @@ def test_membership_administration_invalidates_only_affected_sessions(
     removed = membership_service.remove_member(target.id)
     assert removed.status == MEMBERSHIP_STATUS_REMOVED
     assert (
-        membership_service._role_binding_repo.list_active_for_principal(
+        _role_binding_repo(services).list_active_for_principal(
             target.id,
             tenant_id=tenant_id,
         )
@@ -218,7 +250,7 @@ def test_membership_mutation_rolls_back_when_durable_audit_write_fails(
         raise RuntimeError("audit unavailable")
 
     monkeypatch.setattr(
-        membership_service._audit_repo,
+        SqlAlchemyAuditRepository,
         "add_for_tenant",
         fail_audit,
     )
@@ -228,7 +260,7 @@ def test_membership_mutation_rolls_back_when_durable_audit_write_fails(
             expires_at=datetime.now(timezone.utc) + timedelta(days=1),
         )
 
-    assert membership_service._membership_repo.get(target.id, tenant_id) is None
+    assert _membership_repo(services).get(target.id, tenant_id) is None
 
 
 def test_acceptance_rolls_back_membership_and_binding_when_audit_fails(
@@ -250,19 +282,19 @@ def test_acceptance_rolls_back_membership_and_binding_when_audit_fails(
         raise RuntimeError("audit unavailable")
 
     monkeypatch.setattr(
-        membership_service._audit_repo,
+        SqlAlchemyAuditRepository,
         "add_for_tenant",
         fail_audit,
     )
     with pytest.raises(RuntimeError, match="audit unavailable"):
         membership_service.accept_invitation(issued.token)
 
-    stored = membership_service._membership_repo.get(target.id, tenant_id)
+    stored = _membership_repo(services).get(target.id, tenant_id)
     assert stored is not None
     assert stored.status == MEMBERSHIP_STATUS_INVITED
     assert stored.invitation_token_hash is not None
     assert (
-        membership_service._role_binding_repo.list_active_for_principal(
+        _role_binding_repo(services).list_active_for_principal(
             target.id,
             tenant_id=tenant_id,
         )
@@ -317,7 +349,7 @@ def test_invitation_rejects_an_existing_canonical_tenant_member(
         )
 
     assert membership_error.value.code == "TENANT_MEMBERSHIP_ALREADY_ACTIVE"
-    assert membership_service._membership_repo.is_active_member(
+    assert _membership_repo(services).is_active_member(
         target.id,
         tenant_id,
     )
@@ -413,7 +445,7 @@ def test_accept_invitation_for_tenant_requires_no_token(services) -> None:
     accepted = membership_service.accept_invitation_for_tenant(tenant_id)
 
     assert accepted.status == MEMBERSHIP_STATUS_ACTIVE
-    assert membership_service._membership_repo.is_active_member(target.id, tenant_id)
+    assert _membership_repo(services).is_active_member(target.id, tenant_id)
     assert membership_service.list_my_pending_invitations() == []
 
 
@@ -484,7 +516,7 @@ def test_last_effective_tenant_administrator_cannot_be_suspended(
         membership_service.suspend_member(target.id)
 
     assert last_admin_error.value.code == "TENANT_LAST_ADMIN_REQUIRED"
-    assert membership_service._membership_repo.is_active_member(
+    assert _membership_repo(services).is_active_member(
         target.id,
         tenant_id,
     )

@@ -9,6 +9,7 @@ Item {
     id: root
 
     property var baselineVarianceModel: []
+    property var varianceMetrics: ({ "items": [] })
     property var baselineVersions: ({ "items": [] })
     property var varianceBasis: ({ "fields": [] })
     property string selectedBaselineId: ""
@@ -22,6 +23,11 @@ Item {
         spacing: 0
 
         AppWidgets.SectionHeading { width: parent.width; label: "Variance" }
+
+        FinancialsCollectionBlock {
+            width: parent.width
+            collection: root.varianceMetrics
+        }
 
         Item {
             width: parent.width

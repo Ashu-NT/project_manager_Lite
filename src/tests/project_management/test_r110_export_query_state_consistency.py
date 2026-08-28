@@ -230,3 +230,7 @@ def test_finance_actual_and_commitment_queries_return_normalized_offset() -> Non
     assert commitments.calls == [500, 2]
     assert actual_page.offset == 2
     assert commitment_page.offset == 2
+
+
+def test_valid_non_page_boundary_offset_is_preserved() -> None:
+    assert normalize_offset_for_total(offset=10, limit=20, total=50) == 10

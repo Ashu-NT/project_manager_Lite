@@ -26,6 +26,35 @@ from .storeroom_mapper import to_storeroom_record_view_model
 from .transaction_mapper import to_transaction_record_view_model
 
 
+def build_site_reference_options(desktop_api):
+    all_sites = desktop_api.list_sites(active_only=None)
+    site_options = (
+        InventorySelectorOptionViewModel(value="all", label="All sites"),
+        *(
+            InventorySelectorOptionViewModel(value=option.value, label=option.label)
+            for option in all_sites
+        ),
+    )
+    storeroom_options = (
+        InventorySelectorOptionViewModel(value="all", label="All storerooms"),
+        *(
+            InventorySelectorOptionViewModel(value=option.value, label=option.label)
+            for option in desktop_api.list_storeroom_options(active_only=None)
+        ),
+    )
+    return site_options, storeroom_options
+
+
+def build_party_reference_options(desktop_api):
+    return (
+        InventorySelectorOptionViewModel(value="", label="No manager party"),
+        *(
+            InventorySelectorOptionViewModel(value=option.value, label=option.label)
+            for option in desktop_api.list_business_parties(active_only=None)
+        ),
+    )
+
+
 def build_workspace_state(
     desktop_api,
     *,
@@ -38,19 +67,12 @@ def build_workspace_state(
     selected_storeroom_id: str | None = None,
     selected_balance_id: str | None = None,
 ) -> InventoryInventoryWorkspaceViewModel:
-    all_sites = desktop_api.list_sites(active_only=None)
     all_storerooms = desktop_api.list_storerooms(active_only=None)
     all_items = desktop_api.list_items(active_only=None)
     all_balances = desktop_api.list_balances()
     all_transactions = desktop_api.list_transactions(limit=200)
 
-    site_options = (
-        InventorySelectorOptionViewModel(value="all", label="All sites"),
-        *(
-            InventorySelectorOptionViewModel(value=option.value, label=option.label)
-            for option in all_sites
-        ),
-    )
+    site_options, storeroom_options = build_site_reference_options(desktop_api)
     active_options = (
         InventorySelectorOptionViewModel(value="all", label="All storerooms"),
         InventorySelectorOptionViewModel(value="active", label="Active only"),
@@ -67,13 +89,6 @@ def build_workspace_state(
             for option in desktop_api.list_transaction_types()
         ),
     )
-    storeroom_options = (
-        InventorySelectorOptionViewModel(value="all", label="All storerooms"),
-        *(
-            InventorySelectorOptionViewModel(value=option.value, label=option.label)
-            for option in desktop_api.list_storeroom_options(active_only=None)
-        ),
-    )
     item_options = (
         InventorySelectorOptionViewModel(value="all", label="All items"),
         *(
@@ -81,13 +96,7 @@ def build_workspace_state(
             for option in all_items
         ),
     )
-    manager_party_options = (
-        InventorySelectorOptionViewModel(value="", label="No manager party"),
-        *(
-            InventorySelectorOptionViewModel(value=option.value, label=option.label)
-            for option in desktop_api.list_business_parties(active_only=None)
-        ),
-    )
+    manager_party_options = build_party_reference_options(desktop_api)
 
     normalized_search = (search_text or "").strip()
     normalized_site_filter = normalize_filter(site_filter, site_options)

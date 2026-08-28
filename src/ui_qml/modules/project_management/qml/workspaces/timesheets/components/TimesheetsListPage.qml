@@ -21,7 +21,9 @@ Item {
     signal filterClicked()
     signal refreshRequested()
 
-    anchors.fill: parent
+    function restoreTableFocus() {
+        reviewTable.forceActiveFocus()
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -95,6 +97,7 @@ Item {
 
             AppWidgets.DataTable {
                 id: reviewTable
+                objectName: "reviewQueueTable"
                 anchors.top: parent.top
                 anchors.left: parent.left
                 anchors.right: parent.right

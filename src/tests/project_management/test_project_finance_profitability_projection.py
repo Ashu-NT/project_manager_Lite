@@ -27,7 +27,7 @@ def _setup_billable_project(
     billing_method: BillingMethod = BillingMethod.FIXED_PRICE,
     create_period: bool = True,
 ):
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         name, financial_currency_code=organization.base_currency
     )
@@ -256,7 +256,7 @@ def test_finance_read_profitability_allows_margin_detail(services) -> None:
 
 
 def test_no_billing_profile_returns_empty_projection_without_error(services) -> None:
-    organization = services["organization_service"].get_active_organization()
+    organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         "No Billing Profile", financial_currency_code=organization.base_currency
     )

@@ -33,14 +33,8 @@ def _reload_availability_if_loaded(controller) -> None:
 
 
 def bind_resource_domain_events(controller) -> None:
-    controller._subscribe_domain_change("resource", scope_code="project_management")
-    controller._subscribe_domain_change(
-        "working_calendar",
-        scope_code="platform",
-        category="shared_master",
-    )
     controller._subscribe_domain_signal(
-        domain_events.employees_changed,
+        domain_events.resources_changed,
         lambda _payload: controller._request_domain_refresh(),
     )
     controller._subscribe_domain_signal(
