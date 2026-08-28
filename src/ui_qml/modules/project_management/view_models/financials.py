@@ -68,27 +68,6 @@ class FinancialsCollectionViewModel:
     total: int = 0
 
 @dataclass(frozen=True)
-class FinancialsForecastMetricViewModel:
-    label: str
-    value: str
-    color_hint: str = ""  # "success", "warning", "danger", or ""
-
-@dataclass(frozen=True)
-class FinancialsForecastViewModel:
-    basis_label: str = ""
-    budget_label: str = ""
-    actual_label: str = ""
-    etc_label: str = ""
-    eac_label: str = ""
-    vac_label: str = ""
-    is_over_budget: bool = False
-    has_approved_forecast: bool = False
-    forecast_revision: int | None = None
-    forecast_as_of_label: str = ""
-    alert_message: str = ""
-    metrics: tuple[FinancialsForecastMetricViewModel, ...] = field(default_factory=tuple)
-
-@dataclass(frozen=True)
 class FinancialsCommitmentSummaryViewModel:
     approved_budget_label: str = ""
     posted_actual_label: str = ""
@@ -115,13 +94,16 @@ class FinancialsWorkspaceViewModel:
         default_factory=FinancialsManualActualOptionsViewModel
     )
     selected_project_id: str = ""
-    cashflow: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    cost_phasing: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    cost_phasing_basis: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
+    evm_basis: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
+    evm_metrics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    variance_metrics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    report_definitions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     ledger: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     activity: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     actual_sort_key: str = "metaText"
     actual_sort_direction: str = "desc"
-    source_analytics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
-    cost_type_analytics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     forecast: FinancialsForecastViewModel = field(default_factory=FinancialsForecastViewModel)
     selected_forecast_id: str = ""
     selected_forecast: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
@@ -217,7 +199,6 @@ class FinancialsWorkspaceViewModel:
     commercial_projection: FinancialsDetailViewModel = field(
         default_factory=FinancialsDetailViewModel
     )
-    notes: tuple[str, ...] = field(default_factory=tuple)
     empty_state: str = ""
 
 __all__ = [
@@ -226,8 +207,6 @@ __all__ = [
     "FinancialsCommitmentSummaryViewModel",
     "FinancialsDetailFieldViewModel",
     "FinancialsDetailViewModel",
-    "FinancialsForecastMetricViewModel",
-    "FinancialsForecastViewModel",
     "FinancialsMetricViewModel",
     "FinancialsManualActualOptionsViewModel",
     "FinancialsOverviewViewModel",

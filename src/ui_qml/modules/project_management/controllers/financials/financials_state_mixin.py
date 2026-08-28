@@ -39,11 +39,36 @@ class FinancialsStateMixin:
         self._selected_project_id = selected_project_id
         self.selectedProjectIdChanged.emit()
 
-    def _set_cashflow(self, cashflow: FinancialsMap) -> None:
-        if cashflow == self._cashflow:
+    def _set_cost_phasing(self, cost_phasing: FinancialsMap) -> None:
+        if cost_phasing == self._cost_phasing:
             return
-        self._cashflow = cashflow
-        self.cashflowChanged.emit()
+        self._cost_phasing = cost_phasing
+        self.costPhasingChanged.emit()
+
+    def _set_cost_phasing_basis(self, value: FinancialsMap) -> None:
+        if value != self._cost_phasing_basis:
+            self._cost_phasing_basis = value
+            self.costPhasingBasisChanged.emit()
+
+    def _set_evm_basis(self, value: FinancialsMap) -> None:
+        if value != self._evm_basis:
+            self._evm_basis = value
+            self.evmBasisChanged.emit()
+
+    def _set_evm_metrics(self, value: FinancialsMap) -> None:
+        if value != self._evm_metrics:
+            self._evm_metrics = value
+            self.evmMetricsChanged.emit()
+
+    def _set_variance_metrics(self, value: FinancialsMap) -> None:
+        if value != self._variance_metrics:
+            self._variance_metrics = value
+            self.varianceMetricsChanged.emit()
+
+    def _set_report_definitions(self, value: FinancialsMap) -> None:
+        if value != self._report_definitions:
+            self._report_definitions = value
+            self.reportDefinitionsChanged.emit()
 
     def _set_ledger(self, ledger: FinancialsMap) -> None:
         if ledger == self._ledger:
@@ -68,30 +93,6 @@ class FinancialsStateMixin:
         if normalized_direction != self._actual_sort_direction:
             self._actual_sort_direction = normalized_direction
             self.actualSortDirectionChanged.emit()
-
-    def _set_source_analytics(self, source_analytics: FinancialsMap) -> None:
-        if source_analytics == self._source_analytics:
-            return
-        self._source_analytics = source_analytics
-        self.sourceAnalyticsChanged.emit()
-
-    def _set_cost_type_analytics(self, cost_type_analytics: FinancialsMap) -> None:
-        if cost_type_analytics == self._cost_type_analytics:
-            return
-        self._cost_type_analytics = cost_type_analytics
-        self.costTypeAnalyticsChanged.emit()
-
-    def _set_notes(self, notes: list[str]) -> None:
-        if notes == self._notes:
-            return
-        self._notes = notes
-        self.notesChanged.emit()
-
-    def _set_forecast(self, forecast: FinancialsMap) -> None:
-        if forecast == self._forecast:
-            return
-        self._forecast = forecast
-        self.forecastChanged.emit()
 
     def _set_selected_forecast_id(self, value: str) -> None:
         if value != self._selected_forecast_id:

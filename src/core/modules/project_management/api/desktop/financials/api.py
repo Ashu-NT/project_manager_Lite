@@ -5,14 +5,13 @@ from datetime import date
 
 from src.core.modules.project_management.application.financials import (
     FinancialConfigurationService,
-    FinancialChangeService,
     FinanceService,
-    ForecastVersionService,
     ProjectCommitmentService,
     ProjectBillingPreparationService,
     ProjectBillingProfileService,
     ProjectCostEntryService,
     ProjectFinanceWorkspaceQuery,
+    ProjectFinancePerformanceQuery,
 )
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.contracts.reads.financials.sorting import (
@@ -41,9 +40,7 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
 )
 from src.core.modules.project_management.contracts.reads.pagination import (
     normalize_offset_for_total,
-    normalize_page_for_total,
 )
-from src.core.modules.project_management.application.scheduling.baselines.baseline_service import BaselineService
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.infrastructure.reporting.api import (
@@ -55,24 +52,13 @@ from src.core.modules.project_management.api.desktop.financials.models.commitmen
     FinancialCommitmentLinePageDto,
     FinancialCommitmentSummaryDto,
 )
-from src.core.modules.project_management.api.desktop.financials.models.forecasts import (
-    FinancialForecastDto,
-    FinancialForecastWorkspaceDto,
-)
-from src.core.modules.project_management.api.desktop.financials.models.lifecycle import (
-    FinancialBaselineVarianceDto,
-    FinancialChangeDto,
-    FinancialChangeImpactDto,
-    FinancialForecastLineDto,
-    FinancialForecastVersionDto,
-)
+from src.core.modules.project_management.api.desktop.financials.models.forecasts import FinancialForecastWorkspaceDto
 from src.core.modules.project_management.api.desktop.financials.models.options import (
     FinancialProjectOptionDescriptor,
     FinancialTaskOptionDescriptor,
 )
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
     FinancialOverviewDto,
-    FinancialSnapshotDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.configuration import (
     FinancialConfigurationWorkspaceDto,
@@ -91,8 +77,13 @@ from src.core.modules.project_management.api.desktop.financials.models.billing i
     FinancialBillingPreparationLineDto,
     FinancialBillingProfileDto,
     FinancialBillingScheduleLineDto,
-    FinancialBillingWorkspaceDto,
     FinancialCommercialProjectionDto,
+)
+from src.core.modules.project_management.api.desktop.financials.models.performance import (
+    FinancialCostPhasingDto,
+    FinancialEvmDto,
+    FinancialReportsDto,
+    FinancialVarianceWorkspaceDto,
 )
 from src.core.modules.project_management.api.desktop.financials.commands.cost_entries import (
     FinancialCreateManualActualCommand,
@@ -127,30 +118,16 @@ from src.core.modules.project_management.api.desktop.financials.builders.option_
     build_project_options,
     build_task_options,
 )
-from src.core.modules.project_management.api.desktop.financials.builders.forecast_builder import (
-    build_forecast_dto,
-)
 from src.core.modules.project_management.api.desktop.financials.builders.commitment_builder import (
     build_commitment_line_dto,
     build_commitment_summary_dto,
-)
-from src.core.modules.project_management.api.desktop.financials.builders.baseline_variance_builder import (
-    build_baseline_variance_workspace,
-)
-from src.core.modules.project_management.api.desktop.financials.serializers.lifecycle_serializer import (
-    serialize_financial_change,
-    serialize_financial_change_impact,
-    serialize_forecast_line,
-    serialize_forecast_version,
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.cost_entry_serializer import (
     serialize_cost_entry,
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.snapshot_serializer import (
     empty_overview,
-    empty_snapshot,
     serialize_overview,
-    serialize_snapshot,
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.configuration_serializer import (
     serialize_finance_budget_workspace,
@@ -176,6 +153,12 @@ from src.core.modules.project_management.api.desktop.financials.serializers.bill
     serialize_billing_schedule_line,
     serialize_commercial_projection,
 )
+from src.core.modules.project_management.api.desktop.financials.serializers.performance_serializer import (
+    serialize_cost_phasing,
+    serialize_performance_evm,
+    serialize_performance_reports,
+    serialize_performance_variance,
+)
 
 
 class ProjectManagementFinancialsDesktopApi:
@@ -185,13 +168,11 @@ class ProjectManagementFinancialsDesktopApi:
         project_service: ProjectService | None = None,
         task_service: TaskService | None = None,
         finance_service: FinanceService | None = None,
-        baseline_service: BaselineService | None = None,
         finance_workspace_query: ProjectFinanceWorkspaceQuery | None = None,
+        finance_performance_query: ProjectFinancePerformanceQuery | None = None,
         financial_configuration_service: FinancialConfigurationService | None = None,
         cost_entry_service: ProjectCostEntryService | None = None,
         commitment_service: ProjectCommitmentService | None = None,
-        forecast_version_service: ForecastVersionService | None = None,
-        financial_change_service: FinancialChangeService | None = None,
         billing_profile_service: ProjectBillingProfileService | None = None,
         billing_preparation_service: ProjectBillingPreparationService | None = None,
         reporting_service: ReportingService | None = None,
@@ -199,13 +180,11 @@ class ProjectManagementFinancialsDesktopApi:
         self._project_service = project_service
         self._task_service = task_service
         self._finance_service = finance_service
-        self._baseline_service = baseline_service
         self._finance_workspace_query = finance_workspace_query
+        self._finance_performance_query = finance_performance_query
         self._financial_configuration_service = financial_configuration_service
         self._cost_entry_service = cost_entry_service
         self._commitment_service = commitment_service
-        self._forecast_version_service = forecast_version_service
-        self._financial_change_service = financial_change_service
         self._billing_profile_service = billing_profile_service
         self._billing_preparation_service = billing_preparation_service
         self._reporting_service = reporting_service
@@ -406,33 +385,12 @@ class ProjectManagementFinancialsDesktopApi:
             )
         )
 
-    def get_finance_snapshot(self, project_id: str) -> FinancialSnapshotDto:
-        if not project_id:
-            return empty_snapshot(project_id="")
-        if self._finance_service is None:
-            return empty_snapshot(
-                project_id=project_id,
-                notes=("Project management financials desktop API is not connected.",),
-            )
-        return serialize_snapshot(project_id, self._finance_service.get_finance_snapshot(project_id))
-
     def get_finance_overview(self, project_id: str) -> FinancialOverviewDto:
         if not project_id or self._finance_service is None:
             return empty_overview(project_id=project_id)
         return serialize_overview(
             project_id,
             self._finance_service.get_finance_overview(project_id),
-        )
-
-    def get_cost_forecast(
-        self,
-        project_id: str,
-    ) -> FinancialForecastDto:
-        currency = self._project_currency(project_id)
-        return build_forecast_dto(
-            project_id,
-            snapshot=self._require_finance_service().get_finance_snapshot(project_id),
-            currency=currency,
         )
 
     def get_commitment_summary(self, project_id: str) -> FinancialCommitmentSummaryDto:
@@ -486,16 +444,6 @@ class ProjectManagementFinancialsDesktopApi:
             limit=limit,
             sort_key=sort.key,
             sort_direction=sort.direction.value,
-        )
-
-    def list_forecast_versions(
-        self, project_id: str
-    ) -> tuple[FinancialForecastVersionDto, ...]:
-        if not project_id or self._forecast_version_service is None:
-            return ()
-        return tuple(
-            serialize_forecast_version(item)
-            for item in self._forecast_version_service.list_forecasts(project_id)
         )
 
     def get_forecast_workspace(
@@ -743,49 +691,76 @@ class ProjectManagementFinancialsDesktopApi:
             impact_applied_state=impact_applied_state,
         )
 
-    def list_forecast_lines(
-        self, project_id: str, forecast_id: str
-    ) -> tuple[FinancialForecastLineDto, ...]:
-        if not project_id or not forecast_id or self._forecast_version_service is None:
-            return ()
-        versions = self._forecast_version_service.list_forecasts(project_id)
-        if not any(item.id == forecast_id for item in versions):
-            return ()
-        return tuple(
-            serialize_forecast_line(item)
-            for item in self._forecast_version_service.list_lines(forecast_id)
+    def get_performance_evm(
+        self,
+        project_id: str,
+        *,
+        as_of_date: date | None = None,
+        baseline_id: str | None = None,
+    ) -> FinancialEvmDto:
+        if not project_id or self._finance_performance_query is None:
+            return FinancialEvmDto()
+        return serialize_performance_evm(
+            self._finance_performance_query.get_evm(
+                project_id,
+                as_of_date=as_of_date,
+                baseline_id=baseline_id,
+            )
         )
 
-    def list_financial_changes(
-        self, project_id: str
-    ) -> tuple[FinancialChangeDto, ...]:
-        if not project_id or self._financial_change_service is None:
-            return ()
-        return tuple(
-            serialize_financial_change(item)
-            for item in self._financial_change_service.list_changes(project_id)
+    def get_performance_variance(
+        self,
+        project_id: str,
+        *,
+        as_of_date: date | None = None,
+        selected_baseline_id: str | None = None,
+    ) -> FinancialVarianceWorkspaceDto:
+        if not project_id or self._finance_performance_query is None:
+            return FinancialVarianceWorkspaceDto()
+        return serialize_performance_variance(
+            self._finance_performance_query.get_variance(
+                project_id,
+                as_of_date=as_of_date,
+                selected_baseline_id=selected_baseline_id,
+            )
         )
 
-    def list_financial_change_impacts(
-        self, project_id: str, change_id: str
-    ) -> tuple[FinancialChangeImpactDto, ...]:
-        if not project_id or not change_id or self._financial_change_service is None:
-            return ()
-        changes = self._financial_change_service.list_changes(project_id)
-        if not any(item.id == change_id for item in changes):
-            return ()
-        return tuple(
-            serialize_financial_change_impact(item)
-            for item in self._financial_change_service.list_impacts(change_id)
+    def get_cost_phasing(
+        self,
+        project_id: str,
+        *,
+        date_from: date,
+        date_to: date,
+        granularity: str = "month",
+    ) -> FinancialCostPhasingDto:
+        if not project_id or self._finance_performance_query is None:
+            return FinancialCostPhasingDto(
+                date_from=date_from,
+                date_to=date_to,
+                granularity=granularity,
+            )
+        return serialize_cost_phasing(
+            self._finance_performance_query.get_cost_phasing(
+                project_id,
+                date_from=date_from,
+                date_to=date_to,
+                granularity=granularity,
+            )
         )
 
-    def get_baseline_variance(
-        self, project_id: str, baseline_id: str | None = None
-    ) -> FinancialBaselineVarianceDto:
-        return build_baseline_variance_workspace(
-            project_id,
-            selected_baseline_id=baseline_id,
-            baseline_service=self._baseline_service,
+    def get_performance_reports(
+        self,
+        project_id: str,
+        *,
+        as_of_date: date | None = None,
+    ) -> FinancialReportsDto:
+        if not project_id or self._finance_performance_query is None:
+            return FinancialReportsDto()
+        return serialize_performance_reports(
+            self._finance_performance_query.get_reports(
+                project_id,
+                as_of_date=as_of_date,
+            )
         )
 
     def export_financial_report(
@@ -923,111 +898,6 @@ class ProjectManagementFinancialsDesktopApi:
                     search=search,
                 ),
             )
-        )
-
-    def get_planning_workspace(
-        self,
-        project_id: str,
-        *,
-        budget_line_page: int = 1,
-        planned_cost_line_page: int = 1,
-        page_size: int = 50,
-    ) -> FinancialConfigurationWorkspaceDto:
-        return self.get_configuration_workspace(
-            project_id,
-            budget_line_page=budget_line_page,
-            planned_cost_line_page=planned_cost_line_page,
-            page_size=page_size,
-            include_profile_details=False,
-            include_budgets=True,
-            include_rates=False,
-            include_planned_costs=True,
-        )
-
-    def get_costs_workspace(
-        self,
-        project_id: str,
-        *,
-        rate_line_page: int = 1,
-        page_size: int = 50,
-    ) -> FinancialConfigurationWorkspaceDto:
-        return self.get_configuration_workspace(
-            project_id,
-            rate_line_page=rate_line_page,
-            page_size=page_size,
-            include_profile_details=False,
-            include_budgets=False,
-            include_rates=True,
-            include_planned_costs=False,
-        )
-
-    def get_controls_workspace(
-        self,
-        project_id: str,
-    ) -> FinancialConfigurationWorkspaceDto:
-        return self.get_configuration_workspace(
-            project_id,
-            include_profile_details=True,
-            include_budgets=False,
-            include_rates=False,
-            include_planned_costs=False,
-        )
-
-    def get_billing_workspace(
-        self, project_id: str, *, preparation_page: int = 1, page_size: int = 50
-    ) -> FinancialBillingWorkspaceDto:
-        if (
-            not project_id
-            or self._billing_profile_service is None
-            or self._billing_preparation_service is None
-        ):
-            return FinancialBillingWorkspaceDto()
-        profile = self._billing_profile_service.get_profile(project_id)
-        schedule = self._billing_profile_service.list_schedule(project_id) if profile else []
-        page = max(1, int(preparation_page))
-        bounded_size = max(1, min(int(page_size), 200))
-        if profile:
-            preparations, preparation_total = (
-                self._billing_preparation_service.list_preparations(
-                    project_id,
-                    offset=(page - 1) * bounded_size,
-                    limit=bounded_size,
-                )
-            )
-            normalized_page = normalize_page_for_total(
-                page=page,
-                page_size=bounded_size,
-                total=preparation_total,
-            )
-            if normalized_page != page:
-                page = normalized_page
-                preparations, preparation_total = (
-                    self._billing_preparation_service.list_preparations(
-                        project_id,
-                        offset=(page - 1) * bounded_size,
-                        limit=bounded_size,
-                    )
-                )
-            latest_events = self._billing_preparation_service.list_latest_external_events(
-                project_id, tuple(item.id for item in preparations)
-            )
-        else:
-            preparations, preparation_total, latest_events = [], 0, {}
-        preparation_rows = [
-            serialize_billing_preparation(
-                preparation, latest_external_event=latest_events.get(preparation.id)
-            )
-            for preparation in preparations
-        ]
-        return FinancialBillingWorkspaceDto(
-            profile=serialize_billing_profile(profile),
-            schedule_lines=tuple(
-                serialize_billing_schedule_line(line) for line in schedule
-            ),
-            preparations=tuple(preparation_rows),
-            preparation_page=page,
-            preparation_page_size=bounded_size,
-            preparation_total=preparation_total,
         )
 
     def create_billing_profile(

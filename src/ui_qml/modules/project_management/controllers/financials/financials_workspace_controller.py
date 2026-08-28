@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import calendar
+from datetime import date
 from uuid import uuid4
 
 from PySide6.QtCore import Property, QObject, Qt, Signal, Slot
@@ -17,7 +19,6 @@ from src.ui_qml.modules.project_management.controllers.financials.financials_typ
     FinancialsObjectList,
     default_collection,
     default_commitment_summary,
-    default_forecast,
     default_overview,
     default_detail,
 )
@@ -49,15 +50,17 @@ class ProjectManagementFinancialsWorkspaceController(
     taskOptionsChanged = Signal()
     manualActualOptionsChanged = Signal()
     selectedProjectIdChanged = Signal()
-    cashflowChanged = Signal()
+    costPhasingChanged = Signal()
+    costPhasingBasisChanged = Signal()
+    evmBasisChanged = Signal()
+    evmMetricsChanged = Signal()
+    varianceMetricsChanged = Signal()
+    reportDefinitionsChanged = Signal()
+    performanceQueryStateChanged = Signal()
     ledgerChanged = Signal()
     activityChanged = Signal()
     actualSortKeyChanged = Signal()
     actualSortDirectionChanged = Signal()
-    sourceAnalyticsChanged = Signal()
-    costTypeAnalyticsChanged = Signal()
-    notesChanged = Signal()
-    forecastChanged = Signal()
     selectedForecastIdChanged = Signal()
     forecastVersionsChanged = Signal()
     forecastLinesChanged = Signal()
@@ -144,16 +147,22 @@ class ProjectManagementFinancialsWorkspaceController(
         }
         self._selected_project_id = ""
         self._ledger_table_model = DynamicTableModel(self)
-        self._cashflow = default_collection()
+        self._cost_phasing = default_collection()
+        self._cost_phasing_basis = default_detail()
+        self._evm_basis = default_detail()
+        self._evm_metrics = default_collection()
+        self._variance_metrics = default_collection()
+        self._report_definitions = default_collection()
+        today = date.today()
+        self._performance_as_of_date = today
+        self._cost_phasing_date_from = date(today.year - 1, today.month, 1)
+        self._cost_phasing_date_to = today
+        self._cost_phasing_granularity = "month"
         self._ledger = default_collection()
         self._activity = default_collection()
         self._actual_page = 1
         self._actual_sort_key = "metaText"
         self._actual_sort_direction = Qt.DescendingOrder.value
-        self._source_analytics = default_collection()
-        self._cost_type_analytics = default_collection()
-        self._notes: list[str] = []
-        self._forecast = default_forecast()
         self._selected_forecast_id = ""
         self._selected_forecast = default_detail()
         self._forecast_versions = default_collection()
@@ -309,8 +318,35 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property(str, notify=activeSubsectionChanged)
     def activeSubsection(self) -> str: return self._active_subsection
 
-    @Property("QVariantMap", notify=cashflowChanged)
-    def cashflow(self) -> FinancialsMap: return self._cashflow
+    @Property("QVariantMap", notify=costPhasingChanged)
+    def costPhasing(self) -> FinancialsMap: return self._cost_phasing
+
+    @Property("QVariantMap", notify=costPhasingBasisChanged)
+    def costPhasingBasis(self) -> FinancialsMap: return self._cost_phasing_basis
+
+    @Property("QVariantMap", notify=evmBasisChanged)
+    def evmBasis(self) -> FinancialsMap: return self._evm_basis
+
+    @Property("QVariantMap", notify=evmMetricsChanged)
+    def evmMetrics(self) -> FinancialsMap: return self._evm_metrics
+
+    @Property("QVariantMap", notify=varianceMetricsChanged)
+    def varianceMetrics(self) -> FinancialsMap: return self._variance_metrics
+
+    @Property("QVariantMap", notify=reportDefinitionsChanged)
+    def reportDefinitions(self) -> FinancialsMap: return self._report_definitions
+
+    @Property(str, notify=performanceQueryStateChanged)
+    def performanceAsOfDate(self) -> str: return self._performance_as_of_date.isoformat()
+
+    @Property(str, notify=performanceQueryStateChanged)
+    def costPhasingDateFrom(self) -> str: return self._cost_phasing_date_from.isoformat()
+
+    @Property(str, notify=performanceQueryStateChanged)
+    def costPhasingDateTo(self) -> str: return self._cost_phasing_date_to.isoformat()
+
+    @Property(str, notify=performanceQueryStateChanged)
+    def costPhasingGranularity(self) -> str: return self._cost_phasing_granularity
 
     @Property("QVariantMap", notify=ledgerChanged)
     def ledger(self) -> FinancialsMap: return self._ledger
@@ -326,18 +362,6 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property(int, notify=actualSortDirectionChanged)
     def actualSortDirection(self) -> int: return self._actual_sort_direction
-
-    @Property("QVariantMap", notify=sourceAnalyticsChanged)
-    def sourceAnalytics(self) -> FinancialsMap: return self._source_analytics
-
-    @Property("QVariantMap", notify=costTypeAnalyticsChanged)
-    def costTypeAnalytics(self) -> FinancialsMap: return self._cost_type_analytics
-
-    @Property("QVariantList", notify=notesChanged)
-    def notes(self) -> list[str]: return self._notes
-
-    @Property("QVariantMap", notify=forecastChanged)
-    def forecast(self) -> FinancialsMap: return self._forecast
 
     @Property(str, notify=selectedForecastIdChanged)
     def selectedForecastId(self) -> str: return self._selected_forecast_id
@@ -686,6 +710,44 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str)
     def selectFinanceSubsection(self, subsection: str) -> None:
         self._select_subsection(subsection)
+
+    @Slot(int, str)
+    def setCostPhasingPreset(self, months: int, granularity: str) -> None:
+        requested_months = int(months)
+        if requested_months <= 0:
+            requested_months = max(
+                1,
+                (self._cost_phasing_date_to.year - self._cost_phasing_date_from.year) * 12
+                + self._cost_phasing_date_to.month
+                - self._cost_phasing_date_from.month,
+            )
+        bounded_months = min(requested_months, 36)
+        normalized_granularity = str(granularity or "").strip().lower()
+        if normalized_granularity not in {"month", "quarter"}:
+            self._set_error_message("Cost Phasing granularity must be month or quarter.")
+            return
+        range_to = self._performance_as_of_date
+        index = range_to.year * 12 + range_to.month - bounded_months
+        year, month_index = divmod(index, 12)
+        month = month_index + 1
+        range_from = date(
+            year,
+            month,
+            min(range_to.day, calendar.monthrange(year, month)[1]),
+        )
+        changed = (
+            range_from != self._cost_phasing_date_from
+            or range_to != self._cost_phasing_date_to
+            or normalized_granularity != self._cost_phasing_granularity
+        )
+        if not changed:
+            return
+        self._cost_phasing_date_from = range_from
+        self._cost_phasing_date_to = range_to
+        self._cost_phasing_granularity = normalized_granularity
+        self.performanceQueryStateChanged.emit()
+        if self._active_destination == "performance" and self._active_subsection == "cost_phasing":
+            self.refresh()
 
     @Slot(str, str)
     def exportFinancials(self, report_format: str, output_path: str) -> None:

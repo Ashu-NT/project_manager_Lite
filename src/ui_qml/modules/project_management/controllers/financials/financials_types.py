@@ -23,22 +23,6 @@ def default_detail() -> FinancialsMap:
         "state": {},
     }
 
-def default_forecast() -> FinancialsMap:
-    return {
-        "basisLabel": "",
-        "budgetLabel": "",
-        "actualLabel": "",
-        "etcLabel": "",
-        "eacLabel": "",
-        "vacLabel": "",
-        "isOverBudget": False,
-        "hasApprovedForecast": False,
-        "forecastRevision": None,
-        "forecastAsOfLabel": "",
-        "alertMessage": "",
-        "metrics": [],
-    }
-
 def default_commitment_summary() -> FinancialsMap:
     return {
         "approvedBudgetLabel": "",
@@ -53,7 +37,6 @@ __all__ = [
     "FinancialsObjectList",
     "default_collection",
     "default_commitment_summary",
-    "default_forecast",
     "default_overview",
     "default_detail",
 ]

@@ -21,7 +21,6 @@ from src.ui_qml.modules.project_management.controllers.common.serializers.financ
     serialize_financials_collection_view_model,
     serialize_financials_commitment_summary_view_model,
     serialize_financials_detail_view_model,
-    serialize_financials_forecast_view_model,
     serialize_financials_overview_view_model,
     serialize_financials_record_view_models,
 )
@@ -121,7 +120,6 @@ __all__ = [
     "serialize_financials_collection_view_model",
     "serialize_financials_commitment_summary_view_model",
     "serialize_financials_detail_view_model",
-    "serialize_financials_forecast_view_model",
     "serialize_financials_overview_view_model",
     "serialize_financials_record_view_models",
     "serialize_portfolio_collection_view_model",

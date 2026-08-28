@@ -11,12 +11,18 @@ Item {
 
     property string activeDestination: "overview"
     property string activeSubsection: "summary"
-    property var cashflowModel: ({ "items": [] })
+    property var costPhasingModel: ({ "items": [] })
+    property var costPhasingBasisModel: ({ "fields": [] })
+    property var evmBasisModel: ({ "fields": [] })
+    property var evmMetricsModel: ({ "items": [] })
+    property var varianceMetricsModel: ({ "items": [] })
+    property var reportDefinitionsModel: ({ "items": [] })
+    property string costPhasingDateFrom: ""
+    property string costPhasingDateTo: ""
+    property string costPhasingGranularity: "month"
     property var ledgerModel: ({ "items": [] })
     property var activityModel: ({ "items": [] })
     property var ledgerTableModel: null
-    property var sourceAnalyticsModel: ({ "items": [] })
-    property var costTypeAnalyticsModel: ({ "items": [] })
     property var overviewModel: ({ "title": "", "subtitle": "", "metrics": [] })
     property var forecastVersionsModel: ({ "items": [] })
     property var forecastLinesModel: ({ "items": [] })
@@ -161,6 +167,7 @@ Item {
     signal financialChangeFiltersRequested(string search, string status, string approvalStatus, string appliedState)
     signal financialChangeImpactFiltersRequested(string search, string impactType, string appliedState)
     signal varianceBaselineSelected(string baselineId)
+    signal costPhasingPresetRequested(int months, string granularity)
     signal billingPreparationSelected(string preparationId)
     signal billingSchedulePageRequested(int page)
     signal billingPreparationPageRequested(int page)
@@ -191,6 +198,7 @@ Item {
             { "id": "rates", "label": "Rate Cards" }
         ]
         if (root.activeDestination === "performance") return [
+            { "id": "evm", "label": "EVM" },
             { "id": "variance", "label": "Variance" },
             { "id": "cost_phasing", "label": "Cost Phasing" },
             { "id": "reports", "label": "Reports" }
@@ -224,6 +232,7 @@ Item {
         if (key === "costs:actuals") return actualsComponent
         if (key === "costs:commitments") return commitmentsComponent
         if (key === "costs:rates") return ratesComponent
+        if (key === "performance:evm") return evmComponent
         if (key === "performance:variance") return varianceComponent
         if (key === "performance:cost_phasing") return costPhasingComponent
         if (key === "performance:reports") return reportsComponent
@@ -450,9 +459,19 @@ Item {
     }
 
     Component {
+        id: evmComponent
+        FinancialsEvmSection {
+            width: parent ? parent.width : 0
+            basis: root.evmBasisModel
+            metrics: root.evmMetricsModel
+        }
+    }
+
+    Component {
         id: varianceComponent
         FinancialsVarianceSection {
             width: parent ? parent.width : 0
+            varianceMetrics: root.varianceMetricsModel
             baselineVarianceModel: root.baselineVarianceModel
             baselineVersions: root.baselineVersionsModel
             varianceBasis: root.varianceBasisModel
@@ -467,9 +486,14 @@ Item {
         id: costPhasingComponent
         FinancialsCostPhasingSection {
             width: parent ? parent.width : 0
-            costPhasing: root.cashflowModel
-            sourceAnalytics: root.sourceAnalyticsModel
-            costTypeAnalytics: root.costTypeAnalyticsModel
+            costPhasing: root.costPhasingModel
+            basis: root.costPhasingBasisModel
+            dateFrom: root.costPhasingDateFrom
+            dateTo: root.costPhasingDateTo
+            granularity: root.costPhasingGranularity
+            onPresetRequested: function(months, granularity) {
+                root.costPhasingPresetRequested(months, granularity)
+            }
         }
     }
 
@@ -478,6 +502,7 @@ Item {
         FinancialsReportsSection {
             width: parent ? parent.width : 0
             reportBasis: root.reportBasisModel
+            reportDefinitions: root.reportDefinitionsModel
         }
     }
 

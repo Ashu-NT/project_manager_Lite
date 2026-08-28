@@ -54,6 +54,16 @@ from .finance_billing_facts import (
     BillingScheduleQuery,
     FinanceBillingWorkspaceFacts,
 )
+from .finance_performance_facts import (
+    CostPhasingFacts,
+    CostPhasingPeriodFact,
+    CostPhasingQuery,
+    PerformanceEvmFact,
+    PerformanceReportDefinitionFact,
+    PerformanceReportsFacts,
+    PerformanceVarianceFacts,
+    PerformanceVarianceMetricFact,
+)
 
 __all__ = [
     "CostAggregateFact",
@@ -95,6 +105,14 @@ __all__ = [
     "BillingScheduleFact",
     "BillingScheduleQuery",
     "FinanceBillingWorkspaceFacts",
+    "CostPhasingFacts",
+    "CostPhasingPeriodFact",
+    "CostPhasingQuery",
+    "PerformanceEvmFact",
+    "PerformanceReportDefinitionFact",
+    "PerformanceReportsFacts",
+    "PerformanceVarianceFacts",
+    "PerformanceVarianceMetricFact",
     "ProjectResourceFact",
     "ResourceFact",
     "TaskFact",

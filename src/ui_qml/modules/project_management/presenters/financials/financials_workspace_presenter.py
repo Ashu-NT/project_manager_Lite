@@ -20,7 +20,6 @@ from .command_handler import (
     reverse_actual,
     submit_actual,
 )
-from .workspace_builder import build_workspace_state
 from .destination_builder import build_destination_state, build_shell_state
 
 class ProjectFinancialsWorkspacePresenter:
@@ -48,46 +47,6 @@ class ProjectFinancialsWorkspacePresenter:
             self._desktop_api,
             audit_api=self._audit_api,
             **query,
-        )
-
-    def build_workspace_state(
-        self,
-        *,
-        selected_project_id: str | None = None,
-        budget_line_page: int = 1,
-        rate_line_page: int = 1,
-        planned_cost_line_page: int = 1,
-        billing_preparation_page: int = 1,
-        configuration_page_size: int = 50,
-        actual_page: int = 1,
-        commitment_page: int = 1,
-        transaction_page_size: int = 50,
-        actual_sort_key: str = "metaText",
-        actual_sort_direction: str = "desc",
-        commitment_sort_key: str = "metaText",
-        commitment_sort_direction: str = "desc",
-        selected_forecast_id: str | None = None,
-        selected_change_id: str | None = None,
-        selected_baseline_id: str | None = None,
-    ) -> FinancialsWorkspaceViewModel:
-        return build_workspace_state(
-            self._desktop_api,
-            selected_project_id=selected_project_id,
-            budget_line_page=budget_line_page,
-            rate_line_page=rate_line_page,
-            planned_cost_line_page=planned_cost_line_page,
-            billing_preparation_page=billing_preparation_page,
-            configuration_page_size=configuration_page_size,
-            actual_page=actual_page,
-            commitment_page=commitment_page,
-            transaction_page_size=transaction_page_size,
-            actual_sort_key=actual_sort_key,
-            actual_sort_direction=actual_sort_direction,
-            commitment_sort_key=commitment_sort_key,
-            commitment_sort_direction=commitment_sort_direction,
-            selected_forecast_id=selected_forecast_id,
-            selected_change_id=selected_change_id,
-            selected_baseline_id=selected_baseline_id,
         )
 
     def create_manual_actual(self, payload: dict[str, Any]) -> None:

@@ -77,6 +77,7 @@ from src.core.modules.project_management.application.financials import (
     ProjectBillingProfileService,
     ProjectCostEntryService,
     ProjectFinanceWorkspaceQuery,
+    ProjectFinancePerformanceQuery,
     ProjectRateCardService,
     RateCardResolver,
 )
@@ -189,6 +190,7 @@ class ServiceGraph:
     commitment_service: ProjectCommitmentService
     planned_cost_service: PlannedCostService
     finance_workspace_query: ProjectFinanceWorkspaceQuery
+    finance_performance_query: ProjectFinancePerformanceQuery
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
     scheduling_engine: SchedulingEngine
@@ -280,6 +282,7 @@ class ServiceGraph:
             "commitment_service": self.commitment_service,
             "planned_cost_service": self.planned_cost_service,
             "finance_workspace_query": self.finance_workspace_query,
+            "finance_performance_query": self.finance_performance_query,
             "finance_service": self.finance_service,
             "work_calendar_engine": self.work_calendar_engine,
             "scheduling_engine": self.scheduling_engine,
@@ -454,6 +457,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         commitment_service=project_management_services.commitment_service,
         planned_cost_service=project_management_services.planned_cost_service,
         finance_workspace_query=project_management_services.finance_workspace_query,
+        finance_performance_query=project_management_services.finance_performance_query,
         finance_service=project_management_services.finance_service,
         work_calendar_engine=project_management_services.work_calendar_engine,
         scheduling_engine=project_management_services.scheduling_engine,

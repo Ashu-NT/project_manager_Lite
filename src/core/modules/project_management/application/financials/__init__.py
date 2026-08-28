@@ -69,6 +69,9 @@ from src.core.modules.project_management.application.financials.workspace_query 
     ProjectFinanceWorkspaceQuery,
     ProjectFinanceWorkspaceRead,
 )
+from src.core.modules.project_management.application.financials.performance_query import (
+    ProjectFinancePerformanceQuery,
+)
 from src.core.modules.project_management.application.financials.invoicing import (
     ProjectBillingPreparationService,
     ProjectBillingProfileService,
@@ -109,6 +112,7 @@ __all__ = [
     "ProcurementFinancialConsumer",
     "ProjectFinanceWorkspaceQuery",
     "ProjectFinanceWorkspaceRead",
+    "ProjectFinancePerformanceQuery",
     "RateCardResolver",
     "RateSelectionSnapshot",
     "RiskContingencyEstimate",

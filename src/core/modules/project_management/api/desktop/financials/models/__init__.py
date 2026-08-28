@@ -62,6 +62,14 @@ from src.core.modules.project_management.api.desktop.financials.models.billing_w
     FinancialBillingReadWorkspaceDto,
     FinancialBillingTableRecordDto,
 )
+from src.core.modules.project_management.api.desktop.financials.models.performance import (
+    FinancialCostPhasingDto,
+    FinancialEvmDto,
+    FinancialPerformanceMetricDto,
+    FinancialReportDefinitionDto,
+    FinancialReportsDto,
+    FinancialVarianceWorkspaceDto,
+)
 
 __all__ = [
     "BaselineVarianceRecordDto",
@@ -74,6 +82,12 @@ __all__ = [
     "FinancialBillingDetailDto",
     "FinancialBillingReadWorkspaceDto",
     "FinancialBillingTableRecordDto",
+    "FinancialCostPhasingDto",
+    "FinancialEvmDto",
+    "FinancialPerformanceMetricDto",
+    "FinancialReportDefinitionDto",
+    "FinancialReportsDto",
+    "FinancialVarianceWorkspaceDto",
     "FinancialCommercialProjectionDto",
     "FinancialCommitmentSummaryDto",
     "FinancialCommitmentLineDto",

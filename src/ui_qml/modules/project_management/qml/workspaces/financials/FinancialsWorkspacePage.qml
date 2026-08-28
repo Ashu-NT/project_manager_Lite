@@ -23,14 +23,12 @@ AppLayouts.WorkspaceFrame {
     readonly property var overviewModel: root.workspaceController
         ? root.workspaceController.overview
         : ({ "title": root.workspaceModel.title, "subtitle": root.workspaceModel.summary, "metrics": [] })
-    readonly property var cashflowModel: root.workspaceController
-        ? root.workspaceController.cashflow : ({ "items": [] })
+    readonly property var costPhasingModel: root.workspaceController
+        ? root.workspaceController.costPhasing : ({ "items": [] })
     readonly property var ledgerModel: root.workspaceController
         ? root.workspaceController.ledger : ({ "items": [] })
     readonly property var activityModel: root.workspaceController
         ? root.workspaceController.activity : ({ "items": [] })
-    readonly property var sourceAnalyticsModel: root.workspaceController
-        ? root.workspaceController.sourceAnalytics : ({ "items": [] })
     readonly property var baselineVarianceModel: root.workspaceController
         ? (root.workspaceController.baselineVariance || []) : []
 
@@ -373,7 +371,18 @@ AppLayouts.WorkspaceFrame {
                         ? root.workspaceController.activeDestination : "overview"
                     activeSubsection: root.workspaceController
                         ? root.workspaceController.activeSubsection : "summary"
-                    cashflowModel: root.cashflowModel
+                    costPhasingModel: root.costPhasingModel
+                    costPhasingBasisModel: root.workspaceController ? root.workspaceController.costPhasingBasis : ({ "fields": [] })
+                    evmBasisModel: root.workspaceController ? root.workspaceController.evmBasis : ({ "fields": [] })
+                    evmMetricsModel: root.workspaceController ? root.workspaceController.evmMetrics : ({ "items": [] })
+                    varianceMetricsModel: root.workspaceController ? root.workspaceController.varianceMetrics : ({ "items": [] })
+                    reportDefinitionsModel: root.workspaceController ? root.workspaceController.reportDefinitions : ({ "items": [] })
+                    costPhasingDateFrom: root.workspaceController ? root.workspaceController.costPhasingDateFrom : ""
+                    costPhasingDateTo: root.workspaceController ? root.workspaceController.costPhasingDateTo : ""
+                    costPhasingGranularity: root.workspaceController ? root.workspaceController.costPhasingGranularity : "month"
+                    onCostPhasingPresetRequested: function(months, granularity) {
+                        if (root.workspaceController) root.workspaceController.setCostPhasingPreset(months, granularity)
+                    }
                     ledgerModel: root.ledgerModel
                     activityModel: root.activityModel
                     ledgerTableModel: root.workspaceController ? root.workspaceController.ledgerTableModel : null
@@ -381,9 +390,6 @@ AppLayouts.WorkspaceFrame {
                     actualSortKey: root.workspaceController ? root.workspaceController.actualSortKey : "metaText"
                     actualSortDirection: root.workspaceController ? root.workspaceController.actualSortDirection : Qt.DescendingOrder
                     onActualEntrySelected: function(entryId) { root._selectedActualEntryId = entryId }
-                    sourceAnalyticsModel: root.sourceAnalyticsModel
-                    costTypeAnalyticsModel: root.workspaceController
-                        ? root.workspaceController.costTypeAnalytics : ({ "items": [] })
                     overviewModel: root.overviewModel
                     forecastVersionsModel: root.workspaceController ? root.workspaceController.forecastVersions : ({ "items": [] })
                     forecastLinesModel: root.workspaceController ? root.workspaceController.forecastLines : ({ "items": [] })

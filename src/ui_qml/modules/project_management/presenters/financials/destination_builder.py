@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import calendar
+from datetime import date
+
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementFinancialsDesktopApi,
 )
@@ -15,18 +18,20 @@ from src.ui_qml.modules.project_management.view_models.financials import (
     FinancialsWorkspaceViewModel,
 )
 
-from .analytics_builder import build_analytics_collection
 from .audit_builder import build_finance_audit_collection
-from .billing_builder import build_billing_views
 from .billing_workspace_builder import build_billing_workspace_views
-from .cashflow_builder import build_cashflow_collection
 from .commitment_builder import build_commitment_collection, build_commitment_summary
 from .configuration_builder import build_finance_configuration_views
 from .change_workspace_builder import build_change_workspace_views
 from .forecast_workspace_builder import build_forecast_workspace_views
 from .rate_workspace_builder import build_rate_workspace_views
 from .ledger_builder import build_ledger_collection
-from .lifecycle_builder import build_variance_views
+from .performance_builder import (
+    build_cost_phasing_views,
+    build_evm_views,
+    build_reports_views,
+    build_variance_views,
+)
 from .overview_builder import build_overview
 from .selection import resolve_project_id
 
@@ -44,7 +49,7 @@ FINANCE_SUBSECTIONS = {
     "overview": ("summary",),
     "planning": ("budgets", "planned_costs", "forecast"),
     "costs": ("actuals", "commitments", "rates"),
-    "performance": ("variance", "cost_phasing", "reports"),
+    "performance": ("evm", "variance", "cost_phasing", "reports"),
     "commercial": ("billing", "profitability", "accounting"),
     "controls": ("setup", "changes", "activity"),
 }
@@ -192,6 +197,10 @@ def build_destination_state(
     billing_line_source_type: str = "",
     billing_line_source_state: str = "",
     selected_baseline_id: str | None = None,
+    performance_as_of_date: date | None = None,
+    cost_phasing_date_from: date | None = None,
+    cost_phasing_date_to: date | None = None,
+    cost_phasing_granularity: str = "month",
 ) -> FinancialsWorkspaceViewModel:
     destination = normalize_destination(destination)
     subsection = normalize_subsection(destination, subsection)
@@ -416,42 +425,63 @@ def build_destination_state(
         )
 
     if destination == "performance":
-        if subsection == "variance":
-            variance = build_variance_views(
-                desktop_api,
-                project_id=project_id,
-                selected_baseline_id=selected_baseline_id,
+        as_of_date = performance_as_of_date or date.today()
+        if subsection == "evm":
+            views = build_evm_views(
+                desktop_api.get_performance_evm(
+                    project_id,
+                    as_of_date=as_of_date,
+                    baseline_id=selected_baseline_id,
+                )
             )
             return FinancialsWorkspaceViewModel(
                 overview=state.overview,
                 selected_project_id=project_id,
+                evm_basis=views["evm_basis"],
+                evm_metrics=views["evm_metrics"],
+            )
+        if subsection == "variance":
+            variance = build_variance_views(
+                desktop_api.get_performance_variance(
+                    project_id,
+                    as_of_date=as_of_date,
+                    selected_baseline_id=selected_baseline_id,
+                )
+            )
+            return FinancialsWorkspaceViewModel(
+                overview=state.overview,
+                selected_project_id=project_id,
+                variance_metrics=variance["variance_metrics"],
                 selected_baseline_id=variance["selected_baseline_id"],
                 baseline_versions=variance["baseline_versions"],
                 baseline_variance=variance["baseline_variance"],
                 variance_basis=variance["variance_basis"],
             )
-        snapshot = desktop_api.get_finance_snapshot(project_id)
         if subsection == "cost_phasing":
+            range_to = cost_phasing_date_to or as_of_date
+            range_from = cost_phasing_date_from or _months_before(range_to, 11)
+            views = build_cost_phasing_views(
+                desktop_api.get_cost_phasing(
+                    project_id,
+                    date_from=range_from,
+                    date_to=range_to,
+                    granularity=cost_phasing_granularity,
+                )
+            )
             return FinancialsWorkspaceViewModel(
                 overview=state.overview,
                 selected_project_id=project_id,
-                cashflow=build_cashflow_collection(snapshot),
-                source_analytics=build_analytics_collection(
-                    title="Source Breakdown",
-                    subtitle="Expense exposure grouped by source.",
-                    rows=snapshot.by_source,
-                ),
-                cost_type_analytics=build_analytics_collection(
-                    title="Cost Type Breakdown",
-                    subtitle="Expense exposure grouped by category.",
-                    rows=snapshot.by_cost_type,
-                ),
-                notes=tuple(snapshot.notes),
+                cost_phasing=views["cost_phasing"],
+                cost_phasing_basis=views["cost_phasing_basis"],
             )
+        views = build_reports_views(
+            desktop_api.get_performance_reports(project_id, as_of_date=as_of_date)
+        )
         return FinancialsWorkspaceViewModel(
             overview=state.overview,
             selected_project_id=project_id,
-            report_basis=_build_report_basis(project_id, snapshot),
+            report_basis=views["report_basis"],
+            report_definitions=views["report_definitions"],
         )
 
     if destination == "commercial":
@@ -630,35 +660,11 @@ def build_destination_state(
     )
 
 
-def _build_report_basis(project_id: str, snapshot) -> FinancialsDetailViewModel:
-    return FinancialsDetailViewModel(
-        id=project_id,
-        title="Canonical Financial Report",
-        status_label="Reconciled at export time",
-        empty_state="Select a project before exporting a financial report.",
-        fields=(
-            FinancialsDetailFieldViewModel(
-                "Currency basis",
-                snapshot.project_currency or "Project currency",
-            ),
-            FinancialsDetailFieldViewModel(
-                "Forecast basis",
-                (
-                    f"Revision {snapshot.approved_forecast_revision}"
-                    if snapshot.approved_forecast_revision is not None
-                    else "No approved forecast"
-                ),
-            ),
-            FinancialsDetailFieldViewModel(
-                "As-of basis",
-                snapshot.as_of.isoformat() if snapshot.as_of else "Current",
-            ),
-            FinancialsDetailFieldViewModel(
-                "Source detail",
-                "Bounded export pages with complete reconciled control totals.",
-            ),
-        ),
-    )
+def _months_before(value: date, months: int) -> date:
+    index = value.year * 12 + value.month - 1 - max(0, int(months))
+    year, month_index = divmod(index, 12)
+    month = month_index + 1
+    return date(year, month, min(value.day, calendar.monthrange(year, month)[1]))
 
 
 __all__ = [

@@ -75,6 +75,7 @@ from src.core.modules.project_management.application.financials import (
     ProjectBillingProfileService,
     ProcurementFinancialConsumer,
     ProjectFinanceWorkspaceQuery,
+    ProjectFinancePerformanceQuery,
     ProjectRateCardService,
     RateCardResolver,
 )
@@ -89,6 +90,7 @@ from src.core.modules.project_management.infrastructure.persistence.reads.financ
     SqlAlchemyFinanceRateReader,
     SqlAlchemyFinanceChangeReader,
     SqlAlchemyFinanceBillingReader,
+    SqlAlchemyFinancePerformanceReader,
     SqlAlchemyFinanceSnapshotReader,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
@@ -170,6 +172,7 @@ class ProjectManagementServiceBundle:
     commitment_service: ProjectCommitmentService
     planned_cost_service: PlannedCostService
     finance_workspace_query: ProjectFinanceWorkspaceQuery
+    finance_performance_query: ProjectFinancePerformanceQuery
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
     scheduling_engine: SchedulingEngine
@@ -677,6 +680,15 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
+    finance_performance_query = ProjectFinancePerformanceQuery(
+        performance_reader=SqlAlchemyFinancePerformanceReader(session=session),
+        overview_reader=SqlAlchemyFinanceSnapshotReader(session=session),
+        earned_value_authority=reporting_service,
+        baseline_variance_authority=baseline_service,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+        module_catalog_service=platform_services.module_catalog_service,
+    )
     dashboard_service = DashboardService(
         reporting_service=reporting_service,
         task_service=task_service,
@@ -751,6 +763,7 @@ def build_project_management_service_bundle(
         commitment_service=commitment_service,
         planned_cost_service=planned_cost_service,
         finance_workspace_query=finance_workspace_query,
+        finance_performance_query=finance_performance_query,
         finance_service=finance_service,
         work_calendar_engine=work_calendar_engine,
         scheduling_engine=scheduling_engine,

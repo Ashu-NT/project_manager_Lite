@@ -19,7 +19,6 @@ from src.ui_qml.modules.project_management.controllers.financials.financials_typ
     default_collection,
     default_commitment_summary,
     default_detail,
-    default_forecast,
     default_overview,
 )
 
@@ -200,6 +199,10 @@ class FinancialsRefreshMixin:
                 billing_line_source_type=self._billing_line_source_type,
                 billing_line_source_state=self._billing_line_source_state,
                 selected_baseline_id=self._selected_baseline_id or None,
+                performance_as_of_date=self._performance_as_of_date,
+                cost_phasing_date_from=self._cost_phasing_date_from,
+                cost_phasing_date_to=self._cost_phasing_date_to,
+                cost_phasing_granularity=self._cost_phasing_granularity,
             )
             if (
                 generation != self._refresh_generation
@@ -375,7 +378,19 @@ class FinancialsRefreshMixin:
             return
 
         if destination == "performance":
-            if subsection == "variance":
+            if subsection == "evm":
+                self._set_evm_basis(
+                    serialize_financials_detail_view_model(state.evm_basis)
+                )
+                self._set_evm_metrics(
+                    serialize_financials_collection_view_model(state.evm_metrics)
+                )
+            elif subsection == "variance":
+                self._set_variance_metrics(
+                    serialize_financials_collection_view_model(
+                        state.variance_metrics
+                    )
+                )
                 self._set_baseline_variance(
                     serialize_financials_baseline_variance_view_models(
                         state.baseline_variance
@@ -391,23 +406,22 @@ class FinancialsRefreshMixin:
                     serialize_financials_detail_view_model(state.variance_basis)
                 )
             elif subsection == "cost_phasing":
-                self._set_cashflow(
-                    serialize_financials_collection_view_model(state.cashflow)
+                self._set_cost_phasing(
+                    serialize_financials_collection_view_model(state.cost_phasing)
                 )
-                self._set_source_analytics(
-                    serialize_financials_collection_view_model(
-                        state.source_analytics
+                self._set_cost_phasing_basis(
+                    serialize_financials_detail_view_model(
+                        state.cost_phasing_basis
                     )
                 )
-                self._set_cost_type_analytics(
-                    serialize_financials_collection_view_model(
-                        state.cost_type_analytics
-                    )
-                )
-                self._set_notes(list(state.notes))
             else:
                 self._set_report_basis(
                     serialize_financials_detail_view_model(state.report_basis)
+                )
+                self._set_report_definitions(
+                    serialize_financials_collection_view_model(
+                        state.report_definitions
+                    )
                 )
             return
 
@@ -480,13 +494,14 @@ class FinancialsRefreshMixin:
         self._set_manual_actual_options(
             {"currencyCode": "", "costCodes": [], "entryKinds": []}
         )
-        self._set_cashflow(default_collection())
+        self._set_cost_phasing(default_collection())
+        self._set_cost_phasing_basis(default_detail())
+        self._set_evm_basis(default_detail())
+        self._set_evm_metrics(default_collection())
+        self._set_variance_metrics(default_collection())
+        self._set_report_definitions(default_collection())
         self._set_ledger(default_collection())
         self._set_activity(default_collection())
-        self._set_source_analytics(default_collection())
-        self._set_cost_type_analytics(default_collection())
-        self._set_notes([])
-        self._set_forecast(default_forecast())
         self._set_selected_forecast_id("")
         self._set_selected_forecast(default_detail())
         self._set_forecast_versions(default_collection())
