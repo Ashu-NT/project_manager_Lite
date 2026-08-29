@@ -30,8 +30,8 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
     FinancialManualActualOptionsDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.options import (
-    FinancialProjectOptionDescriptor,
-    FinancialTaskOptionDescriptor,
+    FinancialLookupOptionDto,
+    FinancialLookupPageDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
     FinancialOverviewDto,
@@ -48,6 +48,7 @@ from src.core.modules.project_management.api.desktop.financials.models.changes i
     FinancialChangeWorkspaceDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
+    FinancialAccountingStatusPageDto,
     FinancialBillingDetailDto,
     FinancialBillingReadWorkspaceDto,
     FinancialBillingTableRecordDto,
@@ -70,6 +71,7 @@ __all__ = [
     "FinancialBillingDetailDto",
     "FinancialBillingReadWorkspaceDto",
     "FinancialBillingTableRecordDto",
+    "FinancialAccountingStatusPageDto",
     "FinancialCostPhasingDto",
     "FinancialEvmDto",
     "FinancialPerformanceMetricDto",
@@ -94,10 +96,10 @@ __all__ = [
     "FinancialManualActualOptionsDto",
     "FinancialOverviewDto",
     "FinancialPeriodRowDto",
-    "FinancialProjectOptionDescriptor",
+    "FinancialLookupOptionDto",
+    "FinancialLookupPageDto",
     "FinancialProfileDto",
     "FinancialRateCardDetailDto",
     "FinancialRateTableRecordDto",
     "FinancialRateWorkspaceDto",
-    "FinancialTaskOptionDescriptor",
 ]

@@ -63,8 +63,6 @@ def build_project_management_desktop_runtime_apis(
             collaboration_service=resolved.collaboration_service,
         ),
         project_management_financials=build_project_management_financials_desktop_api(
-            project_service=resolved.project_service,
-            task_service=resolved.task_service,
             finance_service=resolved.finance_service,
             finance_workspace_query=resolved.finance_workspace_query,
             finance_performance_query=resolved.finance_performance_query,

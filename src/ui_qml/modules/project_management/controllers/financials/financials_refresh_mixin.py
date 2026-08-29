@@ -6,6 +6,9 @@ from time import perf_counter
 from PySide6.QtCore import Qt
 
 from src.core.shared.events.domain_events import domain_events
+from src.core.modules.project_management.application.financials.invalidation import (
+    FinanceInvalidationScope,
+)
 from src.ui_qml.modules.project_management.controllers.common import (
     serialize_financials_baseline_variance_view_models,
     serialize_financials_collection_view_model,
@@ -46,6 +49,10 @@ class FinancialsRefreshMixin:
         try:
             self._set_error_message("")
             self._set_feedback_message("")
+            (
+                self._active_tenant_id,
+                self._active_organization_id,
+            ) = self._financials_workspace_presenter.active_scope_ids()
             if not self._workspace_loaded:
                 self._set_workspace(
                     serialize_workspace_view_model(
@@ -324,15 +331,11 @@ class FinancialsRefreshMixin:
 
         if destination == "costs":
             if subsection == "actuals":
-                self._set_task_options(serialize_selector_options(state.task_options))
-                self._set_manual_actual_options(
+                self._set_manual_actual_defaults(
                     {
-                        "currencyCode": state.manual_actual_options.currency_code,
-                        "costCodes": serialize_selector_options(
-                            state.manual_actual_options.cost_codes
-                        ),
+                        "currencyCode": state.manual_actual_defaults.currency_code,
                         "entryKinds": serialize_selector_options(
-                            state.manual_actual_options.entry_kinds
+                            state.manual_actual_defaults.entry_kinds
                         ),
                     }
                 )
@@ -490,9 +493,8 @@ class FinancialsRefreshMixin:
 
     def _reset_destination_state(self) -> None:
         self._set_overview(default_overview())
-        self._set_task_options([])
-        self._set_manual_actual_options(
-            {"currencyCode": "", "costCodes": [], "entryKinds": []}
+        self._set_manual_actual_defaults(
+            {"currencyCode": "", "entryKinds": []}
         )
         self._set_cost_phasing(default_collection())
         self._set_cost_phasing_basis(default_detail())
@@ -560,21 +562,50 @@ class FinancialsRefreshMixin:
             self._request_domain_refresh()
 
     def _bind_domain_events(self) -> None:
-        def _projects_changed(_payload: object) -> None:
+        def _projects_changed(payload: object) -> None:
             self._shell_loaded = False
-            self._invalidate_destinations(*self._finance_destinations)
+            if self._finance_event_matches(payload):
+                self._invalidate_destinations(*self._finance_destinations)
 
-        def _tasks_changed(_payload: object) -> None:
-            self._invalidate_destinations("planning", "costs", "performance")
+        def _tasks_changed(payload: object) -> None:
+            if self._finance_event_matches(payload):
+                self._invalidate_destinations("planning", "costs", "performance")
 
-        def _budgets_changed(_payload: object) -> None:
-            self._invalidate_destinations("overview", "planning", "performance")
+        def _budgets_changed(payload: object) -> None:
+            if self._finance_event_matches(payload):
+                self._invalidate_destinations("overview", "planning", "performance")
 
-        def _planned_costs_changed(_payload: object) -> None:
-            self._invalidate_destinations("planning", "performance")
+        def _planned_costs_changed(payload: object) -> None:
+            if self._finance_event_matches(payload):
+                self._invalidate_destinations("planning", "performance")
 
-        def _billing_changed(_payload: object) -> None:
-            self._invalidate_destinations("commercial")
+        def _billing_changed(payload: object) -> None:
+            if self._finance_event_matches(payload):
+                self._invalidate_destinations("commercial")
+
+        def _forecasts_changed(payload: object) -> None:
+            if self._finance_event_matches(payload):
+                self._invalidate_destinations("overview", "planning", "performance")
+
+        def _cost_entries_changed(payload: object) -> None:
+            if self._finance_event_matches(payload):
+                self._invalidate_destinations(
+                    "overview", "costs", "performance", "commercial"
+                )
+
+        def _commitments_changed(payload: object) -> None:
+            if self._finance_event_matches(payload):
+                self._invalidate_destinations(
+                    "overview", "planning", "costs", "performance", "commercial"
+                )
+
+        def _rates_changed(payload: object) -> None:
+            if self._finance_event_matches(payload):
+                self._invalidate_destinations("costs")
+
+        def _financial_changes_changed(payload: object) -> None:
+            if self._finance_event_matches(payload):
+                self._invalidate_destinations("controls")
 
         subscriptions = (
             (domain_events.project_changed, _projects_changed),
@@ -582,9 +613,27 @@ class FinancialsRefreshMixin:
             (domain_events.budgets_changed, _budgets_changed),
             (domain_events.planned_costs_changed, _planned_costs_changed),
             (domain_events.billing_preparations_changed, _billing_changed),
+            (domain_events.forecasts_changed, _forecasts_changed),
+            (domain_events.cost_entries_changed, _cost_entries_changed),
+            (domain_events.commitments_changed, _commitments_changed),
+            (domain_events.rates_changed, _rates_changed),
+            (domain_events.financial_changes_changed, _financial_changes_changed),
         )
         for signal, callback in subscriptions:
             self._subscribe_domain_signal(signal, callback)
+
+    def _finance_event_matches(self, payload: object) -> bool:
+        if isinstance(payload, FinanceInvalidationScope):
+            return (
+                payload.tenant_id == self._active_tenant_id
+                and payload.organization_id == self._active_organization_id
+                and (
+                    payload.project_id is None
+                    or payload.project_id == self._selected_project_id
+                )
+            )
+        project_id = str(payload or "").strip()
+        return bool(project_id and project_id == self._selected_project_id)
 
 
 __all__ = ["FinancialsRefreshMixin"]

@@ -12,6 +12,10 @@ from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.financials.invalidation import (
+    FinanceInvalidationScope,
+)
+from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
@@ -572,11 +576,19 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         )
 
     def _commit(self, project_id: str) -> None:
+        context = self._require_context("publish forecast invalidation")
         try:
             self._session.commit()
         except Exception:
             self._session.rollback()
             raise
+        domain_events.forecasts_changed.emit(
+            FinanceInvalidationScope(
+                tenant_id=context.tenant_id,
+                organization_id=context.organization_id,
+                project_id=project_id,
+            )
+        )
 
 
 __all__ = ["ForecastVersionService"]

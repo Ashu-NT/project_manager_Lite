@@ -6,6 +6,9 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.application.financials.invalidation import (
+    FinanceInvalidationScope,
+)
 from src.core.modules.project_management.application.financials.procurement_consumer import (
     ProcurementFinancialConsumer,
 )
@@ -14,6 +17,7 @@ from src.core.platform.application.integration import (
     IntegrationInboxService,
     IntegrationOutboxService,
 )
+from src.core.shared.events.domain_events import domain_events
 
 
 logger = logging.getLogger(__name__)
@@ -47,10 +51,18 @@ class ProcurementFinancialDispatcher:
         for record in claimed:
             try:
                 decision = self._inbox_service.begin_delivery(record.envelope)
+                consumption = None
                 if decision.disposition is InboxDeliveryDisposition.READY:
-                    self._consumer.consume(record.envelope)
+                    consumption = self._consumer.consume(record.envelope)
                     self._inbox_service.mark_processed(decision.receipt.id)
                 self._session.commit()
+                if consumption is not None:
+                    self._emit_refresh(
+                        consumption,
+                        tenant_id=record.envelope.tenant_id,
+                        organization_id=str(record.envelope.organization_id),
+                        event_id=record.envelope.event_id,
+                    )
                 if decision.disposition is InboxDeliveryDisposition.QUARANTINED:
                     self._outbox_service.mark_failed(
                         record.id,
@@ -94,6 +106,30 @@ class ProcurementFinancialDispatcher:
                     exc_info=True,
                 )
         return published
+
+    @staticmethod
+    def _emit_refresh(
+        consumption,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        event_id: str,
+    ) -> None:
+        scope = FinanceInvalidationScope(
+            tenant_id=str(tenant_id),
+            organization_id=organization_id,
+            project_id=str(consumption.project_id),
+        )
+        try:
+            if consumption.commitment_changed:
+                domain_events.commitments_changed.emit(scope)
+            if consumption.cost_entry_changed:
+                domain_events.cost_entries_changed.emit(scope)
+        except Exception:
+            # Refresh is process-local and follows the durable inbox commit.
+            logger.exception(
+                "Procurement Finance refresh hint failed event_id=%s", event_id
+            )
 
 
 __all__ = ["ProcurementFinancialDispatcher"]

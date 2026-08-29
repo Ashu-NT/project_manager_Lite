@@ -9,8 +9,18 @@ from src.core.modules.project_management.application.common.module_guard import 
 from src.core.modules.project_management.contracts.reads.financials.finance_setup_reader import (
     FinanceSetupReader,
 )
+from src.core.modules.project_management.contracts.reads.financials.finance_lookup_reader import (
+    FinanceLookupReader,
+)
 from src.core.modules.project_management.contracts.reads.financials.models.finance_setup_facts import (
     FinanceSetupFacts,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_lookup_facts import (
+    FinanceLookupOptionFact,
+    FinanceLookupPageFacts,
+    FinanceLookupQuery,
+    ManualActualCostCodeQuery,
+    ManualActualDefaultsFacts,
 )
 from src.core.modules.project_management.contracts.reads.financials.finance_budget_reader import (
     FinanceBudgetReader,
@@ -54,6 +64,8 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     FinancialChangeRequestQuery,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
+    AccountingStatusFact,
+    AccountingStatusQuery,
     BillingPreparationLineQuery,
     BillingPreparationQuery,
     BillingScheduleQuery,
@@ -73,6 +85,7 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         self,
         *,
         setup_reader: FinanceSetupReader,
+        lookup_reader: FinanceLookupReader | None = None,
         budget_reader: FinanceBudgetReader | None = None,
         planned_cost_reader: FinancePlannedCostReader | None = None,
         forecast_reader: FinanceForecastReader | None = None,
@@ -84,6 +97,7 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         module_catalog_service=None,
     ) -> None:
         self._setup_reader = setup_reader
+        self._lookup_reader = lookup_reader
         self._budget_reader = budget_reader
         self._planned_cost_reader = planned_cost_reader
         self._forecast_reader = forecast_reader
@@ -93,6 +107,207 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
+
+    def active_scope_ids(self) -> tuple[str, str]:
+        if self._tenant_context_service is None:
+            raise RuntimeError("Finance lookup scope is not configured.")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="resolve Project Finance scope"
+        )
+        return scope.tenant_id, scope.organization_id
+
+    def search_finance_projects(
+        self, *, request: FinanceLookupQuery
+    ) -> FinanceLookupPageFacts:
+        return self._search_projects(
+            permission="finance.read",
+            operation="search Project Finance projects",
+            require_active_profile=False,
+            request=request,
+        )
+
+    def resolve_finance_project(self, project_id: str) -> FinanceLookupOptionFact | None:
+        return self._resolve_project(
+            project_id,
+            permission="finance.read",
+            operation="resolve Project Finance project",
+            require_active_profile=False,
+        )
+
+    def search_manual_actual_projects(
+        self, *, request: FinanceLookupQuery
+    ) -> FinanceLookupPageFacts:
+        return self._search_projects(
+            permission="project_cost.create",
+            operation="search projects eligible for manual actuals",
+            require_active_profile=True,
+            request=request,
+        )
+
+    def resolve_manual_actual_project(
+        self, project_id: str
+    ) -> FinanceLookupOptionFact | None:
+        return self._resolve_project(
+            project_id,
+            permission="project_cost.create",
+            operation="resolve project eligible for manual actuals",
+            require_active_profile=True,
+        )
+
+    def search_manual_actual_tasks(
+        self,
+        project_id: str,
+        *,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts:
+        scope = self._require_manual_actual_lookup(project_id, "search manual actual tasks")
+        return self._require_lookup_reader().search_tasks(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            request=request,
+        )
+
+    def resolve_manual_actual_task(
+        self, project_id: str, task_id: str
+    ) -> FinanceLookupOptionFact | None:
+        scope = self._require_manual_actual_lookup(project_id, "resolve manual actual task")
+        return self._require_lookup_reader().get_task_option(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            task_id=str(task_id or "").strip(),
+        )
+
+    def search_manual_actual_cost_codes(
+        self,
+        project_id: str,
+        *,
+        request: ManualActualCostCodeQuery,
+    ) -> FinanceLookupPageFacts:
+        scope = self._require_manual_actual_lookup(
+            project_id, "search manual actual cost codes"
+        )
+        return self._require_lookup_reader().search_cost_codes(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            request=request,
+        )
+
+    def resolve_manual_actual_cost_code(
+        self,
+        project_id: str,
+        cost_code_id: str,
+        *,
+        effective_on=None,
+    ) -> FinanceLookupOptionFact | None:
+        scope = self._require_manual_actual_lookup(
+            project_id, "resolve manual actual cost code"
+        )
+        return self._require_lookup_reader().get_cost_code_option(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            cost_code_id=str(cost_code_id or "").strip(),
+            effective_on=effective_on,
+        )
+
+    def get_manual_actual_defaults(self, project_id: str) -> ManualActualDefaultsFacts:
+        scope = self._require_manual_actual_lookup(
+            project_id, "load manual actual defaults"
+        )
+        defaults = self._require_lookup_reader().get_manual_actual_defaults(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+        )
+        if defaults is None:
+            raise NotFoundError(
+                "An active project financial profile is required.",
+                code="PROJECT_FINANCIAL_PROFILE_NOT_ACTIVE",
+            )
+        return defaults
+
+    def _search_projects(
+        self,
+        *,
+        permission: str,
+        operation: str,
+        require_active_profile: bool,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts:
+        require_permission(self._user_session, permission, operation_label=operation)
+        if self._tenant_context_service is None:
+            raise RuntimeError("Finance lookup scope is not configured.")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label=operation
+        )
+        return self._require_lookup_reader().search_projects(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            allowed_project_ids=self._allowed_project_ids(permission),
+            require_active_finance_profile=require_active_profile,
+            request=request,
+        )
+
+    def _resolve_project(
+        self,
+        project_id: str,
+        *,
+        permission: str,
+        operation: str,
+        require_active_profile: bool,
+    ) -> FinanceLookupOptionFact | None:
+        normalized_id = str(project_id or "").strip()
+        if not normalized_id:
+            return None
+        require_permission(self._user_session, permission, operation_label=operation)
+        require_project_permission(
+            self._user_session,
+            normalized_id,
+            permission,
+            operation_label=operation,
+        )
+        if self._tenant_context_service is None:
+            raise RuntimeError("Finance lookup scope is not configured.")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label=operation
+        )
+        return self._require_lookup_reader().get_project_option(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=normalized_id,
+            allowed_project_ids=self._allowed_project_ids(permission),
+            require_active_finance_profile=require_active_profile,
+        )
+
+    def _require_manual_actual_lookup(self, project_id: str, operation: str):
+        normalized_id = str(project_id or "").strip()
+        require_permission(
+            self._user_session, "project_cost.create", operation_label=operation
+        )
+        require_project_permission(
+            self._user_session,
+            normalized_id,
+            "project_cost.create",
+            operation_label=operation,
+        )
+        if self._tenant_context_service is None:
+            raise RuntimeError("Finance lookup scope is not configured.")
+        return self._tenant_context_service.require_active_scope_ids(
+            operation_label=operation
+        )
+
+    def _allowed_project_ids(self, permission: str) -> tuple[str, ...] | None:
+        if self._user_session is None or not self._user_session.is_project_restricted():
+            return None
+        return tuple(sorted(self._user_session.project_ids_for(permission)))
+
+    def _require_lookup_reader(self) -> FinanceLookupReader:
+        if self._lookup_reader is None:
+            raise RuntimeError("Finance Lookup Reader is not configured.")
+        return self._lookup_reader
 
     def get_budget_workspace(
         self,
@@ -508,6 +723,35 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             schedule=schedule,
             preparations=preparations,
             lines=lines,
+        )
+
+    def get_accounting_statuses(
+        self,
+        project_id: str,
+        *,
+        request: AccountingStatusQuery | None = None,
+    ) -> FinancePageFacts[AccountingStatusFact]:
+        require_permission(
+            self._user_session,
+            "finance.read",
+            operation_label="view project Accounting outcomes",
+        )
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "finance.read",
+            operation_label="view project Accounting outcomes",
+        )
+        if self._billing_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Finance Billing Reader is not configured.")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view project Accounting outcomes"
+        )
+        return self._billing_reader.list_accounting_statuses(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            request=request or AccountingStatusQuery(),
         )
 
     def get_setup_workspace(self, project_id: str) -> FinanceSetupFacts:

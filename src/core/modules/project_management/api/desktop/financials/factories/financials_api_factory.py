@@ -9,8 +9,6 @@ from src.core.modules.project_management.api.desktop.financials.api import (
 
 def build_project_management_financials_desktop_api(
     *,
-    project_service=None,
-    task_service=None,
     finance_service=None,
     finance_workspace_query=None,
     finance_performance_query=None,
@@ -22,8 +20,6 @@ def build_project_management_financials_desktop_api(
     reporting_service=None,
 ) -> ProjectManagementFinancialsDesktopApi:
     return ProjectManagementFinancialsDesktopApi(
-        project_service=project_service,
-        task_service=task_service,
         finance_service=finance_service,
         finance_workspace_query=finance_workspace_query,
         finance_performance_query=finance_performance_query,

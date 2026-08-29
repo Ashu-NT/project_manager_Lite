@@ -5,8 +5,7 @@ Item {
 
     property var workspaceController: null
     property string selectedProjectId: ""
-    property var taskOptions: []
-    property var manualActualOptions: ({ "currencyCode": "", "costCodes": [], "entryKinds": [] })
+    property var manualActualDefaults: ({ "currencyCode": "", "entryKinds": [] })
 
     function _handleResult(dialog, result) {
         if (result && result.ok) {
@@ -44,9 +43,9 @@ Item {
     ManualActualEditorDialog {
         id: editorDialog
 
-        selectedProjectId: root.selectedProjectId
-        taskOptions: root.taskOptions
-        actualOptions: root.manualActualOptions
+        initialProjectId: root.selectedProjectId
+        initialDefaults: root.manualActualDefaults
+        workspaceController: root.workspaceController
         busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {

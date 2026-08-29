@@ -10,6 +10,28 @@ from .finance_budget_facts import FinancePageFacts
 _SCHEDULE_SORT_KEYS = {"title", "statusLabel", "subtitle", "supportingText", "metaText"}
 _PREPARATION_SORT_KEYS = {"title", "statusLabel", "subtitle", "supportingText", "metaText"}
 _LINE_SORT_KEYS = {"title", "statusLabel", "subtitle", "supportingText", "metaText"}
+_ACCOUNTING_SORT_KEYS = {"title", "statusLabel", "metaText"}
+
+
+@dataclass(frozen=True, slots=True)
+class AccountingStatusQuery:
+    page: int = 1
+    page_size: int = 50
+    sort_key: str = "metaText"
+    sort_direction: str = "desc"
+    search: str = ""
+
+    @property
+    def normalized_page(self) -> int:
+        return max(1, int(self.page))
+
+    @property
+    def normalized_page_size(self) -> int:
+        return max(1, min(int(self.page_size), 200))
+
+    @property
+    def normalized_sort_key(self) -> str:
+        return self.sort_key if self.sort_key in _ACCOUNTING_SORT_KEYS else "metaText"
 
 
 @dataclass(frozen=True, slots=True)
@@ -215,6 +237,24 @@ class BillingPreparationLineFact:
 
 
 @dataclass(frozen=True, slots=True)
+class AccountingStatusFact:
+    id: str
+    preparation_number: str
+    preparation_status: str
+    correction_of_preparation_id: str | None
+    correction_of_preparation_number: str
+    delivery_requested_at: datetime | None
+    latest_external_event_type: str
+    latest_external_system: str
+    latest_external_status: str
+    latest_external_invoice_reference: str
+    latest_reconciliation_reference: str
+    latest_external_message: str
+    latest_external_occurred_at: datetime | None
+    updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
 class FinanceBillingWorkspaceFacts:
     profile: BillingProfileFact | None
     selected_preparation_id: str
@@ -225,6 +265,8 @@ class FinanceBillingWorkspaceFacts:
 
 
 __all__ = [
+    "AccountingStatusFact",
+    "AccountingStatusQuery",
     "BillingPreparationDetailFact",
     "BillingPreparationLineFact",
     "BillingPreparationLineQuery",

@@ -23,8 +23,12 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
 from src.core.modules.project_management.api.desktop.financials.models.changes import (
     FinancialChangeWorkspaceDto,
 )
+from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
+    FinancialAccountingStatusPageDto,
+)
 from src.core.modules.project_management.api.desktop.financials.models.options import (
-    FinancialProjectOptionDescriptor,
+    FinancialLookupOptionDto,
+    FinancialLookupPageDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
     FinancialOverviewDto,
@@ -92,15 +96,16 @@ def _overview() -> FinancialOverviewDto:
 
 def test_shell_loads_only_project_selector_options() -> None:
     api = MagicMock()
-    api.list_projects.return_value = (
-        FinancialProjectOptionDescriptor("project-1", "Project One"),
+    api.search_finance_projects.return_value = FinancialLookupPageDto(
+        items=(FinancialLookupOptionDto("project-1", "Project One"),),
+        total=1,
     )
 
     state = build_shell_state(api)
 
     assert state.selected_project_id == "project-1"
-    api.list_projects.assert_called_once_with()
-    assert api.method_calls == [call.list_projects()]
+    api.search_finance_projects.assert_called_once_with(page=1, page_size=25)
+    assert api.method_calls == [call.search_finance_projects(page=1, page_size=25)]
 
 
 def test_overview_uses_bounded_overview_contract_only() -> None:
@@ -714,11 +719,23 @@ Window {
         id: host
         objectName: "financialsDialogHost"
         selectedProjectId: "project-1"
-        manualActualOptions: ({
+        workspaceController: controller
+        manualActualDefaults: ({
             "currencyCode": "XAF",
-            "costCodes": [],
             "entryKinds": [{"label": "Actual", "value": "actual"}]
         })
+    }
+    QtObject {
+        id: controller
+        function resolveManualActualProject(projectId) {
+            return {"ok": true, "item": {"value": projectId, "label": "Project One"}}
+        }
+        function loadManualActualDefaults(projectId) {
+            return {"ok": true, "currencyCode": "XAF", "entryKinds": [{"label": "Actual", "value": "actual"}]}
+        }
+        function resolveManualActualTask(projectId, taskId) { return {"ok": true, "item": null} }
+        function resolveManualActualCostCode(projectId, codeId, effectiveOn) { return {"ok": true, "item": null} }
+        function newFinancialCommandId() { return "command-1" }
     }
     Timer {
         interval: 0
@@ -741,7 +758,7 @@ Window {
     assert dialog is not None
     assert dialog.property("opened") is True
     assert dialog.property("primaryEnabled") is False
-    assert "No active cost code" in str(dialog.property("infoMessage"))
+    assert "active cost code" in str(dialog.property("infoMessage"))
     window.deleteLater()
 
 
@@ -787,8 +804,7 @@ Window {
 def test_cost_actuals_tab_loads_only_paged_actual_dependencies() -> None:
     api = MagicMock()
     api.list_cost_entries.return_value = FinancialCostEntryPageDto()
-    api.get_manual_actual_options.return_value = FinancialManualActualOptionsDto()
-    api.list_tasks.return_value = ()
+    api.get_manual_actual_defaults.return_value = FinancialManualActualOptionsDto()
 
     build_destination_state(
         api,
@@ -806,8 +822,47 @@ def test_cost_actuals_tab_loads_only_paged_actual_dependencies() -> None:
         sort_key="metaText",
         sort_direction="desc",
     )
-    api.get_manual_actual_options.assert_called_once_with("project-1")
-    api.list_tasks.assert_called_once_with("project-1")
+    api.get_manual_actual_defaults.assert_called_once_with("project-1")
+    assert not hasattr(api, "list_tasks") or api.list_tasks.call_count == 0
+
+
+def test_commercial_accounting_uses_only_isolated_status_page() -> None:
+    api = MagicMock()
+    api.get_accounting_statuses.return_value = FinancialAccountingStatusPageDto(
+        page=2,
+        page_size=25,
+        total=30,
+    )
+
+    state = build_destination_state(
+        api,
+        destination="commercial",
+        subsection="accounting",
+        selected_project_id="project-1",
+        billing_preparation_page=2,
+        configuration_page_size=25,
+        billing_preparation_search="acknowledged",
+    )
+
+    assert state.billing_preparations.page == 2
+    api.get_accounting_statuses.assert_called_once_with(
+        "project-1",
+        page=2,
+        page_size=25,
+        sort_key="metaText",
+        sort_direction="desc",
+        search="acknowledged",
+    )
+    assert api.method_calls == [
+        call.get_accounting_statuses(
+            "project-1",
+            page=2,
+            page_size=25,
+            sort_key="metaText",
+            sort_direction="desc",
+            search="acknowledged",
+        )
+    ]
 
 
 def test_controls_activity_uses_project_scoped_enterprise_audit_only() -> None:

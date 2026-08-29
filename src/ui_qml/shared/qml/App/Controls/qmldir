@@ -9,6 +9,7 @@ Label 1.0 Label.qml
 PrimaryButton 1.0 PrimaryButton.qml
 RadioButton 1.0 RadioButton.qml
 SearchField 1.0 SearchField.qml
+SearchablePagedSelector 1.0 SearchablePagedSelector.qml
 SecondaryButton 1.0 SecondaryButton.qml
 TextArea 1.0 TextArea.qml
 TextField 1.0 TextField.qml

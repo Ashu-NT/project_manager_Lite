@@ -6,7 +6,11 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.application.financials.invalidation import (
+    FinanceInvalidationScope,
+)
 from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import ApprovedTimeLaborCostConsumer
+from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.integration import InboxDeliveryDisposition, IntegrationInboxService, IntegrationOutboxService
 
 
@@ -41,10 +45,13 @@ class ApprovedTimeFinancialDispatcher:
         for record in claimed:
             try:
                 decision = self._inbox_service.begin_delivery(record.envelope)
+                posted_entry = None
                 if decision.disposition is InboxDeliveryDisposition.READY:
-                    self._consumer.consume(record.envelope)
+                    posted_entry = self._consumer.consume(record.envelope)
                     self._inbox_service.mark_processed(decision.receipt.id)
                 self._session.commit()
+                if posted_entry is not None:
+                    self._emit_refresh(posted_entry, event_id=record.envelope.event_id)
                 if decision.disposition is InboxDeliveryDisposition.QUARANTINED:
                     self._outbox_service.mark_failed(
                         record.id,
@@ -82,6 +89,23 @@ class ApprovedTimeFinancialDispatcher:
                     logger.exception("Failed to record Approved Time delivery failure")
                 logger.warning("Approved Time financial delivery failed event_id=%s", record.envelope.event_id, exc_info=True)
         return published
+
+    @staticmethod
+    def _emit_refresh(entry, *, event_id: str) -> None:
+        try:
+            domain_events.cost_entries_changed.emit(
+                FinanceInvalidationScope(
+                    tenant_id=str(entry.tenant_id),
+                    organization_id=str(entry.organization_id),
+                    project_id=str(entry.project_id),
+                )
+            )
+        except Exception:
+            # The integration transaction is already committed; a process-local
+            # presentation hint must never turn durable delivery into a retry.
+            logger.exception(
+                "Approved Time Finance refresh hint failed event_id=%s", event_id
+            )
 
 
 __all__ = ["ApprovedTimeFinancialDispatcher"]

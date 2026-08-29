@@ -11,6 +11,10 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.financials.invalidation import (
+    invalidation_scope,
+)
+from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_cards import (
     ProjectRateCardRepository,
 )
@@ -86,7 +90,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         )
         self._rate_card_repo.add(rate_card)
         self._record_card_audit("create", rate_card)
-        self._commit()
+        self._commit(rate_card)
         return rate_card
 
     def list_rate_cards(
@@ -115,7 +119,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         candidate = replace(current, is_active=False, updated_at=datetime.now(timezone.utc))
         self._rate_card_repo.update(candidate)
         self._record_card_audit("deactivate", candidate, old=current)
-        self._commit()
+        self._commit(candidate)
         return candidate
 
     # -- Rate card lines ------------------------------------------------
@@ -172,7 +176,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         self._reject_overlap(card.id, line)
         self._rate_card_repo.add_line(line)
         self._record_line_audit("create", line)
-        self._commit()
+        self._commit(card)
         return line
 
     def update_line(
@@ -193,6 +197,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
             operation_label="update rate card line",
         )
         current = self._require_line(line_id)
+        card = self._require_rate_card(current.rate_card_id)
         self._require_expected_version(current.version, expected_version, "Rate card line")
         candidate = replace(
             current,
@@ -221,7 +226,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         self._reject_overlap(candidate.rate_card_id, candidate, excluding_line_id=candidate.id)
         self._rate_card_repo.update_line(candidate)
         self._record_line_audit("update", candidate, old=current)
-        self._commit()
+        self._commit(card)
         return candidate
 
     def deactivate_line(self, line_id: str, *, expected_version: int) -> RateCardLine:
@@ -231,13 +236,14 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
             operation_label="deactivate rate card line",
         )
         current = self._require_line(line_id)
+        card = self._require_rate_card(current.rate_card_id)
         self._require_expected_version(current.version, expected_version, "Rate card line")
         if not current.is_active:
             return current
         candidate = replace(current, is_active=False, updated_at=datetime.now(timezone.utc))
         self._rate_card_repo.update_line(candidate)
         self._record_line_audit("deactivate", candidate, old=current)
-        self._commit()
+        self._commit(card)
         return candidate
 
     def list_lines(
@@ -449,7 +455,9 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
             sort_keys=True,
         )
 
-    def _commit(self, *, duplicate_message: str | None = None) -> None:
+    def _commit(
+        self, rate_card: ProjectRateCard, *, duplicate_message: str | None = None
+    ) -> None:
         try:
             self._session.commit()
         except IntegrityError as exc:
@@ -463,6 +471,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         except Exception:
             self._session.rollback()
             raise
+        domain_events.rates_changed.emit(invalidation_scope(rate_card))
 
 
 __all__ = ["ProjectRateCardService"]

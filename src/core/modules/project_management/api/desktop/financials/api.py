@@ -13,7 +13,6 @@ from src.core.modules.project_management.application.financials import (
     ProjectFinanceWorkspaceQuery,
     ProjectFinancePerformanceQuery,
 )
-from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.contracts.reads.financials.sorting import (
     normalize_cost_entry_sort,
     normalize_commitment_sort,
@@ -34,14 +33,19 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     FinancialChangeRequestQuery,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
+    AccountingStatusQuery,
     BillingPreparationLineQuery,
     BillingPreparationQuery,
     BillingScheduleQuery,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.finance_lookup_facts import (
+    FinanceLookupPageFacts,
+    FinanceLookupQuery,
+    ManualActualCostCodeQuery,
+)
 from src.core.modules.project_management.contracts.reads.pagination import (
     normalize_offset_for_total,
 )
-from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.infrastructure.reporting.api import (
     generate_excel_report,
@@ -54,8 +58,8 @@ from src.core.modules.project_management.api.desktop.financials.models.commitmen
 )
 from src.core.modules.project_management.api.desktop.financials.models.forecasts import FinancialForecastWorkspaceDto
 from src.core.modules.project_management.api.desktop.financials.models.options import (
-    FinancialProjectOptionDescriptor,
-    FinancialTaskOptionDescriptor,
+    FinancialLookupOptionDto,
+    FinancialLookupPageDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
     FinancialOverviewDto,
@@ -70,6 +74,7 @@ from src.core.modules.project_management.api.desktop.financials.models.changes i
     FinancialChangeWorkspaceDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
+    FinancialAccountingStatusPageDto,
     FinancialBillingReadWorkspaceDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.billing import (
@@ -114,10 +119,6 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
     FinancialCostEntryPageDto,
     FinancialManualActualOptionsDto,
 )
-from src.core.modules.project_management.api.desktop.financials.builders.option_builder import (
-    build_project_options,
-    build_task_options,
-)
 from src.core.modules.project_management.api.desktop.financials.builders.commitment_builder import (
     build_commitment_line_dto,
     build_commitment_summary_dto,
@@ -146,6 +147,9 @@ from src.core.modules.project_management.api.desktop.financials.serializers.chan
 from src.core.modules.project_management.api.desktop.financials.serializers.billing_workspace_serializer import (
     serialize_finance_billing_workspace,
 )
+from src.core.modules.project_management.api.desktop.financials.serializers.accounting_status_serializer import (
+    serialize_accounting_status_page,
+)
 from src.core.modules.project_management.api.desktop.financials.serializers.billing_serializer import (
     serialize_billing_preparation,
     serialize_billing_preparation_line,
@@ -165,8 +169,6 @@ class ProjectManagementFinancialsDesktopApi:
     def __init__(
         self,
         *,
-        project_service: ProjectService | None = None,
-        task_service: TaskService | None = None,
         finance_service: FinanceService | None = None,
         finance_workspace_query: ProjectFinanceWorkspaceQuery | None = None,
         finance_performance_query: ProjectFinancePerformanceQuery | None = None,
@@ -177,8 +179,6 @@ class ProjectManagementFinancialsDesktopApi:
         billing_preparation_service: ProjectBillingPreparationService | None = None,
         reporting_service: ReportingService | None = None,
     ) -> None:
-        self._project_service = project_service
-        self._task_service = task_service
         self._finance_service = finance_service
         self._finance_workspace_query = finance_workspace_query
         self._finance_performance_query = finance_performance_query
@@ -189,35 +189,104 @@ class ProjectManagementFinancialsDesktopApi:
         self._billing_preparation_service = billing_preparation_service
         self._reporting_service = reporting_service
 
-    def list_projects(self) -> tuple[FinancialProjectOptionDescriptor, ...]:
-        return build_project_options(self._project_service)
+    def active_scope_ids(self) -> tuple[str, str]:
+        query = self._require_finance_workspace_query()
+        return query.active_scope_ids()
 
-    def list_tasks(self, project_id: str) -> tuple[FinancialTaskOptionDescriptor, ...]:
-        return build_task_options(project_id, self._task_service)
+    def search_finance_projects(
+        self, *, search: str = "", page: int = 1, page_size: int = 25
+    ) -> FinancialLookupPageDto:
+        facts = self._require_finance_workspace_query().search_finance_projects(
+            request=FinanceLookupQuery(search=search, page=page, page_size=page_size)
+        )
+        return _serialize_lookup_page(facts)
 
-    def get_manual_actual_options(
-        self, project_id: str, *, effective_on: date | None = None
+    def resolve_finance_project(self, project_id: str) -> FinancialLookupOptionDto | None:
+        fact = self._require_finance_workspace_query().resolve_finance_project(project_id)
+        return _serialize_lookup_option(fact)
+
+    def search_manual_actual_projects(
+        self, *, search: str = "", page: int = 1, page_size: int = 25
+    ) -> FinancialLookupPageDto:
+        facts = self._require_finance_workspace_query().search_manual_actual_projects(
+            request=FinanceLookupQuery(search=search, page=page, page_size=page_size)
+        )
+        return _serialize_lookup_page(facts)
+
+    def resolve_manual_actual_project(
+        self, project_id: str
+    ) -> FinancialLookupOptionDto | None:
+        fact = self._require_finance_workspace_query().resolve_manual_actual_project(
+            project_id
+        )
+        return _serialize_lookup_option(fact)
+
+    def search_manual_actual_tasks(
+        self,
+        project_id: str,
+        *,
+        search: str = "",
+        page: int = 1,
+        page_size: int = 25,
+    ) -> FinancialLookupPageDto:
+        facts = self._require_finance_workspace_query().search_manual_actual_tasks(
+            project_id,
+            request=FinanceLookupQuery(search=search, page=page, page_size=page_size),
+        )
+        return _serialize_lookup_page(facts)
+
+    def resolve_manual_actual_task(
+        self, project_id: str, task_id: str
+    ) -> FinancialLookupOptionDto | None:
+        fact = self._require_finance_workspace_query().resolve_manual_actual_task(
+            project_id, task_id
+        )
+        return _serialize_lookup_option(fact)
+
+    def search_manual_actual_cost_codes(
+        self,
+        project_id: str,
+        *,
+        search: str = "",
+        page: int = 1,
+        page_size: int = 25,
+        effective_on: date | None = None,
+    ) -> FinancialLookupPageDto:
+        facts = self._require_finance_workspace_query().search_manual_actual_cost_codes(
+            project_id,
+            request=ManualActualCostCodeQuery(
+                search=search,
+                page=page,
+                page_size=page_size,
+                effective_on=effective_on,
+            ),
+        )
+        return _serialize_lookup_page(facts)
+
+    def resolve_manual_actual_cost_code(
+        self,
+        project_id: str,
+        cost_code_id: str,
+        *,
+        effective_on: date | None = None,
+    ) -> FinancialLookupOptionDto | None:
+        fact = self._require_finance_workspace_query().resolve_manual_actual_cost_code(
+            project_id,
+            cost_code_id,
+            effective_on=effective_on,
+        )
+        return _serialize_lookup_option(fact)
+
+    def get_manual_actual_defaults(
+        self, project_id: str
     ) -> FinancialManualActualOptionsDto:
         if not project_id:
             return FinancialManualActualOptionsDto()
-        if self._financial_configuration_service is None:
-            return FinancialManualActualOptionsDto(
-                currency_code=self._project_currency(project_id) or ""
-            )
-        service = self._financial_configuration_service
-        profile = service.get_profile(project_id)
-        codes = service.list_available_cost_codes(
-            project_id, effective_on=effective_on
+        defaults = self._require_finance_workspace_query().get_manual_actual_defaults(
+            project_id
         )
         return FinancialManualActualOptionsDto(
-            currency_code=profile.currency_code,
-            cost_codes=tuple(
-                FinancialCostCodeOptionDescriptor(
-                    value=code.id,
-                    label=f"{code.code} - {code.name}",
-                )
-                for code in codes
-            ),
+            currency_code=defaults.currency_code,
         )
 
     def create_cost_code(
@@ -554,6 +623,30 @@ class ProjectManagementFinancialsDesktopApi:
             line_effective_status=line_effective_status,
             as_of=as_of,
         )
+
+    def get_accounting_statuses(
+        self,
+        project_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 50,
+        sort_key: str = "metaText",
+        sort_direction: str = "desc",
+        search: str = "",
+    ) -> FinancialAccountingStatusPageDto:
+        if not project_id:
+            return FinancialAccountingStatusPageDto()
+        facts = self._require_finance_workspace_query().get_accounting_statuses(
+            project_id,
+            request=AccountingStatusQuery(
+                page=page,
+                page_size=page_size,
+                sort_key=sort_key,
+                sort_direction=sort_direction,
+                search=search,
+            ),
+        )
+        return serialize_accounting_status_page(facts)
 
     def get_billing_read_workspace(
         self,
@@ -1002,12 +1095,6 @@ class ProjectManagementFinancialsDesktopApi:
             self._reporting_service.get_project_commercial_projection(project_id)
         )
 
-    def _project_currency(self, project_id: str) -> str | None:
-        if not project_id or self._financial_configuration_service is None:
-            return None
-        profile = self._financial_configuration_service.get_profile(project_id)
-        return str(profile.currency_code or "").strip().upper() or None
-
     def _require_cost_entry_service(self) -> ProjectCostEntryService:
         if self._cost_entry_service is None:
             raise RuntimeError("Project cost-entry service is not connected.")
@@ -1034,6 +1121,30 @@ class ProjectManagementFinancialsDesktopApi:
         if self._finance_service is None:
             raise RuntimeError("Project management finance service is not connected.")
         return self._finance_service
+
+    def _require_finance_workspace_query(self) -> ProjectFinanceWorkspaceQuery:
+        if self._finance_workspace_query is None:
+            raise RuntimeError("Project Finance workspace query is not connected.")
+        return self._finance_workspace_query
+
+
+def _serialize_lookup_option(fact) -> FinancialLookupOptionDto | None:
+    if fact is None:
+        return None
+    return FinancialLookupOptionDto(value=fact.id, label=fact.label)
+
+
+def _serialize_lookup_page(facts: FinanceLookupPageFacts) -> FinancialLookupPageDto:
+    return FinancialLookupPageDto(
+        items=tuple(
+            FinancialLookupOptionDto(value=item.id, label=item.label)
+            for item in facts.items
+        ),
+        total=facts.total,
+        page=facts.page,
+        page_size=facts.page_size,
+        has_more=facts.has_more,
+    )
 
 
 __all__ = ["ProjectManagementFinancialsDesktopApi"]

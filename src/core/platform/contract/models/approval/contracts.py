@@ -6,7 +6,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class ApprovalPostCommitEvent:
     signal_name: str
-    payload: str
+    payload: object
 
 
 @dataclass(frozen=True)

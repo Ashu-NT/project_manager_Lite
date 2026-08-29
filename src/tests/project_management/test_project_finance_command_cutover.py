@@ -20,8 +20,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 
 def _build_api(services) -> ProjectManagementFinancialsDesktopApi:
     return ProjectManagementFinancialsDesktopApi(
-        project_service=services["project_service"],
-        task_service=services["task_service"],
+        finance_workspace_query=services["finance_workspace_query"],
         financial_configuration_service=services["financial_configuration_service"],
         cost_entry_service=services["cost_entry_service"],
     )
@@ -58,11 +57,14 @@ def test_desktop_cutover_creates_canonical_draft_and_preserves_posted_immutabili
     organization, project, task, cost_code = _setup_project(services)
     api = _build_api(services)
 
-    options = api.get_manual_actual_options(
-        project.id, effective_on=date(2026, 1, 12)
+    defaults = api.get_manual_actual_defaults(project.id)
+    cost_codes = api.search_manual_actual_cost_codes(
+        project.id,
+        search="ACTUAL-MANUAL",
+        effective_on=date(2026, 1, 12),
     )
-    assert options.currency_code == organization.base_currency
-    assert [(item.value, item.label) for item in options.cost_codes] == [
+    assert defaults.currency_code == organization.base_currency
+    assert [(item.value, item.label) for item in cost_codes.items] == [
         (cost_code.id, "ACTUAL-MANUAL - Manual actuals")
     ]
 

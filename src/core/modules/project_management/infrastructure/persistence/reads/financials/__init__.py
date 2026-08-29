@@ -8,6 +8,7 @@ from .sqlalchemy_finance_change_reader import SqlAlchemyFinanceChangeReader
 from .sqlalchemy_finance_billing_reader import SqlAlchemyFinanceBillingReader
 from .sqlalchemy_finance_performance_reader import SqlAlchemyFinancePerformanceReader
 from .sqlalchemy_finance_setup_reader import SqlAlchemyFinanceSetupReader
+from .sqlalchemy_finance_lookup_reader import SqlAlchemyFinanceLookupReader
 
 __all__ = [
     "SqlAlchemyEvmSeriesReader",
@@ -19,5 +20,6 @@ __all__ = [
     "SqlAlchemyFinanceBillingReader",
     "SqlAlchemyFinancePerformanceReader",
     "SqlAlchemyFinanceSetupReader",
+    "SqlAlchemyFinanceLookupReader",
     "SqlAlchemyFinanceSnapshotReader",
 ]

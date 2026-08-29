@@ -12,6 +12,9 @@ from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.financials.invalidation import (
+    invalidation_scope,
+)
 from src.core.modules.project_management.contracts.ports.schedule_change import (
     ApprovedScheduleChangePort,
     ApprovedTaskScheduleChange,
@@ -202,6 +205,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         except Exception:
             self._session.rollback()
             raise
+        domain_events.financial_changes_changed.emit(invalidation_scope(change))
         return change
 
     def add_impact(
@@ -287,6 +291,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         except Exception:
             self._session.rollback()
             raise
+        domain_events.financial_changes_changed.emit(invalidation_scope(change))
         return impact
 
     def _new_submission_context(self) -> DomainEventContext:
@@ -401,6 +406,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
             uow.changes.update(change, expected_row_version=expected_version)
             self._audit_change_using(uow, "submit", change)
             uow.commit()
+        domain_events.financial_changes_changed.emit(invalidation_scope(change))
         self._approval_service.publish_requested(approval)
         return change
 
@@ -482,6 +488,8 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
             if commit:
                 self._session.rollback()
             raise
+        if commit:
+            domain_events.financial_changes_changed.emit(invalidation_scope(change))
         return change
 
     def _apply_budget_successor(
@@ -1030,8 +1038,11 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
 
     @staticmethod
     def _emit_applied(change: FinancialChangeRequest) -> None:
+        domain_events.financial_changes_changed.emit(invalidation_scope(change))
         if change.applied_budget_id:
             domain_events.budgets_changed.emit(change.project_id)
+        if change.applied_forecast_id:
+            domain_events.forecasts_changed.emit(invalidation_scope(change))
         if change.applied_schedule_count:
             domain_events.tasks_changed.emit(change.project_id)
 

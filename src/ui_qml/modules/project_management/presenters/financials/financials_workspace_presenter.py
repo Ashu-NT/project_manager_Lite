@@ -49,6 +49,40 @@ class ProjectFinancialsWorkspacePresenter:
             **query,
         )
 
+    def active_scope_ids(self) -> tuple[str, str]:
+        return self._desktop_api.active_scope_ids()
+
+    def search_finance_projects(self, **query: Any):
+        return self._desktop_api.search_finance_projects(**query)
+
+    def resolve_finance_project(self, project_id: str):
+        return self._desktop_api.resolve_finance_project(project_id)
+
+    def search_manual_actual_projects(self, **query: Any):
+        return self._desktop_api.search_manual_actual_projects(**query)
+
+    def resolve_manual_actual_project(self, project_id: str):
+        return self._desktop_api.resolve_manual_actual_project(project_id)
+
+    def search_manual_actual_tasks(self, project_id: str, **query: Any):
+        return self._desktop_api.search_manual_actual_tasks(project_id, **query)
+
+    def resolve_manual_actual_task(self, project_id: str, task_id: str):
+        return self._desktop_api.resolve_manual_actual_task(project_id, task_id)
+
+    def search_manual_actual_cost_codes(self, project_id: str, **query: Any):
+        return self._desktop_api.search_manual_actual_cost_codes(project_id, **query)
+
+    def resolve_manual_actual_cost_code(
+        self, project_id: str, cost_code_id: str, **query: Any
+    ):
+        return self._desktop_api.resolve_manual_actual_cost_code(
+            project_id, cost_code_id, **query
+        )
+
+    def get_manual_actual_defaults(self, project_id: str):
+        return self._desktop_api.get_manual_actual_defaults(project_id)
+
     def create_manual_actual(self, payload: dict[str, Any]) -> None:
         create_manual_actual(self._desktop_api, payload)
 

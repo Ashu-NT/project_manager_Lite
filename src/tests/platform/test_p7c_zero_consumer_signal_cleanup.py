@@ -6,11 +6,12 @@ import inspect
 
 from src.core.shared.events.domain_events import domain_events
 
-_DELETED_SIGNALS = (
+_ACTIVE_FINANCE_SIGNALS = (
     "cost_entries_changed",
     "commitments_changed",
     "forecasts_changed",
     "financial_changes_changed",
+    "rates_changed",
 )
 
 
@@ -31,41 +32,32 @@ def _production_source_files():
 
 
 # ---------------------------------------------------------------------------
-# 1. The four signals are gone entirely
+# 1. Finance mutation hints exist only with producers and a targeted consumer
 # ---------------------------------------------------------------------------
 
 
-def test_all_four_zero_consumer_signals_no_longer_exist():
-    for signal_name in _DELETED_SIGNALS:
-        assert not hasattr(domain_events, signal_name), signal_name
-
-
-def test_all_four_zero_consumer_signals_have_zero_production_references():
-    """Word-boundary matching so a trailing-substring false positive (e.g. against a still-alive
-    signal whose name happens to contain one of these as a substring) cannot slip through."""
-    import re
-
-    pattern = re.compile(
-        r"(?<![\w.])(" + "|".join(_DELETED_SIGNALS) + r")\b"
+def test_finance_invalidation_signals_exist_with_producers_and_ui_consumer():
+    controller_source = inspect.getsource(
+        __import__(
+            "src.ui_qml.modules.project_management.controllers.financials.financials_refresh_mixin",
+            fromlist=["FinancialsRefreshMixin"],
+        ).FinancialsRefreshMixin
     )
-    hits = []
+    production_sources = {}
     for path in _production_source_files():
         with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-            source = _strip_strings_and_comments(fh.read())
-        if pattern.search(source):
-            hits.append(path)
-    assert hits == [], hits
+            production_sources[path] = _strip_strings_and_comments(fh.read())
 
-
-def test_no_approval_post_commit_event_references_a_deleted_signal():
-    hits = []
-    for path in _production_source_files():
-        with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-            source = fh.read()
-        for signal_name in _DELETED_SIGNALS:
-            if f'ApprovalPostCommitEvent("{signal_name}"' in source:
-                hits.append((path, signal_name))
-    assert hits == [], hits
+    for signal_name in _ACTIVE_FINANCE_SIGNALS:
+        assert hasattr(domain_events, signal_name), signal_name
+        assert f"domain_events.{signal_name}" in controller_source
+        producer_paths = [
+            path
+            for path, source in production_sources.items()
+            if "/application/financials/" in path
+            and f"domain_events.{signal_name}.emit" in source
+        ]
+        assert producer_paths, f"{signal_name} has no committed service producer"
 
 
 # ---------------------------------------------------------------------------
@@ -145,32 +137,32 @@ def test_emit_signal_safely_still_exists_with_real_remaining_callers():
 # ---------------------------------------------------------------------------
 
 
-def test_project_cost_apply_participant_emits_zero_post_commit_events():
-    """The business mutation still runs; only the dead `cost_entries_changed` notification is
-    gone -- both `apply()` and `reject()` now return zero post-commit events."""
+def test_project_cost_apply_participant_emits_scoped_post_commit_events():
     from src.core.modules.project_management.infrastructure.approval.project_cost_apply_participant import (
         ProjectCostApprovalParticipant,
     )
 
-    assert "ApprovalPostCommitEvent" not in inspect.getsource(ProjectCostApprovalParticipant.apply)
-    assert "ApprovalPostCommitEvent" not in inspect.getsource(ProjectCostApprovalParticipant.reject)
+    for method in (ProjectCostApprovalParticipant.apply, ProjectCostApprovalParticipant.reject):
+        source = inspect.getsource(method)
+        assert '"cost_entries_changed"' in source
+        assert "invalidation_scope(entry)" in source
 
 
-def test_financial_change_apply_participant_no_longer_emits_the_two_dead_signals():
+def test_financial_change_apply_participant_emits_scoped_change_and_forecast_hints():
     from src.core.modules.project_management.infrastructure.approval.financial_change_apply_participant import (
         FinancialChangeApprovalParticipant,
     )
 
     apply_source = inspect.getsource(FinancialChangeApprovalParticipant.apply)
-    assert "financial_changes_changed" not in apply_source
-    assert "forecasts_changed" not in apply_source
-    # budgets_changed/tasks_changed remain -- real UI consumers, untouched by P7C.
+    assert '"financial_changes_changed"' in apply_source
+    assert "invalidation_scope(change)" in apply_source
+    assert '"forecasts_changed"' in apply_source
     assert "budgets_changed" in apply_source
     assert "tasks_changed" in apply_source
 
     reject_source = inspect.getsource(FinancialChangeApprovalParticipant.reject)
-    assert "financial_changes_changed" not in reject_source
-    assert "ApprovalPostCommitEvent" not in reject_source
+    assert '"financial_changes_changed"' in reject_source
+    assert "invalidation_scope(change)" in reject_source
 
 
 def test_real_budget_approval_still_emits_its_own_real_signal(services):
@@ -204,14 +196,12 @@ def test_real_budget_approval_still_emits_its_own_real_signal(services):
 
 
 # ---------------------------------------------------------------------------
-# 5. Producer-cleanup structural checks: renamed helpers, no dangling `_commit_and_emit`
+# 5. Producer structure and integration-owned post-commit hints
 # ---------------------------------------------------------------------------
 
 
 def test_no_commit_and_emit_helper_remains_anywhere():
-    """Every `_commit_and_emit`-style helper (whose sole remaining purpose was emitting a now-
-    deleted signal) was either renamed to `_commit` (with the dead emit line removed) or deleted
-    outright if it had zero callers."""
+    """Service helpers use the concise `_commit` name; signal publication is part of commit."""
     hits = []
     for path in _production_source_files():
         with open(path, "r", encoding="utf-8", errors="ignore") as fh:
@@ -221,20 +211,23 @@ def test_no_commit_and_emit_helper_remains_anywhere():
     assert hits == [], hits
 
 
-def test_procurement_financial_dispatcher_no_longer_emits_dead_signals():
+def test_procurement_financial_dispatcher_emits_scoped_post_commit_hints():
     import src.infra.integration.procurement_financial_dispatcher as module
 
     source = inspect.getsource(module)
-    assert "_emit_local_refresh" not in source
-    assert "commitments_changed" not in source
-    assert "cost_entries_changed" not in source
+    assert "FinanceInvalidationScope" in source
+    assert "commitments_changed.emit(scope)" in source
+    assert "cost_entries_changed.emit(scope)" in source
+    assert source.index("self._session.commit()") < source.index("self._emit_refresh(")
 
 
-def test_approved_time_dispatcher_no_longer_emits_dead_signal():
+def test_approved_time_dispatcher_emits_scoped_post_commit_hint():
     import src.infra.integration.approved_time_dispatcher as module
 
     source = inspect.getsource(module)
-    assert "cost_entries_changed" not in source
+    assert "FinanceInvalidationScope" in source
+    assert "cost_entries_changed.emit" in source
+    assert source.index("self._session.commit()") < source.index("self._emit_refresh(")
 
 
 # ---------------------------------------------------------------------------
@@ -246,9 +239,6 @@ def test_final_invariant_every_remaining_signal_has_a_production_reference():
     import dataclasses
 
     signal_names = [f.name for f in dataclasses.fields(domain_events)]
-    for deleted in _DELETED_SIGNALS:
-        assert deleted not in signal_names
-
     reference_counts = {name: 0 for name in signal_names}
     for path in _production_source_files():
         if path == "src/core/shared/events/domain_events.py":
@@ -264,6 +254,8 @@ def test_final_invariant_every_remaining_signal_has_a_production_reference():
 
 
 def test_no_new_business_domain_event_or_replacement_signal_introduced():
+    import ast
+
     forbidden = (
         "CostEntryChanged", "CommitmentChanged", "ForecastChanged",
         "FinancialChangeChanged", "FinanceChanged",
@@ -271,9 +263,18 @@ def test_no_new_business_domain_event_or_replacement_signal_introduced():
     hits = []
     for path in _production_source_files():
         with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-            source = _strip_strings_and_comments(fh.read())
-        if any(name in source for name in forbidden):
-            hits.append(path)
+            source = fh.read()
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            continue
+        defined = {
+            node.name
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+        if defined.intersection(forbidden):
+            hits.append((path, sorted(defined.intersection(forbidden))))
     assert hits == [], hits
 
 

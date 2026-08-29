@@ -11,6 +11,7 @@ from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
 )
 from src.ui_qml.modules.project_management.controllers.financials.financials_mutation_mixin import FinancialsMutationMixin
+from src.ui_qml.modules.project_management.controllers.financials.financials_lookup_mixin import FinancialsLookupMixin
 from src.ui_qml.modules.project_management.controllers.financials.financials_refresh_mixin import FinancialsRefreshMixin
 from src.ui_qml.modules.project_management.controllers.financials.financials_selection_mixin import FinancialsSelectionMixin
 from src.ui_qml.modules.project_management.controllers.financials.financials_state_mixin import FinancialsStateMixin
@@ -43,12 +44,12 @@ class ProjectManagementFinancialsWorkspaceController(
     FinancialsRefreshMixin,
     FinancialsSelectionMixin,
     FinancialsMutationMixin,
+    FinancialsLookupMixin,
     FinancialsStateMixin,
 ):
     overviewChanged = Signal()
     projectOptionsChanged = Signal()
-    taskOptionsChanged = Signal()
-    manualActualOptionsChanged = Signal()
+    manualActualDefaultsChanged = Signal()
     selectedProjectIdChanged = Signal()
     costPhasingChanged = Signal()
     costPhasingBasisChanged = Signal()
@@ -139,13 +140,13 @@ class ProjectManagementFinancialsWorkspaceController(
         )
         self._overview = default_overview()
         self._project_options: FinancialsObjectList = []
-        self._task_options: FinancialsObjectList = []
-        self._manual_actual_options: FinancialsMap = {
+        self._manual_actual_defaults: FinancialsMap = {
             "currencyCode": "",
-            "costCodes": [],
             "entryKinds": [],
         }
         self._selected_project_id = ""
+        self._active_tenant_id = ""
+        self._active_organization_id = ""
         self._ledger_table_model = DynamicTableModel(self)
         self._cost_phasing = default_collection()
         self._cost_phasing_basis = default_detail()
@@ -303,11 +304,8 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property("QVariantList", notify=projectOptionsChanged)
     def projectOptions(self) -> FinancialsObjectList: return self._project_options
 
-    @Property("QVariantList", notify=taskOptionsChanged)
-    def taskOptions(self) -> FinancialsObjectList: return self._task_options
-
-    @Property("QVariantMap", notify=manualActualOptionsChanged)
-    def manualActualOptions(self) -> FinancialsMap: return self._manual_actual_options
+    @Property("QVariantMap", notify=manualActualDefaultsChanged)
+    def manualActualDefaults(self) -> FinancialsMap: return self._manual_actual_defaults
 
     @Property(str, notify=selectedProjectIdChanged)
     def selectedProjectId(self) -> str: return self._selected_project_id
@@ -891,6 +889,53 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Slot("QVariantMap", result="QVariantMap")
     def createManualActual(self, payload: FinancialsMap) -> FinancialsMap: return self._create_manual_actual(payload)
+
+    @Slot(str, int, int, result="QVariantMap")
+    def searchFinanceProjects(self, search: str, page: int, page_size: int) -> FinancialsMap:
+        return self._search_finance_projects(search, page, page_size)
+
+    @Slot(str, int, int, result="QVariantMap")
+    def searchManualActualProjects(self, search: str, page: int, page_size: int) -> FinancialsMap:
+        return self._search_manual_actual_projects(search, page, page_size)
+
+    @Slot(str, str, int, int, result="QVariantMap")
+    def searchManualActualTasks(
+        self, project_id: str, search: str, page: int, page_size: int
+    ) -> FinancialsMap:
+        return self._search_manual_actual_tasks(project_id, search, page, page_size)
+
+    @Slot(str, str, int, int, str, result="QVariantMap")
+    def searchManualActualCostCodes(
+        self,
+        project_id: str,
+        search: str,
+        page: int,
+        page_size: int,
+        effective_on: str,
+    ) -> FinancialsMap:
+        return self._search_manual_actual_cost_codes(
+            project_id, search, page, page_size, effective_on
+        )
+
+    @Slot(str, result="QVariantMap")
+    def resolveManualActualProject(self, project_id: str) -> FinancialsMap:
+        return self._resolve_manual_actual_project(project_id)
+
+    @Slot(str, str, result="QVariantMap")
+    def resolveManualActualTask(self, project_id: str, task_id: str) -> FinancialsMap:
+        return self._resolve_manual_actual_task(project_id, task_id)
+
+    @Slot(str, str, str, result="QVariantMap")
+    def resolveManualActualCostCode(
+        self, project_id: str, cost_code_id: str, effective_on: str
+    ) -> FinancialsMap:
+        return self._resolve_manual_actual_cost_code(
+            project_id, cost_code_id, effective_on
+        )
+
+    @Slot(str, result="QVariantMap")
+    def loadManualActualDefaults(self, project_id: str) -> FinancialsMap:
+        return self._load_manual_actual_defaults(project_id)
 
     @Slot("QVariantMap", result="QVariantMap")
     def createCostCode(self, payload: FinancialsMap) -> FinancialsMap: return self._create_cost_code(payload)

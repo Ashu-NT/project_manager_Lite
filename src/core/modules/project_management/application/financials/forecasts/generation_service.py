@@ -18,6 +18,10 @@ from src.core.modules.project_management.application.financials.forecasts.genera
     ManualEtcEstimate,
     RiskContingencyEstimate,
 )
+from src.core.modules.project_management.application.financials.invalidation import (
+    invalidation_scope,
+)
+from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.contracts.repositories.finance.commitments.commitment import (
     ProjectCommitmentRepository,
 )
@@ -232,6 +236,7 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
         except Exception:
             self._session.rollback()
             raise
+        domain_events.forecasts_changed.emit(invalidation_scope(forecast))
         return ForecastGenerationResult(
             forecast=forecast,
             lines=tuple(lines),

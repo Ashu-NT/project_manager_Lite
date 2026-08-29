@@ -360,7 +360,7 @@ class ApprovalService:
             cls._emit_signal_safely(event.signal_name, event.payload)
 
     @staticmethod
-    def _emit_signal_safely(signal_name: str, payload: str) -> None:
+    def _emit_signal_safely(signal_name: str, payload: object) -> None:
         signal = getattr(domain_events, signal_name, None)
         if signal is None:
             logger.error("Approval post-commit signal is not registered: %s", signal_name)

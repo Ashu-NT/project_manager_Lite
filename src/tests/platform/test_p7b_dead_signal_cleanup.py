@@ -98,17 +98,21 @@ def test_pm_dashboard_no_longer_reacts_to_costs_changed_because_it_no_longer_exi
     # absence assertion above, plus the source-reference-count guard, is the complete proof.
 
 
-def test_pm_financials_workspace_still_reacts_to_its_remaining_real_signals(services):
+def test_pm_financials_workspace_coalesces_scoped_finance_invalidations(services, qapp):
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.financialsWorkspace
+    project_id = _unique("p7b-finance-project")
+    controller._set_selected_project_id(project_id)
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.budgets_changed.emit(_unique("p7b-budget"))
-    domain_events.planned_costs_changed.emit(_unique("p7b-planned-cost"))
-    domain_events.billing_preparations_changed.emit(_unique("p7b-billing-prep"))
+    domain_events.budgets_changed.emit(project_id)
+    domain_events.planned_costs_changed.emit(project_id)
+    domain_events.billing_preparations_changed.emit(project_id)
 
-    assert refresh_calls == ["refresh", "refresh", "refresh"]
+    qapp.processEvents()
+
+    assert refresh_calls == ["refresh"]
 
 
 def test_pm_portfolio_workspace_still_reacts_to_its_remaining_real_signals(services, qapp):
@@ -222,10 +226,9 @@ def test_final_signal_invariant_every_remaining_signal_has_a_source_reference_be
                 reference_counts[name] += 1
 
     orphaned = [name for name, count in reference_counts.items() if count == 0]
-    # P7C deleted cost_entries_changed/commitments_changed/forecasts_changed/
-    # financial_changes_changed entirely (the one documented producer-only/zero-consumer
-    # exception P7B left in place) -- every remaining signal now has both a producer and a
-    # consumer, so this list is expected to be empty with no exceptions.
+    # R6B restored the Finance family hints only after adding both committed mutation
+    # producers and a targeted Finance destination-cache consumer. Every remaining signal
+    # therefore has an active production path in both directions.
     assert orphaned == [], orphaned
 
 

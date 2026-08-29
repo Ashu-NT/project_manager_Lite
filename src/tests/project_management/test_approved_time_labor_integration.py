@@ -2,6 +2,11 @@ from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import select
+
+from src.core.modules.project_management.application.financials.invalidation import (
+    FinanceInvalidationScope,
+)
+from src.core.shared.events.domain_events import domain_events
 from alembic import command
 from alembic.config import Config
 import pytest

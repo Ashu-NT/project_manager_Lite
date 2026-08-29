@@ -21,17 +21,11 @@ class FinancialsStateMixin:
         self._project_options = project_options
         self.projectOptionsChanged.emit()
 
-    def _set_task_options(self, task_options: FinancialsObjectList) -> None:
-        if task_options == self._task_options:
+    def _set_manual_actual_defaults(self, defaults: FinancialsMap) -> None:
+        if defaults == self._manual_actual_defaults:
             return
-        self._task_options = task_options
-        self.taskOptionsChanged.emit()
-
-    def _set_manual_actual_options(self, options: FinancialsMap) -> None:
-        if options == self._manual_actual_options:
-            return
-        self._manual_actual_options = options
-        self.manualActualOptionsChanged.emit()
+        self._manual_actual_defaults = defaults
+        self.manualActualDefaultsChanged.emit()
 
     def _set_selected_project_id(self, selected_project_id: str) -> None:
         if selected_project_id == self._selected_project_id:

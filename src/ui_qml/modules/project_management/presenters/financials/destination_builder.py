@@ -12,14 +12,17 @@ from src.core.platform.api.desktop.history.audit.audit_enterprise import (
 from src.ui_qml.modules.project_management.view_models.financials import (
     FinancialsDetailFieldViewModel,
     FinancialsDetailViewModel,
-    FinancialsManualActualOptionsViewModel,
+    FinancialsManualActualDefaultsViewModel,
     FinancialsOverviewViewModel,
     FinancialsSelectorOptionViewModel,
     FinancialsWorkspaceViewModel,
 )
 
 from .audit_builder import build_finance_audit_collection
-from .billing_workspace_builder import build_billing_workspace_views
+from .billing_workspace_builder import (
+    build_accounting_status_collection,
+    build_billing_workspace_views,
+)
 from .commitment_builder import build_commitment_collection, build_commitment_summary
 from .configuration_builder import build_finance_configuration_views
 from .change_workspace_builder import build_change_workspace_views
@@ -89,10 +92,21 @@ def build_shell_state(
     *,
     selected_project_id: str | None = None,
 ) -> FinancialsWorkspaceViewModel:
+    page = desktop_api.search_finance_projects(page=1, page_size=25)
     project_options = tuple(
         FinancialsSelectorOptionViewModel(value=option.value, label=option.label)
-        for option in desktop_api.list_projects()
+        for option in page.items
     )
+    requested_id = str(selected_project_id or "").strip()
+    if requested_id and all(option.value != requested_id for option in project_options):
+        selected = desktop_api.resolve_finance_project(requested_id)
+        if selected is not None:
+            project_options = (
+                FinancialsSelectorOptionViewModel(
+                    value=selected.value, label=selected.label
+                ),
+                *project_options,
+            )
     resolved_project_id = resolve_project_id(selected_project_id, project_options)
     return FinancialsWorkspaceViewModel(
         overview=_empty_overview(),
@@ -326,33 +340,12 @@ def build_destination_state(
                 sort_key=actual_sort_key,
                 sort_direction=actual_sort_direction,
             )
-            options = desktop_api.get_manual_actual_options(project_id)
-            tasks = (
-                FinancialsSelectorOptionViewModel(
-                    value="",
-                    label="Not linked to a task",
-                ),
-                *(
-                    FinancialsSelectorOptionViewModel(
-                        value=item.value,
-                        label=item.label,
-                    )
-                    for item in desktop_api.list_tasks(project_id)
-                ),
-            )
+            options = desktop_api.get_manual_actual_defaults(project_id)
             return FinancialsWorkspaceViewModel(
                 overview=state.overview,
                 selected_project_id=project_id,
-                task_options=tasks,
-                manual_actual_options=FinancialsManualActualOptionsViewModel(
+                manual_actual_defaults=FinancialsManualActualDefaultsViewModel(
                     currency_code=options.currency_code,
-                    cost_codes=tuple(
-                        FinancialsSelectorOptionViewModel(
-                            value=item.value,
-                            label=item.label,
-                        )
-                        for item in options.cost_codes
-                    ),
                     entry_kinds=tuple(
                         FinancialsSelectorOptionViewModel(
                             value=item.value,
@@ -536,6 +529,23 @@ def build_destination_state(
                     ),
                     fields=fields,
                 ),
+            )
+        if subsection == "accounting":
+            accounting = desktop_api.get_accounting_statuses(
+                project_id,
+                page=billing_preparation_page,
+                page_size=configuration_page_size,
+                sort_key=billing_preparation_sort_key,
+                sort_direction=billing_preparation_sort_direction,
+                search=billing_preparation_search,
+            )
+            return FinancialsWorkspaceViewModel(
+                overview=state.overview,
+                selected_project_id=project_id,
+                billing_preparations=build_accounting_status_collection(accounting),
+                billing_preparation_sort_key=accounting.sort_key,
+                billing_preparation_sort_direction=accounting.sort_direction,
+                billing_preparation_search=billing_preparation_search,
             )
         billing = build_billing_workspace_views(
             desktop_api.get_billing_read_workspace(

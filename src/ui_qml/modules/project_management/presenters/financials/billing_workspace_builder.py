@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
+    FinancialAccountingStatusPageDto,
     FinancialBillingDetailDto,
     FinancialBillingReadWorkspaceDto,
     FinancialBillingTableRecordDto,
@@ -103,4 +104,21 @@ def build_billing_workspace_views(source: FinancialBillingReadWorkspaceDto) -> d
     }
 
 
-__all__ = ["build_billing_workspace_views"]
+def build_accounting_status_collection(
+    source: FinancialAccountingStatusPageDto,
+) -> FinancialsCollectionViewModel:
+    return FinancialsCollectionViewModel(
+        title="Accounting Outcomes",
+        subtitle=(
+            "Read-only external outcome evidence. A local handoff request is not "
+            "proof of delivery to Accounting."
+        ),
+        empty_state="No Accounting outcome evidence is available for this project.",
+        items=tuple(_record(item) for item in source.items),
+        page=source.page,
+        page_size=source.page_size,
+        total=source.total,
+    )
+
+
+__all__ = ["build_accounting_status_collection", "build_billing_workspace_views"]
