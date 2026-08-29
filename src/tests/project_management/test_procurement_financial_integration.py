@@ -25,6 +25,10 @@ from src.core.modules.project_management.infrastructure.persistence.orm.cost_ent
 from src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox import (
     ProjectFinanceInboxORM,
 )
+from src.core.modules.project_management.application.financials.invalidation import (
+    FinanceInvalidationScope,
+)
+from src.core.shared.events.domain_events import domain_events
 from src.core.platform.domain.master_data.party import PartyType
 from src.core.platform.integration import InboxProcessingStatus, OutboxDeliveryStatus
 from src.tests.ui_runtime_helpers import login_as
@@ -165,40 +169,55 @@ def test_sent_po_partial_receipt_and_cancellation_update_project_finance(service
         _create_approved_project_purchase_order(services)
     )
     purchasing = services["inventory_purchasing_service"]
-    sent = purchasing.send_purchase_order(purchase_order.id)
+    commitment_scopes: list[FinanceInvalidationScope] = []
+    actual_scopes: list[FinanceInvalidationScope] = []
 
-    session = services["session"]
-    commitment = session.execute(select(ProjectCommitmentLineORM)).scalar_one()
-    assert commitment.project_id == project.id
-    assert commitment.state == "sent"
-    assert commitment.amount == Decimal("500.0000")
-    assert commitment.matched_amount == Decimal("0.0000")
+    def capture_commitment(scope: FinanceInvalidationScope) -> None:
+        commitment_scopes.append(scope)
 
-    purchasing.post_receipt(
-        sent.id,
-        receipt_date=datetime(2026, 5, 10, 12, tzinfo=timezone.utc),
-        receipt_lines=[{
-            "purchase_order_line_id": po_line.id,
-            "quantity_accepted": 2,
-            "unit_cost": 100,
-        }],
-    )
-    session.expire_all()
-    commitment = session.execute(select(ProjectCommitmentLineORM)).scalar_one()
-    actual = session.execute(select(ProjectCostEntryORM)).scalar_one()
-    match = session.execute(select(ProjectCommitmentMatchORM)).scalar_one()
-    assert commitment.state == "partially_received"
-    assert commitment.matched_amount == Decimal("200.0000")
-    assert actual.status == "posted"
-    assert actual.amount == Decimal("200.0000")
-    assert match.amount == Decimal("200.0000")
+    def capture_actual(scope: FinanceInvalidationScope) -> None:
+        actual_scopes.append(scope)
 
-    refreshed = purchasing.get_purchase_order(sent.id)
-    cancelled = purchasing.cancel_purchase_order(
-        refreshed.id,
-        expected_version=refreshed.version,
-        note="Supplier cannot deliver remaining project quantity",
-    )
+    domain_events.commitments_changed.connect(capture_commitment)
+    domain_events.cost_entries_changed.connect(capture_actual)
+    try:
+        sent = purchasing.send_purchase_order(purchase_order.id)
+
+        session = services["session"]
+        commitment = session.execute(select(ProjectCommitmentLineORM)).scalar_one()
+        assert commitment.project_id == project.id
+        assert commitment.state == "sent"
+        assert commitment.amount == Decimal("500.0000")
+        assert commitment.matched_amount == Decimal("0.0000")
+
+        purchasing.post_receipt(
+            sent.id,
+            receipt_date=datetime(2026, 5, 10, 12, tzinfo=timezone.utc),
+            receipt_lines=[{
+                "purchase_order_line_id": po_line.id,
+                "quantity_accepted": 2,
+                "unit_cost": 100,
+            }],
+        )
+        session.expire_all()
+        commitment = session.execute(select(ProjectCommitmentLineORM)).scalar_one()
+        actual = session.execute(select(ProjectCostEntryORM)).scalar_one()
+        match = session.execute(select(ProjectCommitmentMatchORM)).scalar_one()
+        assert commitment.state == "partially_received"
+        assert commitment.matched_amount == Decimal("200.0000")
+        assert actual.status == "posted"
+        assert actual.amount == Decimal("200.0000")
+        assert match.amount == Decimal("200.0000")
+
+        refreshed = purchasing.get_purchase_order(sent.id)
+        cancelled = purchasing.cancel_purchase_order(
+            refreshed.id,
+            expected_version=refreshed.version,
+            note="Supplier cannot deliver remaining project quantity",
+        )
+    finally:
+        domain_events.commitments_changed.disconnect(capture_commitment)
+        domain_events.cost_entries_changed.disconnect(capture_actual)
     session.expire_all()
     commitment = session.execute(select(ProjectCommitmentLineORM)).scalar_one()
     balance = services["inventory_stock_service"].get_balance_for_stock_position(
@@ -218,6 +237,12 @@ def test_sent_po_partial_receipt_and_cancellation_update_project_finance(service
     assert all(row.status == InboxProcessingStatus.PROCESSED.value for row in inbox)
     assert session.execute(select(ProjectCommitmentSourceRevisionORM)).scalars().all()
     assert services["procurement_financial_dispatcher"].dispatch_pending(limit=50) == 0
+    # Send, receipt-state update, receipt matching, and cancellation are four
+    # distinct committed Procurement projections affecting commitment reads.
+    assert len(commitment_scopes) == 4
+    assert len(actual_scopes) == 1
+    assert all(scope.project_id == project.id for scope in commitment_scopes)
+    assert actual_scopes[0].project_id == project.id
 
 
 def test_purchase_order_send_rolls_back_when_outbox_write_fails(

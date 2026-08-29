@@ -91,6 +91,16 @@ QQC2.Control {
         searchField.text = ""
     }
 
+    function selectItem(item) {
+        if (!item) return
+        const value = String(item.value || "")
+        const label = String(item.label || "")
+        root.selectedId = value
+        root.selectedLabel = label
+        root.selectionChanged(value, label)
+        selectorPopup.close()
+    }
+
     Keys.onPressed: function(event) {
         if (event.key === Qt.Key_Space || event.key === Qt.Key_Down || event.key === Qt.Key_Return) {
             root.openPopup()
@@ -171,6 +181,7 @@ QQC2.Control {
                 placeholderText: root.searchPlaceholder
                 debounceInterval: 280
                 onSearchTriggered: root.requestLookup(1)
+                Keys.onDownPressed: resultList.forceActiveFocus()
             }
 
             Label {
@@ -191,6 +202,8 @@ QQC2.Control {
                 boundsBehavior: Flickable.StopAtBounds
                 keyNavigationEnabled: true
                 activeFocusOnTab: true
+                Keys.onReturnPressed: root.selectItem(root.items[currentIndex])
+                Keys.onEnterPressed: root.selectItem(root.items[currentIndex])
                 QQC2.ScrollBar.vertical: QQC2.ScrollBar {}
 
                 header: QQC2.ItemDelegate {
@@ -212,14 +225,7 @@ QQC2.Control {
                     width: resultList.width
                     text: String(optionDelegate.modelData.label || "")
                     highlighted: String(optionDelegate.modelData.value || "") === root.selectedId
-                    onClicked: {
-                        const value = String(optionDelegate.modelData.value || "")
-                        const label = String(optionDelegate.modelData.label || "")
-                        root.selectedId = value
-                        root.selectedLabel = label
-                        root.selectionChanged(value, label)
-                        selectorPopup.close()
-                    }
+                    onClicked: root.selectItem(optionDelegate.modelData)
                 }
 
                 Label {

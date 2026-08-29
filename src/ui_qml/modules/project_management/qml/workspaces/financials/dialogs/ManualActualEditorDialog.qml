@@ -161,6 +161,7 @@ AppWidgets.EntityDialog {
             required: true
             AppControls.SearchablePagedSelector {
                 id: projectSelector
+                objectName: "manualActualProjectSelector"
                 Layout.fillWidth: true
                 placeholderText: "Select project"
                 searchPlaceholder: "Search project name or code..."
@@ -204,6 +205,7 @@ AppWidgets.EntityDialog {
             label: "Task"
             AppControls.SearchablePagedSelector {
                 id: taskSelector
+                objectName: "manualActualTaskSelector"
                 Layout.fillWidth: true
                 enabled: projectSelector.selectedId.length > 0
                 allowEmpty: true
@@ -228,6 +230,7 @@ AppWidgets.EntityDialog {
             required: true
             AppControls.SearchablePagedSelector {
                 id: costCodeSelector
+                objectName: "manualActualCostCodeSelector"
                 Layout.fillWidth: true
                 enabled: projectSelector.selectedId.length > 0
                 placeholderText: "Select cost code"

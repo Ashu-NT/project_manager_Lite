@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy import event, text
 
 from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
+    AccountingStatusQuery,
     BillingPreparationLineQuery,
     BillingPreparationQuery,
     BillingScheduleQuery,
@@ -119,6 +120,36 @@ def test_billing_reader_is_bounded_through_runtime_rls_role(postgres_test_enviro
         assert preparations.total == 1 and preparations.items[0].latest_external_status == "accepted"
         assert detail is not None and detail.finalized_lock_count == 1
         assert lines.total == 1 and lines.items[0].net_amount == Decimal("5000.2500")
+    finally:
+        session.close()
+
+
+def test_accounting_status_reader_is_isolated_and_rls_scoped(postgres_test_environment):
+    session = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_A, organization_id=ORG_A
+    )
+    try:
+        validate_postgresql_execution_role(session)
+        reader = SqlAlchemyFinanceBillingReader(session=session)
+        page, query_count = _count_selects(
+            session,
+            lambda: reader.list_accounting_statuses(
+                tenant_id=TENANT_A,
+                organization_id=ORG_A,
+                project_id=PROJECT_A,
+                request=AccountingStatusQuery(page_size=1, search="ACCOUNTING"),
+            ),
+        )
+        assert query_count == 2
+        assert page.total == 1
+        assert page.items[0].latest_external_status == "accepted"
+        assert page.items[0].latest_external_invoice_reference == "INV-A"
+        assert reader.list_accounting_statuses(
+            tenant_id=TENANT_B,
+            organization_id=ORG_B,
+            project_id=PROJECT_B,
+            request=AccountingStatusQuery(),
+        ).total == 0
     finally:
         session.close()
 

@@ -762,6 +762,137 @@ Window {
     window.deleteLater()
 
 
+def test_searchable_selector_rejects_stale_context_result(qapp) -> None:
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    component.setData(
+        b"""
+import QtQuick
+import App.Controls 1.0
+Window {
+    property bool staleAccepted: true
+    property int acceptedItemCount: -1
+    visible: true
+    width: 640
+    height: 480
+    SearchablePagedSelector {
+        id: selector
+        objectName: "staleSelector"
+        contextKey: "project-a"
+    }
+    Component.onCompleted: {
+        selector.requestLookup(1)
+        const oldGeneration = selector._generation
+        selector.contextKey = "project-b"
+        selector.clearSelection()
+        staleAccepted = selector.acceptResult({
+            "ok": true,
+            "items": [{"value": "task-a", "label": "Old project task"}],
+            "page": 1,
+            "total": 1,
+            "hasMore": false
+        }, oldGeneration, "project-a")
+        acceptedItemCount = selector.items.length
+    }
+}
+""",
+        QUrl(),
+    )
+    assert component.isReady(), [error.toString() for error in component.errors()]
+    window = component.create()
+    assert window is not None
+    qapp.processEvents()
+    assert window.property("staleAccepted") is False
+    assert window.property("acceptedItemCount") == 0
+    window.deleteLater()
+
+
+@pytest.mark.parametrize(
+    ("width", "height"),
+    ((1024, 640), (1280, 720), (1366, 768), (1440, 900), (1920, 1080)),
+)
+def test_manual_actual_and_accounting_fit_supported_viewports(
+    qapp, width: int, height: int
+) -> None:
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    component.setData(
+        b"""
+import QtQuick
+import workspaces.financials.dialogs 1.0
+import workspaces.financials.panels 1.0
+Window {
+    visible: true
+    FinancialsDetailPanel {
+        id: panel
+        objectName: "financialsPanel"
+        anchors.fill: parent
+        activeDestination: "commercial"
+        activeSubsection: "accounting"
+        billingPreparationsModel: ({
+            "title": "Accounting Outcomes",
+            "items": [{"id": "prep-1", "title": "BP-0001"}],
+            "page": 1, "pageSize": 25, "total": 1
+        })
+    }
+    ManualActualEditorDialog {
+        id: dialog
+        workspaceController: controller
+        initialProjectId: "project-1"
+        initialDefaults: ({
+            "currencyCode": "XAF",
+            "entryKinds": [{"label": "Actual", "value": "actual"}]
+        })
+    }
+    QtObject {
+        id: controller
+        function resolveManualActualProject(projectId) {
+            return {"ok": true, "item": {"value": projectId, "label": "Project One"}}
+        }
+        function loadManualActualDefaults(projectId) {
+            return {"ok": true, "currencyCode": "XAF", "entryKinds": [{"label": "Actual", "value": "actual"}]}
+        }
+        function resolveManualActualTask(projectId, taskId) { return {"ok": true, "item": null} }
+        function resolveManualActualCostCode(projectId, codeId, effectiveOn) { return {"ok": true, "item": null} }
+        function newFinancialCommandId() { return "command-1" }
+    }
+    Timer {
+        interval: 0
+        running: true
+        repeat: false
+        onTriggered: dialog.open()
+    }
+}
+""",
+        QUrl(),
+    )
+    assert component.isReady(), [error.toString() for error in component.errors()]
+    window = component.create()
+    assert window is not None
+    window.setProperty("width", width)
+    window.setProperty("height", height)
+    window.show()
+    for _ in range(8):
+        qapp.processEvents()
+
+    panel = window.findChild(QObject, "financialsPanel")
+    accounting = window.findChild(QObject, "financialsAccountingSection")
+    dialog = window.findChild(QObject, "manualActualEditorDialog")
+    selectors = (
+        window.findChild(QObject, "manualActualProjectSelector"),
+        window.findChild(QObject, "manualActualTaskSelector"),
+        window.findChild(QObject, "manualActualCostCodeSelector"),
+    )
+    assert panel is not None and accounting is not None and dialog is not None
+    assert float(panel.property("width")) == width
+    assert 0 < float(accounting.property("width")) <= width
+    assert dialog.property("opened") is True
+    assert float(dialog.property("width")) <= width
+    assert all(selector is not None for selector in selectors)
+    assert all(0 < float(selector.property("width")) <= float(dialog.property("width")) for selector in selectors)
+    window.deleteLater()
+
+
 def test_financial_setup_can_open_cost_code_editor(qapp) -> None:
     engine = create_qml_engine()
     component = QQmlComponent(engine)

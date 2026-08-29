@@ -562,6 +562,7 @@ Item {
     Component {
         id: accountingComponent
         Column {
+            objectName: "financialsAccountingSection"
             width: parent ? parent.width : 0
             spacing: Theme.AppTheme.spacingMd
             AppWidgets.SectionHeading {
