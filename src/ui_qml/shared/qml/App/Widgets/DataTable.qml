@@ -122,18 +122,6 @@ Item {
         _mainView.contentY = nextY
         return true
     }
-    /*
-    function _scheduleMainViewLayout() {
-        if (root._layoutPending) return
-        root._layoutPending = true
-        Qt.callLater(function() {
-            root._layoutPending = false
-            if (_mainView.width > 0 && _mainView.height > 0) {
-                _mainView.forceLayout()
-            }
-        })
-    }
-    */
 
     function _toggleSort(key) {
         const normalizedKey = String(key || "")
@@ -145,8 +133,6 @@ Item {
             ? Qt.DescendingOrder
             : Qt.AscendingOrder
 
-        // Server mode is intent-only. The controller/query remains authoritative
-        // for both the active key and direction, including the visual indicator.
         if (root._effectiveSortingMode === "server") {
             root.sortRequested(normalizedKey, requestedDirection)
             return
@@ -246,24 +232,13 @@ Item {
     readonly property bool _someChecked: (root.selectedRowIds || []).length > 0 && !root._allChecked
 
     readonly property int _cbColW: 32
-    // Floor for user-driven column resize (drag handle below) -- narrow
-    // enough to shrink a column meaningfully, wide enough that a status
-    // chip or a couple of digits never has to fully disappear.
     readonly property int _minResizeWidth: 60
-    // Column-resize drag state: a live guide line follows the pointer
-    // while dragging; the actual column width (and the model rebuild that
-    // implies) is only committed once, on release.
+
     property string _resizingColumnKey: ""
     property real   _resizeGuideX: 0
-    // Once true (set the first time any column is manually resized),
-    // _colWidth() stops redistributing flex space across columns --
-    // see the comment there for why.
+
     property bool   _hasManualColumnWidths: false
 
-    // R7.4: an optional per-column `hideBelow` (pixel) key auto-hides that
-    // column once the enclosing window narrows past it, on top of the
-    // existing manual `visible` flag -- additive, columns without
-    // `hideBelow` behave exactly as before.
     readonly property var _visCols: {
         const r = []
         for (let i = 0; i < root.columns.length; i++) {
@@ -325,22 +300,9 @@ Item {
         if (!col) return Theme.AppTheme.tableColumnDefaultWidth
         const minW = root._columnBaseWidth(col)
         const flex  = col.flex    !== undefined ? col.flex    : 1
-        // Rounded to a whole pixel: the header positions cells in a plain
-        // Row (full floating-point x accumulation), while _mainView is a
-        // real TableView (its own internal column-position accounting).
-        // Feeding both the same fractional width let each side round/snap
-        // independently, drifting a pixel or two further apart with every
-        // column to the right -- rounding here keeps them numerically
-        // identical, not just theoretically so.
+  
         if (flex === 0) return Math.round(minW)
-        // Once the user has manually resized any column, stop
-        // redistributing flex space entirely: growing one column would
-        // otherwise shrink the room left for the others (each flex
-        // column's share depends on _extraFlexSpace, which shrinks as
-        // _minDataW grows). The table already scrolls horizontally
-        // (_hScrollBar), so the natural fix is to let total content width
-        // grow/shrink with the resize instead of squeezing every other
-        // column to keep everything crammed into the viewport.
+  
         if (root._hasManualColumnWidths) {
             return Math.round(minW)
         }
@@ -350,12 +312,6 @@ Item {
         return Math.round(Math.max(minW, minW + (root._extraFlexSpace * flex) / root._flexTotal))
     }
 
-    // Width the LAST visible column's row background/divider must render at
-    // so they reach the current viewport edge rather than stopping at the
-    // column's own (possibly manually-shrunk) width -- see the cell
-    // delegate's `_rowFillWidth` for why this only applies to the last
-    // column. `cellX` is the cell's x position in _mainView's content
-    // coordinate space (same space TableView positions delegates in).
     function _rowFillWidthFor(cellWidth, cellX) {
         return Math.max(cellWidth, (_mainView.contentX + _mainView.width) - cellX)
     }
@@ -402,9 +358,6 @@ Item {
         columns: root.columns
     }
 
-    // When a controller-owned sourceModel is provided, push the QML column
-    // definitions into it so the model's role lookups (ColumnTypeRole etc.)
-    // resolve correctly against the same column list used by the header.
     Binding {
         when:     root.sourceModel !== null
         target:   root.sourceModel
@@ -412,11 +365,6 @@ Item {
         value:    root.columns
     }
 
-    // Notify the header's columnWidthProvider when visible-column set changes.
-    //on_VisColsChanged: root._scheduleMainViewLayout()
-
-    // Centered, modal customizer -- no anchor positioning needed (kept as
-    // a no-op public property/param below only for call-site compatibility).
     TableColumnCustomizer {
         id: _colCustomizer
         columns: root.columns
@@ -439,16 +387,6 @@ Item {
             id: _headerRow
             anchors.fill: _header
 
-            // Checkbox select-all header (fixed, not scrolled). Deliberately
-            // NOT AppControls.CheckBox: that's a real QQC2.CheckBox Control
-            // with its own internal indicator/contentItem/click layout, and
-            // even with indicator+contentItem overridden here, the control's
-            // own base-style sizing didn't reliably center or click through.
-            // The per-row checkboxes below (a plain Rectangle+Text+
-            // MouseArea, no Control involved) already work correctly and
-            // are visually identical to what this one is drawing, so this
-            // reuses the exact same hand-rolled pattern instead of fighting
-            // the Control's internal state machinery.
             Item {
                 id: _selectAllHeaderCell
                 width:   root._cbColW
@@ -546,24 +484,9 @@ Item {
                                 visible: _hCell.index < root._visCols.length - 1
                             }
 
-                            // Resize handle: a slightly wider invisible hit
-                            // target centered on the separator, so dragging
-                            // doesn't require pixel-perfect precision on the
-                            // 1px divider line itself. Rather than committing
-                            // a new column width (and the table-model rebuild
-                            // that implies) on every pixel of mouse movement,
-                            // this only tracks a live guide line while
-                            // dragging and commits once on release -- a
-                            // continuous root.columns rewrite per mouse-move
-                            // event would mean a full model reset per pixel
-                            // dragged.
                             MouseArea {
                                 id: _resizeHandle
-                                // Above the sort MouseArea below (which
-                                // fills the whole cell and is declared
-                                // after this one -- without an explicit z,
-                                // it would sit on top and steal presses
-                                // meant for this handle).
+                  
                                 z: 1
                                 anchors.right: _hCell.right
                                 anchors.top: _hCell.top
@@ -588,20 +511,6 @@ Item {
                                         root._minResizeWidth,
                                         _resizeHandle._dragStartWidth + mouse.x - width / 2
                                     )
-                                    // Freeze every other column at its
-                                    // currently-rendered width (captured
-                                    // BEFORE this column's width changes),
-                                    // not just the dragged one -- otherwise
-                                    // growing this column reduces
-                                    // _extraFlexSpace, and every flex>0
-                                    // column's share (computed FROM
-                                    // _extraFlexSpace) would recompute
-                                    // smaller purely as a side effect of
-                                    // resizing something else. Freezing
-                                    // means only the dragged column's width
-                                    // actually changes; the table's total
-                                    // content width grows instead, and
-                                    // _hScrollBar already handles that.
                                     const updated = root.columns.map(function(c) {
                                         if (c.key === root._resizingColumnKey) {
                                             const copy = JSON.parse(JSON.stringify(c))
@@ -886,17 +795,6 @@ Item {
             readonly property bool _isSt: _cell.columnType === "status"
             readonly property bool _isPr: _cell.columnType === "progress"
 
-            // The last visible column's background/divider must reach the
-            // edge of the current viewport, not just its own column width --
-            // otherwise shrinking that column (via the resize handle) leaves
-            // an untreated blank strip to its right, since row background/
-            // divider are drawn per-cell and TableView never grows other
-            // columns to compensate for a shrink (by design -- see the
-            // resize-handle notes above). Before manual column widths
-            // existed, flex-based columns always summed to exactly the
-            // viewport width, so this gap could never appear. The formula
-            // lives on `root` (see `_rowFillWidthFor`) so it's independently
-            // testable without reaching into a virtualized TableView delegate.
             readonly property bool _isLastVisCol: _cell.column === root._visCols.length - 1
             readonly property real _rowFillWidth: _cell._isLastVisCol
                 ? root._rowFillWidthFor(_cell.width, _cell.x)
@@ -1035,21 +933,6 @@ Item {
             }
         }
 
-        // ── Empty-space click: clears selection, closing the inspector ──
-        // Sits on top (z above the row delegates) but declines the press
-        // whenever it lands over actual row content, letting it fall
-        // through to that row's own MouseArea unchanged. Only clicks below
-        // the last row (or anywhere, when the table is empty) are handled
-        // here. Explicitly parented and sized to _mainView itself (the
-        // Flickable/viewport) -- a Flickable's default `data` property
-        // silently reparents plain children like this one into its
-        // `contentItem`, whose size is the scrollable CONTENT size (not the
-        // viewport) and which scrolls with contentY. With few rows,
-        // contentHeight is far smaller than the visible viewport, so
-        // `anchors.fill: parent` confined this catcher to a small strip at
-        // the top and left the rest of the visibly-empty viewport
-        // completely unclickable; overriding `parent` back to `_mainView`
-        // keeps it viewport-sized and immune to scroll position too.
         MouseArea {
             id: _emptySpaceCatcher
             parent: _mainView

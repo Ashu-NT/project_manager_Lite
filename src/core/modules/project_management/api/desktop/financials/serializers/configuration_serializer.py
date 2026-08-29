@@ -13,8 +13,8 @@ from src.core.modules.project_management.api.desktop.financials.models.configura
     FinancialConfigurationWorkspaceDto,
     FinancialProfileDto,
 )
-from src.core.modules.project_management.application.financials import (
-    ProjectFinanceSetupRead,
+from src.core.modules.project_management.contracts.reads.financials.models.finance_setup_facts import (
+    FinanceSetupFacts,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
     FinanceBudgetWorkspaceFacts,
@@ -39,27 +39,26 @@ def _datetime_label(value: datetime | None) -> str:
 
 
 def serialize_finance_setup_workspace(
-    source: ProjectFinanceSetupRead,
+    source: FinanceSetupFacts,
 ) -> FinancialConfigurationWorkspaceDto:
-    profile = source.profile
     return FinancialConfigurationWorkspaceDto(
         profile=FinancialProfileDto(
             project_id=source.project_id,
-            status_label=_label(profile.status.value),
+            status_label=_label(source.status),
             subtitle="Canonical project finance configuration and control policy.",
             fields=(
-                FinancialConfigurationFieldDto("Currency", profile.currency_code),
-                FinancialConfigurationFieldDto("Billing method", _label(profile.billing_method.value)),
-                FinancialConfigurationFieldDto("Budget control", _label(profile.budget_control_mode.value)),
-                FinancialConfigurationFieldDto("Cost-code policy", _label(profile.cost_code_policy.value)),
+                FinancialConfigurationFieldDto("Currency", source.currency_code),
+                FinancialConfigurationFieldDto("Billing method", _label(source.billing_method)),
+                FinancialConfigurationFieldDto("Budget control", _label(source.budget_control_mode)),
+                FinancialConfigurationFieldDto("Cost-code policy", _label(source.cost_code_policy)),
                 FinancialConfigurationFieldDto(
                     "Financial period",
-                    f"{_date_label(profile.financial_start_date)} to {_date_label(profile.financial_end_date)}",
+                    f"{_date_label(source.financial_start_date)} to {_date_label(source.financial_end_date)}",
                 ),
-                FinancialConfigurationFieldDto("Funding", "Funded" if profile.is_funded else "Not funded"),
-                FinancialConfigurationFieldDto("Billing", "Billable" if profile.is_billable else "Non-billable"),
+                FinancialConfigurationFieldDto("Funding", "Funded" if source.is_funded else "Not funded"),
+                FinancialConfigurationFieldDto("Billing", "Billable" if source.is_billable else "Non-billable"),
                 FinancialConfigurationFieldDto("Default cost code", source.default_cost_code or "Not set"),
-                FinancialConfigurationFieldDto("Version", str(profile.version)),
+                FinancialConfigurationFieldDto("Version", str(source.version)),
             ),
         )
     )

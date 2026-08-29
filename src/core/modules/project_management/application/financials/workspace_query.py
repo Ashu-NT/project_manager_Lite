@@ -6,12 +6,11 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.financials.workspace_models import (
-    ProjectFinanceSetupRead,
+from src.core.modules.project_management.contracts.reads.financials.finance_setup_reader import (
+    FinanceSetupReader,
 )
-from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
-    ProjectCostCodeRepository,
-    ProjectFinancialProfileRepository,
+from src.core.modules.project_management.contracts.reads.financials.models.finance_setup_facts import (
+    FinanceSetupFacts,
 )
 from src.core.modules.project_management.contracts.reads.financials.finance_budget_reader import (
     FinanceBudgetReader,
@@ -73,8 +72,7 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
     def __init__(
         self,
         *,
-        profile_repo: ProjectFinancialProfileRepository,
-        cost_code_repo: ProjectCostCodeRepository,
+        setup_reader: FinanceSetupReader,
         budget_reader: FinanceBudgetReader | None = None,
         planned_cost_reader: FinancePlannedCostReader | None = None,
         forecast_reader: FinanceForecastReader | None = None,
@@ -85,8 +83,7 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         user_session=None,
         module_catalog_service=None,
     ) -> None:
-        self._profile_repo = profile_repo
-        self._cost_code_repo = cost_code_repo
+        self._setup_reader = setup_reader
         self._budget_reader = budget_reader
         self._planned_cost_reader = planned_cost_reader
         self._forecast_reader = forecast_reader
@@ -513,7 +510,7 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             lines=lines,
         )
 
-    def get_setup_workspace(self, project_id: str) -> ProjectFinanceSetupRead:
+    def get_setup_workspace(self, project_id: str) -> FinanceSetupFacts:
         require_permission(
             self._user_session,
             "finance.read",
@@ -525,26 +522,23 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             "finance.read",
             operation_label="view project finance setup",
         )
-        profile = self._profile_repo.get_by_project(project_id)
-        if profile is None:
+        if self._tenant_context_service is None:
+            raise RuntimeError("Finance Setup Reader is not configured.")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view project finance setup"
+        )
+        setup = self._setup_reader.get_setup(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+        )
+        if setup is None:
             raise NotFoundError(
                 "Project financial profile not found.",
                 code="FINANCIAL_PROFILE_NOT_FOUND",
             )
-        default_code = (
-            self._cost_code_repo.get(profile.default_cost_code_id)
-            if profile.default_cost_code_id
-            else None
-        )
-        return ProjectFinanceSetupRead(
-            project_id=project_id,
-            profile=profile,
-            default_cost_code=(
-                f"{default_code.code} - {default_code.name}" if default_code else ""
-            ),
-        )
+        return setup
 
 __all__ = [
-    "ProjectFinanceSetupRead",
     "ProjectFinanceWorkspaceQuery",
 ]

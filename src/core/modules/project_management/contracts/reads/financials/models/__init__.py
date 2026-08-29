@@ -64,6 +64,7 @@ from .finance_performance_facts import (
     PerformanceVarianceFacts,
     PerformanceVarianceMetricFact,
 )
+from .finance_setup_facts import FinanceSetupFacts
 
 __all__ = [
     "CostAggregateFact",
@@ -113,6 +114,7 @@ __all__ = [
     "PerformanceReportsFacts",
     "PerformanceVarianceFacts",
     "PerformanceVarianceMetricFact",
+    "FinanceSetupFacts",
     "ProjectResourceFact",
     "ResourceFact",
     "TaskFact",

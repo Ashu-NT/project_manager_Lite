@@ -34,7 +34,7 @@ class FinancialsMutationMixin:
                 dict(payload)
             ),
             success_message="Manual actual draft created.",
-            on_success=self._request_domain_refresh,
+            on_success=lambda: self._invalidate_destinations("costs", "controls"),
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -46,7 +46,9 @@ class FinancialsMutationMixin:
                 dict(payload)
             ),
             success_message="Cost code created and made available to the project.",
-            on_success=self._request_domain_refresh,
+            on_success=lambda: self._invalidate_destinations(
+                "planning", "costs", "controls"
+            ),
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -58,7 +60,7 @@ class FinancialsMutationMixin:
                 dict(payload)
             ),
             success_message="Actual submitted for approval.",
-            on_success=self._request_domain_refresh,
+            on_success=lambda: self._invalidate_destinations("costs", "controls"),
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -70,7 +72,7 @@ class FinancialsMutationMixin:
                 dict(payload)
             ),
             success_message="Actual approval decision recorded.",
-            on_success=self._request_domain_refresh,
+            on_success=lambda: self._invalidate_destinations("costs", "controls"),
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -82,7 +84,7 @@ class FinancialsMutationMixin:
                 dict(payload)
             ),
             success_message="Actual returned to draft.",
-            on_success=self._request_domain_refresh,
+            on_success=lambda: self._invalidate_destinations("costs", "controls"),
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -94,7 +96,9 @@ class FinancialsMutationMixin:
                 dict(payload)
             ),
             success_message="Actual posted to the ledger.",
-            on_success=self._request_domain_refresh,
+            on_success=lambda: self._invalidate_destinations(
+                "overview", "costs", "performance", "controls"
+            ),
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -106,7 +110,9 @@ class FinancialsMutationMixin:
                 dict(payload)
             ),
             success_message="Reversal posted.",
-            on_success=self._request_domain_refresh,
+            on_success=lambda: self._invalidate_destinations(
+                "overview", "costs", "performance", "controls"
+            ),
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,

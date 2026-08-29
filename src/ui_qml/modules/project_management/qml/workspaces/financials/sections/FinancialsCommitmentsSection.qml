@@ -92,7 +92,7 @@ Item {
                     }
                 }
 
-                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.AppTheme.divider }
+                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.AppTheme.divider }
 
                 RowLayout {
                     Layout.fillWidth: true
@@ -130,7 +130,7 @@ Item {
                     wrapMode: Text.WordWrap
                 }
 
-                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.AppTheme.divider }
+                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.AppTheme.divider }
 
                 AppControls.Label {
                     Layout.fillWidth: true

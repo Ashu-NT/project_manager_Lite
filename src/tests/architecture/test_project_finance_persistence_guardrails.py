@@ -77,8 +77,10 @@ def test_project_finance_rls_template_is_forced_and_default_deny() -> None:
 
     assert "ENABLE ROW LEVEL SECURITY" in sql
     assert "FORCE ROW LEVEL SECURITY" in sql
-    assert sql.count("current_setting('app.tenant_id', true)") == 2
-    assert sql.count("current_setting('app.organization_id', true)") == 2
+    assert sql.count("current_setting('app.tenant_id', true)") == 5
+    assert sql.count("current_setting('app.organization_id', true)") == 5
+    for command in ("FOR SELECT", "FOR INSERT", "FOR UPDATE", "FOR DELETE"):
+        assert command in sql
     assert "USING" in sql and "WITH CHECK" in sql
 
 
@@ -88,9 +90,10 @@ def test_project_finance_rls_template_has_reversible_policy_teardown() -> None:
         quote=_quote,
     )
 
-    assert statements[0].startswith("DROP POLICY IF EXISTS")
-    assert "NO FORCE ROW LEVEL SECURITY" in statements[1]
-    assert "DISABLE ROW LEVEL SECURITY" in statements[2]
+    assert len(statements) == 6
+    assert all(statement.startswith("DROP POLICY IF EXISTS") for statement in statements[:4])
+    assert "NO FORCE ROW LEVEL SECURITY" in statements[-2]
+    assert "DISABLE ROW LEVEL SECURITY" in statements[-1]
 
 
 def test_project_finance_rls_template_rejects_unsafe_identifiers() -> None:

@@ -62,13 +62,6 @@ Item {
         ? root.workspaceController.projectResources
         : ({ "title": "Resources", "subtitle": "", "emptyState": "Open this section to load project resources.", "items": [] })
 
-    // Schedule (100% duplicate of Overview's Start/Finish), Financials (its
-    // two real fields already shown in Overview; the rest was a static
-    // "go to Financials workspace" message), Documents, Material Demand, and
-    // Procurement (zero real backend wiring, pure placeholder text) were
-    // removed as part of the R4.2 detail-IA consolidation. Risks and
-    // Activity are real, project-scoped data (register entries / activity
-    // log respectively).
     readonly property var detailSections: ["Overview", "Tasks", "Resources", "Risks", "Activity"]
 
     function detailActionsForSection(sectionIndex, selectionContext) {
