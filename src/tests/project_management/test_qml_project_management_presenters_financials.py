@@ -215,6 +215,9 @@ class _FakeFinancialsWorkspacePresenter:
     def build_workspace_state(self, **_kwargs):
         raise RuntimeError("workspace state is not faked in this test")
 
+    def active_scope_ids(self) -> tuple[str, str]:
+        return ("tenant-1", "organization-1")
+
     def create_manual_actual(self, payload):
         self._record("create_manual_actual", payload)
 

@@ -149,8 +149,11 @@ server-paged Rate Card master and independently server-paged selected-card line
 detail. The effective merged scope is resolved in SQL: organization cards and
 cards for the explicitly pinned project are visible and clearly labelled; no
 client-side scope merge occurs. No Rate write action was exposed. The
-manual-actual task selector still needs a server-backed option query before
-scale closure.
+Manual Actual editor now uses one shared searchable/paged selector for Project,
+Task, and Cost Code. Each selector executes a bounded server query; dialog open
+loads defaults only and never preloads a high-cardinality option collection.
+Task and Cost Code lookup state is reset when Project changes, and selected IDs
+are resolved directly when editing an item outside the first result page.
 
 The resolver precedence is project resource/customer, project resource,
 project role/skill/department, organization resource, then organization
@@ -180,9 +183,13 @@ revision/as-of basis without loading the full Finance desktop snapshot.
 Commercial has Billing Preparation, Projected Profitability, and Accounting
 Status. Projected profitability remains server permission-gated. Accounting
 Status states that Accounting owns statutory outcomes and exposes no delivery
-command. Billing Schedule and Preparation use bounded server tables and an
-explicit selected-Preparation inspector. Durable Accounting integration status
-and outcomes remain R6G work, not an R6B read-cutover blocker.
+command. It uses a dedicated Accounting-status Reader that returns preparation
+identity, local handoff evidence, latest external outcome, and correction
+context in two statements (`COUNT + page`). It does not hydrate Billing Profile,
+Schedule, Preparation detail, or Preparation Lines. Billing Schedule and
+Preparation retain their separate bounded server tables and explicit selected-
+Preparation inspector. Durable Accounting integration remains R6G work, not an
+R6B read-cutover blocker.
 
 ## 14. Controls Architecture
 
@@ -280,11 +287,18 @@ request generation is validated before applying a response.
 Project changes invalidate the shell and all Finance destinations. Task changes
 invalidate Planning, Costs, and Performance. Budget changes invalidate Overview,
 Planning, and Performance. Planned-cost changes invalidate Planning and
-Performance. Billing preparation changes invalidate Commercial. Direct
-mutations invalidate only their dependent loaded destinations; posted and
-reversed actuals also invalidate Overview and Performance. Additional cross-
-process/outbox invalidation belongs to later write/integration phases and must
-not revive deleted emit-without-consumer signals.
+Performance. Forecast changes invalidate Overview, Planning, and Performance.
+Actual changes invalidate Overview, Costs, Performance, and Commercial.
+Commitment changes invalidate Overview, Planning, Costs, Performance, and
+Commercial. Rate changes invalidate Costs. Financial Change changes invalidate
+Controls. Billing preparation changes invalidate Commercial. Producers emit a
+tenant/organization/project-scoped hint only after commit; approved-time and
+Procurement dispatchers use the same process-local mechanism after durable
+delivery state commits. The controller rejects hints for another scope and
+invalidates only loaded dependent destinations. Subscription lifecycle and
+coalescing tests prove no duplicate subscription or refresh loop. Durable
+cross-process/outbox invalidation remains later integration work and must not
+revive emit-without-consumer signals.
 
 ## 23. Async Stale-Response Guards
 
@@ -333,8 +347,9 @@ Change Reader was also validated through `app_runtime`: foreign request,
 detail, and Impact reads and direct attacks against the foreign child Impact
 table return zero rows. Runtime-role tests also cover Billing and Performance,
 including direct foreign child-table attacks. The focused live R6B PostgreSQL
-matrix is `15 passed` through `app_runtime`; no protected table is owned by that
-role.
+matrix is `17 passed` through `app_runtime`, including bounded Manual Actual
+lookups and isolated Accounting status reads. No protected table is owned by
+that role.
 
 ## 26. Responsive Results
 
@@ -477,7 +492,8 @@ five supported viewports. Financial Setup evidence covers one-statement reads,
 immutable facts, explicit wrong-scope denial, desktop serialization, and the
 absence of repository fallback. The current focused query/controller/QML matrix
 is `59 passed`. The Performance integration module subsequently passed live as
-`3 passed`; the complete focused R6B PostgreSQL matrix is `15 passed`.
+`3 passed`; the complete focused R6B PostgreSQL matrix is `17 passed` after the
+Manual Actual lookup and Accounting-status runtime-role cases were added.
 
 ## 32. Billing Schedule / Preparation Read Cutover
 
@@ -562,7 +578,46 @@ authorizes before resolving active scope and invoking the Reader. The old
 query's profile/cost-code repository dependencies are deleted. Configuration
 repositories remain only on current command-side services.
 
-## 34. Known Deferred R6C-R6H Work
+## 34. Final Closure Remediation
+
+The final closure reconciliation removed four blockers. The old Manual Actual
+option builder and full Project/Task/Cost Code list APIs were deleted. The
+replacement Reader uses `COUNT + page` for each lookup (two statements), clamps
+page size, applies server search and deterministic ID tie-breaking, and repeats
+tenant/organization/project and permission scope in SQL. Project lookup applies
+Project visibility and `project_cost.create`; Task lookup requires the selected
+Project; Cost Code lookup applies active/effective/restriction eligibility.
+Generation and context tokens reject stale responses after search, page, or
+Project changes. The same selector component provides loading, empty, error,
+keyboard, and paging states. Create, edit-ID resolution, dependent clearing,
+and no-preload behavior are characterized.
+
+Commercial > Accounting no longer falls through the complete Billing workspace
+builder. Its isolated Reader/desktop DTO/API path executes exactly two statements
+and tests prove that Profile, Schedule, Preparation detail, and Preparation Line
+queries are not called. The visible phrase remains "Local handoff requested";
+no durable Accounting delivery claim or integration was added.
+
+The repository's existing process-local scoped Finance invalidation mechanism
+now has committed producers and a targeted Finance consumer for Forecast,
+Actual, Commitment, Rate, and Financial Change, while existing Budget, Planned
+Cost, and Billing behavior remains intact. Approved-time and Procurement
+integration paths emit after their durable transaction commits; subscriber
+failure cannot retry durable delivery. The stale P7B test expected three eager
+refreshes where the current controller intentionally coalesces invalidations;
+the test now asserts one coalesced refresh. P7C architecture guards prove every
+retained Finance signal has both a real producer and consumer. No dead signal
+or retired behavior was restored.
+
+Affected QML passes at 1024x640, 1280x720, 1366x768, 1440x900, and 1920x1080.
+The final targeted controller/presenter matrix is `110 passed`; the remaining
+Reader, command, integration, architecture, P7B, and P7C matrix is `191 passed`;
+and PostgreSQL runtime-role evidence is `17 passed`. Targeted Python compilation,
+`qmllint`, and scoped `git diff --check` are clean. The production cleanup scan
+found no superseded R6B compatibility architecture. Remaining fallback matches
+are valid formatting/missing-label behavior or the explicit R6E EVM debt.
+
+## 35. Known Deferred R6C-R6H Work
 
 - R6C: Budget/Forecast/Financial Change write UX, approvals, and UoW cleanup.
 - R6D: cost/rate/commitment write hardening.
@@ -574,7 +629,7 @@ repositories remain only on current command-side services.
 - R6H: final 10k/50k certification, exhaustive child-table RLS attacks, and
   final release-wide dead-code/document closure.
 
-## 35. R6B Closure Decision
+## 36. R6B Closure Decision
 
 **R6B CLOSED.** All destinations use one active production read path, inactive
 subsections remain lazy, scalable collections are bounded, selected-parent
