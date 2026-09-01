@@ -92,6 +92,13 @@ from src.core.platform.domain.master_data.site.events import (
     SiteEnabled,
     SiteProfileUpdated,
 )
+from src.core.platform.application.master_data.party.event_handlers.view_invalidation import (
+    build_party_list_view_invalidation_handler,
+)
+from src.core.platform.domain.master_data.party.events import (
+    PartyCreated,
+    PartyProfileUpdated,
+)
 from src.core.platform.application.tenant.modules.event_handlers.view_invalidation import (
     build_module_entitlement_view_invalidation_handler,
 )
@@ -479,6 +486,14 @@ def build_platform_service_bundle(
     for _site_event_type in (SiteCreated, SiteProfileUpdated, SiteEnabled, SiteDisabled):
         platform_post_commit_bus.subscribe(
             _site_event_type, _site_list_view_invalidation_handler
+        )
+
+    _party_list_view_invalidation_handler = build_party_list_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _party_event_type in (PartyCreated, PartyProfileUpdated):
+        platform_post_commit_bus.subscribe(
+            _party_event_type, _party_list_view_invalidation_handler
         )
 
     approval_uow_session_factory = sessionmaker(bind=session.bind, future=True)

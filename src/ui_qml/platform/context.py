@@ -17,6 +17,9 @@ from src.ui_qml.platform.adapters.department_view_invalidation_adapter import (
 from src.ui_qml.platform.adapters.site_view_invalidation_adapter import (
     SiteViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.party_view_invalidation_adapter import (
+    PartyViewInvalidationAdapter,
+)
 from src.ui_qml.platform.adapters.module_entitlement_view_invalidation_adapter import (
     ModuleEntitlementViewInvalidationAdapter,
 )
@@ -274,6 +277,16 @@ class PlatformWorkspaceCatalog(QObject):
             self._admin_workspace.refresh_sites
         )
 
+        self._party_view_invalidation_adapter = PartyViewInvalidationAdapter(
+            channel=view_invalidation_channel,
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+            parent=self,
+        )
+        self._party_view_invalidation_adapter.partyCollectionStale.connect(
+            self._admin_workspace.refresh_parties
+        )
+
     def _on_tenant_switched(self) -> None:
         self._organization_view_invalidation_adapter.set_active_tenant(
             self._tenant_switcher.activeTenantId
@@ -467,6 +480,10 @@ class PlatformWorkspaceCatalog(QObject):
             organization_id=self._active_organization_id(),
         )
         self._site_view_invalidation_adapter.set_active_scope(
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+        )
+        self._party_view_invalidation_adapter.set_active_scope(
             tenant_id=self._tenant_switcher.activeTenantId,
             organization_id=self._active_organization_id(),
         )
