@@ -35,6 +35,20 @@ def build_party_reference_options(desktop_api):
     )
 
 
+def build_document_reference_options(desktop_api):
+    return tuple(
+        InventoryDocumentOptionViewModel(
+            value=option.value,
+            label=option.label,
+            document_type=option.document_type,
+            storage_kind=option.storage_kind,
+            effective_date_label=option.effective_date_label,
+            is_active=option.is_active,
+        )
+        for option in desktop_api.list_available_documents(active_only=True)
+    )
+
+
 def build_workspace_state(
     desktop_api,
     *,
@@ -80,17 +94,7 @@ def build_workspace_state(
         for option in desktop_api.list_item_statuses()
     )
     business_party_options = build_party_reference_options(desktop_api)
-    available_documents = tuple(
-        InventoryDocumentOptionViewModel(
-            value=option.value,
-            label=option.label,
-            document_type=option.document_type,
-            storage_kind=option.storage_kind,
-            effective_date_label=option.effective_date_label,
-            is_active=option.is_active,
-        )
-        for option in desktop_api.list_available_documents(active_only=True)
-    )
+    available_documents = build_document_reference_options(desktop_api)
     normalized_search = (search_text or "").strip()
     normalized_active_filter = normalize_active_filter(active_filter)
     normalized_usage_filter = normalize_usage_filter(usage_filter)

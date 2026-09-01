@@ -35,35 +35,37 @@ def _spy_signal(signal):
 # ---------------------------------------------------------------------------
 
 
-def test_create_document_success_commits_and_emits_only_after_commit(services):
-    document_service = services["document_service"]
-    calls = _spy_signal(domain_events.documents_changed)
+# P16C superseded `test_create_document_success_commits_and_emits_only_after_commit` and
+# `test_update_document_real_change_commits_and_emits_only_after_commit`: create_document/
+# update_document no longer emit documents_changed at all (typed DocumentCreated/
+# DocumentProfileUpdated replaced it) -- see test_p16c_document_typed_events.py for the
+# current commit-timing proofs.
 
+
+def test_create_document_still_persists(services):
+    document_service = services["document_service"]
     code = _unique_code("DOC-CREATE")
     document = document_service.create_document(
         document_code=code, title="Create Ok", storage_uri="C:/docs/a.pdf"
     )
 
     assert document.document_code == code
-    assert calls == [document.id]
     reloaded = document_service._document_repo.get(document.id)
     assert reloaded is not None
     assert reloaded.document_code == code
 
 
-def test_update_document_real_change_commits_and_emits_only_after_commit(services):
+def test_update_document_real_change_still_persists(services):
     document_service = services["document_service"]
     document = document_service.create_document(
         document_code=_unique_code("DOC-UPDATE"), title="Before", storage_uri="C:/docs/b.pdf"
     )
-    calls = _spy_signal(domain_events.documents_changed)
 
     updated = document_service.update_document(
         document.id, title="After", expected_version=document.version
     )
 
     assert updated.title == "After"
-    assert calls == [updated.id]
     reloaded = document_service._document_repo.get(document.id)
     assert reloaded.title == "After"
 
@@ -184,30 +186,33 @@ def test_create_document_commit_failure_rolls_back_and_emits_nothing(services, m
 # ---------------------------------------------------------------------------
 
 
-def test_create_document_structure_success(services):
+# P16C superseded `test_create_document_structure_success` and
+# `test_update_document_structure_real_change_commits_and_emits`: create_document_structure/
+# update_document_structure no longer emit documents_changed at all (typed
+# DocumentStructureCreated/DocumentStructureProfileUpdated replaced it) -- see
+# test_p16c_document_typed_events.py for the current commit-timing proofs.
+
+
+def test_create_document_structure_still_persists(services):
     document_service = services["document_service"]
-    calls = _spy_signal(domain_events.documents_changed)
     code = _unique_code("STRUCT-CREATE")
 
     structure = document_service.create_document_structure(structure_code=code, name="Manuals")
 
     assert structure.structure_code == code.replace("-", "_")
-    assert calls == [structure.id]
 
 
-def test_update_document_structure_real_change_commits_and_emits(services):
+def test_update_document_structure_real_change_still_persists(services):
     document_service = services["document_service"]
     structure = document_service.create_document_structure(
         structure_code=_unique_code("STRUCT-UPDATE"), name="Before"
     )
-    calls = _spy_signal(domain_events.documents_changed)
 
     updated = document_service.update_document_structure(
         structure.id, name="After", expected_version=structure.version
     )
 
     assert updated.name == "After"
-    assert calls == [updated.id]
 
 
 def test_update_document_structure_no_op_produces_zero_write_zero_audit_zero_signal(services, monkeypatch):
@@ -593,12 +598,24 @@ def test_document_service_and_integration_service_share_the_same_uow_factory(ser
 
 
 # ---------------------------------------------------------------------------
-# UI regression: documents_changed unchanged for real mutations
+# UI regression: documents_changed unchanged for the still-legacy Link facts
 # ---------------------------------------------------------------------------
+#
+# P16C superseded the create_document-driven versions of these two tests: Document
+# create/update no longer emit documents_changed at all (typed events replaced them, with
+# their own narrow-refresh proofs in test_p16c_document_typed_events.py). Admin Console's and
+# Catalog's legacy binders still subscribe to documents_changed for the still-unmodernized Link
+# facts (add_link/remove_link/register_entity_attachments/link_existing_document/
+# unlink_existing_document) until P16D -- proved here via add_link instead of create_document.
 
 
-def test_admin_console_still_reacts_to_documents_changed_unchanged(services):
+def test_admin_console_still_reacts_to_documents_changed_for_link_mutation(services):
     from src.ui_qml.platform.controllers.admin_console.domain_event_binder import bind_domain_events
+
+    document_service = services["document_service"]
+    document = document_service.create_document(
+        document_code=_unique_code("ADMIN-LINK-REFRESH"), title="Admin Link Doc", storage_uri="C:/docs/u.pdf"
+    )
 
     refresh_calls = []
 
@@ -615,16 +632,21 @@ def test_admin_console_still_reacts_to_documents_changed_unchanged(services):
 
     bind_domain_events(_FakeController())
 
-    services["document_service"].create_document(
-        document_code=_unique_code("ADMIN-REFRESH"), title="Admin Refresh Doc", storage_uri="C:/docs/s.pdf"
+    document_service.add_link(
+        document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-p16c-admin"
     )
 
     assert refresh_calls == ["refresh"]
 
 
-def test_inventory_procurement_catalog_still_reacts_to_documents_changed_unchanged(services):
+def test_inventory_procurement_catalog_still_reacts_to_documents_changed_for_link_mutation(services):
     from src.ui_qml.modules.inventory_procurement.controllers.catalog.catalog_domain_event_binder import (
         bind_domain_events as bind_catalog_domain_events,
+    )
+
+    document_service = services["document_service"]
+    document = document_service.create_document(
+        document_code=_unique_code("CATALOG-LINK-REFRESH"), title="Catalog Link Doc", storage_uri="C:/docs/v.pdf"
     )
 
     refresh_calls = []
@@ -642,8 +664,8 @@ def test_inventory_procurement_catalog_still_reacts_to_documents_changed_unchang
 
     bind_catalog_domain_events(_FakeController())
 
-    services["document_service"].create_document(
-        document_code=_unique_code("CATALOG-REFRESH"), title="Catalog Refresh Doc", storage_uri="C:/docs/t.pdf"
+    document_service.add_link(
+        document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-p16c-catalog"
     )
 
     assert refresh_calls == ["refresh"]
@@ -681,35 +703,12 @@ def test_document_uow_uses_named_repositories_only():
     assert "self.links = " in source
 
 
-def test_no_document_domain_event_introduced():
-    import glob
-    import re
-
-    hits = []
-    for path in glob.glob("src/**/*.py", recursive=True):
-        normalized = path.replace("\\", "/")
-        if "__pycache__" in normalized or "/tests/" in normalized:
-            continue
-        with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-            source = fh.read()
-        if re.search(r"\bDocumentCreated\b", source) or re.search(r"\bDocumentProfileUpdated\b", source):
-            hits.append(normalized)
-    assert hits == [], hits
-
-
-def test_no_document_view_invalidation_introduced():
-    import glob
-
-    hits = []
-    for path in glob.glob("src/core/**/*.py", recursive=True):
-        normalized = path.replace("\\", "/")
-        if "__pycache__" in normalized:
-            continue
-        with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-            source = fh.read()
-        if "DocumentViewInvalidationAdapter" in source or "document_list" in source:
-            hits.append(normalized)
-    assert hits == [], hits
+# P16C superseded `test_no_document_domain_event_introduced` and
+# `test_no_document_view_invalidation_introduced`: DocumentCreated/DocumentProfileUpdated/
+# DocumentStructureCreated/DocumentStructureProfileUpdated and the document_list/
+# document_structure_list ViewInvalidation targets are now the deliberate, intended state --
+# see test_p16c_document_typed_events.py for the current guard proofs (no blanket
+# DocumentChanged/DocumentUpdated event, no generic bridge, etc).
 
 
 def test_documents_changed_field_still_present():

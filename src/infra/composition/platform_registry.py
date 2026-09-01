@@ -99,6 +99,16 @@ from src.core.platform.domain.master_data.party.events import (
     PartyCreated,
     PartyProfileUpdated,
 )
+from src.core.platform.application.master_data.documents.event_handlers.view_invalidation import (
+    build_document_list_view_invalidation_handler,
+    build_document_structure_list_view_invalidation_handler,
+)
+from src.core.platform.domain.master_data.documents.events import (
+    DocumentCreated,
+    DocumentProfileUpdated,
+    DocumentStructureCreated,
+    DocumentStructureProfileUpdated,
+)
 from src.core.platform.application.tenant.modules.event_handlers.view_invalidation import (
     build_module_entitlement_view_invalidation_handler,
 )
@@ -499,6 +509,22 @@ def build_platform_service_bundle(
             _party_event_type, _party_list_view_invalidation_handler
         )
 
+    _document_list_view_invalidation_handler = build_document_list_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _document_event_type in (DocumentCreated, DocumentProfileUpdated):
+        platform_post_commit_bus.subscribe(
+            _document_event_type, _document_list_view_invalidation_handler
+        )
+
+    _document_structure_list_view_invalidation_handler = build_document_structure_list_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _document_structure_event_type in (DocumentStructureCreated, DocumentStructureProfileUpdated):
+        platform_post_commit_bus.subscribe(
+            _document_structure_event_type, _document_structure_list_view_invalidation_handler
+        )
+
     approval_uow_session_factory = sessionmaker(bind=session.bind, future=True)
     approval_uow_factory = SqlAlchemyPlatformUnitOfWorkFactory(
         session_factory=approval_uow_session_factory,
@@ -639,6 +665,7 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
         overview_rollup_reader=overview_rollup_reader,
         uow_factory=document_uow_factory,
+        clock=SystemClock(),
     )
     document_integration_service = DocumentIntegrationService(
         session=session,

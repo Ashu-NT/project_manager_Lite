@@ -18,6 +18,12 @@ from src.core.platform.domain.master_data.documents import (
     DocumentStructure,
     DocumentType,
 )
+from src.core.platform.domain.master_data.documents.events import (
+    DocumentCreated,
+    DocumentProfileUpdated,
+    DocumentStructureCreated,
+    DocumentStructureProfileUpdated,
+)
 from src.core.platform.domain.master_data.documents.support import (
     default_file_name as _default_file_name,
     infer_mime_type as _infer_mime_type,
@@ -44,6 +50,7 @@ def create_document_structure(
 ) -> DocumentStructure:
     require_permission(service._user_session, "settings.manage", operation_label="create document structure")
     organization = active_organization(service)
+    tenant_id = organization.tenant_id
     with service._uow_factory.create(context=service._new_context()) as uow:
         parent = resolve_structure_for_context(
             parent_structure_id, organization=organization, structure_repo=uow.structures
@@ -84,13 +91,20 @@ def create_document_structure(
                 commit=False,
                 fail_closed=True,
             )
+            uow.record_event(
+                DocumentStructureCreated(
+                    tenant_id=tenant_id,
+                    organization_id=organization.id,
+                    structure_id=structure.id,
+                    occurred_at=service._clock.now(),
+                )
+            )
             uow.commit()
         except IntegrityError as exc:
             raise ValidationError(
                 "Document structure code already exists in the active organization.",
                 code="DOCUMENT_STRUCTURE_CODE_EXISTS",
             ) from exc
-    domain_events.documents_changed.emit(structure.id)
     return structure
 
 
@@ -111,6 +125,7 @@ def update_document_structure(
 ) -> DocumentStructure:
     require_permission(service._user_session, "settings.manage", operation_label="update document structure")
     organization = active_organization(service)
+    tenant_id = organization.tenant_id
     with service._uow_factory.create(context=service._new_context()) as uow:
         structure = uow.structures.get(structure_id)
         if structure is None or structure.organization_id != organization.id:
@@ -149,7 +164,7 @@ def update_document_structure(
             is_active=structure.is_active if is_active is None else is_active,
             notes=structure.notes if notes is None else notes,
         )
-        # P16B: intentional pre-release behavior correction -- update_document_structure
+        # intentional pre-release behavior correction -- update_document_structure
         # previously had no no-op guard at all and always wrote/audited/emitted.
         profile_changed = (
             updated.structure_code != structure.structure_code
@@ -191,13 +206,20 @@ def update_document_structure(
                 commit=False,
                 fail_closed=True,
             )
+            uow.record_event(
+                DocumentStructureProfileUpdated(
+                    tenant_id=tenant_id,
+                    organization_id=organization.id,
+                    structure_id=updated.id,
+                    occurred_at=service._clock.now(),
+                )
+            )
             uow.commit()
         except IntegrityError as exc:
             raise ValidationError(
                 "Document structure code already exists in the active organization.",
                 code="DOCUMENT_STRUCTURE_CODE_EXISTS",
             ) from exc
-    domain_events.documents_changed.emit(updated.id)
     return updated
 
 
@@ -228,6 +250,7 @@ def create_document(
 ) -> Document:
     require_permission(service._user_session, "settings.manage", operation_label="create document")
     organization = active_organization(service)
+    tenant_id = organization.tenant_id
     principal = service._user_session.principal if service._user_session is not None else None
     with service._uow_factory.create(context=service._new_context()) as uow:
         structure = resolve_structure_for_context(
@@ -282,10 +305,17 @@ def create_document(
                 commit=False,
                 fail_closed=True,
             )
+            uow.record_event(
+                DocumentCreated(
+                    tenant_id=tenant_id,
+                    organization_id=organization.id,
+                    document_id=document.id,
+                    occurred_at=service._clock.now(),
+                )
+            )
             uow.commit()
         except IntegrityError as exc:
             raise ValidationError("Document code already exists in the active organization.", code="DOCUMENT_CODE_EXISTS") from exc
-    domain_events.documents_changed.emit(document.id)
     return document
 
 
@@ -318,6 +348,7 @@ def update_document(
 ) -> Document:
     require_permission(service._user_session, "settings.manage", operation_label="update document")
     organization = active_organization(service)
+    tenant_id = organization.tenant_id
     with service._uow_factory.create(context=service._new_context()) as uow:
         document = uow.documents.get(document_id)
         if document is None or document.organization_id != organization.id:
@@ -433,10 +464,17 @@ def update_document(
                 commit=False,
                 fail_closed=True,
             )
+            uow.record_event(
+                DocumentProfileUpdated(
+                    tenant_id=tenant_id,
+                    organization_id=organization.id,
+                    document_id=updated.id,
+                    occurred_at=service._clock.now(),
+                )
+            )
             uow.commit()
         except IntegrityError as exc:
             raise ValidationError("Document code already exists in the active organization.", code="DOCUMENT_CODE_EXISTS") from exc
-    domain_events.documents_changed.emit(updated.id)
     return updated
 
 

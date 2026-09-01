@@ -1,26 +1,3 @@
-"""ADR-005 §9/§10/§6.1: `SqlAlchemyUnitOfWorkBase` -- the concrete, module/capability-agnostic
-foundation every module's own `SqlAlchemy<Module>UnitOfWork` subclass (P4+) builds on.
-
-REPLACES this file's previous content, `session_scope()` -- confirmed twice by the Platform
-audit to have zero callers anywhere in `src/`, so reclaiming the enterprise-standard name for
-the real Unit of Work costs no import-site migration (ADR-005 §6.1). Nothing is deleted
-outright: `session_scope()`'s try/commit/except-rollback/finally-close shape is folded in below
-as the private lifecycle `commit()`/`_rollback_and_close()` use internally.
-
-Owns: session lifecycle (one fresh `Session` per instance -- never the existing process-lifetime
-`Session` `RepositoryBundle` still uses), identity-map aggregate tracking (keyed by `id()`,
-never a `set` -- aggregates are not guaranteed hashable, and identity, not equality, is the
-correct dedup semantics per ADR-005 §10), the collect-dispatch-recollect draining loop with a
-`MAX_DISPATCH_ROUNDS` cycle guard, and post-commit publication. Declares no repository
-accessors and exposes no public `session` attribute -- a future capability/module-specific
-subclass (P4+) adds typed repository accessors of its own; this base class has no abstract
-methods and needs no subclass to be constructed, tested, or used on its own.
-
-Deliberately does NOT wire any Platform capability, ApprovalService, NotificationService, or
-business module onto this -- that is P4+ (Platform transaction convergence) and later module
-migration phases. Zero real consumers reference this file yet.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -44,9 +21,6 @@ from src.core.shared.persistence.unit_of_work import (
 
 logger = logging.getLogger(__name__)
 
-# ADR-005 does not mandate a specific numeric limit -- this is an implementation-chosen safety
-# net, not an architectural decision. A real business dispatch chain is expected to quiesce in
-# a handful of rounds; this exists purely to fail loudly on a genuine cycle rather than hang.
 MAX_DISPATCH_ROUNDS = 20
 
 
@@ -77,17 +51,9 @@ class SqlAlchemyUnitOfWorkBase(UnitOfWork):
         if exc_type is not None:
             if not self._committed:
                 self._rollback_and_close()
-            # else: the transaction already committed successfully before this later,
-            # unrelated exception occurred -- there is nothing left to roll back, and
-            # commit() already closed the session.
             return None  # never suppress the exception
         if not self._committed:
-            # A caller exited the `with` block cleanly without ever calling commit().
-            # ADR-005 §9 states commit() is always explicit and never implied by a clean
-            # exit -- this specific case (no exception, but commit() never reached) is not
-            # itself addressed by that text. Resolved here as a documented safety net
-            # (close without committing) rather than silently leaking an open Session --
-            # see the P3 implementation report for this call.
+
             logger.warning(
                 "UnitOfWork exited its 'with' block without commit() ever being called; "
                 "closing without committing."
@@ -134,14 +100,6 @@ class SqlAlchemyUnitOfWorkBase(UnitOfWork):
         finally:
             self._session.close()
             self._closed = True
-            # Deliberately do NOT clear self._tracked_aggregates here. ADR-005 §9's
-            # rollback-safety rule is "discarded... never reused," not "erased from
-            # memory" -- pending events may remain available via tracked_aggregates()
-            # for post-mortem inspection (which is exactly why that method is not
-            # closed-checked, unlike register_touched/record_event/commit). "Discarded"
-            # is enforced structurally by _check_not_closed() refusing any further
-            # mutation on this now-closed instance, never by physically clearing state a
-            # caller may still legitimately want to read.
 
     def _check_not_closed(self) -> None:
         if self._closed:
@@ -165,7 +123,6 @@ class SqlAlchemyUnitOfWorkBase(UnitOfWork):
         raise MaxDispatchRoundsExceededError(
             f"Transactional event dispatch did not quiesce within {MAX_DISPATCH_ROUNDS} "
             "rounds -- a real cycle in event-recording handlers is a bug, not a hang "
-            "(ADR-005 §10)."
         )
 
     def _collect_new_events(self, already_seen: set[int]) -> list[DomainEvent]:
@@ -185,11 +142,7 @@ class SqlAlchemyUnitOfWorkBase(UnitOfWork):
 
 
 class SqlAlchemyUnitOfWorkFactoryBase(UnitOfWorkFactory):
-    """The module/capability-agnostic factory shape every module's own
-    `SqlAlchemy<Module>UnitOfWorkFactory` (P4+) follows -- closes over a session *factory*
-    (e.g. `SessionLocal`), never an already-created `Session`, so every `create()` call opens
-    a genuinely new `Session` (ADR-005 §6.1's round-four correction). Usable directly wherever
-    no module-specific repository accessors are needed."""
+    """The module/capability-agnostic factory shape every module's own `SqlAlchemy<Module>UnitOfWorkFactory` """
 
     def __init__(
         self,

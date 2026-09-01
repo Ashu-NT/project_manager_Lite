@@ -17,6 +17,7 @@ from src.core.platform.contract.repositories.master_data.documents.contracts imp
 )
 from src.core.platform.contract.uow.document_unit_of_work import DocumentUnitOfWorkFactory
 from src.core.platform.domain.master_data.documents import Document, DocumentLink, DocumentType
+from src.core.platform.domain.master_data.documents.events import DocumentCreated
 from src.core.platform.domain.master_data.documents.document_link import (
     normalize_document_entity_id,
     normalize_document_entity_type,
@@ -103,7 +104,6 @@ class DocumentIntegrationService:
         normalized_module = normalize_document_module_code(module_code)
         normalized_entity_type = normalize_document_entity_type(entity_type)
         normalized_entity_id = normalize_document_entity_id(entity_id)
-        structure = None
         normalized_role = normalize_document_link_role(link_role)
         resolved_type = coerce_document_type(document_type)
         principal = self._user_session.principal if self._user_session is not None else None
@@ -114,6 +114,7 @@ class DocumentIntegrationService:
                 document_structure_id, organization=organization, structure_repo=uow.structures
             )
             for token in tokens:
+                now = self._clock.now()
                 document = Document.create(
                     organization_id=organization.id,
                     document_code=_build_document_code(
@@ -128,7 +129,7 @@ class DocumentIntegrationService:
                     file_name=infer_file_name(token),
                     mime_type=infer_mime_type(token),
                     source_system=normalize_optional_text(source_system) or normalized_module,
-                    uploaded_at=self._clock.now(),
+                    uploaded_at=now,
                     uploaded_by_user_id=uploader,
                     business_version_label=normalize_optional_text(business_version_label or revision),
                     notes=normalize_optional_text(notes),
@@ -164,6 +165,16 @@ class DocumentIntegrationService:
                     },
                     commit=False,
                     fail_closed=True,
+                )
+                # documents_changed emission below stays (unmodernized until P16D) because
+                # this same operation also creates an unmodernized DocumentLink fact.
+                uow.record_event(
+                    DocumentCreated(
+                        tenant_id=organization.tenant_id,
+                        organization_id=organization.id,
+                        document_id=document.id,
+                        occurred_at=now,
+                    )
                 )
             uow.commit()
         for document in created:

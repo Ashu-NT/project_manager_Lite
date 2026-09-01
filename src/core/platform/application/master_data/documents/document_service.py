@@ -36,6 +36,7 @@ from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.common.ids import generate_id
 from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.time.clock import Clock
 from sqlalchemy.orm import Session
 
 from . import document_commands as _cmd
@@ -56,6 +57,7 @@ class DocumentService:
         tenant_context_service: TenantContextService | None = None,
         overview_rollup_reader: PlatformOverviewRollupReader | None = None,
         uow_factory: DocumentUnitOfWorkFactory,
+        clock: Clock,
     ) -> None:
         self._session = session
         self._document_repo = document_repo
@@ -63,6 +65,7 @@ class DocumentService:
         self._structure_repo = structure_repo
         self._organization_repo = organization_repo
         self._user_session = user_session
+        self._clock = clock
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
         self._overview_rollup_reader = overview_rollup_reader

@@ -25,6 +25,7 @@ from .item_command_handler import (
     update_item,
 )
 from .workspace_builder import (
+    build_document_reference_options,
     build_party_reference_options,
     build_workspace_state as _build_workspace_state,
 )
@@ -61,6 +62,9 @@ class InventoryCatalogWorkspacePresenter:
 
     def build_party_reference_options(self):
         return build_party_reference_options(self._desktop_api)
+
+    def build_document_reference_options(self):
+        return build_document_reference_options(self._desktop_api)
 
     def suggest_category_code(self, payload: dict[str, Any]) -> str:
         return suggest_category_code(self._desktop_api, payload)

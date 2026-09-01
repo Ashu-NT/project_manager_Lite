@@ -104,3 +104,8 @@ def refresh(ctrl) -> None:
 def refresh_party_options(ctrl) -> None:
     business_party_options = ctrl._catalog_workspace_presenter.build_party_reference_options()
     ctrl._set_business_party_options(serialize_selector_options(business_party_options))
+
+
+def refresh_document_options(ctrl) -> None:
+    available_documents = ctrl._catalog_workspace_presenter.build_document_reference_options()
+    ctrl._set_available_documents(serialize_document_option_view_models(available_documents))

@@ -43,6 +43,7 @@ from .catalog_mutation_handler import (
     update_item,
 )
 from .catalog_refresh_service import refresh as _do_refresh
+from .catalog_refresh_service import refresh_document_options as _do_refresh_document_options
 from .catalog_refresh_service import refresh_party_options as _do_refresh_party_options
 from .catalog_selection_handler import (
     select_category,
@@ -320,6 +321,9 @@ class InventoryProcurementCatalogWorkspaceController(
 
     def refresh_party_options(self) -> None:
         _do_refresh_party_options(self)
+
+    def refresh_document_options(self) -> None:
+        _do_refresh_document_options(self)
 
     @Slot(str)
     def setSearchText(self, search_text: str) -> None:

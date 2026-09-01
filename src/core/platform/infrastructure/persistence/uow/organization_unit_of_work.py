@@ -1,13 +1,3 @@
-"""P4B (Organization Capability Transaction Convergence): `SqlAlchemyOrganizationUnitOfWork` --
-Organization's own thin, concrete subclass of the P3 `SqlAlchemyUnitOfWorkBase`, adding exactly
-the two named accessors `OrganizationUnitOfWork` declares (`organizations`,
-`_enterprise_audit_service`), both bound to this instance's own fresh `Session` -- never the
-shared, process-lifetime one every other, not-yet-migrated Platform/PM/Inventory service still
-uses. Mirrors `SqlAlchemyPlatformUnitOfWork` (Approval's own capability UoW) exactly, with
-`organizations`/`SqlAlchemyOrganizationRepository` standing in for `approvals`/
-`SqlAlchemyApprovalRepository`.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Callable
