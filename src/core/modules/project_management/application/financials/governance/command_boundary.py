@@ -81,9 +81,7 @@ class FinanceGovernanceCommandBoundary:
     ) -> T:
         return self._execute(
             lambda operations: command(operations.forecast_versions),
-            invalidation=lambda result: self._emit_scoped(
-                "forecasts_changed", result, project_id
-            ),
+            invalidation=None,
         )
 
     def forecast_generation(
@@ -92,11 +90,11 @@ class FinanceGovernanceCommandBoundary:
         *,
         project_id: str,
     ) -> T:
+        # P19: see `forecast_version` above -- `ForecastGenerationService` records a typed
+        # `ForecastDraftGenerated` DomainEvent directly on the transaction's own UoW.
         return self._execute(
             lambda operations: command(operations.forecast_generation),
-            invalidation=lambda result: self._emit_scoped(
-                "forecasts_changed", getattr(result, "forecast", result), project_id
-            ),
+            invalidation=None,
         )
 
     def financial_change(
@@ -129,7 +127,7 @@ class FinanceGovernanceCommandBoundary:
         self,
         command: Callable[[FinanceGovernanceOperations], T],
         *,
-        invalidation: Callable[[T], None],
+        invalidation: Callable[[T], None] | None,
     ) -> T:
         context = DomainEventContext(correlation_id=generate_id())
         post_commit_actions: tuple[Callable[[], None], ...]
@@ -139,7 +137,8 @@ class FinanceGovernanceCommandBoundary:
             post_commit_actions = tuple(operations.post_commit_actions)
             uow.commit()
 
-        self._run_post_commit(invalidation, result)
+        if invalidation is not None:
+            self._run_post_commit(invalidation, result)
         for action in post_commit_actions:
             self._run_post_commit(action)
         return result

@@ -14,6 +14,9 @@ from src.ui_qml.platform.adapters.approval_view_invalidation_adapter import (
 from src.ui_qml.platform.adapters.employee_view_invalidation_adapter import (
     EmployeeViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.forecast_view_invalidation_adapter import (
+    ForecastViewInvalidationAdapter,
+)
 from src.ui_qml.platform.adapters.resource_view_invalidation_adapter import (
     ResourceViewInvalidationAdapter,
 )
@@ -153,6 +156,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
         )
         self._approval_view_invalidation_adapter: ApprovalViewInvalidationAdapter | None = None
         self._employee_view_invalidation_adapter: EmployeeViewInvalidationAdapter | None = None
+        self._forecast_view_invalidation_adapter: ForecastViewInvalidationAdapter | None = None
         self._resource_view_invalidation_adapter: ResourceViewInvalidationAdapter | None = None
         self._portfolio_resource_view_invalidation_adapter: ResourceViewInvalidationAdapter | None = None
         self._scheduling_resource_view_invalidation_adapter: ResourceViewInvalidationAdapter | None = None
@@ -271,6 +275,19 @@ class ProjectManagementWorkspaceCatalog(QObject):
                     ),
                 ),
                 parent=self,
+            )
+
+            self._forecast_view_invalidation_adapter = ForecastViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._forecast_view_invalidation_adapter.forecastPlanningStale.connect(
+                self._financials_workspace.onForecastPlanningStale
+            )
+            self._forecast_view_invalidation_adapter.forecastApprovedBasisStale.connect(
+                self._financials_workspace.onForecastApprovedBasisStale
             )
         return self._financials_workspace
 
@@ -488,6 +505,11 @@ class ProjectManagementWorkspaceCatalog(QObject):
             )
         if self._employee_view_invalidation_adapter is not None:
             self._employee_view_invalidation_adapter.set_active_scope(
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+            )
+        if self._forecast_view_invalidation_adapter is not None:
+            self._forecast_view_invalidation_adapter.set_active_scope(
                 tenant_id=self._active_tenant_id() or "",
                 organization_id=self._active_organization_id() or "",
             )

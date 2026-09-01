@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -11,6 +12,12 @@ from src.core.modules.project_management.access.scope_permissions import require
 from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
+    ForecastLineChangeType,
+    ForecastLineChanged,
+    ForecastVersionChangeType,
+    ForecastVersionChanged,
 )
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
@@ -66,6 +73,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         enterprise_audit_service=None,
         module_catalog_service=None,
         tenant_context_service: TenantContextService | None = None,
+        record_event: Callable[[object], None] | None = None,
     ) -> None:
         self._session = session
         self._forecast_repo = forecast_repo
@@ -78,6 +86,45 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
+        self._record_event = record_event
+
+    def _emit_version_event(
+        self, forecast: ProjectForecast, *, change_type: ForecastVersionChangeType, occurred_at: datetime
+    ) -> None:
+        if self._record_event is None:
+            return
+        self._record_event(
+            ForecastVersionChanged(
+                tenant_id=forecast.tenant_id,
+                organization_id=forecast.organization_id,
+                project_id=forecast.project_id,
+                forecast_id=forecast.id,
+                change_type=change_type,
+                occurred_at=occurred_at,
+            )
+        )
+
+    def _emit_line_event(
+        self,
+        line: ForecastLine,
+        forecast: ProjectForecast,
+        *,
+        change_type: ForecastLineChangeType,
+        occurred_at: datetime,
+    ) -> None:
+        if self._record_event is None:
+            return
+        self._record_event(
+            ForecastLineChanged(
+                tenant_id=forecast.tenant_id,
+                organization_id=forecast.organization_id,
+                project_id=forecast.project_id,
+                forecast_id=forecast.id,
+                line_id=line.id,
+                change_type=change_type,
+                occurred_at=occurred_at,
+            )
+        )
 
     def get_forecast(self, forecast_id: str) -> ProjectForecast:
         require_permission(self._user_session, "finance.read", operation_label="view project forecast")
@@ -154,6 +201,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
             self._translate_create_conflict(exc)
         self._record_forecast_audit("create", forecast)
         self._session.flush()
+        self._emit_version_event(forecast, change_type=ForecastVersionChangeType.CREATED, occurred_at=now)
         return forecast
 
     def add_line(
@@ -209,6 +257,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         )
         self._record_line_audit("add", line, forecast)
         self._session.flush()
+        self._emit_line_event(line, forecast, change_type=ForecastLineChangeType.ADDED, occurred_at=now)
         return line
 
     def update_line(
@@ -230,6 +279,10 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         )
         if line.row_version != expected_line_version:
             raise ConcurrencyError("Forecast line changed since you opened it.", code="STALE_WRITE")
+        original = (
+            line.cost_code_id, line.task_id, line.description, line.amount,
+            line.period_start, line.period_end,
+        )
         if cost_code_id is not None and cost_code_id != line.cost_code_id:
             self._require_eligible_cost_code(forecast.project_id, cost_code_id)
             line.cost_code_id = cost_code_id
@@ -251,6 +304,14 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         if period_end is not _UNSET:
             line.period_end = period_end
         self._validate_period(line.period_start, line.period_end)
+        changed = (
+            line.cost_code_id, line.task_id, line.description, line.amount,
+            line.period_start, line.period_end,
+        ) != original
+        if not changed:
+            # True no-op (P19 §12): zero repository write, zero audit, zero typed event, no
+            # synthetic version bump.
+            return line
         now = self._clock.now()
         line.updated_at = now
         self._forecast_repo.update_line(line, expected_row_version=expected_line_version)
@@ -260,6 +321,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         )
         self._record_line_audit("update", line, forecast)
         self._session.flush()
+        self._emit_line_event(line, forecast, change_type=ForecastLineChangeType.UPDATED, occurred_at=now)
         return line
 
     def delete_line(
@@ -276,12 +338,14 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         self._forecast_repo.delete_line(
             line_id, expected_row_version=expected_line_version
         )
-        forecast.touch(updated_at=self._clock.now())
+        now = self._clock.now()
+        forecast.touch(updated_at=now)
         self._forecast_repo.update(
             forecast, expected_row_version=expected_forecast_version
         )
         self._record_line_audit("delete", line, forecast)
         self._session.flush()
+        self._emit_line_event(line, forecast, change_type=ForecastLineChangeType.REMOVED, occurred_at=now)
 
     def submit_forecast(
         self,
@@ -302,14 +366,16 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
                 "Cannot submit a forecast without ETC lines or generation evidence.",
                 code="PROJECT_FORECAST_EMPTY",
             )
+        now = self._clock.now()
         forecast.submit(
             submitted_by=submitted_by,
-            submitted_at=self._clock.now(),
+            submitted_at=now,
             notes=notes,
         )
         self._forecast_repo.update(forecast, expected_row_version=expected_version)
         self._record_forecast_audit("submit", forecast)
         self._session.flush()
+        self._emit_version_event(forecast, change_type=ForecastVersionChangeType.SUBMITTED, occurred_at=now)
         return forecast
 
     def approve_forecast(
@@ -351,6 +417,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
             raise
         self._record_forecast_audit("approve", forecast)
         self._session.flush()
+        self._emit_version_event(forecast, change_type=ForecastVersionChangeType.APPROVED, occurred_at=now)
         return forecast
 
     def reject_forecast(
@@ -367,14 +434,16 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         )
         if forecast.row_version != expected_version:
             raise ConcurrencyError("Forecast changed since you opened it.", code="STALE_WRITE")
+        now = self._clock.now()
         forecast.reject(
             rejected_by=rejected_by,
-            rejected_at=self._clock.now(),
+            rejected_at=now,
             notes=notes,
         )
         self._forecast_repo.update(forecast, expected_row_version=expected_version)
         self._record_forecast_audit("reject", forecast)
         self._session.flush()
+        self._emit_version_event(forecast, change_type=ForecastVersionChangeType.REJECTED, occurred_at=now)
         return forecast
 
     def delete_forecast(self, forecast_id: str, *, expected_version: int) -> None:
@@ -386,6 +455,9 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         )
         self._record_forecast_audit("delete", forecast)
         self._session.flush()
+        self._emit_version_event(
+            forecast, change_type=ForecastVersionChangeType.DELETED, occurred_at=self._clock.now()
+        )
 
     def _require_mutable_forecast(
         self, forecast_id: str, expected_version: int, operation: str

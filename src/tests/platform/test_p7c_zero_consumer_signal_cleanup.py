@@ -9,7 +9,6 @@ from src.core.shared.events.domain_events import domain_events
 _ACTIVE_FINANCE_SIGNALS = (
     "cost_entries_changed",
     "commitments_changed",
-    "forecasts_changed",
     "financial_changes_changed",
     "rates_changed",
 )
@@ -156,7 +155,8 @@ def test_financial_change_apply_participant_emits_scoped_change_and_forecast_hin
     apply_source = inspect.getsource(FinancialChangeApprovalParticipant.apply)
     assert '"financial_changes_changed"' in apply_source
     assert "invalidation_scope(change)" in apply_source
-    assert '"forecasts_changed"' in apply_source
+    assert "ForecastVersionChanged(" in apply_source
+    assert "ForecastVersionChangeType.APPROVED" in apply_source
     assert "budgets_changed" in apply_source
     assert "tasks_changed" in apply_source
 

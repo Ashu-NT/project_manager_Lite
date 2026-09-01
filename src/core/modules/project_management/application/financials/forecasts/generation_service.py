@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -12,6 +13,9 @@ from src.core.modules.project_management.access.scope_permissions import require
 from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
+    ForecastDraftGenerated,
 )
 from src.core.modules.project_management.application.financials.forecasts.generation_models import (
     ForecastGenerationResult,
@@ -118,6 +122,7 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
         enterprise_audit_service=None,
         module_catalog_service=None,
         tenant_context_service: TenantContextService | None = None,
+        record_event: Callable[[object], None] | None = None,
     ) -> None:
         self._session = session
         self._forecast_repo = forecast_repo
@@ -134,6 +139,7 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
         self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
+        self._record_event = record_event
 
     def generate_draft(
         self,
@@ -228,6 +234,16 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
             self._session.flush()
         except IntegrityError as exc:
             self._translate_conflict(exc)
+        if self._record_event is not None:
+            self._record_event(
+                ForecastDraftGenerated(
+                    tenant_id=forecast.tenant_id,
+                    organization_id=forecast.organization_id,
+                    project_id=forecast.project_id,
+                    forecast_id=forecast.id,
+                    occurred_at=now,
+                )
+            )
         return ForecastGenerationResult(
             forecast=forecast,
             lines=tuple(lines),

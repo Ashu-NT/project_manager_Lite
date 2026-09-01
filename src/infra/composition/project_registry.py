@@ -28,6 +28,14 @@ from src.core.modules.project_management.application.resources.resource_capabili
 from src.core.modules.project_management.application.resources.resource_master_events import (
     ResourceMasterChanged,
 )
+from src.core.modules.project_management.application.financials.forecasts.event_handlers.view_invalidation import (
+    build_forecast_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
+    ForecastDraftGenerated,
+    ForecastLineChanged,
+    ForecastVersionChanged,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
     SqlAlchemyProjectRepository,
 )
@@ -608,6 +616,13 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
+    _forecast_view_invalidation_handler = build_forecast_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _forecast_event_type in (ForecastVersionChanged, ForecastLineChanged, ForecastDraftGenerated):
+        platform_services.platform_post_commit_bus.subscribe(
+            _forecast_event_type, _forecast_view_invalidation_handler
+        )
     financial_change_service = FinancialChangeService(
         session=session,
         change_repo=repositories.financial_change_repo,
@@ -654,6 +669,7 @@ def build_project_management_service_bundle(
             enterprise_audit_service=uow._enterprise_audit_service,
             module_catalog_service=platform_services.module_catalog_service,
             tenant_context_service=platform_services.tenant_context_service,
+            record_event=uow.record_event,
         )
         forecast_generation_operations = ForecastGenerationService(
             session=uow._session,
@@ -671,6 +687,7 @@ def build_project_management_service_bundle(
             enterprise_audit_service=uow._enterprise_audit_service,
             module_catalog_service=platform_services.module_catalog_service,
             tenant_context_service=platform_services.tenant_context_service,
+            record_event=uow.record_event,
         )
         change_deps = build_financial_change_approval_deps(
             uow._session,

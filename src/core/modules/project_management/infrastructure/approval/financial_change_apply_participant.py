@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from src.core.modules.project_management.application.financials.financial_changes.service import (
     FinancialChangeService,
+)
+from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
+    ForecastVersionChangeType,
+    ForecastVersionChanged,
 )
 from src.core.modules.project_management.application.financials.invalidation import (
     invalidation_scope,
@@ -49,15 +54,23 @@ class FinancialChangeApprovalParticipant:
         ]
         if change.applied_budget_id:
             events.append(ApprovalPostCommitEvent("budgets_changed", change.project_id))
-        if change.applied_forecast_id:
-            events.append(
-                ApprovalPostCommitEvent(
-                    "forecasts_changed", invalidation_scope(change)
-                )
-            )
         if change.applied_schedule_count:
             events.append(ApprovalPostCommitEvent("tasks_changed", change.project_id))
-        return ApprovalHandlerResult(post_commit_events=tuple(events))
+        domain_events: tuple[ForecastVersionChanged, ...] = ()
+        if change.applied_forecast_id:
+            domain_events = (
+                ForecastVersionChanged(
+                    tenant_id=change.tenant_id,
+                    organization_id=change.organization_id,
+                    project_id=change.project_id,
+                    forecast_id=change.applied_forecast_id,
+                    change_type=ForecastVersionChangeType.APPROVED,
+                    occurred_at=change.applied_at or datetime.now(timezone.utc),
+                ),
+            )
+        return ApprovalHandlerResult(
+            post_commit_events=tuple(events), domain_events=domain_events
+        )
 
     def reject(
         self, request: ApprovalRequest, deps: FinancialChangeApprovalDeps
