@@ -1696,8 +1696,8 @@ is 30 as of this phase (six Finance-family signals were added to `DomainEvents` 
 this phase, outside this migration's scope, per `FROZEN_LEGACY_SIGNAL_ALLOWLIST`'s own
 subset-only invariant — not touched here).
 
-**26.14 Document + DocumentStructure: MODERNIZED (P16A/P16B/P16C) — DocumentLink NOT YET
-MODERNIZED (P16D).** Document is a genuinely three-sub-capability slice, discovered by P16A's
+**26.14 Document + DocumentStructure + DocumentLink: FULLY MODERNIZED (P16A/P16B/P16C/P16D) —
+`documents_changed` DELETED.** Document is a genuinely three-sub-capability slice, discovered by P16A's
 audit rather than assumed: Document metadata, DocumentStructure (a separate repo/aggregate,
 cross-referenced by `document_structure_id`, with its own Admin sub-controller), and DocumentLink
 (a third, even smaller aggregate — create/delete only, never updated — shared by **two** producer
@@ -1756,6 +1756,92 @@ Procurement's own document-link dependency remain entirely on the legacy path, e
 to P16D along with the cross-org trust-boundary characteristic P16A found in `DocumentLink.entity_id`
 (never independently organization-validated by the Document layer itself, relying on the calling
 module having already done so) — neither fixed nor newly introduced here.
+
+P16D closed the last slice: `DocumentReferenceLinked`/`DocumentReferenceUnlinked` (minimal
+identity — `tenant_id`/`organization_id`/`document_id`/`module_code`/`entity_type`/`entity_id`/
+`link_role`/`occurred_at`), recorded via `uow.record_event(...)` in all five DocumentLink
+producers (`add_link`, `remove_link`, `register_entity_attachments`, `link_existing_document`,
+`unlink_existing_document`), inside the same canonical `DocumentUnitOfWork` P16B built — no new
+transaction machinery needed. The genuinely new design work was the ViewInvalidation target
+itself: `document_links` needs to identify one specific cross-module business entity
+(`module_code`/`entity_type`/`entity_id`), which the existing three-kind `EventScope` union
+cannot express (that union is about *organizational* breadth, not entity identity) and which
+`ViewInvalidationHint`'s existing `entity_type`/`entity_id` fields almost cover — Approval and
+TenantMembership already use them for one-row identity — except `entity_id` here is a
+cross-module *opaque* identifier, unlike every other capability's own-namespace id. Resolved by
+adding one new optional field, `module_code: str | None = None`, to the shared
+`ViewInvalidationHint` itself (a minimal, backward-compatible extension — every other
+capability's hints simply never set it) rather than adding a fourth `EventScope` kind or
+inventing a stringly-typed compound identity (`"inventory:item:123"`) or a dict payload. Each
+`document_links` event produces **two** typed hints, not one: the forward shape
+(`entity_type`/`entity_id`/`module_code` = the linked business entity) for
+Catalog/Reservations/Procurement's own linked-document projections, and the reverse shape
+(`entity_type="document"`, `entity_id` = the document's own id, `module_code=None`) for Admin's
+per-document link panel — the same DocumentLink row genuinely has two independent consumers
+asking two different questions ("what changed for entity X" vs. "what changed for document Y"),
+so one hint shape could not serve both. Both shapes dedupe independently, keyed by
+`(transaction correlation_id, target identity)` rather than correlation_id alone like every
+prior single-target capability — `register_entity_attachments` can legitimately touch one shared
+entity across N distinct documents in one commit, so a Site/Party-style single-slot dedup would
+have wrongly collapsed N genuinely-different document-shape facts into one. Both dedup sets are
+transaction-scoped (cleared on every new correlation_id), never a global/unbounded registry.
+
+Entity-level filtering happens client-side in each consumer's own slot, comparing the hint against
+whatever it currently has selected — never a per-entity re-scoping adapter. The single new
+`DocumentLinksViewInvalidationAdapter` stays org-scoped only at the channel level (identical to
+every other adapter) and forwards every `document_links` hint to its consumer via a
+`(module_code, entity_type, entity_id)`-carrying Qt signal; Admin Console's
+`AdminConsoleController.on_document_links_stale()` and Catalog's
+`InventoryProcurementCatalogWorkspaceController.on_document_links_stale()` each independently
+decide whether the hint matches what they currently have open before calling their own existing
+narrow refresh path (`PlatformDocumentController.refreshFocus()`, and a new
+`refresh_selected_item_linked_documents()` built on a new `build_selected_item_detail()` seam that
+rebuilds only the selected item's own detail, not the whole catalog). This mirrors how "currently
+selected" state already lives in the consuming controller, not the adapter, so no dynamic
+re-scoping plumbing was needed as a user's selection changes.
+
+Reservations' and Procurement's own `list_reservation_documents`/`list_purchase_order_documents`/
+`link_document`/`unlink_document` exist at the application-service layer but were found, by source
+absence (zero references anywhere under `src/ui_qml` or the desktop-API layer), to have no UI
+consumer at all today — proven, not assumed, and left unwired rather than adding a refresh for
+symmetry. Both already self-cover their own mutations via their own existing legacy signals
+(`inventory_reservations_changed`/`inventory_purchase_orders_changed`), untouched by this
+migration. Catalog's own link/unlink wrapper (`item_document_service.py`) still emits
+`inventory_items_changed` unmodernized (out of scope, explicitly not touched) — the real fix this
+phase made was removing `documents_changed` from Catalog's binder entirely, so a link/unlink no
+longer causes two full refreshes (`inventory_items_changed` + `documents_changed`) for one action;
+the new narrow `document_links` reaction is additive coverage for cross-consumer staleness
+(e.g. a document linked via Admin while Catalog has the same item open), not a replacement for
+Catalog's own still-legacy self-refresh path.
+
+`register_entity_attachments` now produces, per commit of N attachments: N typed `DocumentCreated`
++ N typed `DocumentReferenceLinked` events, coalesced to exactly one `document_list` hint and
+exactly one `document_links` forward-shape hint (all N share one entity target) plus N distinct
+`document_links` reverse-shape hints (N genuinely distinct documents) — and zero legacy signal
+emissions, `documents_changed` having been deleted entirely.
+
+P16A's `DocumentLink.entity_id` trust-boundary finding was re-audited rather than fixed: no clean,
+generic, typed cross-module entity-resolution seam exists in this codebase, and building one would
+be exactly the generic entity resolver/service locator this ADR has repeatedly rejected (§9/§24).
+All four real business-workflow callers (`item_document_service.link_document`/`unlink_document`,
+`ReservationService.link_document`/`unlink_document`, `PurchasingService.link_document`/
+`unlink_document`, `CollaborationCommentCommandMixin.post_comment`) were confirmed by source
+inspection to resolve their entity through their own organization-scoped lookup
+(`get_item`/`get_reservation`/`get_purchase_order`/`_require_task`) before ever calling into
+`DocumentIntegrationService` — kept as caller-owned validation, now with an explicit architecture
+guard proving it holds. Admin Console's manual `add_link` desktop-API path is a deliberately
+different, `settings.manage`-gated free-text tool (an admin operator types `module_code`/
+`entity_type`/`entity_id` directly) and is documented as exempt from this invariant rather than
+silently held to a standard it was never designed to meet — a mistyped or cross-org entity_id
+there produces an orphaned link row scoped to the admin's own active organization, never a
+cross-tenant/cross-org data leak, since every read path re-scopes by the reader's own active
+organization independently.
+
+`documents_changed` is now deleted from `DomainEvents` entirely — zero producers, zero consumers,
+field absent — the legacy Signal count is 29 as of this phase (30 minus the one deletion; no
+alias, no wrapper, no deleted-signal bookkeeping, matching every prior deletion in this ledger).
+The Document capability — Document, DocumentStructure, and DocumentLink — is fully modernized:
+this is the last Shared Master Data slice.
 
 ## Alternatives Rejected
 
