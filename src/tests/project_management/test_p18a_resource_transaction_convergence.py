@@ -9,7 +9,7 @@ temporarily-retained legacy `resources_changed` signal (deleted in P18B).
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date
 
 import pytest
 
@@ -157,6 +157,25 @@ def test_deactivate_already_inactive_is_rejected_not_silently_written(services):
 
     assert master_events == []
     assert legacy == []
+
+
+def test_activity_feed_entry_rides_the_same_transaction_as_the_mutation(services):
+    """Regression: activity-feed staging must ride the SAME fresh UoW Session as the mutation
+    itself. A separately-scoped ActivityService bound to the old process-lifetime shared Session
+    would stage an entry this UoW's own commit() never persists."""
+    service = services["resource_service"]
+    resource = service.create_resource(name=_unique("ActivityAtomic"))
+
+    activity = service._activity_service.list_recent(
+        limit=50, entity_type="resource", entity_id=resource.id
+    )
+    assert any(entry.action == "resource.created" for entry in activity)
+
+    skill = service.add_resource_skill(resource.id, "PY", "Python")
+    activity_after_skill = service._activity_service.list_recent(
+        limit=50, entity_type="resource", entity_id=resource.id
+    )
+    assert any(entry.action == "resource.skill.added" for entry in activity_after_skill)
 
 
 def test_purge_produces_typed_event_and_deletes_row(services):
@@ -459,7 +478,6 @@ def test_no_platform_to_business_module_concrete_infrastructure_import_added():
     architecture guard this ADR already uses (test_platform_does_not_import_business_modules.py),
     re-run here narrowly against the two files this phase touched."""
     import ast
-    from pathlib import Path
 
     from src.tests.path_rewrites import REPO_ROOT
 

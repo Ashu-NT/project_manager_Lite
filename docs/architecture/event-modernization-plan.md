@@ -71,6 +71,23 @@ Membership, Module Entitlements, Role Binding / Scoped Access, Approval, Employe
 Site, Party, Document, DocumentStructure, DocumentLink. Zero Platform-owned legacy `Signal`
 fields remain on `DomainEvents`.
 
+**P18A (in progress — Project Resource): transaction/event-pipeline convergence done, NOT fully
+modernized yet.**
+
+| Aspect | Status |
+|---|---|
+| Resource Master transaction ownership | MODERNIZED — canonical `ResourceUnitOfWork`/`ResourceUnitOfWorkFactory` (`src/core/modules/project_management/{contracts,infrastructure/persistence}/uow/resources/resource_unit_of_work.py`), fresh `Session` per operation |
+| Resource Capability transaction ownership | MODERNIZED — same `ResourceUnitOfWork` (`.skills`/`.certifications` accessors); no operation currently spans Master + Capability, so one shared UoW was chosen over two, mirroring `DocumentUnitOfWork`'s `.documents`/`.structures`/`.links` shape |
+| Resource typed event transport | CANONICALIZED — `ResourceMasterChanged`/`ResourceCapabilityChanged` (existing, retained vocabulary, unchanged shape) now recorded via `uow.record_event(...)` and dispatched through the shared transactional/post-commit pipeline; the bespoke module-level `Signal[ResourceMasterChanged]`/`Signal[ResourceCapabilityChanged]` publishers are DELETED (confirmed zero production consumers before deletion) |
+| Resource audit | ATOMIC — `record_audit_entry(uow, ..., commit=False, fail_closed=True)` inside the same transaction as the mutation; audit failure or commit failure both roll back the mutation and produce zero events (typed and legacy) |
+| No-op discipline | `update_resource`, `update_resource_skill`, `update_resource_certification` compare the built candidate against the existing record and return unchanged with zero write/audit/event/legacy-signal on a true no-op; `deactivate_resource`/`reactivate_resource` already rejected a no-op transition with `BusinessRuleError` (unchanged) |
+| Employee-driven Resource sync | CASE A (real Resource mutation, not projection staleness) — `sync_linked_employee_resources` writes real `name`/`role`/`contact` columns on the linked Resource row, atomically inside Employee's own canonical UoW. A typed `ResourceMasterChanged(UPDATED)` is now recorded there too, via a `ResourceMasterEventFactory` Protocol Platform owns and PM's composition (`platform_registry.py`) satisfies with `build_resource_master_changed_for_employee_sync` — Platform's `employee_service.py` never imports PM's concrete event class (no new Platform → business-module dependency; the existing 2-entry `GOVERNED_EXCEPTIONS` allowlist in `test_platform_does_not_import_business_modules.py` is unchanged) |
+| Resource ViewInvalidation | NOT YET — P18B |
+| `resources_changed` | TEMPORARILY RETAINED — every real successful mutation across all three producers (Master, Capability, Employee sync) still emits it, post-commit, alongside the new typed event; all 8 existing consumers are unchanged. Deleted in P18B. |
+
+**Project Resource is not yet marked fully modernized** — P18B (ViewInvalidation + consumer
+cutover + `resources_changed` deletion) remains.
+
 ## 4. Current State
 
 **Legacy Signal count: 29 as of P17** (source-derived from `src/core/shared/events/domain_events.py`,
@@ -112,13 +129,16 @@ Why this capability, ahead of every other remaining one:
 
 Planned split:
 
-- **P18A** - transaction/event-pipeline convergence: route `ResourceMasterUnitOfWork`/
-  `ResourceCapabilityUnitOfWork` through a real `UnitOfWorkFactory` + `uow.record_event(...)`;
-  add the missing audit call; resolve the third, inconsistent `employee_service.py` producer
-  path (currently bypasses both typed events entirely).
-- **P18B** - ViewInvalidation consumer cutover: build the Resource `ViewInvalidationHandler`,
-  cut all 8 consumers over to narrow hints, delete `resources_changed` (field + every producer
-  and consumer).
+- **P18A (DONE)** - transaction/event-pipeline convergence: replaced `ResourceMasterUnitOfWork`/
+  `ResourceCapabilityUnitOfWork` (hand-rolled, raw-Session, no audit) with one canonical
+  `ResourceUnitOfWork`/`ResourceUnitOfWorkFactory` + `uow.record_event(...)`; added the missing
+  audit call; resolved the third, inconsistent `employee_service.py` producer path (now records a
+  real typed `ResourceMasterChanged` inside Employee's own transaction, via a Platform-owned
+  factory Protocol PM's composition satisfies — see §3 above for the full status table.
+  `resources_changed` deliberately still fires everywhere it did before this phase.
+- **P18B (NOT STARTED)** - ViewInvalidation consumer cutover: build the Resource
+  `ViewInvalidationHandler`, cut all 8 consumers over to narrow hints, delete `resources_changed`
+  (field + every producer and consumer, including the Employee sync path's legacy emission).
 
 ## 6. Provisional Roadmap
 
@@ -179,8 +199,10 @@ document** - each is addressed when its owning capability's phase is implemented
   most of PM and Inventory/Procurement, and part of Finance (`cost_entries_changed`,
   `commitments_changed` - notably, both already have an unused canonical UoW repo declared for
   them).
-- Orphan Resource typed events before P18 - `ResourceMasterChanged`/`ResourceCapabilityChanged`
-  exist but (high confidence) have zero consumers; P18 gives them real ones.
+- ~~Orphan Resource typed events before P18~~ **RESOLVED by P18A** -
+  `ResourceMasterChanged`/`ResourceCapabilityChanged` now dispatch through the canonical
+  post-commit bus (bespoke `Signal[T]` transport deleted); still zero real UI subscribers until
+  P18B builds the ViewInvalidation handler.
 - Coarse Inventory workspace refresh fan-out - all 6 Inventory/Procurement workspace controllers
   subscribe to all 11 legacy signals identically; any one signal refreshes all 6 workspaces in
   full regardless of relevance.

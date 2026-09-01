@@ -169,9 +169,9 @@ class ResourceCommandMixin:
                 code="STALE_WRITE",
             )
 
-    def _stage_activity(self, resource: Resource, *, action: str) -> None:
+    def _stage_activity(self, uow, resource: Resource, *, action: str) -> None:
         record_activity(
-            self,
+            uow,
             action=action,
             entity_type="resource",
             entity_id=resource.id,
@@ -273,7 +273,7 @@ class ResourceCommandMixin:
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             resource.code = self._resolve_resource_code(code, resource.name, resource_repo=uow.resources)
             uow.resources.add(resource)
-            self._stage_activity(resource, action="resource.created")
+            self._stage_activity(uow, resource, action="resource.created")
             record_audit_entry(
                 uow,
                 operation="create",
@@ -371,7 +371,7 @@ class ResourceCommandMixin:
                 # audit, zero typed event, zero legacy signal, no synthetic version bump.
                 return resource
             uow.resources.update(candidate)
-            self._stage_activity(candidate, action="resource.updated")
+            self._stage_activity(uow, candidate, action="resource.updated")
             record_audit_entry(
                 uow,
                 operation="update",
@@ -424,7 +424,7 @@ class ResourceCommandMixin:
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             uow.resources.update(candidate)
-            self._stage_activity(candidate, action=f"resource.{operation}d")
+            self._stage_activity(uow, candidate, action=f"resource.{operation}d")
             record_audit_entry(
                 uow,
                 operation=operation,
@@ -470,7 +470,7 @@ class ResourceCommandMixin:
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             uow.resources.delete(resource.id)
-            self._stage_activity(resource, action="resource.purged")
+            self._stage_activity(uow, resource, action="resource.purged")
             record_audit_entry(
                 uow,
                 operation="purge",

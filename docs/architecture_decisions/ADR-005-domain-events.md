@@ -1890,6 +1890,67 @@ that presentation-state comparison belongs in the controller, not the shared con
 is accordingly now a closed union of four kinds, not three; ADR-005 §12 should be read with that
 correction in mind wherever it still says "three."
 
+**26.15 Project Resource: TRANSACTION/EVENT-PIPELINE CONVERGED (P18A) — NOT YET FULLY
+MODERNIZED, ViewInvalidation remains P18B.** P17's audit found `ResourceMasterChanged`/
+`ResourceCapabilityChanged` already existed as real, well-designed typed vocabulary (explicit
+`tenant_id`/`organization_id`, meaningful `change_type` enums), but transported through their own
+module-level `Signal[T]` objects rather than the canonical pipeline, with three structurally
+different, non-canonical producers: two hand-rolled `ResourceMasterUnitOfWork`/
+`ResourceCapabilityUnitOfWork` classes that borrowed `ResourceService`'s own process-lifetime
+shared `Session` (never creating a fresh one) and had no audit call at all, plus a third path in
+`employee_service.py` that emitted only the legacy `resources_changed` Signal with no typed event
+at all. P18A closed all three gaps without inventing new business vocabulary: a new
+`ResourceUnitOfWork`/`ResourceUnitOfWorkFactory` pair (`src/core/modules/project_management/
+{contracts,infrastructure/persistence}/uow/resources/resource_unit_of_work.py`, mirroring
+`DocumentUnitOfWork`/`SqlAlchemyFinanceGovernanceUnitOfWork`'s exact shape — fresh `Session` per
+operation, `resources`/`skills`/`certifications` named accessors, no repository-map/service-locator)
+now owns every Resource Master and Capability mutation; the existing `ResourceMasterChanged`/
+`ResourceCapabilityChanged` dataclasses were retained unchanged and are now recorded via
+`uow.record_event(...)` before `uow.commit()`, dispatched through the shared transactional
+(FAIL_FAST) and post-commit (ISOLATE_AND_CONTINUE) pipeline; the bespoke `Signal[T]` publishers
+were deleted outright after re-confirming zero production consumers (no compatibility bridge, no
+forwarding). `record_audit_entry(uow, ..., commit=False, fail_closed=True)` now runs inside the
+same transaction as every mutation, closing the "no audit at all" gap P17 found — an audit
+failure or a commit failure both roll back the mutation and produce zero typed event and zero
+legacy signal, proven by dedicated regression tests. Update-style operations
+(`update_resource`/`update_resource_skill`/`update_resource_certification`) gained true no-op
+detection (build the candidate, compare to the existing record, write/audit/event/legacy-signal
+only on an actual change) — a real pre-release behavior correction, since the prior code wrote
+unconditionally even for an identical-to-persisted request, exactly the class of gap this ADR has
+corrected in every prior phase (P16B's Document no-op guards, etc.).
+
+The `employee_service.py` producer required its own semantic audit before any code changed:
+`sync_linked_employee_resources` (`employee_support.py`) writes real `name`/`role`/`contact`
+columns on the linked Resource row via `resource_repo.update(resource)` — inside Employee's own
+already-canonical `EmployeeUnitOfWork` transaction (which already carries a `resources` repository
+participant) — so this is a genuine Resource business-fact mutation, not merely Resource display
+data going stale. The correct fix was NOT to have `employee_service.py` construct
+`ResourceMasterChanged` directly: `Resource` is business-module (`project_management`) vocabulary,
+and `src/core/platform/` importing it would be an uncited addition to the `GOVERNED_EXCEPTIONS`
+allowlist §21/§22 established as closed (`test_platform_does_not_import_business_modules.py`'s own
+`test_governed_exceptions_are_exactly_the_two_known_violations` guard would fail). Instead, Platform
+defines a new `ResourceMasterEventFactory` `Protocol` (`src/core/platform/contract/interface/
+master_data/employee/contracts.py`, alongside the existing `LinkedEmployeeResource` Protocol this
+sync path already used) — `Callable[[LinkedEmployeeResource, tenant_id, organization_id],
+DomainEvent]` — that `EmployeeService` calls if configured, never importing the concrete return
+type. The concrete builder, `build_resource_master_changed_for_employee_sync`, lives in PM's own
+`resource_master_events.py` and is wired into `EmployeeService` only at the composition root
+(`platform_registry.py`, which — like every composition root — is outside the guarded
+`src/core/platform/` scope and already imports PM's concrete `SqlAlchemyResourceRepository` for
+this exact same sync path). This is the same dependency-inversion shape the `resource_repo_factory:
+Callable[[Session], LinkedEmployeeResourceRepository]` collaborator already used for the read/write
+side of this sync — extended, not newly invented, to cover event construction too. Employee's own
+`EmployeeProfileUpdated` event and canonical UoW/audit path are unchanged.
+
+`resources_changed` is deliberately NOT deleted by P18A and NOT yet routed through
+ViewInvalidation — its 8 existing consumers are unchanged, and every one of the three producers
+above still emits it, post-commit, alongside the new typed event, exactly the same temporary
+dual-emission pattern P16C used for Document/DocumentStructure while DocumentLink was still
+unmodernized. This duplication is explicitly temporary: P18B builds the Resource
+`ViewInvalidationHandler`, cuts the 8 consumers to narrow hints, and deletes `resources_changed`
+(field, all three producers, all consumers) in one direct-convergence pass, per this ADR's
+pre-release policy (§26.9) — Project Resource is not marked fully modernized until then.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

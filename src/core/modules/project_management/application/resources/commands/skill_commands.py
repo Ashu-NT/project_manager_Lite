@@ -33,9 +33,9 @@ class SkillCommandMixin:
     _skill_repo: ResourceSkillRepository | None
     _cert_repo: ResourceCertificationRepository | None
 
-    def _stage_capability_activity(self, child, *, action: str) -> None:
+    def _stage_capability_activity(self, uow, child, *, action: str) -> None:
         record_activity(
-            self,
+            uow,
             action=action,
             entity_type="resource",
             entity_id=child.resource_id,
@@ -103,7 +103,7 @@ class SkillCommandMixin:
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             created = uow.skills.add(skill)
-            self._stage_capability_activity(created, action="resource.skill.added")
+            self._stage_capability_activity(uow, created, action="resource.skill.added")
             record_audit_entry(
                 uow,
                 operation="create",
@@ -169,7 +169,7 @@ class SkillCommandMixin:
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             updated = uow.skills.update(candidate, expected_version=expected_version)
-            self._stage_capability_activity(updated, action="resource.skill.updated")
+            self._stage_capability_activity(uow, updated, action="resource.skill.updated")
             record_audit_entry(
                 uow,
                 operation="update",
@@ -208,7 +208,7 @@ class SkillCommandMixin:
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             uow.skills.delete(skill_id, expected_version=expected_version)
-            self._stage_capability_activity(existing, action="resource.skill.removed")
+            self._stage_capability_activity(uow, existing, action="resource.skill.removed")
             record_audit_entry(
                 uow,
                 operation="delete",
@@ -267,7 +267,7 @@ class SkillCommandMixin:
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             created = uow.certifications.add(cert)
-            self._stage_capability_activity(created, action="resource.certification.added")
+            self._stage_capability_activity(uow, created, action="resource.certification.added")
             record_audit_entry(
                 uow,
                 operation="create",
@@ -342,7 +342,7 @@ class SkillCommandMixin:
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             updated = uow.certifications.update(candidate, expected_version=expected_version)
-            self._stage_capability_activity(updated, action="resource.certification.updated")
+            self._stage_capability_activity(uow, updated, action="resource.certification.updated")
             record_audit_entry(
                 uow,
                 operation="update",
@@ -385,7 +385,7 @@ class SkillCommandMixin:
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             uow.certifications.delete(cert_id, expected_version=expected_version)
-            self._stage_capability_activity(existing, action="resource.certification.removed")
+            self._stage_capability_activity(uow, existing, action="resource.certification.removed")
             record_audit_entry(
                 uow,
                 operation="delete",

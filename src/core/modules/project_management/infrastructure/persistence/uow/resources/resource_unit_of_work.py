@@ -14,8 +14,12 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyResourceCertificationRepository,
     SqlAlchemyResourceSkillRepository,
 )
+from src.core.platform.application.history.activity.activity_service import ActivityService
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
+)
+from src.core.platform.infrastructure.persistence.repositories.history.activity.activity import (
+    SqlAlchemyActivityRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
@@ -61,6 +65,20 @@ class SqlAlchemyResourceUnitOfWork(SqlAlchemyUnitOfWorkBase, ResourceUnitOfWork)
         self._enterprise_audit_service = EnterpriseAuditService(
             session=session,
             audit_repo=audit_repo,
+            user_session=user_session,
+            tenant_context_service=tenant_context_service,
+        )
+
+        # Activity-feed staging must ride this same fresh transaction -- a separately-scoped
+        # ActivityService bound to a different (process-lifetime shared) Session would stage an
+        # entry that this UoW's own commit() never persists (a real regression P18A's own
+        # convergence would otherwise introduce, since the mutation no longer shares a Session
+        # with anything outside this UoW).
+        activity_repo = SqlAlchemyActivityRepository(session)
+        activity_repo._tenant_context_service = tenant_context_service
+        self._activity_service = ActivityService(
+            session=session,
+            activity_repo=activity_repo,
             user_session=user_session,
             tenant_context_service=tenant_context_service,
         )
