@@ -348,6 +348,82 @@ distinct current semantics, not R6C compatibility. No `*_without_commit` API,
 transaction bridge, deprecated caller, or Financial Change submission wrapper
 remains.
 
-R6C remains open. The next stage is R6C-B Budget Governance Command UX, followed
-by the remaining approved R6C workflow stages. R6C-A added no QML workflow and
-started no R6C-B, R6D, R6E, R6F, or R6G implementation.
+R6C remains open. R6C-A added no QML workflow and started no R6D, R6E, R6F, or
+R6G implementation.
+
+## R6C-B Budget Governance Command UX
+
+**Status: COMPLETE.** The existing Finance -> Planning -> Budgets destination is
+the only Budget command UX. No route, duplicate workspace, compatibility
+presenter, or generic Manage Budget page was introduced.
+
+### R6C-B Command Architecture
+
+Budget create/update/delete, line create/update/delete, submit, approval request,
+successor, and close flow through explicit controller slots, presenter command
+functions, typed desktop commands, and `FinanceGovernanceCommandBoundary`.
+Money crosses the desktop boundary as a canonical decimal string and is converted
+to finite `Decimal` before service execution. Successful commands commit before
+the existing scoped Budget signal invalidates only Overview, Planning, and
+Performance; no global Finance refresh was added.
+
+The desktop approval-request command now invokes explicit
+`request_budget_approval()`. It always creates a Platform Approval request and is
+not changed into a direct approval by `PM_GOVERNANCE_MODE`. Platform Approval is
+the only QML decision authority. Server-projected capabilities distinguish
+manage, submit, request, decide, close, and successor rights. The pending request
+ID/requester are read authoritatively, and approve/reject are deny-safe for the
+requesting principal even when that principal also holds decision permission.
+
+### R6C-B Authority And Lineage
+
+The server retains one-open-version enforcement, assigns revisions, validates
+currency/cost-code/task scope, and enforces line plus parent optimistic versions.
+Approved versions and lines remain immutable. `Create Successor` requires an
+approved predecessor, stores a scoped predecessor FK, clones its exact lines into
+a new Draft with new identities, preserves currency and approved history, and
+leaves the predecessor unchanged. Delete commands return the affected aggregate
+for scoped invalidation; the desktop adapter does not call private service APIs.
+
+### R6C-B Read And UX Cutover
+
+The authoritative R6B Budget reader now projects row versions, lineage, approval
+evidence, cost-code/task identities, and deny-safe action capabilities. Open-
+version eligibility is returned in the existing count round trip, preserving the
+bounded five-statement Budget master/detail read instead of adding another query.
+Cost Code and optional Task use bounded server lookups. The three responsive
+dialogs use the shared centered, scrollable, pinned-footer shell; validation stays
+visible, entered values remain in the open dialog after a conflict, and an
+authoritative Planning refresh replaces stale versions without automatic retry.
+
+### R6C-B Migration And Runtime Repair
+
+Revision `a61d8c4f2b70` adds `predecessor_budget_id` and the tenant/organization/
+project-scoped self FK after the squashed baseline. This deliberately supports
+both fresh databases and developer databases already stamped at
+`f3c89cac079d`. App startup runs Alembic to head, so the reported SQLite
+`no such column: project_finance_budgets.predecessor_budget_id` failure is
+repaired on restart without deleting local data. The same runtime patch removed
+the unknown `submit` icon and made selected-Budget QML state null-safe during
+refresh.
+
+### R6C-B Verification
+
+- Consolidated Budget/R6B/API/controller/approval/QML/architecture matrix:
+  `165 passed`.
+- Docker PostgreSQL 16 fresh migration and `app_runtime` Budget, BudgetLine,
+  scoped Reader, and foreign-scope denial proof: `2 passed`.
+- Existing-baseline-to-head and fresh upgrade/downgrade SQLite migration proof:
+  `2 passed`.
+- Budget dialog viewport/focus/Escape matrix at 1024x640, 1280x720, 1366x768,
+  1440x900, and 1920x1080: `15 passed`.
+- Targeted PM dialog and registered-route offscreen loading: `15 passed`.
+- Targeted Python compilation, authored-QML `pyside6-qmllint`, architecture
+  guards, and `git diff --check`: PASS.
+- No superseded Budget desktop/controller/presenter/dialog/DI path was found;
+  policy-controlled direct service approval remains the distinct current
+  non-QML semantic already approved in this document, not a compatibility path.
+- No R6D work was started and nothing was committed.
+
+R6C remains open. The next stage is R6C-C Forecast Governance Command UX. R6C-D
+through R6C-H remain deferred to their approved stages.
