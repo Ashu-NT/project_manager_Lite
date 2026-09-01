@@ -23,7 +23,6 @@ class DomainEvents:
     commitments_changed: Signal[object] = field(default_factory=Signal)
     rates_changed: Signal[object] = field(default_factory=Signal)
     financial_changes_changed: Signal[object] = field(default_factory=Signal)
-    financial_setup_changed: Signal[object] = field(default_factory=Signal)
     register_changed: Signal[str] = field(default_factory=Signal)
     auth_changed: Signal[str] = field(default_factory=Signal)
     collaboration_changed: Signal[str] = field(default_factory=Signal)

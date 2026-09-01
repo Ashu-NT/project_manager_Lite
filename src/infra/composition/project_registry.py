@@ -36,6 +36,13 @@ from src.core.modules.project_management.application.financials.forecasts.foreca
     ForecastLineChanged,
     ForecastVersionChanged,
 )
+from src.core.modules.project_management.application.financials.event_handlers.view_invalidation import (
+    build_financial_profile_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.configuration_events import (
+    ProjectFinancialProfileTransitioned,
+    ProjectFinancialProfileUpdated,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
     SqlAlchemyProjectRepository,
 )
@@ -623,6 +630,16 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus.subscribe(
             _forecast_event_type, _forecast_view_invalidation_handler
         )
+    _financial_profile_view_invalidation_handler = build_financial_profile_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _financial_profile_event_type in (
+        ProjectFinancialProfileUpdated,
+        ProjectFinancialProfileTransitioned,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _financial_profile_event_type, _financial_profile_view_invalidation_handler
+        )
     financial_change_service = FinancialChangeService(
         session=session,
         change_repo=repositories.financial_change_repo,
@@ -713,6 +730,7 @@ def build_project_management_service_bundle(
             enterprise_audit_service=uow._enterprise_audit_service,
             module_catalog_service=platform_services.module_catalog_service,
             tenant_context_service=platform_services.tenant_context_service,
+            record_event=uow.record_event,
         )
         return FinanceGovernanceOperations(
             budgets=budget_operations,

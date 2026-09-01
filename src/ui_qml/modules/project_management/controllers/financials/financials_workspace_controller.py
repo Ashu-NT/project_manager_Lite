@@ -17,6 +17,9 @@ from src.ui_qml.modules.project_management.controllers.financials.forecast_domai
     on_forecast_approved_basis_stale,
     on_forecast_planning_stale,
 )
+from src.ui_qml.modules.project_management.controllers.financials.financial_setup_domain_event_binder import (
+    on_financial_profile_stale,
+)
 from src.ui_qml.modules.project_management.controllers.financials.financials_selection_mixin import FinancialsSelectionMixin
 from src.ui_qml.modules.project_management.controllers.financials.financials_state_mixin import FinancialsStateMixin
 from src.ui_qml.modules.project_management.controllers.financials.financials_types import (
@@ -722,6 +725,9 @@ class ProjectManagementFinancialsWorkspaceController(
 
     def onForecastApprovedBasisStale(self, project_id: str) -> None:
         on_forecast_approved_basis_stale(self, project_id)
+
+    def onFinancialProfileStale(self, project_id: str) -> None:
+        on_financial_profile_stale(self, project_id)
 
     @Slot(str)
     def selectProject(self, project_id: str) -> None: self._select_project(project_id)

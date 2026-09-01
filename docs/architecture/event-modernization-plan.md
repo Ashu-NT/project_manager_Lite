@@ -128,10 +128,24 @@ a new generic Approval reporting seam rather than widening `dependencies_factory
 | ViewInvalidation | MODERNIZED — two org-scoped targets: `storeroom_list` (every Storeroom fact) and `location_list` (every Location fact); proven from source that `storeroom_list` is the *same* projection backing both the Inventory workspace's master list and the `storeroom_options` selector used by Pricing/Procurement/Reservations — one target, not two |
 | UI consumers | CUT OVER — 6 workspaces re-audited from source (not assumed): Inventory (owner, full `refresh()` on either target — no narrower seam exists in its own monolithic `build_workspace_state`), Dashboard (KPI rollup, full `refresh()` on either target — legitimate, no seam), Pricing/Procurement (`storeroom_options` selector only, reuse the existing narrow `refresh_site_options` seam), Reservations (`storeroom_options` selector only, P20 additively extracted a new narrow `refresh_storeroom_options` seam mirroring Pricing/Procurement's), Catalog (zero real dependency — proven no Catalog presenter references Storeroom or Location at all — subscription removed with no replacement) |
 | `inventory_storerooms_changed` / `inventory_locations_changed` | DELETED — both fields, all producers, all consumers. Legacy Signal count: 25 (27 → 25, confirmed via source) |
+| P21 | Finance Financial Setup | Already canonical `FinanceGovernanceUnitOfWork` — `FinancialConfigurationService` gained `record_event` wired to `uow.record_event`; no new UoW | `ProjectFinancialProfileUpdated`, `ProjectFinancialProfileTransitioned` (project-scoped); `CostCodeCreated`, `CostCodeProfileUpdated`, `CostCodeActivated`, `CostCodeDeactivated` (organization-scoped — `ProjectCostCode` is a global catalog, not project-owned); `ProjectCostCodeRestrictionAdded`, `ProjectCostCodeRestrictionRemoved` (project-scoped join) — 8 events for 8 audited operations | Narrow: `financial_profile` (project-scoped `ResourceScope`) fed only by the two Profile events — proven the *sole* current Financial Setup projection (no destination in the Financials workspace ever caches Cost Code data; every cost-code picker is a live, on-demand query). Cost Code / Restriction events are recorded as canonical typed facts with deliberately zero ViewInvalidation subscription | `financial_setup_changed` deleted |
+
+**Finance Financial Setup is fully modernized** as of P21. A significant re-audit finding: only
+`create_cost_code` has a live production caller today (via a direct `commands.financial_setup(...)`
+call in the desktop API) — `configure_profile`/`transition_profile`/`update_cost_code`/
+`deactivate_cost_code`/`activate_cost_code`/`add_project_cost_code`/`remove_project_cost_code` are
+all reachable through the governed `FinanceGovernedServicePort` (registered mutations) but have
+zero current UI/API callers. All 8 still received full typed-event coverage (they are real,
+complete, governed-surface operations, not dead code to delete), but this explains why P21's
+ViewInvalidation retirement changes essentially nothing about today's visible behavior: the legacy
+`financial_setup_changed → {planning, costs, controls}` blanket invalidation was already pure
+waste for the one live producer (`create_cost_code` — no cost-code list is ever cached anywhere in
+the Financials workspace), and the one destination it should invalidate (`controls`, for
+`financial_profile`) has no live producer yet either. See ADR-005 §26.18 for the full design.
 
 ## 4. Current State
 
-**Legacy Signal count: 25 as of P20** (source-derived from `src/core/shared/events/domain_events.py`,
+**Legacy Signal count: 24 as of P21** (source-derived from `src/core/shared/events/domain_events.py`,
 re-verified against current source when this document was last updated).
 
 | Area | Count |
@@ -139,7 +153,7 @@ re-verified against current source when this document was last updated).
 | Platform | 0 |
 | Auth/Security | 1 |
 | Project Management | 7 |
-| Finance | 8 |
+| Finance | 7 |
 | Inventory/Procurement | 9 |
 
 > **This is a snapshot, not a fact.** Recompute the count directly from
@@ -149,11 +163,10 @@ re-verified against current source when this document was last updated).
 
 ## 5. Current Priority
 
-**Inventory Storeroom + Storage Location is fully modernized (P20, see §3).** The next capability
-has not yet been chosen — the P17 ranking's provisional order (§6 below) next suggests Finance
-Financial Setup, but per this document's own repeated caution, re-run prioritization from current
-source before committing to it: concurrent development elsewhere may have changed readiness
-since P17.
+**Finance Financial Setup is fully modernized (P21, see §3).** The next capability has not yet
+been chosen — the P17 ranking's provisional order (§6 below) next suggests Finance Rate Card, but
+per this document's own repeated caution, re-run prioritization from current source before
+committing to it: concurrent development elsewhere may have changed readiness since P17.
 
 ## 6. Provisional Roadmap
 
@@ -162,11 +175,10 @@ Re-run prioritization after each major capability - current source is authoritat
 concurrent development elsewhere in the codebase may change any capability's readiness before
 its turn comes up.
 
-Suggested next order (P18 Project Resource, P19 Finance Forecast, and P20 Inventory
-Storeroom/Location are DONE — see §3):
+Suggested next order (P18 Project Resource, P19 Finance Forecast, P20 Inventory
+Storeroom/Location, and P21 Finance Financial Setup are DONE — see §3):
 
 ```
-P21  Finance Financial Setup
 P22  Finance Rate Card
 ```
 

@@ -605,10 +605,6 @@ class FinancialsRefreshMixin:
             if self._finance_event_matches(payload):
                 self._invalidate_destinations("controls")
 
-        def _financial_setup_changed(payload: object) -> None:
-            if self._finance_event_matches(payload):
-                self._invalidate_destinations("planning", "costs", "controls")
-
         subscriptions = (
             (domain_events.project_changed, _projects_changed),
             (domain_events.tasks_changed, _tasks_changed),
@@ -619,7 +615,6 @@ class FinancialsRefreshMixin:
             (domain_events.commitments_changed, _commitments_changed),
             (domain_events.rates_changed, _rates_changed),
             (domain_events.financial_changes_changed, _financial_changes_changed),
-            (domain_events.financial_setup_changed, _financial_setup_changed),
         )
         for signal, callback in subscriptions:
             self._subscribe_domain_signal(signal, callback)

@@ -2197,6 +2197,84 @@ Resource).
 is 25 as of this phase (27 minus the two deletions — confirmed source-derived). The Inventory
 Storeroom and Storage Location capabilities are fully modernized.
 
+**26.18 Finance Financial Setup: FULLY MODERNIZED (P21) —
+`financial_setup_changed` DELETED.** Transaction ownership and audit were already canonical
+(the existing `FinanceGovernanceUnitOfWork`/`FinancialConfigurationService`, using
+`record_audit_entry` already), matching P17's finding — no new UoW was created, per this phase's
+explicit mandate. `FinancialConfigurationService` gained the same `record_event: Callable[
+[object], None] | None` constructor parameter already established for `ForecastVersionService`/
+`ForecastGenerationService` (§26.16) and `FinancialChangeService` (its own `submit_change` path),
+wired to `uow.record_event` at the composition root.
+
+The re-audit decomposed "Financial Setup" into three genuinely distinct sub-capabilities, not
+one: `ProjectFinancialProfile` (project-owned — `configure_profile`/`transition_profile`),
+`ProjectCostCode` (organization-owned, NOT project-owned — a global cost-code catalog with its
+own parent/child hierarchy, referenced by projects rather than belonging to one —
+`create_cost_code`/`update_cost_code`/`activate_cost_code`/`deactivate_cost_code`), and
+`ProjectCostCodeRestriction` (a project-scoped join table recording which cost codes are
+allow-listed for a RESTRICTED-policy project — `add_project_cost_code`/`remove_project_cost_code`).
+Eight typed events for eight audited operations: `ProjectFinancialProfileUpdated`,
+`ProjectFinancialProfileTransitioned` (a real status lifecycle,
+`FinancialProfileStatus`-governed); `CostCodeCreated`, `CostCodeProfileUpdated`,
+`CostCodeActivated`, `CostCodeDeactivated` (the last two mirroring Site's own
+Enabled/Disabled-as-two-dataclasses shape, §26.12, since Cost Code's `is_active` is a genuine
+binary lifecycle rather than Storeroom's richer 4-state one, §26.17); `ProjectCostCodeRestrictionAdded`,
+`ProjectCostCodeRestrictionRemoved`. No `FinancialSetupChanged`/`FinanceChanged` catch-all.
+`configure_profile` and `update_cost_code` had no no-op detection at all pre-P21 (always
+wrote/audited/emitted on identical input) — both fixed with the same before/after
+field-comparison idiom used throughout this migration (P18A §10 onward); `transition_profile`/
+`activate_cost_code`/`deactivate_cost_code`/`add_project_cost_code`/`remove_project_cost_code`
+already had correct existence/state guards and needed no correction.
+
+A significant re-audit finding shaped the whole ViewInvalidation design: only `create_cost_code`
+has a live production caller today, reached via a direct `commands.financial_setup(...)` call in
+the Financials desktop API (`api.py`'s `create_cost_code` endpoint) — bypassing
+`FinancialConfigurationService`'s own governed port entirely for that one call site. The other
+seven operations (`configure_profile`, `transition_profile`, `update_cost_code`,
+`deactivate_cost_code`, `activate_cost_code`, `add_project_cost_code`, `remove_project_cost_code`)
+are registered in `FinanceGovernedServicePort`'s `financial_setup` mutations set (so they are real,
+reachable, complete governed operations, not dead code) but have zero current UI/API callers.
+`FinancialConfigurationService.get_profile`/`list_cost_codes`/`list_available_cost_codes` (the
+read side) are equally uncalled from the UI today — `state.financial_profile`, the one Financial
+Setup fact actually rendered (in `financials_refresh_mixin.py`'s "controls" destination, "setup"
+subsection), is populated by a separate reader, not this service. All 8 operations still received
+complete typed-event coverage regardless of current UI reachability — matching how every other
+migrated capability's typed events describe the real business model, not merely what today's UI
+happens to exercise.
+
+Exactly one ViewInvalidation target, `financial_profile` (project-scoped `ResourceScope`,
+`module_code="project_management"`, matching Forecast's own convention, §26.16), fed only by the
+two Profile events. Cost Code and Restriction events are recorded as canonical typed
+`DomainEvent`s — real, useful business facts for audit/history/future consumers — but
+*deliberately* have zero ViewInvalidation subscription: proven from source
+(`destination_builder.py` and `workspace_query.py`) that no Financials-workspace destination ever
+caches a cost-code list; `search_manual_actual_cost_codes`/`search_budget_cost_codes`/
+`resolve_*_cost_code` are all live, on-demand `FinanceLookupReader` queries, never a cached
+projection, so a Cost Code fact has nothing to make stale. This directly corrects the legacy
+signal's own over-breadth: `financial_setup_changed → {planning, costs, controls}` invalidated
+three destinations for *every* Financial Setup event, including Cost Code changes, even though
+none of them ever needed it — a second real, source-proven narrowing this phase found (the first
+being P19-FIX's dual-target correction for Forecast approval, §26.16). Because the sole live
+producer (`create_cost_code`) turns out to need zero ViewInvalidation hints, and the one
+destination that Profile events *do* need (`controls`) has no live producer yet, P21's cutover is
+architecturally complete but changes essentially nothing about today's actually-visible behavior
+— which is itself the correct, narrow outcome once the true dependencies are traced, not a
+shortfall of the migration.
+
+`financial_setup_changed` is now deleted from `DomainEvents` entirely — zero producers (the one
+real producer, `create_cost_code`, now records `CostCodeCreated` with no legacy emission; the
+other seven operations never had a reachable legacy emission to retire either, since they had no
+caller), zero consumers (`financials_refresh_mixin.py`'s legacy subscription removed; the real UI
+consumer is a `FinancialProfileViewInvalidationAdapter` instance wired into
+`ProjectManagementFinancialsWorkspaceController`, connected to `onFinancialProfileStale`, which
+filters by the hint's project id and invalidates `{controls}` only — narrower than the legacy
+`{planning, costs, controls}`), field absent. `FinanceInvalidationScope` remains untouched and
+still carries the other, still-legacy Finance signals (`budgets_changed`, `cost_entries_changed`,
+`commitments_changed`, `rates_changed`, `financial_changes_changed`, `planned_costs_changed`,
+`billing_preparations_changed`) — P21 retired it from the Financial Setup path only, per its own
+scope. The legacy Signal count is 24 as of this phase (25 minus the one deletion — confirmed
+source-derived). The Finance Financial Setup capability is fully modernized.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant
