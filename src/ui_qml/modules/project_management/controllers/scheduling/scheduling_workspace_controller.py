@@ -3,6 +3,9 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.modules.project_management.controllers.common.baseline_domain_event_binder import (
+    on_project_baseline_stale,
+)
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
 )
@@ -535,6 +538,9 @@ class ProjectManagementSchedulingWorkspaceController(
     @Slot()
     def refresh(self) -> None:
         load_workspace_state(self)
+
+    def onProjectBaselineStale(self, project_id: str) -> None:
+        on_project_baseline_stale(self, project_id)
 
     # ── Panel / filter / selection slots ─────────────────────────────
 

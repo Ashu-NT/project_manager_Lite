@@ -11,6 +11,9 @@ from src.core.platform.api.desktop.integration import IntegrationCapabilityDeskt
 from src.ui_qml.platform.adapters.approval_view_invalidation_adapter import (
     ApprovalViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.baseline_view_invalidation_adapter import (
+    BaselineViewInvalidationAdapter,
+)
 from src.ui_qml.platform.adapters.employee_view_invalidation_adapter import (
     EmployeeViewInvalidationAdapter,
 )
@@ -165,6 +168,8 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self._forecast_view_invalidation_adapter: ForecastViewInvalidationAdapter | None = None
         self._financial_profile_view_invalidation_adapter: FinancialProfileViewInvalidationAdapter | None = None
         self._rate_card_view_invalidation_adapter: RateCardViewInvalidationAdapter | None = None
+        self._scheduling_baseline_view_invalidation_adapter: BaselineViewInvalidationAdapter | None = None
+        self._dashboard_baseline_view_invalidation_adapter: BaselineViewInvalidationAdapter | None = None
         self._resource_view_invalidation_adapter: ResourceViewInvalidationAdapter | None = None
         self._portfolio_resource_view_invalidation_adapter: ResourceViewInvalidationAdapter | None = None
         self._scheduling_resource_view_invalidation_adapter: ResourceViewInvalidationAdapter | None = None
@@ -360,6 +365,15 @@ class ProjectManagementWorkspaceCatalog(QObject):
             self._scheduling_resource_view_invalidation_adapter = self._wire_resource_list_stale(
                 self._scheduling_workspace
             )
+            self._scheduling_baseline_view_invalidation_adapter = BaselineViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._scheduling_baseline_view_invalidation_adapter.projectBaselineStale.connect(
+                self._scheduling_workspace.onProjectBaselineStale
+            )
         return self._scheduling_workspace
 
     def _get_tasks_workspace(self) -> ProjectManagementTasksWorkspaceController:
@@ -391,6 +405,15 @@ class ProjectManagementWorkspaceCatalog(QObject):
             )
             self._dashboard_resource_view_invalidation_adapter = self._wire_resource_list_stale(
                 self._dashboard_workspace
+            )
+            self._dashboard_baseline_view_invalidation_adapter = BaselineViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._dashboard_baseline_view_invalidation_adapter.projectBaselineStale.connect(
+                self._dashboard_workspace.onProjectBaselineStale
             )
         return self._dashboard_workspace
 
@@ -558,6 +581,15 @@ class ProjectManagementWorkspaceCatalog(QObject):
                 tenant_id=self._active_tenant_id() or "",
                 organization_id=self._active_organization_id() or "",
             )
+        for baseline_adapter in (
+            self._scheduling_baseline_view_invalidation_adapter,
+            self._dashboard_baseline_view_invalidation_adapter,
+        ):
+            if baseline_adapter is not None:
+                baseline_adapter.set_active_scope(
+                    tenant_id=self._active_tenant_id() or "",
+                    organization_id=self._active_organization_id() or "",
+                )
         for resource_adapter in (
             self._resource_view_invalidation_adapter,
             self._portfolio_resource_view_invalidation_adapter,

@@ -2359,6 +2359,88 @@ other, still-legacy Finance signals (`budgets_changed`, `cost_entries_changed`,
 The legacy Signal count is 23 as of this phase (24 minus the one deletion — confirmed
 source-derived). The Finance Rate Card capability is fully modernized.
 
+**26.20 PM Baseline Approval: FULLY MODERNIZED (P23) — `baseline_changed`
+DELETED.** Re-audited from CURRENT source, not P17's own characterization — P17 saw only the
+approval-gated create producer (`ApprovalPostCommitEvent("baseline_changed", project_id)` in
+`baseline_apply_participant.py`) and described the business fact as narrowly as "approved
+request created/applied a baseline." Source shows a materially richer capability: `BaselineService`
+owns a full DRAFT — SUBMITTED — APPROVED/REJECTED status lifecycle
+(`submit_baseline`/`approve_baseline`/`reject_baseline`, permission-gated on `baseline.manage`/
+`baseline.approve`) plus `delete_baseline`, all real, UI-reachable desktop-API operations
+(`ProjectManagementSchedulingDesktopApi.submit_baseline`/`approve_baseline`/`reject_baseline`/
+`delete_baseline`) that emitted NOTHING at all before this phase — not `baseline_changed`,
+not any other Signal — a previously silent gap distinct from `rates_changed`'s single-producer
+case (P22, ADR-005 §26.19). `create_baseline` itself is dual-path: governed (via
+`ApprovalService.request_change("baseline.create", ...)`, when `is_governance_required` and the
+session is non-admin) or direct — both funnel through the SAME `_apply_baseline_creation_decision`,
+unchanged in shape by this phase (still flush-only, still never commits its own Session).
+
+Five typed events, one per real lifecycle transition, matching source semantics exactly:
+`ProjectBaselineCreated`, `ProjectBaselineSubmitted`, `ProjectBaselineApproved`,
+`ProjectBaselineRejected`, `ProjectBaselineDeleted`. `approve_baseline`'s richest fact — it
+supersedes the project's previous approved baseline (if any, and if distinct from the one being
+approved) and builds per-task `BaselineVarianceRecord`s in the same transaction — is represented
+as ONE `ProjectBaselineApproved` event carrying a `superseded_baseline_id: str | None` field,
+not two events (no `ProjectBaselineSuperseded`): no source path ever supersedes a baseline
+independently of approving another one, so a separate event would describe a fact that can never
+occur on its own (the "no vague catch-all, but do not multiply for technical field changes"
+balance, per this phase's own §3 instruction). No `ProjectBaselineActivated` either — "approved"
+and "the project's current baseline" are the same persisted fact
+(`BaselineRepository.get_approved_baseline`), with no separate activation step in source.
+
+Transaction ownership — the genuinely novel finding of this phase: `BaselineService`'s Session is
+the SAME long-lived, process-shared Session most other PM services share (constructed once in
+`project_registry.py`, still in use by many other services after any one Baseline operation
+completes) — never a fresh per-request Session the way every Finance/Resource capability's own
+canonical UoW works. `SqlAlchemyUnitOfWorkBase.commit()` unconditionally closes its Session at the
+end — calling it as-is on this shared Session would silently break every other PM service still
+relying on it after the very first Baseline mutation. A full convergence onto a fresh-per-request
+UoW (`SchedulingEngine` and this service's four repositories all rebuilt fresh, bound to a new
+Session, per call — the shape every other capability's UoW uses) was evaluated and rejected as
+out of this phase's scope: `SchedulingEngine` is itself a heavy, session-bound collaborator shared
+by Task/Portfolio/other Scheduling-dependent services at startup, and rebuilding it per-transaction
+for Baseline's sake alone would ripple into capabilities this phase explicitly excludes ("do not
+modernize Tasks," "do not redesign all PM baseline functionality"). Instead, `SqlAlchemyBaselineUnitOfWork`
+(a `SqlAlchemyUnitOfWorkBase` subclass) reuses the SAME transactional-dispatch/postcommit-publish
+machinery verbatim, but overrides `commit()` and `_rollback_and_close()` to skip closing the
+Session — the shared Session survives every commit and rollback, proven by a real multi-operation
+lifecycle test (create, then submit, then approve, all on the same long-lived `baseline_service`
+instance) passing without modification. This precedent (`build_baseline_approval_deps` already
+constructs a fresh `SchedulingEngine` bound to a fresh Session for the APPROVAL path specifically,
+proven safe since P4-PRE) is what de-risked adding the SAME per-call construction discipline to
+the DIRECT path's own small `SqlAlchemyBaselineUnitOfWorkFactory` (which wraps the existing shared
+Session, not a fresh one — `BaselineService`'s own four repositories and `SchedulingEngine` did
+not need to move). The approval-mediated create path itself needed zero new transaction plumbing:
+already fully session-parameterized since P4-PRE (Round 8), it reuses `ApprovalHandlerResult.
+domain_events` directly — the participant now returns `ProjectBaselineCreated` (built from the
+created baseline's own `id` plus `TenantContext` resolved via `_require_context`) instead of the
+legacy `ApprovalPostCommitEvent`; the participant still never receives a `UnitOfWork` or
+`record_event` callback, matching the invariant this ADR has held since P19.
+
+Exactly one ViewInvalidation target (`application/scheduling/baselines/event_handlers/
+view_invalidation.py`): `project_baseline` (project-scoped `ResourceScope`,
+`module_code="project_management"`, `entity_type="project"`). Every current consumer re-audited
+from source — Scheduling workspace (baseline register/compare/variance rows, the owning
+capability) and Dashboard workspace (baseline selector + KPIs scoped to the selected baseline) —
+rebuilds from the same project-scoped baseline projection via a single coarse workspace refresh
+(`_request_domain_refresh()`), not independently-cached sub-projections; source does not justify
+splitting `baseline_schedule`/`baseline_variance` out as separate targets. All five events map to
+this one target uniformly — ViewInvalidation is not a second business-event vocabulary.
+The Control workspace's `baseline_changed` subscription is removed with no replacement (the same
+class of finding as P18B's `resources_changed` removal): its overview/queue presenters (an
+approval-request queue + an audit feed) never referenced Baseline business data at all — proven
+from source, not assumed. Both narrow-workspace consumers gate on the controller's own
+`_selected_project_id`, mirroring `on_forecast_planning_stale`'s established pattern (the hint's
+`entity_id` matches the scope's own `entity_id`); the Qt adapter
+(`BaselineViewInvalidationAdapter.projectBaselineStale`) carries the project id, never a
+capability-specific field.
+
+`baseline_changed` is now deleted from `DomainEvents` entirely — zero producers (the sole prior
+producer, the approval participant's legacy `ApprovalPostCommitEvent`, is gone), zero consumers
+(Scheduling workspace, Dashboard workspace, and Control workspace's subscriptions all removed or
+replaced), field absent. The legacy Signal count is 22 as of this phase (23 minus the one
+deletion — confirmed source-derived). The PM Baseline Approval capability is fully modernized.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

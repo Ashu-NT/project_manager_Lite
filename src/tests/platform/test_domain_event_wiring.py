@@ -90,14 +90,15 @@ def test_task_update_emits_tasks_changed(services):
 
 
 
+def test_approve_baseline_request_emits_project_baseline_view_invalidation(services, monkeypatch):
+    """P23: `baseline_changed` is retired -- an approved `baseline.create` request now produces
+    a typed `ProjectBaselineCreated` DomainEvent, delivered as a `project_baseline`
+    ViewInvalidation hint scoped to the requesting project."""
+    from src.core.modules.project_management.application.scheduling.baselines.event_handlers.view_invalidation import (
+        BASELINE_CATEGORY,
+        BASELINE_PROJECT_SCOPE_CODE,
+    )
 
-# resources_changed deleted (P18B) -- Resource Master/Capability mutations now emit typed
-# ResourceMasterChanged/ResourceCapabilityChanged through the canonical postcommit bus; see
-# src/tests/project_management/test_p18a_resource_transaction_convergence.py and
-# test_p18b_resource_view_invalidation.py for the current characterization.
-
-
-def test_approve_baseline_request_emits_baseline_changed(services, monkeypatch):
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "baseline.create")
     auth = services["auth_service"]
@@ -116,17 +117,20 @@ def test_approve_baseline_request_emits_baseline_changed(services, monkeypatch):
         baseline.create_baseline(project.id, "Gate 1", rate_as_of=date.today())
     request_id = approvals.list_pending(project_id=project.id)[0].id
 
-    seen: list[str] = []
+    class _AnyOrgFilter:
+        def matches(self, scope) -> bool:
+            return True
 
-    def _on_baseline_changed(project_id: str) -> None:
-        seen.append(project_id)
+    hints: list = []
+    services["platform_view_invalidation_channel"].subscribe(
+        _AnyOrgFilter(), lambda hint: hints.append(hint)
+    )
 
-    domain_events.baseline_changed.connect(_on_baseline_changed)
-    try:
-        _login_as(services, "admin", "ChangeMe123!")
-        approvals.approve_and_apply(request_id, note="Approved")
-    finally:
-        domain_events.baseline_changed.disconnect(_on_baseline_changed)
+    _login_as(services, "admin", "ChangeMe123!")
+    approvals.approve_and_apply(request_id, note="Approved")
 
-    assert seen == [project.id]
+    baseline_hints = [h for h in hints if h.category == BASELINE_CATEGORY]
+    assert len(baseline_hints) == 1
+    assert baseline_hints[0].scope_code == BASELINE_PROJECT_SCOPE_CODE
+    assert baseline_hints[0].scope.entity_id == project.id
 

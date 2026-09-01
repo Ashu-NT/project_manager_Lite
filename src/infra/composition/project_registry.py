@@ -53,6 +53,19 @@ from src.core.modules.project_management.application.financials.rate_cards.rate_
     RateCardLineDeactivated,
     RateCardLineUpdated,
 )
+from src.core.modules.project_management.application.scheduling.baselines.event_handlers.view_invalidation import (
+    build_baseline_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.scheduling.baselines.baseline_events import (
+    ProjectBaselineApproved,
+    ProjectBaselineCreated,
+    ProjectBaselineDeleted,
+    ProjectBaselineRejected,
+    ProjectBaselineSubmitted,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.scheduling.baseline_unit_of_work import (
+    SqlAlchemyBaselineUnitOfWorkFactory,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
     SqlAlchemyProjectRepository,
 )
@@ -931,6 +944,24 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         project_catalog_reader=SqlAlchemyProjectCatalogReader(session=session),
     )
+    baseline_uow_factory = SqlAlchemyBaselineUnitOfWorkFactory(
+        session=session,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+    )
+    _baseline_view_invalidation_handler = build_baseline_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _baseline_event_type in (
+        ProjectBaselineCreated,
+        ProjectBaselineSubmitted,
+        ProjectBaselineApproved,
+        ProjectBaselineRejected,
+        ProjectBaselineDeleted,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _baseline_event_type, _baseline_view_invalidation_handler
+        )
     baseline_service = BaselineService(
         session=session,
         project_repo=repositories.project_repo,
@@ -944,6 +975,7 @@ def build_project_management_service_bundle(
         approval_service=platform_services.approval_service,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
+        uow_factory=baseline_uow_factory.create,
     )
     finance_performance_query = ProjectFinancePerformanceQuery(
         performance_reader=SqlAlchemyFinancePerformanceReader(session=session),

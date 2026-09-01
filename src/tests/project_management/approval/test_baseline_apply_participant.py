@@ -13,11 +13,13 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from src.core.modules.project_management.application.scheduling.baselines.baseline_events import (
+    ProjectBaselineCreated,
+)
 from src.core.modules.project_management.domain.scheduling.baseline import BaselineStatus
 from src.core.modules.project_management.infrastructure.approval.baseline_apply_participant import (
     BaselineApprovalParticipant,
 )
-from src.core.platform.contract.models.approval.contracts import ApprovalPostCommitEvent
 from src.core.platform.domain.approval import ApprovalRequest
 from src.infra.composition.approval_apply_dependencies.baseline import (
     build_baseline_approval_deps,
@@ -94,9 +96,12 @@ def test_participant_apply_creates_baseline_on_the_supplied_session(services, se
     assert baseline.status == BaselineStatus.DRAFT
     tasks = deps.baseline_service._baselines.list_tasks(baseline.id)
     assert len(tasks) == 2
-    assert result.post_commit_events == (
-        ApprovalPostCommitEvent("baseline_changed", project.id),
-    )
+    assert result.post_commit_events == ()
+    assert len(result.domain_events) == 1
+    event = result.domain_events[0]
+    assert isinstance(event, ProjectBaselineCreated)
+    assert event.project_id == project.id
+    assert event.baseline_id == baseline.id
 
 
 def test_participant_never_calls_commit_or_rollback(services, session, monkeypatch):

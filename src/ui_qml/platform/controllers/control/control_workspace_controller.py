@@ -205,12 +205,9 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
 
     def _bind_domain_events(self) -> None:
 
-        # resources_changed removed (P18B): no real dependency found -- the Control workspace's
-        # overview/queue presenters never reference Resource data (source-audited, not assumed).
         for signal in (
             domain_events.project_changed,
             domain_events.tasks_changed,
-            domain_events.baseline_changed,
             domain_events.register_changed,
         ):
             self._subscribe_domain_signal(signal, self._on_domain_event)

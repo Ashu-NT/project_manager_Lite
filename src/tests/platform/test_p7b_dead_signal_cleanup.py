@@ -173,6 +173,7 @@ def test_pm_resources_workspace_still_reacts_to_resources(services):
 
 
 def test_pm_scheduling_workspace_still_reacts_to_its_remaining_real_signals(services):
+
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.schedulingWorkspace
     refresh_calls = []
@@ -180,10 +181,9 @@ def test_pm_scheduling_workspace_still_reacts_to_its_remaining_real_signals(serv
 
     domain_events.project_changed.emit(_unique("p7b-sched-project"))
     domain_events.tasks_changed.emit(_unique("p7b-sched-tasks"))
-    domain_events.baseline_changed.emit(_unique("p7b-sched-baseline"))
     services["resource_service"].create_resource(name=_unique("p7b-sched-resource"))
 
-    assert refresh_calls == ["refresh"] * 4
+    assert refresh_calls == ["refresh"] * 3
 
 
 # ---------------------------------------------------------------------------

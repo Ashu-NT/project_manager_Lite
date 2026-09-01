@@ -171,16 +171,33 @@ routes the two shapes to distinct signals (`rateCardListStale` for org-wide, unc
 project — mirroring `on_forecast_planning_stale`'s established pattern). See ADR-005 §26.19 for
 the full corrected design.
 
+| P23 | PM Baseline Approval | NEW: `SqlAlchemyBaselineUnitOfWork` — `BaselineService`'s Session is the long-lived, process-shared one many other PM services also use (its repositories and its `SchedulingEngine` collaborator are bound to it), never a fresh per-request one, so this UoW variant reuses the canonical transactional-dispatch/postcommit-publish machinery but overrides `commit()`/rollback to never close that shared Session; the approval-mediated create path needed no new transaction plumbing at all (already fully session-parameterized since P4-PRE, reuses `ApprovalHandlerResult.domain_events` directly) | `ProjectBaselineCreated`, `ProjectBaselineSubmitted`, `ProjectBaselineApproved` (carries `superseded_baseline_id` — a data fact of the same approval decision, not a separate event), `ProjectBaselineRejected`, `ProjectBaselineDeleted` — the full DRAFT→SUBMITTED→APPROVED/REJECTED lifecycle plus deletion, re-audited from source (P17 had only seen the approval-gated create producer) | Narrow: one target, `project_baseline` (project-scoped `ResourceScope`) — every current consumer (Scheduling's baseline register/compare/variance rows, Dashboard's baseline selector) rebuilds from the same projection via a single coarse workspace refresh; source does not justify splitting a `baseline_schedule`/`baseline_variance` target out separately | `baseline_changed` deleted |
+
+**PM Baseline Approval is fully modernized** as of P23. Re-audit found a materially richer
+capability than P17's own characterization ("approved request created/applied a baseline"): a
+full DRAFT→SUBMITTED→APPROVED/REJECTED status lifecycle (`submit_baseline`/`approve_baseline`/
+`reject_baseline`) plus `delete_baseline`, all real, UI-reachable desktop-API operations that
+NEVER emitted `baseline_changed` (or anything else) even before this phase — a previously silent
+gap, now fully covered by typed events. `approve_baseline` is the richest fact: it supersedes the
+project's previous approved baseline (if any) and builds per-task variance records in the same
+transaction; represented as one `ProjectBaselineApproved` event carrying `superseded_baseline_id`,
+not two events, since no source path ever supersedes a baseline independently of approving
+another one. The Control workspace's `baseline_changed` subscription was removed with no
+replacement (P18B-class finding: its overview/queue presenters — approval queue + audit feed —
+never referenced Baseline business data at all). See ADR-005 §26.20 for the full design, including
+why a dedicated fresh-per-request UoW (the pattern every other capability uses) was rejected in
+favor of the shared-Session-preserving variant.
+
 ## 4. Current State
 
-**Legacy Signal count: 23 as of P22** (source-derived from `src/core/shared/events/domain_events.py`,
+**Legacy Signal count: 22 as of P23** (source-derived from `src/core/shared/events/domain_events.py`,
 re-verified against current source when this document was last updated).
 
 | Area | Count |
 |---|---|
 | Platform | 0 |
 | Auth/Security | 1 |
-| Project Management | 7 |
+| Project Management | 6 |
 | Finance | 6 |
 | Inventory/Procurement | 9 |
 
@@ -191,7 +208,7 @@ re-verified against current source when this document was last updated).
 
 ## 5. Current Priority
 
-**Finance Rate Card is fully modernized (P22, see §3).** The next capability has not yet been
+**PM Baseline Approval is fully modernized (P23, see §3).** The next capability has not yet been
 chosen — per this document's own repeated caution, re-run prioritization from current source
 before committing to a next target: concurrent development elsewhere may have changed readiness
 since P17.
@@ -204,13 +221,13 @@ concurrent development elsewhere in the codebase may change any capability's rea
 its turn comes up.
 
 P18 Project Resource, P19 Finance Forecast, P20 Inventory Storeroom/Location, P21 Finance
-Financial Setup, and P22 Finance Rate Card are all DONE (see §3). No further phase has a number
-assigned yet — see the remaining capability groups below.
+Financial Setup, P22 Finance Rate Card, and P23 PM Baseline Approval are all DONE (see §3). No
+further phase has a number assigned yet — see the remaining capability groups below.
 
 Remaining capability groups, not yet assigned rigid phase numbers:
 
 - **Project Management**: Task Lifecycle (highly overloaded - split into ~9 real facts before
-  any typed-event design), Project Lifecycle, Timesheet Period, Baseline Approval, Collaboration
+  any typed-event design), Project Lifecycle, Timesheet Period, Collaboration
   Comment (+ Collaboration Presence, which needs a non-`DomainEvent` mechanism, not a migration
   target), Portfolio (Template/Scenario/Intake/Dependency), Risk Register.
 - **Finance**: Financial Change, Project Commitment (fix the missing-rollback bug in

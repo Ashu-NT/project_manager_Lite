@@ -161,14 +161,14 @@ Fully modernized (typed `DomainEvent`s + scoped `ViewInvalidation`, legacy `Sign
 Organization, Tenant Membership, Module Entitlements, Role Binding / Scoped Access, Approval,
 Employee, Department, Site, Party, Document, DocumentStructure, DocumentLink, Project Resource,
 Finance Forecast, Inventory Storeroom + Storage Location, Finance Financial Setup, Finance Rate
-Card.
+Card, PM Baseline Approval.
 
 Current priority: not yet chosen for the next capability - see the living plan doc's
 provisional roadmap.
 
-Remaining major areas still on legacy `Signal`s: Project Management (all but Resource), Finance
-(all but Forecast/Financial Setup/Rate Card), Inventory / Procurement (all but Storeroom/Storage
-Location), Auth / Security.
+Remaining major areas still on legacy `Signal`s: Project Management (all but Resource/Baseline
+Approval), Finance (all but Forecast/Financial Setup/Rate Card), Inventory / Procurement (all but
+Storeroom/Storage Location), Auth / Security.
 
 **References:** [`docs/architecture_decisions/ADR-005-domain-events.md`](docs/architecture_decisions/ADR-005-domain-events.md)
 (architectural decisions and rationale) and

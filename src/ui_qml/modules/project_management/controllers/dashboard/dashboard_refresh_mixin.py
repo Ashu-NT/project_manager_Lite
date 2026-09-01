@@ -4,6 +4,9 @@ import logging
 from time import perf_counter
 
 from src.core.shared.events.domain_events import domain_events
+from src.ui_qml.modules.project_management.controllers.common.baseline_domain_event_binder import (
+    on_project_baseline_stale,
+)
 from src.ui_qml.modules.project_management.controllers.common import (
     serialize_dashboard_activity_feed_view_model,
     serialize_dashboard_chart_view_models,
@@ -178,12 +181,14 @@ class DashboardRefreshMixin:
         for signal in (
             domain_events.project_changed,
             domain_events.tasks_changed,
-            domain_events.baseline_changed,
             domain_events.register_changed,
             domain_events.portfolio_changed,
             domain_events.collaboration_changed,
         ):
             self._subscribe_domain_signal(signal, _on_domain_event)
+
+    def onProjectBaselineStale(self, project_id: str) -> None:
+        on_project_baseline_stale(self, project_id)
 
 
 __all__ = ["DashboardRefreshMixin"]
