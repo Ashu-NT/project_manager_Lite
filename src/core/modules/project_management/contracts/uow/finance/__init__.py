@@ -8,16 +8,10 @@ from src.core.modules.project_management.contracts.uow.finance.finance_governanc
     FinanceGovernanceUnitOfWork,
     FinanceGovernanceUnitOfWorkFactory,
 )
-from src.core.modules.project_management.contracts.uow.finance.financial_change_submission_unit_of_work import (
-    FinancialChangeSubmissionUnitOfWork,
-    FinancialChangeSubmissionUnitOfWorkFactory,
-)
 
 __all__ = [
     "BillingPreparationSubmissionUnitOfWork",
     "BillingPreparationSubmissionUnitOfWorkFactory",
     "FinanceGovernanceUnitOfWork",
     "FinanceGovernanceUnitOfWorkFactory",
-    "FinancialChangeSubmissionUnitOfWork",
-    "FinancialChangeSubmissionUnitOfWorkFactory",
 ]

@@ -268,15 +268,18 @@ def test_financial_configuration_mutation_rolls_back_when_audit_fails(
     monkeypatch,
 ) -> None:
     service = services["financial_configuration_service"]
-    audit_service = services["enterprise_audit_service"]
-    original_record = audit_service.record
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
 
-    def _fail_cost_code_audit(**kwargs):
+    original_record = EnterpriseAuditService.record
+
+    def _fail_cost_code_audit(self, **kwargs):
         if kwargs.get("entity_type") == "project_cost_code":
             raise RuntimeError("simulated configuration audit failure")
-        return original_record(**kwargs)
+        return original_record(self, **kwargs)
 
-    monkeypatch.setattr(audit_service, "record", _fail_cost_code_audit)
+    monkeypatch.setattr(EnterpriseAuditService, "record", _fail_cost_code_audit)
     with pytest.raises(RuntimeError, match="simulated configuration audit failure"):
         service.create_cost_code(code="ROLLBACK", name="Must roll back")
 

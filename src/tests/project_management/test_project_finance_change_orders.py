@@ -102,9 +102,7 @@ def _draft_change(services, project):
 def test_submit_change_uses_a_fresh_uow_session_shared_by_the_approval_request(
     services, monkeypatch
 ) -> None:
-    """Approval-P1: `submit_change` is converged onto `FinancialChangeSubmissionUnitOfWork` --
-    a genuinely fresh Session per call, distinct from the shared legacy Session, with the
-    financial change update and the Approval request sharing that one Session/transaction."""
+    """Submission uses the canonical fresh Finance governance UoW."""
     _login(services, "admin", "ChangeMe123!")
     project, code, budget, budget_line, _forecast, _forecast_line = _seed_approved_finance(
         services
@@ -123,14 +121,15 @@ def test_submit_change_uses_a_fresh_uow_session_shared_by_the_approval_request(
     change = changes.get_change(change.id)
 
     seen_uows = []
-    original_create = type(changes._submission_uow_factory).create
+    commands = services["finance_governance_commands"]
+    original_create = type(commands._uow_factory).create
 
     def _spy_create(self, *, context):
         uow = original_create(self, context=context)
         seen_uows.append(uow)
         return uow
 
-    monkeypatch.setattr(type(changes._submission_uow_factory), "create", _spy_create)
+    monkeypatch.setattr(type(commands._uow_factory), "create", _spy_create)
     submitted = changes.submit_change(
         change.id,
         submitted_by=services["user_session"].principal.user_id,
@@ -139,7 +138,7 @@ def test_submit_change_uses_a_fresh_uow_session_shared_by_the_approval_request(
 
     assert len(seen_uows) == 1
     uow = seen_uows[0]
-    assert uow._session is not changes._session
+    assert uow._session is not changes._read_service._session
     assert uow.changes.session is uow._session
     assert uow.approvals.session is uow._session
     assert uow._enterprise_audit_service._session is uow._session
@@ -152,8 +151,8 @@ def test_submit_change_commit_failure_rolls_back_change_and_approval_request_tog
     """Approval-P1 (§23-26): a commit failure inside `submit_change`'s canonical UoW must roll
     back the WHOLE transaction -- the financial change must remain in its pre-submit state, and
     no `ApprovalRequest` may have been persisted independently of its host command."""
-    from src.core.modules.project_management.infrastructure.persistence.uow.finance.financial_change_submission_unit_of_work import (
-        SqlAlchemyFinancialChangeSubmissionUnitOfWork,
+    from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
+        SqlAlchemyFinanceGovernanceUnitOfWork,
     )
 
     _login(services, "admin", "ChangeMe123!")
@@ -177,7 +176,7 @@ def test_submit_change_commit_failure_rolls_back_change_and_approval_request_tog
     def _fail_commit(self):
         raise RuntimeError("simulated financial change submission commit failure")
 
-    monkeypatch.setattr(SqlAlchemyFinancialChangeSubmissionUnitOfWork, "commit", _fail_commit)
+    monkeypatch.setattr(SqlAlchemyFinanceGovernanceUnitOfWork, "commit", _fail_commit)
 
     with pytest.raises(RuntimeError, match="simulated financial change submission commit failure"):
         changes.submit_change(
@@ -467,12 +466,16 @@ def test_schedule_impact_rejects_summary_task_at_draft_entry(services) -> None:
 def test_impact_write_rolls_back_when_financial_audit_fails(
     services, monkeypatch
 ) -> None:
+    from src.core.modules.project_management.application.financials.financial_changes.service import (
+        FinancialChangeService,
+    )
+
     _login(services, "admin", "ChangeMe123!")
     project, code, _, budget_line, *_ = _seed_approved_finance(services)
     changes = services["financial_change_service"]
     change = _draft_change(services, project)
     monkeypatch.setattr(
-        changes,
+        FinancialChangeService,
         "_audit_impact",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
             RuntimeError("audit unavailable")
@@ -497,6 +500,10 @@ def test_impact_write_rolls_back_when_financial_audit_fails(
 def test_approval_rolls_back_all_successors_when_financial_audit_fails(
     services, monkeypatch
 ) -> None:
+    from src.core.modules.project_management.application.financials.financial_changes.service import (
+        FinancialChangeService,
+    )
+
     _login(services, "admin", "ChangeMe123!")
     project, code, budget, budget_line, *_ = _seed_approved_finance(services)
     task = services["task_service"].create_task(
@@ -540,7 +547,7 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
 
     _login(services, "admin", "ChangeMe123!")
     monkeypatch.setattr(
-        type(changes),
+        FinancialChangeService,
         "_audit_change",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
             RuntimeError("audit unavailable")

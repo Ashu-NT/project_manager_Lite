@@ -24,6 +24,7 @@ from src.core.platform.infrastructure.persistence.repositories.history.audit.aud
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_event_publisher import PostCommitEventPublisher, TransactionalEventDispatcher
 from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase, SqlAlchemyUnitOfWorkFactoryBase
+from src.infra.persistence.db.postgresql_rls import configure_session_rls_context
 
 
 class SqlAlchemyFinanceGovernanceUnitOfWork(SqlAlchemyUnitOfWorkBase, FinanceGovernanceUnitOfWork):
@@ -71,8 +72,10 @@ class SqlAlchemyFinanceGovernanceUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBa
         self._user_session = user_session
 
     def create(self, *, context: DomainEventContext) -> SqlAlchemyFinanceGovernanceUnitOfWork:
+        session = self._session_factory()
+        configure_session_rls_context(session, user_session=self._user_session)
         return SqlAlchemyFinanceGovernanceUnitOfWork(
-            session=self._session_factory(),
+            session=session,
             transactional_dispatcher=self._transactional_dispatcher,
             post_commit_bus=self._post_commit_bus,
             context=context,

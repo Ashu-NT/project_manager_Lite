@@ -81,6 +81,9 @@ from src.core.modules.project_management.application.financials import (
     ProjectRateCardService,
     RateCardResolver,
 )
+from src.core.modules.project_management.application.financials.governance import (
+    FinanceGovernanceCommandBoundary,
+)
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import (
@@ -177,6 +180,7 @@ class ServiceGraph:
     task_service: TaskService
     timesheet_service: TimesheetService
     resource_service: ResourceService
+    finance_governance_commands: FinanceGovernanceCommandBoundary
     financial_configuration_service: FinancialConfigurationService
     forecast_generation_service: ForecastGenerationService
     forecast_version_service: ForecastVersionService
@@ -269,6 +273,7 @@ class ServiceGraph:
             "task_service": self.task_service,
             "timesheet_service": self.timesheet_service,
             "resource_service": self.resource_service,
+            "finance_governance_commands": self.finance_governance_commands,
             "financial_configuration_service": self.financial_configuration_service,
             "forecast_generation_service": self.forecast_generation_service,
             "forecast_version_service": self.forecast_version_service,
@@ -442,6 +447,9 @@ def build_service_graph(session: Session) -> ServiceGraph:
         task_service=project_management_services.task_service,
         timesheet_service=project_management_services.timesheet_service,
         resource_service=project_management_services.resource_service,
+        finance_governance_commands=(
+            project_management_services.finance_governance_commands
+        ),
         financial_configuration_service=(
             project_management_services.financial_configuration_service
         ),

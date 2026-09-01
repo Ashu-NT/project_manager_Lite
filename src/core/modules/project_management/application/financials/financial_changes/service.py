@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -11,9 +12,6 @@ from src.core.modules.project_management.access.scope_permissions import require
 from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
-)
-from src.core.modules.project_management.application.financials.invalidation import (
-    invalidation_scope,
 )
 from src.core.modules.project_management.contracts.ports.schedule_change import (
     ApprovedScheduleChangePort,
@@ -31,9 +29,6 @@ from src.core.modules.project_management.contracts.repositories.finance.configur
 )
 from src.core.modules.project_management.contracts.repositories.finance.forecasts.forecast import (
     ProjectForecastRepository,
-)
-from src.core.modules.project_management.contracts.uow.finance.financial_change_submission_unit_of_work import (
-    FinancialChangeSubmissionUnitOfWorkFactory,
 )
 from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
@@ -62,19 +57,17 @@ from src.core.platform.application.approval.approval_mutation_participant import
     request_approval_using,
 )
 from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.contract.repositories.approval.contracts import ApprovalRepository
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
-from src.core.platform.common.ids import generate_id
-from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
 )
 from src.core.shared.audit import record_audit_entry
-from src.core.shared.events.domain_events import domain_events
 
 
 _REVISION_CONSTRAINT = "uq_pf_change_project_revision"
@@ -95,9 +88,11 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         cost_code_repo: ProjectCostCodeRepository,
         task_repo: TaskRepository,
         task_service: ApprovedScheduleChangePort,
-        approval_service: ApprovalService,
+        approval_service: ApprovalService | None,
         clock: Clock,
-        submission_uow_factory: FinancialChangeSubmissionUnitOfWorkFactory | None = None,
+        approval_repo: ApprovalRepository | None = None,
+        record_event: Callable[[object], None] | None = None,
+        approval_requested_staged: Callable[[object], None] | None = None,
         user_session=None,
         enterprise_audit_service=None,
         module_catalog_service=None,
@@ -114,12 +109,9 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         self._task_service = task_service
         self._approval_service = approval_service
         self._clock = clock
-        # Approval-P1: `submit_change`'s own canonical transaction owner -- the financial
-        # change, its base-version consistency checks, the governed `ApprovalRequest`, and both
-        # audit trails all commit atomically through this ONE fresh Session. This dependency
-        # is optional because approval-application composition never submits changes;
-        # production submission composition always supplies it.
-        self._submission_uow_factory = submission_uow_factory
+        self._approval_repo = approval_repo
+        self._record_event = record_event
+        self._approval_requested_staged = approval_requested_staged
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
@@ -284,9 +276,6 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         self._session.flush()
         return impact
 
-    def _new_submission_context(self) -> DomainEventContext:
-        return DomainEventContext(correlation_id=generate_id())
-
     def submit_change(
         self,
         change_id: str,
@@ -295,109 +284,100 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         expected_version: int,
     ) -> FinancialChangeRequest:
 
-        if self._submission_uow_factory is None:
+        if self._approval_repo is None or self._record_event is None:
             raise BusinessRuleError(
-                "Financial change submission requires a configured transaction owner.",
-                code="FINANCIAL_CHANGE_SUBMISSION_UOW_REQUIRED",
+                "Financial change submission requires the Finance governance command boundary.",
+                code="FINANCIAL_CHANGE_COMMAND_BOUNDARY_REQUIRED",
             )
-        with self._submission_uow_factory.create(context=self._new_submission_context()) as uow:
-            change = uow.changes.get(change_id)
-            if change is None:
-                raise NotFoundError(
-                    "Financial change not found.", code="FINANCIAL_CHANGE_NOT_FOUND"
-                )
-            self._require_project_permission(
-                change.project_id, "financial_change.manage", "submit financial change"
+        change = self._require_change(change_id)
+        self._require_project_permission(
+            change.project_id, "financial_change.manage", "submit financial change"
+        )
+        change.ensure_draft()
+        if change.row_version != expected_version:
+            raise ConcurrencyError(
+                "Financial change was updated since you opened it.", code="STALE_WRITE"
             )
-            change.ensure_draft()
-            if change.row_version != expected_version:
+        require_permission(
+            self._user_session,
+            "approval.request",
+            operation_label="submit financial change for approval",
+        )
+        require_project_permission(
+            self._user_session,
+            change.project_id,
+            "approval.request",
+            operation_label="submit financial change for approval",
+        )
+        impacts = self._change_repo.list_impacts(change.id)
+        if not impacts:
+            raise BusinessRuleError(
+                "Cannot submit a financial change without impacts.",
+                code="FINANCIAL_CHANGE_EMPTY",
+            )
+        types = {row.impact_type for row in impacts}
+        if FinancialChangeImpactType.BUDGET in types:
+            current_budget = self._budget_repo.get_approved_for_project(change.project_id)
+            if (
+                current_budget is None
+                or current_budget.id != change.base_budget_id
+                or current_budget.revision != change.base_budget_revision
+            ):
                 raise ConcurrencyError(
-                    "Financial change was updated since you opened it.", code="STALE_WRITE"
+                    "The approved budget changed after this financial change was drafted.",
+                    code="FINANCIAL_CHANGE_BUDGET_BASE_STALE",
                 )
-            require_permission(
-                self._user_session,
-                "approval.request",
-                operation_label="submit financial change for approval",
-            )
-            require_project_permission(
-                self._user_session,
-                change.project_id,
-                "approval.request",
-                operation_label="submit financial change for approval",
-            )
-            impacts = uow.changes.list_impacts(change.id)
-            if not impacts:
+            if self._budget_repo.has_open_for_project(change.project_id):
                 raise BusinessRuleError(
-                    "Cannot submit a financial change without impacts.",
-                    code="FINANCIAL_CHANGE_EMPTY",
+                    "An open budget version must be resolved before applying a financial change.",
+                    code="FINANCIAL_CHANGE_OPEN_BUDGET_EXISTS",
                 )
-            types = {row.impact_type for row in impacts}
-            if FinancialChangeImpactType.BUDGET in types:
-                current_budget = uow.budgets.get_approved_for_project(change.project_id)
-                if (
-                    current_budget is None
-                    or current_budget.id != change.base_budget_id
-                    or current_budget.revision != change.base_budget_revision
-                ):
-                    raise ConcurrencyError(
-                        "The approved budget changed after this financial change was drafted.",
-                        code="FINANCIAL_CHANGE_BUDGET_BASE_STALE",
-                    )
-                if uow.budgets.has_open_for_project(change.project_id):
-                    raise BusinessRuleError(
-                        "An open budget version must be resolved before applying a financial "
-                        "change.",
-                        code="FINANCIAL_CHANGE_OPEN_BUDGET_EXISTS",
-                    )
-            if FinancialChangeImpactType.FORECAST in types:
-                current_forecast = uow.forecasts.get_approved_for_project(change.project_id)
-                if (
-                    current_forecast is None
-                    or current_forecast.id != change.base_forecast_id
-                    or current_forecast.revision != change.base_forecast_revision
-                ):
-                    raise ConcurrencyError(
-                        "The approved forecast changed after this financial change was "
-                        "drafted.",
-                        code="FINANCIAL_CHANGE_FORECAST_BASE_STALE",
-                    )
-                if uow.forecasts.has_open_for_project(change.project_id):
-                    raise BusinessRuleError(
-                        "An open forecast version must be resolved before applying a "
-                        "financial change.",
-                        code="FINANCIAL_CHANGE_OPEN_FORECAST_EXISTS",
-                    )
-            schedule_commands = self._schedule_commands(change, impacts)
-            self._task_service._validate_approved_schedule_changes(schedule_commands)
-
-            scope = self._require_context("submit financial change for approval")
-            principal = self._user_session.principal if self._user_session else None
-            approval = request_approval_using(
-                approval_repo=uow.approvals,
-                enterprise_audit_service=uow._enterprise_audit_service,
-                clock=self._clock,
-                record_event=uow.record_event,
-                request_type="financial_change.apply",
-                entity_type="financial_change_request",
-                entity_id=change.id,
-                tenant_id=scope.tenant_id,
-                organization_id=scope.organization_id,
-                project_id=change.project_id,
-                payload={"change_id": change.id},
-                requested_by_user_id=principal.user_id if principal else None,
-                requested_by_username=principal.username if principal else None,
-            )
-            now = self._clock.now()
-            change.submit(
-                approval_request_id=approval.id,
-                submitted_by=submitted_by,
-                submitted_at=now,
-            )
-            uow.changes.update(change, expected_row_version=expected_version)
-            self._audit_change_using(uow, "submit", change)
-            uow.commit()
-        domain_events.financial_changes_changed.emit(invalidation_scope(change))
-        self._approval_service.publish_requested(approval)
+        if FinancialChangeImpactType.FORECAST in types:
+            current_forecast = self._forecast_repo.get_approved_for_project(change.project_id)
+            if (
+                current_forecast is None
+                or current_forecast.id != change.base_forecast_id
+                or current_forecast.revision != change.base_forecast_revision
+            ):
+                raise ConcurrencyError(
+                    "The approved forecast changed after this financial change was drafted.",
+                    code="FINANCIAL_CHANGE_FORECAST_BASE_STALE",
+                )
+            if self._forecast_repo.has_open_for_project(change.project_id):
+                raise BusinessRuleError(
+                    "An open forecast version must be resolved before applying a financial change.",
+                    code="FINANCIAL_CHANGE_OPEN_FORECAST_EXISTS",
+                )
+        self._task_service._validate_approved_schedule_changes(
+            self._schedule_commands(change, impacts)
+        )
+        scope = self._require_context("submit financial change for approval")
+        principal = self._user_session.principal if self._user_session else None
+        approval = request_approval_using(
+            approval_repo=self._approval_repo,
+            enterprise_audit_service=self._enterprise_audit_service,
+            clock=self._clock,
+            record_event=self._record_event,
+            request_type="financial_change.apply",
+            entity_type="financial_change_request",
+            entity_id=change.id,
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=change.project_id,
+            payload={"change_id": change.id},
+            requested_by_user_id=principal.user_id if principal else None,
+            requested_by_username=principal.username if principal else None,
+        )
+        change.submit(
+            approval_request_id=approval.id,
+            submitted_by=submitted_by,
+            submitted_at=self._clock.now(),
+        )
+        self._change_repo.update(change, expected_row_version=expected_version)
+        self._audit_change("submit", change)
+        self._session.flush()
+        if self._approval_requested_staged is not None:
+            self._approval_requested_staged(approval)
         return change
 
     def _apply_approval_decision(
@@ -912,11 +892,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
 
     @staticmethod
     def _audit_change_using(owner, operation: str, change: FinancialChangeRequest) -> None:
-        """`owner` is any object exposing `_enterprise_audit_service` --
-        `record_audit_entry`'s own duck-typed contract -- so `submit_change`'s canonical
-        `FinancialChangeSubmissionUnitOfWork` (which has its own, transaction-bound
-        `_enterprise_audit_service`) can share this exact audit shape with every other
-        `_audit_change(self, ...)` call site on this service, never a second definition."""
+        """Record the change audit through the current transaction-bound owner."""
         record_audit_entry(
             owner,
             operation=f"financial_change.{operation}",

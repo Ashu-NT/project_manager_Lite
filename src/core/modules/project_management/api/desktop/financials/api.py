@@ -13,6 +13,9 @@ from src.core.modules.project_management.application.financials import (
     ProjectFinanceWorkspaceQuery,
     ProjectFinancePerformanceQuery,
 )
+from src.core.modules.project_management.application.financials.governance import (
+    FinanceGovernanceCommandBoundary,
+)
 from src.core.modules.project_management.contracts.reads.financials.sorting import (
     normalize_cost_entry_sort,
     normalize_commitment_sort,
@@ -172,6 +175,7 @@ class ProjectManagementFinancialsDesktopApi:
         finance_service: FinanceService | None = None,
         finance_workspace_query: ProjectFinanceWorkspaceQuery | None = None,
         finance_performance_query: ProjectFinancePerformanceQuery | None = None,
+        finance_governance_commands: FinanceGovernanceCommandBoundary | None = None,
         financial_configuration_service: FinancialConfigurationService | None = None,
         cost_entry_service: ProjectCostEntryService | None = None,
         commitment_service: ProjectCommitmentService | None = None,
@@ -182,6 +186,7 @@ class ProjectManagementFinancialsDesktopApi:
         self._finance_service = finance_service
         self._finance_workspace_query = finance_workspace_query
         self._finance_performance_query = finance_performance_query
+        self._finance_governance_commands = finance_governance_commands
         self._financial_configuration_service = financial_configuration_service
         self._cost_entry_service = cost_entry_service
         self._commitment_service = commitment_service
@@ -292,12 +297,15 @@ class ProjectManagementFinancialsDesktopApi:
     def create_cost_code(
         self, command: FinancialCreateCostCodeCommand
     ) -> FinancialCostCodeOptionDescriptor:
-        service = self._require_financial_configuration_service()
-        cost_code = service.create_cost_code(
-            code=command.code,
-            name=command.name,
-            description=command.description,
-            available_to_project_id=command.project_id,
+        commands = self._require_finance_governance_commands()
+        cost_code = commands.financial_setup(
+            lambda service: service.create_cost_code(
+                code=command.code,
+                name=command.name,
+                description=command.description,
+                available_to_project_id=command.project_id,
+            ),
+            project_id=command.project_id,
         )
         return FinancialCostCodeOptionDescriptor(
             value=cost_code.id,
@@ -1116,6 +1124,13 @@ class ProjectManagementFinancialsDesktopApi:
         if self._financial_configuration_service is None:
             raise RuntimeError("Project financial configuration service is not connected.")
         return self._financial_configuration_service
+
+    def _require_finance_governance_commands(
+        self,
+    ) -> FinanceGovernanceCommandBoundary:
+        if self._finance_governance_commands is None:
+            raise RuntimeError("Project Finance governance command boundary is not connected.")
+        return self._finance_governance_commands
 
     def _require_finance_service(self) -> FinanceService:
         if self._finance_service is None:

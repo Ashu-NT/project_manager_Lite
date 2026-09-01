@@ -66,6 +66,7 @@ def build_project_management_desktop_runtime_apis(
             finance_service=resolved.finance_service,
             finance_workspace_query=resolved.finance_workspace_query,
             finance_performance_query=resolved.finance_performance_query,
+            finance_governance_commands=resolved.finance_governance_commands,
             financial_configuration_service=resolved.financial_configuration_service,
             cost_entry_service=resolved.cost_entry_service,
             commitment_service=resolved.commitment_service,

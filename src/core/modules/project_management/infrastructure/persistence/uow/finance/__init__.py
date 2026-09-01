@@ -8,16 +8,10 @@ from src.core.modules.project_management.infrastructure.persistence.uow.finance.
     SqlAlchemyFinanceGovernanceUnitOfWork,
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
 )
-from src.core.modules.project_management.infrastructure.persistence.uow.finance.financial_change_submission_unit_of_work import (
-    SqlAlchemyFinancialChangeSubmissionUnitOfWork,
-    SqlAlchemyFinancialChangeSubmissionUnitOfWorkFactory,
-)
 
 __all__ = [
     "SqlAlchemyBillingPreparationSubmissionUnitOfWork",
     "SqlAlchemyBillingPreparationSubmissionUnitOfWorkFactory",
     "SqlAlchemyFinanceGovernanceUnitOfWork",
     "SqlAlchemyFinanceGovernanceUnitOfWorkFactory",
-    "SqlAlchemyFinancialChangeSubmissionUnitOfWork",
-    "SqlAlchemyFinancialChangeSubmissionUnitOfWorkFactory",
 ]

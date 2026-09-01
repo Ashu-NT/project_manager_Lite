@@ -222,11 +222,17 @@ def _approve_directly(services, budget: ProjectBudget) -> ProjectBudget:
 
 
 def test_create_budget_requires_financial_profile(services, monkeypatch) -> None:
+    from src.core.modules.project_management.infrastructure.persistence.repositories.finance.configuration.financial_configuration import (
+        SqlAlchemyProjectFinancialProfileRepository,
+    )
+
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
     budget_service = services["budget_service"]
     monkeypatch.setattr(
-        budget_service._financial_profile_repo, "get_by_project", lambda project_id: None
+        SqlAlchemyProjectFinancialProfileRepository,
+        "get_by_project",
+        lambda self, project_id: None,
     )
     with pytest.raises(NotFoundError, match="financial profile"):
         budget_service.create_budget(project.id, "No profile")
@@ -265,13 +271,21 @@ def test_new_draft_allowed_after_rejection_but_not_while_another_is_approved(ser
 
 
 def test_create_budget_open_version_race_translates_named_error(services, monkeypatch) -> None:
+    from src.core.modules.project_management.infrastructure.persistence.repositories.finance.budgets.budget import (
+        SqlAlchemyProjectBudgetRepository,
+    )
+
     # Simulate two concurrent create_budget calls both observing "no open
     # budget" before either commits — the service pre-check is bypassed here
     # so the DB-level partial unique index is what actually fires.
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
     budget_service = services["budget_service"]
-    monkeypatch.setattr(budget_service._budget_repo, "has_open_for_project", lambda project_id: False)
+    monkeypatch.setattr(
+        SqlAlchemyProjectBudgetRepository,
+        "has_open_for_project",
+        lambda self, project_id: False,
+    )
 
     budget_service.create_budget(project.id, "race-1")
     with pytest.raises(BusinessRuleError) as exc:
@@ -280,6 +294,10 @@ def test_create_budget_open_version_race_translates_named_error(services, monkey
 
 
 def test_create_budget_revision_race_translates_to_concurrency_error(services, monkeypatch) -> None:
+    from src.core.modules.project_management.infrastructure.persistence.repositories.finance.budgets.budget import (
+        SqlAlchemyProjectBudgetRepository,
+    )
+
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
     budget_service = services["budget_service"]
@@ -291,7 +309,11 @@ def test_create_budget_revision_race_translates_to_concurrency_error(services, m
     # Nothing open now, so has_open_for_project is truthfully False; force
     # get_latest_for_project to return a stale (already-used) revision so
     # the insert collides only on the revision uniqueness constraint.
-    monkeypatch.setattr(budget_service._budget_repo, "get_latest_for_project", lambda project_id: None)
+    monkeypatch.setattr(
+        SqlAlchemyProjectBudgetRepository,
+        "get_latest_for_project",
+        lambda self, project_id: None,
+    )
     with pytest.raises(ConcurrencyError) as exc:
         budget_service.create_budget(project.id, "collides-with-v1")
     assert exc.value.code == "PROJECT_BUDGET_REVISION_CONFLICT"
@@ -729,6 +751,10 @@ def test_ordered_approve_supersedes_prior_approved_budget(services) -> None:
 
 
 def test_approve_conflict_translates_to_named_business_error(services, monkeypatch) -> None:
+    from src.core.modules.project_management.infrastructure.persistence.repositories.finance.budgets.budget import (
+        SqlAlchemyProjectBudgetRepository,
+    )
+
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
     budget_service = services["budget_service"]
@@ -743,7 +769,11 @@ def test_approve_conflict_translates_to_named_business_error(services, monkeypat
     # Simulate a concurrent read that missed v1 being approved — the DB's
     # partial "one approved" index is what must catch this, not the
     # in-memory `previous` lookup.
-    monkeypatch.setattr(budget_service._budget_repo, "get_approved_for_project", lambda project_id: None)
+    monkeypatch.setattr(
+        SqlAlchemyProjectBudgetRepository,
+        "get_approved_for_project",
+        lambda self, project_id: None,
+    )
     with pytest.raises(BusinessRuleError) as exc:
         budget_service.approve_budget(v2.id, approved_by="admin", expected_version=v2.row_version)
     assert exc.value.code == "PROJECT_BUDGET_APPROVAL_CONFLICT"

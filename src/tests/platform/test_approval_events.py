@@ -417,7 +417,9 @@ def test_submit_change_records_exactly_one_approval_requested(services, monkeypa
     )
     change = changes.get_change(change.id)
 
-    recorded = _spy_recorded_events(changes._submission_uow_factory, monkeypatch)
+    recorded = _spy_recorded_events(
+        services["finance_governance_commands"]._uow_factory, monkeypatch
+    )
     submitted = changes.submit_change(
         change.id, submitted_by="admin", expected_version=change.row_version
     )

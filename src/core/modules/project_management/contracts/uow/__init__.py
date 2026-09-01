@@ -5,8 +5,6 @@ from src.core.modules.project_management.contracts.uow.finance import (
     BillingPreparationSubmissionUnitOfWorkFactory,
     FinanceGovernanceUnitOfWork,
     FinanceGovernanceUnitOfWorkFactory,
-    FinancialChangeSubmissionUnitOfWork,
-    FinancialChangeSubmissionUnitOfWorkFactory,
 )
 
 __all__ = [
@@ -14,6 +12,4 @@ __all__ = [
     "BillingPreparationSubmissionUnitOfWorkFactory",
     "FinanceGovernanceUnitOfWork",
     "FinanceGovernanceUnitOfWorkFactory",
-    "FinancialChangeSubmissionUnitOfWork",
-    "FinancialChangeSubmissionUnitOfWorkFactory",
 ]

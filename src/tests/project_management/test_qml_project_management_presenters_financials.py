@@ -88,8 +88,13 @@ def test_create_cost_code_desktop_api_preserves_project_availability_scope():
         code="LABOR.INTERNAL",
         name="Internal labor",
     )
+    governance_commands = MagicMock()
+    governance_commands.financial_setup.side_effect = (
+        lambda operation, **_kwargs: operation(configuration_service)
+    )
     api = ProjectManagementFinancialsDesktopApi(
-        financial_configuration_service=configuration_service
+        finance_governance_commands=governance_commands,
+        financial_configuration_service=configuration_service,
     )
 
     result = api.create_cost_code(
@@ -107,6 +112,9 @@ def test_create_cost_code_desktop_api_preserves_project_availability_scope():
         description="Employee delivery time",
         available_to_project_id="project-1",
     )
+    assert governance_commands.financial_setup.call_args.kwargs == {
+        "project_id": "project-1"
+    }
     assert result.value == "cost-code-1"
 
 
