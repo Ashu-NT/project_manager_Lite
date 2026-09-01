@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
@@ -28,8 +29,14 @@ from src.core.modules.project_management.application.financials.governance impor
     FinanceGovernanceCommandBoundary,
     FinanceGovernanceOperations,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
+    FinancePageRequest,
+)
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.financials.sqlalchemy_finance_budget_reader import (
+    SqlAlchemyFinanceBudgetReader,
 )
 from src.core.modules.project_management.domain.financials.forecast import (
     ForecastGenerationMode,
@@ -250,6 +257,15 @@ def test_r6c_commands_use_app_runtime_and_preserve_rls_scope(postgres_test_envir
         lambda service: service.create_budget(PROJECT_A, "R6C Budget"),
         project_id=PROJECT_A,
     )
+    budget_line = boundary.budget(
+        lambda service: service.add_line(
+            budget.id,
+            cost_code_id=setup.id,
+            description="R6C runtime line",
+            amount=Decimal("125.50"),
+            expected_budget_version=budget.row_version,
+        )
+    )
     forecast = boundary.forecast_version(
         lambda service: service.create_forecast(
             PROJECT_A,
@@ -285,6 +301,19 @@ def test_r6c_commands_use_app_runtime_and_preserve_rls_scope(postgres_test_envir
             text("SELECT count(*) FROM project_finance_budgets WHERE id=:id"),
             {"id": budget.id},
         ) == 1
+        assert session.scalar(
+            text("SELECT count(*) FROM project_finance_budget_lines WHERE id=:id"),
+            {"id": budget_line.id},
+        ) == 1
+        budget_page = SqlAlchemyFinanceBudgetReader(session=session).list_versions(
+            tenant_id=TENANT_A,
+            organization_id=ORG_A,
+            project_id=PROJECT_A,
+            request=FinancePageRequest(sort_key="revision", sort_direction="desc"),
+        )
+        assert budget_page.has_open_version is True
+        assert budget_page.items[0].id == budget.id
+        assert budget_page.items[0].total_amount == Decimal("125.50")
         assert session.scalar(
             text("SELECT count(*) FROM project_finance_forecasts WHERE id=:id"),
             {"id": forecast.id},

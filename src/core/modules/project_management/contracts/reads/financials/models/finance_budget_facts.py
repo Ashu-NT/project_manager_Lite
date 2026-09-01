@@ -38,11 +38,6 @@ class FinancePageFacts(Generic[_FactT]):
 
 
 @dataclass(frozen=True, slots=True)
-class BudgetVersionPageFacts(FinancePageFacts["BudgetVersionFact"]):
-    has_open_version: bool = False
-
-
-@dataclass(frozen=True, slots=True)
 class BudgetVersionFact:
     id: str
     name: str
@@ -72,6 +67,11 @@ class BudgetVersionFact:
 
 
 @dataclass(frozen=True, slots=True)
+class BudgetVersionPageFacts(FinancePageFacts[BudgetVersionFact]):
+    has_open_version: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class BudgetLineFact:
     id: str
     budget_id: str
@@ -95,7 +95,7 @@ class BudgetLineFact:
 @dataclass(frozen=True, slots=True)
 class FinanceBudgetWorkspaceFacts:
     selected_budget_id: str
-    versions: FinancePageFacts[BudgetVersionFact]
+    versions: BudgetVersionPageFacts
     lines: FinancePageFacts[BudgetLineFact]
     can_create_version: bool = False
 

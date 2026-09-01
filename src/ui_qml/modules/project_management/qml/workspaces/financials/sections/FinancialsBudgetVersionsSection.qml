@@ -75,7 +75,7 @@ Item {
             AppControls.SecondaryButton {
                 visible: Boolean(root.selectedState.canSubmit)
                 text: "Submit"
-                iconName: "submit"
+                iconName: "approve"
                 onClicked: root.lifecycleRequested("submit", root.selectedBudget)
             }
             AppControls.SecondaryButton {

@@ -40,8 +40,7 @@ AppWidgets.EntityDialog {
         : root.action === "delete_budget" ? "Delete Draft"
         : root.action.charAt(0).toUpperCase() + root.action.slice(1)
     primaryIcon: root._isDelete ? "delete"
-        : root.action === "reject" ? "reject"
-        : root.action === "approve" ? "approve" : "submit"
+        : root.action === "reject" ? "reject" : "approve"
 
     function submitDialog() {
         if (root.action === "reject" && !notesField.text.trim()) {

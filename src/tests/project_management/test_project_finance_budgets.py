@@ -1370,3 +1370,39 @@ def test_fresh_baseline_creates_budget_tables_and_cascades_line_delete(tmp_path)
         }
         assert tables == set()
     engine.dispose()
+
+
+def test_existing_squashed_baseline_upgrades_budget_lineage_in_place(tmp_path) -> None:
+    database_path = tmp_path / "budget-lineage-upgrade.db"
+    config = _alembic_config(database_path)
+    command.upgrade(config, "f3c89cac079d")
+
+    engine = sa.create_engine(f"sqlite:///{database_path}")
+    try:
+        before = {
+            column["name"]
+            for column in sa.inspect(engine).get_columns("project_finance_budgets")
+        }
+        assert "predecessor_budget_id" not in before
+    finally:
+        engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = sa.create_engine(f"sqlite:///{database_path}")
+    try:
+        inspector = sa.inspect(engine)
+        after = {
+            column["name"]
+            for column in inspector.get_columns("project_finance_budgets")
+        }
+        foreign_keys = {
+            foreign_key["name"]
+            for foreign_key in inspector.get_foreign_keys(
+                "project_finance_budgets"
+            )
+        }
+        assert "predecessor_budget_id" in after
+        assert "fk_pf_budgets_scoped_predecessor" in foreign_keys
+    finally:
+        engine.dispose()
+

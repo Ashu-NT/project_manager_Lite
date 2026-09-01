@@ -463,7 +463,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         self._session.flush()
         return budget
 
-    def delete_budget(self, budget_id: str, *, expected_version: int) -> None:
+    def delete_budget(self, budget_id: str, *, expected_version: int) -> ProjectBudget:
         require_permission(self._user_session, "budget.manage", operation_label="delete project budget")
         budget = self._require_budget(budget_id)
         require_project_permission(
@@ -480,6 +480,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         self._budget_repo.delete(budget_id, expected_row_version=expected_version)
         self._record_budget_audit(operation="delete", budget=budget)
         self._session.flush()
+        return budget
 
     # -- Line mutations (each also advances the parent budget's row_version) -
 
@@ -596,7 +597,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
 
     def delete_line(
         self, line_id: str, *, expected_line_version: int, expected_budget_version: int
-    ) -> None:
+    ) -> ProjectBudget:
         require_permission(
             self._user_session, "budget.manage", operation_label="delete project budget line"
         )
@@ -618,6 +619,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         self._budget_repo.update(budget, expected_row_version=expected_budget_version)
         self._record_line_audit(operation="delete_line", line=line, budget=budget)
         self._session.flush()
+        return budget
 
     # -- Internal, unchecked decision application ----------------------------
     # Reachable only through approve_budget/reject_budget (already permission-

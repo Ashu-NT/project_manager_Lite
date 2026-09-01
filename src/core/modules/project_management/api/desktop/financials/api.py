@@ -1033,14 +1033,11 @@ class ProjectManagementFinancialsDesktopApi:
         return self._budget_mutation_dto(budget)
 
     def delete_budget(self, command: FinancialVersionedBudgetCommand) -> None:
-        def delete(service):
-            budget = service.get_budget(command.budget_id)
-            service.delete_budget(
+        self._require_finance_governance_commands().budget(
+            lambda service: service.delete_budget(
                 command.budget_id, expected_version=command.expected_version
             )
-            return budget
-
-        self._require_finance_governance_commands().budget(delete)
+        )
 
     def add_budget_line(
         self, command: FinancialAddBudgetLineCommand
@@ -1076,17 +1073,13 @@ class ProjectManagementFinancialsDesktopApi:
         return self._budget_line_mutation_dto(line)
 
     def delete_budget_line(self, command: FinancialDeleteBudgetLineCommand) -> None:
-        def delete(service):
-            line = service._require_line(command.budget_line_id)
-            budget = service.get_budget(line.budget_id)
-            service.delete_line(
+        self._require_finance_governance_commands().budget(
+            lambda service: service.delete_line(
                 command.budget_line_id,
                 expected_line_version=command.expected_version,
                 expected_budget_version=command.expected_parent_version,
             )
-            return budget
-
-        self._require_finance_governance_commands().budget(delete)
+        )
 
     def submit_budget(
         self, command: FinancialVersionedBudgetCommand

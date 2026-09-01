@@ -30,6 +30,8 @@ Item {
     }
     readonly property var selectedLineState: root.selectedLine
         ? (root.selectedLine.state || {}) : ({})
+    readonly property var selectedBudgetState: root.selectedBudget
+        ? (root.selectedBudget.state || {}) : ({})
 
     readonly property var _columns: [
         { "key": "title", "label": "Description", "flex": 2, "sortable": true },
@@ -55,7 +57,7 @@ Item {
             visible: root.selectedBudget !== null
 
             AppControls.SecondaryButton {
-                visible: Boolean((root.selectedBudget.state || {}).canAddLine)
+                visible: Boolean(root.selectedBudgetState.canAddLine)
                 text: "Add Line"
                 iconName: "add"
                 onClicked: root.addRequested(root.selectedBudget)
