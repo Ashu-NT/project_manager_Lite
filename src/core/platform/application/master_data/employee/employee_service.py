@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import replace
-import logging
 from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
@@ -41,14 +40,11 @@ from src.core.platform.contract.repositories.master_data.site.contracts import S
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.time.clock import Clock
 
 if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.domain.security.auth.session import UserSessionContext
-
-logger = logging.getLogger(__name__)
 
 
 class EmployeeService:
@@ -79,14 +75,7 @@ class EmployeeService:
         self._resource_master_event_factory = resource_master_event_factory
         self._uow_factory = uow_factory
         self._clock = clock
-        self._tenant_context_service = tenant_context_service or (
-            TenantContextService(
-                organization_repo=organization_repo,
-                user_session=user_session,
-            )
-            if organization_repo is not None
-            else None
-        )
+        self._tenant_context_service = tenant_context_service
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
 
@@ -288,12 +277,6 @@ class EmployeeService:
                         occurred_at=self._clock.now(),
                     )
                 )
-                # P18A §8: this IS a real Resource mutation (name/role/contact rows were just
-                # written via uow.resources above), performed atomically in this same
-                # transaction -- so it earns a typed Resource business event here, not merely a
-                # future ViewInvalidation. The concrete event class is business-module vocabulary
-                # Platform must not import directly (ADR-005 Sec21/Sec22); the factory satisfying
-                # `ResourceMasterEventFactory` is supplied by composition instead.
                 if self._resource_master_event_factory is not None:
                     for resource in touched_resources:
                         uow.record_event(
@@ -304,13 +287,6 @@ class EmployeeService:
                 uow.commit()
             except IntegrityError as exc:
                 raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS") from exc
-        for resource in touched_resources:
-            try:
-                domain_events.resources_changed.emit(resource.id)
-            except Exception:
-                logger.exception(
-                    "Legacy resources_changed dispatch failed", extra={"resource_id": resource.id}
-                )
         return candidate
 
     def list_employees(

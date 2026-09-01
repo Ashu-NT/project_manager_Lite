@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, TypeVar, cast, overload
 
 from pydantic import ConfigDict
 from pydantic.dataclasses import dataclass as pydantic_dataclass
@@ -12,6 +12,14 @@ _DEFAULT_VALIDATED_DATACLASS_CONFIG = ConfigDict(validate_assignment=True)
 ClassT = TypeVar("ClassT")
 
 
+@overload
+def validated_dataclass(cls: ClassT, /) -> ClassT: ...
+
+
+@overload
+def validated_dataclass(cls: None = None, /, **kwargs: Any) -> Callable[[ClassT], ClassT]: ...
+
+
 def validated_dataclass(
     cls: ClassT | None = None,
     /,
@@ -20,7 +28,7 @@ def validated_dataclass(
     config = kwargs.pop("config", _DEFAULT_VALIDATED_DATACLASS_CONFIG)
 
     def wrap(target: ClassT) -> ClassT:
-        return pydantic_dataclass(target, config=config, **kwargs)
+        return cast(ClassT, pydantic_dataclass(cast(Any, target), config=config, **kwargs))
 
     if cls is None:
         return wrap

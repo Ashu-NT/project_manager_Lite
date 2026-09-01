@@ -158,13 +158,16 @@ def test_admin_console_still_reacts_to_its_remaining_signal(services):
 
 def test_pm_resources_workspace_still_reacts_to_resources(services):
     """Confirms the resources binder's `calendars_changed`/`employees_changed` removals did not
-    accidentally also remove its other, still-real subscriptions."""
+    accidentally also remove its other, still-real subscriptions. `resources_changed` itself is
+    deleted as of P18B -- the Resources workspace now reacts via
+    `ResourceViewInvalidationAdapter.resourceListStale`, driven by a real Resource mutation
+    flowing through the canonical typed-event pipeline."""
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.resourcesWorkspace
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.resources_changed.emit(_unique("p7b-resource"))
+    services["resource_service"].create_resource(name=_unique("p7b-resource"))
 
     assert refresh_calls == ["refresh"]
 
@@ -178,7 +181,7 @@ def test_pm_scheduling_workspace_still_reacts_to_its_remaining_real_signals(serv
     domain_events.project_changed.emit(_unique("p7b-sched-project"))
     domain_events.tasks_changed.emit(_unique("p7b-sched-tasks"))
     domain_events.baseline_changed.emit(_unique("p7b-sched-baseline"))
-    domain_events.resources_changed.emit(_unique("p7b-sched-resources"))
+    services["resource_service"].create_resource(name=_unique("p7b-sched-resource"))
 
     assert refresh_calls == ["refresh"] * 4
 

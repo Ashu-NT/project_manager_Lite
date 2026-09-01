@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from typing import Self
 
 from sqlalchemy.orm import Session
 
@@ -44,7 +45,7 @@ class SqlAlchemyUnitOfWorkBase(UnitOfWork):
 
     # -- context manager --------------------------------------------------------------
 
-    def __enter__(self) -> "SqlAlchemyUnitOfWorkBase":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:

@@ -13,7 +13,15 @@ from typing import Protocol, runtime_checkable
 
 @runtime_checkable
 class DomainEvent(Protocol):
-    occurred_at: datetime
+    """`occurred_at` is declared as a read-only property, not a plain mutable attribute: every
+    concrete event is a frozen dataclass, readable but never writable after construction, and
+    PEP 544 structural variance requires a Protocol's plain attribute to be read-write. A
+    read-only property member is satisfied by a frozen dataclass field's read access without
+    requiring write access -- this is a type-annotation-only change with no runtime effect
+    (Protocol stub bodies are never executed)."""
+
+    @property
+    def occurred_at(self) -> datetime: ...
 
 
 __all__ = ["DomainEvent"]

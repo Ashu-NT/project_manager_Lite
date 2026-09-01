@@ -179,7 +179,6 @@ class DashboardRefreshMixin:
             domain_events.project_changed,
             domain_events.tasks_changed,
             domain_events.baseline_changed,
-            domain_events.resources_changed,
             domain_events.register_changed,
             domain_events.portfolio_changed,
             domain_events.collaboration_changed,

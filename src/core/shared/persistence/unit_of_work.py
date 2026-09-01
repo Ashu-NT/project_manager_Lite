@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, Self
 
 from src.core.shared.events.aggregate_events import RecordsDomainEvents
 from src.core.shared.events.domain_event import DomainEvent
@@ -20,7 +20,7 @@ class MaxDispatchRoundsExceededError(RuntimeError):
 class UnitOfWork(Protocol):
     context: DomainEventContext
 
-    def __enter__(self) -> "UnitOfWork": ...
+    def __enter__(self) -> Self: ...
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None: ...
 

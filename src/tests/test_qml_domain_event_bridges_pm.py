@@ -25,15 +25,14 @@ def test_pm_tasks_workspace_queues_domain_refresh_while_busy(monkeypatch) -> Non
     assert refresh_calls == ["refresh"]
 
 
-def test_pm_resources_workspace_refreshes_on_resource_events(monkeypatch) -> None:
-    catalog = ProjectManagementWorkspaceCatalog()
-    controller = catalog.resourcesWorkspace
-    refresh_calls: list[str] = []
-    monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
-
-    domain_events.resources_changed.emit("res-1")
-
-    assert refresh_calls == ["refresh"]
+# P18B retired test_pm_resources_workspace_refreshes_on_resource_events: `resources_changed`
+# is deleted -- the Resources workspace now reacts via
+# `ResourceViewInvalidationAdapter.resourceListStale`, which needs the real
+# ViewInvalidationChannel wiring this lightweight no-registry harness cannot construct (see the
+# `test_platform_settings_workspace_refreshes_on_runtime_events` retirement comment below for the
+# same constraint). Proved instead, end to end with real services, by
+# test_p7b_dead_signal_cleanup.py::test_pm_resources_workspace_still_reacts_to_resources and
+# test_p18b_resource_view_invalidation.py.
 
 
 def test_pm_collaboration_workspace_refreshes_on_collaboration_workflow_events(monkeypatch) -> None:
@@ -70,15 +69,17 @@ def test_pm_portfolio_workspace_refreshes_on_portfolio_workflow_events(
 
 
 def test_pm_timesheets_workspace_refreshes_on_timesheet_workflow_events(monkeypatch) -> None:
+    """`resources_changed` removed from this binder's subscriptions (P18B) -- the review-queue's
+    resource picker now reacts via `ResourceViewInvalidationAdapter.resourceListStale`, proved
+    with real services in test_p18b_resource_view_invalidation.py."""
     catalog = ProjectManagementWorkspaceCatalog()
     controller = catalog.timesheetsWorkspace
     refresh_calls: list[str] = []
     monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
 
     domain_events.timesheet_periods_changed.emit("period-1")
-    domain_events.resources_changed.emit("res-1")
 
-    assert refresh_calls == ["refresh", "refresh"]
+    assert refresh_calls == ["refresh"]
 
 
 def test_platform_control_workspace_refreshes_on_control_events(monkeypatch) -> None:

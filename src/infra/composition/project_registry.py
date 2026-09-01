@@ -18,6 +18,16 @@ from src.core.modules.project_management.infrastructure.persistence.uow.finance.
 from src.core.modules.project_management.infrastructure.persistence.uow.resources.resource_unit_of_work import (
     SqlAlchemyResourceUnitOfWorkFactory,
 )
+from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
+    build_resource_capabilities_view_invalidation_handler,
+    build_resource_list_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.resources.resource_capability_events import (
+    ResourceCapabilityChanged,
+)
+from src.core.modules.project_management.application.resources.resource_master_events import (
+    ResourceMasterChanged,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
     SqlAlchemyProjectRepository,
 )
@@ -346,9 +356,6 @@ def build_project_management_service_bundle(
         cert_repo=repositories.resource_cert_repo,
         requirement_repo=repositories.task_skill_req_repo,
     )
-    # Constructed here (ahead of its other use sites further below) so
-    # TaskService's authoritative capacity check (docs §44) can share the
-    # same calendar-resolution instance -- no reason to build two.
     enterprise_resource_availability = EnterpriseResourceAvailabilityService(
         resolver=platform_services.enterprise_calendar_resolver,
         resource_repo=repositories.resource_repo,
@@ -388,6 +395,18 @@ def build_project_management_service_bundle(
         post_commit_bus=platform_services.platform_post_commit_bus,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
+    )
+    platform_services.platform_post_commit_bus.subscribe(
+        ResourceMasterChanged,
+        build_resource_list_view_invalidation_handler(
+            platform_services.platform_view_invalidation_channel
+        ),
+    )
+    platform_services.platform_post_commit_bus.subscribe(
+        ResourceCapabilityChanged,
+        build_resource_capabilities_view_invalidation_handler(
+            platform_services.platform_view_invalidation_channel
+        ),
     )
     resource_service = ResourceService(
         session,

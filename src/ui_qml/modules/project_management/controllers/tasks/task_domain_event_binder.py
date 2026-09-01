@@ -13,7 +13,6 @@ def bind_task_domain_events(controller) -> None:
     for signal in (
         domain_events.project_changed,
         domain_events.tasks_changed,
-        domain_events.resources_changed,
         domain_events.timesheet_periods_changed,
         domain_events.collaboration_changed,
     ):

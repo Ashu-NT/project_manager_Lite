@@ -91,23 +91,10 @@ def test_task_update_emits_tasks_changed(services):
 
 
 
-def test_resource_create_update_delete_emit_resources_changed(services):
-    rs = services["resource_service"]
-    seen: list[str] = []
-
-    def _on_resources_changed(resource_id: str) -> None:
-        seen.append(resource_id)
-
-    domain_events.resources_changed.connect(_on_resources_changed)
-    try:
-
-        resource = rs.create_resource("Event Resource", "Analyst", hourly_rate=80.0)
-        rs.update_resource(resource.id, name="Event Resource Updated")
-        rs.delete_resource(resource.id)
-    finally:
-        domain_events.resources_changed.disconnect(_on_resources_changed)
-
-    assert seen == [resource.id, resource.id, resource.id]
+# resources_changed deleted (P18B) -- Resource Master/Capability mutations now emit typed
+# ResourceMasterChanged/ResourceCapabilityChanged through the canonical postcommit bus; see
+# src/tests/project_management/test_p18a_resource_transaction_convergence.py and
+# test_p18b_resource_view_invalidation.py for the current characterization.
 
 
 def test_approve_baseline_request_emits_baseline_changed(services, monkeypatch):

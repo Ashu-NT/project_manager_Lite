@@ -14,6 +14,9 @@ from src.ui_qml.platform.adapters.approval_view_invalidation_adapter import (
 from src.ui_qml.platform.adapters.employee_view_invalidation_adapter import (
     EmployeeViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.resource_view_invalidation_adapter import (
+    ResourceViewInvalidationAdapter,
+)
 from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import (
     TenantSwitcherPresenter,
 )
@@ -150,6 +153,13 @@ class ProjectManagementWorkspaceCatalog(QObject):
         )
         self._approval_view_invalidation_adapter: ApprovalViewInvalidationAdapter | None = None
         self._employee_view_invalidation_adapter: EmployeeViewInvalidationAdapter | None = None
+        self._resource_view_invalidation_adapter: ResourceViewInvalidationAdapter | None = None
+        self._portfolio_resource_view_invalidation_adapter: ResourceViewInvalidationAdapter | None = None
+        self._scheduling_resource_view_invalidation_adapter: ResourceViewInvalidationAdapter | None = None
+        self._tasks_resource_view_invalidation_adapter: ResourceViewInvalidationAdapter | None = None
+        self._dashboard_resource_view_invalidation_adapter: ResourceViewInvalidationAdapter | None = None
+        self._timesheets_resource_view_invalidation_adapter: ResourceViewInvalidationAdapter | None = None
+        self._review_queue_resource_view_invalidation_adapter: ResourceViewInvalidationAdapter | None = None
         self._pm_capability = PMCapabilityController(
             auth_engine=auth_engine,
             user_session_provider=user_session_provider,
@@ -220,6 +230,19 @@ class ProjectManagementWorkspaceCatalog(QObject):
             self._employee_view_invalidation_adapter.employeeCollectionStale.connect(
                 self._resources_workspace.refresh_employee_options
             )
+
+            self._resource_view_invalidation_adapter = ResourceViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._resource_view_invalidation_adapter.resourceListStale.connect(
+                self._resources_workspace.onResourceListStale
+            )
+            self._resource_view_invalidation_adapter.resourceCapabilitiesStale.connect(
+                self._resources_workspace.onResourceCapabilitiesStale
+            )
         return self._resources_workspace
 
     def _get_register_workspace(self) -> ProjectManagementRegisterWorkspaceController:
@@ -251,6 +274,16 @@ class ProjectManagementWorkspaceCatalog(QObject):
             )
         return self._financials_workspace
 
+    def _wire_resource_list_stale(self, controller) -> ResourceViewInvalidationAdapter:
+        adapter = ResourceViewInvalidationAdapter(
+            channel=self._view_invalidation_channel,
+            tenant_id=self._active_tenant_id() or "",
+            organization_id=self._active_organization_id() or "",
+            parent=self,
+        )
+        adapter.resourceListStale.connect(lambda _resource_id: controller._request_domain_refresh())
+        return adapter
+
     def _get_portfolio_workspace(self) -> ProjectManagementPortfolioWorkspaceController:
         if self._portfolio_workspace is None:
             self._portfolio_workspace = ProjectManagementPortfolioWorkspaceController(
@@ -258,6 +291,9 @@ class ProjectManagementWorkspaceCatalog(QObject):
                     desktop_api=self._portfolio_api
                 ),
                 parent=self,
+            )
+            self._portfolio_resource_view_invalidation_adapter = self._wire_resource_list_stale(
+                self._portfolio_workspace
             )
         return self._portfolio_workspace
 
@@ -268,6 +304,9 @@ class ProjectManagementWorkspaceCatalog(QObject):
                     desktop_api=self._scheduling_api
                 ),
                 parent=self,
+            )
+            self._scheduling_resource_view_invalidation_adapter = self._wire_resource_list_stale(
+                self._scheduling_workspace
             )
         return self._scheduling_workspace
 
@@ -285,6 +324,9 @@ class ProjectManagementWorkspaceCatalog(QObject):
                 ),
                 parent=self,
             )
+            self._tasks_resource_view_invalidation_adapter = self._wire_resource_list_stale(
+                self._tasks_workspace
+            )
         return self._tasks_workspace
 
     def _get_dashboard_workspace(self) -> ProjectManagementDashboardWorkspaceController:
@@ -294,6 +336,9 @@ class ProjectManagementWorkspaceCatalog(QObject):
                     desktop_api=self._dashboard_api
                 ),
                 parent=self,
+            )
+            self._dashboard_resource_view_invalidation_adapter = self._wire_resource_list_stale(
+                self._dashboard_workspace
             )
         return self._dashboard_workspace
 
@@ -324,6 +369,9 @@ class ProjectManagementWorkspaceCatalog(QObject):
                 presenter=ResourceTimesheetsPresenter(desktop_api=self._timesheets_api),
                 parent=self,
             )
+            self._timesheets_resource_view_invalidation_adapter = self._wire_resource_list_stale(
+                self._timesheets_workspace
+            )
         return self._timesheets_workspace
 
     def _get_review_queue_workspace(self) -> ProjectManagementTimesheetsWorkspaceController:
@@ -333,6 +381,9 @@ class ProjectManagementWorkspaceCatalog(QObject):
                     desktop_api=self._timesheets_api
                 ),
                 parent=self,
+            )
+            self._review_queue_resource_view_invalidation_adapter = self._wire_resource_list_stale(
+                self._review_queue_workspace
             )
         return self._review_queue_workspace
 
@@ -440,6 +491,20 @@ class ProjectManagementWorkspaceCatalog(QObject):
                 tenant_id=self._active_tenant_id() or "",
                 organization_id=self._active_organization_id() or "",
             )
+        for resource_adapter in (
+            self._resource_view_invalidation_adapter,
+            self._portfolio_resource_view_invalidation_adapter,
+            self._scheduling_resource_view_invalidation_adapter,
+            self._tasks_resource_view_invalidation_adapter,
+            self._dashboard_resource_view_invalidation_adapter,
+            self._timesheets_resource_view_invalidation_adapter,
+            self._review_queue_resource_view_invalidation_adapter,
+        ):
+            if resource_adapter is not None:
+                resource_adapter.set_active_scope(
+                    tenant_id=self._active_tenant_id() or "",
+                    organization_id=self._active_organization_id() or "",
+                )
 
     @Slot(str, result=bool)
     def isModuleEnabled(self, module_code: str) -> bool:

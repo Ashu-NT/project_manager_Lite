@@ -14,14 +14,9 @@ from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyEr
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.application.common.currency_policy import (
     resolve_pm_currency,
 )
-
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 def _employee_contact(employee) -> str:
@@ -187,16 +182,6 @@ class ResourceCommandMixin:
             commit=False,
         )
 
-    def _notify_resource_master_changed(self, resource_id: str) -> None:
-        """Post-commit: a legacy consumer's failure must not surface as this operation's own failure. Temporary -- deleted in P18B along with
-        `resources_changed` itself."""
-        try:
-            domain_events.resources_changed.emit(resource_id)
-        except Exception:
-            logger.exception(
-                "Legacy resources_changed dispatch failed", extra={"resource_id": resource_id}
-            )
-
     def _record_resource_master_event(
         self, uow, resource: Resource, *, change_type: ResourceMasterChangeType
     ) -> None:
@@ -293,7 +278,6 @@ class ResourceCommandMixin:
             )
             self._record_resource_master_event(uow, resource, change_type=ResourceMasterChangeType.CREATED)
             uow.commit()
-        self._notify_resource_master_changed(resource.id)
         return resource
 
     def update_resource(
@@ -391,7 +375,6 @@ class ResourceCommandMixin:
             )
             self._record_resource_master_event(uow, candidate, change_type=ResourceMasterChangeType.UPDATED)
             uow.commit()
-        self._notify_resource_master_changed(candidate.id)
         return candidate
 
     def _change_resource_lifecycle(
@@ -438,7 +421,6 @@ class ResourceCommandMixin:
             )
             self._record_resource_master_event(uow, candidate, change_type=change_type)
             uow.commit()
-        self._notify_resource_master_changed(candidate.id)
         return candidate
 
     def deactivate_resource(self, *, resource_id: str, expected_version: int) -> Resource:
@@ -484,7 +466,6 @@ class ResourceCommandMixin:
             )
             self._record_resource_master_event(uow, resource, change_type=ResourceMasterChangeType.PURGED)
             uow.commit()
-        self._notify_resource_master_changed(resource.id)
         return resource
 
 

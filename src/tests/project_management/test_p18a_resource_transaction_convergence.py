@@ -3,8 +3,11 @@
 Covers: canonical ResourceUnitOfWork ownership, atomic audit, typed
 ResourceMasterChanged/ResourceCapabilityChanged dispatch through the shared
 transactional/post-commit pipeline (never a bespoke Signal[T]), pre-release no-op
-discipline, cross-org integrity, the Employee-driven Resource sync path, and the
-temporarily-retained legacy `resources_changed` signal (deleted in P18B).
+discipline, cross-org integrity, and the Employee-driven Resource sync path.
+
+The legacy `resources_changed` Signal these events used to also emit alongside
+(temporary, P18A §7) is deleted as of P18B -- see test_p18b_resource_view_invalidation.py
+for the typed ViewInvalidation cutover that replaced it.
 """
 
 from __future__ import annotations
@@ -33,7 +36,6 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.core.shared.events.domain_events import domain_events
 
 _COUNTER = {"n": 0}
 
@@ -59,20 +61,13 @@ def _spy_capability_events(services):
     return captured
 
 
-def _spy_legacy_signal():
-    captured = []
-    domain_events.resources_changed.connect(lambda resource_id: captured.append(resource_id))
-    return captured
-
-
 # ---------------------------------------------------------------------------
 # Resource Master
 # ---------------------------------------------------------------------------
 
 
-def test_create_resource_produces_one_typed_event_and_one_legacy_signal(services):
+def test_create_resource_produces_one_typed_event(services):
     master_events = _spy_master_events(services)
-    legacy = _spy_legacy_signal()
 
     resource = services["resource_service"].create_resource(name=_unique("Create"))
 
@@ -82,14 +77,12 @@ def test_create_resource_produces_one_typed_event_and_one_legacy_signal(services
     assert master_events[0].version == 1
     assert master_events[0].change_type == ResourceMasterChangeType.CREATED
     assert master_events[0].tenant_id and master_events[0].organization_id
-    assert legacy == [resource.id]
 
 
 def test_real_update_produces_one_typed_event_and_bumps_version(services):
     service = services["resource_service"]
     resource = service.create_resource(name=_unique("Update"), role="Old Role")
     master_events = _spy_master_events(services)
-    legacy = _spy_legacy_signal()
 
     updated = service.update_resource(
         resource_id=resource.id, expected_version=resource.version, name=resource.name,
@@ -104,14 +97,12 @@ def test_real_update_produces_one_typed_event_and_bumps_version(services):
     assert len(master_events) == 1
     assert master_events[0].change_type == ResourceMasterChangeType.UPDATED
     assert master_events[0].version == updated.version
-    assert legacy == [resource.id]
 
 
 def test_no_op_update_produces_zero_writes_zero_events(services):
     service = services["resource_service"]
     resource = service.create_resource(name=_unique("Noop"), role="Same Role")
     master_events = _spy_master_events(services)
-    legacy = _spy_legacy_signal()
 
     result = service.update_resource(
         resource_id=resource.id, expected_version=resource.version, name=resource.name,
@@ -123,14 +114,12 @@ def test_no_op_update_produces_zero_writes_zero_events(services):
 
     assert result.version == resource.version  # no synthetic bump
     assert master_events == []
-    assert legacy == []
 
 
 def test_deactivate_and_reactivate_produce_typed_events(services):
     service = services["resource_service"]
     resource = service.create_resource(name=_unique("Lifecycle"))
     master_events = _spy_master_events(services)
-    legacy = _spy_legacy_signal()
 
     deactivated = service.deactivate_resource(resource_id=resource.id, expected_version=resource.version)
     assert deactivated.is_active is False
@@ -142,7 +131,6 @@ def test_deactivate_and_reactivate_produce_typed_events(services):
     assert reactivated.is_active is True
     assert master_events[-1].change_type == ResourceMasterChangeType.REACTIVATED
     assert len(master_events) == 2
-    assert legacy == [resource.id, resource.id]
 
 
 def test_deactivate_already_inactive_is_rejected_not_silently_written(services):
@@ -150,13 +138,11 @@ def test_deactivate_already_inactive_is_rejected_not_silently_written(services):
     resource = service.create_resource(name=_unique("AlreadyInactive"))
     deactivated = service.deactivate_resource(resource_id=resource.id, expected_version=resource.version)
     master_events = _spy_master_events(services)
-    legacy = _spy_legacy_signal()
 
     with pytest.raises(BusinessRuleError):
         service.deactivate_resource(resource_id=deactivated.id, expected_version=deactivated.version)
 
     assert master_events == []
-    assert legacy == []
 
 
 def test_activity_feed_entry_rides_the_same_transaction_as_the_mutation(services):
@@ -182,12 +168,10 @@ def test_purge_produces_typed_event_and_deletes_row(services):
     service = services["resource_service"]
     resource = service.create_resource(name=_unique("Purge"))
     master_events = _spy_master_events(services)
-    legacy = _spy_legacy_signal()
 
     service.purge_resource(resource_id=resource.id, expected_version=resource.version)
 
     assert master_events[-1].change_type == ResourceMasterChangeType.PURGED
-    assert legacy == [resource.id]
     with pytest.raises(NotFoundError):
         service.get_resource(resource.id)
 
@@ -196,7 +180,6 @@ def test_stale_version_update_raises_and_produces_zero_events(services):
     service = services["resource_service"]
     resource = service.create_resource(name=_unique("Stale"))
     master_events = _spy_master_events(services)
-    legacy = _spy_legacy_signal()
 
     with pytest.raises(ConcurrencyError):
         service.update_resource(
@@ -208,13 +191,11 @@ def test_stale_version_update_raises_and_produces_zero_events(services):
         )
 
     assert master_events == []
-    assert legacy == []
 
 
 def test_audit_failure_rolls_back_and_produces_zero_events(services, monkeypatch):
     service = services["resource_service"]
     master_events = _spy_master_events(services)
-    legacy = _spy_legacy_signal()
 
     def _fail(self, **kwargs):
         raise RuntimeError("simulated audit failure")
@@ -225,14 +206,12 @@ def test_audit_failure_rolls_back_and_produces_zero_events(services, monkeypatch
     monkeypatch.undo()
 
     assert master_events == []
-    assert legacy == []
     assert service.list_resources() == []
 
 
 def test_commit_failure_rolls_back_and_produces_zero_events(services, monkeypatch):
     service = services["resource_service"]
     master_events = _spy_master_events(services)
-    legacy = _spy_legacy_signal()
 
     def _fail_commit(self):
         raise RuntimeError("simulated commit failure")
@@ -243,7 +222,6 @@ def test_commit_failure_rolls_back_and_produces_zero_events(services, monkeypatc
     monkeypatch.undo()
 
     assert master_events == []
-    assert legacy == []
 
 
 def test_cross_org_resource_is_not_visible_or_mutable_from_another_organization(services):
@@ -283,7 +261,6 @@ def test_add_update_remove_skill_each_produce_one_typed_capability_event(service
     service = services["resource_service"]
     resource = service.create_resource(name=_unique("SkillOwner"))
     capability_events = _spy_capability_events(services)
-    legacy = _spy_legacy_signal()
 
     skill = service.add_resource_skill(resource.id, "PY", "Python", proficiency="advanced")
     assert capability_events[-1].change_type == ResourceCapabilityChangeType.ADDED
@@ -299,7 +276,6 @@ def test_add_update_remove_skill_each_produce_one_typed_capability_event(service
     service.remove_resource_skill(updated.id, expected_version=updated.version)
     assert capability_events[-1].change_type == ResourceCapabilityChangeType.REMOVED
     assert len(capability_events) == 3
-    assert legacy == [resource.id, resource.id, resource.id]
 
 
 def test_add_update_remove_certification_each_produce_one_typed_capability_event(services):
@@ -378,7 +354,6 @@ def test_capability_audit_failure_rolls_back_and_produces_zero_events(services, 
     service = services["resource_service"]
     resource = service.create_resource(name=_unique("CapAuditFail"))
     capability_events = _spy_capability_events(services)
-    legacy = _spy_legacy_signal()
 
     def _fail(self, **kwargs):
         raise RuntimeError("simulated audit failure")
@@ -389,7 +364,6 @@ def test_capability_audit_failure_rolls_back_and_produces_zero_events(services, 
     monkeypatch.undo()
 
     assert capability_events == []
-    assert legacy == []
 
 
 def test_capability_commit_failure_rolls_back_and_produces_zero_events(services, monkeypatch):
@@ -500,7 +474,7 @@ def test_no_platform_to_business_module_concrete_infrastructure_import_added():
 # ---------------------------------------------------------------------------
 
 
-def test_employee_update_produces_real_resource_mutation_typed_event_and_legacy_signal(services):
+def test_employee_update_produces_real_resource_mutation_and_typed_event(services):
     employee_service = services["employee_service"]
     resource_service = services["resource_service"]
     employee = employee_service.create_employee(
@@ -510,7 +484,6 @@ def test_employee_update_produces_real_resource_mutation_typed_event_and_legacy_
         name="placeholder", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id
     )
     master_events = _spy_master_events(services)
-    legacy = _spy_legacy_signal()
 
     updated_employee = employee_service.update_employee(
         employee.id, full_name="Alex Updated", title="Senior Engineer"
@@ -525,7 +498,6 @@ def test_employee_update_produces_real_resource_mutation_typed_event_and_legacy_
     assert master_events[0].resource_id == resource.id
     assert master_events[0].version == refreshed.version
     assert master_events[0].change_type == ResourceMasterChangeType.UPDATED
-    assert legacy == [resource.id]
 
 
 def test_employee_update_with_no_linked_employee_resource_produces_zero_resource_events(services):
@@ -534,12 +506,10 @@ def test_employee_update_with_no_linked_employee_resource_produces_zero_resource
         employee_code=_unique("EMP"), full_name="No Resource Person"
     )
     master_events = _spy_master_events(services)
-    legacy = _spy_legacy_signal()
 
     employee_service.update_employee(employee.id, full_name="No Resource Person 2")
 
     assert master_events == []
-    assert legacy == []
 
 
 def test_employee_update_and_resource_mutation_are_one_atomic_transaction(services, monkeypatch):
@@ -559,7 +529,6 @@ def test_employee_update_and_resource_mutation_are_one_atomic_transaction(servic
         name="placeholder", worker_type=WorkerType.EMPLOYEE, employee_id=employee.id
     )
     master_events = _spy_master_events(services)
-    legacy = _spy_legacy_signal()
 
     def _fail_commit(self):
         raise RuntimeError("simulated employee commit failure")
@@ -572,4 +541,3 @@ def test_employee_update_and_resource_mutation_are_one_atomic_transaction(servic
     refreshed = resource_service.get_resource(resource.id)
     assert refreshed.name != "Should Not Persist"
     assert master_events == []
-    assert legacy == []

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import date
-import logging
 
 from src.core.modules.project_management.application.resources.resource_capability_events import (
     ResourceCapabilityChangeType,
@@ -24,9 +23,6 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-from src.core.shared.events.domain_events import domain_events
-
-logger = logging.getLogger(__name__)
 
 
 class SkillCommandMixin:
@@ -47,15 +43,6 @@ class SkillCommandMixin:
             },
             commit=False,
         )
-
-    def _notify_resource_capability_changed(self, resource_id: str) -> None:
-        """Post-commit, ISOLATE_AND_CONTINUE (P18A §7) -- temporary, deleted in P18B."""
-        try:
-            domain_events.resources_changed.emit(resource_id)
-        except Exception:
-            logger.exception(
-                "Legacy resources_changed dispatch failed", extra={"resource_id": resource_id}
-            )
 
     def _record_resource_capability_event(
         self, uow, child, *, change_type: ResourceCapabilityChangeType
@@ -123,7 +110,6 @@ class SkillCommandMixin:
                 uow, created, change_type=ResourceCapabilityChangeType.ADDED
             )
             uow.commit()
-        self._notify_resource_capability_changed(created.resource_id)
         return created
 
     def update_resource_skill(
@@ -189,7 +175,6 @@ class SkillCommandMixin:
                 uow, updated, change_type=ResourceCapabilityChangeType.UPDATED
             )
             uow.commit()
-        self._notify_resource_capability_changed(updated.resource_id)
         return updated
 
     def remove_resource_skill(self, skill_id: str, *, expected_version: int) -> ResourceSkill:
@@ -228,7 +213,6 @@ class SkillCommandMixin:
                 uow, existing, change_type=ResourceCapabilityChangeType.REMOVED
             )
             uow.commit()
-        self._notify_resource_capability_changed(existing.resource_id)
         return existing
 
     def add_resource_certification(
@@ -287,7 +271,6 @@ class SkillCommandMixin:
                 uow, created, change_type=ResourceCapabilityChangeType.ADDED
             )
             uow.commit()
-        self._notify_resource_capability_changed(created.resource_id)
         return created
 
     def update_resource_certification(
@@ -362,7 +345,6 @@ class SkillCommandMixin:
                 uow, updated, change_type=ResourceCapabilityChangeType.UPDATED
             )
             uow.commit()
-        self._notify_resource_capability_changed(updated.resource_id)
         return updated
 
     def remove_resource_certification(
@@ -405,7 +387,6 @@ class SkillCommandMixin:
                 uow, existing, change_type=ResourceCapabilityChangeType.REMOVED
             )
             uow.commit()
-        self._notify_resource_capability_changed(existing.resource_id)
         return existing
 
 
