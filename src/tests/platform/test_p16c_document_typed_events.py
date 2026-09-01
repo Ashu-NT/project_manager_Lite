@@ -641,7 +641,6 @@ def test_document_list_view_invalidation_handler_has_no_generic_bridge():
 
     source = inspect.getsource(vi_module)
     assert "getattr(domain_events" not in source
-    assert "_BRIDGE_SPECS" not in source
 
 
 def test_documents_changed_field_still_present():

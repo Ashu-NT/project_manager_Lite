@@ -1696,6 +1696,67 @@ is 30 as of this phase (six Finance-family signals were added to `DomainEvents` 
 this phase, outside this migration's scope, per `FROZEN_LEGACY_SIGNAL_ALLOWLIST`'s own
 subset-only invariant — not touched here).
 
+**26.14 Document + DocumentStructure: MODERNIZED (P16A/P16B/P16C) — DocumentLink NOT YET
+MODERNIZED (P16D).** Document is a genuinely three-sub-capability slice, discovered by P16A's
+audit rather than assumed: Document metadata, DocumentStructure (a separate repo/aggregate,
+cross-referenced by `document_structure_id`, with its own Admin sub-controller), and DocumentLink
+(a third, even smaller aggregate — create/delete only, never updated — shared by **two** producer
+services, `DocumentService` and `DocumentIntegrationService`, and referencing a business entity in
+a *different* module via an opaque `(module_code, entity_type, entity_id)` tuple rather than a
+typed foreign key). P16A found this shape and 9 real `documents_changed` producers (matching P11's
+original count exactly, confirmed by re-audit rather than trusted); P16B converged all 9 onto one
+canonical `DocumentUnitOfWork` (`.documents`/`.structures`/`.links` accessors, shared by both
+services — the first capability where two application services genuinely need the same UoW
+factory instance, not two separate ones) and added the no-op guards `update_document`/
+`update_document_structure` had never had at all (a real pre-release behavior correction, not
+preserved legacy behavior — both previously wrote/audited/emitted unconditionally on an
+identical-to-persisted request).
+
+P16C then split its own scope deliberately narrower than "all of Document": only the two
+mutation categories with a genuinely simple Created/ProfileUpdated shape (Document,
+DocumentStructure) were given typed events (`DocumentCreated`/`DocumentProfileUpdated`/
+`DocumentStructureCreated`/`DocumentStructureProfileUpdated`, `is_active`/`is_current` folded
+into `ProfileUpdated` exactly like Party — neither carries a derived-state side effect the way
+Site's `opened_at`/`closed_at` did, so no `DocumentArchived`/`DocumentRestored` pair was
+justified) and two new ViewInvalidation targets (`document_list`, `document_structure_list`,
+`OrganizationScope`, correlation-id deduped exactly like `site_list`/`party_list`). DocumentLink's
+five producers (`add_link`, `remove_link`, `register_entity_attachments`,
+`link_existing_document`, `unlink_existing_document`) were deliberately left on `documents_changed`
+— not a compatibility bridge, an explicitly unmodernized capability slice still using its own
+pre-existing legacy signal, exactly as P16A's phase plan called for. `documents_changed` is
+therefore **partially retired**: 4 of 9 original emission call sites are gone (the two `create_`/
+`update_document`/`_document_structure` fact categories); the field itself stays in `DomainEvents`
+(deletion is P16D's, once DocumentLink has its own typed replacement) and both of its consumers
+(Admin Console's and Catalog's composite binders) are unchanged and still correctly fire for the
+five remaining Link-related emissions — confirmed by re-proving both consumers still react, using
+`add_link` instead of `create_document` as the trigger.
+
+`register_entity_attachments` is the one path that straddles both slices in a single commit: for N
+attachments it records N typed `DocumentCreated` events (coalesced by the shared correlation-id
+dedup mechanism to exactly one `document_list` hint, since all N share the one
+`DomainEventContext` from the method's single `uow_factory.create()` call) **and** still emits the
+legacy `documents_changed` N times unchanged, because the same commit also creates N
+unmodernized `DocumentLink` facts — deliberately not suppressed, since the Link side has no typed
+replacement yet. This means Admin/Catalog currently receive one narrow `document_list` reaction
+plus N legacy full-refresh reactions for one batch import — a real, visible duplicate-refresh
+gap, left in place on purpose (fixing it would require the Link-scoped ViewInvalidation design
+P16D owns) and explicitly not hidden or pretended away by this phase.
+
+Admin Console gained two new narrow reactions — `refresh_documents()`/
+`refresh_document_structures()`, delegating to the existing `_document_controller`/
+`_document_structure_controller` sub-controllers' own `refresh()`, mirroring every prior
+capability's narrow-refresh shape — wired via two new adapters
+(`DocumentViewInvalidationAdapter`, `DocumentStructureViewInvalidationAdapter`). Catalog's
+`available_documents` dropdown (previously inline in `build_workspace_state`, now extracted into
+`build_document_reference_options()`/`refresh_document_options()`, mirroring the Party/Site
+extraction shape exactly) is wired to `document_list` only — confirmed by source that Catalog's
+available-documents list carries no structure metadata, so `document_structure_list` correctly
+does not reach Catalog at all. Catalog's per-item `linked_documents` panel and Reservations/
+Procurement's own document-link dependency remain entirely on the legacy path, explicitly deferred
+to P16D along with the cross-org trust-boundary characteristic P16A found in `DocumentLink.entity_id`
+(never independently organization-validated by the Document layer itself, relying on the calling
+module having already done so) — neither fixed nor newly introduced here.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant
