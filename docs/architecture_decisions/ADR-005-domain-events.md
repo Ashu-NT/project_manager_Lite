@@ -2275,6 +2275,84 @@ still carries the other, still-legacy Finance signals (`budgets_changed`, `cost_
 scope. The legacy Signal count is 24 as of this phase (25 minus the one deletion — confirmed
 source-derived). The Finance Financial Setup capability is fully modernized.
 
+**26.19 Finance Rate Card: FULLY MODERNIZED (P22) — `rates_changed`
+DELETED.** The narrowest Finance capability found so far — exactly one producer file
+(`rate_card_service.py`), one legacy field, one UI consumer, confirming P17's own
+characterization. Unlike every other capability migrated in this ADR, Rate Card was not merely
+on raw `Signal` transport; its *transaction ownership itself* was raw `Session` (P17's finding),
+never routed through `FinanceGovernanceCommandBoundary`/`FinanceGovernedServicePort` at all —
+confirmed from source: `project_registry.py` constructed `rate_card_service` directly, with no
+`FinanceGovernedServicePort` wrap anywhere, unlike Budget/Forecast/Setup which already had one.
+
+P22 chose Option A (§3): add a `rate_cards` named repository accessor to the existing
+`FinanceGovernanceUnitOfWork`, rather than a dedicated `RateCardUnitOfWork`. Rationale: Rate Card
+uses the identical `finance.manage`/`finance.read` permission model and identical audit
+conventions (`record_audit_entry(..., compliance_tag="financial", commit=False)`) as every other
+governance-boundary capability, and its own repository (`ProjectRateCardRepository`) already
+bundles both `ProjectRateCard` and `RateCardLine` operations on one interface — the same shape
+`ProjectForecastRepository` already has for `ProjectForecast`/`ForecastLine` (§26.16) — so no
+"unnatural repository bag" concern applied. `ProjectRateCardService` moved off
+`self._session.commit()`/`rollback()` entirely; the outer `FinanceGovernanceCommandBoundary`'s
+existing `with self._uow_factory.create(...) as uow: ... uow.commit()` machinery now owns the
+whole transaction, exactly like Budget/Forecast/Setup already do. A previously dead code path was
+removed in the process: `_commit`'s `duplicate_message`/`IntegrityError`→`ValidationError`
+conversion was never actually invoked at any of its four call sites, and `ProjectRateCardORM`
+carries no unique constraint on `name` — confirmed there was never a real "duplicate rate card"
+business rule being enforced; removing the dead machinery is a simplification, not a regression
+(P22 §4's "preserve existing error semantics" was satisfied because there was no real semantic to
+preserve).
+
+Domain boundary audited (§2): `ProjectRateCard` (aggregate root, dual-owned — `project_id: str |
+None` makes a card either organization-wide or project-specific, both persisted under the SAME
+`organization_id` RLS scope) and `RateCardLine` (child entity, no separate `project_id` of its
+own — resolved transitively via its parent card). Rate Card's lifecycle is asymmetric and
+one-way: `create_rate_card`/`deactivate_rate_card` exist, but no rename/profile-update method and
+no reactivate method exist at all — confirmed from source, not assumed — so exactly two typed
+Card events: `RateCardCreated`, `RateCardDeactivated` (no `RateCardProfileUpdated`, since no such
+operation exists). Lines have three: `RateCardLineAdded`, `RateCardLineUpdated` (no-op detection
+added — `update_line` previously always wrote/audited/emitted on identical input, matching the
+same gap found in every prior no-op-audited phase), `RateCardLineDeactivated` (already had a
+correct existence guard). No vague `RatesChanged`/`RateCardChanged` catch-all.
+
+Exactly two ViewInvalidation targets (`application/financials/rate_cards/event_handlers/
+view_invalidation.py`), proven from source: `rate_card_list` (`OrganizationScope`) — the "costs"
+destination's rate-card-subsection collection (`state.rate_cards`) — and `rate_card_detail`
+(exact-card `ResourceScope`, `module_code="project_management"`, `entity_type="rate_card"`) — the
+SAME query's `state.selected_rate_card` (detail) + `state.rate_lines` (its lines), proven to be
+one combined projection, not two. `RateCardCreated` notifies only `rate_card_list` (a brand-new
+card cannot be the currently-selected one). `RateCardDeactivated` notifies BOTH — the list's own
+row changes AND, if that card happens to be selected, its detail's `is_active` field goes stale
+too — the same dual-notification correction P19-FIX established for Forecast approval (§26.16),
+applied here from day one rather than needing a follow-up fix. Line facts notify only
+`rate_card_detail`, proven from source that the list query never embeds a line count or any
+line-derived value.
+
+A deliberate, documented precision trade-off: `rate_card_list` uses plain `OrganizationScope`
+with no per-project filtering, whereas the legacy `FinanceInvalidationScope`-based check did
+filter (`payload.project_id is None or payload.project_id == selected_project_id`) — meaning a
+project-specific card change, while a *different* project is selected, now triggers one
+additional "costs" invalidation that the legacy path would have skipped. This was a deliberate
+choice, not an oversight: `ViewInvalidationHint` has no second identity slot to carry both
+`rate_card_id` and `project_id` through one hint without inventing a capability-specific field
+(forbidden since P16D-FIX), and Rate Card's persisted ownership is genuinely organization-scoped
+(the RLS boundary is `organization_id`, with `project_id` only a nullable visibility filter, not a
+second storage scope) — so `OrganizationScope` is the architecturally correct choice per this
+phase's own "use persisted ownership for event scope, do not infer from UI placement" mandate
+(§13), even though it is marginally coarser than the legacy behavior for one edge case.
+
+`rates_changed` is now deleted from `DomainEvents` entirely — zero producers (the one producer,
+`_commit`'s post-commit `domain_events.rates_changed.emit(...)`, is gone along with the raw
+Session commit it rode on), zero consumers (`financials_refresh_mixin.py`'s legacy subscription
+removed; the real UI consumer is a `RateCardViewInvalidationAdapter` instance wired into
+`ProjectManagementFinancialsWorkspaceController`, connected to `onRateCardListStale` (unconditional
+`{costs}`) and `onRateCardDetailStale` (`{costs}` only if the hint's card is the currently
+selected one)), field absent. `FinanceInvalidationScope` remains untouched and still carries the
+other, still-legacy Finance signals (`budgets_changed`, `cost_entries_changed`,
+`commitments_changed`, `financial_changes_changed`, `planned_costs_changed`,
+`billing_preparations_changed`) — P22 retired it from the Rate Card path only, per its own scope.
+The legacy Signal count is 23 as of this phase (24 minus the one deletion — confirmed
+source-derived). The Finance Rate Card capability is fully modernized.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

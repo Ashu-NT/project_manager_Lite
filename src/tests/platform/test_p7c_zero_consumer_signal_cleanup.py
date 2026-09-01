@@ -10,7 +10,6 @@ _ACTIVE_FINANCE_SIGNALS = (
     "cost_entries_changed",
     "commitments_changed",
     "financial_changes_changed",
-    "rates_changed",
 )
 
 

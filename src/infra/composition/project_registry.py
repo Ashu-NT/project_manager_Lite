@@ -43,6 +43,16 @@ from src.core.modules.project_management.application.financials.configuration_ev
     ProjectFinancialProfileTransitioned,
     ProjectFinancialProfileUpdated,
 )
+from src.core.modules.project_management.application.financials.rate_cards.event_handlers.view_invalidation import (
+    build_rate_card_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.rate_cards.rate_card_events import (
+    RateCardCreated,
+    RateCardDeactivated,
+    RateCardLineAdded,
+    RateCardLineDeactivated,
+    RateCardLineUpdated,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
     SqlAlchemyProjectRepository,
 )
@@ -640,6 +650,19 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus.subscribe(
             _financial_profile_event_type, _financial_profile_view_invalidation_handler
         )
+    _rate_card_view_invalidation_handler = build_rate_card_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _rate_card_event_type in (
+        RateCardCreated,
+        RateCardDeactivated,
+        RateCardLineAdded,
+        RateCardLineUpdated,
+        RateCardLineDeactivated,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _rate_card_event_type, _rate_card_view_invalidation_handler
+        )
     financial_change_service = FinancialChangeService(
         session=session,
         change_repo=repositories.financial_change_repo,
@@ -732,12 +755,23 @@ def build_project_management_service_bundle(
             tenant_context_service=platform_services.tenant_context_service,
             record_event=uow.record_event,
         )
+        rate_card_operations = ProjectRateCardService(
+            session=uow._session,
+            rate_card_repo=uow.rate_cards,
+            project_repo=uow.projects,
+            user_session=platform_services.user_session,
+            enterprise_audit_service=uow._enterprise_audit_service,
+            module_catalog_service=platform_services.module_catalog_service,
+            tenant_context_service=platform_services.tenant_context_service,
+            record_event=uow.record_event,
+        )
         return FinanceGovernanceOperations(
             budgets=budget_operations,
             forecast_versions=forecast_version_operations,
             forecast_generation=forecast_generation_operations,
             financial_changes=change_operations,
             financial_setup=setup_operations,
+            rate_cards=rate_card_operations,
             post_commit_actions=post_commit_actions,
         )
 
@@ -811,6 +845,20 @@ def build_project_management_service_bundle(
         boundary=finance_governance_commands,
         family="financial_change",
         mutations=frozenset({"create_change", "add_impact", "submit_change"}),
+    )
+    rate_card_service = FinanceGovernedServicePort(
+        read_service=rate_card_service,
+        boundary=finance_governance_commands,
+        family="rate_card",
+        mutations=frozenset(
+            {
+                "create_rate_card",
+                "deactivate_rate_card",
+                "create_line",
+                "update_line",
+                "deactivate_line",
+            }
+        ),
     )
     billing_profile_service = ProjectBillingProfileService(
         session=session,

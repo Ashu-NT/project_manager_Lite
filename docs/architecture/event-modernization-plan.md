@@ -142,10 +142,28 @@ ViewInvalidation retirement changes essentially nothing about today's visible be
 waste for the one live producer (`create_cost_code` — no cost-code list is ever cached anywhere in
 the Financials workspace), and the one destination it should invalidate (`controls`, for
 `financial_profile`) has no live producer yet either. See ADR-005 §26.18 for the full design.
+| P22 | Finance Rate Card | NEW: `FinanceGovernanceUnitOfWork` gained a `rate_cards` named repository accessor (Option A convergence — Rate Card is governed exactly like Budget/Forecast/Setup, same `finance.manage`/`finance.read` permission model, same audit conventions; no separate UoW); `ProjectRateCardService` moved off raw `self._session.commit()` onto `record_event` wired to `uow.record_event`, with the outer `FinanceGovernanceCommandBoundary.rate_card` family now owning commit/rollback | `RateCardCreated`, `RateCardDeactivated` (Rate Card itself has only create+one-way-deactivate — no rename/update, no reactivate); `RateCardLineAdded`, `RateCardLineUpdated`, `RateCardLineDeactivated` | Narrow: `rate_card_list` (`OrganizationScope`) — the collection; `rate_card_detail` (exact-card `ResourceScope`) — the selected card's own detail + its lines, proven the same combined projection. `RateCardDeactivated` notifies BOTH (mirroring the P19-FIX dual-notification correction) | `rates_changed` deleted |
+
+**Finance Rate Card is fully modernized** as of P22. Confirmed the *narrowest* Finance capability
+audited so far: exactly one producer file, one legacy field, one UI consumer, matching P17's own
+characterization. `create_rate_card`/`deactivate_rate_card`/`create_line`/`update_line`/
+`deactivate_line` were already comparatively well-guarded (audit already atomic with the mutation,
+via `record_audit_entry(..., commit=False)` before the old `self._session.commit()`) — but the
+capability had never been added to the canonical `FinanceGovernanceCommandBoundary`/
+`FinanceGovernedServicePort` wiring at all (a raw, ungoverned service instance, confirmed from
+source), unlike Budget/Forecast/Setup which already routed through it. `update_line` had no no-op
+detection (fixed); `deactivate_rate_card`/`deactivate_line` already had correct existence guards.
+A dead, never-populated `duplicate_message`/IntegrityError→`ValidationError` conversion path was
+removed (confirmed: no unique constraint on Rate Card name exists at the DB level, and no call
+site ever passed `duplicate_message` — the conversion never fired; simplification, not a
+regression). See ADR-005 §26.19 for the full design, including the deliberate `rate_card_list`
+scope trade-off (pure `OrganizationScope`, no per-project filtering, slightly coarser than the
+legacy `FinanceInvalidationScope`'s `project_id is None or project_id == selected` check for the
+rare case of a project-specific card changing while a different project is selected).
 
 ## 4. Current State
 
-**Legacy Signal count: 24 as of P21** (source-derived from `src/core/shared/events/domain_events.py`,
+**Legacy Signal count: 23 as of P22** (source-derived from `src/core/shared/events/domain_events.py`,
 re-verified against current source when this document was last updated).
 
 | Area | Count |
@@ -153,7 +171,7 @@ re-verified against current source when this document was last updated).
 | Platform | 0 |
 | Auth/Security | 1 |
 | Project Management | 7 |
-| Finance | 7 |
+| Finance | 6 |
 | Inventory/Procurement | 9 |
 
 > **This is a snapshot, not a fact.** Recompute the count directly from
@@ -163,10 +181,10 @@ re-verified against current source when this document was last updated).
 
 ## 5. Current Priority
 
-**Finance Financial Setup is fully modernized (P21, see §3).** The next capability has not yet
-been chosen — the P17 ranking's provisional order (§6 below) next suggests Finance Rate Card, but
-per this document's own repeated caution, re-run prioritization from current source before
-committing to it: concurrent development elsewhere may have changed readiness since P17.
+**Finance Rate Card is fully modernized (P22, see §3).** The next capability has not yet been
+chosen — per this document's own repeated caution, re-run prioritization from current source
+before committing to a next target: concurrent development elsewhere may have changed readiness
+since P17.
 
 ## 6. Provisional Roadmap
 
@@ -175,12 +193,9 @@ Re-run prioritization after each major capability - current source is authoritat
 concurrent development elsewhere in the codebase may change any capability's readiness before
 its turn comes up.
 
-Suggested next order (P18 Project Resource, P19 Finance Forecast, P20 Inventory
-Storeroom/Location, and P21 Finance Financial Setup are DONE — see §3):
-
-```
-P22  Finance Rate Card
-```
+P18 Project Resource, P19 Finance Forecast, P20 Inventory Storeroom/Location, P21 Finance
+Financial Setup, and P22 Finance Rate Card are all DONE (see §3). No further phase has a number
+assigned yet — see the remaining capability groups below.
 
 Remaining capability groups, not yet assigned rigid phase numbers:
 

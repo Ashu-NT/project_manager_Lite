@@ -20,6 +20,9 @@ from src.ui_qml.platform.adapters.financial_profile_view_invalidation_adapter im
 from src.ui_qml.platform.adapters.forecast_view_invalidation_adapter import (
     ForecastViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.rate_card_view_invalidation_adapter import (
+    RateCardViewInvalidationAdapter,
+)
 from src.ui_qml.platform.adapters.resource_view_invalidation_adapter import (
     ResourceViewInvalidationAdapter,
 )
@@ -161,6 +164,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self._employee_view_invalidation_adapter: EmployeeViewInvalidationAdapter | None = None
         self._forecast_view_invalidation_adapter: ForecastViewInvalidationAdapter | None = None
         self._financial_profile_view_invalidation_adapter: FinancialProfileViewInvalidationAdapter | None = None
+        self._rate_card_view_invalidation_adapter: RateCardViewInvalidationAdapter | None = None
         self._resource_view_invalidation_adapter: ResourceViewInvalidationAdapter | None = None
         self._portfolio_resource_view_invalidation_adapter: ResourceViewInvalidationAdapter | None = None
         self._scheduling_resource_view_invalidation_adapter: ResourceViewInvalidationAdapter | None = None
@@ -303,6 +307,19 @@ class ProjectManagementWorkspaceCatalog(QObject):
             )
             self._financial_profile_view_invalidation_adapter.financialProfileStale.connect(
                 self._financials_workspace.onFinancialProfileStale
+            )
+
+            self._rate_card_view_invalidation_adapter = RateCardViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._rate_card_view_invalidation_adapter.rateCardListStale.connect(
+                self._financials_workspace.onRateCardListStale
+            )
+            self._rate_card_view_invalidation_adapter.rateCardDetailStale.connect(
+                self._financials_workspace.onRateCardDetailStale
             )
         return self._financials_workspace
 
@@ -530,6 +547,11 @@ class ProjectManagementWorkspaceCatalog(QObject):
             )
         if self._financial_profile_view_invalidation_adapter is not None:
             self._financial_profile_view_invalidation_adapter.set_active_scope(
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+            )
+        if self._rate_card_view_invalidation_adapter is not None:
+            self._rate_card_view_invalidation_adapter.set_active_scope(
                 tenant_id=self._active_tenant_id() or "",
                 organization_id=self._active_organization_id() or "",
             )

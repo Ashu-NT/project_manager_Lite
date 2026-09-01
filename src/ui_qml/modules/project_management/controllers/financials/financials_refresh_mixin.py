@@ -597,10 +597,6 @@ class FinancialsRefreshMixin:
                     "overview", "planning", "costs", "performance", "commercial"
                 )
 
-        def _rates_changed(payload: object) -> None:
-            if self._finance_event_matches(payload):
-                self._invalidate_destinations("costs")
-
         def _financial_changes_changed(payload: object) -> None:
             if self._finance_event_matches(payload):
                 self._invalidate_destinations("controls")
@@ -613,7 +609,6 @@ class FinancialsRefreshMixin:
             (domain_events.billing_preparations_changed, _billing_changed),
             (domain_events.cost_entries_changed, _cost_entries_changed),
             (domain_events.commitments_changed, _commitments_changed),
-            (domain_events.rates_changed, _rates_changed),
             (domain_events.financial_changes_changed, _financial_changes_changed),
         )
         for signal, callback in subscriptions:

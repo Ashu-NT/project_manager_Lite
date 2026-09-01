@@ -12,6 +12,7 @@ from src.core.modules.project_management.contracts.repositories.finance.cost_ent
 from src.core.modules.project_management.contracts.repositories.finance.financial_changes.financial_change import FinancialChangeRepository
 from src.core.modules.project_management.contracts.repositories.finance.forecasts.forecast import ProjectForecastRepository
 from src.core.modules.project_management.contracts.repositories.finance.planned_costs.planned_cost import ProjectPlannedCostVersionRepository
+from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_cards import ProjectRateCardRepository
 from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.register.register import RegisterEntryRepository
 from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
@@ -35,6 +36,7 @@ class FinanceGovernanceUnitOfWork(UnitOfWork, Protocol):
     cost_entries: ProjectCostEntryRepository
     register_entries: RegisterEntryRepository
     approvals: ApprovalRepository
+    rate_cards: ProjectRateCardRepository
     _enterprise_audit_service: EnterpriseAuditService
 
 

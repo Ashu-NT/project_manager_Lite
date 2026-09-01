@@ -20,6 +20,10 @@ from src.ui_qml.modules.project_management.controllers.financials.forecast_domai
 from src.ui_qml.modules.project_management.controllers.financials.financial_setup_domain_event_binder import (
     on_financial_profile_stale,
 )
+from src.ui_qml.modules.project_management.controllers.financials.rate_card_domain_event_binder import (
+    on_rate_card_detail_stale,
+    on_rate_card_list_stale,
+)
 from src.ui_qml.modules.project_management.controllers.financials.financials_selection_mixin import FinancialsSelectionMixin
 from src.ui_qml.modules.project_management.controllers.financials.financials_state_mixin import FinancialsStateMixin
 from src.ui_qml.modules.project_management.controllers.financials.financials_types import (
@@ -728,6 +732,12 @@ class ProjectManagementFinancialsWorkspaceController(
 
     def onFinancialProfileStale(self, project_id: str) -> None:
         on_financial_profile_stale(self, project_id)
+
+    def onRateCardListStale(self, rate_card_id: str) -> None:
+        on_rate_card_list_stale(self, rate_card_id)
+
+    def onRateCardDetailStale(self, rate_card_id: str) -> None:
+        on_rate_card_detail_stale(self, rate_card_id)
 
     @Slot(str)
     def selectProject(self, project_id: str) -> None: self._select_project(project_id)

@@ -20,6 +20,9 @@ from src.core.modules.project_management.application.financials.forecasts.genera
 from src.core.modules.project_management.application.financials.forecasts.version_service import (
     ForecastVersionService,
 )
+from src.core.modules.project_management.application.financials.rate_cards.rate_card_service import (
+    ProjectRateCardService,
+)
 from src.core.modules.project_management.application.financials.invalidation import (
     invalidation_scope,
 )
@@ -45,6 +48,7 @@ class FinanceGovernanceOperations:
     forecast_generation: ForecastGenerationService
     financial_changes: FinancialChangeService
     financial_setup: FinancialConfigurationService
+    rate_cards: ProjectRateCardService
     post_commit_actions: list[Callable[[], None]] = field(default_factory=list)
 
 
@@ -118,6 +122,22 @@ class FinanceGovernanceCommandBoundary:
     ) -> T:
         return self._execute(
             lambda operations: command(operations.financial_setup),
+            invalidation=None,
+        )
+
+    def rate_card(
+        self,
+        command: Callable[[ProjectRateCardService], T],
+        *,
+        project_id: str | None = None,
+    ) -> T:
+        # P22: Rate Card invalidation is driven canonically -- `ProjectRateCardService` records
+        # typed DomainEvents (`RateCardCreated`/`RateCardDeactivated`/`RateCardLineAdded`/
+        # `RateCardLineUpdated`/`RateCardLineDeactivated`) directly on the transaction's own UoW,
+        # dispatched through the shared transactional/post-commit pipeline to the registered
+        # ViewInvalidation handler. No legacy signal, no bridge.
+        return self._execute(
+            lambda operations: command(operations.rate_cards),
             invalidation=None,
         )
 

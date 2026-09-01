@@ -27,7 +27,6 @@ def _controller(services):
     (
         ("cost_entries_changed", {"overview", "costs", "performance", "commercial"}),
         ("commitments_changed", {"overview", "planning", "costs", "performance", "commercial"}),
-        ("rates_changed", {"costs"}),
         ("financial_changes_changed", {"controls"}),
     ),
 )
@@ -86,24 +85,6 @@ def test_finance_invalidation_rejects_other_project_and_organization(services) -
 
     assert controller._invalidated_destinations == set()
     controller._request_domain_refresh.assert_not_called()
-    controller._disconnect_domain_event_subscriptions()
-
-
-def test_organization_rate_invalidation_targets_costs_for_active_scope(services) -> None:
-    controller = _controller(services)
-    controller._set_selected_project_id("selected-project")
-    controller._active_destination = "unrelated"
-    controller._invalidated_destinations.clear()
-
-    domain_events.rates_changed.emit(
-        FinanceInvalidationScope(
-            tenant_id=controller._active_tenant_id,
-            organization_id=controller._active_organization_id,
-            project_id=None,
-        )
-    )
-
-    assert controller._invalidated_destinations == {"costs"}
     controller._disconnect_domain_event_subscriptions()
 
 
