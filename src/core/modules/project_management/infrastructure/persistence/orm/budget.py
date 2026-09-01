@@ -40,6 +40,17 @@ class ProjectBudgetORM(Base):
             name="fk_pf_budgets_scoped_project",
             ondelete="CASCADE",
         ),
+        ForeignKeyConstraint(
+            ["tenant_id", "organization_id", "project_id", "predecessor_budget_id"],
+            [
+                "project_finance_budgets.tenant_id",
+                "project_finance_budgets.organization_id",
+                "project_finance_budgets.project_id",
+                "project_finance_budgets.id",
+            ],
+            name="fk_pf_budgets_scoped_predecessor",
+            ondelete="RESTRICT",
+        ),
         UniqueConstraint(
             "tenant_id",
             "organization_id",
@@ -80,6 +91,7 @@ class ProjectBudgetORM(Base):
     )
     organization_id: Mapped[str] = mapped_column(String, nullable=False)
     project_id: Mapped[str] = mapped_column(String, nullable=False)
+    predecessor_budget_id: Mapped[str | None] = mapped_column(String, nullable=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     currency_code: Mapped[str] = mapped_column(String(8), nullable=False)
     status: Mapped[str] = mapped_column(

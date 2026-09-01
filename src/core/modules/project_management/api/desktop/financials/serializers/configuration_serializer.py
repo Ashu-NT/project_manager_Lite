@@ -69,6 +69,7 @@ def serialize_finance_budget_workspace(
 ) -> FinancialConfigurationWorkspaceDto:
     return FinancialConfigurationWorkspaceDto(
         selected_budget_id=source.selected_budget_id,
+        can_create_budget_version=source.can_create_version,
         budget_versions=tuple(_budget_version_dto(item) for item in source.versions.items),
         budget_version_page=source.versions.page,
         budget_version_page_size=source.versions.page_size,
@@ -122,11 +123,24 @@ def _budget_version_dto(item) -> FinancialConfigurationRecordDto:
             else f"Updated row version {item.row_version}"
         ),
         state={
+            "status": item.status,
+            "rowVersion": item.row_version,
             "revision": item.revision,
+            "predecessorBudgetId": item.predecessor_budget_id or "",
             "currency": item.currency_code,
             "totalAmountLabel": format_money(item.total_amount, item.currency_code),
             "lineCount": item.line_count,
             "notes": item.notes,
+            "approvalRequestId": item.approval_request_id or "",
+            "canEdit": item.can_edit,
+            "canDelete": item.can_delete,
+            "canAddLine": item.can_add_line,
+            "canSubmit": item.can_submit,
+            "canRequestApproval": item.can_request_approval,
+            "canApprove": item.can_approve,
+            "canReject": item.can_reject,
+            "canCreateSuccessor": item.can_create_successor,
+            "canClose": item.can_close,
         },
     )
 
@@ -145,11 +159,18 @@ def _budget_line_dto(item) -> FinancialConfigurationRecordDto:
         meta_text=f"Budget v{item.budget_revision} - {item.budget_name}",
         state={
             "budgetId": item.budget_id,
+            "rowVersion": item.row_version,
             "budgetRevision": item.budget_revision,
+            "costCodeId": item.cost_code_id,
             "costCode": item.cost_code,
+            "taskId": item.task_id or "",
             "taskName": item.task_name,
             "wbsCode": item.wbs_code,
+            "amount": format_decimal_amount(item.amount, grouping=False),
+            "currency": item.currency_code,
             "amountLabel": format_money(item.amount, item.currency_code),
+            "canEdit": item.can_edit,
+            "canDelete": item.can_delete,
         },
     )
 

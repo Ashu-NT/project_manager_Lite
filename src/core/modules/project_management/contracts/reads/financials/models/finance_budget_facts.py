@@ -38,12 +38,18 @@ class FinancePageFacts(Generic[_FactT]):
 
 
 @dataclass(frozen=True, slots=True)
+class BudgetVersionPageFacts(FinancePageFacts["BudgetVersionFact"]):
+    has_open_version: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class BudgetVersionFact:
     id: str
     name: str
     status: str
     revision: int
     row_version: int
+    predecessor_budget_id: str | None
     currency_code: str
     line_count: int
     total_amount: Decimal
@@ -52,6 +58,17 @@ class BudgetVersionFact:
     approved_by: str | None
     approved_at: datetime | None
     notes: str
+    approval_request_id: str | None = None
+    approval_requested_by_user_id: str | None = None
+    can_edit: bool = False
+    can_delete: bool = False
+    can_add_line: bool = False
+    can_submit: bool = False
+    can_request_approval: bool = False
+    can_approve: bool = False
+    can_reject: bool = False
+    can_create_successor: bool = False
+    can_close: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,13 +78,18 @@ class BudgetLineFact:
     budget_name: str
     budget_revision: int
     budget_status: str
+    row_version: int
     description: str
     cost_code: str
     cost_code_name: str
+    cost_code_id: str
+    task_id: str | None
     task_name: str
     wbs_code: str
     amount: Decimal
     currency_code: str
+    can_edit: bool = False
+    can_delete: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,10 +97,12 @@ class FinanceBudgetWorkspaceFacts:
     selected_budget_id: str
     versions: FinancePageFacts[BudgetVersionFact]
     lines: FinancePageFacts[BudgetLineFact]
+    can_create_version: bool = False
 
 
 __all__ = [
     "BudgetLineFact",
+    "BudgetVersionPageFacts",
     "BudgetVersionFact",
     "FinanceBudgetWorkspaceFacts",
     "FinancePageFacts",

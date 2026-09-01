@@ -458,6 +458,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
             tenant_id=change.tenant_id,
             organization_id=change.organization_id,
             project_id=change.project_id,
+            predecessor_budget_id=base.id,
             name=f"Change {change.revision}: {change.title}",
             currency_code=change.currency_code,
             revision=(latest.revision + 1) if latest else 1,

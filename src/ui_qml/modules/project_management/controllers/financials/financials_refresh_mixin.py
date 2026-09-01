@@ -272,6 +272,7 @@ class FinancialsRefreshMixin:
         if destination == "planning":
             if subsection == "budgets":
                 self._set_selected_budget_id(state.selected_budget_id)
+                self._set_can_create_budget_version(state.can_create_budget_version)
                 self._set_budget_versions(
                     serialize_financials_collection_view_model(state.budget_versions)
                 )
@@ -523,6 +524,7 @@ class FinancialsRefreshMixin:
         self._set_budget_versions(default_collection())
         self._set_budget_lines(default_collection())
         self._set_selected_budget_id("")
+        self._set_can_create_budget_version(False)
         self._set_rate_cards(default_collection())
         self._set_rate_lines(default_collection())
         self._set_selected_rate_card_id("")

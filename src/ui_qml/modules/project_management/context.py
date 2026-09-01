@@ -268,6 +268,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
             self._financials_workspace = ProjectManagementFinancialsWorkspaceController(
                 financials_workspace_presenter=ProjectFinancialsWorkspacePresenter(
                     desktop_api=self._financials_api,
+                    approval_api=self._approval_api,
                     audit_api=getattr(
                         self._desktop_api_registry,
                         "platform_enterprise_audit",

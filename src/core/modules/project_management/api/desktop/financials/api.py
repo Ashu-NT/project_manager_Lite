@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from datetime import date
+from decimal import Decimal, InvalidOperation
 
 from src.core.modules.project_management.application.financials import (
     FinancialConfigurationService,
@@ -104,6 +105,20 @@ from src.core.modules.project_management.api.desktop.financials.commands.cost_en
 from src.core.modules.project_management.api.desktop.financials.commands.configuration import (
     FinancialCreateCostCodeCommand,
 )
+from src.core.modules.project_management.api.desktop.financials.commands.budgets import (
+    FinancialAddBudgetLineCommand,
+    FinancialCreateBudgetSuccessorCommand,
+    FinancialCreateBudgetVersionCommand,
+    FinancialDeleteBudgetLineCommand,
+    FinancialUpdateBudgetCommand,
+    FinancialUpdateBudgetLineCommand,
+    FinancialVersionedBudgetCommand,
+)
+from src.core.modules.project_management.api.desktop.financials.models.budgets import (
+    FinancialBudgetLineMutationDto,
+    FinancialBudgetMutationDto,
+)
+from src.core.platform.common.exceptions import ValidationError
 from src.core.modules.project_management.api.desktop.financials.commands.billing import (
     FinancialActivateBillingProfileCommand,
     FinancialAddApprovedTimeBillingSourceCommand,
@@ -281,6 +296,44 @@ class ProjectManagementFinancialsDesktopApi:
             effective_on=effective_on,
         )
         return _serialize_lookup_option(fact)
+
+    def search_budget_tasks(
+        self, project_id: str, *, search: str = "", page: int = 1, page_size: int = 25
+    ) -> FinancialLookupPageDto:
+        facts = self._require_finance_workspace_query().search_budget_tasks(
+            project_id,
+            request=FinanceLookupQuery(search=search, page=page, page_size=page_size),
+        )
+        return _serialize_lookup_page(facts)
+
+    def resolve_budget_task(
+        self, project_id: str, task_id: str
+    ) -> FinancialLookupOptionDto | None:
+        return _serialize_lookup_option(
+            self._require_finance_workspace_query().resolve_budget_task(
+                project_id, task_id
+            )
+        )
+
+    def search_budget_cost_codes(
+        self, project_id: str, *, search: str = "", page: int = 1, page_size: int = 25
+    ) -> FinancialLookupPageDto:
+        facts = self._require_finance_workspace_query().search_budget_cost_codes(
+            project_id,
+            request=ManualActualCostCodeQuery(
+                search=search, page=page, page_size=page_size, effective_on=date.today()
+            ),
+        )
+        return _serialize_lookup_page(facts)
+
+    def resolve_budget_cost_code(
+        self, project_id: str, cost_code_id: str
+    ) -> FinancialLookupOptionDto | None:
+        return _serialize_lookup_option(
+            self._require_finance_workspace_query().resolve_budget_cost_code(
+                project_id, cost_code_id, effective_on=date.today()
+            )
+        )
 
     def get_manual_actual_defaults(
         self, project_id: str
@@ -940,6 +993,190 @@ class ProjectManagementFinancialsDesktopApi:
                     search=search,
                 ),
             )
+        )
+
+    def create_budget_version(
+        self, command: FinancialCreateBudgetVersionCommand
+    ) -> FinancialBudgetMutationDto:
+        budget = self._require_finance_governance_commands().budget(
+            lambda service: service.create_budget(
+                command.project_id,
+                command.name,
+                command.currency_code or None,
+            ),
+            project_id=command.project_id,
+        )
+        return self._budget_mutation_dto(budget)
+
+    def create_budget_successor(
+        self, command: FinancialCreateBudgetSuccessorCommand
+    ) -> FinancialBudgetMutationDto:
+        budget = self._require_finance_governance_commands().budget(
+            lambda service: service.create_successor(
+                command.predecessor_budget_id,
+                name=command.name,
+            )
+        )
+        return self._budget_mutation_dto(budget)
+
+    def update_budget(
+        self, command: FinancialUpdateBudgetCommand
+    ) -> FinancialBudgetMutationDto:
+        budget = self._require_finance_governance_commands().budget(
+            lambda service: service.update_budget_header(
+                command.budget_id,
+                name=command.name,
+                notes=command.notes,
+                expected_version=command.expected_version,
+            )
+        )
+        return self._budget_mutation_dto(budget)
+
+    def delete_budget(self, command: FinancialVersionedBudgetCommand) -> None:
+        def delete(service):
+            budget = service.get_budget(command.budget_id)
+            service.delete_budget(
+                command.budget_id, expected_version=command.expected_version
+            )
+            return budget
+
+        self._require_finance_governance_commands().budget(delete)
+
+    def add_budget_line(
+        self, command: FinancialAddBudgetLineCommand
+    ) -> FinancialBudgetLineMutationDto:
+        line = self._require_finance_governance_commands().budget(
+            lambda service: service.add_line(
+                command.budget_id,
+                cost_code_id=command.cost_code_id,
+                task_id=command.task_id,
+                description=command.description,
+                amount=self._decimal_command_amount(command.amount),
+                currency_code=command.currency_code,
+                expected_budget_version=command.expected_parent_version,
+            )
+        )
+        return self._budget_line_mutation_dto(line)
+
+    def update_budget_line(
+        self, command: FinancialUpdateBudgetLineCommand
+    ) -> FinancialBudgetLineMutationDto:
+        line = self._require_finance_governance_commands().budget(
+            lambda service: service.update_line(
+                command.budget_line_id,
+                expected_line_version=command.expected_version,
+                expected_budget_version=command.expected_parent_version,
+                cost_code_id=command.cost_code_id,
+                task_id=command.task_id,
+                description=command.description,
+                amount=self._decimal_command_amount(command.amount),
+                currency_code=command.currency_code,
+            )
+        )
+        return self._budget_line_mutation_dto(line)
+
+    def delete_budget_line(self, command: FinancialDeleteBudgetLineCommand) -> None:
+        def delete(service):
+            line = service._require_line(command.budget_line_id)
+            budget = service.get_budget(line.budget_id)
+            service.delete_line(
+                command.budget_line_id,
+                expected_line_version=command.expected_version,
+                expected_budget_version=command.expected_parent_version,
+            )
+            return budget
+
+        self._require_finance_governance_commands().budget(delete)
+
+    def submit_budget(
+        self, command: FinancialVersionedBudgetCommand
+    ) -> FinancialBudgetMutationDto:
+        budget = self._require_finance_governance_commands().budget(
+            lambda service: service.submit_budget(
+                command.budget_id,
+                self._actor_id(service),
+                command.notes,
+                expected_version=command.expected_version,
+            )
+        )
+        return self._budget_mutation_dto(budget)
+
+    def request_budget_approval(
+        self, command: FinancialVersionedBudgetCommand
+    ) -> FinancialBudgetMutationDto:
+        result = self._require_finance_governance_commands().budget(
+            lambda service: service.request_budget_approval(
+                command.budget_id,
+                notes=command.notes,
+                expected_version=command.expected_version,
+            )
+        )
+        return FinancialBudgetMutationDto(
+            budget_id=result.budget_id,
+            project_id=result.project_id,
+            status=result.budget_status.value,
+            row_version=result.row_version,
+            approval_request_id=result.approval_request_id or "",
+        )
+
+    def close_budget(
+        self, command: FinancialVersionedBudgetCommand
+    ) -> FinancialBudgetMutationDto:
+        budget = self._require_finance_governance_commands().budget(
+            lambda service: service.close_budget(
+                command.budget_id,
+                self._actor_id(service),
+                command.notes,
+                expected_version=command.expected_version,
+            )
+        )
+        return self._budget_mutation_dto(budget)
+
+    @staticmethod
+    def _actor_id(service) -> str:
+        actor_id = getattr(
+            getattr(getattr(service, "_user_session", None), "principal", None),
+            "user_id",
+            None,
+        )
+        if not actor_id:
+            raise ValidationError(
+                "An authenticated actor is required for Budget commands.",
+                code="BUDGET_ACTOR_REQUIRED",
+            )
+        return str(actor_id)
+
+    @staticmethod
+    def _decimal_command_amount(value: str) -> Decimal:
+        try:
+            amount = Decimal(str(value).strip())
+        except (InvalidOperation, ValueError) as exc:
+            raise ValidationError(
+                "Budget line amount must be a canonical decimal value.",
+                code="PROJECT_BUDGET_LINE_AMOUNT_INVALID",
+            ) from exc
+        if not amount.is_finite():
+            raise ValidationError(
+                "Budget line amount must be finite.",
+                code="PROJECT_BUDGET_LINE_AMOUNT_INVALID",
+            )
+        return amount
+
+    @staticmethod
+    def _budget_mutation_dto(budget) -> FinancialBudgetMutationDto:
+        return FinancialBudgetMutationDto(
+            budget_id=budget.id,
+            project_id=budget.project_id,
+            status=budget.status.value,
+            row_version=budget.row_version,
+        )
+
+    @staticmethod
+    def _budget_line_mutation_dto(line) -> FinancialBudgetLineMutationDto:
+        return FinancialBudgetLineMutationDto(
+            budget_line_id=line.id,
+            budget_id=line.budget_id,
+            row_version=line.row_version,
         )
 
     def get_planned_cost_workspace(

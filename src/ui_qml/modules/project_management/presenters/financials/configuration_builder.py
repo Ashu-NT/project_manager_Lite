@@ -102,6 +102,7 @@ def build_finance_configuration_views(
             total=source.planned_cost_line_total,
         ),
         "selected_budget_id": source.selected_budget_id,
+        "can_create_budget_version": source.can_create_budget_version,
         "budget_version_sort_key": source.budget_version_sort_key,
         "budget_version_sort_direction": source.budget_version_sort_direction,
         "budget_line_sort_key": source.budget_line_sort_key,

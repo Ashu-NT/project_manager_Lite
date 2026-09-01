@@ -196,6 +196,73 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         self._session.flush()
         return budget
 
+    def create_successor(self, budget_id: str, *, name: str) -> ProjectBudget:
+        """Create a mutable draft copied from an approved budget revision.
+
+        The predecessor remains immutable. Revision assignment, currency, and
+        line cloning are server-owned so the desktop cannot manufacture
+        financial lineage or silently omit approved dimensions.
+        """
+        require_permission(
+            self._user_session,
+            "budget.manage",
+            operation_label="create project budget successor",
+        )
+        predecessor = self._require_budget(budget_id)
+        require_project_permission(
+            self._user_session,
+            predecessor.project_id,
+            "budget.manage",
+            operation_label="create project budget successor",
+        )
+        if predecessor.status != BudgetStatus.APPROVED:
+            raise BusinessRuleError(
+                "Only an approved budget can be used as a successor source.",
+                code="PROJECT_BUDGET_SUCCESSOR_SOURCE_INVALID",
+            )
+        if self._budget_repo.has_open_for_project(predecessor.project_id):
+            raise BusinessRuleError(
+                "A draft or submitted budget already exists for this project.",
+                code="PROJECT_BUDGET_OPEN_VERSION_EXISTS",
+            )
+
+        latest = self._budget_repo.get_latest_for_project(predecessor.project_id)
+        now = self._clock.now()
+        successor = ProjectBudget.create(
+            tenant_id=predecessor.tenant_id,
+            organization_id=predecessor.organization_id,
+            project_id=predecessor.project_id,
+            predecessor_budget_id=predecessor.id,
+            name=name,
+            currency_code=predecessor.currency_code,
+            revision=(latest.revision + 1) if latest is not None else 1,
+            created_at=now,
+        )
+        try:
+            with self._session.begin_nested():
+                self._budget_repo.add(successor)
+                self._budget_repo.flush()
+                for source in self._budget_repo.list_lines(predecessor.id):
+                    cloned = BudgetLine.create(
+                        tenant_id=successor.tenant_id,
+                        organization_id=successor.organization_id,
+                        budget_id=successor.id,
+                        project_id=successor.project_id,
+                        cost_code_id=source.cost_code_id,
+                        task_id=source.task_id,
+                        description=source.description,
+                        amount=source.amount,
+                        currency_code=successor.currency_code,
+                        created_at=now,
+                    )
+                    self._budget_repo.add_line(cloned)
+                self._budget_repo.flush()
+        except IntegrityError as exc:
+            self._translate_create_conflict(exc)
+        self._record_budget_audit(operation="create_successor", budget=successor)
+        self._session.flush()
+        return successor
+
     def submit_budget(
         self, budget_id: str, submitted_by: str, notes: str = "", *, expected_version: int
     ) -> ProjectBudget:
@@ -278,6 +345,59 @@ class BudgetService(ProjectManagementModuleGuardMixin):
             project_id=approved.project_id,
             budget_status=approved.status,
             row_version=approved.row_version,
+        )
+
+    def request_budget_approval(
+        self, budget_id: str, *, notes: str = "", expected_version: int
+    ) -> BudgetApprovalResult:
+        """Create a Platform Approval request for a submitted Budget.
+
+        This command is intentionally independent of the optional governance
+        policy toggle. The desktop workflow always means "request approval";
+        only a Platform Approval participant may apply its decision.
+        """
+        if self._approval_service is None:
+            raise BusinessRuleError(
+                "Platform Approval is not configured for Budget decisions.",
+                code="PROJECT_BUDGET_APPROVAL_UNAVAILABLE",
+            )
+        require_permission(
+            self._user_session,
+            "approval.request",
+            operation_label="request budget approval",
+        )
+        budget = self._require_budget(budget_id)
+        require_project_permission(
+            self._user_session,
+            budget.project_id,
+            "approval.request",
+            operation_label="request budget approval",
+        )
+        if budget.row_version != expected_version:
+            raise ConcurrencyError("Budget changed since you opened it.", code="STALE_WRITE")
+        if budget.status != BudgetStatus.SUBMITTED:
+            raise BusinessRuleError(
+                "Only a submitted Budget can be sent for approval.",
+                code="PROJECT_BUDGET_APPROVAL_STATUS_INVALID",
+            )
+        request = self._approval_service.request_change(
+            request_type="budget.approve",
+            entity_type="project_budget",
+            entity_id=budget.id,
+            project_id=budget.project_id,
+            payload={
+                "budget_id": budget.id,
+                "expected_version": expected_version,
+                "notes": notes,
+            },
+        )
+        return BudgetApprovalResult(
+            outcome=BudgetApprovalOutcome.PENDING_APPROVAL,
+            budget_id=budget.id,
+            project_id=budget.project_id,
+            budget_status=budget.status,
+            row_version=budget.row_version,
+            approval_request_id=request.id,
         )
 
     def reject_budget(

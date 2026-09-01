@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
     BudgetLineFact,
     BudgetVersionFact,
+    BudgetVersionPageFacts,
     FinancePageFacts,
     FinancePageRequest,
 )
@@ -19,6 +20,9 @@ from src.core.modules.project_management.infrastructure.persistence.orm.financia
     ProjectCostCodeORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
+from src.core.platform.infrastructure.persistence.orm.approval.approval import (
+    ApprovalRequestORM,
+)
 
 
 _VERSION_SORTS = {
@@ -49,7 +53,7 @@ class SqlAlchemyFinanceBudgetReader:
         organization_id: str,
         project_id: str,
         request: FinancePageRequest,
-    ) -> FinancePageFacts[BudgetVersionFact]:
+    ) -> BudgetVersionPageFacts:
         conditions = [
             ProjectBudgetORM.tenant_id == tenant_id,
             ProjectBudgetORM.organization_id == organization_id,
@@ -66,12 +70,24 @@ class SqlAlchemyFinanceBudgetReader:
                 )
             )
 
-        total = int(
-            self._session.scalar(
-                select(func.count(ProjectBudgetORM.id)).where(*conditions)
+        open_version_count = (
+            select(func.count(ProjectBudgetORM.id))
+            .where(
+                ProjectBudgetORM.tenant_id == tenant_id,
+                ProjectBudgetORM.organization_id == organization_id,
+                ProjectBudgetORM.project_id == project_id,
+                ProjectBudgetORM.status.in_(("draft", "submitted")),
             )
-            or 0
+            .scalar_subquery()
         )
+        count_row = self._session.execute(
+            select(
+                func.count(ProjectBudgetORM.id).label("total"),
+                open_version_count.label("open_version_count"),
+            ).where(*conditions)
+        ).one()
+        total = int(count_row.total or 0)
+        has_open_version = bool(count_row.open_version_count)
         page, page_size, offset = _normalized_window(request, total)
         sort_key = request.sort_key if request.sort_key in _VERSION_SORTS else "revision"
         direction = "asc" if request.sort_direction == "asc" else "desc"
@@ -84,6 +100,39 @@ class SqlAlchemyFinanceBudgetReader:
             & (BudgetLineORM.project_id == ProjectBudgetORM.project_id)
             & (BudgetLineORM.budget_id == ProjectBudgetORM.id)
         )
+        pending_approval_id = (
+            select(ApprovalRequestORM.id)
+            .where(
+                ApprovalRequestORM.tenant_id == tenant_id,
+                ApprovalRequestORM.organization_id == organization_id,
+                ApprovalRequestORM.project_id == project_id,
+                ApprovalRequestORM.request_type == "budget.approve",
+                ApprovalRequestORM.entity_type == "project_budget",
+                ApprovalRequestORM.entity_id == ProjectBudgetORM.id,
+                ApprovalRequestORM.status == "PENDING",
+            )
+            .order_by(ApprovalRequestORM.requested_at.desc(), ApprovalRequestORM.id.desc())
+            .limit(1)
+            .correlate(ProjectBudgetORM)
+            .scalar_subquery()
+        )
+        pending_requester_id = (
+            select(ApprovalRequestORM.requested_by_user_id)
+            .where(
+                ApprovalRequestORM.tenant_id == tenant_id,
+                ApprovalRequestORM.organization_id == organization_id,
+                ApprovalRequestORM.project_id == project_id,
+                ApprovalRequestORM.request_type == "budget.approve",
+                ApprovalRequestORM.entity_type == "project_budget",
+                ApprovalRequestORM.entity_id == ProjectBudgetORM.id,
+                ApprovalRequestORM.status == "PENDING",
+            )
+            .order_by(ApprovalRequestORM.requested_at.desc(), ApprovalRequestORM.id.desc())
+            .limit(1)
+            .correlate(ProjectBudgetORM)
+            .scalar_subquery()
+        )
+
         stmt = (
             select(
                 ProjectBudgetORM.id,
@@ -91,12 +140,15 @@ class SqlAlchemyFinanceBudgetReader:
                 ProjectBudgetORM.status,
                 ProjectBudgetORM.revision,
                 ProjectBudgetORM.version,
+                ProjectBudgetORM.predecessor_budget_id,
                 ProjectBudgetORM.currency_code,
                 ProjectBudgetORM.submitted_by,
                 ProjectBudgetORM.submitted_at,
                 ProjectBudgetORM.approved_by,
                 ProjectBudgetORM.approved_at,
                 ProjectBudgetORM.notes,
+                pending_approval_id.label("approval_request_id"),
+                pending_requester_id.label("approval_requested_by_user_id"),
                 func.count(BudgetLineORM.id).label("line_count"),
                 func.coalesce(func.sum(BudgetLineORM.amount), 0).label("total_amount"),
             )
@@ -109,6 +161,7 @@ class SqlAlchemyFinanceBudgetReader:
                 ProjectBudgetORM.status,
                 ProjectBudgetORM.revision,
                 ProjectBudgetORM.version,
+                ProjectBudgetORM.predecessor_budget_id,
                 ProjectBudgetORM.currency_code,
                 ProjectBudgetORM.submitted_by,
                 ProjectBudgetORM.submitted_at,
@@ -121,7 +174,7 @@ class SqlAlchemyFinanceBudgetReader:
             .limit(page_size)
         )
         rows = self._session.execute(stmt).all()
-        return FinancePageFacts(
+        return BudgetVersionPageFacts(
             items=tuple(
                 BudgetVersionFact(
                     id=row.id,
@@ -129,6 +182,7 @@ class SqlAlchemyFinanceBudgetReader:
                     status=row.status,
                     revision=row.revision,
                     row_version=row.version,
+                    predecessor_budget_id=row.predecessor_budget_id,
                     currency_code=row.currency_code,
                     line_count=int(row.line_count or 0),
                     total_amount=Decimal(row.total_amount or 0),
@@ -137,6 +191,8 @@ class SqlAlchemyFinanceBudgetReader:
                     approved_by=row.approved_by,
                     approved_at=row.approved_at,
                     notes=row.notes,
+                    approval_request_id=row.approval_request_id,
+                    approval_requested_by_user_id=row.approval_requested_by_user_id,
                 )
                 for row in rows
             ),
@@ -145,6 +201,7 @@ class SqlAlchemyFinanceBudgetReader:
             page_size=page_size,
             sort_key=sort_key,
             sort_direction=direction,
+            has_open_version=has_open_version,
         )
 
     def list_lines(
@@ -213,6 +270,9 @@ class SqlAlchemyFinanceBudgetReader:
                 ProjectBudgetORM.revision.label("budget_revision"),
                 ProjectBudgetORM.status.label("budget_status"),
                 BudgetLineORM.description,
+                BudgetLineORM.version,
+                BudgetLineORM.cost_code_id,
+                BudgetLineORM.task_id,
                 ProjectCostCodeORM.code.label("cost_code"),
                 ProjectCostCodeORM.name.label("cost_code_name"),
                 TaskORM.name.label("task_name"),
@@ -242,9 +302,12 @@ class SqlAlchemyFinanceBudgetReader:
                     budget_name=row.budget_name,
                     budget_revision=row.budget_revision,
                     budget_status=row.budget_status,
+                    row_version=row.version,
                     description=row.description,
                     cost_code=row.cost_code,
                     cost_code_name=row.cost_code_name,
+                    cost_code_id=row.cost_code_id,
+                    task_id=row.task_id,
                     task_name=row.task_name or "Unassigned",
                     wbs_code=row.wbs_code or "",
                     amount=Decimal(row.amount),

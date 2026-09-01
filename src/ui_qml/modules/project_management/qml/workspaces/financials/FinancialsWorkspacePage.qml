@@ -454,6 +454,8 @@ AppLayouts.WorkspaceFrame {
                     budgetVersionsTableModel: root.workspaceController ? root.workspaceController.budgetVersionsTableModel : null
                     budgetLinesTableModel: root.workspaceController ? root.workspaceController.budgetLinesTableModel : null
                     selectedBudgetId: root.workspaceController ? root.workspaceController.selectedBudgetId : ""
+                    canCreateBudgetVersion: root.workspaceController
+                        ? root.workspaceController.canCreateBudgetVersion : false
                     budgetVersionSortKey: root.workspaceController ? root.workspaceController.budgetVersionSortKey : "revision"
                     budgetVersionSortDirection: root.workspaceController ? root.workspaceController.budgetVersionSortDirection : Qt.DescendingOrder
                     budgetLineSortKey: root.workspaceController ? root.workspaceController.budgetLineSortKey : "metaText"
@@ -534,6 +536,27 @@ AppLayouts.WorkspaceFrame {
                     }
                     onBudgetLineSortRequested: function(key, direction) {
                         if (root.workspaceController !== null) root.workspaceController.setBudgetLineSort(key, direction)
+                    }
+                    onBudgetCreateRequested: {
+                        dialogHostLoader.invoke("openBudgetVersionDialog", "create", null)
+                    }
+                    onBudgetEditRequested: function(budget) {
+                        dialogHostLoader.invoke("openBudgetVersionDialog", "edit", budget)
+                    }
+                    onBudgetSuccessorRequested: function(budget) {
+                        dialogHostLoader.invoke("openBudgetVersionDialog", "successor", budget)
+                    }
+                    onBudgetLifecycleRequested: function(action, budget) {
+                        dialogHostLoader.invoke("openBudgetLifecycleDialog", action, budget, null)
+                    }
+                    onBudgetLineAddRequested: function(budget) {
+                        dialogHostLoader.invoke("openBudgetLineDialog", "create", budget, null)
+                    }
+                    onBudgetLineEditRequested: function(budget, line) {
+                        dialogHostLoader.invoke("openBudgetLineDialog", "edit", budget, line)
+                    }
+                    onBudgetLineDeleteRequested: function(budget, line) {
+                        dialogHostLoader.invoke("openBudgetLifecycleDialog", "delete_line", budget, line)
                     }
                     onPlannedCostVersionSelected: function(versionId) {
                         if (root.workspaceController !== null) root.workspaceController.selectPlannedCostVersion(versionId)

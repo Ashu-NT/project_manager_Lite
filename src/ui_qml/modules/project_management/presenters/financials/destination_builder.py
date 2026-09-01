@@ -268,6 +268,7 @@ def build_destination_state(
                     overview=state.overview,
                     selected_project_id=project_id,
                     selected_budget_id=views["selected_budget_id"],
+                    can_create_budget_version=views["can_create_budget_version"],
                     budget_versions=views["budget_versions"],
                     budget_lines=views["budget_lines"],
                     budget_version_sort_key=views["budget_version_sort_key"],

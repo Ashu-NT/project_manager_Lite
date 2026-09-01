@@ -112,6 +112,42 @@ class FinancialsLookupMixin:
             logger.exception("Manual Actual defaults lookup failed.")
             return _lookup_error(exc)
 
+    def _search_budget_tasks(
+        self, project_id: str, search: str, page: int, page_size: int
+    ) -> dict[str, object]:
+        return self._lookup_page(
+            lambda: self._financials_workspace_presenter.search_budget_tasks(
+                project_id, search=search, page=page, page_size=page_size
+            )
+        )
+
+    def _resolve_budget_task(
+        self, project_id: str, task_id: str
+    ) -> dict[str, object]:
+        return self._lookup_item(
+            lambda: self._financials_workspace_presenter.resolve_budget_task(
+                project_id, task_id
+            )
+        )
+
+    def _search_budget_cost_codes(
+        self, project_id: str, search: str, page: int, page_size: int
+    ) -> dict[str, object]:
+        return self._lookup_page(
+            lambda: self._financials_workspace_presenter.search_budget_cost_codes(
+                project_id, search=search, page=page, page_size=page_size
+            )
+        )
+
+    def _resolve_budget_cost_code(
+        self, project_id: str, cost_code_id: str
+    ) -> dict[str, object]:
+        return self._lookup_item(
+            lambda: self._financials_workspace_presenter.resolve_budget_cost_code(
+                project_id, cost_code_id
+            )
+        )
+
     @staticmethod
     def _lookup_page(operation) -> dict[str, object]:
         try:

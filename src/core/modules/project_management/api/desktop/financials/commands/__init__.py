@@ -3,6 +3,15 @@
 from src.core.modules.project_management.api.desktop.financials.commands.configuration import (
     FinancialCreateCostCodeCommand,
 )
+from src.core.modules.project_management.api.desktop.financials.commands.budgets import (
+    FinancialAddBudgetLineCommand,
+    FinancialCreateBudgetSuccessorCommand,
+    FinancialCreateBudgetVersionCommand,
+    FinancialDeleteBudgetLineCommand,
+    FinancialUpdateBudgetCommand,
+    FinancialUpdateBudgetLineCommand,
+    FinancialVersionedBudgetCommand,
+)
 from src.core.modules.project_management.api.desktop.financials.commands.cost_entries import (
     FinancialCreateManualActualCommand,
     FinancialDecideActualCommand,
@@ -24,6 +33,7 @@ from src.core.modules.project_management.api.desktop.financials.commands.billing
 )
 
 __all__ = [
+    "FinancialAddBudgetLineCommand",
     "FinancialActivateBillingProfileCommand",
     "FinancialAddApprovedTimeBillingSourceCommand",
     "FinancialAddBillingScheduleLineCommand",
@@ -32,12 +42,18 @@ __all__ = [
     "FinancialCreateBillingPreparationCommand",
     "FinancialCreateBillingProfileCommand",
     "FinancialCreateCostCodeCommand",
+    "FinancialCreateBudgetSuccessorCommand",
+    "FinancialCreateBudgetVersionCommand",
     "FinancialCreateManualActualCommand",
     "FinancialDecideActualCommand",
+    "FinancialDeleteBudgetLineCommand",
     "FinancialMarkBillingScheduleLineReadyCommand",
     "FinancialPostActualCommand",
     "FinancialReverseActualCommand",
     "FinancialUpdateActualDraftCommand",
+    "FinancialUpdateBudgetCommand",
+    "FinancialUpdateBudgetLineCommand",
     "FinancialVersionedActualCommand",
     "FinancialVersionedBillingPreparationCommand",
+    "FinancialVersionedBudgetCommand",
 ]

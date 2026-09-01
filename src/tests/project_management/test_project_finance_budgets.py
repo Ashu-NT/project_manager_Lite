@@ -221,6 +221,104 @@ def _approve_directly(services, budget: ProjectBudget) -> ProjectBudget:
     return budget_service.get_budget(result.budget_id)
 
 
+def test_successor_clones_approved_lines_and_preserves_predecessor(services) -> None:
+    _login(services, "admin", "ChangeMe123!")
+    project = _make_project(services, name="Budget successor lineage")
+    budget_service = services["budget_service"]
+    cost_code = _make_cost_code(services, "SUCCESSOR")
+
+    predecessor = budget_service.create_budget(project.id, "Approved baseline")
+    source_line = budget_service.add_line(
+        predecessor.id,
+        cost_code_id=cost_code.id,
+        description="Approved amount",
+        amount=Decimal("125.50"),
+        expected_budget_version=predecessor.row_version,
+    )
+    predecessor = budget_service.get_budget(predecessor.id)
+    predecessor = budget_service.submit_budget(
+        predecessor.id,
+        "admin",
+        expected_version=predecessor.row_version,
+    )
+    predecessor = _approve_directly(services, predecessor)
+    predecessor_version = predecessor.row_version
+
+    successor = budget_service.create_successor(
+        predecessor.id, name="Working successor"
+    )
+    successor_lines = budget_service._budget_repo.list_lines(successor.id)
+    unchanged = budget_service.get_budget(predecessor.id)
+    predecessor_lines = budget_service._budget_repo.list_lines(predecessor.id)
+
+    assert successor.status is BudgetStatus.DRAFT
+    assert successor.predecessor_budget_id == predecessor.id
+    assert successor.revision == predecessor.revision + 1
+    assert successor.currency_code == predecessor.currency_code
+    assert unchanged.status is BudgetStatus.APPROVED
+    assert unchanged.row_version == predecessor_version
+    assert predecessor_lines[0].id == source_line.id
+    assert successor_lines[0].id != source_line.id
+    assert successor_lines[0].cost_code_id == source_line.cost_code_id
+    assert successor_lines[0].description == source_line.description
+    assert successor_lines[0].amount == Decimal("125.50")
+
+    with pytest.raises(BusinessRuleError) as exc:
+        budget_service.create_successor(predecessor.id, name="Second open successor")
+    assert exc.value.code == "PROJECT_BUDGET_OPEN_VERSION_EXISTS"
+
+
+def test_explicit_budget_approval_request_always_uses_platform_approval(
+    services, monkeypatch
+) -> None:
+    monkeypatch.setenv("PM_GOVERNANCE_MODE", "off")
+    _login(services, "admin", "ChangeMe123!")
+    project = _make_project(services, name="Explicit Platform approval")
+    budget_service = services["budget_service"]
+    budget = budget_service.create_budget(project.id, "Approval candidate")
+    budget = _submit_with_line(services, budget)
+
+    result = budget_service.request_budget_approval(
+        budget.id,
+        notes="Review independently",
+        expected_version=budget.row_version,
+    )
+
+    assert result.outcome is BudgetApprovalOutcome.PENDING_APPROVAL
+    assert result.budget_status is BudgetStatus.SUBMITTED
+    assert result.approval_request_id
+    assert budget_service.get_budget(budget.id).status is BudgetStatus.SUBMITTED
+
+    requester_view = services["finance_workspace_query"].get_budget_workspace(
+        project.id, selected_budget_id=budget.id
+    )
+    requester_row = requester_view.versions.items[0]
+    assert requester_row.approval_request_id == result.approval_request_id
+    assert requester_row.can_approve is False
+    assert requester_row.can_reject is False
+
+    services["auth_service"].register_user(
+        "budget-reviewer", "StrongPass123", role_names=["approver"]
+    )
+    _login(services, "budget-reviewer", "StrongPass123")
+    reviewer_view = services["finance_workspace_query"].get_budget_workspace(
+        project.id, selected_budget_id=budget.id
+    )
+    reviewer_row = reviewer_view.versions.items[0]
+    assert reviewer_row.can_approve is True
+    assert reviewer_row.can_reject is True
+
+    services["approval_service"].approve_and_apply(
+        result.approval_request_id, note="Approved by another principal"
+    )
+    approved = budget_service.get_budget(budget.id)
+    assert approved.status is BudgetStatus.APPROVED
+    assert sum(
+        (line.amount for line in budget_service._budget_repo.list_lines(approved.id)),
+        Decimal("0"),
+    ) == Decimal("10")
+
+
 def test_create_budget_requires_financial_profile(services, monkeypatch) -> None:
     from src.core.modules.project_management.infrastructure.persistence.repositories.finance.configuration.financial_configuration import (
         SqlAlchemyProjectFinancialProfileRepository,

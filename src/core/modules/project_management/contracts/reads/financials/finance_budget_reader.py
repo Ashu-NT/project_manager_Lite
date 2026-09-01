@@ -5,6 +5,7 @@ from typing import Protocol
 from .models.finance_budget_facts import (
     BudgetLineFact,
     BudgetVersionFact,
+    BudgetVersionPageFacts,
     FinancePageFacts,
     FinancePageRequest,
 )
@@ -18,7 +19,7 @@ class FinanceBudgetReader(Protocol):
         organization_id: str,
         project_id: str,
         request: FinancePageRequest,
-    ) -> FinancePageFacts[BudgetVersionFact]: ...
+    ) -> BudgetVersionPageFacts: ...
 
     def list_lines(
         self,

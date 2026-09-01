@@ -32,6 +32,10 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectManagementWorkspacePresenter,
 )
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
+from src.ui_qml.shared.models.currency_options import (
+    CURRENCY_OPTIONS,
+    DEFAULT_CURRENCY_CODE,
+)
 from src.ui_qml.modules.project_management.presenters.financials.destination_builder import (
     FINANCE_DESTINATIONS,
     FINANCE_SUBSECTIONS,
@@ -97,6 +101,7 @@ class ProjectManagementFinancialsWorkspaceController(
     budgetVersionsChanged = Signal()
     budgetLinesChanged = Signal()
     selectedBudgetIdChanged = Signal()
+    canCreateBudgetVersionChanged = Signal()
     budgetVersionSortKeyChanged = Signal()
     budgetVersionSortDirectionChanged = Signal()
     budgetLineSortKeyChanged = Signal()
@@ -222,6 +227,7 @@ class ProjectManagementFinancialsWorkspaceController(
         self._budget_versions_table_model = DynamicTableModel(self)
         self._budget_lines_table_model = DynamicTableModel(self)
         self._selected_budget_id = ""
+        self._can_create_budget_version = False
         self._budget_version_page = 1
         self._budget_version_sort_key = "revision"
         self._budget_version_sort_direction = Qt.DescendingOrder.value
@@ -516,6 +522,15 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property(str, notify=selectedBudgetIdChanged)
     def selectedBudgetId(self) -> str: return self._selected_budget_id
+
+    @Property(bool, notify=canCreateBudgetVersionChanged)
+    def canCreateBudgetVersion(self) -> bool: return self._can_create_budget_version
+
+    @Property("QVariantList", constant=True)
+    def currencyOptions(self) -> list[dict[str, str]]: return CURRENCY_OPTIONS
+
+    @Property(str, constant=True)
+    def defaultCurrencyCode(self) -> str: return DEFAULT_CURRENCY_CODE
 
     @Property(str, notify=budgetVersionSortKeyChanged)
     def budgetVersionSortKey(self) -> str: return self._budget_version_sort_key
@@ -943,12 +958,93 @@ class ProjectManagementFinancialsWorkspaceController(
             project_id, cost_code_id, effective_on
         )
 
+    @Slot(str, str, int, int, result="QVariantMap")
+    def searchBudgetTasks(
+        self, project_id: str, search: str, page: int, page_size: int
+    ) -> FinancialsMap:
+        return self._search_budget_tasks(project_id, search, page, page_size)
+
+    @Slot(str, str, result="QVariantMap")
+    def resolveBudgetTask(self, project_id: str, task_id: str) -> FinancialsMap:
+        return self._resolve_budget_task(project_id, task_id)
+
+    @Slot(str, str, int, int, result="QVariantMap")
+    def searchBudgetCostCodes(
+        self, project_id: str, search: str, page: int, page_size: int
+    ) -> FinancialsMap:
+        return self._search_budget_cost_codes(project_id, search, page, page_size)
+
+    @Slot(str, str, result="QVariantMap")
+    def resolveBudgetCostCode(
+        self, project_id: str, cost_code_id: str
+    ) -> FinancialsMap:
+        return self._resolve_budget_cost_code(project_id, cost_code_id)
+
     @Slot(str, result="QVariantMap")
     def loadManualActualDefaults(self, project_id: str) -> FinancialsMap:
         return self._load_manual_actual_defaults(project_id)
 
     @Slot("QVariantMap", result="QVariantMap")
     def createCostCode(self, payload: FinancialsMap) -> FinancialsMap: return self._create_cost_code(payload)
+
+    @Slot(str, str, str, result="QVariantMap")
+    def createBudgetVersion(self, project_id: str, name: str, currency: str) -> FinancialsMap:
+        return self._create_budget_version(project_id, name, currency)
+
+    @Slot(str, str, result="QVariantMap")
+    def createBudgetSuccessor(self, predecessor_id: str, name: str) -> FinancialsMap:
+        return self._create_budget_successor(predecessor_id, name)
+
+    @Slot(str, int, str, str, result="QVariantMap")
+    def updateBudget(self, budget_id: str, version: int, name: str, notes: str) -> FinancialsMap:
+        return self._update_budget(budget_id, version, name, notes)
+
+    @Slot(str, int, result="QVariantMap")
+    def deleteBudget(self, budget_id: str, version: int) -> FinancialsMap:
+        return self._delete_budget(budget_id, version)
+
+    @Slot(str, int, str, str, str, str, str, result="QVariantMap")
+    def addBudgetLine(
+        self, budget_id: str, parent_version: int, cost_code_id: str,
+        task_id: str, description: str, amount: str, currency: str,
+    ) -> FinancialsMap:
+        return self._add_budget_line(
+            budget_id, parent_version, cost_code_id, task_id,
+            description, amount, currency,
+        )
+
+    @Slot(str, int, int, str, str, str, str, str, result="QVariantMap")
+    def updateBudgetLine(
+        self, line_id: str, line_version: int, parent_version: int,
+        cost_code_id: str, task_id: str, description: str,
+        amount: str, currency: str,
+    ) -> FinancialsMap:
+        return self._update_budget_line(
+            line_id, line_version, parent_version, cost_code_id,
+            task_id, description, amount, currency,
+        )
+
+    @Slot(str, int, int, result="QVariantMap")
+    def deleteBudgetLine(
+        self, line_id: str, line_version: int, parent_version: int
+    ) -> FinancialsMap:
+        return self._delete_budget_line(line_id, line_version, parent_version)
+
+    @Slot(str, int, str, result="QVariantMap")
+    def submitBudget(self, budget_id: str, version: int, notes: str) -> FinancialsMap:
+        return self._submit_budget(budget_id, version, notes)
+
+    @Slot(str, int, str, result="QVariantMap")
+    def requestBudgetApproval(self, budget_id: str, version: int, notes: str) -> FinancialsMap:
+        return self._request_budget_approval(budget_id, version, notes)
+
+    @Slot(str, bool, str, result="QVariantMap")
+    def decideBudgetApproval(self, request_id: str, approve: bool, notes: str) -> FinancialsMap:
+        return self._decide_budget_approval(request_id, approve, notes)
+
+    @Slot(str, int, str, result="QVariantMap")
+    def closeBudget(self, budget_id: str, version: int, notes: str) -> FinancialsMap:
+        return self._close_budget(budget_id, version, notes)
 
     @Slot("QVariantMap", result="QVariantMap")
     def submitActual(self, payload: FinancialsMap) -> FinancialsMap: return self._submit_actual(payload)

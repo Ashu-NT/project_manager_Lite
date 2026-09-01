@@ -1,7 +1,9 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
+import App.Theme 1.0 as Theme
 
 Item {
     id: root
@@ -11,8 +13,23 @@ Item {
     property string selectedBudgetId: ""
     property string sortKey: "metaText"
     property int sortDirection: Qt.DescendingOrder
+    property var selectedBudget: null
+    property string selectedLineId: ""
     signal pageRequested(int page)
     signal sortRequested(string key, int direction)
+    signal addRequested(var budget)
+    signal editRequested(var budget, var line)
+    signal deleteRequested(var budget, var line)
+
+    readonly property var selectedLine: {
+        const items = root.lines.items || []
+        for (let index = 0; index < items.length; index += 1) {
+            if (String(items[index].id || "") === root.selectedLineId) return items[index]
+        }
+        return null
+    }
+    readonly property var selectedLineState: root.selectedLine
+        ? (root.selectedLine.state || {}) : ({})
 
     readonly property var _columns: [
         { "key": "title", "label": "Description", "flex": 2, "sortable": true },
@@ -28,6 +45,35 @@ Item {
         width: parent.width
         spacing: 0
         AppWidgets.SectionHeading { width: parent.width; label: "Selected Budget Lines" }
+        Flow {
+            width: parent.width
+            topPadding: Theme.AppTheme.spacingSm
+            bottomPadding: Theme.AppTheme.spacingSm
+            leftPadding: Theme.AppTheme.spacingMd
+            rightPadding: Theme.AppTheme.spacingMd
+            spacing: Theme.AppTheme.spacingSm
+            visible: root.selectedBudget !== null
+
+            AppControls.SecondaryButton {
+                visible: Boolean((root.selectedBudget.state || {}).canAddLine)
+                text: "Add Line"
+                iconName: "add"
+                onClicked: root.addRequested(root.selectedBudget)
+            }
+            AppControls.SecondaryButton {
+                visible: Boolean(root.selectedLineState.canEdit)
+                text: "Edit Line"
+                iconName: "edit"
+                onClicked: root.editRequested(root.selectedBudget, root.selectedLine)
+            }
+            AppControls.SecondaryButton {
+                visible: Boolean(root.selectedLineState.canDelete)
+                text: "Delete Line"
+                iconName: "delete"
+                danger: true
+                onClicked: root.deleteRequested(root.selectedBudget, root.selectedLine)
+            }
+        }
         AppWidgets.EmptyState {
             width: parent.width
             visible: root.selectedBudgetId.length === 0 || (root.lines.items || []).length === 0
@@ -48,7 +94,9 @@ Item {
                 sortKey: root.sortKey
                 sortDirection: root.sortDirection
                 loading: root.busy
+                selectedRowId: root.selectedLineId
                 emptyText: root.lines.emptyState || "No budget lines."
+                onRowSelected: function(rowId) { root.selectedLineId = String(rowId || "") }
                 onSortRequested: function(key, direction) { root.sortRequested(key, direction) }
             }
         }

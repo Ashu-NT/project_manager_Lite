@@ -4,6 +4,10 @@ from src.core.modules.project_management.api.desktop.financials.models.baseline_
     BaselineVarianceRecordDto,
     FinancialBaselineVersionDto,
 )
+from src.core.modules.project_management.api.desktop.financials.models.budgets import (
+    FinancialBudgetLineMutationDto,
+    FinancialBudgetMutationDto,
+)
 from src.core.modules.project_management.api.desktop.financials.models.billing import (
     FinancialBillingPreparationDto,
     FinancialBillingPreparationLineDto,
@@ -64,6 +68,8 @@ from src.core.modules.project_management.api.desktop.financials.models.performan
 
 __all__ = [
     "BaselineVarianceRecordDto",
+    "FinancialBudgetLineMutationDto",
+    "FinancialBudgetMutationDto",
     "FinancialBillingPreparationDto",
     "FinancialBillingPreparationLineDto",
     "FinancialBillingProfileDto",

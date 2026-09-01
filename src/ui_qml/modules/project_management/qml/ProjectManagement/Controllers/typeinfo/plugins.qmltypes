@@ -241,6 +241,9 @@ Component {
     Property { name: "budgetVersionsTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "budgetLinesTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "selectedBudgetId"; type: "QString"; isReadonly: true }
+    Property { name: "canCreateBudgetVersion"; type: "bool"; isReadonly: true }
+    Property { name: "currencyOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "defaultCurrencyCode"; type: "QString"; isReadonly: true }
     Property { name: "budgetVersionSortKey"; type: "QString"; isReadonly: true }
     Property { name: "budgetVersionSortDirection"; type: "int"; isReadonly: true }
     Property { name: "budgetLineSortKey"; type: "QString"; isReadonly: true }
@@ -331,6 +334,21 @@ Component {
     Method { name: "setBudgetVersionPage"; Parameter { name: "page"; type: "int" } }
     Method { name: "setBudgetVersionSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
     Method { name: "setBudgetLineSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "searchBudgetTasks"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "search"; type: "QString" } Parameter { name: "page"; type: "int" } Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "resolveBudgetTask"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "taskId"; type: "QString" } }
+    Method { name: "searchBudgetCostCodes"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "search"; type: "QString" } Parameter { name: "page"; type: "int" } Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "resolveBudgetCostCode"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "costCodeId"; type: "QString" } }
+    Method { name: "createBudgetVersion"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "name"; type: "QString" } Parameter { name: "currency"; type: "QString" } }
+    Method { name: "createBudgetSuccessor"; type: "QVariantMap"; Parameter { name: "predecessorId"; type: "QString" } Parameter { name: "name"; type: "QString" } }
+    Method { name: "updateBudget"; type: "QVariantMap"; Parameter { name: "budgetId"; type: "QString" } Parameter { name: "version"; type: "int" } Parameter { name: "name"; type: "QString" } Parameter { name: "notes"; type: "QString" } }
+    Method { name: "deleteBudget"; type: "QVariantMap"; Parameter { name: "budgetId"; type: "QString" } Parameter { name: "version"; type: "int" } }
+    Method { name: "addBudgetLine"; type: "QVariantMap"; Parameter { name: "budgetId"; type: "QString" } Parameter { name: "parentVersion"; type: "int" } Parameter { name: "costCodeId"; type: "QString" } Parameter { name: "taskId"; type: "QString" } Parameter { name: "description"; type: "QString" } Parameter { name: "amount"; type: "QString" } Parameter { name: "currency"; type: "QString" } }
+    Method { name: "updateBudgetLine"; type: "QVariantMap"; Parameter { name: "lineId"; type: "QString" } Parameter { name: "lineVersion"; type: "int" } Parameter { name: "parentVersion"; type: "int" } Parameter { name: "costCodeId"; type: "QString" } Parameter { name: "taskId"; type: "QString" } Parameter { name: "description"; type: "QString" } Parameter { name: "amount"; type: "QString" } Parameter { name: "currency"; type: "QString" } }
+    Method { name: "deleteBudgetLine"; type: "QVariantMap"; Parameter { name: "lineId"; type: "QString" } Parameter { name: "lineVersion"; type: "int" } Parameter { name: "parentVersion"; type: "int" } }
+    Method { name: "submitBudget"; type: "QVariantMap"; Parameter { name: "budgetId"; type: "QString" } Parameter { name: "version"; type: "int" } Parameter { name: "notes"; type: "QString" } }
+    Method { name: "requestBudgetApproval"; type: "QVariantMap"; Parameter { name: "budgetId"; type: "QString" } Parameter { name: "version"; type: "int" } Parameter { name: "notes"; type: "QString" } }
+    Method { name: "decideBudgetApproval"; type: "QVariantMap"; Parameter { name: "requestId"; type: "QString" } Parameter { name: "approve"; type: "bool" } Parameter { name: "notes"; type: "QString" } }
+    Method { name: "closeBudget"; type: "QVariantMap"; Parameter { name: "budgetId"; type: "QString" } Parameter { name: "version"; type: "int" } Parameter { name: "notes"; type: "QString" } }
     Method { name: "selectBillingPreparation"; Parameter { name: "preparationId"; type: "QString" } }
     Method { name: "setBillingSchedulePage"; Parameter { name: "page"; type: "int" } }
     Method { name: "setBillingPreparationPage"; Parameter { name: "page"; type: "int" } }

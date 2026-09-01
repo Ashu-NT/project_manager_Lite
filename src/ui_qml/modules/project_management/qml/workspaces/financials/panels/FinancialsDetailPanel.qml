@@ -70,6 +70,7 @@ Item {
     property var budgetVersionsTableModel: null
     property var budgetLinesTableModel: null
     property string selectedBudgetId: ""
+    property bool canCreateBudgetVersion: false
     property string budgetVersionSortKey: "revision"
     property int budgetVersionSortDirection: Qt.DescendingOrder
     property string budgetLineSortKey: "metaText"
@@ -141,6 +142,13 @@ Item {
     signal budgetVersionPageRequested(int page)
     signal budgetVersionSortRequested(string key, int direction)
     signal budgetLineSortRequested(string key, int direction)
+    signal budgetCreateRequested()
+    signal budgetEditRequested(var budget)
+    signal budgetSuccessorRequested(var budget)
+    signal budgetLifecycleRequested(string action, var budget)
+    signal budgetLineAddRequested(var budget)
+    signal budgetLineEditRequested(var budget, var line)
+    signal budgetLineDeleteRequested(var budget, var line)
     signal plannedCostVersionSelected(string versionId)
     signal plannedCostVersionPageRequested(int page)
     signal plannedCostVersionSortRequested(string key, int direction)
@@ -297,9 +305,16 @@ Item {
                 selectedBudgetId: root.selectedBudgetId
                 sortKey: root.budgetVersionSortKey
                 sortDirection: root.budgetVersionSortDirection
+                canCreateVersion: root.canCreateBudgetVersion
                 onBudgetSelected: function(budgetId) { root.budgetVersionSelected(budgetId) }
                 onPageRequested: function(page) { root.budgetVersionPageRequested(page) }
                 onSortRequested: function(key, direction) { root.budgetVersionSortRequested(key, direction) }
+                onCreateVersionRequested: root.budgetCreateRequested()
+                onEditRequested: function(budget) { root.budgetEditRequested(budget) }
+                onSuccessorRequested: function(budget) { root.budgetSuccessorRequested(budget) }
+                onLifecycleRequested: function(action, budget) {
+                    root.budgetLifecycleRequested(action, budget)
+                }
             }
             FinancialsBudgetLinesSection {
                 width: parent.width
@@ -307,12 +322,27 @@ Item {
                 tableModel: root.budgetLinesTableModel
                 busy: root.isBusy
                 selectedBudgetId: root.selectedBudgetId
+                selectedBudget: {
+                    const items = root.budgetVersionsModel.items || []
+                    for (let index = 0; index < items.length; index += 1) {
+                        if (String(items[index].id || "") === root.selectedBudgetId)
+                            return items[index]
+                    }
+                    return null
+                }
                 sortKey: root.budgetLineSortKey
                 sortDirection: root.budgetLineSortDirection
                 onPageRequested: function(page) {
                     root.configurationPageRequested("budget_lines", page)
                 }
                 onSortRequested: function(key, direction) { root.budgetLineSortRequested(key, direction) }
+                onAddRequested: function(budget) { root.budgetLineAddRequested(budget) }
+                onEditRequested: function(budget, line) {
+                    root.budgetLineEditRequested(budget, line)
+                }
+                onDeleteRequested: function(budget, line) {
+                    root.budgetLineDeleteRequested(budget, line)
+                }
             }
         }
     }

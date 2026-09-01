@@ -751,6 +751,8 @@ def build_project_management_service_bundle(
         mutations=frozenset(
             {
                 "create_budget",
+                "create_successor",
+                "request_budget_approval",
                 "submit_budget",
                 "approve_budget",
                 "reject_budget",
