@@ -104,15 +104,15 @@ def test_subscribe_domain_change_no_longer_exists_on_any_controller_base():
 
 
 def test_all_still_unmodernized_signals_survive_with_real_direct_consumers():
-    """`organizations_changed`/`employees_changed`/`departments_changed`/`sites_changed` are
-    deliberately absent from this list (P10D, P12B, P13B, P14B): all four capabilities are now
-    fully modernized (create/profile events are typed), so their legacy signals were actually
-    deleted, not merely left un-bridged like the ones below."""
+    """`organizations_changed`/`employees_changed`/`departments_changed`/`sites_changed`/
+    `parties_changed` are deliberately absent from this list (P10D, P12B, P13B, P14B, P15B): all
+    five capabilities are now fully modernized (create/profile events are typed), so their legacy
+    signals were actually deleted, not merely left un-bridged like the ones below."""
 
     for signal_name in (
         "auth_changed",
         "project_changed", "tasks_changed", "resources_changed",
-        "documents_changed", "parties_changed",
+        "documents_changed",
         "inventory_items_changed", "inventory_storerooms_changed",
     ):
         assert hasattr(domain_events, signal_name), f"{signal_name} was deleted, not just un-bridged"
@@ -254,19 +254,19 @@ def test_inventory_dashboard_does_not_react_to_an_unrelated_pm_signal(services):
     assert refresh_calls == []
 
 
-def test_inventory_catalog_workspace_direct_wired_to_shared_master_document_and_party(services):
-    """Inventory's catalog binder now connects directly to `documents_changed`/`parties_changed`
-    (its own cross-module shared-master dependency) -- no generic `scope_code="platform"` bridge
-    filter involved."""
+def test_inventory_catalog_workspace_direct_wired_to_shared_master_document(services):
+    """Inventory's catalog binder connects directly to `documents_changed` (its own cross-module
+    shared-master dependency) -- no generic `scope_code="platform"` bridge filter involved.
+    `parties_changed` was removed by P15B: Party changes now reach this workspace only through the
+    narrow `refresh_party_options()` typed-event path, not this composite signal."""
     inventory_catalog = _inventory_catalog(services)
     controller = inventory_catalog.catalogWorkspace
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
     domain_events.documents_changed.emit(_unique("p7a-doc"))
-    domain_events.parties_changed.emit(_unique("p7a-party"))
 
-    assert refresh_calls == ["refresh", "refresh"]
+    assert refresh_calls == ["refresh"]
 
 
 def test_inventory_catalog_workspace_does_not_react_to_an_unrelated_shared_master_signal(services):
@@ -281,21 +281,6 @@ def test_inventory_catalog_workspace_does_not_react_to_an_unrelated_shared_maste
     domain_events.auth_changed.emit(_unique("p7a-unrelated-auth"))
 
     assert refresh_calls == []
-
-
-def test_inventory_workspace_direct_wired_to_shared_master_party(services):
-    """Inventory's `inventory` binder still connects directly to `parties_changed` (its own
-    cross-module shared-master dependency) -- no generic `category="shared_master"` bridge filter
-    involved. `sites_changed` was removed by P14B: Site changes now reach this workspace only
-    through the narrow `refresh_site_options()` typed-event path, not this composite signal."""
-    inventory_catalog = _inventory_catalog(services)
-    controller = inventory_catalog.inventoryWorkspace
-    refresh_calls = []
-    controller.refresh = lambda: refresh_calls.append("refresh")
-
-    domain_events.parties_changed.emit(_unique("p7a-inv-party"))
-
-    assert refresh_calls == ["refresh"]
 
 
 # ---------------------------------------------------------------------------
@@ -382,9 +367,9 @@ def test_admin_console_domain_event_binder_never_touches_the_generic_bridge():
 def test_admin_console_still_composite_refreshes_on_the_one_genuinely_unmodernized_signal(
     services,
 ):
-    """Organization, Employee, and Department are no longer in this list (P10D, P12B, P13B): all
-    three are fully modernized and route through their own typed ViewInvalidation targets
-    instead."""
+    """Organization, Employee, Department, Site, and Party are no longer in this list (P10D, P12B,
+    P13B, P14B, P15B): all five are fully modernized and route through their own typed
+    ViewInvalidation targets instead."""
     catalog = _catalog(services)
     admin = catalog.adminWorkspace
     refresh_calls = []

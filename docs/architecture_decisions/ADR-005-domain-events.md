@@ -1657,6 +1657,45 @@ events, which remain fully legacy; this phase modernized only Site's producer si
 consumers' Site-specific reaction, never Inventory/Pricing/Procurement/Reservations' own domain
 events.
 
+**26.13 Party: FULLY MODERNIZED (P15A/P15B).** P15A converged `create_party`/`update_party` off
+the shared, process-lifetime `Session` onto a canonical fresh-session `PartyUnitOfWork`/
+`PartyUnitOfWorkFactory` pair, mirroring Employee/Department/Site's own UoW shape exactly. P15B
+then recorded `PartyCreated` on create and `PartyProfileUpdated` on update, pre-commit, via
+`uow.record_event(...)` — Party has no genuine lifecycle-availability split the way
+Organization/Employee/Department/Site do; its `is_active` flag is treated as an ordinary profile
+field, folded into the same `profile_changed` check as every other field, never a separate
+`PartyEnabled`/`PartyDisabled` pair. `update_party` has the same no-op discipline as its
+predecessors: a call identical to the persisted state on every relevant field records zero events,
+zero audit entry, zero write, and does not bump `updated_at`. Both events map onto one new
+`party_list` ViewInvalidation target (`OrganizationScope`).
+
+This phase found the typed-event producer side (P15A's UoW convergence, and the
+`PartyCreated`/`PartyProfileUpdated` recording plus the `party_list` ViewInvalidation handler
+function) already committed from a prior, incomplete session — but the handler was never
+subscribed to the post-commit bus in `platform_registry.py`, the `PartyViewInvalidationAdapter` Qt
+adapter existed but was wired into no `context.py`, and three of four real Inventory-Procurement-
+side narrow-refresh pairs (`refresh_party_options()`/`build_party_reference_options()` for
+Inventory/Pricing/Procurement) existed but were likewise never wired to an adapter — while
+Catalog's own `business_party_options` dependency had no narrow-refresh pair built for it at all,
+and the legacy `parties_changed` signal was still live with two real, unconverted consumers (Admin
+Console's composite binder, and Catalog's own binder) despite `party_service.py` no longer ever
+emitting it (a real, silent regression: any party mutation stopped refreshing Admin Console's
+Party page and Catalog's supplier options in production, since the swap to `uow.record_event(...)`
+had removed the legacy emission without wiring its typed replacement). P15B closed all of this: the
+`party_list` handler is now subscribed in `platform_registry.py` (mirroring Department/Site's own
+registration exactly); `PartyViewInvalidationAdapter` is wired in `ui_qml/platform/context.py` to a
+new narrow `AdminConsoleController.refresh_parties()` (delegating to the Party sub-controller's own
+`refresh()`); Catalog gained its own additive `build_party_reference_options()`/
+`refresh_party_options()` pair (extracted from its previously-inline `business_party_options`
+construction, mirroring Inventory/Pricing/Procurement's existing shape) and its own
+`PartyViewInvalidationAdapter` instance in `inventory_procurement/context.py`; Inventory, Pricing,
+and Procurement's three pre-existing but unwired adapters were wired the same way. `parties_changed`
+was removed from both remaining legacy consumers (Admin Console's and Catalog's own binders) and is
+now deleted from `DomainEvents` entirely (zero producers, zero consumers) — the legacy Signal count
+is 30 as of this phase (six Finance-family signals were added to `DomainEvents` between P14B and
+this phase, outside this migration's scope, per `FROZEN_LEGACY_SIGNAL_ALLOWLIST`'s own
+subset-only invariant — not touched here).
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

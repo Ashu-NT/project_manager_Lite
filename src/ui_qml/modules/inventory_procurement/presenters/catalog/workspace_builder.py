@@ -25,6 +25,16 @@ from .overview_builder import build_overview
 from .selection import resolve_selected_id
 
 
+def build_party_reference_options(desktop_api):
+    return (
+        InventorySelectorOptionViewModel(value="", label="No preferred party"),
+        *(
+            InventorySelectorOptionViewModel(value=option.value, label=option.label)
+            for option in desktop_api.list_business_parties(active_only=None)
+        ),
+    )
+
+
 def build_workspace_state(
     desktop_api,
     *,
@@ -69,13 +79,7 @@ def build_workspace_state(
         InventorySelectorOptionViewModel(value=option.value, label=option.label)
         for option in desktop_api.list_item_statuses()
     )
-    business_party_options = (
-        InventorySelectorOptionViewModel(value="", label="No preferred party"),
-        *(
-            InventorySelectorOptionViewModel(value=option.value, label=option.label)
-            for option in desktop_api.list_business_parties(active_only=None)
-        ),
-    )
+    business_party_options = build_party_reference_options(desktop_api)
     available_documents = tuple(
         InventoryDocumentOptionViewModel(
             value=option.value,

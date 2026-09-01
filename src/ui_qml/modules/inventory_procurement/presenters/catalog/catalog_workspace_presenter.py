@@ -24,7 +24,10 @@ from .item_command_handler import (
     toggle_item_active,
     update_item,
 )
-from .workspace_builder import build_workspace_state as _build_workspace_state
+from .workspace_builder import (
+    build_party_reference_options,
+    build_workspace_state as _build_workspace_state,
+)
 
 class InventoryCatalogWorkspacePresenter:
     def __init__(
@@ -55,6 +58,9 @@ class InventoryCatalogWorkspacePresenter:
             selected_category_id=selected_category_id,
             selected_item_id=selected_item_id,
         )
+
+    def build_party_reference_options(self):
+        return build_party_reference_options(self._desktop_api)
 
     def suggest_category_code(self, payload: dict[str, Any]) -> str:
         return suggest_category_code(self._desktop_api, payload)

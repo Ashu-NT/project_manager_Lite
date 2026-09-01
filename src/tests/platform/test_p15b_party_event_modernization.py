@@ -260,6 +260,14 @@ def test_admin_console_no_refresh_on_failed_transaction(services):
     assert refresh_calls == []
 
 
+def test_parties_changed_field_and_producers_are_fully_gone():
+    assert not hasattr(domain_events, "parties_changed")
+
+    import src.core.platform.application.master_data.party.party_service as party_service_module
+
+    assert "parties_changed" not in inspect.getsource(party_service_module)
+
+
 def test_no_forbidden_party_changed_event_name_exists():
     import glob
 

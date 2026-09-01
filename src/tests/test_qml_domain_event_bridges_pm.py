@@ -125,15 +125,15 @@ def test_platform_admin_access_workspace_reacts_to_auth_changed_narrowly(monkeyp
 
 
 def test_platform_admin_workspace_refreshes_on_master_data_events(monkeypatch) -> None:
-    """`organizations_changed` removed from this proof (P10D): admin console organization
-    refresh now flows through the typed `organization_list` ViewInvalidation target instead of
-    this composite Signal list -- see `test_organization_view_invalidation_qt_cutover.py`."""
+    """`organizations_changed` removed from this proof (P10D), `parties_changed` removed (P15B):
+    admin console organization/party refresh now flows through their own typed ViewInvalidation
+    targets instead of this composite Signal list -- see
+    `test_organization_view_invalidation_qt_cutover.py`."""
     catalog = PlatformWorkspaceCatalog()
     controller = catalog.adminWorkspace
     refresh_calls: list[str] = []
     monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
 
-    domain_events.parties_changed.emit("party-1")
     domain_events.documents_changed.emit("doc-1")
 
-    assert refresh_calls == ["refresh", "refresh"]
+    assert refresh_calls == ["refresh"]

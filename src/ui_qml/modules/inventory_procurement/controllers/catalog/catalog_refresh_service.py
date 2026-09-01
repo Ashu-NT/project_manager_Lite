@@ -99,3 +99,8 @@ def refresh(ctrl) -> None:
         ctrl._set_error_message(str(exc))
     finally:
         ctrl._set_is_loading(False)
+
+
+def refresh_party_options(ctrl) -> None:
+    business_party_options = ctrl._catalog_workspace_presenter.build_party_reference_options()
+    ctrl._set_business_party_options(serialize_selector_options(business_party_options))
