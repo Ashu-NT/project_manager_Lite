@@ -3,8 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from src.core.shared.events.signal import Signal
-
 
 class ResourceCapabilityChangeType(str, Enum):
     ADDED = "ADDED"
@@ -14,6 +12,9 @@ class ResourceCapabilityChangeType(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class ResourceCapabilityChanged:
+    """A canonical DomainEvent (P18A) -- recorded via `uow.record_event(...)` and dispatched
+    through the shared transactional/post-commit pipeline, never a bespoke `Signal[T]`."""
+
     tenant_id: str
     organization_id: str
     resource_id: str
@@ -23,11 +24,7 @@ class ResourceCapabilityChanged:
     change_type: ResourceCapabilityChangeType
 
 
-resource_capability_changed: Signal[ResourceCapabilityChanged] = Signal()
-
-
 __all__ = [
     "ResourceCapabilityChanged",
     "ResourceCapabilityChangeType",
-    "resource_capability_changed",
 ]

@@ -15,6 +15,9 @@ from src.core.modules.project_management.infrastructure.persistence.uow.finance.
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
 )
+from src.core.modules.project_management.infrastructure.persistence.uow.resources.resource_unit_of_work import (
+    SqlAlchemyResourceUnitOfWorkFactory,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
     SqlAlchemyProjectRepository,
 )
@@ -378,6 +381,14 @@ def build_project_management_service_bundle(
     system_clock = SystemClock()
     resource_read_reader = SqlAlchemyResourceCatalogReader(session=session)
     resource_context_reader = SqlAlchemyResourceContextReader(session=session)
+    resource_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
+    resource_uow_factory = SqlAlchemyResourceUnitOfWorkFactory(
+        session_factory=resource_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
     resource_service = ResourceService(
         session,
         repositories.resource_repo,
@@ -400,6 +411,8 @@ def build_project_management_service_bundle(
         resource_capability_reader=resource_context_reader,
         department_service=platform_services.department_service,
         site_service=platform_services.site_service,
+        uow_factory=resource_uow_factory,
+        clock=system_clock,
     )
     financial_configuration_service = FinancialConfigurationService(
         session=session,

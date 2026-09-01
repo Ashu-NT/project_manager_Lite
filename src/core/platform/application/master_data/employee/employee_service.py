@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import logging
 from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
@@ -19,6 +20,9 @@ from src.core.platform.application.master_data.employee.employee_support import 
 from src.core.platform.contract.repositories.master_data.employee.contracts import (
     EmployeeRepository,
     LinkedEmployeeResourceRepository,
+)
+from src.core.platform.contract.interface.master_data.employee.contracts import (
+    ResourceMasterEventFactory,
 )
 from src.core.platform.contract.read.master_data.employee.employee_headcount_reader import (
     EmployeeDepartmentBreakdownRow,
@@ -44,6 +48,8 @@ if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.domain.security.auth.session import UserSessionContext
 
+logger = logging.getLogger(__name__)
+
 
 class EmployeeService:
     def __init__(
@@ -59,6 +65,7 @@ class EmployeeService:
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
         headcount_reader: EmployeeHeadcountReader | None = None,
+        resource_master_event_factory: ResourceMasterEventFactory | None = None,
         uow_factory: EmployeeUnitOfWorkFactory,
         clock: Clock,
     ):
@@ -69,6 +76,7 @@ class EmployeeService:
         self._department_repo = department_repo
         self._organization_repo = organization_repo
         self._headcount_reader = headcount_reader
+        self._resource_master_event_factory = resource_master_event_factory
         self._uow_factory = uow_factory
         self._clock = clock
         self._tenant_context_service = tenant_context_service or (
@@ -260,7 +268,7 @@ class EmployeeService:
 
             try:
                 uow.employees.update(candidate)
-                touched_resource_ids = sync_linked_employee_resources(candidate, uow.resources)
+                touched_resources = sync_linked_employee_resources(candidate, uow.resources)
                 record_audit_entry(
                     uow,
                     operation="update",
@@ -280,11 +288,29 @@ class EmployeeService:
                         occurred_at=self._clock.now(),
                     )
                 )
+                # P18A §8: this IS a real Resource mutation (name/role/contact rows were just
+                # written via uow.resources above), performed atomically in this same
+                # transaction -- so it earns a typed Resource business event here, not merely a
+                # future ViewInvalidation. The concrete event class is business-module vocabulary
+                # Platform must not import directly (ADR-005 Sec21/Sec22); the factory satisfying
+                # `ResourceMasterEventFactory` is supplied by composition instead.
+                if self._resource_master_event_factory is not None:
+                    for resource in touched_resources:
+                        uow.record_event(
+                            self._resource_master_event_factory(
+                                resource, tenant_id=tenant_id, organization_id=organization_id
+                            )
+                        )
                 uow.commit()
             except IntegrityError as exc:
                 raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS") from exc
-        for resource_id in touched_resource_ids:
-            domain_events.resources_changed.emit(resource_id)
+        for resource in touched_resources:
+            try:
+                domain_events.resources_changed.emit(resource.id)
+            except Exception:
+                logger.exception(
+                    "Legacy resources_changed dispatch failed", extra={"resource_id": resource.id}
+                )
         return candidate
 
     def list_employees(

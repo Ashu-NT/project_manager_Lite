@@ -5,12 +5,6 @@ from __future__ import annotations
 from decimal import Decimal
 
 from src.core.modules.project_management.domain.enums import CostType
-from src.core.modules.project_management.application.resources.resource_master_events import (
-    ResourceMasterChangeType,
-)
-from src.core.modules.project_management.application.resources.resource_master_uow import (
-    ResourceMasterUnitOfWork,
-)
 from src.core.platform.domain.data_operations.importing import ImportPreview, ImportPreviewRow, ImportSummary
 from src.core.modules.project_management.infrastructure.importers.utils.coercion import (
     optional_bool,
@@ -66,10 +60,6 @@ def import_resources(
     summary = ImportSummary(entity_type="resources")
     existing = {r.id: r for r in resource_service.list_resources()}
     existing_by_name = {r.name.strip().lower(): r for r in resource_service.list_resources()}
-    uow = ResourceMasterUnitOfWork(
-        resource_service._session,
-        resource_service._tenant_context_service,
-    )
     for line_no, row in rows:
         try:
             resource = existing.get(row.get("id") or "") or existing_by_name.get(
@@ -88,10 +78,7 @@ def import_resources(
             }
             requested_active = optional_bool(row.get("is_active"), default=True)
             if resource is None:
-                resource = uow.execute(
-                    lambda: resource_service.create_resource(**payload),
-                    change_type=ResourceMasterChangeType.CREATED,
-                )
+                resource = resource_service.create_resource(**payload)
                 summary.created_count += 1
             else:
                 payload.update(
@@ -101,13 +88,10 @@ def import_resources(
                     department_id=resource.department_id,
                     site_id=resource.site_id,
                 )
-                resource = uow.execute(
-                    lambda: resource_service.update_resource(
-                        resource_id=resource.id,
-                        expected_version=resource.version,
-                        **payload,
-                    ),
-                    change_type=ResourceMasterChangeType.UPDATED,
+                resource = resource_service.update_resource(
+                    resource_id=resource.id,
+                    expected_version=resource.version,
+                    **payload,
                 )
                 summary.updated_count += 1
             if resource.is_active != requested_active:
@@ -116,16 +100,9 @@ def import_resources(
                     if requested_active
                     else resource_service.deactivate_resource
                 )
-                resource = uow.execute(
-                    lambda: operation(
-                        resource_id=resource.id,
-                        expected_version=resource.version,
-                    ),
-                    change_type=(
-                        ResourceMasterChangeType.REACTIVATED
-                        if requested_active
-                        else ResourceMasterChangeType.DEACTIVATED
-                    ),
+                resource = operation(
+                    resource_id=resource.id,
+                    expected_version=resource.version,
                 )
             existing = {r.id: r for r in resource_service.list_resources()}
             existing_by_name = {r.name.strip().lower(): r for r in resource_service.list_resources()}

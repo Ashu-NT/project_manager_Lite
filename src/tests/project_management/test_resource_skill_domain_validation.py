@@ -85,6 +85,45 @@ class _RecordingCertRepo:
         self.added = [cert for cert in self.added if cert.id != cert_id]
 
 
+class _FakeScope:
+    tenant_id = "tenant-1"
+    organization_id = "org-1"
+
+
+class _FakeTenantContextService:
+    def require_active_scope_ids(self, *, operation_label: str) -> _FakeScope:
+        return _FakeScope()
+
+
+class _FakeResourceUnitOfWork:
+    def __init__(self, *, skill_repo, cert_repo) -> None:
+        self.resources = SimpleNamespace()
+        self.skills = skill_repo
+        self.certifications = cert_repo
+        self._enterprise_audit_service = SimpleNamespace(record=lambda **kwargs: None)
+
+    def __enter__(self) -> "_FakeResourceUnitOfWork":
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        return None
+
+    def record_event(self, event) -> None:
+        pass
+
+    def commit(self) -> None:
+        pass
+
+
+class _FakeResourceUnitOfWorkFactory:
+    def __init__(self, *, skill_repo, cert_repo) -> None:
+        self._skill_repo = skill_repo
+        self._cert_repo = cert_repo
+
+    def create(self, *, context) -> _FakeResourceUnitOfWork:
+        return _FakeResourceUnitOfWork(skill_repo=self._skill_repo, cert_repo=self._cert_repo)
+
+
 def _make_resource_service(
     *,
     skill_repo: _RecordingSkillRepo | None = None,
@@ -96,6 +135,9 @@ def _make_resource_service(
         assignment_repo=SimpleNamespace(),
         skill_repo=skill_repo,
         cert_repo=cert_repo,
+        tenant_context_service=_FakeTenantContextService(),
+        uow_factory=_FakeResourceUnitOfWorkFactory(skill_repo=skill_repo, cert_repo=cert_repo),
+        clock=SimpleNamespace(now=lambda: None),
     )
 
 

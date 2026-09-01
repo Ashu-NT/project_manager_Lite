@@ -159,6 +159,9 @@ from src.core.platform.infrastructure.persistence.uow.document_unit_of_work impo
 from src.core.modules.project_management.infrastructure.persistence.repositories.resources.resource import (
     SqlAlchemyResourceRepository,
 )
+from src.core.modules.project_management.application.resources.resource_master_events import (
+    build_resource_master_changed_for_employee_sync,
+)
 from src.core.platform.infrastructure.persistence.uow.platform_provisioning_unit_of_work import (
     SqlAlchemyPlatformProvisioningUnitOfWorkFactory,
 )
@@ -969,6 +972,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         headcount_reader=employee_headcount_reader,
+        resource_master_event_factory=build_resource_master_changed_for_employee_sync,
         uow_factory=employee_uow_factory,
         clock=SystemClock(),
     )
