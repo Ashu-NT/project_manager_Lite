@@ -1415,6 +1415,12 @@ This ADR does **not**:
 
 ### 26. Implementation Status: P8 Closeout
 
+> For live, capability-by-capability migration status, the current legacy `Signal` count, and
+> the provisional roadmap for what's next, see
+> [`docs/architecture/event-modernization-plan.md`](../architecture/event-modernization-plan.md)
+> - this section records the design decisions and their rationale; that document tracks
+> sequencing and is expected to change between ADR revisions.
+
 This section is the authoritative record of what the Platform-scoped implementation (P0-P8 of
 `platform_domain_event_implementation_plan.md`) actually built, as distinct from what earlier
 sections of this ADR proposed. Nothing in §1-§25 was reversed; this section records completion,

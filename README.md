@@ -13,6 +13,7 @@ layer.
 
 - [Module Status](#module-status)
 - [Architecture](#architecture)
+- [Event Architecture](#event-architecture)
 - [Project Structure](#project-structure)
 - [Requirements](#requirements)
 - [Getting Started](#getting-started)
@@ -94,6 +95,81 @@ single-tenant by default. Architectural rules are enforced by tests in
 - [`docs/architecture/enterprise-platform-architecture.md`](docs/architecture/enterprise-platform-architecture.md) - full enterprise platform architecture and roadmap
 - [`docs/architecture_decisions/`](docs/architecture_decisions/) - ADRs recording cross-module ownership decisions
 - [`docs/REMAINING_WORK.md`](docs/REMAINING_WORK.md) - consolidated backlog across every module and platform concern
+
+## Event Architecture
+
+Mutation notification follows one canonical flow, target state for every capability (ADR-005):
+
+```
+Application command/service
+    v
+Canonical UnitOfWork
+    v
+repository mutation + audit staging
+    v
+uow.record_event(...)
+    v
+transactional DomainEvent handlers        [FAIL_FAST - rolls back the transaction]
+    v
+database commit
+    v
+postcommit DomainEvent bus                [ISOLATE_AND_CONTINUE - one handler's failure never blocks another]
+    v
+ViewInvalidation handler
+    v
+ViewInvalidationChannel
+    v
+scoped UI adapter/controller
+    v
+narrow read-model refresh
+```
+
+Five kept-distinct concepts - none collapse into a single "universal event bus":
+
+| Concept | Meaning |
+|---|---|
+| **DomainEvent** | A business fact that occurred (`TaskCompleted`, `DocumentReferenceLinked`) |
+| **ViewInvalidation** | A transport-independent hint that a read model became stale - never a business fact |
+| **PlatformEvent / Audit Record** | An immutable, persisted governance/compliance log entry - not dispatched |
+| **Notification** | A persisted, user-facing, multi-channel in-app notification |
+| **IntegrationEventEnvelope** | A durable, cross-process, schema-versioned event (ADR-PF-011 outbox/inbox) |
+
+Rules enforced by architecture-guard tests (`src/tests/architecture/`, `src/tests/platform/test_p*`):
+
+- The UI never consumes a raw `DomainEvent` directly - only a `ViewInvalidationHint`, via a Qt
+  adapter.
+- A `DomainEvent` never carries UI refresh instructions - it states a fact, nothing about who
+  should react.
+- `ViewInvalidationHint` scope is typed and closed: `PlatformScope`, `TenantScope`,
+  `OrganizationScope`, `ResourceScope` - never a flat `organization_id: str | None`.
+- `organization_id=None` never means tenant-wide; a genuinely tenant-wide fact is a `TenantScope`
+  instance, which has no `organization_id` field to be ambiguous about.
+- A mutation affecting several organizations is represented as several scoped hints, never
+  collapsed into one wider hint.
+- Transactional handlers fail fast (roll back the whole transaction); post-commit handlers
+  isolate failures and continue.
+- Legacy `Signal[str]` fields on `DomainEvents` are being retired capability-by-capability - see
+  status below.
+- No new generic legacy-event bridge, string-keyed router, service locator, or generic
+  repository resolver may be introduced for event handling.
+
+**Current modernization status** (source-derived; recompute rather than trust a stale count - see
+[`docs/architecture/event-modernization-plan.md`](docs/architecture/event-modernization-plan.md)
+for the live, detailed roadmap):
+
+Fully modernized (typed `DomainEvent`s + scoped `ViewInvalidation`, legacy `Signal` deleted):
+Organization, Tenant Membership, Module Entitlements, Role Binding / Scoped Access, Approval,
+Employee, Department, Site, Party, Document, DocumentStructure, DocumentLink.
+
+Current priority: **Project Resource** (P18).
+
+Remaining major areas still on legacy `Signal`s: Project Management, Finance, Inventory /
+Procurement, Auth / Security.
+
+**References:** [`docs/architecture_decisions/ADR-005-domain-events.md`](docs/architecture_decisions/ADR-005-domain-events.md)
+(architectural decisions and rationale) and
+[`docs/architecture/event-modernization-plan.md`](docs/architecture/event-modernization-plan.md)
+(living implementation roadmap and phase ledger).
 
 ## Project Structure
 
@@ -239,6 +315,7 @@ conda run -n pmenv python -m pytest -q src/tests/test_large_scale_performance.py
 - [`docs/REMAINING_WORK.md`](docs/REMAINING_WORK.md) - single consolidated backlog of everything not yet done, across every module and the platform layer
 - [`docs/ARCHITECTURE_README.md`](docs/ARCHITECTURE_README.md) - tenancy/org/auth/RBAC deep reference
 - [`docs/architecture/enterprise-platform-architecture.md`](docs/architecture/enterprise-platform-architecture.md) - full architecture & roadmap
+- [`docs/architecture/event-modernization-plan.md`](docs/architecture/event-modernization-plan.md) - living domain-event/ViewInvalidation modernization roadmap and phase ledger
 - [`docs/architecture_decisions/`](docs/architecture_decisions/) - ADRs
 - [`docs/inventory_procurement/`](docs/inventory_procurement/), [`docs/pm_modernization/`](docs/pm_modernization/) - per-module design/execution plans
 - [`docs/cache_service_strategy/`](docs/cache_service_strategy/) - shared cache service design (not yet implemented)
