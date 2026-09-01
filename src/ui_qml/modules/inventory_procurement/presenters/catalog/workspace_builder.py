@@ -49,6 +49,18 @@ def build_document_reference_options(desktop_api):
     )
 
 
+def build_selected_item_detail(desktop_api, item_id: str | None):
+    """The narrowest existing seam for "just the selected item's own detail (incl. its
+    linked_documents)" -- reused by both the full workspace refresh (via build_workspace_state)
+    and the new document_links-driven narrow refresh, which needs to rebuild only this,
+    never the whole catalog."""
+    if not item_id:
+        return build_item_detail(None, desktop_api)
+    all_items = desktop_api.list_items(active_only=None)
+    item = next((row for row in all_items if row.id == item_id), None)
+    return build_item_detail(item, desktop_api)
+
+
 def build_workspace_state(
     desktop_api,
     *,

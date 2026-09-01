@@ -9,7 +9,6 @@ from sqlalchemy.exc import IntegrityError
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from src.core.shared.events.domain_events import domain_events
 from src.core.platform.domain.master_data.documents import (
     Document,
     DocumentClassification,
@@ -21,6 +20,8 @@ from src.core.platform.domain.master_data.documents import (
 from src.core.platform.domain.master_data.documents.events import (
     DocumentCreated,
     DocumentProfileUpdated,
+    DocumentReferenceLinked,
+    DocumentReferenceUnlinked,
     DocumentStructureCreated,
     DocumentStructureProfileUpdated,
 )
@@ -489,6 +490,7 @@ def add_link(
 ) -> DocumentLink:
     require_permission(service._user_session, "settings.manage", operation_label="link document")
     organization = active_organization(service)
+    tenant_id = organization.tenant_id
     with service._uow_factory.create(context=service._new_context()) as uow:
         document = require_document_in_context(document_id, organization=organization, document_repo=uow.documents)
         link = DocumentLink.create(
@@ -527,16 +529,28 @@ def add_link(
                 commit=False,
                 fail_closed=True,
             )
+            uow.record_event(
+                DocumentReferenceLinked(
+                    tenant_id=tenant_id,
+                    organization_id=organization.id,
+                    document_id=document.id,
+                    module_code=link.module_code,
+                    entity_type=link.entity_type,
+                    entity_id=link.entity_id,
+                    link_role=link.link_role,
+                    occurred_at=service._clock.now(),
+                )
+            )
             uow.commit()
         except IntegrityError as exc:
             raise ValidationError("This document link already exists.", code="DOCUMENT_LINK_EXISTS") from exc
-    domain_events.documents_changed.emit(document.id)
     return link
 
 
 def remove_link(service: DocumentService, link_id: str) -> None:
     require_permission(service._user_session, "settings.manage", operation_label="unlink document")
     organization = active_organization(service)
+    tenant_id = organization.tenant_id
     with service._uow_factory.create(context=service._new_context()) as uow:
         link = uow.links.get(link_id)
         if link is None:
@@ -560,8 +574,19 @@ def remove_link(service: DocumentService, link_id: str) -> None:
             commit=False,
             fail_closed=True,
         )
+        uow.record_event(
+            DocumentReferenceUnlinked(
+                tenant_id=tenant_id,
+                organization_id=organization.id,
+                document_id=document.id,
+                module_code=link.module_code,
+                entity_type=link.entity_type,
+                entity_id=link.entity_id,
+                link_role=link.link_role,
+                occurred_at=service._clock.now(),
+            )
+        )
         uow.commit()
-    domain_events.documents_changed.emit(document.id)
 
 
 __all__ = [

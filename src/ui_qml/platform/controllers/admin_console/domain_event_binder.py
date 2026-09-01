@@ -9,7 +9,6 @@ def bind_domain_events(controller) -> None:
 
     for signal in (
         domain_events.auth_changed,
-        domain_events.documents_changed,
     ):
         controller._subscribe_domain_signal(signal, _on_domain_event)
 

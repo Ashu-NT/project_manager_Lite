@@ -105,14 +105,14 @@ def test_subscribe_domain_change_no_longer_exists_on_any_controller_base():
 
 def test_all_still_unmodernized_signals_survive_with_real_direct_consumers():
     """`organizations_changed`/`employees_changed`/`departments_changed`/`sites_changed`/
-    `parties_changed` are deliberately absent from this list (P10D, P12B, P13B, P14B, P15B): all
-    five capabilities are now fully modernized (create/profile events are typed), so their legacy
-    signals were actually deleted, not merely left un-bridged like the ones below."""
+    `parties_changed`/`documents_changed` are deliberately absent from this list (P10D, P12B,
+    P13B, P14B, P15B, P16D): all six capabilities are now fully modernized (create/profile events
+    are typed), so their legacy signals were actually deleted, not merely left un-bridged like
+    the ones below."""
 
     for signal_name in (
         "auth_changed",
         "project_changed", "tasks_changed", "resources_changed",
-        "documents_changed",
         "inventory_items_changed", "inventory_storerooms_changed",
     ):
         assert hasattr(domain_events, signal_name), f"{signal_name} was deleted, not just un-bridged"
@@ -254,19 +254,11 @@ def test_inventory_dashboard_does_not_react_to_an_unrelated_pm_signal(services):
     assert refresh_calls == []
 
 
-def test_inventory_catalog_workspace_direct_wired_to_shared_master_document(services):
-    """Inventory's catalog binder connects directly to `documents_changed` (its own cross-module
-    shared-master dependency) -- no generic `scope_code="platform"` bridge filter involved.
-    `parties_changed` was removed by P15B: Party changes now reach this workspace only through the
-    narrow `refresh_party_options()` typed-event path, not this composite signal."""
-    inventory_catalog = _inventory_catalog(services)
-    controller = inventory_catalog.catalogWorkspace
-    refresh_calls = []
-    controller.refresh = lambda: refresh_calls.append("refresh")
-
-    domain_events.documents_changed.emit(_unique("p7a-doc"))
-
-    assert refresh_calls == ["refresh"]
+# P16D removed `test_inventory_catalog_workspace_direct_wired_to_shared_master_document`:
+# Catalog's binder no longer subscribes to `documents_changed` at all -- Document changes now
+# reach this workspace only through the narrow `refresh_document_options()`/
+# `refresh_selected_item_linked_documents()` typed-event paths, not this composite signal. See
+# test_p16d_document_link_typed_events.py.
 
 
 def test_inventory_catalog_workspace_does_not_react_to_an_unrelated_shared_master_signal(services):
@@ -391,7 +383,6 @@ def test_pm_dashboard_still_does_not_react_to_unrelated_capability_events(servic
     refresh_calls = []
     dashboard.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.documents_changed.emit(_unique("p7-dashboard-doc"))
     domain_events.auth_changed.emit(_unique("p7-dashboard-auth"))
 
     assert refresh_calls == []

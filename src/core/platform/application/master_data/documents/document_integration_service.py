@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.contract.repositories.master_data.documents.contracts import (
     DocumentLinkRepository,
@@ -17,7 +16,11 @@ from src.core.platform.contract.repositories.master_data.documents.contracts imp
 )
 from src.core.platform.contract.uow.document_unit_of_work import DocumentUnitOfWorkFactory
 from src.core.platform.domain.master_data.documents import Document, DocumentLink, DocumentType
-from src.core.platform.domain.master_data.documents.events import DocumentCreated
+from src.core.platform.domain.master_data.documents.events import (
+    DocumentCreated,
+    DocumentReferenceLinked,
+    DocumentReferenceUnlinked,
+)
 from src.core.platform.domain.master_data.documents.document_link import (
     normalize_document_entity_id,
     normalize_document_entity_type,
@@ -166,8 +169,6 @@ class DocumentIntegrationService:
                     commit=False,
                     fail_closed=True,
                 )
-                # documents_changed emission below stays (unmodernized until P16D) because
-                # this same operation also creates an unmodernized DocumentLink fact.
                 uow.record_event(
                     DocumentCreated(
                         tenant_id=organization.tenant_id,
@@ -176,9 +177,19 @@ class DocumentIntegrationService:
                         occurred_at=now,
                     )
                 )
+                uow.record_event(
+                    DocumentReferenceLinked(
+                        tenant_id=organization.tenant_id,
+                        organization_id=organization.id,
+                        document_id=document.id,
+                        module_code=normalized_module,
+                        entity_type=normalized_entity_type,
+                        entity_id=normalized_entity_id,
+                        link_role=normalized_role,
+                        occurred_at=now,
+                    )
+                )
             uow.commit()
-        for document in created:
-            domain_events.documents_changed.emit(document.id)
         return created
 
     def list_documents_for_entity(
@@ -275,10 +286,21 @@ class DocumentIntegrationService:
                     commit=False,
                     fail_closed=True,
                 )
+                uow.record_event(
+                    DocumentReferenceLinked(
+                        tenant_id=organization.tenant_id,
+                        organization_id=organization.id,
+                        document_id=document.id,
+                        module_code=link.module_code,
+                        entity_type=link.entity_type,
+                        entity_id=link.entity_id,
+                        link_role=link.link_role,
+                        occurred_at=self._clock.now(),
+                    )
+                )
                 uow.commit()
             except IntegrityError as exc:
                 raise ValidationError("Document link already exists.", code="DOCUMENT_LINK_EXISTS") from exc
-        domain_events.documents_changed.emit(document.id)
         return link
 
     def unlink_existing_document(
@@ -329,8 +351,19 @@ class DocumentIntegrationService:
                 commit=False,
                 fail_closed=True,
             )
+            uow.record_event(
+                DocumentReferenceUnlinked(
+                    tenant_id=organization.tenant_id,
+                    organization_id=organization.id,
+                    document_id=document.id,
+                    module_code=normalized_module,
+                    entity_type=normalized_entity_type,
+                    entity_id=normalized_entity_id,
+                    link_role=normalized_role,
+                    occurred_at=self._clock.now(),
+                )
+            )
             uow.commit()
-        domain_events.documents_changed.emit(document.id)
 
     def _resolve_structure_for_context(
         self,

@@ -124,16 +124,11 @@ def test_platform_admin_access_workspace_reacts_to_auth_changed_narrowly(monkeyp
     assert not hasattr(domain_events, "access_changed")
 
 
-def test_platform_admin_workspace_refreshes_on_master_data_events(monkeypatch) -> None:
-    """`organizations_changed` removed from this proof (P10D), `parties_changed` removed (P15B):
-    admin console organization/party refresh now flows through their own typed ViewInvalidation
-    targets instead of this composite Signal list -- see
-    `test_organization_view_invalidation_qt_cutover.py`."""
-    catalog = PlatformWorkspaceCatalog()
-    controller = catalog.adminWorkspace
-    refresh_calls: list[str] = []
-    monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
-
-    domain_events.documents_changed.emit("doc-1")
-
-    assert refresh_calls == ["refresh"]
+# P16D superseded `test_platform_admin_workspace_refreshes_on_master_data_events`:
+# `organizations_changed` removed (P10D), `employees_changed`/`departments_changed`/
+# `sites_changed` removed (P12B/P13B/P14B), `parties_changed` removed (P15B),
+# `documents_changed` removed (P16D) -- admin console's composite domain-event binder now
+# subscribes to `auth_changed` only, and every master-data capability's refresh flows through
+# its own typed ViewInvalidation target instead of this composite Signal list. See
+# test_p7b_dead_signal_cleanup.py's `test_admin_console_still_reacts_to_its_remaining_signal`
+# for the current proof.

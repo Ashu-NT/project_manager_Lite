@@ -1,31 +1,3 @@
-"""ADR-005 §12 (View Invalidation): a transport-independent hint that an authoritative
-read/view is stale and should be re-read.
-
-Never a business fact -- never routed through the same contract as a `DomainEvent`. Contains
-only targeting fields: `scope`, `category`, `scope_code`, `entity_type`, `entity_id`.
-
-Scope is a closed, three-kind `EventScope` union (`PlatformScope`/`TenantScope`/
-`OrganizationScope`), replacing an earlier, rejected design that used plain
-`tenant_id`/`organization_id: str | None` fields directly on the hint plus five separately-named
-channel subscription methods. Under the flat shape, `organization_id=None` had to carry the
-entire weight of meaning "intentionally tenant-wide" by convention alone; under the typed union,
-a `TenantScope` has no `organization_id` field to be ambiguous about -- the invariant is a fact
-about the type system, not a fact developers must remember (ADR-005 §12).
-
-`DomainEvent` deliberately does NOT adopt `EventScope` -- see ADR-005 §3: a business-fact
-dataclass's `tenant_id`/`organization_id` are plain vocabulary read alongside its other identifier
-fields, whereas `ViewInvalidationHint` is transport/filtering infrastructure, precisely where a
-subscriber needs to reason about *breadth* of interest -- a concept `DomainEvent` never needs.
-
-Subscription is one `subscribe(filter, handler)` method, parameterized by a small, closed,
-independently-extensible `ScopeFilter` hierarchy -- not five separately-named channel methods.
-`ScopeFilter` is a distinct concept from `EventScope`: "breadth of interest" is a property of
-what a subscriber wants, never a kind of scope a fact itself can have.
-
-No concrete channel implementation here -- P2 (`src/infra/events/in_process_view_invalidation_channel.py`)
-and P6 (the Qt adapter) build on this contract; this file only defines it.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -69,6 +41,7 @@ class ViewInvalidationHint:
     scope_code: str
     entity_type: str
     entity_id: str | None = None
+    module_code: str | None = None
 
 
 H = TypeVar("H", bound=ViewInvalidationHint)

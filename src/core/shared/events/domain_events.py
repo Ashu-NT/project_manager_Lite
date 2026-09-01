@@ -28,7 +28,6 @@ class DomainEvents:
     financial_setup_changed: Signal[object] = field(default_factory=Signal)
     register_changed: Signal[str] = field(default_factory=Signal)
     auth_changed: Signal[str] = field(default_factory=Signal)
-    documents_changed: Signal[str] = field(default_factory=Signal)
     collaboration_changed: Signal[str] = field(default_factory=Signal)
     portfolio_changed: Signal[str] = field(default_factory=Signal)
     inventory_items_changed: Signal[str] = field(default_factory=Signal)

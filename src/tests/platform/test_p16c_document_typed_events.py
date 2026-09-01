@@ -16,7 +16,6 @@ from src.core.platform.domain.master_data.documents.events import (
 from src.core.platform.infrastructure.persistence.uow.document_unit_of_work import (
     SqlAlchemyDocumentUnitOfWork,
 )
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.inventory_procurement.context import InventoryProcurementWorkspaceCatalog
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
@@ -380,22 +379,10 @@ def test_register_entity_attachments_coalesces_to_one_document_list_hint(service
     assert len(hints) == 1
 
 
-def test_register_entity_attachments_still_emits_legacy_documents_changed_per_document(services):
-    integration_service = services["inventory_purchasing_service"]._document_integration_service
-    calls = []
-    domain_events.documents_changed.connect(lambda payload: calls.append(payload))
-
-    created = integration_service.register_entity_attachments(
-        required_permission="settings.manage",
-        operation_label="register attachments",
-        module_code="inventory_procurement",
-        entity_type="purchase_order",
-        entity_id=_unique_code("P16C-BATCH-LEGACY"),
-        attachments=["C:/att/u.pdf", "C:/att/v.pdf"],
-    )
-
-    assert len(created) == 2
-    assert calls == [doc.id for doc in created]
+# P16D superseded `test_register_entity_attachments_still_emits_legacy_documents_changed_
+# per_document`: documents_changed is deleted entirely -- register_entity_attachments now
+# records DocumentReferenceLinked per document instead. See
+# test_p16d_document_link_typed_events.py.
 
 
 # ---------------------------------------------------------------------------
@@ -643,8 +630,10 @@ def test_document_list_view_invalidation_handler_has_no_generic_bridge():
     assert "getattr(domain_events" not in source
 
 
-def test_documents_changed_field_still_present():
-    assert hasattr(domain_events, "documents_changed")
+# P16D superseded `test_documents_changed_field_still_present` and
+# `test_documents_changed_remaining_producers_are_link_related_only`: documents_changed is
+# deleted entirely once the Link facts it covered got their own typed events -- see
+# test_p16d_document_link_typed_events.py for the deletion proof.
 
 
 def test_no_documents_changed_reference_in_simple_document_and_structure_paths():
@@ -664,21 +653,6 @@ def test_no_documents_changed_reference_in_simple_document_and_structure_paths()
         update_structure_source,
     ):
         assert "documents_changed" not in source
-
-
-def test_documents_changed_remaining_producers_are_link_related_only():
-    import inspect
-
-    import src.core.platform.application.master_data.documents.document_commands as document_commands_module
-    import src.core.platform.application.master_data.documents.document_integration_service as document_integration_service_module
-
-    add_link_source = inspect.getsource(document_commands_module.add_link)
-    remove_link_source = inspect.getsource(document_commands_module.remove_link)
-    assert "documents_changed.emit(" in add_link_source
-    assert "documents_changed.emit(" in remove_link_source
-
-    integration_source = inspect.getsource(document_integration_service_module)
-    assert integration_source.count("domain_events.documents_changed.emit(") == 3
 
 
 def test_no_raw_session_commit_reintroduced():

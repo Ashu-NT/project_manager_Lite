@@ -109,3 +109,10 @@ def refresh_party_options(ctrl) -> None:
 def refresh_document_options(ctrl) -> None:
     available_documents = ctrl._catalog_workspace_presenter.build_document_reference_options()
     ctrl._set_available_documents(serialize_document_option_view_models(available_documents))
+
+
+def refresh_selected_item_linked_documents(ctrl) -> None:
+    if not ctrl._selected_item_id:
+        return
+    detail = ctrl._catalog_workspace_presenter.build_selected_item_detail(ctrl._selected_item_id)
+    ctrl._set_selected_item(serialize_catalog_detail_view_model(detail))

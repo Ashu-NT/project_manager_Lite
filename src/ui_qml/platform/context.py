@@ -26,6 +26,9 @@ from src.ui_qml.platform.adapters.document_view_invalidation_adapter import (
 from src.ui_qml.platform.adapters.document_structure_view_invalidation_adapter import (
     DocumentStructureViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.document_links_view_invalidation_adapter import (
+    DocumentLinksViewInvalidationAdapter,
+)
 from src.ui_qml.platform.adapters.module_entitlement_view_invalidation_adapter import (
     ModuleEntitlementViewInvalidationAdapter,
 )
@@ -313,6 +316,16 @@ class PlatformWorkspaceCatalog(QObject):
             self._admin_workspace.refresh_document_structures
         )
 
+        self._document_links_view_invalidation_adapter = DocumentLinksViewInvalidationAdapter(
+            channel=view_invalidation_channel,
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+            parent=self,
+        )
+        self._document_links_view_invalidation_adapter.documentLinksStale.connect(
+            self._admin_workspace.on_document_links_stale
+        )
+
     def _on_tenant_switched(self) -> None:
         self._organization_view_invalidation_adapter.set_active_tenant(
             self._tenant_switcher.activeTenantId
@@ -518,6 +531,10 @@ class PlatformWorkspaceCatalog(QObject):
             organization_id=self._active_organization_id(),
         )
         self._document_structure_view_invalidation_adapter.set_active_scope(
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+        )
+        self._document_links_view_invalidation_adapter.set_active_scope(
             tenant_id=self._tenant_switcher.activeTenantId,
             organization_id=self._active_organization_id(),
         )

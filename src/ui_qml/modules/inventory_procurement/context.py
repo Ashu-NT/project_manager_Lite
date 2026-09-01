@@ -12,6 +12,9 @@ from src.ui_qml.platform.adapters.party_view_invalidation_adapter import (
 from src.ui_qml.platform.adapters.document_view_invalidation_adapter import (
     DocumentViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.document_links_view_invalidation_adapter import (
+    DocumentLinksViewInvalidationAdapter,
+)
 from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import (
     TenantSwitcherPresenter,
 )
@@ -128,6 +131,15 @@ class InventoryProcurementWorkspaceCatalog(QObject):
         )
         self._catalog_document_view_invalidation_adapter.documentCollectionStale.connect(
             self._catalog_workspace.refresh_document_options
+        )
+        self._catalog_document_links_view_invalidation_adapter = DocumentLinksViewInvalidationAdapter(
+            channel=self._view_invalidation_channel,
+            tenant_id=self._active_tenant_id() or "",
+            organization_id=self._active_organization_id() or "",
+            parent=self,
+        )
+        self._catalog_document_links_view_invalidation_adapter.documentLinksStale.connect(
+            self._catalog_workspace.on_document_links_stale
         )
         self._inventory_workspace = InventoryProcurementInventoryWorkspaceController(
             workspace_presenter=InventoryProcurementWorkspacePresenter(
@@ -317,6 +329,7 @@ class InventoryProcurementWorkspaceCatalog(QObject):
             self._pricing_party_view_invalidation_adapter,
             self._procurement_party_view_invalidation_adapter,
             self._catalog_document_view_invalidation_adapter,
+            self._catalog_document_links_view_invalidation_adapter,
         ):
             adapter.set_active_scope(
                 tenant_id=tenant_id,

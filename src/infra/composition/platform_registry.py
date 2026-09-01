@@ -102,10 +102,13 @@ from src.core.platform.domain.master_data.party.events import (
 from src.core.platform.application.master_data.documents.event_handlers.view_invalidation import (
     build_document_list_view_invalidation_handler,
     build_document_structure_list_view_invalidation_handler,
+    build_document_links_view_invalidation_handler,
 )
 from src.core.platform.domain.master_data.documents.events import (
     DocumentCreated,
     DocumentProfileUpdated,
+    DocumentReferenceLinked,
+    DocumentReferenceUnlinked,
     DocumentStructureCreated,
     DocumentStructureProfileUpdated,
 )
@@ -523,6 +526,14 @@ def build_platform_service_bundle(
     for _document_structure_event_type in (DocumentStructureCreated, DocumentStructureProfileUpdated):
         platform_post_commit_bus.subscribe(
             _document_structure_event_type, _document_structure_list_view_invalidation_handler
+        )
+
+    _document_links_view_invalidation_handler = build_document_links_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _document_link_event_type in (DocumentReferenceLinked, DocumentReferenceUnlinked):
+        platform_post_commit_bus.subscribe(
+            _document_link_event_type, _document_links_view_invalidation_handler
         )
 
     approval_uow_session_factory = sessionmaker(bind=session.bind, future=True)

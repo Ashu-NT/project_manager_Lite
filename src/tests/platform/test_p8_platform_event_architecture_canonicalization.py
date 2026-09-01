@@ -102,8 +102,8 @@ def test_a_hypothetical_deletion_still_passes_the_subset_check():
     signal being removed (as every future capability migration is expected to do) and confirm
     the subset check still passes without editing the allowlist or any deletion-tracking set --
     deleting a legacy signal requires zero test bookkeeping, only the subset relationship."""
-    assert "documents_changed" in _current_signal_names()
-    hypothetical_current = _current_signal_names() - {"documents_changed"}
+    assert "collaboration_changed" in _current_signal_names()
+    hypothetical_current = _current_signal_names() - {"collaboration_changed"}
     assert hypothetical_current <= FROZEN_LEGACY_SIGNAL_ALLOWLIST
 
 
@@ -326,7 +326,11 @@ def test_view_invalidation_hint_is_a_plain_dataclass_not_a_domain_event_or_integ
     assert dc.is_dataclass(ViewInvalidationHint)
     assert not issubclass(ViewInvalidationHint, BaseModel)
     hint_fields = {f.name for f in dc.fields(ViewInvalidationHint)}
-    assert hint_fields == {"scope", "category", "scope_code", "entity_type", "entity_id"}
+    # P16D added `module_code` -- a minimal, optional (default None) extension for the one
+    # capability (Document's `document_links` target) whose `entity_id` is a cross-module opaque
+    # identifier rather than one owned by the producing capability itself. Still a plain
+    # dataclass, still not a DomainEvent/IntegrationEvent.
+    assert hint_fields == {"scope", "category", "scope_code", "entity_type", "entity_id", "module_code"}
 
 
 def test_no_universal_event_base_class_was_introduced():

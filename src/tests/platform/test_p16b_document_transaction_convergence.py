@@ -6,7 +6,6 @@ from src.core.platform.application.history.audit.enterprise_audit_service import
     EnterpriseAuditService,
 )
 from src.core.platform.common.exceptions import (
-    BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
     ValidationError,
@@ -14,7 +13,6 @@ from src.core.platform.common.exceptions import (
 from src.core.platform.infrastructure.persistence.uow.document_unit_of_work import (
     SqlAlchemyDocumentUnitOfWork,
 )
-from src.core.shared.events.domain_events import domain_events
 
 _COUNTER = {"n": 0}
 
@@ -24,22 +22,17 @@ def _unique_code(prefix: str) -> str:
     return f"{prefix}-{_COUNTER['n']}"
 
 
-def _spy_signal(signal):
-    calls = []
-    signal.connect(lambda payload: calls.append(payload))
-    return calls
-
-
 # ---------------------------------------------------------------------------
 # Document
 # ---------------------------------------------------------------------------
-
-
-# P16C superseded `test_create_document_success_commits_and_emits_only_after_commit` and
-# `test_update_document_real_change_commits_and_emits_only_after_commit`: create_document/
-# update_document no longer emit documents_changed at all (typed DocumentCreated/
-# DocumentProfileUpdated replaced it) -- see test_p16c_document_typed_events.py for the
-# current commit-timing proofs.
+#
+# P16C superseded this file's original documents_changed-emission proofs for
+# create_document/update_document (typed DocumentCreated/DocumentProfileUpdated replaced them);
+# P16D then deleted documents_changed entirely, so every remaining `_spy_signal(domain_events.
+# documents_changed)` use in this file (DocumentLink section included) has been dropped too --
+# the write-outcome/rollback assertions below are unaffected and remain the real coverage. See
+# test_p16c_document_typed_events.py and test_p16d_document_link_typed_events.py for the current
+# event-emission proofs.
 
 
 def test_create_document_still_persists(services):
@@ -70,13 +63,12 @@ def test_update_document_real_change_still_persists(services):
     assert reloaded.title == "After"
 
 
-def test_update_document_no_op_produces_zero_write_zero_audit_zero_signal(services, monkeypatch):
+def test_update_document_no_op_produces_zero_write_zero_audit(services, monkeypatch):
     document_service = services["document_service"]
     document = document_service.create_document(
         document_code=_unique_code("DOC-NOOP"), title="Same", storage_uri="C:/docs/c.pdf"
     )
     before = document_service._document_repo.get(document.id)
-    calls = _spy_signal(domain_events.documents_changed)
     audit_calls = []
     monkeypatch.setattr(
         EnterpriseAuditService, "record", lambda self, **kwargs: audit_calls.append(kwargs)
@@ -87,25 +79,21 @@ def test_update_document_no_op_produces_zero_write_zero_audit_zero_signal(servic
     )
 
     assert result.version == document.version
-    assert calls == []
     assert audit_calls == []
     reloaded = document_service._document_repo.get(document.id)
     assert reloaded.version == before.version
 
 
-def test_create_document_duplicate_code_rolls_back_and_emits_nothing(services):
+def test_create_document_duplicate_code_rolls_back(services):
     document_service = services["document_service"]
     code = _unique_code("DOC-DUPE")
     document_service.create_document(document_code=code, title="First", storage_uri="C:/docs/d.pdf")
-    calls = _spy_signal(domain_events.documents_changed)
 
     with pytest.raises(ValidationError, match="Document code already exists"):
         document_service.create_document(document_code=code, title="Second", storage_uri="C:/docs/e.pdf")
 
-    assert calls == []
 
-
-def test_update_document_cross_org_denied_and_emits_nothing(services):
+def test_update_document_cross_org_denied(services):
     document_service = services["document_service"]
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
@@ -122,52 +110,43 @@ def test_update_document_cross_org_denied_and_emits_nothing(services):
         base_currency="USD",
     )
     tenant_context_service.set_active_organization(other_organization.id)
-    calls = _spy_signal(domain_events.documents_changed)
     try:
         with pytest.raises(NotFoundError):
             document_service.update_document(document.id, title="Hijacked")
     finally:
         tenant_context_service.set_active_organization(default_organization.id)
 
-    assert calls == []
 
-
-def test_update_document_stale_version_raises_and_emits_nothing(services):
+def test_update_document_stale_version_raises(services):
     document_service = services["document_service"]
     document = document_service.create_document(
         document_code=_unique_code("DOC-STALE"), title="Stale Doc", storage_uri="C:/docs/g.pdf"
     )
-    calls = _spy_signal(domain_events.documents_changed)
 
     with pytest.raises(ConcurrencyError):
         document_service.update_document(
             document.id, title="Should Not Apply", expected_version=document.version + 1
         )
 
-    assert calls == []
 
-
-def test_create_document_audit_failure_rolls_back_and_emits_nothing(services, monkeypatch):
+def test_create_document_audit_failure_rolls_back(services, monkeypatch):
     def _fail_record(self, **kwargs):
         raise RuntimeError("simulated document audit failure")
 
     monkeypatch.setattr(EnterpriseAuditService, "record", _fail_record)
     document_service = services["document_service"]
-    calls = _spy_signal(domain_events.documents_changed)
     code = _unique_code("DOC-AUDITFAIL")
 
     with pytest.raises(RuntimeError, match="simulated document audit failure"):
         document_service.create_document(document_code=code, title="Audit Fail", storage_uri="C:/docs/h.pdf")
 
     monkeypatch.undo()
-    assert calls == []
     organization = document_service._tenant_context_service.get_active_organization()
     assert document_service._document_repo.get_by_code(organization.id, code) is None
 
 
-def test_create_document_commit_failure_rolls_back_and_emits_nothing(services, monkeypatch):
+def test_create_document_commit_failure_rolls_back(services, monkeypatch):
     document_service = services["document_service"]
-    calls = _spy_signal(domain_events.documents_changed)
     code = _unique_code("DOC-COMMITFAIL")
 
     def _fail_commit(self):
@@ -178,19 +157,10 @@ def test_create_document_commit_failure_rolls_back_and_emits_nothing(services, m
     with pytest.raises(RuntimeError, match="simulated database commit failure"):
         document_service.create_document(document_code=code, title="Commit Fail", storage_uri="C:/docs/i.pdf")
 
-    assert calls == []
-
 
 # ---------------------------------------------------------------------------
 # DocumentStructure
 # ---------------------------------------------------------------------------
-
-
-# P16C superseded `test_create_document_structure_success` and
-# `test_update_document_structure_real_change_commits_and_emits`: create_document_structure/
-# update_document_structure no longer emit documents_changed at all (typed
-# DocumentStructureCreated/DocumentStructureProfileUpdated replaced it) -- see
-# test_p16c_document_typed_events.py for the current commit-timing proofs.
 
 
 def test_create_document_structure_still_persists(services):
@@ -215,13 +185,12 @@ def test_update_document_structure_real_change_still_persists(services):
     assert updated.name == "After"
 
 
-def test_update_document_structure_no_op_produces_zero_write_zero_audit_zero_signal(services, monkeypatch):
+def test_update_document_structure_no_op_produces_zero_write_zero_audit(services, monkeypatch):
     document_service = services["document_service"]
     structure = document_service.create_document_structure(
         structure_code=_unique_code("STRUCT-NOOP"), name="Same"
     )
     before = document_service._structure_repo.get(structure.id)
-    calls = _spy_signal(domain_events.documents_changed)
     audit_calls = []
     monkeypatch.setattr(
         EnterpriseAuditService, "record", lambda self, **kwargs: audit_calls.append(kwargs)
@@ -232,7 +201,6 @@ def test_update_document_structure_no_op_produces_zero_write_zero_audit_zero_sig
     )
 
     assert result.version == structure.version
-    assert calls == []
     assert audit_calls == []
     reloaded = document_service._structure_repo.get(structure.id)
     assert reloaded.version == before.version
@@ -276,25 +244,22 @@ def test_update_document_structure_self_parent_invalid(services):
         document_service.update_document_structure(structure.id, parent_structure_id=structure.id)
 
 
-def test_document_structure_audit_failure_rolls_back_and_emits_nothing(services, monkeypatch):
+def test_document_structure_audit_failure_rolls_back(services, monkeypatch):
     def _fail_record(self, **kwargs):
         raise RuntimeError("simulated structure audit failure")
 
     monkeypatch.setattr(EnterpriseAuditService, "record", _fail_record)
     document_service = services["document_service"]
-    calls = _spy_signal(domain_events.documents_changed)
     code = _unique_code("STRUCT-AUDITFAIL")
 
     with pytest.raises(RuntimeError, match="simulated structure audit failure"):
         document_service.create_document_structure(structure_code=code, name="Audit Fail")
 
     monkeypatch.undo()
-    assert calls == []
 
 
-def test_document_structure_commit_failure_rolls_back_and_emits_nothing(services, monkeypatch):
+def test_document_structure_commit_failure_rolls_back(services, monkeypatch):
     document_service = services["document_service"]
-    calls = _spy_signal(domain_events.documents_changed)
     code = _unique_code("STRUCT-COMMITFAIL")
 
     def _fail_commit(self):
@@ -305,11 +270,10 @@ def test_document_structure_commit_failure_rolls_back_and_emits_nothing(services
     with pytest.raises(RuntimeError, match="simulated database commit failure"):
         document_service.create_document_structure(structure_code=code, name="Commit Fail")
 
-    assert calls == []
-
 
 # ---------------------------------------------------------------------------
-# DocumentLink
+# DocumentLink (write-outcome only -- typed-event proofs live in
+# test_p16d_document_link_typed_events.py)
 # ---------------------------------------------------------------------------
 
 
@@ -318,14 +282,12 @@ def test_add_link_success(services):
     document = document_service.create_document(
         document_code=_unique_code("LINK-DOC"), title="Linkable", storage_uri="C:/docs/j.pdf"
     )
-    calls = _spy_signal(domain_events.documents_changed)
 
     link = document_service.add_link(
         document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-1"
     )
 
     assert link.document_id == document.id
-    assert calls == [document.id]
 
 
 def test_remove_link_success(services):
@@ -336,15 +298,13 @@ def test_remove_link_success(services):
     link = document_service.add_link(
         document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-2"
     )
-    calls = _spy_signal(domain_events.documents_changed)
 
     document_service.remove_link(link.id)
 
-    assert calls == [document.id]
     assert document_service.list_links(document.id) == []
 
 
-def test_add_link_duplicate_denied_and_emits_nothing(services):
+def test_add_link_duplicate_denied(services):
     document_service = services["document_service"]
     document = document_service.create_document(
         document_code=_unique_code("DUPE-LINK-DOC"), title="Linkable", storage_uri="C:/docs/l.pdf"
@@ -352,14 +312,11 @@ def test_add_link_duplicate_denied_and_emits_nothing(services):
     document_service.add_link(
         document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-3"
     )
-    calls = _spy_signal(domain_events.documents_changed)
 
     with pytest.raises(ValidationError, match="already exists"):
         document_service.add_link(
             document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-3"
         )
-
-    assert calls == []
 
 
 def test_remove_link_missing_denied(services):
@@ -396,7 +353,7 @@ def test_add_link_cross_org_document_denied(services):
 
 
 # ---------------------------------------------------------------------------
-# DocumentIntegrationService
+# DocumentIntegrationService (write-outcome/atomicity only)
 # ---------------------------------------------------------------------------
 
 
@@ -461,7 +418,6 @@ def test_register_entity_attachments_failure_midway_rolls_back_entire_batch(serv
         return original_record(self, **kwargs)
 
     monkeypatch.setattr(EnterpriseAuditService, "record", _fail_on_second)
-    calls = _spy_signal(domain_events.documents_changed)
 
     with pytest.raises(RuntimeError, match="simulated mid-batch audit failure"):
         integration_service.register_entity_attachments(
@@ -474,7 +430,6 @@ def test_register_entity_attachments_failure_midway_rolls_back_entire_batch(serv
         )
 
     monkeypatch.undo()
-    assert calls == []
     remaining = integration_service.list_documents_for_entity(
         required_permission="settings.manage",
         operation_label="list",
@@ -491,7 +446,6 @@ def test_link_existing_document_success(services):
     document = document_service.create_document(
         document_code=_unique_code("INT-LINK-DOC"), title="Doc", storage_uri="C:/docs/n.pdf"
     )
-    calls = _spy_signal(domain_events.documents_changed)
 
     link = integration_service.link_existing_document(
         required_permission="settings.manage",
@@ -503,7 +457,6 @@ def test_link_existing_document_success(services):
     )
 
     assert link.document_id == document.id
-    assert calls == [document.id]
 
 
 def test_unlink_existing_document_success(services):
@@ -521,7 +474,6 @@ def test_unlink_existing_document_success(services):
         entity_id=entity_id,
         document_id=document.id,
     )
-    calls = _spy_signal(domain_events.documents_changed)
 
     integration_service.unlink_existing_document(
         required_permission="settings.manage",
@@ -532,7 +484,13 @@ def test_unlink_existing_document_success(services):
         document_id=document.id,
     )
 
-    assert calls == [document.id]
+    assert integration_service.list_documents_for_entity(
+        required_permission="settings.manage",
+        operation_label="list",
+        module_code="inventory_procurement",
+        entity_type="stock_item",
+        entity_id=entity_id,
+    ) == []
 
 
 # ---------------------------------------------------------------------------
@@ -598,80 +556,6 @@ def test_document_service_and_integration_service_share_the_same_uow_factory(ser
 
 
 # ---------------------------------------------------------------------------
-# UI regression: documents_changed unchanged for the still-legacy Link facts
-# ---------------------------------------------------------------------------
-#
-# P16C superseded the create_document-driven versions of these two tests: Document
-# create/update no longer emit documents_changed at all (typed events replaced them, with
-# their own narrow-refresh proofs in test_p16c_document_typed_events.py). Admin Console's and
-# Catalog's legacy binders still subscribe to documents_changed for the still-unmodernized Link
-# facts (add_link/remove_link/register_entity_attachments/link_existing_document/
-# unlink_existing_document) until P16D -- proved here via add_link instead of create_document.
-
-
-def test_admin_console_still_reacts_to_documents_changed_for_link_mutation(services):
-    from src.ui_qml.platform.controllers.admin_console.domain_event_binder import bind_domain_events
-
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code=_unique_code("ADMIN-LINK-REFRESH"), title="Admin Link Doc", storage_uri="C:/docs/u.pdf"
-    )
-
-    refresh_calls = []
-
-    class _FakeController:
-        def __init__(self):
-            self._domain_event_subscriptions = []
-
-        def _subscribe_domain_signal(self, signal, callback):
-            signal.connect(callback)
-            self._domain_event_subscriptions.append((signal, callback))
-
-        def _request_domain_refresh(self):
-            refresh_calls.append("refresh")
-
-    bind_domain_events(_FakeController())
-
-    document_service.add_link(
-        document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-p16c-admin"
-    )
-
-    assert refresh_calls == ["refresh"]
-
-
-def test_inventory_procurement_catalog_still_reacts_to_documents_changed_for_link_mutation(services):
-    from src.ui_qml.modules.inventory_procurement.controllers.catalog.catalog_domain_event_binder import (
-        bind_domain_events as bind_catalog_domain_events,
-    )
-
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code=_unique_code("CATALOG-LINK-REFRESH"), title="Catalog Link Doc", storage_uri="C:/docs/v.pdf"
-    )
-
-    refresh_calls = []
-
-    class _FakeController:
-        def __init__(self):
-            self._domain_event_subscriptions = []
-
-        def _subscribe_domain_signal(self, signal, callback):
-            signal.connect(callback)
-            self._domain_event_subscriptions.append((signal, callback))
-
-        def _request_domain_refresh(self):
-            refresh_calls.append("refresh")
-
-    bind_catalog_domain_events(_FakeController())
-
-    document_service.add_link(
-        document_id=document.id, module_code="qhse", entity_type="inspection", entity_id="insp-p16c-catalog"
-    )
-
-    assert refresh_calls == ["refresh"]
-
-
-# ---------------------------------------------------------------------------
 # Architecture guards
 # ---------------------------------------------------------------------------
 
@@ -701,18 +585,6 @@ def test_document_uow_uses_named_repositories_only():
     assert "self.documents = " in source
     assert "self.structures = " in source
     assert "self.links = " in source
-
-
-# P16C superseded `test_no_document_domain_event_introduced` and
-# `test_no_document_view_invalidation_introduced`: DocumentCreated/DocumentProfileUpdated/
-# DocumentStructureCreated/DocumentStructureProfileUpdated and the document_list/
-# document_structure_list ViewInvalidation targets are now the deliberate, intended state --
-# see test_p16c_document_typed_events.py for the current guard proofs (no blanket
-# DocumentChanged/DocumentUpdated event, no generic bridge, etc).
-
-
-def test_documents_changed_field_still_present():
-    assert hasattr(domain_events, "documents_changed")
 
 
 def test_no_platform_to_business_module_concrete_infrastructure_import():

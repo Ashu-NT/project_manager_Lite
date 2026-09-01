@@ -17,6 +17,9 @@ from src.ui_qml.platform.presenters.organization.departments.department_catalog_
 from src.ui_qml.platform.presenters.documents.document_catalog_presenter import (
     PlatformDocumentCatalogPresenter,
 )
+from src.core.platform.application.master_data.documents.event_handlers.view_invalidation import (
+    DOCUMENT_LINK_OWNER_ENTITY_TYPE,
+)
 from src.ui_qml.platform.presenters.documents.document_management_presenter import (
     PlatformDocumentManagementPresenter,
 )
@@ -339,6 +342,14 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
 
     def refresh_document_structures(self) -> None:
         self._document_structure_controller.refresh()
+
+    def on_document_links_stale(self, module_code: str, entity_type: str, entity_id: str) -> None:
+        """Narrow reaction to the reverse (`entity_type="document"`) shape of the
+        `document_links` ViewInvalidation target -- refreshes the currently-selected
+        document's link panel only when it's the document that actually changed, never a
+        full workspace cascade (P16D)."""
+        if entity_type == DOCUMENT_LINK_OWNER_ENTITY_TYPE and entity_id == self._document_controller._selected_document_id:
+            self._document_controller.refreshFocus()
 
     @Slot(str, "QVariantMap", result=str)
     def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
