@@ -66,6 +66,7 @@ does not duplicate them — read ADR-005 before implementing a phase below.
 | P15 (A/B) | Party | Canonical UnitOfWork | Typed create/profile-update events | Narrow | `parties_changed` deleted |
 | P16 (A/B/C/D, D-FIX) | Document + DocumentStructure + DocumentLink | Canonical `DocumentUnitOfWork` (`.documents`/`.structures`/`.links`, shared by `DocumentService` + `DocumentIntegrationService`) | `DocumentCreated`, `DocumentProfileUpdated`, `DocumentStructureCreated`, `DocumentStructureProfileUpdated`, `DocumentReferenceLinked`, `DocumentReferenceUnlinked` | Narrow, incl. the generic `ResourceScope` `EventScope` kind (P16D-FIX) for DocumentLink's cross-module target identity | `documents_changed` deleted |
 | P18 (A/B) | Project Resource (Master + Capability) | Canonical `ResourceUnitOfWork`/`ResourceUnitOfWorkFactory` (`.resources`/`.skills`/`.certifications`, shared for the same reason `DocumentUnitOfWork` is) | `ResourceMasterChanged` (CREATED/UPDATED/DEACTIVATED/REACTIVATED/PURGED), `ResourceCapabilityChanged` (ADDED/UPDATED/REMOVED) — existing vocabulary, retained unchanged | Narrow: `resource_list` (`OrganizationScope`) for Master, `resource_capabilities` (`ResourceScope`, exact-resource) for Capability | `resources_changed` deleted |
+| P19 (+ P19-FIX) | Finance Forecast | Canonical `FinanceGovernanceUnitOfWork` (already existed) — `ForecastVersionService`/`ForecastGenerationService` gained `record_event` wired to `uow.record_event`; the second, hidden `financial_change.apply` successor producer now reports through a new generic `ApprovalHandlerResult.domain_events` seam, `ApprovalService` recording it on its own real UoW | `ForecastVersionChanged` (CREATED/SUBMITTED/APPROVED/REJECTED/DELETED), `ForecastLineChanged` (ADDED/UPDATED/REMOVED), `ForecastDraftGenerated` | Narrow: `forecast_planning` (project-scoped `ResourceScope`) for everything except approval, `forecast_approved_basis` (same scope kind) for `ForecastVersionChanged(APPROVED)` — P19-FIX corrected APPROVED to notify **both** targets (the version's own status change is visible in `forecast_planning`'s list too), never one alone | `forecasts_changed` deleted |
 
 **Platform / Shared Master Data is fully modernized** as of P16D-FIX: Organization, Tenant
 Membership, Module Entitlements, Role Binding / Scoped Access, Approval, Employee, Department,
@@ -97,35 +98,46 @@ refreshes at all), and the Resources workspace itself no longer double-reacts (a
 refresh plus a redundant narrow "activity" reload on every event, regardless of relevance) the
 way it did before.
 
+**Finance Forecast is fully modernized** as of P19.
+
+| Aspect | Status |
+|---|---|
+| Forecast transaction ownership | Already canonical (`FinanceGovernanceUnitOfWork`, pre-existing) |
+| Forecast typed event transport | CANONICALIZED — `ForecastVersionChanged`/`ForecastLineChanged`/`ForecastDraftGenerated` recorded via `uow.record_event(...)` from `ForecastVersionService`/`ForecastGenerationService` |
+| Financial-change-apply forecast successor | CANONICALIZED via a new generic seam — `ApprovalHandlerResult.domain_events`, recorded by `ApprovalService` on its own real `UnitOfWork` before `uow.commit()`; the participant never receives the `UnitOfWork` (ADR-005 §24 invariant preserved) |
+| No-op discipline | `update_line` produces zero write/audit/event/synthetic version bump on a true no-op (a real, newly-added guard — not present pre-P19) |
+| Forecast ViewInvalidation | MODERNIZED — two project-scoped targets: `forecast_planning` (every fact except approval) and `forecast_approved_basis` (`ForecastVersionChanged(APPROVED)` only) — a real correction over legacy behavior, which invalidated `{overview, planning, performance}` for every event and never invalidated `commercial` at all |
+| UI consumers | CUT OVER — the sole consumer (`FinancialsRefreshMixin`'s destination-based model) now reacts via one `ForecastViewInvalidationAdapter` on `ProjectManagementFinancialsWorkspaceController`, filtered by selected project |
+| `forecasts_changed` | DELETED — field, both producers, the one consumer. Legacy Signal count: 27 (28 → 27, confirmed via source) |
+
+See ADR-005 §26.16 for the full design (including why the financial-change-apply producer needed
+a new generic Approval reporting seam rather than widening `dependencies_factory`).
+
 ## 4. Current State
 
-**Legacy Signal count: 29 as of P17** (source-derived from `src/core/shared/events/domain_events.py`,
+**Legacy Signal count: 27 as of P19** (source-derived from `src/core/shared/events/domain_events.py`,
 re-verified against current source when this document was last updated).
 
 | Area | Count |
 |---|---|
 | Platform | 0 |
 | Auth/Security | 1 |
-| Project Management | 8 |
-| Finance | 9 |
+| Project Management | 7 |
+| Finance | 8 |
 | Inventory/Procurement | 11 |
 
 > **This is a snapshot, not a fact.** Recompute the count directly from
 > `src/core/shared/events/domain_events.py` before relying on it - do not trust this table if it
 > is more than a few phases old. Concurrent development in any module can add or remove fields
-> between updates to this document. As of P18B this table's PM count (8) is one field stale by
-> construction — it still includes `resources_changed`, which P18B deleted; PM is 7 as of P18B,
-> total legacy count 28. Left as a P17-snapshot artifact rather than silently edited, per this
-> section's own "recompute, don't trust" instruction; the P18B section above and §3's ledger are
-> the current source of truth for Project Resource specifically.
+> between updates to this document.
 
 ## 5. Current Priority
 
-**Project Resource is fully modernized (P18A + P18B, see §3).** The next capability has not yet
-been chosen — the P17 ranking's provisional order (§6 below) starts with Finance Forecast, but
-per this document's own repeated caution, re-run prioritization from current source before
-committing to it: concurrent development (Finance in particular has had recent, active,
-concurrent work per this project's own tracking) may have changed readiness since P17.
+**Finance Forecast is fully modernized (P19, see §3).** The next capability has not yet been
+chosen — the P17 ranking's provisional order (§6 below) next suggests Inventory
+Storeroom/Location, but per this document's own repeated caution, re-run prioritization from
+current source before committing to it: concurrent development elsewhere may have changed
+readiness since P17.
 
 ## 6. Provisional Roadmap
 
@@ -134,10 +146,9 @@ Re-run prioritization after each major capability - current source is authoritat
 concurrent development elsewhere in the codebase may change any capability's readiness before
 its turn comes up.
 
-Suggested next order (P18 Project Resource is DONE — see §3):
+Suggested next order (P18 Project Resource and P19 Finance Forecast are DONE — see §3):
 
 ```
-P19  Finance Forecast
 P20  Inventory Storeroom/Location
 P21  Finance Financial Setup
 P22  Finance Rate Card
@@ -180,7 +191,15 @@ document** - each is addressed when its owning capability's phase is implemented
 - Reflective Approval/Finance legacy dispatch - `ApprovalService._emit_signal_safely` and
   `FinanceGovernedServicePort.__getattr__` both use `getattr(domain_events, signal_name)`
   string-keyed dispatch (bounded to their own call sites, not a generic repo-wide router, but
-  still indirection worth being aware of when tracing a producer).
+  still indirection worth being aware of when tracing a producer). `FinanceGovernedServicePort`'s
+  reflective command *routing* (dispatching a read-service method name to the right
+  `FinanceGovernanceCommandBoundary` family) is unrelated to and untouched by P19 — Forecast's
+  typed-event construction happens inside `ForecastVersionService`/`ForecastGenerationService`
+  themselves, not in the reflective layer, so removing the routing reflection would have zero
+  effect on event correctness and was left in place. `ApprovalService._emit_signal_safely` also
+  remains — P19 added a second, coexisting reporting channel (`ApprovalHandlerResult.domain_events`,
+  ADR-005 §26.16) rather than replacing it, since every other Approval participant still reports
+  through the legacy Signal-name bridge.
 - Remaining raw process-lifetime Sessions - Auth (all 10 producer files, on one shared Session),
   most of PM and Inventory/Procurement, and part of Finance (`cost_entries_changed`,
   `commitments_changed` - notably, both already have an unused canonical UoW repo declared for

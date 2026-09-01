@@ -129,7 +129,7 @@ def test_version_created_maps_to_planning_target():
     assert hint.entity_id == "p1"
 
 
-def test_version_approved_maps_to_approved_basis_target():
+def test_version_approved_maps_to_both_planning_and_approved_basis_targets():
     channel = _fake_channel()
     handler = build_forecast_view_invalidation_handler(channel)
     event = ForecastVersionChanged(
@@ -137,8 +137,10 @@ def test_version_approved_maps_to_approved_basis_target():
         change_type=ForecastVersionChangeType.APPROVED, occurred_at=datetime.now(timezone.utc),
     )
     handler(event, _context("c2"))
-    assert len(channel.notified) == 1
-    assert channel.notified[0].scope_code == FORECAST_APPROVED_BASIS_SCOPE_CODE
+    assert len(channel.notified) == 2
+    scope_codes = {h.scope_code for h in channel.notified}
+    assert scope_codes == {FORECAST_PLANNING_SCOPE_CODE, FORECAST_APPROVED_BASIS_SCOPE_CODE}
+    assert all(h.entity_id == "p1" for h in channel.notified)
 
 
 @pytest.mark.parametrize(
@@ -214,6 +216,31 @@ def test_dedupe_by_target_within_one_transaction_not_by_raw_event_fields():
     assert len(channel.notified) == 3, "a new transaction is never coalesced with the previous one"
 
 
+def test_approved_events_two_targets_never_coalesce_but_repeats_of_each_do():
+    """One APPROVED DomainEvent -> two distinct hints (different scope_code, never coalesced
+    together); a second APPROVED for the same project within the same transaction adds nothing
+    new (each of its two targets was already notified)."""
+    channel = _fake_channel()
+    handler = build_forecast_view_invalidation_handler(channel)
+    now = datetime.now(timezone.utc)
+    event = ForecastVersionChanged(
+        tenant_id="t1", organization_id="o1", project_id="p1", forecast_id="f1",
+        change_type=ForecastVersionChangeType.APPROVED, occurred_at=now,
+    )
+
+    handler(event, _context("tx-a"))
+    assert len(channel.notified) == 2
+    assert {h.scope_code for h in channel.notified} == {
+        FORECAST_PLANNING_SCOPE_CODE, FORECAST_APPROVED_BASIS_SCOPE_CODE,
+    }
+
+    handler(event, _context("tx-a"))
+    assert len(channel.notified) == 2, "same two targets repeated in one transaction coalesce"
+
+    handler(event, _context("tx-b"))
+    assert len(channel.notified) == 4, "a new transaction re-notifies both targets"
+
+
 # ---------------------------------------------------------------------------
 # Real ForecastVersionService/ForecastGenerationService producer path
 # ---------------------------------------------------------------------------
@@ -267,7 +294,7 @@ def test_update_line_true_no_op_produces_zero_hints(services):
     assert len(_forecast_hints(hints)) == 1
 
 
-def test_approve_forecast_produces_exactly_one_approved_basis_hint(services):
+def test_approve_forecast_produces_exactly_one_planning_and_one_approved_basis_hint(services):
     project, code = _seed_project_and_cost_code(services)
     forecasts = services["forecast_version_service"]
     forecast = forecasts.create_forecast(
@@ -286,9 +313,10 @@ def test_approve_forecast_produces_exactly_one_approved_basis_hint(services):
     forecasts.approve_forecast(forecast.id, approved_by="admin", expected_version=forecast.row_version)
 
     forecast_hints = _forecast_hints(hints)
-    assert len(forecast_hints) == 1
-    assert forecast_hints[0].scope_code == FORECAST_APPROVED_BASIS_SCOPE_CODE
-    assert forecast_hints[0].entity_id == project.id
+    assert len(forecast_hints) == 2
+    scope_codes = {h.scope_code for h in forecast_hints}
+    assert scope_codes == {FORECAST_PLANNING_SCOPE_CODE, FORECAST_APPROVED_BASIS_SCOPE_CODE}
+    assert all(h.entity_id == project.id for h in forecast_hints)
 
 
 def test_generate_draft_produces_exactly_one_planning_hint(services):
@@ -345,7 +373,7 @@ def _seed_approved_finance_for_change(services):
     return project, code, forecast, forecast_line
 
 
-def test_financial_change_apply_forecast_successor_reports_approved_basis_hint(services):
+def test_financial_change_apply_forecast_successor_reports_both_hints(services):
     _login(services, "admin", "ChangeMe123!")
     project, code, forecast, forecast_line = _seed_approved_finance_for_change(services)
     requester = _unique("p19-change-requester")
@@ -378,9 +406,14 @@ def test_financial_change_apply_forecast_successor_reports_approved_basis_hint(s
     assert applied.applied_forecast_id and applied.applied_forecast_id != forecast.id
 
     forecast_hints = _forecast_hints(hints)
-    assert len(forecast_hints) == 1
-    assert forecast_hints[0].scope_code == FORECAST_APPROVED_BASIS_SCOPE_CODE
-    assert forecast_hints[0].entity_id == project.id
+    assert len(forecast_hints) == 2, (
+        "the successor's appearance in the version list and its status as the new approved "
+        "basis are both real, distinct facts of the same APPROVED event -- no invented second "
+        "event type needed"
+    )
+    scope_codes = {h.scope_code for h in forecast_hints}
+    assert scope_codes == {FORECAST_PLANNING_SCOPE_CODE, FORECAST_APPROVED_BASIS_SCOPE_CODE}
+    assert all(h.entity_id == project.id for h in forecast_hints)
 
 
 # ---------------------------------------------------------------------------
@@ -403,9 +436,14 @@ def test_financials_controller_planning_stale_invalidates_only_planning(services
     assert controller._invalidated_destinations == set(), "non-selected project must not invalidate"
 
 
-def test_financials_controller_approved_basis_stale_invalidates_overview_planning_performance_commercial(
+def test_financials_controller_approved_basis_stale_invalidates_overview_performance_commercial_not_planning(
     services,
 ):
+    """P19-FIX: "planning" is deliberately excluded here -- on a real approval, the
+    forecast_planning ViewInvalidation hint (handled separately by onForecastPlanningStale)
+    always accompanies forecast_approved_basis and already covers it; see
+    test_financials_controller_both_stale_signals_together_cover_the_full_destination_set below
+    for the combined, no-duplicate-refresh proof."""
     catalog = _pm_catalog(services)
     controller = catalog.financialsWorkspace
     controller._set_selected_project_id("proj-a")
@@ -413,7 +451,27 @@ def test_financials_controller_approved_basis_stale_invalidates_overview_plannin
     controller._request_domain_refresh = lambda: None
 
     controller.onForecastApprovedBasisStale("proj-a")
-    assert controller._invalidated_destinations == {"overview", "planning", "performance", "commercial"}
+    assert controller._invalidated_destinations == {"overview", "performance", "commercial"}
+
+
+def test_financials_controller_both_stale_signals_together_cover_the_full_destination_set(services):
+    """Proves the real per-approval consumer effect: forecast_planning + forecast_approved_basis
+    hints together invalidate exactly the same four destinations the pre-P19-FIX single hint
+    covered, with no destination invalidated by neither and none refreshed via two independent
+    paths beyond the one coalescing QTimer-based refresh (P18B's established coalescing
+    precedent) -- this is the "no duplicate equivalent UI refresh" proof."""
+    catalog = _pm_catalog(services)
+    controller = catalog.financialsWorkspace
+    controller._set_selected_project_id("proj-a")
+    controller._invalidated_destinations.clear()
+    controller._request_domain_refresh = lambda: None
+
+    controller.onForecastPlanningStale("proj-a")
+    controller.onForecastApprovedBasisStale("proj-a")
+
+    assert controller._invalidated_destinations == {
+        "overview", "planning", "performance", "commercial",
+    }
 
 
 # ---------------------------------------------------------------------------

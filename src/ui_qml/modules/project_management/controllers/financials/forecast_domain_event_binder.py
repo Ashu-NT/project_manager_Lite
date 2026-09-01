@@ -8,7 +8,7 @@ def on_forecast_planning_stale(controller, project_id: str) -> None:
 
 def on_forecast_approved_basis_stale(controller, project_id: str) -> None:
     if str(project_id or "") == controller._selected_project_id:
-        controller._invalidate_destinations("overview", "planning", "performance", "commercial")
+        controller._invalidate_destinations("overview", "performance", "commercial")
 
 
 __all__ = ["on_forecast_planning_stale", "on_forecast_approved_basis_stale"]

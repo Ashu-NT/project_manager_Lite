@@ -2010,6 +2010,115 @@ consumers (all 8 re-wired to the typed targets above), field absent. The legacy 
 arithmetic). The Project Resource capability — Resource Master and Resource Capability — is
 fully modernized.
 
+**26.16 Finance Forecast: FULLY MODERNIZED (P19) — `forecasts_changed` DELETED, plus a new
+generic Approval seam.** P19's re-audit found `forecasts_changed` had *two* structurally
+different producers, not one: `ForecastVersionService`/`ForecastGenerationService` (behind
+`FinanceGovernanceCommandBoundary.forecast_version`/`.forecast_generation`, already on the
+canonical `FinanceGovernanceUnitOfWork`), and a second, hidden one inside
+`FinancialChangeService._apply_forecast_successor` — when an approved Financial Change with a
+FORECAST impact atomically creates, submits, and approves a successor forecast, the
+`financial_change.apply` participant fired `ApprovalPostCommitEvent("forecasts_changed", ...)`
+through `ApprovalService`'s generic post-commit Signal-name bridge.
+
+Three typed events, in `application/financials/forecasts/forecast_events.py`: `ForecastVersionChanged`
+(`change_type` enum CREATED/SUBMITTED/APPROVED/REJECTED/DELETED, mirroring the
+`ResourceMasterChanged` enum-per-family shape from §26.15), `ForecastLineChanged` (ADDED/UPDATED/
+REMOVED), and `ForecastDraftGenerated` (a genuinely distinct fact — `generate_draft` atomically
+snapshots planned cost/commitments/actuals/manual estimates/risk into one new forecast plus its
+`ForecastSourceDecision` audit trail — but the same read-model impact as `ForecastVersionChanged
+(CREATED)`). `ForecastVersionService`/`ForecastGenerationService` gained a `record_event: Callable[
+[object], None] | None` constructor parameter, wired to `uow.record_event` at the composition root
+(`build_finance_governance_operations` in `project_registry.py`) — the same shape already used by
+`FinancialChangeService._record_event` for its own `submit_change` path. `update_line` gained true
+no-op detection (P19 §12): the line's mutable fields are snapshotted before conditional
+assignment and compared after; if none actually changed, zero repository write, zero audit, zero
+event, no synthetic version bump — `update_resource`'s `replace()`-and-compare idiom (§26.15)
+adapted to `ForecastLine`'s mutable (non-frozen) dataclass shape via before/after tuple
+comparison instead. `command_boundary.py`'s `forecast_version`/`forecast_generation` methods no
+longer call `_emit_scoped("forecasts_changed", ...)` at all; `_execute`'s `invalidation` parameter
+became `Callable[[T], None] | None` so a Forecast-cutover command can pass `invalidation=None`
+without inventing a no-op lambda.
+
+Exactly two ViewInvalidation targets, both project-scoped (`application/financials/forecasts/
+event_handlers/view_invalidation.py`), proven from source, not assumed: `forecast_planning`
+(category="forecast" — the forecast_versions list + selected_forecast detail + forecast_lines
+that back the "planning" destination's "forecasts" subsection, per
+`FinancialsRefreshMixin._apply_destination_state`; the list carries each version's own `status`
+field) and `forecast_approved_basis` (the downstream consumers of "whichever forecast is
+currently approved" — `ReportingProfitabilityMixin.get_project_commercial_projection` →
+`CostPolicyEngine` → `facts.approved_forecast`, and `performance_query.py`'s EVM/variance
+basis, both of which read only the *approved* forecast, never a draft/submitted one).
+`ForecastVersionChanged(change_type=APPROVED)` is the one fact that stales BOTH — it notifies
+both targets as two distinct hints, never coalesced together (P19-FIX §1-2, corrected from an
+initial P19 design that mapped APPROVED to `forecast_approved_basis` only, missing that the
+approved version's own status transition, and the previously-approved version's transition to
+SUPERSEDED, are both visible in the `forecast_planning` list too). Every other Forecast fact
+(version create/submit/reject/delete, line add/update/remove, draft generation) can only ever
+touch a mutable, non-approved forecast (`_require_mutable_forecast` forbids editing an approved
+one), so it can only ever affect `forecast_planning` alone — that part of the split was already
+correct and P19-FIX left it unchanged. This is a real, source-proven correction to pre-P19 UI
+behavior, not merely a preservation of it: the legacy `_forecasts_changed` handler in
+`financials_refresh_mixin.py` invalidated `{overview, planning, performance}` for *every* Forecast
+event and never invalidated `commercial` at all — meaning the commercial/profitability projection
+was silently stale after every forecast approval, pre-P19. The current mapping (post P19-FIX)
+recomposes an equivalent destination set on approval — `forecast_planning` invalidates
+`{planning}`, `forecast_approved_basis` invalidates `{overview, performance, commercial}`, a union
+of `{overview, planning, performance, commercial}` — while *narrowing* every non-approval
+Forecast fact down to `planning` alone, both corrections falling directly out of tracing the real
+read-model dependency rather than assuming the legacy destination set was correct. The
+`financial_change.apply` successor path (below) needs no second event type for this either: it
+already reports the same canonical `ForecastVersionChanged(APPROVED)`, so the successor's
+appearance in the `forecast_planning` list is covered by the same dual notification. Both targets
+use `ResourceScope(module_code="project_management", entity_type="project",
+entity_id=project_id)` — `ResourceScope` proven generic beyond Resource itself, per its
+`entity_type` already being used for arbitrary business entities in `DocumentLink`'s own
+ViewInvalidation handler (§26.14). Dedupe follows the P18B-FIX-corrected rule from day one: a
+`(scope_code, tenant_id, organization_id, module_code, entity_type, entity_id)` target derived
+from the constructed scope, cleared per transaction correlation_id — so one APPROVED event's two
+targets are always two separate hints, while a repeat of the same target within one transaction
+still coalesces to one.
+
+The `financial_change.apply` producer required an architecture decision, not a mechanical port:
+`ApprovalService.approve_approval_request`/`.reject` already own a real `UnitOfWork` (with
+`uow.record_event`), but that `UnitOfWork` is deliberately never handed to a participant or its
+`dependencies_factory` (P4 Step 2, ADR-005 §24 — "Neither ever receives the `UnitOfWork` itself").
+Widening `DependenciesFactory`'s call signature to thread `record_event` through would have
+touched every registered apply/reject handler across both Platform business modules that use
+`ApprovalService` (PM's own five families plus Inventory/Procurement's), for the sake of one
+participant — out of P19's scope and a violation of "never modify unrelated capabilities." The
+chosen fix instead extends `ApprovalHandlerResult` with a second, coexisting reporting channel:
+`domain_events: tuple[DomainEvent, ...] = ()`, alongside the existing `post_commit_events` legacy
+Signal-name tuple. A participant that has migrated a given fact returns it here instead;
+`ApprovalService` — the sole owner of the decision's `UnitOfWork` — records each one via
+`uow.record_event(...)` *before* its own `uow.commit()`, so it dispatches through the same
+transactional/post-commit pipeline as any other canonical event, with the same
+FAIL_FAST/ISOLATE_AND_CONTINUE/rollback semantics: a participant that raises never reaches event
+recording; a transactional handler failure or a commit failure yields zero published event.
+`FinancialChangeApprovalParticipant.apply()` now builds `ForecastVersionChanged(
+change_type=APPROVED, ...)` directly when `change.applied_forecast_id` is set — the same
+canonical vocabulary the direct `ForecastVersionService.approve_forecast` path uses, not a second,
+approval-specific event type, because the business semantics genuinely overlap: both are "this
+forecast is now the project's approved ETC basis." `dependencies_factory`'s call signature is
+completely unchanged; Inventory/Procurement's approval dependency factories were not touched. The
+two Approval reporting mechanisms coexist, capability-by-capability, with no bridge between them —
+every other Approval participant (Budget, Task, Baseline, Billing Preparation, Project Cost, and
+Financial Change's own non-Forecast branches) still reports exclusively through
+`post_commit_events`, unchanged.
+
+`forecasts_changed` is now deleted from `DomainEvents` entirely — zero producers (both the direct
+Forecast path and the financial-change-apply successor path emit only typed events now), zero
+consumers (`financials_refresh_mixin.py`'s legacy subscription removed; the real UI consumer is
+now a single `ForecastViewInvalidationAdapter` instance wired into
+`ProjectManagementFinancialsWorkspaceController`, connected to two narrow methods —
+`onForecastPlanningStale`/`onForecastApprovedBasisStale` — that each filter by the hint's project
+id against the workspace's currently-selected project before invalidating their proven, narrower
+destination set), field absent. `FinanceInvalidationScope` remains untouched and still carries the
+other, still-legacy Finance signals (`budgets_changed`, `cost_entries_changed`,
+`commitments_changed`, `rates_changed`, `financial_changes_changed`, `financial_setup_changed`,
+`planned_costs_changed`, `billing_preparations_changed`) — P19 retired it from the Forecast path
+only, per its own scope. The legacy Signal count is 27 as of this phase (28 minus the one
+deletion — confirmed source-derived). The Finance Forecast capability is fully modernized.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

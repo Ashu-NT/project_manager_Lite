@@ -45,18 +45,6 @@ def _project_scope(*, tenant_id: str, organization_id: str, project_id: str) -> 
 
 
 def build_forecast_view_invalidation_handler(channel: ViewInvalidationChannel):
-    """One handler covering all three Forecast DomainEvent types, mirroring the read-model
-    split proven from source (P19 §6): only `ForecastVersionChanged(APPROVED)` changes which
-    forecast is the project's authoritative ETC basis -- CostPolicyEngine's
-    `estimate_at_completion` and the performance/commercial projections it feeds only ever read
-    the *approved* forecast (`facts.approved_forecast`), never a draft/submitted one. Every
-    other Forecast fact (version create/submit/reject/delete, line add/update/remove, draft
-    generation) can only ever touch a mutable, non-approved forecast
-    (`_require_mutable_forecast` forbids editing an approved one), so it can only ever affect
-    the forecast planning projection.
-
-    Deduplicated per target, transaction-scoped (P18B-FIX): keyed by (transaction
-    correlation_id, target identity), cleared the moment a new correlation_id arrives."""
 
     current_correlation_id: list[str | None] = [None]
     notified_targets: set[_ProjectTarget] = set()
@@ -87,20 +75,20 @@ def build_forecast_view_invalidation_handler(channel: ViewInvalidationChannel):
             current_correlation_id[0] = context.correlation_id
             notified_targets.clear()
 
+        scope_codes = (FORECAST_PLANNING_SCOPE_CODE,)
         if (
             isinstance(event, ForecastVersionChanged)
             and event.change_type is ForecastVersionChangeType.APPROVED
         ):
-            scope_code = FORECAST_APPROVED_BASIS_SCOPE_CODE
-        else:
-            scope_code = FORECAST_PLANNING_SCOPE_CODE
+            scope_codes = (FORECAST_PLANNING_SCOPE_CODE, FORECAST_APPROVED_BASIS_SCOPE_CODE)
 
-        _notify(
-            scope_code,
-            tenant_id=event.tenant_id,
-            organization_id=event.organization_id,
-            project_id=event.project_id,
-        )
+        for scope_code in scope_codes:
+            _notify(
+                scope_code,
+                tenant_id=event.tenant_id,
+                organization_id=event.organization_id,
+                project_id=event.project_id,
+            )
 
     return handle_forecast_event
 
