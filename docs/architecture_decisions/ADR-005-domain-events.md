@@ -761,6 +761,14 @@ class ViewInvalidationHint:
     entity_id: str | None = None
 ```
 
+**Revised again in P16D-FIX (§26.14):** `EventScope` gained a fourth kind, `ResourceScope`
+(`tenant_id`/`organization_id`/`module_code`/`entity_type`/`entity_id` — exactly one
+resource/entity within one organization), after an earlier attempt to solve the same problem by
+adding `module_code: str | None = None` directly to `ViewInvalidationHint` was judged to violate
+this hint's own shape (target + typed scope, never an accumulating capability-specific field). See
+§26.14 for the full correction and rationale; `ViewInvalidationHint` itself keeps the five fields
+shown below, unchanged from this revision.
+
 **Why this resolves the `organization_id=None` ambiguity structurally, not by convention:** under
 the flat shape, `organization_id=None` had to carry the entire weight of meaning "intentionally
 tenant-wide" versus every other, forbidden reading (§3's invariant table) — a discipline enforced
@@ -1842,6 +1850,39 @@ field absent — the legacy Signal count is 29 as of this phase (30 minus the on
 alias, no wrapper, no deleted-signal bookkeeping, matching every prior deletion in this ledger).
 The Document capability — Document, DocumentStructure, and DocumentLink — is fully modernized:
 this is the last Shared Master Data slice.
+
+**P16D-FIX correction: `module_code` moved off `ViewInvalidationHint` into a new `ResourceScope`
+`EventScope` kind.** P16D's original design (previous three paragraphs, left as written for
+history) resolved `document_links`' cross-module opaque-entity-identity problem by adding one new
+optional field, `module_code: str | None = None`, directly to the shared `ViewInvalidationHint`
+dataclass. On review this was judged to violate the hint's own canonical shape — target + typed
+scope, never accumulating capability-specific optional fields — since the very next capability
+needing similar cross-module resource identity would have had nowhere to put it except more
+one-off optional fields on the same shared dataclass. The corrected design instead extends
+`EventScope` itself to a fourth, still-generic kind: `ResourceScope(tenant_id, organization_id,
+module_code, entity_type, entity_id)` — exactly one resource/entity within one organization,
+identified the same generic way `OrganizationScope` identifies an organization. `module_code` here
+names the *resource's own* owning module (the linked business entity's module for the forward
+shape; the literal `"platform"` — the same convention `record_audit_entry(..., module="platform",
+...)` already uses — for the reverse, Document-owns-itself shape), not a property of the hint's
+transport. `ViewInvalidationHint` is restored to its original five fields (`scope`, `category`,
+`scope_code`, `entity_type`, `entity_id`); `document_links`' `build_document_links_view_invalidation_handler`
+now constructs `scope=ResourceScope(...)` for both shapes instead of `scope=OrganizationScope(...)`
+plus a `module_code=` hint kwarg. Because a `ResourceScope` is a strict refinement of
+`OrganizationScope` (always carries a real `organization_id`), `ExactOrganization`/
+`AnyOrganizationInTenant`/`AllTenants` were each extended to match it exactly as they already
+matched `OrganizationScope` — preserving `DocumentLinksViewInvalidationAdapter`'s existing
+org-scoped-only channel subscription and every observable P16D behavior (both hint shapes, both
+dedup sets, Catalog/Admin narrow refresh, Reservations/Procurement disposition, the caller-owned
+entity-org-validation invariant, and `documents_changed`'s deletion) unchanged; `TenantWide`/
+`PlatformWide` deliberately do not match `ResourceScope`, since both exist specifically to exclude
+organization-scoped facts. A new `ExactResource` `ScopeFilter` was added alongside it — the
+narrowest possible single-resource channel-level subscription — for any future consumer that wants
+it, though no current adapter needs it (client-side entity-identity comparison in the consuming
+controller remains the chosen filtering point for `document_links`, per §12's existing guidance
+that presentation-state comparison belongs in the controller, not the shared contract). `EventScope`
+is accordingly now a closed union of four kinds, not three; ADR-005 §12 should be read with that
+correction in mind wherever it still says "three."
 
 ## Alternatives Rejected
 

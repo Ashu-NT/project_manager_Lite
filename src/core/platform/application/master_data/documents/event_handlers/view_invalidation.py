@@ -11,6 +11,7 @@ from src.core.platform.domain.master_data.documents.events import (
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import (
     OrganizationScope,
+    ResourceScope,
     ViewInvalidationChannel,
     ViewInvalidationHint,
 )
@@ -21,6 +22,7 @@ DOCUMENT_STRUCTURE_CATEGORY = "document_structure"
 DOCUMENT_STRUCTURE_LIST_SCOPE_CODE = "document_structure_list"
 DOCUMENT_LINKS_SCOPE_CODE = "document_links"
 DOCUMENT_LINK_OWNER_ENTITY_TYPE = "document"
+DOCUMENT_LINK_OWNER_MODULE_CODE = "platform"
 
 
 def build_document_list_view_invalidation_handler(channel: ViewInvalidationChannel):
@@ -71,22 +73,25 @@ def build_document_structure_list_view_invalidation_handler(channel: ViewInvalid
 
 def build_document_links_view_invalidation_handler(channel: ViewInvalidationChannel):
     """One `document_links` hint per distinct link *target* touched in a transaction, in each
-    of two shapes:
+    of two shapes, each targeted via a `ResourceScope` (P16D-FIX) rather than a bare
+    `OrganizationScope` + an ad hoc field on the hint itself:
 
     - forward (module_code, entity_type, entity_id): "this business entity's linked documents
       changed" -- for Catalog/Reservations/Procurement's own linked-document projections.
-    - reverse ("document", document_id): "this document's own link set changed" -- for Admin's
-      per-document link panel.
+    - reverse ("platform", "document", document_id): "this document's own link set changed" --
+      for Admin's per-document link panel. Module code is `"platform"` because Document is a
+      Platform-owned resource, not owned by any business module -- the same convention already
+      used by `record_audit_entry(..., module="platform", ...)` elsewhere in this codebase.
 
-    Deduplicated independently per shape, keyed by (transaction correlation_id, target
+    Deduplicated independently per shape, keyed by (transaction correlation_id, target scope
     identity) -- not correlation_id alone, since one transaction (e.g.
     `register_entity_attachments`) can legitimately touch multiple distinct documents while
     targeting one shared business entity. Both dedup sets are transaction-scoped: cleared the
     moment a new correlation_id arrives, so neither ever grows across unrelated transactions."""
 
     current_correlation_id: list[str | None] = [None]
-    notified_entity_targets: set[tuple[str, str, str]] = set()
-    notified_document_targets: set[str] = set()
+    notified_entity_targets: set[tuple[str, str, str, str, str]] = set()
+    notified_document_targets: set[tuple[str, str, str]] = set()
 
     def handle_document_links_event(
         event: DocumentReferenceLinked | DocumentReferenceUnlinked,
@@ -97,32 +102,47 @@ def build_document_links_view_invalidation_handler(channel: ViewInvalidationChan
             notified_entity_targets.clear()
             notified_document_targets.clear()
 
-        scope = OrganizationScope(event.tenant_id, event.organization_id)
-
-        entity_target = (event.module_code, event.entity_type, event.entity_id)
+        entity_target = (
+            event.tenant_id,
+            event.organization_id,
+            event.module_code,
+            event.entity_type,
+            event.entity_id,
+        )
         if entity_target not in notified_entity_targets:
             notified_entity_targets.add(entity_target)
             channel.notify(
                 ViewInvalidationHint(
-                    scope=scope,
+                    scope=ResourceScope(
+                        tenant_id=event.tenant_id,
+                        organization_id=event.organization_id,
+                        module_code=event.module_code,
+                        entity_type=event.entity_type,
+                        entity_id=event.entity_id,
+                    ),
                     category=DOCUMENT_CATEGORY,
                     scope_code=DOCUMENT_LINKS_SCOPE_CODE,
                     entity_type=event.entity_type,
                     entity_id=event.entity_id,
-                    module_code=event.module_code,
                 )
             )
 
-        if event.document_id not in notified_document_targets:
-            notified_document_targets.add(event.document_id)
+        document_target = (event.tenant_id, event.organization_id, event.document_id)
+        if document_target not in notified_document_targets:
+            notified_document_targets.add(document_target)
             channel.notify(
                 ViewInvalidationHint(
-                    scope=scope,
+                    scope=ResourceScope(
+                        tenant_id=event.tenant_id,
+                        organization_id=event.organization_id,
+                        module_code=DOCUMENT_LINK_OWNER_MODULE_CODE,
+                        entity_type=DOCUMENT_LINK_OWNER_ENTITY_TYPE,
+                        entity_id=event.document_id,
+                    ),
                     category=DOCUMENT_CATEGORY,
                     scope_code=DOCUMENT_LINKS_SCOPE_CODE,
                     entity_type=DOCUMENT_LINK_OWNER_ENTITY_TYPE,
                     entity_id=event.document_id,
-                    module_code=None,
                 )
             )
 
@@ -139,4 +159,5 @@ __all__ = [
     "DOCUMENT_STRUCTURE_LIST_SCOPE_CODE",
     "DOCUMENT_LINKS_SCOPE_CODE",
     "DOCUMENT_LINK_OWNER_ENTITY_TYPE",
+    "DOCUMENT_LINK_OWNER_MODULE_CODE",
 ]

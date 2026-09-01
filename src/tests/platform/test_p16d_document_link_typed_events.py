@@ -358,6 +358,33 @@ def test_two_separate_link_commits_to_different_entities_produce_two_invalidatio
     assert {h.entity_id for h in entity_shape_hints} == {"two-a", "two-b"}
 
 
+def test_same_target_entity_across_two_separate_transactions_produces_two_invalidations(services):
+    """Dedup is transaction-scoped only (P16D-FIX §7): the per-transaction dedup sets are
+    cleared the moment a new correlation_id arrives, so a second, later transaction that
+    happens to target the very same entity as an earlier one is never silently suppressed."""
+    document_service = services["document_service"]
+    doc_1 = document_service.create_document(
+        document_code=_unique_code("P16D-XACT-1"), title="Doc 1", storage_uri="C:/docs/q.pdf"
+    )
+    doc_2 = document_service.create_document(
+        document_code=_unique_code("P16D-XACT-2"), title="Doc 2", storage_uri="C:/docs/r.pdf"
+    )
+    entity_id = _unique_code("P16D-SAME-TARGET")
+    hints = _spy_document_links_hints(services)
+
+    document_service.add_link(
+        document_id=doc_1.id, module_code="qhse", entity_type="inspection", entity_id=entity_id
+    )
+    document_service.add_link(
+        document_id=doc_2.id, module_code="qhse", entity_type="inspection", entity_id=entity_id
+    )
+
+    entity_shape_hints = [
+        h for h in hints if h.entity_type == "inspection" and h.entity_id == entity_id
+    ]
+    assert len(entity_shape_hints) == 2
+
+
 def test_failed_link_commit_produces_zero_document_links_hints(services, monkeypatch):
     document_service = services["document_service"]
     document = document_service.create_document(
@@ -379,14 +406,15 @@ def test_failed_link_commit_produces_zero_document_links_hints(services, monkeyp
 
 
 def test_link_scope_is_typed_not_stringly_encoded():
-    """The forward-shape hint's identity lives in three separate typed fields
-    (module_code/entity_type/entity_id), never joined into one opaque string like
-    'inventory:item:123' (P16D §3)."""
+    """The forward-shape hint's identity lives in a typed `ResourceScope`
+    (tenant_id/organization_id/module_code/entity_type/entity_id), never joined into one opaque
+    string like 'inventory:item:123' (P16D §3, corrected by P16D-FIX to use `ResourceScope`
+    rather than a bare `module_code` field on the hint itself)."""
     from src.core.platform.application.master_data.documents.event_handlers.view_invalidation import (
         build_document_links_view_invalidation_handler,
     )
     from src.core.shared.events.domain_event_context import DomainEventContext
-    from src.core.shared.events.view_invalidation import ViewInvalidationHint
+    from src.core.shared.events.view_invalidation import ResourceScope, ViewInvalidationHint
 
     captured: list[ViewInvalidationHint] = []
     handler = build_document_links_view_invalidation_handler(channel=type("C", (), {"notify": staticmethod(captured.append)})())
@@ -405,7 +433,10 @@ def test_link_scope_is_typed_not_stringly_encoded():
     )
 
     entity_hint = next(h for h in captured if h.entity_type == "stock_item")
-    assert entity_hint.module_code == "inventory_procurement"
+    assert isinstance(entity_hint.scope, ResourceScope)
+    assert entity_hint.scope.tenant_id == "tenant-1"
+    assert entity_hint.scope.organization_id == "org-1"
+    assert entity_hint.scope.module_code == "inventory_procurement"
     assert entity_hint.entity_id == "item-1"
     assert ":" not in (entity_hint.entity_id or "")
     assert not isinstance(entity_hint.entity_id, dict)

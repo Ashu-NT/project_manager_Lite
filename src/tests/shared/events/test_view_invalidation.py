@@ -19,9 +19,11 @@ from src.core.shared.events.view_invalidation import (
     AnyOrganizationInTenant,
     EventScope,
     ExactOrganization,
+    ExactResource,
     OrganizationScope,
     PlatformScope,
     PlatformWide,
+    ResourceScope,
     ScopeFilter,
     TenantScope,
     TenantWide,
@@ -307,3 +309,97 @@ def test_view_invalidation_channel_exposes_exactly_notify_and_subscribe() -> Non
 
 def test_view_invalidation_handler_and_scope_filter_are_distinct_protocols() -> None:
     assert ViewInvalidationHandler is not ScopeFilter
+
+
+# ---------------------------------------------------------------------------
+# ResourceScope (P16D-FIX): generic 4th EventScope kind, one resource within one organization
+# ---------------------------------------------------------------------------
+
+
+def test_resource_scope_requires_all_five_identity_fields() -> None:
+    with pytest.raises(TypeError):
+        ResourceScope(tenant_id="A", organization_id="A1", module_code="qhse", entity_type="inspection")  # type: ignore[call-arg]
+
+    scope = ResourceScope(
+        tenant_id="A", organization_id="A1", module_code="qhse", entity_type="inspection", entity_id="i1"
+    )
+    assert (scope.tenant_id, scope.organization_id, scope.module_code, scope.entity_type, scope.entity_id) == (
+        "A", "A1", "qhse", "inspection", "i1",
+    )
+
+
+def test_resource_scope_is_frozen_and_value_comparable() -> None:
+    scope = ResourceScope("A", "A1", "qhse", "inspection", "i1")
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        scope.entity_id = "i2"  # type: ignore[misc]
+
+    assert ResourceScope("A", "A1", "qhse", "inspection", "i1") == ResourceScope("A", "A1", "qhse", "inspection", "i1")
+    assert ResourceScope("A", "A1", "qhse", "inspection", "i1") != ResourceScope("A", "A1", "qhse", "inspection", "i2")
+    assert not isinstance(scope, OrganizationScope)
+    assert not isinstance(OrganizationScope("A", "A1"), ResourceScope)
+
+
+def test_view_invalidation_hint_has_no_module_code_field() -> None:
+    """P16D-FIX: capability-specific targeting identity (e.g. Document's module_code) lives in
+    a typed EventScope variant (ResourceScope), never as an accumulating optional field directly
+    on the shared hint."""
+    hint_fields = {f.name for f in dataclasses.fields(ViewInvalidationHint)}
+    assert hint_fields == {"scope", "category", "scope_code", "entity_type", "entity_id"}
+
+
+def test_exact_organization_matches_resource_scope_in_its_own_organization() -> None:
+    """A resource is always inside exactly one organization -- 'this organization's views'
+    must include hints for its resources too, exactly as it already includes plain
+    OrganizationScope hints (existing scope matching is unchanged by this extension)."""
+    filt = ExactOrganization(tenant_id="A", organization_id="A1")
+    own_resource = ResourceScope("A", "A1", "qhse", "inspection", "i1")
+    other_org_resource = ResourceScope("A", "A2", "qhse", "inspection", "i1")
+    other_tenant_resource = ResourceScope("B", "A1", "qhse", "inspection", "i1")
+
+    assert filt.matches(own_resource) is True
+    assert filt.matches(other_org_resource) is False
+    assert filt.matches(other_tenant_resource) is False
+
+
+def test_tenant_wide_and_platform_wide_never_match_resource_scope() -> None:
+    resource = ResourceScope("A", "A1", "qhse", "inspection", "i1")
+
+    assert TenantWide(tenant_id="A").matches(resource) is False
+    assert PlatformWide().matches(resource) is False
+
+
+def test_any_organization_in_tenant_and_all_tenants_match_resource_scope(scopes) -> None:
+    resource_a1 = ResourceScope("A", "A1", "qhse", "inspection", "i1")
+    resource_b1 = ResourceScope("B", "B1", "qhse", "inspection", "i1")
+
+    assert AnyOrganizationInTenant(tenant_id="A").matches(resource_a1) is True
+    assert AnyOrganizationInTenant(tenant_id="A").matches(resource_b1) is False
+    assert AllTenants().matches(resource_a1) is True
+    assert AllTenants().matches(resource_b1) is True
+
+
+def test_exact_resource_matches_only_the_one_named_resource() -> None:
+    filt = ExactResource(
+        tenant_id="A", organization_id="A1", module_code="qhse", entity_type="inspection", entity_id="i1"
+    )
+    same = ResourceScope("A", "A1", "qhse", "inspection", "i1")
+    different_entity = ResourceScope("A", "A1", "qhse", "inspection", "i2")
+    different_module = ResourceScope("A", "A1", "other_module", "inspection", "i1")
+    owning_organization_as_a_whole = OrganizationScope("A", "A1")
+
+    assert filt.matches(same) is True
+    assert filt.matches(different_entity) is False
+    assert filt.matches(different_module) is False
+    assert filt.matches(owning_organization_as_a_whole) is False
+
+
+def test_existing_organization_scope_matching_is_unaffected_by_resource_scope(scopes) -> None:
+    """Regression: adding ResourceScope must not change how any filter matches the pre-existing
+    three scope kinds."""
+    assert ExactOrganization(tenant_id="A", organization_id="A1").matches(scopes["org_a1"]) is True
+    assert ExactOrganization(tenant_id="A", organization_id="A1").matches(scopes["org_a2"]) is False
+    assert TenantWide(tenant_id="A").matches(scopes["tenant_a"]) is True
+    assert TenantWide(tenant_id="A").matches(scopes["org_a1"]) is False
+    assert AnyOrganizationInTenant(tenant_id="A").matches(scopes["org_a1"]) is True
+    assert AllTenants().matches(scopes["org_b1"]) is True
+    assert PlatformWide().matches(scopes["platform"]) is True

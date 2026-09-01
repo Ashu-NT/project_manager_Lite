@@ -326,11 +326,11 @@ def test_view_invalidation_hint_is_a_plain_dataclass_not_a_domain_event_or_integ
     assert dc.is_dataclass(ViewInvalidationHint)
     assert not issubclass(ViewInvalidationHint, BaseModel)
     hint_fields = {f.name for f in dc.fields(ViewInvalidationHint)}
-    # P16D added `module_code` -- a minimal, optional (default None) extension for the one
-    # capability (Document's `document_links` target) whose `entity_id` is a cross-module opaque
-    # identifier rather than one owned by the producing capability itself. Still a plain
-    # dataclass, still not a DomainEvent/IntegrationEvent.
-    assert hint_fields == {"scope", "category", "scope_code", "entity_type", "entity_id", "module_code"}
+    # P16D briefly added `module_code` directly to this hint; P16D-FIX reverted that in favor of
+    # a typed `ResourceScope` (see src/core/shared/events/view_invalidation.py) so capability-
+    # specific targeting identity never accumulates as an optional top-level field here. Still a
+    # plain dataclass, still not a DomainEvent/IntegrationEvent.
+    assert hint_fields == {"scope", "category", "scope_code", "entity_type", "entity_id"}
 
 
 def test_no_universal_event_base_class_was_introduced():

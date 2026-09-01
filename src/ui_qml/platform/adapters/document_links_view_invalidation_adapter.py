@@ -8,6 +8,7 @@ from src.core.platform.application.master_data.documents.event_handlers.view_inv
 )
 from src.core.shared.events.view_invalidation import (
     ExactOrganization,
+    ResourceScope,
     ViewInvalidationChannel,
     ViewInvalidationHint,
 )
@@ -45,7 +46,8 @@ class DocumentLinksViewInvalidationAdapter(QObject):
 
     def _on_hint(self, hint: ViewInvalidationHint) -> None:
         if hint.category == DOCUMENT_CATEGORY and hint.scope_code == DOCUMENT_LINKS_SCOPE_CODE:
-            self.documentLinksStale.emit(hint.module_code or "", hint.entity_type, hint.entity_id or "")
+            module_code = hint.scope.module_code if isinstance(hint.scope, ResourceScope) else ""
+            self.documentLinksStale.emit(module_code, hint.entity_type, hint.entity_id or "")
 
     def dispose(self) -> None:
         self._subscription.dispose()
