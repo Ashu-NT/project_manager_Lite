@@ -2119,6 +2119,84 @@ other, still-legacy Finance signals (`budgets_changed`, `cost_entries_changed`,
 only, per its own scope. The legacy Signal count is 27 as of this phase (28 minus the one
 deletion — confirmed source-derived). The Finance Forecast capability is fully modernized.
 
+**26.17 Inventory Storeroom + Storage Location: FULLY MODERNIZED (P20) —
+`inventory_storerooms_changed`/`inventory_locations_changed` DELETED.** The first
+Inventory/Procurement capability modernized. Both entities were on raw, hand-rolled
+`self._session.commit()` mutation (`InventoryService.create_storeroom`/`update_storeroom`,
+`InventoryFoundationService.create_storage_location`/`update_storage_location`), with the legacy
+signal emitted manually after commit — not through any canonical pipeline. P20 also found two
+real, pre-existing, unrelated-to-events bugs in the same code paths: `record_activity(self, ...)`
+was silently dead code (`InventoryService`/`InventoryFoundationService` were never constructed
+with an `_activity_service` at the composition root), and `update_storeroom`/
+`update_storage_location` had no no-op detection at all — every update wrote, audited (well,
+attempted to — see above), and emitted regardless of whether any field actually changed.
+
+One new canonical `InventoryFoundationUnitOfWork`/`InventoryFoundationUnitOfWorkFactory`
+(`.storerooms`/`.locations` accessors, `src/core/modules/inventory_procurement/{contracts,
+infrastructure/persistence}/uow/inventory/inventory_foundation_unit_of_work.py`, matching this
+module's own established `PurchaseOrderSubmissionUnitOfWork`/`RequisitionSubmissionUnitOfWork`
+shape) now owns both. It also carries a fresh, transaction-bound `EnterpriseAuditService` —
+`record_audit_entry(uow, ...)` is a new addition for these two capabilities, not merely a
+convergence, since Inventory's older CRUD paths never had governance audit trail coverage — and
+a fresh `ActivityService`, finally making `record_activity` genuinely fire (and atomically, unlike
+its previously-dead, previously-non-atomic state).
+
+Domain semantics were audited, not assumed: Storeroom carries a genuine four-state lifecycle
+(`STOREROOM_STATUS_TRANSITIONS`: DRAFT→ACTIVE→{INACTIVE,CLOSED}, INACTIVE→ACTIVE, CLOSED
+terminal), enforced by `validate_transition` — a real lifecycle operation, not merely a mutable
+profile field — so it gets its own `StoreroomStatusChanged(status: str, ...)` event, an
+enum-payload shape (mirroring `ResourceMasterChanged`'s `change_type` from §26.15) rather than
+one dataclass per transition. Storage Location's `is_active` boolean, by contrast, has no derived
+consequences at all (no `opened_at`/`closed_at` side effects the way Site's does — §26.12), so
+it stays folded into `LocationProfileUpdated`, per this ADR's own rule: model a lifecycle event
+only when a flag has a real lifecycle operation or derived consequences, not merely because it
+exists. Five typed events total: `StoreroomCreated`, `StoreroomProfileUpdated`,
+`StoreroomStatusChanged`, `LocationCreated`, `LocationProfileUpdated` — no
+`StoreroomChanged`/`LocationChanged`/`InventoryFoundationChanged` blanket type. Neither entity
+carries a `tenant_id` column (Inventory/Procurement is organization-scoped only, with tenant
+resolved via RLS at the ORM layer); events derive `tenant_id` from the active
+`Organization.tenant_id`, matching `update_site`'s own established convention.
+
+Storeroom ↔ Location integrity was audited from source, not assumed, per this phase's own
+mandate: a Location's `storeroom_id` is immutable after creation (no "move between storerooms"
+operation exists in `update_storage_location`'s signature at all); a Storeroom must belong to the
+active organization to be referenced (`InventoryService.get_storeroom` already raises
+`NotFoundError` otherwise — confirmed pre-existing and correct, no cross-org bug found); parent
+Location cycles were already rejected (`_validate_parent_location`'s walk-to-root check). A
+Storeroom's status transition does not cascade to its child Locations — not a cross-org integrity
+bug, a business-rule completeness question outside this phase's mandate, left exactly as found.
+
+Exactly two ViewInvalidation targets, both `OrganizationScope`
+(`application/inventory/event_handlers/view_invalidation.py`): `storeroom_list` and
+`location_list`. `storeroom_list` is deliberately one target covering two visually different
+projections — the Inventory workspace's own Storeroom master list AND the `storeroom_options`
+reference selector embedded in Pricing/Procurement/Reservations — proven from source that both
+are populated from the same underlying storeroom rows and always go stale together (this ADR's
+own "no target duplication for the same projection" rule, §12). `location_list` has exactly one
+real consumer (the Inventory workspace) — proven from source that no other Inventory/Procurement
+workspace presenter references Storage Location data at all, unlike Storeroom.
+
+All 6 Inventory/Procurement workspaces were re-audited from source, not assumed from their
+(pre-P20, byte-for-byte identical across 5 of them) blanket 11-signal subscriptions: Inventory
+(the owner — full `refresh()` on either target; its own `build_workspace_state` is one monolithic
+query bundling storerooms/balances/transactions/foundation together, so no narrower existing seam
+could be extracted without a deeper presenter refactor outside this phase's mandate), Dashboard
+(KPI rollup — full `refresh()` on either target, the same "genuinely reacts to any inventory
+mutation by design, no narrower seam" justification already established for Resource's Dashboard
+consumer in §26.15), Pricing and Procurement (storeroom_options selector only — both already had
+an existing narrow `refresh_site_options` seam that also refreshes `storeroom_options`, reused
+directly, zero new code), Reservations (storeroom_options selector only — no existing narrow seam,
+so P20 additively extracted one, `refresh_storeroom_options`, mirroring Pricing/Procurement's
+exact shape), and Catalog (zero real dependency — proven no Catalog presenter references
+Storeroom or Location at all — the subscription was removed entirely with no replacement, the
+same "classification E, no adapter" treatment §26.15 gave Platform's Control workspace for
+Resource).
+
+`inventory_storerooms_changed` and `inventory_locations_changed` are now both deleted from
+`DomainEvents` entirely — zero producers, zero consumers, fields absent. The legacy Signal count
+is 25 as of this phase (27 minus the two deletions — confirmed source-derived). The Inventory
+Storeroom and Storage Location capabilities are fully modernized.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

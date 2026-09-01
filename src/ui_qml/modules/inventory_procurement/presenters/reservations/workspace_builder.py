@@ -14,6 +14,16 @@ from .reservation_mapper import to_record_view_model
 from .selection import resolve_selected_id
 
 
+def build_storeroom_reference_options(desktop_api):
+    return (
+        InventorySelectorOptionViewModel(value="all", label="All storerooms"),
+        *(
+            InventorySelectorOptionViewModel(value=option.value, label=option.label)
+            for option in desktop_api.list_storeroom_options(active_only=None)
+        ),
+    )
+
+
 def build_workspace_state(
     desktop_api,
     *,
@@ -38,13 +48,7 @@ def build_workspace_state(
             for option in desktop_api.list_item_options(active_only=None)
         ),
     )
-    storeroom_options = (
-        InventorySelectorOptionViewModel(value="all", label="All storerooms"),
-        *(
-            InventorySelectorOptionViewModel(value=option.value, label=option.label)
-            for option in desktop_api.list_storeroom_options(active_only=None)
-        ),
-    )
+    storeroom_options = build_storeroom_reference_options(desktop_api)
 
     normalized_search = (search_text or "").strip()
     normalized_status_filter = normalize_filter(status_filter, status_options)

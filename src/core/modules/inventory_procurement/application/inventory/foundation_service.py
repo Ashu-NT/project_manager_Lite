@@ -16,6 +16,9 @@ from src.core.modules.inventory_procurement.application.inventory.service import
 from src.core.modules.inventory_procurement.application.inventory.stock_control_service import (
     StockControlService,
 )
+from src.core.modules.inventory_procurement.contracts.uow.inventory.inventory_foundation_unit_of_work import (
+    InventoryFoundationUnitOfWorkFactory,
+)
 from src.core.modules.inventory_procurement.contracts.repositories.inventory import (
     CycleCountRepository,
     ReorderPolicyRepository,
@@ -28,11 +31,17 @@ from src.core.modules.inventory_procurement.domain.inventory.foundation import (
     StorageLocation,
     StorageLocationType,
 )
+from src.core.modules.inventory_procurement.domain.inventory.foundation_events import (
+    LocationCreated,
+    LocationProfileUpdated,
+)
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.common.ids import generate_id
+from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
@@ -61,6 +70,7 @@ class InventoryFoundationService:
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
         activity_service=None,
+        uow_factory: InventoryFoundationUnitOfWorkFactory | None = None,
     ) -> None:
         self._session = session
         self._location_repo = location_repo
@@ -78,6 +88,15 @@ class InventoryFoundationService:
         self._module_catalog_service = module_catalog_service
         self._user_session = user_session
         self._activity_service = activity_service
+        self._uow_factory: InventoryFoundationUnitOfWorkFactory | None = uow_factory
+
+    def _require_uow_factory(self) -> InventoryFoundationUnitOfWorkFactory:
+        if self._uow_factory is None:
+            raise RuntimeError("Inventory foundation unit of work is not configured.")
+        return self._uow_factory
+
+    def _new_context(self) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id())
 
     def list_storage_locations(
         self,
@@ -133,14 +152,6 @@ class InventoryFoundationService:
             operation_label="create storage location",
         )
         normalized_code = normalize_inventory_code(location_code, label="Location code")
-        if (
-            self._location_repo.get_by_code(organization.id, storeroom.id, normalized_code)
-            is not None
-        ):
-            raise ValidationError(
-                "Storage location code already exists in the selected storeroom.",
-                code="INVENTORY_LOCATION_CODE_EXISTS",
-            )
         normalized_parent_id = self._validate_parent_location(
             organization_id=organization.id,
             storeroom_id=storeroom.id,
@@ -160,31 +171,56 @@ class InventoryFoundationService:
             allows_putaway=bool(allows_putaway),
             notes=notes,
         )
-        try:
-            self._location_repo.add(location)
-            self._session.commit()
-        except IntegrityError as exc:
-            self._session.rollback()
-            raise ValidationError(
-                "Storage location code already exists in the selected storeroom.",
-                code="INVENTORY_LOCATION_CODE_EXISTS",
-            ) from exc
-        except Exception:
-            self._session.rollback()
-            raise
-        record_activity(
-            self,
-            action="inventory_storage_location.create",
-            entity_type="inventory_storage_location",
-            entity_id=location.id,
-            module="inventory",
-            details={
-                "storeroom_id": location.storeroom_id,
-                "location_code": location.location_code,
-                "location_type": location.location_type.value,
-            },
-        )
-        domain_events.inventory_locations_changed.emit(location.id)
+        with self._require_uow_factory().create(context=self._new_context()) as uow:
+            if uow.locations.get_by_code(organization.id, storeroom.id, normalized_code) is not None:
+                raise ValidationError(
+                    "Storage location code already exists in the selected storeroom.",
+                    code="INVENTORY_LOCATION_CODE_EXISTS",
+                )
+            try:
+                uow.locations.add(location)
+            except IntegrityError as exc:
+                raise ValidationError(
+                    "Storage location code already exists in the selected storeroom.",
+                    code="INVENTORY_LOCATION_CODE_EXISTS",
+                ) from exc
+            record_activity(
+                uow,
+                action="inventory_storage_location.create",
+                entity_type="inventory_storage_location",
+                entity_id=location.id,
+                module="inventory",
+                details={
+                    "storeroom_id": location.storeroom_id,
+                    "location_code": location.location_code,
+                    "location_type": location.location_type.value,
+                },
+                commit=False,
+            )
+            record_audit_entry(
+                uow,
+                operation="create",
+                entity_type="inventory_storage_location",
+                entity_id=location.id,
+                module="inventory",
+                severity="low",
+                metadata={
+                    "storeroom_id": location.storeroom_id,
+                    "location_code": location.location_code,
+                    "location_type": location.location_type.value,
+                },
+                commit=False,
+                fail_closed=True,
+            )
+            uow.record_event(
+                LocationCreated(
+                    tenant_id=organization.tenant_id,
+                    organization_id=organization.id,
+                    location_id=location.id,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
         return location
 
     def update_storage_location(
@@ -238,7 +274,7 @@ class InventoryFoundationService:
                 location_id=location.id,
                 parent_location_id=parent_location_id,
             )
-        location = replace(
+        candidate = replace(
             location,
             location_code=next_location_code,
             name=location.name if name is None else name,
@@ -251,34 +287,59 @@ class InventoryFoundationService:
                 location.allows_putaway if allows_putaway is None else bool(allows_putaway)
             ),
             notes=location.notes if notes is None else notes,
-            updated_at=datetime.now(timezone.utc),
         )
-        try:
-            self._location_repo.update(location)
-            self._session.commit()
-        except IntegrityError as exc:
-            self._session.rollback()
-            raise ValidationError(
-                "Storage location code already exists in the selected storeroom.",
-                code="INVENTORY_LOCATION_CODE_EXISTS",
-            ) from exc
-        except Exception:
-            self._session.rollback()
-            raise
-        record_activity(
-            self,
-            action="inventory_storage_location.update",
-            entity_type="inventory_storage_location",
-            entity_id=location.id,
-            module="inventory",
-            details={
-                "storeroom_id": location.storeroom_id,
-                "location_code": location.location_code,
-                "location_type": location.location_type.value,
-            },
-        )
-        domain_events.inventory_locations_changed.emit(location.id)
-        return location
+        if candidate == location:
+            # True no-op (P20 §6): zero repository write, zero audit, zero typed event, no
+            # synthetic version/updated_at bump.
+            return location
+        now = datetime.now(timezone.utc)
+        candidate = replace(candidate, updated_at=now)
+        with self._require_uow_factory().create(context=self._new_context()) as uow:
+            try:
+                uow.locations.update(candidate)
+            except IntegrityError as exc:
+                raise ValidationError(
+                    "Storage location code already exists in the selected storeroom.",
+                    code="INVENTORY_LOCATION_CODE_EXISTS",
+                ) from exc
+            record_activity(
+                uow,
+                action="inventory_storage_location.update",
+                entity_type="inventory_storage_location",
+                entity_id=candidate.id,
+                module="inventory",
+                details={
+                    "storeroom_id": candidate.storeroom_id,
+                    "location_code": candidate.location_code,
+                    "location_type": candidate.location_type.value,
+                },
+                commit=False,
+            )
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="inventory_storage_location",
+                entity_id=candidate.id,
+                module="inventory",
+                severity="low",
+                metadata={
+                    "storeroom_id": candidate.storeroom_id,
+                    "location_code": candidate.location_code,
+                    "location_type": candidate.location_type.value,
+                },
+                commit=False,
+                fail_closed=True,
+            )
+            uow.record_event(
+                LocationProfileUpdated(
+                    tenant_id=organization.tenant_id,
+                    organization_id=organization.id,
+                    location_id=candidate.id,
+                    occurred_at=now,
+                )
+            )
+            uow.commit()
+        return candidate
 
     def list_reorder_policies(
         self,

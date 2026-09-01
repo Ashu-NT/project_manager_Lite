@@ -40,6 +40,20 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.purchase_
 from src.core.modules.inventory_procurement.infrastructure.persistence.requisition_submission_unit_of_work import (
     SqlAlchemyRequisitionSubmissionUnitOfWorkFactory,
 )
+from src.core.modules.inventory_procurement.infrastructure.persistence.uow.inventory.inventory_foundation_unit_of_work import (
+    SqlAlchemyInventoryFoundationUnitOfWorkFactory,
+)
+from src.core.modules.inventory_procurement.application.inventory.event_handlers.view_invalidation import (
+    build_location_list_view_invalidation_handler,
+    build_storeroom_list_view_invalidation_handler,
+)
+from src.core.modules.inventory_procurement.domain.inventory.foundation_events import (
+    LocationCreated,
+    LocationProfileUpdated,
+    StoreroomCreated,
+    StoreroomProfileUpdated,
+    StoreroomStatusChanged,
+)
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.catalog import (
     SqlAlchemyInventoryItemCategoryRepository,
     SqlAlchemyStockItemRepository,
@@ -183,6 +197,33 @@ def build_inventory_procurement_service_bundle(
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
     )
+    # P20: the canonical, capability-owned UoW for Storeroom + Storage Location commands --
+    # shares the SAME composition-owned dispatcher/post-commit bus every Platform UnitOfWork
+    # factory already uses, never a second, module-local instance.
+    inventory_foundation_uow_session_factory = sessionmaker(
+        bind=platform_services.session.bind, future=True
+    )
+    inventory_foundation_uow_factory = SqlAlchemyInventoryFoundationUnitOfWorkFactory(
+        session_factory=inventory_foundation_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
+    _storeroom_list_view_invalidation_handler = build_storeroom_list_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _storeroom_event_type in (StoreroomCreated, StoreroomProfileUpdated, StoreroomStatusChanged):
+        platform_services.platform_post_commit_bus.subscribe(
+            _storeroom_event_type, _storeroom_list_view_invalidation_handler
+        )
+    _location_list_view_invalidation_handler = build_location_list_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _location_event_type in (LocationCreated, LocationProfileUpdated):
+        platform_services.platform_post_commit_bus.subscribe(
+            _location_event_type, _location_list_view_invalidation_handler
+        )
     inventory_service = InventoryService(
         platform_services.session,
         storeroom_repo,
@@ -191,6 +232,7 @@ def build_inventory_procurement_service_bundle(
         party_service=platform_services.party_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
+        uow_factory=inventory_foundation_uow_factory,
     )
     inventory_item_service = ItemMasterService(
         platform_services.session,
@@ -300,6 +342,7 @@ def build_inventory_procurement_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
+        uow_factory=inventory_foundation_uow_factory,
     )
     # P4 Step 2 (ADR-005 Section 24, Round 7/8): backed by module-owned, session-parameterized
     # approval transaction participants, whose bound apply/reject method is registered directly,

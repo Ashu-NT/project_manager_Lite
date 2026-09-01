@@ -113,7 +113,7 @@ def test_all_still_unmodernized_signals_survive_with_real_direct_consumers():
     for signal_name in (
         "auth_changed",
         "project_changed", "tasks_changed", "resources_changed",
-        "inventory_items_changed", "inventory_storerooms_changed",
+        "inventory_items_changed",
     ):
         assert hasattr(domain_events, signal_name), f"{signal_name} was deleted, not just un-bridged"
 

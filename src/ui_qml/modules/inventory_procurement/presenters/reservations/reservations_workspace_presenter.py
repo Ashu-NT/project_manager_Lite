@@ -16,7 +16,7 @@ from .reservation_command_handler import (
     issue_reservation,
     release_reservation,
 )
-from .workspace_builder import build_workspace_state
+from .workspace_builder import build_storeroom_reference_options, build_workspace_state
 
 class InventoryReservationsWorkspacePresenter:
     def __init__(
@@ -27,6 +27,9 @@ class InventoryReservationsWorkspacePresenter:
         self._desktop_api = (
             desktop_api or build_inventory_procurement_reservations_desktop_api()
         )
+
+    def build_storeroom_reference_options(self):
+        return build_storeroom_reference_options(self._desktop_api)
 
     def build_workspace_state(
         self,
