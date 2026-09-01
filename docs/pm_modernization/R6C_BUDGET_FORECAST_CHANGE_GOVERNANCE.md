@@ -36,20 +36,22 @@ application/domain layers.
 
 ## 6. Transaction Ownership
 
-Verified starting debt: `BudgetService`, `ForecastVersionService`,
+R6C-A closed this starting debt. `BudgetService`, `ForecastVersionService`,
 `ForecastGenerationService`, `FinancialChangeService`, and
-`FinancialConfigurationService` contain direct commit paths. Financial Change
-submission alone already uses a fresh-session UoW. R6C will migrate one bounded
-workflow at a time and delete direct-commit production paths after all callers
-move.
+`FinancialConfigurationService` are transaction-neutral operations. The single
+commit owner is `FinanceGovernanceCommandBoundary`; all production service-graph
+mutation ports route through it. The former Financial Change submission UoW was
+deleted rather than retained as compatibility architecture.
 
 ## 7. Unit of Work
 
-Use narrow capability UoWs built on `SqlAlchemyUnitOfWorkBase`. Each operation
-gets a fresh Session and typed repositories. Explicit `commit()` occurs once at
-the orchestration boundary; exception/clean-without-commit rolls back and closes.
-Platform approval decisions retain their Platform-owned transaction and
-session-parameterized module participant.
+`FinanceGovernanceUnitOfWork` is the one R6C capability UoW built on
+`SqlAlchemyUnitOfWorkBase`. Each command creates a fresh Session, installs the
+runtime PostgreSQL tenant/organization context, and binds typed repositories and
+Enterprise Audit to that Session. Explicit `commit()` occurs once at the outward
+boundary; exception/clean-without-commit rolls back and closes. Platform approval
+decisions retain their Platform-owned transaction and session-parameterized
+module participant.
 
 ## 8. Budget Authority
 
@@ -265,23 +267,87 @@ forward-only cleanup, and final regression evidence.
 
 ## R6C-A Transaction Ownership Migration
 
-**Status: IN PROGRESS.** The canonical `FinanceGovernanceUnitOfWork` now owns a
-fresh operation Session and binds the complete R6C repository set, Platform
-approval repository, and fail-closed Enterprise Audit service to that same
-Session. It is the one shared Budget/Forecast/Change/Setup transaction
-construction mechanism; it does not replace the Platform Approval decision UoW.
+**Status: COMPLETE.** `FinanceGovernanceCommandBoundary` is the canonical
+application-layer command owner. Every invocation creates one fresh
+`FinanceGovernanceUnitOfWork`, constructs Budget, Forecast Version, Forecast
+Generation, Financial Change, and Financial Setup operations against that UoW's
+Session, commits exactly once, then runs targeted invalidation and notification
+reactions. Long-lived workspace/read Sessions are not reused for writes.
 
-The Budget, Forecast Version, Forecast Generation, Financial Change mutation,
-and Financial Setup services have been converted to stage/flush behavior. Their
-former direct commits, rollback-on-behalf-of-caller behavior, and service-side
-success invalidation are being removed. Approval participants continue to stage
-against the Session supplied by Platform Approval and return post-commit event
-descriptors rather than publishing or committing independently.
+### R6C-A Caller Inventory
 
-The cutover is not complete until the outward Finance governance command
-boundary constructs these transaction-neutral services against the UoW,
-commits once, and publishes targeted invalidation only after success. The
-existing Financial Change submission method still owns its narrower UoW and is
-the remaining inward transaction owner to migrate. Fault-injection tests must
-execute through the final command boundary; a transaction-neutral service is
-not expected to roll back its caller's Session itself.
+- ACTIVE: the production service graph exposes governed mutation ports for all
+  five R6C service families; their reads delegate to read services and every
+  mutation enters the canonical boundary.
+- ACTIVE: the Financials desktop API `create_cost_code` command enters
+  `financial_setup()` on the boundary. No business rule moved into the desktop
+  API.
+- ACTIVE: Platform Approval remains the outward transaction owner for Budget
+  and Financial Change decisions. Its dependency factories build participants
+  and Finance operations against the Approval UoW Session.
+- DISTINCT CURRENT SEMANTIC: Forecast lifecycle decisions are currently direct
+  Finance commands; no Forecast Platform Approval participant exists to migrate
+  in R6C-A.
+- TEST ONLY: Finance mutation fixtures now consume governed service ports or the
+  boundary directly. Fresh-instance fault injection targets the operation class
+  or command callback rather than a singleton repository instance.
+- DEAD: the narrow Financial Change submission UoW contract, implementation,
+  factory composition, imports, and tests preserving it were deleted.
+
+### R6C-A Financial Change Submission
+
+Submission is transaction-neutral and stages request validation, the Financial
+Change transition, Platform `ApprovalRequest` plus typed event, and both audit
+records through the caller-owned Finance UoW. Approval-request notification is
+queued as a post-commit action. There is no inward `uow.commit()` and no
+submission-specific transaction architecture.
+
+### R6C-A Invalidation
+
+Budget invalidates Overview/Planning/Performance through the established
+project signal. Forecast invalidates Overview/Planning/Performance with an exact
+tenant/organization/project scope. Financial Change invalidates Controls;
+participant apply results additionally retain Budget/Forecast/Scheduling hints.
+Financial Setup now emits an exact scope consumed only by dependent Planning,
+Costs, and Controls surfaces. Reactions run after successful commit, are logged
+and isolated if a process-local subscriber fails, and never produce a global
+Finance refresh. Rollback and commit failure emit no success invalidation.
+
+### R6C-A Atomicity And Concurrency Evidence
+
+- Budget lifecycle and line concurrency, Forecast lifecycle/generation,
+  Financial Change request/impact/submission, and Financial Setup profile/
+  restriction suites pass through fresh command transactions.
+- The original Forecast generation audit-failure test proves zero root, line,
+  decision, metadata, or audit residue without service-owned rollback.
+- Financial Change commit/audit failure proves the host transition, Approval
+  request, typed event, and audit roll back together.
+- Budget and Financial Change participant failure tests prove Platform Approval
+  state, Finance state, and audit share one Session and transaction.
+- The targeted Finance family matrix passed `75`; approval participant,
+  workflow, event, and invalidation matrix passed `76`; command-boundary and
+  desktop-routing guards passed `6`.
+
+### R6C-A PostgreSQL Evidence
+
+The repository Docker PostgreSQL 16 stack was recreated and migrated from
+Alembic head. Through `app_runtime` (`NOSUPERUSER`, `NOBYPASSRLS`, non-owner),
+the live command smoke passed `2`: legal Financial Setup, Budget, Forecast, and
+Financial Change commands persisted through the new boundary, execution-role
+validation passed, and a foreign tenant/organization insert was denied. The UoW
+factory explicitly installs the real runtime DB context on each fresh Session.
+
+### R6C-A Architecture And Cleanup
+
+AST guards prohibit `commit()`/`rollback()` in the five R6C services and Finance
+approval participants and verify production composition exposes governed ports
+backed by a UoW factory. The scoped production search has exactly one transaction
+owner hit: `FinanceGovernanceCommandBoundary` calling `uow.commit()`. No R6C
+repository or participant hit remains. Billing and Inventory submission UoWs are
+distinct current semantics, not R6C compatibility. No `*_without_commit` API,
+transaction bridge, deprecated caller, or Financial Change submission wrapper
+remains.
+
+R6C remains open. The next stage is R6C-B Budget Governance Command UX, followed
+by the remaining approved R6C workflow stages. R6C-A added no QML workflow and
+started no R6C-B, R6D, R6E, R6F, or R6G implementation.
