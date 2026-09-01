@@ -318,6 +318,9 @@ class ProjectManagementWorkspaceCatalog(QObject):
             self._rate_card_view_invalidation_adapter.rateCardListStale.connect(
                 self._financials_workspace.onRateCardListStale
             )
+            self._rate_card_view_invalidation_adapter.rateCardListStaleForProject.connect(
+                self._financials_workspace.onRateCardListStaleForProject
+            )
             self._rate_card_view_invalidation_adapter.rateCardDetailStale.connect(
                 self._financials_workspace.onRateCardDetailStale
             )

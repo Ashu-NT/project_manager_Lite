@@ -23,6 +23,7 @@ from src.ui_qml.modules.project_management.controllers.financials.financial_setu
 from src.ui_qml.modules.project_management.controllers.financials.rate_card_domain_event_binder import (
     on_rate_card_detail_stale,
     on_rate_card_list_stale,
+    on_rate_card_list_stale_for_project,
 )
 from src.ui_qml.modules.project_management.controllers.financials.financials_selection_mixin import FinancialsSelectionMixin
 from src.ui_qml.modules.project_management.controllers.financials.financials_state_mixin import FinancialsStateMixin
@@ -735,6 +736,9 @@ class ProjectManagementFinancialsWorkspaceController(
 
     def onRateCardListStale(self, rate_card_id: str) -> None:
         on_rate_card_list_stale(self, rate_card_id)
+
+    def onRateCardListStaleForProject(self, project_id: str) -> None:
+        on_rate_card_list_stale_for_project(self, project_id)
 
     def onRateCardDetailStale(self, rate_card_id: str) -> None:
         on_rate_card_detail_stale(self, rate_card_id)

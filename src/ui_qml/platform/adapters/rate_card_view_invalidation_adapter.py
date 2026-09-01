@@ -9,6 +9,7 @@ from src.core.modules.project_management.application.financials.rate_cards.event
 )
 from src.core.shared.events.view_invalidation import (
     ExactOrganization,
+    OrganizationScope,
     ViewInvalidationChannel,
     ViewInvalidationHint,
 )
@@ -18,7 +19,8 @@ from src.ui_qml.platform.adapters.scoped_view_invalidation_subscription import (
 
 
 class RateCardViewInvalidationAdapter(QObject):
-    rateCardListStale = Signal(str)  # rate_card_id
+    rateCardListStale = Signal(str)  # rate_card_id -- organization-wide card, every project may refresh
+    rateCardListStaleForProject = Signal(str)  # project_id -- project-specific card, that project only
     rateCardDetailStale = Signal(str)  # rate_card_id
 
     def __init__(
@@ -42,7 +44,10 @@ class RateCardViewInvalidationAdapter(QObject):
         if hint.category != RATE_CARD_CATEGORY:
             return
         if hint.scope_code == RATE_CARD_LIST_SCOPE_CODE:
-            self.rateCardListStale.emit(hint.entity_id or "")
+            if isinstance(hint.scope, OrganizationScope):
+                self.rateCardListStale.emit(hint.entity_id or "")
+            else:
+                self.rateCardListStaleForProject.emit(hint.entity_id or "")
         elif hint.scope_code == RATE_CARD_DETAIL_SCOPE_CODE:
             self.rateCardDetailStale.emit(hint.entity_id or "")
 

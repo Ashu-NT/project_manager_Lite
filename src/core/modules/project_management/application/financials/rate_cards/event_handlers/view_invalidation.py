@@ -20,6 +20,7 @@ RATE_CARD_LIST_SCOPE_CODE = "rate_card_list"
 RATE_CARD_DETAIL_SCOPE_CODE = "rate_card_detail"
 RATE_CARD_MODULE_CODE = "project_management"
 RATE_CARD_ENTITY_TYPE = "rate_card"
+RATE_CARD_PROJECT_ENTITY_TYPE = "project"
 
 _OrgTarget = tuple[str, str, str]
 _DetailTarget = tuple[str, str, str, str, str, str]
@@ -30,8 +31,6 @@ def _org_scope_target(scope_code: str, scope: OrganizationScope) -> _OrgTarget:
 
 
 def _detail_scope_target(scope_code: str, scope: ResourceScope) -> _DetailTarget:
-    """Dedupe identity is the (scope_code, target/scope) identity -- never a raw event field
-    (P18B-FIX principle, applied from day one here)."""
     return (
         scope_code,
         scope.tenant_id,
@@ -48,19 +47,38 @@ def build_rate_card_view_invalidation_handler(channel: ViewInvalidationChannel):
     notified_org_targets: set[_OrgTarget] = set()
     notified_detail_targets: set[_DetailTarget] = set()
 
-    def _notify_list(*, tenant_id: str, organization_id: str, rate_card_id: str) -> None:
-        scope = OrganizationScope(tenant_id, organization_id)
-        target = _org_scope_target(RATE_CARD_LIST_SCOPE_CODE, scope)
-        if target in notified_org_targets:
-            return
-        notified_org_targets.add(target)
+    def _notify_list(
+        *, tenant_id: str, organization_id: str, rate_card_id: str, project_id: str | None
+    ) -> None:
+        if project_id is None:
+            scope: OrganizationScope | ResourceScope = OrganizationScope(tenant_id, organization_id)
+            target = _org_scope_target(RATE_CARD_LIST_SCOPE_CODE, scope)
+            if target in notified_org_targets:
+                return
+            notified_org_targets.add(target)
+            hint_entity_id = rate_card_id
+        else:
+            scope = ResourceScope(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                module_code=RATE_CARD_MODULE_CODE,
+                entity_type=RATE_CARD_PROJECT_ENTITY_TYPE,
+                entity_id=project_id,
+            )
+            target = _detail_scope_target(RATE_CARD_LIST_SCOPE_CODE, scope)
+            if target in notified_detail_targets:
+                return
+            notified_detail_targets.add(target)
+            hint_entity_id = project_id
         channel.notify(
             ViewInvalidationHint(
                 scope=scope,
                 category=RATE_CARD_CATEGORY,
                 scope_code=RATE_CARD_LIST_SCOPE_CODE,
-                entity_type=RATE_CARD_ENTITY_TYPE,
-                entity_id=rate_card_id,
+                entity_type=(
+                    RATE_CARD_ENTITY_TYPE if project_id is None else RATE_CARD_PROJECT_ENTITY_TYPE
+                ),
+                entity_id=hint_entity_id,
             )
         )
 
@@ -106,12 +124,14 @@ def build_rate_card_view_invalidation_handler(channel: ViewInvalidationChannel):
                 tenant_id=event.tenant_id,
                 organization_id=event.organization_id,
                 rate_card_id=event.rate_card_id,
+                project_id=event.project_id,
             )
         elif isinstance(event, RateCardDeactivated):
             _notify_list(
                 tenant_id=event.tenant_id,
                 organization_id=event.organization_id,
                 rate_card_id=event.rate_card_id,
+                project_id=event.project_id,
             )
             _notify_detail(
                 tenant_id=event.tenant_id,
@@ -135,4 +155,5 @@ __all__ = [
     "RATE_CARD_DETAIL_SCOPE_CODE",
     "RATE_CARD_MODULE_CODE",
     "RATE_CARD_ENTITY_TYPE",
+    "RATE_CARD_PROJECT_ENTITY_TYPE",
 ]

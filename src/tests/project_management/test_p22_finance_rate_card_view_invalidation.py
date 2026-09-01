@@ -101,9 +101,34 @@ def test_created_maps_to_list_target_only():
     assert hint.entity_id == "c1"
 
 
+def test_created_project_specific_maps_to_project_scoped_list_target():
+    """P22-FIX: a project-specific card's list hint is a ResourceScope keyed on the project,
+    not a plain OrganizationScope -- project identity travels only via the scope/entity_id."""
+    channel = _fake_channel()
+    handler = build_rate_card_view_invalidation_handler(channel)
+    now = datetime.now(timezone.utc)
+
+    handler(
+        RateCardCreated(
+            tenant_id="t1", organization_id="o1", rate_card_id="c1", project_id="p1", occurred_at=now,
+        ),
+        _context("c1"),
+    )
+    assert len(channel.notified) == 1
+    hint = channel.notified[0]
+    assert hint.scope_code == RATE_CARD_LIST_SCOPE_CODE
+    assert isinstance(hint.scope, ResourceScope)
+    assert not isinstance(hint.scope, OrganizationScope)
+    assert hint.scope.module_code == "project_management"
+    assert hint.scope.entity_type == "project"
+    assert hint.scope.entity_id == "p1"
+    assert hint.entity_id == "p1"
+
+
 def test_deactivated_maps_to_both_list_and_detail_targets():
     """P19-FIX-style dual notification: deactivation changes both the list row AND, if
-    selected, the detail's is_active field."""
+    selected, the detail's is_active field. Deactivation is for a project-specific card here,
+    so the list hint (P22-FIX) is now a project-scoped ResourceScope, not OrganizationScope."""
     channel = _fake_channel()
     handler = build_rate_card_view_invalidation_handler(channel)
     now = datetime.now(timezone.utc)
@@ -117,11 +142,110 @@ def test_deactivated_maps_to_both_list_and_detail_targets():
     assert len(channel.notified) == 2
     scope_codes = {h.scope_code for h in channel.notified}
     assert scope_codes == {RATE_CARD_LIST_SCOPE_CODE, RATE_CARD_DETAIL_SCOPE_CODE}
+
+    list_hint = next(h for h in channel.notified if h.scope_code == RATE_CARD_LIST_SCOPE_CODE)
+    assert isinstance(list_hint.scope, ResourceScope)
+    assert list_hint.scope.entity_type == "project"
+    assert list_hint.scope.entity_id == "p1"
+    assert list_hint.entity_id == "p1"
+
     detail_hint = next(h for h in channel.notified if h.scope_code == RATE_CARD_DETAIL_SCOPE_CODE)
     assert isinstance(detail_hint.scope, ResourceScope)
     assert detail_hint.scope.module_code == "project_management"
     assert detail_hint.scope.entity_type == "rate_card"
     assert detail_hint.scope.entity_id == "c1"
+
+
+def test_deactivated_org_wide_list_hint_stays_organization_scope():
+    channel = _fake_channel()
+    handler = build_rate_card_view_invalidation_handler(channel)
+    now = datetime.now(timezone.utc)
+
+    handler(
+        RateCardDeactivated(
+            tenant_id="t1", organization_id="o1", rate_card_id="c1", project_id=None, occurred_at=now,
+        ),
+        _context("c1"),
+    )
+    list_hint = next(h for h in channel.notified if h.scope_code == RATE_CARD_LIST_SCOPE_CODE)
+    assert isinstance(list_hint.scope, OrganizationScope)
+    assert list_hint.entity_id == "c1"
+
+
+def test_project_a_and_project_b_list_hints_are_distinct_scopes():
+    """Two different projects' cards in the same organization must produce two DISTINCT
+    project-scoped list hints -- neither dedupes against the other, and neither is confused
+    with an org-wide OrganizationScope hint (P22-FIX §7)."""
+    channel = _fake_channel()
+    handler = build_rate_card_view_invalidation_handler(channel)
+    now = datetime.now(timezone.utc)
+
+    handler(
+        RateCardCreated(
+            tenant_id="t1", organization_id="o1", rate_card_id="ca", project_id="project-a", occurred_at=now,
+        ),
+        _context("tx"),
+    )
+    handler(
+        RateCardCreated(
+            tenant_id="t1", organization_id="o1", rate_card_id="cb", project_id="project-b", occurred_at=now,
+        ),
+        _context("tx"),
+    )
+    assert len(channel.notified) == 2
+    entity_ids = {h.entity_id for h in channel.notified}
+    assert entity_ids == {"project-a", "project-b"}
+
+
+def test_org_wide_and_project_specific_list_hints_in_same_transaction_do_not_collapse():
+    """An org-wide RateCardCreated and a project-A-specific RateCardCreated in the same
+    transaction must produce ONE OrganizationScope hint AND ONE Project-A ResourceScope hint
+    -- never collapsed into a single hint (P22-FIX §7)."""
+    channel = _fake_channel()
+    handler = build_rate_card_view_invalidation_handler(channel)
+    now = datetime.now(timezone.utc)
+
+    handler(
+        RateCardCreated(
+            tenant_id="t1", organization_id="o1", rate_card_id="c-org", project_id=None, occurred_at=now,
+        ),
+        _context("tx"),
+    )
+    handler(
+        RateCardCreated(
+            tenant_id="t1", organization_id="o1", rate_card_id="c-proj-a", project_id="project-a", occurred_at=now,
+        ),
+        _context("tx"),
+    )
+    assert len(channel.notified) == 2
+    org_hints = [h for h in channel.notified if isinstance(h.scope, OrganizationScope)]
+    project_hints = [
+        h for h in channel.notified
+        if isinstance(h.scope, ResourceScope) and h.scope.entity_type == "project"
+    ]
+    assert len(org_hints) == 1
+    assert len(project_hints) == 1
+    assert project_hints[0].entity_id == "project-a"
+
+
+def test_two_project_a_specific_changes_same_transaction_coalesce_to_one_list_hint():
+    channel = _fake_channel()
+    handler = build_rate_card_view_invalidation_handler(channel)
+    now = datetime.now(timezone.utc)
+
+    handler(
+        RateCardCreated(
+            tenant_id="t1", organization_id="o1", rate_card_id="c1", project_id="project-a", occurred_at=now,
+        ),
+        _context("tx"),
+    )
+    handler(
+        RateCardCreated(
+            tenant_id="t1", organization_id="o1", rate_card_id="c2", project_id="project-a", occurred_at=now,
+        ),
+        _context("tx"),
+    )
+    assert len(channel.notified) == 1, "same project-A list target within one transaction coalesces"
 
 
 def test_line_events_map_to_detail_target_only():
@@ -206,6 +330,27 @@ def test_deactivated_two_targets_never_coalesce_but_repeats_of_each_do():
     assert len(channel.notified) == 4, "a new transaction re-notifies both targets"
 
 
+def test_different_organization_project_scoped_hint_is_not_delivered_to_a_scoped_subscription():
+    """A project-scoped rate_card_list hint for organization o2 must never be delivered to an
+    ExactOrganization(o1) subscription -- ResourceScope is a strict refinement of
+    OrganizationScope, still filtered by (tenant_id, organization_id) (P22-FIX §8)."""
+    from src.core.shared.events.view_invalidation import ExactOrganization
+
+    channel = _fake_channel()
+    handler = build_rate_card_view_invalidation_handler(channel)
+    now = datetime.now(timezone.utc)
+
+    handler(
+        RateCardCreated(
+            tenant_id="t1", organization_id="o2", rate_card_id="c1", project_id="project-a", occurred_at=now,
+        ),
+        _context("c1"),
+    )
+    hint = channel.notified[0]
+    assert ExactOrganization("t1", "o1").matches(hint.scope) is False
+    assert ExactOrganization("t1", "o2").matches(hint.scope) is True
+
+
 # ---------------------------------------------------------------------------
 # Real ProjectRateCardService producer path (governed FinanceGovernanceUnitOfWork)
 # ---------------------------------------------------------------------------
@@ -226,6 +371,12 @@ def _create_card_and_line(services, **card_kwargs):
     return card, line
 
 
+def _seed_project(services):
+    return services["project_service"].create_project(
+        _unique("P22 Rate Card Project"), financial_currency_code="USD"
+    )
+
+
 def test_create_rate_card_produces_exactly_one_list_hint(services):
     hints = _spy_hints(services)
 
@@ -236,6 +387,59 @@ def test_create_rate_card_produces_exactly_one_list_hint(services):
     assert len(rate_hints) == 1
     assert rate_hints[0].scope_code == RATE_CARD_LIST_SCOPE_CODE
     assert rate_hints[0].entity_id == card.id
+
+
+def test_create_project_specific_rate_card_produces_project_scoped_list_hint(services):
+    """P22-FIX real-service proof: a project-specific card's list hint is a project-keyed
+    ResourceScope, matching the project it was created for."""
+    project = _seed_project(services)
+    hints = _spy_hints(services)
+
+    rate_card_service = services["rate_card_service"]
+    card = rate_card_service.create_rate_card(
+        name=_unique("P22 Project Card"), project_id=project.id
+    )
+
+    rate_hints = _rate_card_hints(hints)
+    assert len(rate_hints) == 1
+    hint = rate_hints[0]
+    assert hint.scope_code == RATE_CARD_LIST_SCOPE_CODE
+    assert isinstance(hint.scope, ResourceScope)
+    assert hint.scope.entity_type == "project"
+    assert hint.scope.entity_id == project.id
+    assert hint.entity_id == project.id
+    assert card.project_id == project.id
+
+
+def test_project_a_specific_deactivation_refreshes_project_a_list_not_project_b(services):
+    """End-to-end proof of P22-FIX's central requirement: Project A's card change list-hint
+    scope is distinct from Project B's -- a subscription scoped to Project B never matches it."""
+    from src.core.shared.events.view_invalidation import ExactResource
+
+    project_a = _seed_project(services)
+    project_b = _seed_project(services)
+    rate_card_service = services["rate_card_service"]
+    card = rate_card_service.create_rate_card(
+        name=_unique("P22 Project A Card"), project_id=project_a.id
+    )
+    hints = _spy_hints(services)
+
+    rate_card_service.deactivate_rate_card(card.id, expected_version=card.version)
+
+    rate_hints = _rate_card_hints(hints)
+    list_hint = next(h for h in rate_hints if h.scope_code == RATE_CARD_LIST_SCOPE_CODE)
+    assert list_hint.scope.entity_id == project_a.id
+
+    project_b_filter = ExactResource(
+        tenant_id=list_hint.scope.tenant_id,
+        organization_id=list_hint.scope.organization_id,
+        module_code=list_hint.scope.module_code,
+        entity_type="project",
+        entity_id=project_b.id,
+    )
+    assert project_b_filter.matches(list_hint.scope) is False, (
+        "Project B's exact-resource subscription must not match Project A's list hint"
+    )
 
 
 def test_deactivate_rate_card_produces_both_hints(services):
@@ -397,6 +601,71 @@ def test_financials_controller_detail_stale_invalidates_costs_only_if_selected(s
 
     controller.onRateCardDetailStale("card-1")
     assert controller._invalidated_destinations == {"costs"}
+
+
+def test_financials_controller_list_stale_for_project_invalidates_costs_only_if_selected_project(services):
+    """P22-FIX: the project-scoped list stale path must be gated by the currently selected
+    project, mirroring on_forecast_planning_stale's established pattern -- unlike the org-wide
+    rateCardListStale path, which stays unconditional."""
+    from src.application.runtime import build_desktop_api_registry
+    from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+
+    registry = build_desktop_api_registry(services)
+    catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
+    controller = catalog.financialsWorkspace
+    controller._selected_project_id = "project-a"
+    controller._invalidated_destinations.clear()
+    controller._request_domain_refresh = lambda: None
+
+    controller.onRateCardListStaleForProject("project-b")
+    assert controller._invalidated_destinations == set(), "non-selected project must not invalidate"
+
+    controller.onRateCardListStaleForProject("project-a")
+    assert controller._invalidated_destinations == {"costs"}
+
+
+def test_rate_card_adapter_dispatches_org_vs_project_list_hints_to_distinct_signals():
+    """The Qt adapter itself must route an OrganizationScope rate_card_list hint to
+    rateCardListStale and a project-scoped ResourceScope rate_card_list hint to
+    rateCardListStaleForProject (P22-FIX)."""
+    from src.core.shared.events.view_invalidation import OrganizationScope as _OrgScope
+    from src.core.shared.events.view_invalidation import ResourceScope as _ResScope
+    from src.core.shared.events.view_invalidation import ViewInvalidationHint as _Hint
+    from src.ui_qml.platform.adapters.rate_card_view_invalidation_adapter import (
+        RateCardViewInvalidationAdapter,
+    )
+
+    adapter = RateCardViewInvalidationAdapter(channel=None, tenant_id="t1", organization_id="o1")
+    org_calls = []
+    project_calls = []
+    adapter.rateCardListStale.connect(org_calls.append)
+    adapter.rateCardListStaleForProject.connect(project_calls.append)
+
+    adapter._on_hint(
+        _Hint(
+            scope=_OrgScope("t1", "o1"),
+            category=RATE_CARD_CATEGORY,
+            scope_code=RATE_CARD_LIST_SCOPE_CODE,
+            entity_type="rate_card",
+            entity_id="c1",
+        )
+    )
+    adapter._on_hint(
+        _Hint(
+            scope=_ResScope(
+                tenant_id="t1", organization_id="o1", module_code="project_management",
+                entity_type="project", entity_id="project-a",
+            ),
+            category=RATE_CARD_CATEGORY,
+            scope_code=RATE_CARD_LIST_SCOPE_CODE,
+            entity_type="project",
+            entity_id="project-a",
+        )
+    )
+
+    assert org_calls == ["c1"]
+    assert project_calls == ["project-a"]
+    adapter.dispose()
 
 
 # ---------------------------------------------------------------------------

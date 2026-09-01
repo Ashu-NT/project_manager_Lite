@@ -142,7 +142,7 @@ ViewInvalidation retirement changes essentially nothing about today's visible be
 waste for the one live producer (`create_cost_code` — no cost-code list is ever cached anywhere in
 the Financials workspace), and the one destination it should invalidate (`controls`, for
 `financial_profile`) has no live producer yet either. See ADR-005 §26.18 for the full design.
-| P22 | Finance Rate Card | NEW: `FinanceGovernanceUnitOfWork` gained a `rate_cards` named repository accessor (Option A convergence — Rate Card is governed exactly like Budget/Forecast/Setup, same `finance.manage`/`finance.read` permission model, same audit conventions; no separate UoW); `ProjectRateCardService` moved off raw `self._session.commit()` onto `record_event` wired to `uow.record_event`, with the outer `FinanceGovernanceCommandBoundary.rate_card` family now owning commit/rollback | `RateCardCreated`, `RateCardDeactivated` (Rate Card itself has only create+one-way-deactivate — no rename/update, no reactivate); `RateCardLineAdded`, `RateCardLineUpdated`, `RateCardLineDeactivated` | Narrow: `rate_card_list` (`OrganizationScope`) — the collection; `rate_card_detail` (exact-card `ResourceScope`) — the selected card's own detail + its lines, proven the same combined projection. `RateCardDeactivated` notifies BOTH (mirroring the P19-FIX dual-notification correction) | `rates_changed` deleted |
+| P22 | Finance Rate Card | NEW: `FinanceGovernanceUnitOfWork` gained a `rate_cards` named repository accessor (Option A convergence — Rate Card is governed exactly like Budget/Forecast/Setup, same `finance.manage`/`finance.read` permission model, same audit conventions; no separate UoW); `ProjectRateCardService` moved off raw `self._session.commit()` onto `record_event` wired to `uow.record_event`, with the outer `FinanceGovernanceCommandBoundary.rate_card` family now owning commit/rollback | `RateCardCreated`, `RateCardDeactivated` (Rate Card itself has only create+one-way-deactivate — no rename/update, no reactivate); `RateCardLineAdded`, `RateCardLineUpdated`, `RateCardLineDeactivated` | Narrow: `rate_card_list` — `OrganizationScope` for an organization-wide card (`project_id is None`), or a project-keyed `ResourceScope` (`entity_type="project"`) for a project-specific card (P22-FIX; dual-shape, chosen per event's own persisted `project_id`); `rate_card_detail` (exact-card `ResourceScope`) — the selected card's own detail + its lines, proven the same combined projection. `RateCardDeactivated` notifies BOTH (mirroring the P19-FIX dual-notification correction) | `rates_changed` deleted |
 
 **Finance Rate Card is fully modernized** as of P22. Confirmed the *narrowest* Finance capability
 audited so far: exactly one producer file, one legacy field, one UI consumer, matching P17's own
@@ -156,10 +156,20 @@ detection (fixed); `deactivate_rate_card`/`deactivate_line` already had correct 
 A dead, never-populated `duplicate_message`/IntegrityError→`ValidationError` conversion path was
 removed (confirmed: no unique constraint on Rate Card name exists at the DB level, and no call
 site ever passed `duplicate_message` — the conversion never fired; simplification, not a
-regression). See ADR-005 §26.19 for the full design, including the deliberate `rate_card_list`
-scope trade-off (pure `OrganizationScope`, no per-project filtering, slightly coarser than the
-legacy `FinanceInvalidationScope`'s `project_id is None or project_id == selected` check for the
-rare case of a project-specific card changing while a different project is selected).
+regression). See ADR-005 §26.19 for the full design.
+
+**P22-FIX**: `rate_card_list`'s original `OrganizationScope`-only scope was corrected to a
+dual-shape scope that mirrors the read model's own dual-ownership query
+(`SqlAlchemyFinanceRateReader._card_conditions`: `project_id IS NULL OR project_id ==
+:project_id`) — an organization-wide card (`project_id is None`) still invalidates
+`OrganizationScope`; a project-specific card invalidates only a project-keyed `ResourceScope`
+(`entity_type="project"`, `entity_id=project_id`), so a Project A-specific card change no longer
+spuriously invalidates Project B's "costs" view. Project identity travels only via the hint's own
+`scope`/`entity_id` — never a new field. The UI consumer (`RateCardViewInvalidationAdapter`)
+routes the two shapes to distinct signals (`rateCardListStale` for org-wide, unconditional;
+`rateCardListStaleForProject` for project-specific, gated by the controller's currently selected
+project — mirroring `on_forecast_planning_stale`'s established pattern). See ADR-005 §26.19 for
+the full corrected design.
 
 ## 4. Current State
 

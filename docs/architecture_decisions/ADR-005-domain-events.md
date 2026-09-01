@@ -2327,26 +2327,32 @@ applied here from day one rather than needing a follow-up fix. Line facts notify
 `rate_card_detail`, proven from source that the list query never embeds a line count or any
 line-derived value.
 
-A deliberate, documented precision trade-off: `rate_card_list` uses plain `OrganizationScope`
-with no per-project filtering, whereas the legacy `FinanceInvalidationScope`-based check did
-filter (`payload.project_id is None or payload.project_id == selected_project_id`) — meaning a
-project-specific card change, while a *different* project is selected, now triggers one
-additional "costs" invalidation that the legacy path would have skipped. This was a deliberate
-choice, not an oversight: `ViewInvalidationHint` has no second identity slot to carry both
-`rate_card_id` and `project_id` through one hint without inventing a capability-specific field
-(forbidden since P16D-FIX), and Rate Card's persisted ownership is genuinely organization-scoped
-(the RLS boundary is `organization_id`, with `project_id` only a nullable visibility filter, not a
-second storage scope) — so `OrganizationScope` is the architecturally correct choice per this
-phase's own "use persisted ownership for event scope, do not infer from UI placement" mandate
-(§13), even though it is marginally coarser than the legacy behavior for one edge case.
+**P22-FIX correction**: the original `OrganizationScope`-only design above was a deliberate
+precision trade-off, documented as such — but it was rejected as insufficient. The corrected
+design is a dual-shape scope, chosen per event from the event's own persisted `project_id`
+(never inferred from UI selection state), mirroring the read model's own dual-ownership query
+(`SqlAlchemyFinanceRateReader._card_conditions`: `project_id IS NULL OR project_id ==
+:project_id`): an organization-wide card (`project_id is None`) still invalidates
+`OrganizationScope(tenant_id, organization_id)` — every project in the organization may
+refresh; a project-specific card (`project_id is not None`) invalidates a project-keyed
+`ResourceScope(tenant_id, organization_id, module_code="project_management",
+entity_type="project", entity_id=project_id)` instead — only that project refreshes, and a
+different project's list is never touched. Project identity travels only through the hint's own
+`scope`/`entity_id`, never a second field on `ViewInvalidationHint` (still no capability-specific
+field, per P16D-FIX). Dedupe for the project-scoped shape reuses the same generic
+`ResourceScope`-keyed dedupe helper as `rate_card_detail`, distinguished by `entity_type`
+("project" vs "rate_card") within one set — both an organization-wide and a Project A-specific
+change in the same transaction produce two separate hints, never collapsed.
 
 `rates_changed` is now deleted from `DomainEvents` entirely — zero producers (the one producer,
 `_commit`'s post-commit `domain_events.rates_changed.emit(...)`, is gone along with the raw
 Session commit it rode on), zero consumers (`financials_refresh_mixin.py`'s legacy subscription
 removed; the real UI consumer is a `RateCardViewInvalidationAdapter` instance wired into
-`ProjectManagementFinancialsWorkspaceController`, connected to `onRateCardListStale` (unconditional
-`{costs}`) and `onRateCardDetailStale` (`{costs}` only if the hint's card is the currently
-selected one)), field absent. `FinanceInvalidationScope` remains untouched and still carries the
+`ProjectManagementFinancialsWorkspaceController`, connected to `onRateCardListStale`
+(unconditional `{costs}`, for the organization-wide shape), `onRateCardListStaleForProject`
+(P22-FIX; `{costs}` only if the hint's project is the currently selected one, mirroring
+`on_forecast_planning_stale`), and `onRateCardDetailStale` (`{costs}` only if the hint's card is
+the currently selected one)), field absent. `FinanceInvalidationScope` remains untouched and still carries the
 other, still-legacy Finance signals (`budgets_changed`, `cost_entries_changed`,
 `commitments_changed`, `financial_changes_changed`, `planned_costs_changed`,
 `billing_preparations_changed`) — P22 retired it from the Rate Card path only, per its own scope.
