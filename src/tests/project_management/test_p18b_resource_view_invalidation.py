@@ -169,6 +169,161 @@ def test_failed_mutation_produces_zero_hints(services, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# P18B-FIX: dedupe by ViewInvalidation target/scope identity, not raw event fields
+# ---------------------------------------------------------------------------
+
+
+def _fake_channel():
+    class _FakeChannel:
+        def __init__(self) -> None:
+            self.notified: list = []
+
+        def notify(self, hint) -> None:
+            self.notified.append(hint)
+
+    return _FakeChannel()
+
+
+def _master_event(*, tenant_id="t1", organization_id="o1", resource_id, version=1, change_type):
+    from src.core.modules.project_management.application.resources.resource_master_events import (
+        ResourceMasterChanged,
+    )
+
+    return ResourceMasterChanged(
+        tenant_id=tenant_id, organization_id=organization_id, resource_id=resource_id,
+        version=version, change_type=change_type,
+    )
+
+
+def _capability_event(*, tenant_id="t1", organization_id="o1", resource_id, child_id, child_version=1, change_type):
+    from src.core.modules.project_management.application.resources.resource_capability_events import (
+        ResourceCapabilityChanged,
+    )
+
+    return ResourceCapabilityChanged(
+        tenant_id=tenant_id, organization_id=organization_id, resource_id=resource_id,
+        child_id=child_id, child_version=child_version, child_type="ResourceSkill",
+        change_type=change_type,
+    )
+
+
+def test_two_resources_same_org_same_transaction_produce_one_resource_list_hint():
+    from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
+        build_resource_list_view_invalidation_handler,
+    )
+    from src.core.modules.project_management.application.resources.resource_master_events import (
+        ResourceMasterChangeType,
+    )
+    from src.core.shared.events.domain_event_context import DomainEventContext
+
+    channel = _fake_channel()
+    handler = build_resource_list_view_invalidation_handler(channel)
+    context = DomainEventContext(correlation_id="corr-1", causation_id=None)
+
+    handler(
+        _master_event(resource_id="res-a", change_type=ResourceMasterChangeType.CREATED), context
+    )
+    handler(
+        _master_event(resource_id="res-b", change_type=ResourceMasterChangeType.CREATED), context
+    )
+
+    assert len(channel.notified) == 1
+
+
+def test_two_resources_different_organizations_same_correlation_id_produce_two_resource_list_hints():
+    """Structurally constructible even though a real single UoW transaction never spans two
+    organizations -- the dedupe rule is by target/scope identity, and two different
+    organizations are two different OrganizationScope targets regardless of correlation_id."""
+    from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
+        build_resource_list_view_invalidation_handler,
+    )
+    from src.core.modules.project_management.application.resources.resource_master_events import (
+        ResourceMasterChangeType,
+    )
+    from src.core.shared.events.domain_event_context import DomainEventContext
+
+    channel = _fake_channel()
+    handler = build_resource_list_view_invalidation_handler(channel)
+    context = DomainEventContext(correlation_id="corr-1", causation_id=None)
+
+    handler(
+        _master_event(organization_id="org-a", resource_id="res-a", change_type=ResourceMasterChangeType.CREATED),
+        context,
+    )
+    handler(
+        _master_event(organization_id="org-b", resource_id="res-b", change_type=ResourceMasterChangeType.CREATED),
+        context,
+    )
+
+    assert len(channel.notified) == 2
+    assert {h.scope.organization_id for h in channel.notified} == {"org-a", "org-b"}
+
+
+def test_same_resource_repeated_same_transaction_produces_one_capability_hint():
+    from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
+        build_resource_capabilities_view_invalidation_handler,
+    )
+    from src.core.modules.project_management.application.resources.resource_capability_events import (
+        ResourceCapabilityChangeType,
+    )
+    from src.core.shared.events.domain_event_context import DomainEventContext
+
+    channel = _fake_channel()
+    handler = build_resource_capabilities_view_invalidation_handler(channel)
+    context = DomainEventContext(correlation_id="corr-1", causation_id=None)
+
+    handler(
+        _capability_event(resource_id="res-a", child_id="skill-1", change_type=ResourceCapabilityChangeType.ADDED),
+        context,
+    )
+    handler(
+        _capability_event(resource_id="res-a", child_id="skill-2", change_type=ResourceCapabilityChangeType.ADDED),
+        context,
+    )
+
+    assert len(channel.notified) == 1
+
+
+def test_two_resources_same_transaction_produce_two_capability_hints():
+    from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
+        build_resource_capabilities_view_invalidation_handler,
+    )
+    from src.core.modules.project_management.application.resources.resource_capability_events import (
+        ResourceCapabilityChangeType,
+    )
+    from src.core.shared.events.domain_event_context import DomainEventContext
+
+    channel = _fake_channel()
+    handler = build_resource_capabilities_view_invalidation_handler(channel)
+    context = DomainEventContext(correlation_id="corr-1", causation_id=None)
+
+    handler(
+        _capability_event(resource_id="res-a", child_id="skill-1", change_type=ResourceCapabilityChangeType.ADDED),
+        context,
+    )
+    handler(
+        _capability_event(resource_id="res-b", child_id="skill-2", change_type=ResourceCapabilityChangeType.ADDED),
+        context,
+    )
+
+    assert len(channel.notified) == 2
+    assert {h.entity_id for h in channel.notified} == {"res-a", "res-b"}
+
+
+def test_same_resource_list_target_across_two_transactions_produces_two_hints(services):
+    """Dedupe is transaction-scoped only -- a second, later, genuinely separate transaction
+    targeting the same organization must never be silently suppressed by the first."""
+    service = services["resource_service"]
+    hints = _spy_hints(services)
+
+    service.create_resource(name=_unique("XactA"))
+    service.create_resource(name=_unique("XactB"))
+
+    list_hints = [h for h in hints if h.category == RESOURCE_CATEGORY and h.scope_code == RESOURCE_LIST_SCOPE_CODE]
+    assert len(list_hints) == 2
+
+
+# ---------------------------------------------------------------------------
 # Scope isolation
 # ---------------------------------------------------------------------------
 

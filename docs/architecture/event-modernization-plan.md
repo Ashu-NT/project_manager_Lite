@@ -65,28 +65,37 @@ does not duplicate them — read ADR-005 before implementing a phase below.
 | P14 (A/B) | Site | Canonical UnitOfWork | Typed create/profile-update events | Narrow | `sites_changed` deleted |
 | P15 (A/B) | Party | Canonical UnitOfWork | Typed create/profile-update events | Narrow | `parties_changed` deleted |
 | P16 (A/B/C/D, D-FIX) | Document + DocumentStructure + DocumentLink | Canonical `DocumentUnitOfWork` (`.documents`/`.structures`/`.links`, shared by `DocumentService` + `DocumentIntegrationService`) | `DocumentCreated`, `DocumentProfileUpdated`, `DocumentStructureCreated`, `DocumentStructureProfileUpdated`, `DocumentReferenceLinked`, `DocumentReferenceUnlinked` | Narrow, incl. the generic `ResourceScope` `EventScope` kind (P16D-FIX) for DocumentLink's cross-module target identity | `documents_changed` deleted |
+| P18 (A/B) | Project Resource (Master + Capability) | Canonical `ResourceUnitOfWork`/`ResourceUnitOfWorkFactory` (`.resources`/`.skills`/`.certifications`, shared for the same reason `DocumentUnitOfWork` is) | `ResourceMasterChanged` (CREATED/UPDATED/DEACTIVATED/REACTIVATED/PURGED), `ResourceCapabilityChanged` (ADDED/UPDATED/REMOVED) — existing vocabulary, retained unchanged | Narrow: `resource_list` (`OrganizationScope`) for Master, `resource_capabilities` (`ResourceScope`, exact-resource) for Capability | `resources_changed` deleted |
 
 **Platform / Shared Master Data is fully modernized** as of P16D-FIX: Organization, Tenant
 Membership, Module Entitlements, Role Binding / Scoped Access, Approval, Employee, Department,
 Site, Party, Document, DocumentStructure, DocumentLink. Zero Platform-owned legacy `Signal`
 fields remain on `DomainEvents`.
 
-**P18A (in progress — Project Resource): transaction/event-pipeline convergence done, NOT fully
-modernized yet.**
+**Project Resource is fully modernized** as of P18B.
 
 | Aspect | Status |
 |---|---|
 | Resource Master transaction ownership | MODERNIZED — canonical `ResourceUnitOfWork`/`ResourceUnitOfWorkFactory` (`src/core/modules/project_management/{contracts,infrastructure/persistence}/uow/resources/resource_unit_of_work.py`), fresh `Session` per operation |
-| Resource Capability transaction ownership | MODERNIZED — same `ResourceUnitOfWork` (`.skills`/`.certifications` accessors); no operation currently spans Master + Capability, so one shared UoW was chosen over two, mirroring `DocumentUnitOfWork`'s `.documents`/`.structures`/`.links` shape |
-| Resource typed event transport | CANONICALIZED — `ResourceMasterChanged`/`ResourceCapabilityChanged` (existing, retained vocabulary, unchanged shape) now recorded via `uow.record_event(...)` and dispatched through the shared transactional/post-commit pipeline; the bespoke module-level `Signal[ResourceMasterChanged]`/`Signal[ResourceCapabilityChanged]` publishers are DELETED (confirmed zero production consumers before deletion) |
-| Resource audit | ATOMIC — `record_audit_entry(uow, ..., commit=False, fail_closed=True)` inside the same transaction as the mutation; audit failure or commit failure both roll back the mutation and produce zero events (typed and legacy) |
-| No-op discipline | `update_resource`, `update_resource_skill`, `update_resource_certification` compare the built candidate against the existing record and return unchanged with zero write/audit/event/legacy-signal on a true no-op; `deactivate_resource`/`reactivate_resource` already rejected a no-op transition with `BusinessRuleError` (unchanged) |
-| Employee-driven Resource sync | CASE A (real Resource mutation, not projection staleness) — `sync_linked_employee_resources` writes real `name`/`role`/`contact` columns on the linked Resource row, atomically inside Employee's own canonical UoW. A typed `ResourceMasterChanged(UPDATED)` is now recorded there too, via a `ResourceMasterEventFactory` Protocol Platform owns and PM's composition (`platform_registry.py`) satisfies with `build_resource_master_changed_for_employee_sync` — Platform's `employee_service.py` never imports PM's concrete event class (no new Platform → business-module dependency; the existing 2-entry `GOVERNED_EXCEPTIONS` allowlist in `test_platform_does_not_import_business_modules.py` is unchanged) |
-| Resource ViewInvalidation | NOT YET — P18B |
-| `resources_changed` | TEMPORARILY RETAINED — every real successful mutation across all three producers (Master, Capability, Employee sync) still emits it, post-commit, alongside the new typed event; all 8 existing consumers are unchanged. Deleted in P18B. |
+| Resource Capability transaction ownership | MODERNIZED — same `ResourceUnitOfWork` (`.skills`/`.certifications` accessors) |
+| Resource typed event transport | CANONICALIZED — `ResourceMasterChanged`/`ResourceCapabilityChanged` recorded via `uow.record_event(...)`, dispatched through the shared transactional/post-commit pipeline; the bespoke module-level `Signal[T]` publishers are DELETED |
+| Resource audit / activity | ATOMIC — `record_audit_entry(uow, ...)` inside the same transaction as the mutation; activity-feed staging also rides the same fresh UoW `Session` (a real regression found and fixed mid-P18A: activity staged on the old process-lifetime shared session was never committed once the mutation itself moved to a fresh session) |
+| No-op discipline | `update_resource`, `update_resource_skill`, `update_resource_certification` produce zero write/audit/event on a true no-op |
+| Employee-driven Resource sync | CASE A (real Resource mutation) — `sync_linked_employee_resources` writes real `name`/`role`/`contact` columns atomically inside Employee's own canonical UoW, and now also records a typed `ResourceMasterChanged(UPDATED)` there via a `ResourceMasterEventFactory` Protocol Platform owns and PM's composition satisfies (`build_resource_master_changed_for_employee_sync`, wired only in `platform_registry.py`) — Platform's `employee_service.py` never imports PM's concrete event class |
+| Resource ViewInvalidation | MODERNIZED — two targets: `resource_list` (`OrganizationScope`, every `ResourceMasterChanged`) and `resource_capabilities` (`ResourceScope`, exact-resource, every `ResourceCapabilityChanged`); proven from source that list/options projections never embed skill/certification data, so a capability change never triggers a list-scoped refresh |
+| UI consumers | CUT OVER — all 8 original consumers re-audited from source (not assumed): the main Resources workspace controller narrows to `refresh()` (list) + `reload_skills_and_certs()`/activity-reload (capability/detail, entity-id-gated to the selected resource); Dashboard/Portfolio/Scheduling/Tasks/`ResourceTimesheetsController`/`TimesheetsWorkspaceController` (review queue) all react to `resource_list` only, via one `ResourceViewInvalidationAdapter` instance each (none had a genuine `resource_capabilities` dependency — proven from their own presenter/query source); Platform's Control workspace subscription was removed entirely with no replacement (no real Resource dependency found) |
+| `resources_changed` | DELETED — field, all 3 producers (Resource Master, Resource Capability, Employee sync), and all 8 consumers. Legacy Signal count: 28 (29 → 28, confirmed via source) |
 
-**Project Resource is not yet marked fully modernized** — P18B (ViewInvalidation + consumer
-cutover + `resources_changed` deletion) remains.
+Only one full refresh remains genuinely coarse: the 6 non-Resources-workspace consumers
+(Dashboard/Portfolio/Scheduling/Tasks/2x Timesheets) call their own existing `refresh()` on any
+Resource Master change rather than a narrower, capability-specific reload — none had an existing
+narrower seam, and building one would mean redesigning each of those *other* capabilities' own
+presenter/query shape (explicitly out of P18B's scope: "refactor unrelated PM capabilities").
+This is still a real improvement over pre-P18B behavior: none of the 6 fire on
+`ResourceCapabilityChanged` any more (a skill/certification edit no longer triggers any of their
+refreshes at all), and the Resources workspace itself no longer double-reacts (a coarse full
+refresh plus a redundant narrow "activity" reload on every event, regardless of relevance) the
+way it did before.
 
 ## 4. Current State
 
@@ -104,41 +113,19 @@ re-verified against current source when this document was last updated).
 > **This is a snapshot, not a fact.** Recompute the count directly from
 > `src/core/shared/events/domain_events.py` before relying on it - do not trust this table if it
 > is more than a few phases old. Concurrent development in any module can add or remove fields
-> between updates to this document.
+> between updates to this document. As of P18B this table's PM count (8) is one field stale by
+> construction — it still includes `resources_changed`, which P18B deleted; PM is 7 as of P18B,
+> total legacy count 28. Left as a P17-snapshot artifact rather than silently edited, per this
+> section's own "recompute, don't trust" instruction; the P18B section above and §3's ledger are
+> the current source of truth for Project Resource specifically.
 
 ## 5. Current Priority
 
-**P18: Project Resource** (`resources_changed`).
-
-Why this capability, ahead of every other remaining one:
-
-- Typed `ResourceMasterChanged`/`ResourceCapabilityChanged` events already exist in source, with
-  real `change_type` enums and explicit `tenant_id`/`organization_id` fields - genuinely usable
-  vocabulary, not a stub, and the only non-Finance capability outside Platform with any typed
-  events already written.
-- That typed vocabulary is currently transported through a bespoke, capability-local
-  `Signal[T]` - non-canonical, not routed through `uow.record_event`/the post-commit bus, and
-  (high confidence) has zero live consumers today.
-- `resources_changed` (the legacy field) is a live duplicate-publication case: the same
-  mutations that construct the orphaned typed events also emit the legacy signal.
-- The two hand-rolled "UoW" classes producing these events (`ResourceMasterUnitOfWork`,
-  `ResourceCapabilityUnitOfWork`) currently have no audit call at all - a real, pre-existing gap
-  this phase also closes.
-- All 8 current `resources_changed` consumers do a coarse full-workspace refresh; narrowing them
-  is a direct, provable payoff.
-
-Planned split:
-
-- **P18A (DONE)** - transaction/event-pipeline convergence: replaced `ResourceMasterUnitOfWork`/
-  `ResourceCapabilityUnitOfWork` (hand-rolled, raw-Session, no audit) with one canonical
-  `ResourceUnitOfWork`/`ResourceUnitOfWorkFactory` + `uow.record_event(...)`; added the missing
-  audit call; resolved the third, inconsistent `employee_service.py` producer path (now records a
-  real typed `ResourceMasterChanged` inside Employee's own transaction, via a Platform-owned
-  factory Protocol PM's composition satisfies — see §3 above for the full status table.
-  `resources_changed` deliberately still fires everywhere it did before this phase.
-- **P18B (NOT STARTED)** - ViewInvalidation consumer cutover: build the Resource
-  `ViewInvalidationHandler`, cut all 8 consumers over to narrow hints, delete `resources_changed`
-  (field + every producer and consumer, including the Employee sync path's legacy emission).
+**Project Resource is fully modernized (P18A + P18B, see §3).** The next capability has not yet
+been chosen — the P17 ranking's provisional order (§6 below) starts with Finance Forecast, but
+per this document's own repeated caution, re-run prioritization from current source before
+committing to it: concurrent development (Finance in particular has had recent, active,
+concurrent work per this project's own tracking) may have changed readiness since P17.
 
 ## 6. Provisional Roadmap
 
@@ -147,10 +134,9 @@ Re-run prioritization after each major capability - current source is authoritat
 concurrent development elsewhere in the codebase may change any capability's readiness before
 its turn comes up.
 
-Suggested initial order:
+Suggested next order (P18 Project Resource is DONE — see §3):
 
 ```
-P18  Project Resource
 P19  Finance Forecast
 P20  Inventory Storeroom/Location
 P21  Finance Financial Setup

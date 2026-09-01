@@ -1890,8 +1890,7 @@ that presentation-state comparison belongs in the controller, not the shared con
 is accordingly now a closed union of four kinds, not three; ADR-005 §12 should be read with that
 correction in mind wherever it still says "three."
 
-**26.15 Project Resource: TRANSACTION/EVENT-PIPELINE CONVERGED (P18A) — NOT YET FULLY
-MODERNIZED, ViewInvalidation remains P18B.** P17's audit found `ResourceMasterChanged`/
+**26.15 Project Resource: FULLY MODERNIZED (P18A/P18B) — `resources_changed` DELETED.** P17's audit found `ResourceMasterChanged`/
 `ResourceCapabilityChanged` already existed as real, well-designed typed vocabulary (explicit
 `tenant_id`/`organization_id`, meaningful `change_type` enums), but transported through their own
 module-level `Signal[T]` objects rather than the canonical pipeline, with three structurally
@@ -1942,14 +1941,74 @@ Callable[[Session], LinkedEmployeeResourceRepository]` collaborator already used
 side of this sync — extended, not newly invented, to cover event construction too. Employee's own
 `EmployeeProfileUpdated` event and canonical UoW/audit path are unchanged.
 
-`resources_changed` is deliberately NOT deleted by P18A and NOT yet routed through
-ViewInvalidation — its 8 existing consumers are unchanged, and every one of the three producers
-above still emits it, post-commit, alongside the new typed event, exactly the same temporary
-dual-emission pattern P16C used for Document/DocumentStructure while DocumentLink was still
-unmodernized. This duplication is explicitly temporary: P18B builds the Resource
-`ViewInvalidationHandler`, cuts the 8 consumers to narrow hints, and deletes `resources_changed`
-(field, all three producers, all consumers) in one direct-convergence pass, per this ADR's
-pre-release policy (§26.9) — Project Resource is not marked fully modernized until then.
+`resources_changed` was deliberately NOT deleted by P18A — its 8 existing consumers were left
+unchanged, and every one of the three producers emitted it, post-commit, alongside the new typed
+event, exactly the same temporary dual-emission pattern P16C used for Document/DocumentStructure
+while DocumentLink was still unmodernized.
+
+**P18B closed the loop.** Two `ViewInvalidation` targets, both source-justified rather than
+mapped mechanically: `resource_list` (`OrganizationScope`, `src/core/modules/project_management/
+application/resources/event_handlers/view_invalidation.py`) for every `ResourceMasterChanged`
+change type, and `resource_capabilities` (`ResourceScope` — `tenant_id`/`organization_id`/
+`module_code="project_management"`/`entity_type="resource"`/`entity_id`) for every
+`ResourceCapabilityChanged`. The two-target split, not one coarse `resource_changed` target, was
+proven from source, not assumed: the Resources workspace's own list-row builder never reads
+skill/certification data, so a capability change correctly never needs to invalidate the list.
+
+**Dedupe identity is derived from each target's own scope identity, not raw event fields
+(P18B-FIX)** — the first pass wrongly keyed `resource_list`'s dedupe by `(correlation_id,
+resource_id)`, the same shape as `resource_capabilities`, which would have let two different
+resources changing within one transaction produce two `resource_list` hints for what is
+structurally the *same* org-wide target. Corrected: `resource_list` dedupes by
+`(correlation_id, scope_code, tenant_id, organization_id)` — `OrganizationScope` carries no
+per-resource identity, so two resources in one transaction correctly collapse to one hint;
+`resource_capabilities` dedupes by `(correlation_id, scope_code, tenant_id, organization_id,
+module_code, entity_type, entity_id)` — `ResourceScope` *does* carry exact-resource identity, so
+two different resources' capability changes in one transaction correctly stay two hints. Both
+built via small local helper functions deriving the dedupe key from the constructed `EventScope`
+object itself, per this ADR's general rule: dedupe identity is (transaction correlation_id) +
+(ViewInvalidation target/scope identity), never a capability-specific bag of raw event fields. A
+new `ResourceViewInvalidationAdapter` (`src/ui_qml/platform/adapters/`, the established shared
+adapters home regardless of which capability's handler backs it —
+`DocumentLinksViewInvalidationAdapter` already set this precedent) exposes
+`resourceListStale`/`resourceCapabilitiesStale`, org-scoped at the channel level exactly like
+every other adapter.
+
+All 8 original consumers were re-audited from current source (a dedicated fork per consumer
+group), not assumed unchanged from P17: the main Resources workspace controller (`resource_list`
+→ `refresh()`; `resource_capabilities` → `reload_skills_and_certs()`, entity-id-gated to the
+selected resource — resolving P17's own finding of two redundant, unconditional
+`resources_changed` subscriptions firing together on every event regardless of relevance);
+Dashboard, Portfolio, Scheduling, Tasks, `ResourceTimesheetsController`, and the timesheets
+review-queue workspace (`TimesheetsWorkspaceController`) all subscribe to `resource_list` only,
+each via its own `ResourceViewInvalidationAdapter` instance (the established per-consumer
+pattern, not a shared fan-out) connected to that controller's own existing `refresh()` — none had
+a genuine `resource_capabilities` dependency, confirmed from their own presenter/query source
+(resource name/capacity/options only, never skill/certification fields); Platform's Control
+workspace subscription was removed entirely with no replacement, since no real Resource
+dependency existed there at all (an "incidental" P17 classification, confirmed). None of the 6
+non-Resources-workspace consumers gained a narrower-than-`refresh()` reaction — no existing seam
+was found, and building one would mean redesigning each of those *other* capabilities' own
+presenter/query shape, explicitly out of P18B's scope. This is still a real, provable reduction
+from pre-P18B behavior: none of the 6 react to `ResourceCapabilityChanged` at all any more (a
+skill/certification edit previously triggered every one of their full refreshes too, since the
+old blanket `resources_changed` signal never distinguished master from capability).
+
+A real regression was found and fixed mid-implementation, not merely mid-P18A: once Resource
+Master/Capability mutations moved off the process-lifetime shared `Session` P18A's own hand-rolled
+predecessor UoWs had accidentally relied on, activity-feed staging (a separate, lighter-weight
+UX trail from the governance `AuditEntry`) silently stopped persisting, since it was still bound to
+that old shared session. Fixed by giving `SqlAlchemyResourceUnitOfWork` its own `_activity_service`
+bound to the same fresh transaction — activity-feed atomicity is now structurally guaranteed
+rather than an accident of a shared session, a genuine correctness improvement over the pre-P18A
+state, not merely a preserved behavior.
+
+`resources_changed` is now deleted from `DomainEvents` entirely — zero producers (Resource
+Master, Resource Capability, and the Employee sync path all removed their legacy emission), zero
+consumers (all 8 re-wired to the typed targets above), field absent. The legacy Signal count is
+28 as of this phase (29 minus the one deletion — confirmed source-derived, not assumed
+arithmetic). The Project Resource capability — Resource Master and Resource Capability — is
+fully modernized.
 
 ## Alternatives Rejected
 
