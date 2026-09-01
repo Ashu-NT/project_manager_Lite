@@ -918,7 +918,6 @@ def test_internal_apply_methods_bypass_budget_approve_permission(services) -> No
             approved_by="approver-x",
             expected_version=budget.row_version,
             notes="",
-            commit=True,
         )
     finally:
         budget_service._user_session = real_user_session

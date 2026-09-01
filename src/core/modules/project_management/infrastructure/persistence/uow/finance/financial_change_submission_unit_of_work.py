@@ -13,7 +13,7 @@ from src.core.platform.infrastructure.persistence.repositories.approval.approval
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
-from src.core.modules.project_management.contracts.persistence.financial_change_submission_unit_of_work import (
+from src.core.modules.project_management.contracts.uow.finance.financial_change_submission_unit_of_work import (
     FinancialChangeSubmissionUnitOfWork,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.budgets.budget import (

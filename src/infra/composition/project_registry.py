@@ -9,10 +9,10 @@ from time import perf_counter
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.platform.access import ScopedRolePolicy
-from src.core.modules.project_management.infrastructure.persistence.billing_preparation_submission_unit_of_work import (
+from src.core.modules.project_management.infrastructure.persistence.uow.finance.billing_preparation_submission_unit_of_work import (
     SqlAlchemyBillingPreparationSubmissionUnitOfWorkFactory,
 )
-from src.core.modules.project_management.infrastructure.persistence.financial_change_submission_unit_of_work import (
+from src.core.modules.project_management.infrastructure.persistence.uow.finance.financial_change_submission_unit_of_work import (
     SqlAlchemyFinancialChangeSubmissionUnitOfWorkFactory,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (

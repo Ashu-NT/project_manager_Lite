@@ -152,7 +152,7 @@ def test_submit_change_commit_failure_rolls_back_change_and_approval_request_tog
     """Approval-P1 (§23-26): a commit failure inside `submit_change`'s canonical UoW must roll
     back the WHOLE transaction -- the financial change must remain in its pre-submit state, and
     no `ApprovalRequest` may have been persisted independently of its host command."""
-    from src.core.modules.project_management.infrastructure.persistence.financial_change_submission_unit_of_work import (
+    from src.core.modules.project_management.infrastructure.persistence.uow.finance.financial_change_submission_unit_of_work import (
         SqlAlchemyFinancialChangeSubmissionUnitOfWork,
     )
 

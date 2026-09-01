@@ -44,7 +44,6 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.platform.domain.approval.policy import is_governance_required
 from src.core.shared.audit import record_audit_entry
-from src.core.shared.events.domain_events import domain_events
 
 _UNSET = object()
 
@@ -194,8 +193,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         except IntegrityError as exc:
             self._translate_create_conflict(exc)
         self._record_budget_audit(operation="create", budget=budget)
-        self._commit()
-        domain_events.budgets_changed.emit(project_id)
+        self._session.flush()
         return budget
 
     def submit_budget(
@@ -215,8 +213,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         budget.submit(submitted_by=submitted_by, submitted_at=now, notes=notes)
         self._budget_repo.update(budget, expected_row_version=expected_version)
         self._record_budget_audit(operation="submit", budget=budget)
-        self._commit()
-        domain_events.budgets_changed.emit(budget.project_id)
+        self._session.flush()
         return budget
 
     def approve_budget(
@@ -274,7 +271,6 @@ class BudgetService(ProjectManagementModuleGuardMixin):
             approved_by=approved_by,
             expected_version=expected_version,
             notes=notes,
-            commit=True,
         )
         return BudgetApprovalResult(
             outcome=BudgetApprovalOutcome.APPLIED,
@@ -291,7 +287,6 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         rejected_by: str,
         expected_version: int,
         notes: str = "",
-        commit: bool = True,
     ) -> ProjectBudget:
         require_permission(self._user_session, "budget.approve", operation_label="reject project budget")
         budget = self._require_budget(budget_id)
@@ -306,7 +301,6 @@ class BudgetService(ProjectManagementModuleGuardMixin):
             rejected_by=rejected_by,
             expected_version=expected_version,
             notes=notes,
-            commit=commit,
         )
 
     def close_budget(
@@ -323,8 +317,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         budget.close(closed_by=closed_by, closed_at=now, notes=notes)
         self._budget_repo.update(budget, expected_row_version=expected_version)
         self._record_budget_audit(operation="close", budget=budget)
-        self._commit()
-        domain_events.budgets_changed.emit(budget.project_id)
+        self._session.flush()
         return budget
 
     def update_budget_header(
@@ -347,8 +340,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         budget.touch(updated_at=self._clock.now())
         self._budget_repo.update(budget, expected_row_version=expected_version)
         self._record_budget_audit(operation="update_header", budget=budget)
-        self._commit()
-        domain_events.budgets_changed.emit(budget.project_id)
+        self._session.flush()
         return budget
 
     def delete_budget(self, budget_id: str, *, expected_version: int) -> None:
@@ -367,8 +359,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         # itself (not a redundant manual check here) surfaces STALE_WRITE.
         self._budget_repo.delete(budget_id, expected_row_version=expected_version)
         self._record_budget_audit(operation="delete", budget=budget)
-        self._commit()
-        domain_events.budgets_changed.emit(budget.project_id)
+        self._session.flush()
 
     # -- Line mutations (each also advances the parent budget's row_version) -
 
@@ -420,8 +411,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         budget.touch(updated_at=now)
         self._budget_repo.update(budget, expected_row_version=expected_budget_version)
         self._record_line_audit(operation="add_line", line=line, budget=budget)
-        self._commit()
-        domain_events.budgets_changed.emit(budget.project_id)
+        self._session.flush()
         return line
 
     def update_line(
@@ -481,8 +471,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         budget.touch(updated_at=now)
         self._budget_repo.update(budget, expected_row_version=expected_budget_version)
         self._record_line_audit(operation="update_line", line=line, budget=budget)
-        self._commit()
-        domain_events.budgets_changed.emit(budget.project_id)
+        self._session.flush()
         return line
 
     def delete_line(
@@ -508,8 +497,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         budget.touch(updated_at=now)
         self._budget_repo.update(budget, expected_row_version=expected_budget_version)
         self._record_line_audit(operation="delete_line", line=line, budget=budget)
-        self._commit()
-        domain_events.budgets_changed.emit(budget.project_id)
+        self._session.flush()
 
     # -- Internal, unchecked decision application ----------------------------
     # Reachable only through approve_budget/reject_budget (already permission-
@@ -521,7 +509,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
     # their decision applied.
 
     def _apply_approval_decision(
-        self, *, budget_id: str, approved_by: str, expected_version: int, notes: str, commit: bool
+        self, *, budget_id: str, approved_by: str, expected_version: int, notes: str
     ) -> ProjectBudget:
         budget = self._require_budget(budget_id)
         now = self._clock.now()
@@ -545,15 +533,11 @@ class BudgetService(ProjectManagementModuleGuardMixin):
                 ) from exc
             raise
         self._record_budget_audit(operation="approve", budget=budget)
-        if commit:
-            self._commit()
-            domain_events.budgets_changed.emit(budget.project_id)
-        else:
-            self._session.flush()
+        self._session.flush()
         return budget
 
     def _apply_rejection_decision(
-        self, *, budget_id: str, rejected_by: str, expected_version: int, notes: str, commit: bool
+        self, *, budget_id: str, rejected_by: str, expected_version: int, notes: str
     ) -> ProjectBudget:
         budget = self._require_budget(budget_id)
         if budget.row_version != expected_version:
@@ -562,11 +546,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         budget.reject(rejected_by=rejected_by, rejected_at=now, notes=notes)
         self._budget_repo.update(budget, expected_row_version=expected_version)
         self._record_budget_audit(operation="reject", budget=budget)
-        if commit:
-            self._commit()
-            domain_events.budgets_changed.emit(budget.project_id)
-        else:
-            self._session.flush()
+        self._session.flush()
         return budget
 
     def _is_approval_governed(self) -> bool:
@@ -733,13 +713,5 @@ class BudgetService(ProjectManagementModuleGuardMixin):
             },
             sort_keys=True,
         )
-
-    def _commit(self) -> None:
-        try:
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-
 
 __all__ = ["BudgetService"]

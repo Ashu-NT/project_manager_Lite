@@ -12,10 +12,6 @@ from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.financials.invalidation import (
-    FinanceInvalidationScope,
-)
-from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
@@ -157,7 +153,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         except IntegrityError as exc:
             self._translate_create_conflict(exc)
         self._record_forecast_audit("create", forecast)
-        self._commit(forecast.project_id)
+        self._session.flush()
         return forecast
 
     def add_line(
@@ -212,7 +208,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
             forecast, expected_row_version=expected_forecast_version
         )
         self._record_line_audit("add", line, forecast)
-        self._commit(forecast.project_id)
+        self._session.flush()
         return line
 
     def update_line(
@@ -263,7 +259,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
             forecast, expected_row_version=expected_forecast_version
         )
         self._record_line_audit("update", line, forecast)
-        self._commit(forecast.project_id)
+        self._session.flush()
         return line
 
     def delete_line(
@@ -285,7 +281,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
             forecast, expected_row_version=expected_forecast_version
         )
         self._record_line_audit("delete", line, forecast)
-        self._commit(forecast.project_id)
+        self._session.flush()
 
     def submit_forecast(
         self,
@@ -313,7 +309,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         )
         self._forecast_repo.update(forecast, expected_row_version=expected_version)
         self._record_forecast_audit("submit", forecast)
-        self._commit(forecast.project_id)
+        self._session.flush()
         return forecast
 
     def approve_forecast(
@@ -354,7 +350,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
                 ) from exc
             raise
         self._record_forecast_audit("approve", forecast)
-        self._commit(forecast.project_id)
+        self._session.flush()
         return forecast
 
     def reject_forecast(
@@ -378,7 +374,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         )
         self._forecast_repo.update(forecast, expected_row_version=expected_version)
         self._record_forecast_audit("reject", forecast)
-        self._commit(forecast.project_id)
+        self._session.flush()
         return forecast
 
     def delete_forecast(self, forecast_id: str, *, expected_version: int) -> None:
@@ -389,7 +385,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
             forecast_id, expected_row_version=expected_version
         )
         self._record_forecast_audit("delete", forecast)
-        self._commit(forecast.project_id)
+        self._session.flush()
 
     def _require_mutable_forecast(
         self, forecast_id: str, expected_version: int, operation: str
@@ -574,21 +570,5 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
             commit=False,
             fail_closed=True,
         )
-
-    def _commit(self, project_id: str) -> None:
-        context = self._require_context("publish forecast invalidation")
-        try:
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.forecasts_changed.emit(
-            FinanceInvalidationScope(
-                tenant_id=context.tenant_id,
-                organization_id=context.organization_id,
-                project_id=project_id,
-            )
-        )
-
 
 __all__ = ["ForecastVersionService"]

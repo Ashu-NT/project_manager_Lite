@@ -51,7 +51,6 @@ class BudgetApprovalParticipant:
             approved_by=approved_by,
             expected_version=request.payload["expected_version"],
             notes=request.payload.get("notes", ""),
-            commit=False,
         )
         return ApprovalHandlerResult(
             post_commit_events=(ApprovalPostCommitEvent("budgets_changed", budget.project_id),)
@@ -64,7 +63,6 @@ class BudgetApprovalParticipant:
             rejected_by=rejected_by,
             expected_version=request.payload["expected_version"],
             notes=request.payload.get("notes", ""),
-            commit=False,
         )
         return ApprovalHandlerResult(
             post_commit_events=(ApprovalPostCommitEvent("budgets_changed", budget.project_id),)

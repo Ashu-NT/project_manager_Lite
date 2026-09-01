@@ -32,7 +32,7 @@ from src.core.modules.project_management.contracts.repositories.finance.configur
 from src.core.modules.project_management.contracts.repositories.finance.forecasts.forecast import (
     ProjectForecastRepository,
 )
-from src.core.modules.project_management.contracts.persistence.financial_change_submission_unit_of_work import (
+from src.core.modules.project_management.contracts.uow.finance.financial_change_submission_unit_of_work import (
     FinancialChangeSubmissionUnitOfWorkFactory,
 )
 from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
@@ -193,19 +193,14 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
             self._change_repo.add(change)
             self._change_repo.flush()
             self._audit_change("create", change)
-            self._session.commit()
+            self._session.flush()
         except IntegrityError as exc:
-            self._session.rollback()
             if _REVISION_CONSTRAINT in str(getattr(exc, "orig", "")).lower():
                 raise ConcurrencyError(
                     "Another financial change revision was created concurrently.",
                     code="FINANCIAL_CHANGE_REVISION_CONFLICT",
                 ) from exc
             raise
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.financial_changes_changed.emit(invalidation_scope(change))
         return change
 
     def add_impact(
@@ -282,16 +277,11 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
                 code="FINANCIAL_CHANGE_DUPLICATE_SCHEDULE_TARGET",
             )
         now = self._clock.now()
-        try:
-            self._change_repo.add_impact(impact)
-            change.touch(updated_at=now)
-            self._change_repo.update(change, expected_row_version=expected_change_version)
-            self._audit_impact("add", change, impact)
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.financial_changes_changed.emit(invalidation_scope(change))
+        self._change_repo.add_impact(impact)
+        change.touch(updated_at=now)
+        self._change_repo.update(change, expected_row_version=expected_change_version)
+        self._audit_impact("add", change, impact)
+        self._session.flush()
         return impact
 
     def _new_submission_context(self) -> DomainEventContext:
@@ -416,7 +406,6 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         change_id: str,
         approval_request_id: str,
         applied_by: str,
-        commit: bool,
     ) -> FinancialChangeRequest:
         change = self._require_change(change_id)
         if (
@@ -431,29 +420,19 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         self._validate_application_bases(change, impacts)
         now = self._clock.now()
         expected_version = change.row_version
-        try:
-            budget_id = self._apply_budget_successor(change, impacts, applied_by, now)
-            forecast_id = self._apply_forecast_successor(change, impacts, applied_by, now)
-            schedule_count = self._apply_schedule_changes(change, impacts, applied_by)
-            change.apply(
+        budget_id = self._apply_budget_successor(change, impacts, applied_by, now)
+        forecast_id = self._apply_forecast_successor(change, impacts, applied_by, now)
+        schedule_count = self._apply_schedule_changes(change, impacts, applied_by)
+        change.apply(
                 applied_by=applied_by,
                 applied_at=now,
                 applied_budget_id=budget_id,
                 applied_forecast_id=forecast_id,
                 applied_schedule_count=schedule_count,
-            )
-            self._change_repo.update(change, expected_row_version=expected_version)
-            self._audit_change("apply", change)
-            if commit:
-                self._session.commit()
-            else:
-                self._session.flush()
-        except Exception:
-            if commit:
-                self._session.rollback()
-            raise
-        if commit:
-            self._emit_applied(change)
+        )
+        self._change_repo.update(change, expected_row_version=expected_version)
+        self._audit_change("apply", change)
+        self._session.flush()
         return change
 
     def _apply_rejection_decision(
@@ -463,7 +442,6 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         approval_request_id: str,
         rejected_by: str,
         notes: str,
-        commit: bool,
     ) -> FinancialChangeRequest:
         change = self._require_change(change_id)
         if change.approval_request_id != approval_request_id:
@@ -472,24 +450,14 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
                 code="FINANCIAL_CHANGE_APPROVAL_MISMATCH",
             )
         expected_version = change.row_version
-        try:
-            change.reject(
+        change.reject(
                 rejected_by=rejected_by,
                 rejected_at=self._clock.now(),
                 notes=notes,
-            )
-            self._change_repo.update(change, expected_row_version=expected_version)
-            self._audit_change("reject", change)
-            if commit:
-                self._session.commit()
-            else:
-                self._session.flush()
-        except Exception:
-            if commit:
-                self._session.rollback()
-            raise
-        if commit:
-            domain_events.financial_changes_changed.emit(invalidation_scope(change))
+        )
+        self._change_repo.update(change, expected_row_version=expected_version)
+        self._audit_change("reject", change)
+        self._session.flush()
         return change
 
     def _apply_budget_successor(
@@ -1035,16 +1003,5 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
             commit=False,
             fail_closed=True,
         )
-
-    @staticmethod
-    def _emit_applied(change: FinancialChangeRequest) -> None:
-        domain_events.financial_changes_changed.emit(invalidation_scope(change))
-        if change.applied_budget_id:
-            domain_events.budgets_changed.emit(change.project_id)
-        if change.applied_forecast_id:
-            domain_events.forecasts_changed.emit(invalidation_scope(change))
-        if change.applied_schedule_count:
-            domain_events.tasks_changed.emit(change.project_id)
-
 
 __all__ = ["FinancialChangeService"]

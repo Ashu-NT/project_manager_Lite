@@ -1,9 +1,10 @@
-"""Project management transaction/persistence contracts (Approval-P1)."""
-from src.core.modules.project_management.contracts.persistence.billing_preparation_submission_unit_of_work import (
+"""Project Management Unit of Work contracts."""
+
+from src.core.modules.project_management.contracts.uow.finance import (
     BillingPreparationSubmissionUnitOfWork,
     BillingPreparationSubmissionUnitOfWorkFactory,
-)
-from src.core.modules.project_management.contracts.persistence.financial_change_submission_unit_of_work import (
+    FinanceGovernanceUnitOfWork,
+    FinanceGovernanceUnitOfWorkFactory,
     FinancialChangeSubmissionUnitOfWork,
     FinancialChangeSubmissionUnitOfWorkFactory,
 )
@@ -11,6 +12,8 @@ from src.core.modules.project_management.contracts.persistence.financial_change_
 __all__ = [
     "BillingPreparationSubmissionUnitOfWork",
     "BillingPreparationSubmissionUnitOfWorkFactory",
+    "FinanceGovernanceUnitOfWork",
+    "FinanceGovernanceUnitOfWorkFactory",
     "FinancialChangeSubmissionUnitOfWork",
     "FinancialChangeSubmissionUnitOfWorkFactory",
 ]

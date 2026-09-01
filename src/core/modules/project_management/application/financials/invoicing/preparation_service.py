@@ -35,7 +35,7 @@ from src.core.modules.project_management.gateway.billing.accounting_billing impo
     BillingPreparationLinePayload,
     ProjectBillingPreparationPayload,
 )
-from src.core.modules.project_management.contracts.persistence.billing_preparation_submission_unit_of_work import (
+from src.core.modules.project_management.contracts.uow.finance.billing_preparation_submission_unit_of_work import (
     BillingPreparationSubmissionUnitOfWorkFactory,
 )
 from src.core.platform.application.approval.approval_mutation_participant import (

@@ -137,7 +137,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
             )
         self._profile_repo.update(candidate)
         self._record_profile_audit("update", candidate, old=current)
-        self._commit()
+        self._flush()
         return candidate
 
     def transition_profile(
@@ -157,7 +157,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         candidate.transition_to(resolved_target)
         self._profile_repo.update(candidate)
         self._record_profile_audit("transition", candidate, old=current)
-        self._commit()
+        self._flush()
         return candidate
 
     def list_cost_codes(self, *, include_inactive: bool = False) -> list[ProjectCostCode]:
@@ -243,7 +243,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
             )
             self._cost_code_repo.add_restriction(restriction)
             self._record_restriction_audit("create", restriction)
-        self._commit(duplicate_message=duplicate_message)
+        self._flush(duplicate_message=duplicate_message)
         return cost_code
 
     def update_cost_code(
@@ -294,7 +294,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         )
         self._cost_code_repo.update(candidate)
         self._record_cost_code_audit("update", candidate, old=current)
-        self._commit(duplicate_message=f"Cost code '{candidate.code}' already exists.")
+        self._flush(duplicate_message=f"Cost code '{candidate.code}' already exists.")
         return candidate
 
     def deactivate_cost_code(
@@ -332,7 +332,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         )
         self._cost_code_repo.update(candidate)
         self._record_cost_code_audit("deactivate", candidate, old=current)
-        self._commit()
+        self._flush()
         return candidate
 
     def activate_cost_code(
@@ -358,7 +358,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         )
         self._cost_code_repo.update(candidate)
         self._record_cost_code_audit("activate", candidate, old=current)
-        self._commit()
+        self._flush()
         return candidate
 
     def add_project_cost_code(
@@ -383,7 +383,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         )
         self._cost_code_repo.add_restriction(restriction)
         self._record_restriction_audit("create", restriction)
-        self._commit(duplicate_message="Cost code is already assigned to this project.")
+        self._flush(duplicate_message="Cost code is already assigned to this project.")
         return restriction
 
     def remove_project_cost_code(self, *, project_id: str, cost_code_id: str) -> bool:
@@ -407,7 +407,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
             cost_code_id=cost_code_id,
         )
         self._record_restriction_audit("delete", current)
-        self._commit()
+        self._flush()
         return True
 
     def _require_project(self, project_id: str, permission: str, operation: str):
@@ -612,34 +612,15 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
             sort_keys=True,
         )
 
-    def _commit(self, *, duplicate_message: str | None = None) -> None:
-        try:
-            self._session.commit()
-        except IntegrityError as exc:
-            self._session.rollback()
-            if duplicate_message:
-                raise ValidationError(
-                    duplicate_message,
-                    code="PROJECT_FINANCE_CONFIGURATION_DUPLICATE",
-                ) from exc
-            raise
-        except Exception:
-            self._session.rollback()
-            raise
-
     def _flush(self, *, duplicate_message: str | None = None) -> None:
         try:
             self._session.flush()
         except IntegrityError as exc:
-            self._session.rollback()
             if duplicate_message:
                 raise ValidationError(
                     duplicate_message,
                     code="PROJECT_FINANCE_CONFIGURATION_DUPLICATE",
                 ) from exc
-            raise
-        except Exception:
-            self._session.rollback()
             raise
 
 

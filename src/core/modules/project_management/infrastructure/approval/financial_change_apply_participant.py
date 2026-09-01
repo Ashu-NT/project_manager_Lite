@@ -41,7 +41,6 @@ class FinancialChangeApprovalParticipant:
             change_id=request.payload["change_id"],
             approval_request_id=request.id,
             applied_by=applied_by,
-            commit=False,
         )
         events = [
             ApprovalPostCommitEvent(
@@ -71,7 +70,6 @@ class FinancialChangeApprovalParticipant:
             approval_request_id=request.id,
             rejected_by=rejected_by,
             notes=request.decision_note or "",
-            commit=False,
         )
         return ApprovalHandlerResult(
             post_commit_events=(
