@@ -258,6 +258,13 @@ class FinanceGovernedServicePort:
                     return str(self._read_service.get_forecast(line.forecast_id).project_id)
                 return str(self._read_service.get_forecast(args[0]).project_id)
             if self._family == "financial_change":
+                if name in {"update_impact", "remove_impact"}:
+                    impact = self._read_service._require_impact(args[0])
+                    return str(
+                        self._read_service.get_change(
+                            impact.change_request_id
+                        ).project_id
+                    )
                 return str(self._read_service.get_change(args[0]).project_id)
         except (AttributeError, IndexError, TypeError):
             return ""

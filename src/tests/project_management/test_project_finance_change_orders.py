@@ -25,6 +25,9 @@ from src.core.platform.common.exceptions import (
     ConcurrencyError,
     ValidationError,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.finance_lookup_facts import (
+    FinanceLookupQuery,
+)
 
 
 def _login(services, username: str, password: str) -> None:
@@ -257,6 +260,166 @@ def test_negative_financial_delta_requires_an_exact_target() -> None:
             currency_code="USD",
             cost_code_id="code-a",
         )
+
+
+def test_draft_change_and_impact_support_versioned_edit_and_remove(services) -> None:
+    _login(services, "admin", "ChangeMe123!")
+    project, code, _budget, budget_line, *_ = _seed_approved_finance(services)
+    changes = services["financial_change_service"]
+    change = _draft_change(services, project)
+
+    change = changes.update_change(
+        change.id,
+        title="Revised approved scope adjustment",
+        reason="Updated governed rationale",
+        description="Revised before submission",
+        effective_date=date(2026, 8, 12),
+        expected_version=change.row_version,
+    )
+    assert change.row_version == 2
+    assert change.title == "Revised approved scope adjustment"
+
+    impact = changes.add_impact(
+        change.id,
+        impact_type=FinancialChangeImpactType.BUDGET,
+        description="Initial increase",
+        amount=Decimal("10"),
+        cost_code_id=code.id,
+        target_line_id=budget_line.id,
+        expected_change_version=change.row_version,
+    )
+    change = changes.get_change(change.id)
+    impact = changes.update_impact(
+        impact.id,
+        impact_type=FinancialChangeImpactType.BUDGET,
+        description="Revised increase",
+        amount=Decimal("15"),
+        cost_code_id=code.id,
+        target_line_id=budget_line.id,
+        expected_impact_version=impact.row_version,
+        expected_change_version=change.row_version,
+    )
+    assert impact.row_version == 2
+    assert impact.amount == Decimal("15")
+
+    change = changes.get_change(change.id)
+    removed = changes.remove_impact(
+        impact.id,
+        expected_impact_version=impact.row_version,
+        expected_change_version=change.row_version,
+    )
+    assert removed.row_version == change.row_version + 1
+    assert changes.list_impacts(change.id) == []
+
+
+def test_impact_edit_rejects_stale_version_and_type_change(services) -> None:
+    _login(services, "admin", "ChangeMe123!")
+    project, code, _budget, budget_line, *_ = _seed_approved_finance(services)
+    changes = services["financial_change_service"]
+    change = _draft_change(services, project)
+    impact = changes.add_impact(
+        change.id,
+        impact_type=FinancialChangeImpactType.BUDGET,
+        description="Initial increase",
+        amount=Decimal("10"),
+        cost_code_id=code.id,
+        target_line_id=budget_line.id,
+        expected_change_version=change.row_version,
+    )
+    change = changes.get_change(change.id)
+
+    with pytest.raises(BusinessRuleError) as immutable:
+        changes.update_impact(
+            impact.id,
+            impact_type=FinancialChangeImpactType.FORECAST,
+            description="Wrong type",
+            amount=Decimal("10"),
+            cost_code_id=code.id,
+            target_line_id=budget_line.id,
+            expected_impact_version=impact.row_version,
+            expected_change_version=change.row_version,
+        )
+    assert immutable.value.code == "FINANCIAL_CHANGE_IMPACT_TYPE_IMMUTABLE"
+
+    updated = changes.update_impact(
+        impact.id,
+        impact_type=FinancialChangeImpactType.BUDGET,
+        description="Updated once",
+        amount=Decimal("12"),
+        cost_code_id=code.id,
+        target_line_id=budget_line.id,
+        expected_impact_version=impact.row_version,
+        expected_change_version=change.row_version,
+    )
+    current_change = changes.get_change(change.id)
+    with pytest.raises(ConcurrencyError):
+        changes.update_impact(
+            updated.id,
+            impact_type=FinancialChangeImpactType.BUDGET,
+            description="Stale retry",
+            amount=Decimal("13"),
+            cost_code_id=code.id,
+            target_line_id=budget_line.id,
+            expected_impact_version=1,
+            expected_change_version=current_change.row_version,
+        )
+
+
+def test_change_read_capabilities_are_deny_safe_and_target_lookup_is_bounded(
+    services,
+) -> None:
+    _login(services, "admin", "ChangeMe123!")
+    project, code, _budget, budget_line, *_ = _seed_approved_finance(services)
+    services["auth_service"].register_user(
+        "change-owner", "StrongPass123", role_names=["planner"]
+    )
+    _login(services, "change-owner", "StrongPass123")
+    changes = services["financial_change_service"]
+    change = _draft_change(services, project)
+    changes.add_impact(
+        change.id,
+        impact_type=FinancialChangeImpactType.BUDGET,
+        description="Governed increase",
+        amount=Decimal("10"),
+        cost_code_id=code.id,
+        target_line_id=budget_line.id,
+        expected_change_version=change.row_version,
+    )
+    change = changes.get_change(change.id)
+    query = services["finance_workspace_query"]
+    draft = query.get_change_workspace(project.id, selected_change_id=change.id)
+    assert draft.can_create is True
+    assert draft.selected_change is not None
+    assert draft.selected_change.can_edit is True
+    assert draft.selected_change.can_add_impact is True
+    assert draft.selected_change.can_submit is True
+    assert draft.selected_change.can_approve is False
+    assert draft.impacts.items[0].can_edit is True
+
+    targets = query.search_financial_change_target_lines(
+        project.id,
+        change.id,
+        "budget",
+        request=FinanceLookupQuery(search="Approved", page=1, page_size=25),
+    )
+    assert [item.id for item in targets.items] == [budget_line.id]
+    assert "Approved scope" in targets.items[0].label
+
+    changes.submit_change(
+        change.id,
+        submitted_by=services["user_session"].principal.user_id,
+        expected_version=change.row_version,
+    )
+    owner_view = query.get_change_workspace(project.id, selected_change_id=change.id)
+    assert owner_view.selected_change is not None
+    assert owner_view.selected_change.can_approve is False
+    assert owner_view.selected_change.can_reject is False
+
+    _login(services, "admin", "ChangeMe123!")
+    reviewer_view = query.get_change_workspace(project.id, selected_change_id=change.id)
+    assert reviewer_view.selected_change is not None
+    assert reviewer_view.selected_change.can_approve is True
+    assert reviewer_view.selected_change.can_reject is True
 
 
 def test_approved_change_atomically_creates_budget_and_forecast_successors(
@@ -596,10 +759,12 @@ def test_financial_change_migration_is_reversible_and_constrained(tmp_path) -> N
     assert "ck_pf_change_impacts_monetary_shape" in impact_checks
     assert "ck_pf_change_impacts_task_version" in impact_checks
     assert "ck_pf_change_impacts_applied_type" in impact_checks
+    assert "ck_pf_change_impacts_version" in impact_checks
     assert "uq_pf_change_project_revision" in request_constraints
     impact_columns = {
         row["name"] for row in inspector.get_columns("project_finance_change_impacts")
     }
+    assert {"version", "updated_at"} <= impact_columns
     assert "target_task_version" in impact_columns
     assert "applied_reference_type" in impact_columns
     assert "planned_hours_delta" not in impact_columns

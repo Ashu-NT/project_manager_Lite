@@ -1055,6 +1055,28 @@ class ProjectManagementFinancialsWorkspaceController(
     ) -> FinancialsMap:
         return self._resolve_budget_cost_code(project_id, cost_code_id)
 
+    @Slot(str, str, str, str, int, int, result="QVariantMap")
+    def searchFinancialChangeTargetLines(
+        self,
+        project_id: str,
+        change_id: str,
+        impact_type: str,
+        search: str,
+        page: int,
+        page_size: int,
+    ) -> FinancialsMap:
+        return self._search_financial_change_target_lines(
+            project_id, change_id, impact_type, search, page, page_size
+        )
+
+    @Slot(str, str, str, str, result="QVariantMap")
+    def resolveFinancialChangeTargetLine(
+        self, project_id: str, change_id: str, impact_type: str, line_id: str
+    ) -> FinancialsMap:
+        return self._resolve_financial_change_target_line(
+            project_id, change_id, impact_type, line_id
+        )
+
     @Slot(str, str, int, int, result="QVariantMap")
     def searchForecastTasks(
         self, project_id: str, search: str, page: int, page_size: int

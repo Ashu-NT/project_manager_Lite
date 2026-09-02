@@ -358,6 +358,36 @@ class ProjectManagementFinancialsDesktopApi:
             )
         )
 
+    def search_financial_change_target_lines(
+        self,
+        project_id: str,
+        change_id: str,
+        impact_type: str,
+        *,
+        search: str = "",
+        page: int = 1,
+        page_size: int = 25,
+    ) -> FinancialLookupPageDto:
+        return _serialize_lookup_page(
+            self._require_finance_workspace_query().search_financial_change_target_lines(
+                project_id,
+                change_id,
+                impact_type,
+                request=FinanceLookupQuery(
+                    search=search, page=page, page_size=page_size
+                ),
+            )
+        )
+
+    def resolve_financial_change_target_line(
+        self, project_id: str, change_id: str, impact_type: str, line_id: str
+    ) -> FinancialLookupOptionDto | None:
+        return _serialize_lookup_option(
+            self._require_finance_workspace_query().resolve_financial_change_target_line(
+                project_id, change_id, impact_type, line_id
+            )
+        )
+
     def search_forecast_tasks(
         self, project_id: str, *, search: str = "", page: int = 1, page_size: int = 25
     ) -> FinancialLookupPageDto:
