@@ -234,7 +234,9 @@ def test_inventory_dashboard_direct_wired_to_every_inventory_signal(services):
     signal -- no generic `scope_code="inventory_procurement"` bridge filter involved.
     `inventory_items_changed` is gone (P24): Dashboard's real Item dependency (low-stock row
     labels) now reaches it through `InventoryCatalogViewInvalidationAdapter.itemListStale`,
-    proven separately alongside the remaining direct-wired legacy signal."""
+    proven separately alongside the remaining direct-wired legacy signal. `inventory_purchase_
+    orders_changed` is gone too (P28B): Dashboard's real PO/Requisition/Balance KPI dependency
+    now reaches it through `PurchaseOrderViewInvalidationAdapter.purchaseOrderListStale`."""
     inventory_catalog = _inventory_catalog(services)
     controller = inventory_catalog.dashboardWorkspace
     refresh_calls = []
@@ -243,7 +245,9 @@ def test_inventory_dashboard_direct_wired_to_every_inventory_signal(services):
     inventory_catalog._dashboard_catalog_view_invalidation_adapter.itemListStale.emit(
         _unique("p7a-inv-item")
     )
-    domain_events.inventory_purchase_orders_changed.emit(_unique("p7a-inv-po"))
+    inventory_catalog._dashboard_purchase_order_view_invalidation_adapter.purchaseOrderListStale.emit(
+        _unique("p7a-inv-po")
+    )
 
     assert refresh_calls == ["refresh", "refresh"]
 

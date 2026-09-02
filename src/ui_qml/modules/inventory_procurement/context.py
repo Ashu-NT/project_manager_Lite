@@ -21,6 +21,9 @@ from src.ui_qml.platform.adapters.inventory_foundation_view_invalidation_adapter
 from src.ui_qml.platform.adapters.inventory_catalog_view_invalidation_adapter import (
     InventoryCatalogViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.purchase_order_view_invalidation_adapter import (
+    PurchaseOrderViewInvalidationAdapter,
+)
 from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import (
     TenantSwitcherPresenter,
 )
@@ -289,6 +292,18 @@ class InventoryProcurementWorkspaceCatalog(QObject):
         self._procurement_catalog_view_invalidation_adapter.itemListStale.connect(
             self._procurement_workspace.refresh_item_options
         )
+        self._procurement_purchase_order_view_invalidation_adapter = PurchaseOrderViewInvalidationAdapter(
+            channel=self._view_invalidation_channel,
+            tenant_id=self._active_tenant_id() or "",
+            organization_id=self._active_organization_id() or "",
+            parent=self,
+        )
+        self._procurement_purchase_order_view_invalidation_adapter.purchaseOrderListStale.connect(
+            self._procurement_workspace._request_domain_refresh
+        )
+        self._procurement_purchase_order_view_invalidation_adapter.purchaseOrderDetailStale.connect(
+            self._procurement_workspace._request_domain_refresh
+        )
         self._pricing_workspace = InventoryProcurementPricingWorkspaceController(
             workspace_presenter=InventoryProcurementWorkspacePresenter(
                 "inventory_procurement.pricing"
@@ -354,6 +369,18 @@ class InventoryProcurementWorkspaceCatalog(QObject):
             parent=self,
         )
         self._dashboard_catalog_view_invalidation_adapter.itemListStale.connect(
+            self._dashboard_workspace.refresh
+        )
+        self._dashboard_purchase_order_view_invalidation_adapter = PurchaseOrderViewInvalidationAdapter(
+            channel=self._view_invalidation_channel,
+            tenant_id=self._active_tenant_id() or "",
+            organization_id=self._active_organization_id() or "",
+            parent=self,
+        )
+        self._dashboard_purchase_order_view_invalidation_adapter.purchaseOrderListStale.connect(
+            self._dashboard_workspace.refresh
+        )
+        self._dashboard_purchase_order_view_invalidation_adapter.purchaseOrderDetailStale.connect(
             self._dashboard_workspace.refresh
         )
 
@@ -448,6 +475,8 @@ class InventoryProcurementWorkspaceCatalog(QObject):
             self._reservations_catalog_view_invalidation_adapter,
             self._procurement_catalog_view_invalidation_adapter,
             self._dashboard_catalog_view_invalidation_adapter,
+            self._procurement_purchase_order_view_invalidation_adapter,
+            self._dashboard_purchase_order_view_invalidation_adapter,
         ):
             adapter.set_active_scope(
                 tenant_id=tenant_id,

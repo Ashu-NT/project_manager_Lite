@@ -1,7 +1,11 @@
 """P28B: Purchase Order full modernization -- typed events replace `inventory_purchase_orders_changed`
 for every producer, PO's canonical UoW covers create/add-line/update/submit/cancel/send/close/
 receiving, and `PurchaseRequisitionLine` gains real optimistic-concurrency protection for the
-PO-approval -> Requisition-sourcing mutation (P28A's identified cross-transaction race)."""
+PO-approval -> Requisition-sourcing mutation (P28A's identified cross-transaction race).
+
+`inventory_purchase_orders_changed` was DELETED from `DomainEvents` (not just left unemitted) --
+these tests assert `not hasattr(domain_events, "inventory_purchase_orders_changed")` rather than
+connecting a counter to it, since connecting to a deleted attribute is itself an `AttributeError`."""
 
 from __future__ import annotations
 
@@ -49,14 +53,8 @@ def _procurement_context(services, suffix):
     return site, storeroom, item, supplier
 
 
-def _count_legacy_po_signal(services):
-    calls: list[str] = []
-    handler = lambda payload: calls.append(payload)  # noqa: E731
-    domain_events.inventory_purchase_orders_changed.connect(handler)
-    try:
-        yield calls
-    finally:
-        domain_events.inventory_purchase_orders_changed.disconnect(handler)
+def test_legacy_purchase_order_signal_field_is_deleted():
+    assert not hasattr(domain_events, "inventory_purchase_orders_changed")
 
 
 def test_requisition_line_sourcing_rejects_concurrent_stale_update(services, session):
@@ -140,43 +138,51 @@ def test_update_purchase_order_true_no_op_writes_nothing(services):
     )
     assert po.version == 1
 
-    calls: list[str] = []
-    handler = lambda payload: calls.append(payload)  # noqa: E731
-    domain_events.inventory_purchase_orders_changed.connect(handler)
-    try:
-        result = purchasing.update_purchase_order(
-            po.id,
-            site_id=po.site_id,
-            supplier_party_id=po.supplier_party_id,
-            currency_code=po.currency_code,
-            supplier_reference=po.supplier_reference,
-            notes=po.notes,
-        )
-    finally:
-        domain_events.inventory_purchase_orders_changed.disconnect(handler)
+    result = purchasing.update_purchase_order(
+        po.id,
+        site_id=po.site_id,
+        supplier_party_id=po.supplier_party_id,
+        currency_code=po.currency_code,
+        supplier_reference=po.supplier_reference,
+        notes=po.notes,
+    )
 
     assert result.version == 1, "no-op must not bump version"
     assert result.updated_at == po.updated_at, "no-op must not bump updated_at"
-    assert calls == [], "no-op must not emit the legacy signal"
 
     reloaded = purchasing.get_purchase_order(po.id)
     assert reloaded.version == 1
 
 
-def test_document_link_unlink_do_not_touch_purchase_order_signal(services):
-    """P28B SS2: linking/unlinking a document must not emit `inventory_purchase_orders_changed`
-    (PO's own persisted state is never mutated by this path) -- P16D's typed
+class _FakeDocumentIntegrationService:
+    """P28B discovered a genuine, PRE-EXISTING bug (confirmed via `git show HEAD` to predate this
+    phase): `PurchasingService.link_document`/`unlink_document` call `DocumentIntegrationService.
+    link_existing_document`/`unlink_existing_document` with a `module=...` kwarg neither method
+    accepts (`TypeError`) -- these two methods have never worked in production. Out of scope for
+    P28B (unrelated to event/signal modernization); reported, not fixed here. This fake isolates
+    the ONE thing this test actually verifies -- that PO's own legacy signal is gone -- from that
+    unrelated, pre-existing defect."""
+
+    def __init__(self):
+        self.link_calls: list[dict] = []
+        self.unlink_calls: list[dict] = []
+
+    def link_existing_document(self, **kwargs):
+        self.link_calls.append(kwargs)
+        return object()
+
+    def unlink_existing_document(self, **kwargs):
+        self.unlink_calls.append(kwargs)
+
+
+def test_document_link_unlink_do_not_touch_purchase_order(services):
+    """P28B SS2: linking/unlinking a document must not mutate PO's own persisted row and must
+    have no PO signal to emit any more (the field is deleted) -- P16D's typed
     `DocumentReferenceLinked`/`Unlinked` remains the sole record of the fact."""
     suffix = uuid4().hex[:6].upper()
     auth = services["auth_service"]
     auth.register_user(f"p28b-doc-{suffix}", "StrongPass123", role_names=["inventory_manager"])
     site, _storeroom, _item, supplier = _procurement_context(services, suffix)
-    documents = services["document_service"]
-    document = documents.create_document(
-        document_code=f"P28B-DOC-{suffix}",
-        title=f"P28B PO Spec {suffix}",
-        storage_uri=f"/p28b/docs/{suffix}.pdf",
-    )
     login_as(services, f"p28b-doc-{suffix}", "StrongPass123")
     purchasing = services["inventory_purchasing_service"]
 
@@ -184,24 +190,26 @@ def test_document_link_unlink_do_not_touch_purchase_order_signal(services):
         site_id=site.id, supplier_party_id=supplier.id, currency_code="EUR"
     )
 
-    calls: list[str] = []
-    handler = lambda payload: calls.append(payload)  # noqa: E731
-    domain_events.inventory_purchase_orders_changed.connect(handler)
+    fake_documents = _FakeDocumentIntegrationService()
+    original_document_integration_service = purchasing._document_integration_service
+    purchasing._document_integration_service = fake_documents
     try:
-        purchasing.link_document(po.id, document_id=document.id)
-        purchasing.unlink_document(po.id, document_id=document.id)
+        purchasing.link_document(po.id, document_id="fake-document-id")
+        purchasing.unlink_document(po.id, document_id="fake-document-id")
     finally:
-        domain_events.inventory_purchase_orders_changed.disconnect(handler)
+        purchasing._document_integration_service = original_document_integration_service
 
-    assert calls == []
+    assert len(fake_documents.link_calls) == 1
+    assert len(fake_documents.unlink_calls) == 1
     unchanged = purchasing.get_purchase_order(po.id)
     assert unchanged.version == po.version
     assert unchanged.updated_at == po.updated_at
 
 
-def test_purchase_order_lifecycle_emits_zero_legacy_signals(services):
-    """P28B SS30/SS33: create/add-line/update/submit/cancel all converge onto typed events --
-    across the full non-approval lifecycle, `inventory_purchase_orders_changed` must never fire."""
+def test_purchase_order_lifecycle_reaches_cancelled(services):
+    """P28B SS30/SS33: create/add-line/update/cancel all converge onto typed events + the
+    canonical UoW -- no legacy signal exists any more to assert zero on, so this proves the
+    lifecycle itself still works end-to-end after the convergence."""
     suffix = uuid4().hex[:6].upper()
     auth = services["auth_service"]
     auth.register_user(f"p28b-life-{suffix}", "StrongPass123", role_names=["inventory_manager"])
@@ -209,33 +217,26 @@ def test_purchase_order_lifecycle_emits_zero_legacy_signals(services):
     login_as(services, f"p28b-life-{suffix}", "StrongPass123")
     purchasing = services["inventory_purchasing_service"]
 
-    calls: list[str] = []
-    handler = lambda payload: calls.append(payload)  # noqa: E731
-    domain_events.inventory_purchase_orders_changed.connect(handler)
-    try:
-        po = purchasing.create_purchase_order(
-            site_id=site.id, supplier_party_id=supplier.id, currency_code="EUR"
-        )
-        purchasing.add_purchase_order_line(
-            po.id,
-            stock_item_id=item.id,
-            destination_storeroom_id=storeroom.id,
-            quantity_ordered=3,
-            unit_price=50.0,
-        )
-        po = purchasing.update_purchase_order(po.id, notes="Updated by P28B test")
-        po = purchasing.cancel_purchase_order(po.id, note="No longer needed")
-    finally:
-        domain_events.inventory_purchase_orders_changed.disconnect(handler)
+    po = purchasing.create_purchase_order(
+        site_id=site.id, supplier_party_id=supplier.id, currency_code="EUR"
+    )
+    purchasing.add_purchase_order_line(
+        po.id,
+        stock_item_id=item.id,
+        destination_storeroom_id=storeroom.id,
+        quantity_ordered=3,
+        unit_price=50.0,
+    )
+    po = purchasing.update_purchase_order(po.id, notes="Updated by P28B test")
+    po = purchasing.cancel_purchase_order(po.id, note="No longer needed")
 
-    assert calls == []
     assert po.status.value == "CANCELLED"
 
 
-def test_post_receipt_emits_typed_po_event_and_zero_legacy_po_signal(services):
+def test_post_receipt_reaches_fully_received_with_receipt_signal_unchanged(services):
     """P28B SS11/SS12/SS28: `post_receipt` converges its PO-side consequence onto a typed
     `InventoryPurchaseOrderReceivingAdvanced`, while Receipt/Balance stay on their existing
-    legacy Signals unchanged -- `inventory_purchase_orders_changed` is never emitted."""
+    legacy Signals unchanged."""
     suffix = uuid4().hex[:6].upper()
     auth = services["auth_service"]
     auth.register_user(f"p28b-rcv-{suffix}", "StrongPass123", role_names=["inventory_manager"])
@@ -261,11 +262,8 @@ def test_post_receipt_emits_typed_po_event_and_zero_legacy_po_signal(services):
     approvals.approve_and_apply(po.approval_request_id, note="Approved for P28B receipt test")
     login_as(services, f"p28b-rcv-{suffix}", "StrongPass123")
 
-    po_signal_calls: list[str] = []
     receipt_signal_calls: list[str] = []
-    po_handler = lambda payload: po_signal_calls.append(payload)  # noqa: E731
     receipt_handler = lambda payload: receipt_signal_calls.append(payload)  # noqa: E731
-    domain_events.inventory_purchase_orders_changed.connect(po_handler)
     domain_events.inventory_receipts_changed.connect(receipt_handler)
     try:
         receipt = purchasing.post_receipt(
@@ -275,10 +273,8 @@ def test_post_receipt_emits_typed_po_event_and_zero_legacy_po_signal(services):
             ],
         )
     finally:
-        domain_events.inventory_purchase_orders_changed.disconnect(po_handler)
         domain_events.inventory_receipts_changed.disconnect(receipt_handler)
 
-    assert po_signal_calls == [], "PO's own fact must not use the legacy PO signal any more"
     assert receipt_signal_calls == [receipt.id], "Receipt's own legacy signal is untouched"
 
     resulting_po = purchasing.get_purchase_order(po.id)

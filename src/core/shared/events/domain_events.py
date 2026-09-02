@@ -28,7 +28,6 @@ class DomainEvents:
     inventory_balances_changed: Signal[str] = field(default_factory=Signal)
     inventory_reservations_changed: Signal[str] = field(default_factory=Signal)
     inventory_requisitions_changed: Signal[str] = field(default_factory=Signal)
-    inventory_purchase_orders_changed: Signal[str] = field(default_factory=Signal)
     inventory_receipts_changed: Signal[str] = field(default_factory=Signal)
     inventory_cycle_counts_changed: Signal[str] = field(default_factory=Signal)
 

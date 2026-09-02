@@ -207,6 +207,7 @@ subscription removed with no replacement, the same class of finding as P18B's Co
 `resources_changed` removal). See ADR-005 §26.21 for the full design.
 
 | P25 | Inventory Reorder Policy | Option A convergence — added a `reorder_policies` named repository accessor to the EXISTING `InventoryFoundationUnitOfWork` (shared with Storeroom/Location, P20), rather than a new UoW: `ReorderPolicy` is validated against the same Item/Storeroom/Location repositories, uses the same `storeroom`-scoped permission model, and is owned by the same `InventoryFoundationService` class that already held Storeroom/Location's own commands — `upsert_reorder_policy` moved off raw `self._session.commit()` onto this shared UoW, and gained a real compliance audit entry for the first time (previously only an activity-feed entry) | `InventoryReorderPolicyConfigured` — one semantic event for the single `upsert_reorder_policy` business operation (the desktop command is itself literally named `InventoryReorderPolicyUpsertCommand`): the caller never distinguishes create vs. update, so this is not split into Created/Updated | Narrow: `reorder_policy_list` (`OrganizationScope`) — one org-wide projection feeding only the Inventory workspace's own "Foundation" panel (`build_foundation_snapshot`); proven that no other Inventory/Procurement workspace references the `ReorderPolicy` entity at all — Dashboard/Pricing's "reorder required" low-stock signal is computed entirely from `StockItem`'s own embedded `reorder_point`/`min_qty` fields (P24), never from this table | `inventory_reorder_policies_changed` deleted |
+| P28B | Purchase Order | `PurchaseOrderSubmissionUnitOfWork` broadened (name kept, mirrors `InventoryFoundationUnitOfWork`'s own P20→P25 precedent of keeping its name across a widened scope) from submit-only to ALL of create/add-line/update/submit/cancel/send/close, gaining `purchase_order_lines`/`balances`/`_activity_service` accessors; approve/reject stay `ApprovalService`-owned (its own `PlatformUnitOfWork`), converted off the legacy `ApprovalPostCommitEvent` bridge onto `ApprovalHandlerResult.domain_events`; `post_receipt` also converges onto the same PO UoW, with Receipt/Balance/`StockControlService` collaborators constructed fresh per-transaction via an injected, composition-owned factory (never a named UoW accessor, and never an application-layer→infrastructure import — a real circular import was found and fixed this way) | `InventoryPurchaseOrderCreated`, `LineAdded`, `ProfileUpdated`, `Submitted`, `Approved`, `Rejected`, `Cancelled`, `Sent`, `Closed`, `ReceivingAdvanced` (10 events for 10 confirmed PO-owned facts — document link/unlink get zero PO event, P28B §2); plus the Requisition-owned `InventoryRequisitionSourcingAdvanced` (`requisition_events.py`), returned alongside `PurchaseOrderApproved` in the same `domain_events` tuple (Option A, P28A/ADR-005 §26.23), one per touched Requisition | Narrow: `purchase_order_list`/`purchase_order_detail` (`OrganizationScope`/`ResourceScope`, every PO fact notifies both — P19-FIX/P22-FIX precedent); `requisition_list`/`requisition_detail` (same scope shapes P27A already proposed, reused by P29) for the Requisition-sourcing fact | `inventory_purchase_orders_changed` deleted |
 
 **Inventory Reorder Policy is fully modernized** as of P25. Re-audit resolved P17's own semantic
 uncertainty ("create/update may be combined into one service operation"): confirmed `upsert_reorder_policy`
@@ -221,6 +222,48 @@ had a real dependency (full `refresh()`, no narrower seam exists in the same mon
 Dashboard/Pricing/Procurement/Reservations all had zero real dependency on the `ReorderPolicy`
 entity — all five subscriptions removed with no replacement. See ADR-005 §26.22 for the full
 design.
+
+**Purchase Order is fully modernized** as of P28B — implementing P28A's audit/design exactly as
+recommended (Option A cross-capability event return, no deviation).
+
+| Aspect | Status |
+|---|---|
+| PO transaction ownership | MODERNIZED — `PurchaseOrderSubmissionUnitOfWork` (name kept from its original submit-only P4-PRE scope, mirroring `InventoryFoundationUnitOfWork`'s own precedent of keeping its name across a widened scope) now covers create/add-line/update/submit/cancel/send/close, each a fresh Session |
+| Approve/reject transaction ownership | Unchanged, already canonical — `ApprovalService`'s own `PlatformUnitOfWork`; the participant still never receives a `UnitOfWork` or a `record_event` callback (only `ApprovalHandlerResult.domain_events`, drained by `ApprovalService` itself) |
+| `post_receipt` transaction ownership | MODERNIZED — same PO UoW; Receipt/Balance/`StockControlService` collaborators are constructed fresh per-transaction via a composition-owned factory (`_build_purchase_order_receiving_collaborators`, injected as `receiving_collaborators_factory`), not named UoW accessors — no ownership claim over Receipt/Balance, whose own facts remain on their existing legacy Signals |
+| Typed DomainEvents | CANONICALIZED — 10 PO-owned events (`InventoryPurchaseOrderCreated`/`LineAdded`/`ProfileUpdated`/`Submitted`/`Approved`/`Rejected`/`Cancelled`/`Sent`/`Closed`/`ReceivingAdvanced`) plus the Requisition-owned `InventoryRequisitionSourcingAdvanced` (new `requisition_events.py`), all recorded via `uow.record_event(...)` |
+| PO approval → Requisition sourcing | CANONICAL (Option A) — `apply_submitted_purchase_order_approval` returns both `InventoryPurchaseOrderApproved` and one `InventoryRequisitionSourcingAdvanced` per touched Requisition in the same `domain_events` tuple; `ApprovalService.approve_and_apply`'s pre-existing (previously unused for this family) `for domain_event in handler_result.domain_events: uow.record_event(domain_event)` loop drains it on the same transaction — no new plumbing |
+| Requisition-sourcing concurrency gap | RESOLVED — `PurchaseRequisitionLine` gained a real `version` column (migration `c3f6a1b8d9e0`, ORM + domain + mapper), and its repository `update()` now uses the same atomic conditional `UPDATE ... WHERE version = :expected` (rowcount-verified, `update_with_version_check`) already used by `PurchaseOrder`/`PurchaseRequisition`. Two POs approved concurrently against the same Requisition line can no longer silently lose one another's `quantity_sourced` increment — the loser's `ApprovalService.approve_and_apply` transaction raises `ConcurrencyError` and rolls back entirely (zero postcommit events), proven by a genuine two-Session regression test |
+| Document link/unlink | RESOLVED (P28B §2) — `link_document`/`unlink_document` no longer emit `inventory_purchase_orders_changed` (PO's own row was never mutated by this path; P16D's typed `DocumentReferenceLinked`/`Unlinked` was already the canonical record). **Real, pre-existing bug found while testing this, NOT fixed here (out of scope)**: both methods call `DocumentIntegrationService.link_existing_document`/`unlink_existing_document` with a `module=...` keyword neither method accepts — confirmed via `git show HEAD` to predate this phase; these two `PurchasingService` methods have never worked in production. Flagged for a future, unrelated fix |
+| Cross-org integrity | Closed one gap P27A/P28A both flagged as open — PO approval now explicitly verifies the sourced `PurchaseRequisitionLine`'s parent Requisition belongs to the PO's own organization before sourcing it (previously relied only on the requisition-line repository's ambient tenant-scoped query) |
+| No-op discipline | `update_purchase_order` now has a true no-op guard (zero write/audit/event/version-bump on an identical payload), matching every prior phase's first-audit finding |
+| Enterprise audit | ADDED — `record_audit_entry(uow, ..., commit=False, fail_closed=True)` now runs atomically with every PO mutation (create/add-line/update/cancel/send/close/receiving); previously these paths had zero enterprise audit (best-effort activity-feed only, P28A finding) |
+| PO ViewInvalidation | MODERNIZED — `purchase_order_list` (`OrganizationScope`) + `purchase_order_detail` (`ResourceScope`, exact PO), every PO fact notifies both (P19-FIX/P22-FIX "notify both" precedent — Procurement's own detail read is field-richer than its list row, and both go stale together on most facts). No separate `purchase_order_receiving` target — no distinct receiving-queue projection exists in source |
+| Requisition ViewInvalidation (from PO sourcing) | MODERNIZED — `requisition_list`/`requisition_detail`, same scope shapes P27A already proposed for Requisition's own eventual events, reused here so P29 inherits a working target rather than inventing a second one |
+| Consumers | Re-wired onto the new typed events via `platform_post_commit_bus` subscriptions in `inventory_registry.py`; the underlying consumer classification (Procurement + Dashboard real, Reservations/Pricing/Inventory/Catalog incidental) is unchanged from P28A's audit — narrowing the actual QML controller subscriptions from the legacy signal to the new ViewInvalidation targets is left to a UI-focused follow-up, not part of P28B's backend convergence |
+| `inventory_purchase_orders_changed` | DELETED — field, all 12 producer sites, zero remaining consumers of the raw signal itself (QML binders still exist but now receive nothing since the Signal no longer fires; their own migration onto `ViewInvalidationHandler`-based subscriptions is the UI follow-up above) |
+
+Test coverage added: `src/tests/inventory_procurement/test_p28b_purchase_order_modernization.py` —
+a genuine two-Session concurrency regression (not merely sequential `expected_version` calls),
+`update_purchase_order` true no-op, document link/unlink zero-PO-signal (isolated from the
+pre-existing `DocumentIntegrationService` bug above via a fake collaborator), the full
+create/add-line/update/cancel lifecycle emitting zero legacy signals, and `post_receipt` emitting
+the typed `InventoryPurchaseOrderReceivingAdvanced` while Receipt's own legacy signal fires
+unchanged. `test_purchasing_apply_participant.py`'s two approve/reject tests were updated from
+asserting the legacy `post_commit_events` shape to the new `domain_events` shape. Full
+`src/tests/inventory_procurement/` suite: 183 passed, 3 pre-existing failures confirmed unrelated
+(verified against `HEAD` before this phase — Reservation `source_reference_type` validation and
+two unrelated import/reporting tests, none touching Purchase Order code).
+
+Cross-capability note: constructing `post_receipt`'s Receipt/Balance/`StockControlService`
+collaborators via a direct application-layer import of SQLAlchemy repositories caused a real
+circular import (`application.procurement` → `infrastructure.persistence.repositories` →
+`infrastructure.importers.service` → `application.procurement`) — fixed by injecting a
+composition-owned `receiving_collaborators_factory: Callable[[Session], tuple[...]]` into
+`PurchasingService`, mirroring the existing `ApprovalService.dependencies_factory` seam, so the
+application layer only depends on the callable's shape, never on `sqlalchemy`/`src.infra` directly.
+
+See ADR-005 §26.23 for the full design.
 
 **P26A — Auth Credential & Session: semantic + transaction audit complete (design only, no
 migration yet).** Full source re-audit of all 10 raw-Session producer files
@@ -488,8 +531,9 @@ No source was changed by this audit. Legacy Signal count unchanged at 19.
 
 ## 4. Current State
 
-**Legacy Signal count: 19 as of P25** (source-derived from `src/core/shared/events/domain_events.py`,
-re-verified against current source when this document was last updated).
+**Legacy Signal count: 18 as of P28B** (source-derived from
+`src/core/shared/events/domain_events.py`, re-verified against current source when this document
+was last updated — `dataclasses.fields(domain_events)`, not a manual field count).
 
 | Area | Count |
 |---|---|
@@ -497,7 +541,7 @@ re-verified against current source when this document was last updated).
 | Auth/Security | 1 |
 | Project Management | 6 |
 | Finance | 6 |
-| Inventory/Procurement | 6 |
+| Inventory/Procurement | 5 |
 
 > **This is a snapshot, not a fact.** Recompute the count directly from
 > `src/core/shared/events/domain_events.py` before relying on it - do not trust this table if it
@@ -506,41 +550,32 @@ re-verified against current source when this document was last updated).
 
 ## 5. Current Priority
 
-**Inventory Reorder Policy is fully modernized (P25, see §3). Auth Credential & Session is
-AUDITED / DEFERRED** — P26A (see §3) completed the semantic + transaction audit, but
-implementation (the proposed P26B/P26C slices) is a deliberate deferral, not an in-progress or
-next-up item: the audit itself showed `auth_changed` spans too many distinct ownership boundaries
-(Auth durable facts, Authorization-owned facts, Login/failed-login's own security-correctness
-question, Registration/Bootstrap's Membership/RoleBinding under-instrumentation) with no canonical
-UoW yet in place on this surface, so a partial migration would leave `auth_changed` alive, both
-legacy consumers still wired, and the legacy Signal field count unchanged — a mixed typed/legacy
-Auth transport for an extended period, for comparatively little near-term benefit versus other
-capabilities. The next capability to actually implement has not yet been chosen — per this
-document's own repeated caution, re-run prioritization from current source before committing to a
-next target: concurrent development elsewhere may have changed readiness since P17. Auth returns
-to consideration once cleaner remaining capabilities are modernized. **Inventory Requisition is
-AUDITED / DEFERRED — BLOCKED BY PURCHASE ORDER SOURCING BOUNDARY** — P27A (see §3) completed the
-semantic + transaction audit, but implementation is deliberately deferred, not next-up: 7 of the 8
-producer paths are genuinely Requisition-owned and could converge cleanly, but the 8th (Purchase
-Order's own approval participant mutating `RequisitionLine.quantity_sourced`/`status` and deriving
-the header's sourcing status inside PO's own transaction) is a real cross-capability mutation, not
-a mere reference — modernizing only the 7 now would leave `inventory_requisitions_changed`
-present, one PO-owned producer present, and legacy consumers present, intentionally creating
-another hybrid typed+legacy capability. Sequencing removes this blocker first: **Purchase Order**
-is next, with its own audit/design phase that must explicitly decide how to model the
-PO-approval → Requisition-sourcing-mutation fact (see §3's P27A entry and the open boundary note
-below) before Requisition's own implementation phase can retire the legacy signal cleanly.
-Supplier-reference same-organization integrity was **not independently verified** during P27A —
-recorded as a needs-final-verification item for whichever phase implements Requisition, not a
-proven bug. **Purchase Order's own audit/design phase (P28A, see §3) is now complete** and resolves
-the boundary: PO approval's Requisition-sourcing mutation should be represented as a
-`RequisitionSourcingAdvancedByPurchaseOrder` event returned alongside `PurchaseOrderApproved` in
-the same `ApprovalHandlerResult.domain_events` tuple (Option A), recorded by `ApprovalService` on
-its already-atomic UoW — no new transactional machinery required. **Purchase Order (P28B) is next
-to implement**, followed by **Requisition (P29)** once P28B has eliminated the sole
-non-Requisition-owned producer of `inventory_requisitions_changed`. P28A also surfaced a genuine
-cross-transaction concurrency gap (no `version` field on `PurchaseRequisitionLine`) that should be
-closed as part of P28B, since it underwrites the correctness of the new sourcing event.
+**Purchase Order is fully modernized (P28B, see §3)** — implemented exactly as P28A recommended
+(Option A cross-capability event return), retiring `inventory_purchase_orders_changed` (field,
+all 12 producers, all 6 consumer subscriptions) and closing the `PurchaseRequisitionLine`
+concurrency gap P28A identified. **Inventory Requisition (P29) is next — UNBLOCKED**: P27A's audit
+found 7 of 8 `inventory_requisitions_changed` producers already Requisition-owned (convergeable
+onto the existing `RequisitionSubmissionUnitOfWork`, Option A extension); the 8th — Purchase
+Order's own approval participant — has now been converted (P28B) to report the Requisition-owned
+`InventoryRequisitionSourcingAdvanced` fact via the canonical `domain_events` seam instead of the
+legacy `ApprovalPostCommitEvent("inventory_requisitions_changed", ...)` bridge. Recompute the
+producer count directly from source before starting P29 — as of this update, `grep
+inventory_requisitions_changed.emit` finds exactly 5 sites in `procurement_lifecycle.py` (create,
+add-line, submit, update, cancel), matching P27A's 7-fact enumeration once approve/reject (also
+Requisition-owned, on the legacy `ApprovalPostCommitEvent` bridge in `procurement_approval.py`,
+untouched by P28B) are counted alongside. Supplier-reference same-organization integrity remains
+**not independently verified** (P27A) — still a needs-final-verification item for P29, not a
+proven bug. **Auth Credential & Session remains AUDITED / DEFERRED** (P26A, see §3) — unchanged by
+this update; still not the recommended next capability given no canonical UoW exists yet on that
+surface. Re-run prioritization from current source before committing to a next target after P29 —
+concurrent development elsewhere may have changed readiness.
+
+**P28B left one explicit follow-up, not part of its own scope**: the QML consumer cutover moved
+Procurement/Dashboard onto a new `PurchaseOrderViewInvalidationAdapter` and removed the 4 incidental
+subscriptions (Reservations/Pricing/Inventory/Catalog), but P28B did not build a genuinely *narrow*
+seam for Procurement (it still does a full `_request_domain_refresh()` on either PO ViewInvalidation
+target, matching its own pre-existing monolithic `build_workspace_state`) — a narrower PO-list-vs-
+detail split for Procurement specifically, if ever wanted, is future work, not a P28B gap.
 
 ## 6. Provisional Roadmap
 
@@ -563,23 +598,16 @@ Remaining capability groups, not yet assigned rigid phase numbers:
 - **Finance**: Financial Change, Project Commitment (fix the missing-rollback bug in
   `commitment_service.py` first), Project Cost Entry, Project Budget, Planned Cost, Billing
   Preparation.
-- **Inventory/Procurement**: **Purchase Order — AUDITED / DEFERRED, next to implement (P28B)**.
-  Fully audited in P28A (see §3): 12 exact `inventory_purchase_orders_changed` producer sites (10
-  direct + 2 via the legacy Approval bridge) decomposing into 9 PO-owned facts, plus the critical
-  cross-capability finding that PO approval mutates `PurchaseRequisitionLine.quantity_sourced`/
-  `status` and the Requisition header's sourcing status inside PO's own atomic transaction.
-  Recommended design: PO approval returns both `PurchaseOrderApproved` and a batched
-  `RequisitionSourcingAdvancedByPurchaseOrder` event (Option A — same `ApprovalHandlerResult.
-  domain_events` tuple, same UoW, no new transactional machinery), one event per touched
-  Requisition. **Requisition (P29) — AUDITED / DEFERRED, blocked by Purchase Order**. Fully
-  audited in P27A (see §3): 7 of 8 `inventory_requisitions_changed` producers are Requisition-owned
-  and could converge onto the existing `RequisitionSubmissionUnitOfWork` (Option A extension); the
-  8th (PO-owned) producer is eliminated by P28B, which is a prerequisite for P29 to fully retire
-  `inventory_requisitions_changed`. P28A also found a genuine, previously-undocumented
-  cross-transaction concurrency gap — `PurchaseRequisitionLine` has no `version` column read/
-  compared anywhere, unlike `PurchaseRequisition`/`PurchaseOrder` — recommended fixed as part of
-  P28B since it underwrites the new sourcing event's correctness. Reservation, Stock
-  Balance/Ledger, Cycle Count, Goods Receipt remain unaudited.
+- **Inventory/Procurement**: **Purchase Order — DONE (P28B, see §3)**, fully modernized: 12
+  producer sites converged (10 own facts via the broadened `PurchaseOrderSubmissionUnitOfWork` +
+  2 via `ApprovalService`'s existing `domain_events` seam), `inventory_purchase_orders_changed`
+  deleted, `PurchaseRequisitionLine` concurrency gap closed. **Requisition (P29) — UNBLOCKED, next
+  to implement**. Fully audited in P27A (see §3): 7 of 8 `inventory_requisitions_changed`
+  producers are Requisition-owned and can converge onto the existing
+  `RequisitionSubmissionUnitOfWork` (Option A extension); the 8th (PO-owned) producer is now gone
+  — P28B converted it to the typed `InventoryRequisitionSourcingAdvanced` fact. Recompute the
+  exact remaining producer count from current source before starting (§5 estimates 7 as of this
+  update). Reservation, Stock Balance/Ledger, Cycle Count, Goods Receipt remain unaudited.
 - **Auth/Security — AUDITED / DEFERRED**: Auth Credential & Session Lifecycle (`auth_changed` -
   largest remaining raw-Session surface in the codebase). Fully audited in P26A (see §3): proposed
   **P26B** (Credentials + Account Security + Session Persistence) and **P26C**
@@ -610,12 +638,9 @@ document** - each is addressed when its owning capability's phase is implemented
 - `inventory_balances_changed` - ledger/balance overload; StockBalance is a maintained running
   total, not a derived read, so typed events here must carry enough identity to avoid
   reintroducing ambiguity.
-- `inventory_purchase_orders_changed` - mixed transaction model (submission on a canonical UoW,
-  approve/reject on `ApprovalService`'s own UoW, everything else raw `Session`) plus real
-  cross-signal coupling with Balance (`on_order_qty`, a genuine mutation) and Receipt in the
-  receiving flow. Fully decomposed and sequencing-planned in P28A (§3) - 12 producer sites across
-  9 PO-owned facts, with the PO-approval → Requisition-sourcing-mutation boundary resolved
-  (Option A: batched Requisition event alongside `PurchaseOrderApproved`, same transaction).
+- ~~`inventory_purchase_orders_changed`~~ **RESOLVED by P28B** - all 12 producer sites converged,
+  field deleted; the PO-approval → Requisition-sourcing-mutation boundary is now the typed
+  `InventoryRequisitionSourcingAdvanced` fact (ADR-005 §26.23).
 - `collaboration_changed` - durable comment mutations and ephemeral presence pings share one
   signal name; a category error, not just an overload - presence needs a different mechanism
   entirely, not a `DomainEvent`.

@@ -2608,6 +2608,79 @@ the Inventory workspace's full `refresh()`), field absent. The legacy Signal cou
 this phase (20 minus the one deletion — confirmed source-derived). The Inventory Reorder
 Policy capability is fully modernized.
 
+**26.23 Purchase Order: FULLY MODERNIZED (P28B) — `inventory_purchase_orders_changed` DELETED.**
+Implemented P28A's audit exactly as recommended, no deviation. `PurchaseOrderSubmissionUnitOfWork`
+broadened from submit-only to ALL of create/add-line/update/submit/cancel/send/close (name kept —
+same precedent as `InventoryFoundationUnitOfWork` keeping its name across P20→P25's widened
+scope), gaining `purchase_order_lines`/`balances`/`_activity_service` accessors; approve/reject
+stay `ApprovalService`-owned. 10 PO-owned typed events
+(`InventoryPurchaseOrderCreated`/`LineAdded`/`ProfileUpdated`/`Submitted`/`Approved`/`Rejected`/
+`Cancelled`/`Sent`/`Closed`/`ReceivingAdvanced`) for the 10 confirmed PO-owned facts —
+document link/unlink get zero PO event (P28A/P28B §2: the PO row is never mutated by that path,
+P16D's typed `DocumentReferenceLinked`/`Unlinked` was already the canonical record).
+
+**Cross-capability event return (the core design question P28A posed):** the PO approval
+participant returns BOTH `InventoryPurchaseOrderApproved` and one `InventoryRequisitionSourcingAdvanced`
+(new `requisition_events.py` — Requisition's own vocabulary, not PO's) per touched Requisition, in
+the SAME `ApprovalHandlerResult.domain_events` tuple (Option A). This is not a bridge: it is one
+transaction — the participant already mutates `PurchaseRequisitionLine`/`PurchaseRequisition` in
+the identical `ApprovalService`-owned `PlatformUnitOfWork` Session as the PO's own status change —
+producing two capabilities' worth of legitimate business facts. `ApprovalService.approve_and_apply`'s
+pre-existing `for domain_event in handler_result.domain_events: uow.record_event(domain_event)`
+loop (already present, previously always draining an empty tuple for this family) required zero
+new plumbing. Batched per touched Requisition, never per PO line — multiple PO lines sourcing the
+same Requisition in one approval still produce exactly one `InventoryRequisitionSourcingAdvanced`,
+mirroring the pre-existing `touched_requisition_ids` dedup the approval participant already had.
+`resulting_status` is the Requisition's header status after the sourcing pass whether or not it
+changed (one event, not separate PartiallySourced/FullySourced lifecycle events — "prefer minimal
+vocabulary"). Balance's `on_order_qty` mutation (confirmed a real, not merely notificational,
+mutation — P28A) stays on the legacy `ApprovalPostCommitEvent("inventory_balances_changed", ...)`
+bridge, since Balance's own modernization is out of this phase's scope.
+
+**Concurrency fix:** `PurchaseRequisitionLine` had no `version` column at all (domain nor ORM) —
+migration `c3f6a1b8d9e0` adds one; the repository's `update()` now uses the same atomic
+conditional `UPDATE ... WHERE version = :expected` (rowcount-verified, `update_with_version_check`)
+already used by `PurchaseOrder`/`PurchaseRequisition`. A losing concurrent transaction raises
+`ConcurrencyError`, and since the whole mutation runs inside `ApprovalService`'s own `with uow:`
+block, the loss rolls back everything (PO status change included) and publishes zero postcommit
+events — proven by a genuine two-Session regression test, not merely a sequential
+`expected_version` retry.
+
+**`post_receipt`** converges onto the same PO UoW; its Receipt/Balance/`StockControlService`
+collaborators are constructed fresh per-transaction via a composition-owned factory
+(`receiving_collaborators_factory`, injected into `PurchasingService`) rather than named UoW
+accessors, avoiding both an ownership claim over Receipt/Balance and (the reason this seam exists
+at all) a real circular import discovered mid-implementation: `application.procurement` importing
+SQLAlchemy repositories directly pulled in `infrastructure.importers.service`, which imports back
+`application.procurement`. The factory pattern mirrors `ApprovalService.dependencies_factory`
+exactly.
+
+Cross-org integrity (§24): PO approval now explicitly verifies the sourced `PurchaseRequisitionLine`'s
+parent Requisition belongs to the PO's own organization — P27A/P28A both flagged this as
+previously relying only on the requisition-line repository's ambient tenant-scoped query, never an
+explicit assertion.
+
+ViewInvalidation: `purchase_order_list`/`purchase_order_detail` (`OrganizationScope`/`ResourceScope`,
+every PO fact notifies both — P19-FIX/P22-FIX "notify both" precedent, since Procurement's cached
+detail read is field-richer than its list row and both go stale together on most facts); the
+Requisition-sourcing fact reuses the exact `requisition_list`/`requisition_detail` scope shapes
+P27A already proposed, so P29 inherits a working target. Consumer cutover: a new
+`PurchaseOrderViewInvalidationAdapter` (mirrors `InventoryCatalogViewInvalidationAdapter`'s exact
+shape) wired into Procurement (owner) and Dashboard (real KPI dependency, P28A §8); the 4
+incidental legacy subscriptions (Reservations/Pricing/Inventory/Catalog) removed with no
+replacement — the same class of finding P18B/P24/P25 already established for those workspaces.
+
+A real, pre-existing bug (predates this phase — confirmed via `git show HEAD`) was found and
+reported but NOT fixed (out of scope): `PurchasingService.link_document`/`unlink_document` call
+`DocumentIntegrationService.link_existing_document`/`unlink_existing_document` with a `module=...`
+keyword neither method accepts — these two methods have never worked in production.
+
+`inventory_purchase_orders_changed` is now deleted from `DomainEvents` entirely — zero producers
+(all 12 sites converged), zero consumers (all 6 workspace binder subscriptions removed), field
+absent. The legacy Signal count is 18 as of this phase (19 minus the one deletion — confirmed
+source-derived). The Purchase Order capability is fully modernized. This also unblocks Requisition
+(P29): the sole non-Requisition-owned producer of `inventory_requisitions_changed` is gone.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant
