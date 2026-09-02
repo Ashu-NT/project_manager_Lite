@@ -17,7 +17,6 @@ class DomainEvents:
     timesheet_periods_changed: Signal[str] = field(default_factory=Signal)
     budgets_changed: Signal[str] = field(default_factory=Signal)
     billing_preparations_changed: Signal[str] = field(default_factory=Signal)
-    planned_costs_changed: Signal[str] = field(default_factory=Signal)
     cost_entries_changed: Signal[object] = field(default_factory=Signal)
     commitments_changed: Signal[object] = field(default_factory=Signal)
     financial_changes_changed: Signal[object] = field(default_factory=Signal)

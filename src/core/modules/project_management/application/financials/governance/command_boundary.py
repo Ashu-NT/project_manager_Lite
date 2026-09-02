@@ -20,6 +20,9 @@ from src.core.modules.project_management.application.financials.forecasts.genera
 from src.core.modules.project_management.application.financials.forecasts.version_service import (
     ForecastVersionService,
 )
+from src.core.modules.project_management.application.financials.planned_costs.planned_cost_service import (
+    PlannedCostService,
+)
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_service import (
     ProjectRateCardService,
 )
@@ -49,6 +52,7 @@ class FinanceGovernanceOperations:
     financial_changes: FinancialChangeService
     financial_setup: FinancialConfigurationService
     rate_cards: ProjectRateCardService
+    planned_costs: PlannedCostService
     post_commit_actions: list[Callable[[], None]] = field(default_factory=list)
 
 
@@ -96,8 +100,6 @@ class FinanceGovernanceCommandBoundary:
         *,
         project_id: str,
     ) -> T:
-        # P19: see `forecast_version` above -- `ForecastGenerationService` records a typed
-        # `ForecastDraftGenerated` DomainEvent directly on the transaction's own UoW.
         return self._execute(
             lambda operations: command(operations.forecast_generation),
             invalidation=None,
@@ -114,6 +116,17 @@ class FinanceGovernanceCommandBoundary:
             invalidation=lambda result: self._emit_scoped(
                 "financial_changes_changed", result, project_id
             ),
+        )
+
+    def planned_cost(
+        self,
+        command: Callable[[PlannedCostService], T],
+        *,
+        project_id: str | None = None,
+    ) -> T:
+        return self._execute(
+            lambda operations: command(operations.planned_costs),
+            invalidation=None,
         )
 
     def financial_setup(
@@ -133,11 +146,6 @@ class FinanceGovernanceCommandBoundary:
         *,
         project_id: str | None = None,
     ) -> T:
-        # P22: Rate Card invalidation is driven canonically -- `ProjectRateCardService` records
-        # typed DomainEvents (`RateCardCreated`/`RateCardDeactivated`/`RateCardLineAdded`/
-        # `RateCardLineUpdated`/`RateCardLineDeactivated`) directly on the transaction's own UoW,
-        # dispatched through the shared transactional/post-commit pipeline to the registered
-        # ViewInvalidation handler. No legacy signal, no bridge.
         return self._execute(
             lambda operations: command(operations.rate_cards),
             invalidation=None,
@@ -234,7 +242,7 @@ class FinanceGovernedServicePort:
         explicit = kwargs.get("project_id") or kwargs.get("available_to_project_id")
         if explicit:
             return str(explicit)
-        if name in {"create_budget", "create_forecast", "generate_draft", "create_change"}:
+        if name in {"create_budget", "create_forecast", "generate_draft", "create_change", "calculate_snapshot"}:
             return str(args[0]) if args else ""
         try:
             if self._family == "budget":

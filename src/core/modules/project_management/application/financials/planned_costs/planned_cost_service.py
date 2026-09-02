@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy.exc import IntegrityError
@@ -41,6 +42,9 @@ from src.core.modules.project_management.domain.financials.planned_cost import (
     ResourceAllocationDiagnostic,
 )
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
+from src.core.modules.project_management.application.financials.planned_costs.planned_cost_events import (
+    PlannedCostSnapshotCalculated,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -54,7 +58,6 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
 )
 from src.core.shared.audit import record_audit_entry
-from src.core.shared.events.domain_events import domain_events
 
 _REVISION_CONSTRAINT = "uq_pf_planned_cost_versions_project_revision"
 
@@ -70,17 +73,6 @@ class PlannedCostCalculationResult:
 
 
 class PlannedCostService(ProjectManagementModuleGuardMixin):
-    """Computed, versioned labor-planned-cost snapshots — see
-    docs/pm_modernization/project_planned_cost_snapshot_plan.md.
-
-    ``calculate_snapshot`` is the only write operation and is not governed
-    — nothing here is proposed for review by a second principal. A
-    snapshot is a computed fact about *current*
-    ``TaskAssignment.allocated_planned_hours`` values, recalculated on
-    demand; see domain/financials/planned_cost.py's module docstring for
-    the full architectural status of that field.
-    """
-
     def __init__(
         self,
         *,
@@ -98,6 +90,7 @@ class PlannedCostService(ProjectManagementModuleGuardMixin):
         enterprise_audit_service=None,
         module_catalog_service=None,
         tenant_context_service: TenantContextService | None = None,
+        record_event: Callable[[object], None] | None = None,
     ) -> None:
         self._session = session
         self._planned_cost_repo = planned_cost_repo
@@ -113,6 +106,22 @@ class PlannedCostService(ProjectManagementModuleGuardMixin):
         self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
+        self._record_event = record_event
+
+    def _emit_snapshot_event(
+        self, version: ProjectPlannedCostVersion, *, occurred_at: datetime
+    ) -> None:
+        if self._record_event is None:
+            return
+        self._record_event(
+            PlannedCostSnapshotCalculated(
+                tenant_id=version.tenant_id,
+                organization_id=version.organization_id,
+                project_id=version.project_id,
+                planned_cost_version_id=version.id,
+                occurred_at=occurred_at,
+            )
+        )
 
     # -- Reads ----------------------------------------------------------
 
@@ -373,8 +382,8 @@ class PlannedCostService(ProjectManagementModuleGuardMixin):
             raise
 
         self._record_version_audit(operation="calculate", version=version, diagnostics=diagnostics)
-        self._commit()
-        domain_events.planned_costs_changed.emit(project_id)
+        self._session.flush()
+        self._emit_snapshot_event(version, occurred_at=now)
         return PlannedCostCalculationResult(version=version, diagnostics=tuple(diagnostics))
 
     # -- Shared helpers ---------------------------------------------------
@@ -441,13 +450,6 @@ class PlannedCostService(ProjectManagementModuleGuardMixin):
             commit=False,
             fail_closed=True,
         )
-
-    def _commit(self) -> None:
-        try:
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
 
 
 __all__ = ["PlannedCostCalculationResult", "PlannedCostService"]

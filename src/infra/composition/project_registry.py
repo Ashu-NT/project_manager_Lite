@@ -36,6 +36,12 @@ from src.core.modules.project_management.application.financials.forecasts.foreca
     ForecastLineChanged,
     ForecastVersionChanged,
 )
+from src.core.modules.project_management.application.financials.planned_costs.event_handlers.view_invalidation import (
+    build_planned_cost_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.planned_costs.planned_cost_events import (
+    PlannedCostSnapshotCalculated,
+)
 from src.core.modules.project_management.application.financials.event_handlers.view_invalidation import (
     build_financial_profile_view_invalidation_handler,
 )
@@ -668,6 +674,12 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus.subscribe(
             _forecast_event_type, _forecast_view_invalidation_handler
         )
+    _planned_cost_view_invalidation_handler = build_planned_cost_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    platform_services.platform_post_commit_bus.subscribe(
+        PlannedCostSnapshotCalculated, _planned_cost_view_invalidation_handler
+    )
     _financial_profile_view_invalidation_handler = build_financial_profile_view_invalidation_handler(
         platform_services.platform_view_invalidation_channel
     )
@@ -794,6 +806,23 @@ def build_project_management_service_bundle(
             tenant_context_service=platform_services.tenant_context_service,
             record_event=uow.record_event,
         )
+        planned_cost_operations = PlannedCostService(
+            session=uow._session,
+            planned_cost_repo=uow.planned_costs,
+            project_repo=uow.projects,
+            financial_profile_repo=uow.profiles,
+            cost_code_repo=uow.cost_codes,
+            task_repo=uow.tasks,
+            assignment_repo=uow.assignments,
+            project_resource_repo=uow.project_resources,
+            rate_resolver=rate_card_resolver,
+            clock=system_clock,
+            user_session=platform_services.user_session,
+            enterprise_audit_service=uow._enterprise_audit_service,
+            module_catalog_service=platform_services.module_catalog_service,
+            tenant_context_service=platform_services.tenant_context_service,
+            record_event=uow.record_event,
+        )
         return FinanceGovernanceOperations(
             budgets=budget_operations,
             forecast_versions=forecast_version_operations,
@@ -801,6 +830,7 @@ def build_project_management_service_bundle(
             financial_changes=change_operations,
             financial_setup=setup_operations,
             rate_cards=rate_card_operations,
+            planned_costs=planned_cost_operations,
             post_commit_actions=post_commit_actions,
         )
 
@@ -890,6 +920,12 @@ def build_project_management_service_bundle(
                 "deactivate_line",
             }
         ),
+    )
+    planned_cost_service = FinanceGovernedServicePort(
+        read_service=planned_cost_service,
+        boundary=finance_governance_commands,
+        family="planned_cost",
+        mutations=frozenset({"calculate_snapshot"}),
     )
     billing_profile_service = ProjectBillingProfileService(
         session=session,
