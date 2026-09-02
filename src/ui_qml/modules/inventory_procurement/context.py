@@ -428,8 +428,9 @@ class InventoryProcurementWorkspaceCatalog(QObject):
             organization_id=self._active_organization_id() or "",
             parent=self,
         )
+
         self._dashboard_reservation_view_invalidation_adapter.reservationOpenCountStale.connect(
-            self._dashboard_workspace.refresh
+            self._dashboard_workspace._request_domain_refresh
         )
 
     def _active_tenant_id(self) -> str | None:

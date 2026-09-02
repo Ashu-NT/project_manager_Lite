@@ -855,7 +855,7 @@ Inventory UoW naturally owned this transaction).
 | Document link/unlink | RESOLVED, P16D-only — confirmed link/unlink mutate only `DocumentLink`, never the Reservation row/Balance/StockTransaction. The legacy `inventory_reservations_changed.emit(...)` in both is deleted with no replacement Reservation event, mirroring PO's own link/unlink (P28A) and P24's identical Item finding. `document_integration_service`'s own P16D-typed `document_links` target is unmodified. Proven by a regression test: zero Reservation DomainEvent, zero `reservation_list`/`reservation_detail`/`reservation_open_count` hints, unchanged `version`/`status` |
 | ViewInvalidation targets | `reservation_list` (`OrganizationScope`), `reservation_detail` (`ResourceScope`, `entity_type="stock_reservation"`) — identical shape to Requisition's own (P29). Plus a third, narrower `reservation_open_count` (`OrganizationScope`) reserved for Dashboard's KPI, mirroring `requisition_pending_approval`'s precedent (P29-FIX) |
 | Event → invalidation mapping | `Created` → list + open_count only (never detail — no pre-existing detail view can be stale for an id that didn't exist a moment ago, same reasoning P29-FIX applied). `ConsumptionAdvanced`/`Released`/`Cancelled` → list + detail. `open_count` is additionally computed from the KPI's own `{ACTIVE, PARTIALLY_ISSUED}` membership predicate: Created/Released/Cancelled always fire it; `ConsumptionAdvanced` only when `resulting_status == FULLY_ISSUED` — a partial issue keeps the reservation counted and must not stale the KPI. Proven by two dedicated regression tests (one per issue outcome) |
-| Consumer cutover | CUT OVER — new `ReservationViewInvalidationAdapter` (mirrors `RequisitionViewInvalidationAdapter`). Reservations workspace (owner): full `_request_domain_refresh()` on list or detail staleness. Dashboard: `reservationOpenCountStale` only. Catalog/Pricing/Procurement/Inventory(Foundation) legacy subscriptions removed, no replacement (P30A proved zero real Reservation dependency for all four; Inventory(Foundation)'s own Balance-table dependency is unaffected, still served by its unchanged `inventory_balances_changed` subscription). Reservations workspace's own `inventory_balances_changed` subscription was re-examined (P30A had not covered it) and found to have zero real dependency either (its "available stock" references are UI copy text) — deliberately left untouched rather than pruned, since narrowing a Balance-signal consumer is Balance-capability wiring, out of this phase's scope |
+| Consumer cutover | CUT OVER — new `ReservationViewInvalidationAdapter` (mirrors `RequisitionViewInvalidationAdapter`). Reservations workspace (owner): `_request_domain_refresh()` on list or detail staleness. Dashboard: `reservationOpenCountStale`, routed through `_request_domain_refresh` (not a direct `.refresh` connect — P30B-FIX, see below). Catalog/Pricing/Procurement/Inventory(Foundation) legacy subscriptions removed, no replacement (P30A proved zero real Reservation dependency for all four; Inventory(Foundation)'s own Balance-table dependency is unaffected, still served by its unchanged `inventory_balances_changed` subscription). Reservations workspace's own `inventory_balances_changed` subscription — zero real dependency (its "available stock" references are UI copy text) — is also removed, no replacement (**P30B-FIX**, see below) |
 | Concurrency | PRESERVED, re-verified — `update_with_version_check` (atomic `UPDATE ... WHERE id=? AND version=?`) unchanged, now exercised through the canonical UoW's own `balances` repo. A genuine two-Session regression test (mirroring P28B's `PurchaseRequisitionLine` race template) proves it: available stock 10, two transactions each reserve 8 against the same stale read; the first commits, the second's version-guarded write raises `ConcurrencyError`, final persisted `reserved_qty` is 8, never 16 |
 | Reservation → Balance/Ledger | UNCHANGED BY DESIGN — Reservation genuinely mutates persisted `StockBalance`/`StockTransaction` state via the same, unmodified posting logic; `inventory_balances_changed` continues to be emitted exactly as before. Balance/Ledger remain a separate, still-legacy capability, explicitly out of this phase's scope |
 | `inventory_reservations_changed` | DELETED — field, all 5 former producer sites (3 converged to typed events, 2 — document link/unlink — converged to no event at all), all 6 legacy consumer subscriptions. Legacy Signal count: 16 (17 → 16, confirmed via `dataclasses.fields(DomainEvents)`) |
@@ -871,6 +871,62 @@ one `source_reference_type` test-data bug and two unrelated import/reporting tes
 `git stash` to fail identically on the pre-P30B baseline).
 
 See ADR-005 §26.27 for the full design.
+
+**P30B-FIX — Remove proven incidental Reservations↔Balance subscription + verify
+`reservation_open_count` mapping: one real gap found and closed, no typed-event/UoW/concurrency
+change.** P30B's own transaction convergence, typed events, ViewInvalidation targets, and
+`inventory_reservations_changed` deletion were approved and out of scope for re-verification. This
+follow-up re-examined only two closure items:
+
+- **Gap — Reservations workspace's `inventory_balances_changed` subscription was proven
+  incidental, but P30B left it in place.** P30B's own re-audit (P30B §24, not covered by P30A)
+  already found zero real Balance dependency for the Reservations workspace — its "available
+  stock" references are UI copy text, not a data read — but reasoned that removing it was
+  Balance-capability wiring, out of scope. On review that reasoning was wrong: removing a
+  *proven-incidental* consumer of a legacy signal changes nothing about Balance itself (its
+  producers, business semantics, and every genuine consumer — Inventory(Foundation)'s own "Stock
+  Balances" table — are untouched); it is the same class of incidental-subscription cleanup
+  already applied to Catalog/Pricing/Procurement earlier in the same phase. Removed, no
+  replacement. A regression test proves Reservations workspace reacts to its own
+  `ReservationCreated` but not at all to an unrelated Balance-only mutation, and a second proves
+  Inventory(Foundation)'s own genuine Balance reaction is unaffected.
+- **`reservation_open_count` mapping — verified accurate, no code change needed.** Re-reading
+  `build_reservation_view_invalidation_handler` directly confirms the mapping already matches the
+  expected source-derived table exactly (see ADR-005 §26.27's mapping table, added by this
+  follow-up for full unambiguity): Created/Released/Cancelled always notify `reservation_open_
+  count`; `ConsumptionAdvanced` only when `resulting_status == FULLY_ISSUED`. The prior report's
+  own prose summary had compressed Released/Cancelled's `reservation_open_count` participation
+  into the same clause as their `reservation_list`/`reservation_detail` participation, reading as
+  more ambiguous than the actual (correct) implementation — a reporting-clarity issue, not a code
+  gap.
+- **A third, previously-unverified gap found while building an end-to-end proof of the mapping
+  above**: Dashboard's `reservationOpenCountStale` was wired with a direct `.connect(self.
+  _dashboard_workspace.refresh)`, identical to PO's/Requisition's own Dashboard connections.
+  Unlike PO/Requisition, Reservation is the only capability whose typed events co-occur, in the
+  same transaction, with a legacy signal Dashboard already independently reacts to
+  (`inventory_balances_changed` — Reservation genuinely mutates Balance): Created, a full issue,
+  Released, and Cancelled each risked a double `refresh()` call — once via the direct typed
+  connection, once via the legacy binder's `_request_domain_refresh()`. Fixed by routing
+  `reservationOpenCountStale` through `_request_domain_refresh` instead — the same coalescing
+  entrypoint the legacy binder already uses, collapsing both triggers into one rebuild per
+  transaction under a live Qt event loop (P29-FIX's own established remedy for this exact class of
+  problem). PO's/Requisition's own direct-`.refresh` Dashboard connections are untouched — neither
+  co-emits a legacy signal alongside its typed events (P28A/P30A), so this risk class does not
+  apply to them.
+- **What did NOT change**: `InventoryReservationUnitOfWork`, the typed event vocabulary, the
+  concurrency mechanism, enterprise audit, Balance/StockTransaction mutation behavior, and P16D
+  document-link ownership are all untouched. `inventory_reservations_changed` remains deleted
+  (producers 0, consumers 0, field absent); `inventory_balances_changed` remains present, its own
+  producers and every genuine consumer unmodified — only one proven-incidental *consumer* was
+  removed, not the signal itself.
+- Legacy Signal count unchanged: 16. `inventory_reservations_changed`/`inventory_purchase_orders_
+  changed`/`inventory_requisitions_changed` all remain deleted; producers/consumers remain 0 for
+  all three. `inventory_balances_changed`'s own consumer count dropped by exactly one (Reservations
+  workspace) — recorded here as a consumer-wiring correction, not misreported as a second Signal
+  deletion.
+
+See ADR-005 §26.27 for the full design (updated in place with this correction and the explicit
+mapping table).
 
 ## 4. Current State
 

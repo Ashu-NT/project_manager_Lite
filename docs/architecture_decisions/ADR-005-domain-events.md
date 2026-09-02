@@ -2821,6 +2821,17 @@ Released, and Cancelled always change membership; `ConsumptionAdvanced` only whe
 `resulting_status == FULLY_ISSUED` (a partial issue keeps the reservation in the counted set and
 must NOT stale the KPI) — proven by two dedicated regression tests, one per issue outcome.
 
+**Exact, source-derived event → target mapping (P30B-FIX confirms no ambiguity remains)**:
+
+| Event | `reservation_list` | `reservation_detail` | `reservation_open_count` |
+|---|---|---|---|
+| `InventoryReservationCreated` | yes | no | yes |
+| `InventoryReservationConsumptionAdvanced(PARTIALLY_ISSUED)` | yes | yes | no |
+| `InventoryReservationConsumptionAdvanced(FULLY_ISSUED)` | yes | yes | yes |
+| `InventoryReservationReleased` | yes | yes | yes |
+| `InventoryReservationCancelled` | yes | yes | yes |
+| document link/unlink | no (no event at all) | no | no |
+
 Consumer cutover: Reservations workspace (owner) subscribed to `reservationListStale`/
 `reservationDetailStale` via a new `ReservationViewInvalidationAdapter` (mirrors
 `RequisitionViewInvalidationAdapter` exactly), full `_request_domain_refresh()` on either — same
@@ -2832,9 +2843,30 @@ Reservation dependency; Inventory(Foundation)'s own `Stock Balances` table depen
 Balance, already covered by its unchanged, untouched `inventory_balances_changed` subscription.
 Reservations workspace's own binder was re-audited for a Balance dependency (P30B §24's own
 question, not raised in P30A): none exists — its "available stock" references are UI copy text,
-not a data dependency — but its `inventory_balances_changed` subscription was deliberately left in
-place rather than pruned, since narrowing a Balance-signal consumer is Balance-capability consumer
-wiring, out of this phase's explicit scope.
+not a data dependency. **P30B-FIX corrects P30B's own initial disposition here**: P30B left the
+`inventory_balances_changed` subscription in place, reasoning that narrowing a Balance-signal
+consumer was Balance-capability wiring and out of scope. On review this reasoning does not hold —
+removing a *proven-incidental* consumer of a legacy signal is not Balance modernization (Balance's
+producers, business semantics, and every other genuine consumer are untouched); it is simply
+finishing the same class of cleanup already applied to Catalog/Pricing/Procurement in the same
+phase. The subscription is removed, no replacement — Reservations workspace's `inventory_
+balances_changed` consumer count is now 0, and its Reservation/availability UI behavior is
+unchanged (it never read Balance data to begin with).
+
+**P30B-FIX also found and fixed a genuine, previously-unverified duplicate-refresh risk unique to
+Reservation**: Dashboard's `reservationOpenCountStale` was originally wired with a direct
+`.connect(self._dashboard_workspace.refresh)` — the same pattern PO's/Requisition's own Dashboard
+signals use. Unlike PO/Requisition, Reservation is the only capability whose typed events
+co-occur, in the same transaction, with a legacy signal Dashboard *already* independently reacts
+to (`inventory_balances_changed`, since Reservation genuinely mutates Balance) — so Created,
+full-issue, Released, and Cancelled each risked triggering Dashboard's `refresh()` twice: once via
+the direct typed-signal connection, once via the legacy binder's `_request_domain_refresh()`. Fixed
+by connecting `reservationOpenCountStale` to `self._dashboard_workspace._request_domain_refresh`
+instead of `.refresh` directly — the same coalescing entrypoint the legacy binder already uses,
+collapsing both triggers into one rebuild per transaction under a live Qt event loop (P29-FIX's own
+established remedy for this exact class of problem). PO's and Requisition's own direct-`.refresh`
+Dashboard connections are untouched — P30A/P28A found neither co-emits a legacy signal alongside
+its typed events, so this risk class does not apply to them.
 
 Concurrency: P30A's audited mechanism (`update_with_version_check`, an atomic
 `UPDATE ... WHERE id=? AND version=?`) is unchanged, now exercised through the canonical UoW's own
