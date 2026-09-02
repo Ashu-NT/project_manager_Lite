@@ -2741,6 +2741,38 @@ source-derived). Both Purchase Order and Requisition are now fully modernized; n
 Inventory/Procurement capability has been chosen (Reservation, Stock Balance/Ledger, Cycle Count,
 and Goods Receipt remain unaudited).
 
+**26.26 P29-FIX: Requisition invalidation precision + UI refresh coalescing — two real gaps
+found and closed, no backend change.** §26.25's "every event notifies both targets" and "Dashboard
+wired to `requisitionListStale`/`requisitionDetailStale`" were both real but imprecise. Re-reading
+the actual read models (`to_requisition_record_view_model` for `requisition_list`,
+`build_requisition_detail` for `requisition_detail`) showed `Created` can never stale an
+already-open detail projection for an id that didn't exist before the transaction (corrected to
+`requisition_list` only) and `LineAdded` touches no field the list row shows (corrected to
+`requisition_detail` only); the remaining six event types genuinely touch both, now for a proven
+reason. Re-reading `dashboard.py::build_snapshot` confirmed Dashboard's sole Requisition dependency
+is the `{SUBMITTED, UNDER_REVIEW}`-filtered "Awaiting Approval" KPI — a new dedicated org-scoped
+target, `requisition_pending_approval`, is notified only for Submitted/Approved/Rejected/Cancelled,
+mirroring §26.16's `forecast_approved_basis` precedent (a distinct approval-summary projection,
+not a screen-specific target); `RequisitionViewInvalidationAdapter` gained a third signal,
+`requisitionPendingApprovalStale`, on the same adapter class (no second adapter). `Cancelled`
+still notifies unconditionally since the event carries no prior-status field to filter the
+"was it actually pending" case precisely — a documented, narrow exception, not a return to
+blanket over-inclusion.
+
+A third, previously-undocumented gap was found while investigating the first two:
+`_request_domain_refresh()` executed `refresh()` synchronously on every call with no cross-call
+coalescing, so any transaction producing 2+ Procurement-relevant hints (Requisition's own
+list+detail pair from this phase, or PO's pre-existing list+detail pair from §26.23) rebuilt the
+entire monolithic Procurement workspace twice. Fixed by porting `project_management`'s own
+already-established `QTimer(0)`-coalesced scheduling mechanism
+(`_schedule_domain_refresh`/`_execute_scheduled_domain_refresh`, gated on the app-wide
+`pmEventLoopRunning` property already set in `src/ui_qml/shell/app.py`) into
+`InventoryProcurementWorkspaceControllerBase` verbatim — reusing an existing generic UI scheduling
+primitive, not inventing a new debounce service. `requisition_detail`'s scope stayed the exact
+`ResourceScope` throughout; Procurement's own consumption remains one full monolithic refresh per
+transaction (unchanged breadth, now guaranteed to fire once, not twice). No typed event, UoW,
+audit, concurrency, or approval-architecture behavior changed. Legacy Signal count unchanged: 17.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

@@ -330,12 +330,12 @@ P28B's own precedent for the identical situation).
 | Requisition transaction ownership | MODERNIZED — `RequisitionSubmissionUnitOfWork` (name kept, already had `requisitions`/`requisition_lines`/`approvals`/`_enterprise_audit_service` from its pre-P29 submit-only scope — no new accessors were needed, unlike PO's own broadening) now also covers create/add-line/update/cancel, each a fresh Session |
 | Approve/reject transaction ownership | Unchanged, already canonical — `ApprovalService`'s own `PlatformUnitOfWork`; the participant (`ProcurementApprovalParticipant`) still never receives a `UnitOfWork` or a `record_event` callback |
 | Typed DomainEvents | CANONICALIZED — 7 new Requisition-owned events (`InventoryRequisitionCreated`/`LineAdded`/`ProfileUpdated`/`Submitted`/`Approved`/`Rejected`/`Cancelled`) added to the existing `requisition_events.py`, alongside the unmodified `InventoryRequisitionSourcingAdvanced` (P28B) — all recorded via `uow.record_event(...)` |
-| ViewInvalidation handler | GENERALIZED — `build_requisition_sourcing_view_invalidation_handler` (which only ever handled the one PO-triggered event) was renamed `build_requisition_view_invalidation_handler` and its type union widened to all 8 Requisition event types, mirroring `build_purchase_order_view_invalidation_handler`'s own single-handler shape for its 10 PO events. Every event notifies both `requisition_list` and `requisition_detail` (P19-FIX/P22-FIX/P28B "notify both" precedent) — no per-event asymmetry attempted |
+| ViewInvalidation handler | GENERALIZED — `build_requisition_sourcing_view_invalidation_handler` (which only ever handled the one PO-triggered event) was renamed `build_requisition_view_invalidation_handler` and its type union widened to all 8 Requisition event types, mirroring `build_purchase_order_view_invalidation_handler`'s own single-handler shape for its 10 PO events. **Superseded by P29-FIX** (see below) — per-event precision replaced the original "every event notifies both targets" symmetry |
 | Approval event return | CANONICAL (Option A pattern, same as PO) — `apply_submitted_requisition_approval`/`_rejection` now return `ApprovalHandlerResult(domain_events=(...))` instead of the legacy `ApprovalPostCommitEvent("inventory_requisitions_changed", ...)` bridge |
 | No-op discipline | `update_requisition` gained a true no-op guard (zero write/audit/event/version bump on an identical payload) — P27A's own finding was that this guard never existed |
 | Enterprise audit | ADDED — `record_audit_entry(uow, ..., commit=False, fail_closed=True)` now runs atomically with create/add-line/update/cancel; previously these paths had zero enterprise audit (best-effort activity-feed only, P27A finding). Proven atomic by a real audit-failure-rollback regression test (representative of all four, which share one transaction boundary) |
 | Supplier same-organization integrity | **Re-investigated, found NOT a real gap** — P27A/P28A/P28B all characterized `_ensure_business_supplier_scope` as never checking organization membership, based on reading that method in isolation. Tracing its sole caller one line up shows `PartyService.get_party` already scopes its own lookup to the active organization and raises `NotFoundError` for a cross-org party — confirmed by a real regression test, not inferred. No code change was made (a second check would have been unreachable dead code); this corrects the prior phases' characterization rather than fixing a bug that doesn't exist |
-| Consumer cutover | CUT OVER — the existing `RequisitionViewInvalidationAdapter` (P28B-FIX) is reused unchanged for all 8 event types (no second/parallel adapter). Procurement's wiring is unchanged (already existed). **Dashboard now has a genuine dependency** — Submitted/Approved/Rejected/Cancelled each move a Requisition into or out of its "Awaiting Approval" `{SUBMITTED, UNDER_REVIEW}` KPI filter (P28B-FIX only ever ruled out the *sourcing* event, not Requisition's own facts) — a new `RequisitionViewInvalidationAdapter` instance was wired for Dashboard, reacting to both `requisitionListStale`/`requisitionDetailStale` like every other Inventory capability's Dashboard wiring (no finer-than-scope_code granularity exists anywhere in this architecture, so Created/LineAdded/ProfileUpdated/SourcingAdvanced also reach Dashboard's `refresh()` — harmless, matching the established "full refresh, no narrower seam" acceptance class). Catalog/Reservations/Pricing/Inventory(Foundation) subscriptions removed, no replacement (confirmed zero real dependency, unchanged from P27A) |
+| Consumer cutover | CUT OVER — the existing `RequisitionViewInvalidationAdapter` (P28B-FIX) is reused unchanged for all 8 event types (no second/parallel adapter). Procurement's wiring is unchanged (already existed). Dashboard's original wiring (both `requisitionListStale`/`requisitionDetailStale`) was **corrected by P29-FIX** to a dedicated precise target — see below. Catalog/Reservations/Pricing/Inventory(Foundation) subscriptions removed, no replacement (confirmed zero real dependency, unchanged from P27A) |
 | Unreachable `FULLY_SOURCED → CLOSED` transition | Confirmed still unreachable — no producer performs it. Recorded as pre-existing product/domain debt, not addressed (no close-Requisition command was invented, per explicit scope boundary) |
 | `inventory_requisitions_changed` | DELETED — field, all 7 remaining producer sites (5 in `procurement_lifecycle.py` + 2 in `procurement_approval.py`), all 6 legacy consumer subscriptions. Legacy Signal count: 17 (18 → 17, confirmed via `dataclasses.fields(DomainEvents)`) |
 
@@ -352,6 +352,70 @@ own baseline — Reservation `source_reference_type` validation and two unrelate
 tests).
 
 See ADR-005 §26.25 for the full design.
+
+**P29-FIX — Requisition invalidation precision + UI refresh coalescing: two real gaps found and
+closed (no backend/event-vocabulary change).** P29's typed events, UoW convergence, audit
+convergence, approval event return, and legacy-signal deletion were approved and out of scope for
+re-verification. This follow-up re-audited only the event → ViewInvalidation → UI-consumer chain,
+per its own explicit instruction not to accept "every event notifies both targets, matching broad
+codebase precedent" as sufficient justification without re-proving each event against the actual
+persisted read models.
+
+- **Gap 1 — imprecise event → target mapping.** Re-reading `to_requisition_record_view_model`
+  (the `requisition_list` row) and `build_requisition_detail` (the `requisition_detail`
+  projection) directly showed the original "every event → both targets" design was wrong in two
+  directions: `InventoryRequisitionCreated` can never make an existing `requisition_detail`
+  projection stale (no client can hold a cached detail view for an id that did not exist before
+  the transaction) — corrected to `requisition_list` only. `InventoryRequisitionLineAdded`
+  touches no field that appears on the list row (line data only reaches `requisition_lines` and
+  the detail's derived `hasLines`/`canSubmit` flags) — corrected to `requisition_detail` only.
+  `ProfileUpdated`/`Submitted`/`Approved`/`Rejected`/`Cancelled`/`SourcingAdvanced` do genuinely
+  touch both (status and/or site/storeroom/priority/purpose all appear on both the list row and
+  detail) — left unchanged, now for a proven reason rather than a default. The handler functions
+  (`_requisition_event_notifies_list`/`_notifies_detail`/`_notifies_pending_approval` in
+  `event_handlers/view_invalidation.py`) encode this explicitly, each with the source citation for
+  its rule, rather than the prior unconditional "notify both" body.
+- **Gap 2 — Dashboard was over-wired, not "harmlessly" so.** P29's own Dashboard wiring reused the
+  broad `requisitionListStale`/`requisitionDetailStale` signals — re-reading
+  `dashboard.py::build_snapshot` directly confirmed its *sole* Requisition dependency is the
+  "Awaiting Approval" KPI/section, filtered to `status ∈ {SUBMITTED, UNDER_REVIEW}`; Created/
+  LineAdded/ProfileUpdated are DRAFT-only (never touch that set) and `SourcingAdvanced` only ever
+  fires once a Requisition is already past `APPROVED` (already established in P28B-FIX). A new,
+  dedicated org-scoped target, `requisition_pending_approval`, is now notified only for
+  Submitted/Approved/Rejected/Cancelled (`REQUISITION_PENDING_APPROVAL_SCOPE_CODE`) — the same
+  "distinct approval-summary projection, not a screen-specific one" class of target P19-FIX
+  already established for Finance Forecast's `forecast_approved_basis`. `RequisitionViewInvalidationAdapter`
+  gained a third signal, `requisitionPendingApprovalStale`, on the SAME adapter class (no second/
+  parallel adapter) — Dashboard is now wired to that signal exclusively; `Cancelled` is still
+  notified unconditionally despite only *sometimes* leaving the pending set, since the event
+  carries no prior-status field to filter that specific case — documented as a deliberate,
+  narrowly-scoped exception, not a return to blanket over-inclusion.
+- **Gap 3 (found during investigation, not in the original ask) — genuine double full-refresh.**
+  Tracing `_request_domain_refresh()` showed it executed `refresh()` fully synchronously on every
+  call, with no coalescing beyond "already mid-refresh right now" — so any transaction producing
+  2+ Procurement-relevant hints (e.g. `InventoryRequisitionApproved`'s `requisition_list` +
+  `requisition_detail`, or equally PO's own pre-existing `purchase_order_list` +
+  `purchase_order_detail` pair from P28B) rebuilt the entire monolithic Procurement workspace
+  twice. `project_management`'s own `ProjectManagementWorkspaceControllerBase` already solves
+  exactly this with a `QTimer(0)`-coalesced scheduling mechanism, gated on the app-wide
+  `pmEventLoopRunning` property set in `src/ui_qml/shell/app.py`'s real entrypoint (falling back to
+  immediate synchronous execution when no Qt event loop is running, e.g. in most of this test
+  suite) — ported verbatim into `InventoryProcurementWorkspaceControllerBase`
+  (`_schedule_domain_refresh`/`_execute_scheduled_domain_refresh`), not reinvented. This is a
+  pre-existing generic UI scheduling primitive being reused across modules, not a new bespoke
+  debounce service; it benefits PO's own list+detail pair identically, at no extra cost.
+- **What did NOT change**: `requisition_detail`'s scope stays the exact `ResourceScope`
+  (`entity_type="purchase_requisition"`, exact `entity_id`) — never widened to an org-wide
+  refresh. Procurement's own consumption of both targets remains one full, monolithic `refresh()`
+  (its `build_workspace_state` rebuilds list+detail+lines together in one call regardless of which
+  hint triggered it — no narrower seam exists, matching the same acceptance class already used for
+  every other Inventory capability); P29-FIX's coalescing fix ensures that full refresh happens
+  *once* per transaction, not that it becomes narrower. No typed event, UoW, audit, concurrency,
+  or approval-architecture behavior from P29 was touched.
+- Legacy Signal count unchanged: 17. `inventory_requisitions_changed`/`inventory_purchase_orders_changed`
+  both remain deleted; producers/consumers remain 0 for both.
+
+See ADR-005 §26.26 for the full design, including the final source-derived event → target matrix.
 
 **P26A — Auth Credential & Session: semantic + transaction audit complete (design only, no
 migration yet).** Full source re-audit of all 10 raw-Session producer files

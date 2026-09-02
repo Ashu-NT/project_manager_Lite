@@ -4,7 +4,7 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtCore import QCoreApplication, Property, QObject, QTimer, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.shared.events.signal import Signal as DomainSignal
@@ -40,6 +40,12 @@ class InventoryProcurementWorkspaceControllerBase(QObject):
         self._feedback_message = ""
         self._empty_state = ""
         self._pending_domain_refresh = False
+        self._domain_refresh_scheduled = False
+        self._domain_refresh_timer = QTimer(self)
+        self._domain_refresh_timer.setSingleShot(True)
+        self._domain_refresh_timer.timeout.connect(
+            self._execute_scheduled_domain_refresh
+        )
         self._domain_event_subscriptions: list[
             tuple[DomainSignal[Any], Callable[[Any], None]]
         ] = []
@@ -143,8 +149,8 @@ class InventoryProcurementWorkspaceControllerBase(QObject):
         )
 
     def _request_domain_refresh(self) -> None:
+        self._pending_domain_refresh = True
         if self._is_loading or self._is_busy:
-            self._pending_domain_refresh = True
             logger.debug(
                 "Inventory domain refresh queued context=%s is_loading=%s is_busy=%s",
                 self._diagnostic_context(),
@@ -152,13 +158,37 @@ class InventoryProcurementWorkspaceControllerBase(QObject):
                 self._is_busy,
             )
             return
-        refresh = getattr(self, "refresh", None)
-        if callable(refresh):
-            logger.debug("Inventory domain refresh executing context=%s", self._diagnostic_context())
-            refresh()
+        logger.debug("Inventory domain refresh requested context=%s", self._diagnostic_context())
+        self._schedule_domain_refresh()
 
     def _flush_pending_domain_refresh(self) -> None:
         if not self._pending_domain_refresh or self._is_loading or self._is_busy:
+            return
+        self._schedule_domain_refresh()
+
+    def _schedule_domain_refresh(self) -> None:
+        if self._domain_refresh_scheduled:
+            logger.debug(
+                "Inventory domain refresh schedule skipped; already scheduled context=%s",
+                self._diagnostic_context(),
+            )
+            return
+        app = QCoreApplication.instance()
+        if app is None or not bool(app.property("pmEventLoopRunning")):
+            logger.debug(
+                "Inventory domain refresh executing immediately without active Qt event loop "
+                "context=%s",
+                self._diagnostic_context(),
+            )
+            self._execute_scheduled_domain_refresh()
+            return
+        self._domain_refresh_scheduled = True
+        logger.debug("Inventory domain refresh scheduled context=%s", self._diagnostic_context())
+        self._domain_refresh_timer.start(0)
+
+    def _execute_scheduled_domain_refresh(self) -> None:
+        self._domain_refresh_scheduled = False
+        if self._is_loading or self._is_busy or not self._pending_domain_refresh:
             return
         self._pending_domain_refresh = False
         refresh = getattr(self, "refresh", None)

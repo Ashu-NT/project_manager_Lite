@@ -6,6 +6,7 @@ from src.core.modules.inventory_procurement.application.procurement.event_handle
     PROCUREMENT_CATEGORY,
     REQUISITION_DETAIL_SCOPE_CODE,
     REQUISITION_LIST_SCOPE_CODE,
+    REQUISITION_PENDING_APPROVAL_SCOPE_CODE,
 )
 from src.core.shared.events.view_invalidation import (
     ExactOrganization,
@@ -20,6 +21,7 @@ from src.ui_qml.platform.adapters.scoped_view_invalidation_subscription import (
 class RequisitionViewInvalidationAdapter(QObject):
     requisitionListStale = Signal(str)  # requisition_id
     requisitionDetailStale = Signal(str)  # requisition_id
+    requisitionPendingApprovalStale = Signal(str)  # requisition_id
 
     def __init__(
         self,
@@ -45,6 +47,8 @@ class RequisitionViewInvalidationAdapter(QObject):
             self.requisitionListStale.emit(hint.entity_id or "")
         elif hint.scope_code == REQUISITION_DETAIL_SCOPE_CODE:
             self.requisitionDetailStale.emit(hint.entity_id or "")
+        elif hint.scope_code == REQUISITION_PENDING_APPROVAL_SCOPE_CODE:
+            self.requisitionPendingApprovalStale.emit(hint.entity_id or "")
 
     def dispose(self) -> None:
         self._subscription.dispose()

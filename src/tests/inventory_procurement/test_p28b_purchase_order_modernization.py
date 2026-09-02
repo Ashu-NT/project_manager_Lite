@@ -562,7 +562,7 @@ def test_procurement_workspace_requisition_sourcing_stale_triggers_full_refresh(
     assert refresh_calls == ["refresh", "refresh"]
 
 
-def test_dashboard_workspace_requisition_stale_triggers_full_refresh(services):
+def test_dashboard_workspace_requisition_pending_approval_stale_triggers_full_refresh(services):
     from src.application.runtime import build_desktop_api_registry
     from src.ui_qml.modules.inventory_procurement.context import InventoryProcurementWorkspaceCatalog
 
@@ -572,8 +572,10 @@ def test_dashboard_workspace_requisition_stale_triggers_full_refresh(services):
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    catalog._dashboard_requisition_view_invalidation_adapter.requisitionListStale.emit("req-1")
+    catalog._dashboard_requisition_view_invalidation_adapter.requisitionPendingApprovalStale.emit("req-1")
     assert refresh_calls == ["refresh"]
 
+    # The broad list/detail signals must NOT be wired to Dashboard's refresh at all.
+    catalog._dashboard_requisition_view_invalidation_adapter.requisitionListStale.emit("req-1")
     catalog._dashboard_requisition_view_invalidation_adapter.requisitionDetailStale.emit("req-1")
-    assert refresh_calls == ["refresh", "refresh"]
+    assert refresh_calls == ["refresh"], "Dashboard must not react to requisition_list/detail directly"

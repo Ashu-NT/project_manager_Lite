@@ -19,6 +19,7 @@ from src.core.modules.inventory_procurement.application.procurement.event_handle
     PROCUREMENT_CATEGORY,
     REQUISITION_DETAIL_SCOPE_CODE,
     REQUISITION_LIST_SCOPE_CODE,
+    REQUISITION_PENDING_APPROVAL_SCOPE_CODE,
     build_requisition_view_invalidation_handler,
 )
 from src.core.modules.inventory_procurement.domain.procurement.requisition_events import (
@@ -91,7 +92,12 @@ def _requisition_hints(hints):
         h
         for h in hints
         if h.category == PROCUREMENT_CATEGORY
-        and h.scope_code in (REQUISITION_LIST_SCOPE_CODE, REQUISITION_DETAIL_SCOPE_CODE)
+        and h.scope_code
+        in (
+            REQUISITION_LIST_SCOPE_CODE,
+            REQUISITION_DETAIL_SCOPE_CODE,
+            REQUISITION_PENDING_APPROVAL_SCOPE_CODE,
+        )
     ]
 
 
@@ -106,82 +112,73 @@ def test_legacy_requisition_signal_field_is_deleted():
 # ---------------------------------------------------------------------------
 
 
+def _mk(event_cls, **extra):
+    now = datetime.now(timezone.utc)
+    base = {"tenant_id": "t1", "organization_id": "o1", "requisition_id": "r1", "occurred_at": now}
+    base.update(extra)
+    return event_cls(**base)
+
+
+# P29-FIX §10: the FINAL exact per-event target matrix, source-derived (not "all yes").
+# (event, expects_list, expects_detail, expects_pending_approval)
+_EVENT_MATRIX = [
+    (_mk(InventoryRequisitionCreated), True, False, False),
+    (_mk(InventoryRequisitionLineAdded, requisition_line_id="l1"), False, True, False),
+    (_mk(InventoryRequisitionProfileUpdated), True, True, False),
+    (_mk(InventoryRequisitionSubmitted, approval_request_id="a1"), True, True, True),
+    (_mk(InventoryRequisitionApproved, approval_request_id="a1"), True, True, True),
+    (_mk(InventoryRequisitionRejected, approval_request_id="a1"), True, True, True),
+    (_mk(InventoryRequisitionCancelled), True, True, True),
+    (
+        _mk(InventoryRequisitionSourcingAdvanced, purchase_order_id="po1", resulting_status="PARTIALLY_SOURCED"),
+        True,
+        True,
+        False,
+    ),
+]
+
+
 @pytest.mark.parametrize(
-    "event",
-    [
-        InventoryRequisitionCreated(
-            tenant_id="t1", organization_id="o1", requisition_id="r1", occurred_at=datetime.now(timezone.utc)
-        ),
-        InventoryRequisitionLineAdded(
-            tenant_id="t1",
-            organization_id="o1",
-            requisition_id="r1",
-            requisition_line_id="l1",
-            occurred_at=datetime.now(timezone.utc),
-        ),
-        InventoryRequisitionProfileUpdated(
-            tenant_id="t1", organization_id="o1", requisition_id="r1", occurred_at=datetime.now(timezone.utc)
-        ),
-        InventoryRequisitionSubmitted(
-            tenant_id="t1",
-            organization_id="o1",
-            requisition_id="r1",
-            approval_request_id="a1",
-            occurred_at=datetime.now(timezone.utc),
-        ),
-        InventoryRequisitionApproved(
-            tenant_id="t1",
-            organization_id="o1",
-            requisition_id="r1",
-            approval_request_id="a1",
-            occurred_at=datetime.now(timezone.utc),
-        ),
-        InventoryRequisitionRejected(
-            tenant_id="t1",
-            organization_id="o1",
-            requisition_id="r1",
-            approval_request_id="a1",
-            occurred_at=datetime.now(timezone.utc),
-        ),
-        InventoryRequisitionCancelled(
-            tenant_id="t1", organization_id="o1", requisition_id="r1", occurred_at=datetime.now(timezone.utc)
-        ),
-        InventoryRequisitionSourcingAdvanced(
-            tenant_id="t1",
-            organization_id="o1",
-            requisition_id="r1",
-            purchase_order_id="po1",
-            resulting_status="PARTIALLY_SOURCED",
-            occurred_at=datetime.now(timezone.utc),
-        ),
-    ],
+    "event,expects_list,expects_detail,expects_pending_approval", _EVENT_MATRIX,
+    ids=[type(e).__name__ for e, *_ in _EVENT_MATRIX],
 )
-def test_every_requisition_event_maps_to_both_list_and_detail_targets(event):
+def test_final_event_to_invalidation_matrix(event, expects_list, expects_detail, expects_pending_approval):
+    """P29-FIX §10: the FINAL exact event -> stale-projection mapping, source-derived from
+    `to_requisition_record_view_model` (list row fields), `build_requisition_detail` (detail
+    fields), and `dashboard.py::build_snapshot`'s `{SUBMITTED, UNDER_REVIEW}` pending-approval
+    filter -- not "every event invalidates every target"."""
     channel = _fake_channel()
     handler = build_requisition_view_invalidation_handler(channel)
 
     handler(event, DomainEventContext(correlation_id="tx"))
 
-    assert len(channel.notified) == 2
-    list_hint, detail_hint = channel.notified
-    assert list_hint.scope_code == REQUISITION_LIST_SCOPE_CODE
-    assert isinstance(list_hint.scope, OrganizationScope)
-    assert detail_hint.scope_code == REQUISITION_DETAIL_SCOPE_CODE
-    assert isinstance(detail_hint.scope, ResourceScope)
-    assert detail_hint.scope.entity_type == "purchase_requisition"
-    assert detail_hint.scope.entity_id == "r1"
+    scope_codes = {h.scope_code for h in channel.notified}
+    assert (REQUISITION_LIST_SCOPE_CODE in scope_codes) is expects_list
+    assert (REQUISITION_DETAIL_SCOPE_CODE in scope_codes) is expects_detail
+    assert (REQUISITION_PENDING_APPROVAL_SCOPE_CODE in scope_codes) is expects_pending_approval
+    for hint in channel.notified:
+        if hint.scope_code == REQUISITION_LIST_SCOPE_CODE:
+            assert isinstance(hint.scope, OrganizationScope)
+        elif hint.scope_code == REQUISITION_DETAIL_SCOPE_CODE:
+            assert isinstance(hint.scope, ResourceScope)
+            assert hint.scope.entity_type == "purchase_requisition"
+            assert hint.scope.entity_id == "r1"
+        elif hint.scope_code == REQUISITION_PENDING_APPROVAL_SCOPE_CODE:
+            assert isinstance(hint.scope, OrganizationScope)
 
 
 def test_requisition_events_dedupe_within_one_transaction_across_event_types():
     """A single logical operation only ever produces one typed event, but this proves the shared
     handler correctly coalesces even a hypothetical mix of event types against the SAME
-    requisition within one correlation_id -- not just repeats of one event type."""
+    requisition within one correlation_id -- not just repeats of one event type. Uses
+    ProfileUpdated (list+detail) so both targets are exercised, since Created alone (P29-FIX)
+    only ever produces a list hint."""
     channel = _fake_channel()
     handler = build_requisition_view_invalidation_handler(channel)
     now = datetime.now(timezone.utc)
 
     handler(
-        InventoryRequisitionCreated(tenant_id="t1", organization_id="o1", requisition_id="r1", occurred_at=now),
+        InventoryRequisitionProfileUpdated(tenant_id="t1", organization_id="o1", requisition_id="r1", occurred_at=now),
         DomainEventContext(correlation_id="tx"),
     )
     handler(
@@ -190,16 +187,16 @@ def test_requisition_events_dedupe_within_one_transaction_across_event_types():
         ),
         DomainEventContext(correlation_id="tx"),
     )
-    assert len(channel.notified) == 2, "same requisition, same transaction: one list hint + one detail hint"
+    assert len(channel.notified) == 2, "same requisition, same transaction: one list hint + one detail hint (LineAdded's own detail hint dedupes against ProfileUpdated's)"
 
     handler(
-        InventoryRequisitionCreated(tenant_id="t1", organization_id="o1", requisition_id="r2", occurred_at=now),
+        InventoryRequisitionProfileUpdated(tenant_id="t1", organization_id="o1", requisition_id="r2", occurred_at=now),
         DomainEventContext(correlation_id="tx"),
     )
     assert len(channel.notified) == 3, "a different requisition adds an exact detail hint but reuses the org-list hint"
 
     handler(
-        InventoryRequisitionCreated(tenant_id="t1", organization_id="o1", requisition_id="r1", occurred_at=now),
+        InventoryRequisitionProfileUpdated(tenant_id="t1", organization_id="o1", requisition_id="r1", occurred_at=now),
         DomainEventContext(correlation_id="next-tx"),
     )
     assert len(channel.notified) == 5, "a new transaction is never coalesced with the previous one"
@@ -210,7 +207,9 @@ def test_requisition_events_dedupe_within_one_transaction_across_event_types():
 # ---------------------------------------------------------------------------
 
 
-def test_create_requisition_produces_exactly_one_typed_event_and_both_hints(services):
+def test_create_requisition_produces_exactly_one_typed_event_and_list_hint_only(services):
+    """P29-FIX §2: a newly-created requisition cannot have a pre-existing open detail
+    projection for its own (just-generated) id -- Created must notify `requisition_list` only."""
     suffix = uuid4().hex[:6].upper()
     auth = services["auth_service"]
     auth.register_user(f"p29-create-{suffix}", "StrongPass123", role_names=["inventory_manager"])
@@ -227,12 +226,14 @@ def test_create_requisition_produces_exactly_one_typed_event_and_both_hints(serv
     )
 
     req_hints = _requisition_hints(hints)
-    assert len(req_hints) == 2
-    assert {h.scope_code for h in req_hints} == {REQUISITION_LIST_SCOPE_CODE, REQUISITION_DETAIL_SCOPE_CODE}
+    assert len(req_hints) == 1
+    assert req_hints[0].scope_code == REQUISITION_LIST_SCOPE_CODE
     assert requisition.version == 1
 
 
-def test_add_requisition_line_produces_exactly_one_typed_event_and_both_hints(services):
+def test_add_requisition_line_produces_exactly_one_typed_event_and_detail_hint_only(services):
+    """P29-FIX §3: line data never appears on the `requisition_list` row -- LineAdded must
+    notify `requisition_detail` only."""
     suffix = uuid4().hex[:6].upper()
     auth = services["auth_service"]
     auth.register_user(f"p29-addline-{suffix}", "StrongPass123", role_names=["inventory_manager"])
@@ -253,7 +254,8 @@ def test_add_requisition_line_produces_exactly_one_typed_event_and_both_hints(se
     )
 
     req_hints = _requisition_hints(hints)
-    assert len(req_hints) == 2
+    assert len(req_hints) == 1
+    assert req_hints[0].scope_code == REQUISITION_DETAIL_SCOPE_CODE
     assert line.quantity_requested == 5
 
 
@@ -350,7 +352,12 @@ def test_cancel_requisition_produces_exactly_one_typed_event_and_cancels_all_lin
     lines = procurement._requisition_line_repo.list_for_requisition(requisition.id)
     assert [line.status.value for line in lines] == ["CANCELLED"]
     req_hints = _requisition_hints(hints)
-    assert len(req_hints) == 2
+    assert len(req_hints) == 3, "Cancelled notifies list + detail + pending_approval (P29-FIX)"
+    assert {h.scope_code for h in req_hints} == {
+        REQUISITION_LIST_SCOPE_CODE,
+        REQUISITION_DETAIL_SCOPE_CODE,
+        REQUISITION_PENDING_APPROVAL_SCOPE_CODE,
+    }
 
 
 def test_cancel_requisition_stale_version_fails_cleanly(services):
@@ -435,9 +442,10 @@ def test_approve_requisition_produces_typed_event_and_both_hints_end_to_end(serv
     approvals.approve_and_apply(requisition.approval_request_id, note="Approved")
 
     req_hints = _requisition_hints(hints)
-    assert len(req_hints) == 2
+    assert len(req_hints) == 3, "Approved notifies list + detail + pending_approval (P29-FIX)"
     detail = next(h for h in req_hints if h.scope_code == REQUISITION_DETAIL_SCOPE_CODE)
     assert detail.scope.entity_id == requisition.id
+    assert any(h.scope_code == REQUISITION_PENDING_APPROVAL_SCOPE_CODE for h in req_hints)
 
 
 def test_reject_requisition_produces_typed_event_and_both_hints_end_to_end(services):
@@ -450,7 +458,8 @@ def test_reject_requisition_produces_typed_event_and_both_hints_end_to_end(servi
     approvals.reject(requisition.approval_request_id, note="Rejected")
 
     req_hints = _requisition_hints(hints)
-    assert len(req_hints) == 2
+    assert len(req_hints) == 3, "Rejected notifies list + detail + pending_approval (P29-FIX)"
+    assert any(h.scope_code == REQUISITION_PENDING_APPROVAL_SCOPE_CODE for h in req_hints)
 
 
 # ---------------------------------------------------------------------------
@@ -595,3 +604,240 @@ def test_incidental_workspaces_have_no_requisition_view_invalidation_adapter(
 
     assert hasattr(catalog, workspace_attr)
     assert not hasattr(catalog, adapter_attr)
+
+
+# ---------------------------------------------------------------------------
+# P29-FIX: refresh coalescing -- one transaction's multiple ViewInvalidation hints must
+# produce exactly one ACTUAL Procurement workspace rebuild, not one rebuild per hint.
+# ---------------------------------------------------------------------------
+
+
+def test_procurement_coalesces_list_and_detail_hints_from_one_transaction_into_one_rebuild(
+    services, qapp
+):
+    """P29-FIX §4/§5/§6/§11: `InventoryRequisitionApproved` notifies BOTH `requisition_list` and
+    `requisition_detail` (2 real Procurement-relevant hints, from the same committed approval
+    transaction). Before this fix, `_request_domain_refresh()` executed `refresh()` synchronously
+    on every call, so 2 hints meant 2 full workspace rebuilds. The ported QTimer(0)-coalesced
+    scheduling (same mechanism already established in `project_management`'s own
+    `ProjectManagementWorkspaceControllerBase`) must collapse both into exactly ONE actual
+    rebuild once the Qt event loop processes the scheduled timer."""
+    from PySide6.QtWidgets import QApplication
+
+    from src.application.runtime import build_desktop_api_registry
+    from src.ui_qml.modules.inventory_procurement.context import InventoryProcurementWorkspaceCatalog
+
+    suffix = uuid4().hex[:6].upper()
+    requisition = _submitted_requisition(services, suffix)
+    approvals = services["approval_service"]
+
+    registry = build_desktop_api_registry(services)
+    catalog = InventoryProcurementWorkspaceCatalog(desktop_api_registry=registry)
+    controller = catalog.procurementWorkspace
+    rebuild_calls = []
+    controller.refresh = lambda: rebuild_calls.append("rebuild")
+
+    app = QApplication.instance()
+    previously_running = bool(app.property("pmEventLoopRunning"))
+    app.setProperty("pmEventLoopRunning", True)
+    try:
+        login_as(services, f"p29-appr-{suffix}", "StrongPass123")
+        approvals.approve_and_apply(requisition.approval_request_id, note="Approved")
+        # No synchronous rebuild yet -- both hints only SCHEDULED a coalesced refresh.
+        assert rebuild_calls == [], "hints must not execute the rebuild synchronously once coalescing is active"
+
+        QApplication.processEvents()
+    finally:
+        app.setProperty("pmEventLoopRunning", previously_running)
+
+    assert rebuild_calls == ["rebuild"], (
+        f"expected exactly one coalesced Procurement rebuild for one transaction, got {len(rebuild_calls)}"
+    )
+
+
+def test_procurement_refreshes_once_per_transaction_without_an_active_event_loop(services):
+    """P29-FIX: when no real Qt event loop is running (`pmEventLoopRunning` unset/False -- the
+    default in this test process, and the shape most of this test suite already runs under),
+    `_schedule_domain_refresh` falls back to executing immediately/synchronously per call, same
+    as pre-fix behavior. This is the ALREADY-ACCEPTED fallback (matches `project_management`'s
+    identical mechanism), not a regression -- production always sets `pmEventLoopRunning=True`
+    before entering `app.exec()` (`src/ui_qml/shell/app.py`), so real users always get the
+    coalesced path exercised by the test above."""
+    from src.application.runtime import build_desktop_api_registry
+    from src.ui_qml.modules.inventory_procurement.context import InventoryProcurementWorkspaceCatalog
+
+    suffix = uuid4().hex[:6].upper()
+    requisition = _submitted_requisition(services, suffix)
+    approvals = services["approval_service"]
+
+    registry = build_desktop_api_registry(services)
+    catalog = InventoryProcurementWorkspaceCatalog(desktop_api_registry=registry)
+    controller = catalog.procurementWorkspace
+    rebuild_calls = []
+    controller.refresh = lambda: rebuild_calls.append("rebuild")
+
+    login_as(services, f"p29-appr-{suffix}", "StrongPass123")
+    approvals.approve_and_apply(requisition.approval_request_id, note="Approved")
+
+    assert len(rebuild_calls) == 2, (
+        "without an active event loop, each of the 2 Procurement-relevant hints (list, detail) "
+        "executes its own immediate rebuild -- documenting the fallback explicitly rather than "
+        "silently relying on it"
+    )
+
+
+# ---------------------------------------------------------------------------
+# P29-FIX §12: Dashboard event-by-event refresh precision, end-to-end (real typed events, not
+# manually-emitted adapter signals)
+# ---------------------------------------------------------------------------
+
+
+def _dashboard_refresh_spy(services):
+    """Returns (catalog, controller, refresh_calls). The caller MUST keep a reference to
+    `catalog` alive for the duration of the test -- its QObject children (including the
+    Requisition ViewInvalidation adapter) are only kept alive by the Qt parent-child
+    relationship, which does not survive the Python wrapper for `catalog` itself being
+    garbage-collected."""
+    from src.application.runtime import build_desktop_api_registry
+    from src.ui_qml.modules.inventory_procurement.context import InventoryProcurementWorkspaceCatalog
+
+    registry = build_desktop_api_registry(services)
+    catalog = InventoryProcurementWorkspaceCatalog(desktop_api_registry=registry)
+    controller = catalog.dashboardWorkspace
+    refresh_calls = []
+    controller.refresh = lambda: refresh_calls.append("refresh")
+    return catalog, controller, refresh_calls
+
+
+def test_dashboard_does_not_refresh_on_created_line_added_or_profile_updated(services):
+    suffix = uuid4().hex[:6].upper()
+    auth = services["auth_service"]
+    auth.register_user(f"p29-dashnr-{suffix}", "StrongPass123", role_names=["inventory_manager"])
+    site, storeroom, item, supplier = _procurement_context(services, suffix)
+    login_as(services, f"p29-dashnr-{suffix}", "StrongPass123")
+    procurement = services["inventory_procurement_service"]
+
+    _catalog, _controller, refresh_calls = _dashboard_refresh_spy(services)
+
+    requisition = procurement.create_requisition(
+        requesting_site_id=site.id, requesting_storeroom_id=storeroom.id, purpose="Dashboard no-op check"
+    )
+    assert refresh_calls == [], "Created must not refresh Dashboard"
+
+    procurement.add_requisition_line(
+        requisition.id, stock_item_id=item.id, quantity_requested=2, suggested_supplier_party_id=supplier.id
+    )
+    assert refresh_calls == [], "LineAdded must not refresh Dashboard"
+
+    procurement.update_requisition(requisition.id, purpose="Dashboard no-op check, updated")
+    assert refresh_calls == [], "ProfileUpdated must not refresh Dashboard"
+
+
+def test_dashboard_refreshes_on_approve(services):
+    suffix = uuid4().hex[:6].upper()
+    requisition = _submitted_requisition(services, suffix)
+
+    _catalog, _controller, refresh_calls = _dashboard_refresh_spy(services)
+    approvals = services["approval_service"]
+
+    login_as(services, f"p29-appr-{suffix}", "StrongPass123")
+    approvals.approve_and_apply(requisition.approval_request_id, note="Approved")
+    assert refresh_calls == ["refresh"], "Approved must refresh Dashboard exactly once"
+
+
+def test_dashboard_refreshes_on_submit(services):
+    suffix = uuid4().hex[:6].upper()
+    auth = services["auth_service"]
+    auth.register_user(f"p29-dashsub-{suffix}", "StrongPass123", role_names=["inventory_manager"])
+    site, storeroom, item, supplier = _procurement_context(services, suffix)
+    login_as(services, f"p29-dashsub-{suffix}", "StrongPass123")
+    procurement = services["inventory_procurement_service"]
+
+    requisition = procurement.create_requisition(
+        requesting_site_id=site.id, requesting_storeroom_id=storeroom.id, purpose="Dashboard submit check"
+    )
+    procurement.add_requisition_line(
+        requisition.id, stock_item_id=item.id, quantity_requested=2, suggested_supplier_party_id=supplier.id
+    )
+
+    _catalog, _controller, refresh_calls = _dashboard_refresh_spy(services)
+    procurement.submit_requisition(requisition.id)
+
+    assert refresh_calls == ["refresh"], "Submitted must refresh Dashboard exactly once"
+
+
+def test_dashboard_refreshes_on_reject(services):
+    suffix = uuid4().hex[:6].upper()
+    requisition = _submitted_requisition(services, suffix)
+
+    _catalog, _controller, refresh_calls = _dashboard_refresh_spy(services)
+    approvals = services["approval_service"]
+
+    login_as(services, f"p29-appr-{suffix}", "StrongPass123")
+    approvals.reject(requisition.approval_request_id, note="Rejected")
+
+    assert refresh_calls == ["refresh"], "Rejected must refresh Dashboard exactly once"
+
+
+def test_dashboard_refreshes_on_cancel(services):
+    suffix = uuid4().hex[:6].upper()
+    auth = services["auth_service"]
+    auth.register_user(f"p29-dashcancel-{suffix}", "StrongPass123", role_names=["inventory_manager"])
+    site, storeroom, item, supplier = _procurement_context(services, suffix)
+    login_as(services, f"p29-dashcancel-{suffix}", "StrongPass123")
+    procurement = services["inventory_procurement_service"]
+
+    requisition = procurement.create_requisition(
+        requesting_site_id=site.id, requesting_storeroom_id=storeroom.id, purpose="Dashboard cancel check"
+    )
+
+    _catalog, _controller, refresh_calls = _dashboard_refresh_spy(services)
+    procurement.cancel_requisition(requisition.id, note="No longer needed")
+
+    assert refresh_calls == ["refresh"], "Cancelled must refresh Dashboard exactly once"
+
+
+def test_sourcing_advanced_never_produces_a_pending_approval_hint_end_to_end(services):
+    """P28B-FIX already proved SourcingAdvanced doesn't reach Dashboard at the adapter level;
+    P29-FIX reconfirms the precise invariant end-to-end (real PO approval, real transaction):
+    SourcingAdvanced must never produce a `requisition_pending_approval` hint. This does NOT
+    assert Dashboard's overall `refresh_calls == []` -- the SAME transaction also emits
+    `InventoryPurchaseOrderApproved`, which legitimately refreshes Dashboard via its OWN,
+    independent, already-established real PO dependency (P28B); asserting zero total Dashboard
+    refreshes here would be wrong, not a stronger test."""
+    suffix = uuid4().hex[:6].upper()
+    auth = services["auth_service"]
+    auth.register_user(f"p29-dashsrc-buyer-{suffix}", "StrongPass123", role_names=["inventory_manager"])
+    auth.register_user(f"p29-dashsrc-appr-{suffix}", "StrongPass123", role_names=["approver"])
+    site, storeroom, item, supplier = _procurement_context(services, suffix)
+    login_as(services, f"p29-dashsrc-buyer-{suffix}", "StrongPass123")
+    procurement = services["inventory_procurement_service"]
+    purchasing = services["inventory_purchasing_service"]
+    approvals = services["approval_service"]
+
+    requisition = procurement.create_requisition(
+        requesting_site_id=site.id, requesting_storeroom_id=storeroom.id, purpose="Dashboard sourcing check"
+    )
+    requisition_line = procurement.add_requisition_line(
+        requisition.id, stock_item_id=item.id, quantity_requested=5, suggested_supplier_party_id=supplier.id
+    )
+    requisition = procurement.submit_requisition(requisition.id)
+    login_as(services, f"p29-dashsrc-appr-{suffix}", "StrongPass123")
+    approvals.approve_and_apply(requisition.approval_request_id, note="Approved requisition")
+
+    login_as(services, f"p29-dashsrc-buyer-{suffix}", "StrongPass123")
+    po = purchasing.create_purchase_order(
+        site_id=site.id, supplier_party_id=supplier.id, currency_code="EUR", source_requisition_id=requisition.id,
+    )
+    purchasing.add_purchase_order_line(
+        po.id, stock_item_id=item.id, destination_storeroom_id=storeroom.id,
+        quantity_ordered=5, unit_price=10.0, source_requisition_line_id=requisition_line.id,
+    )
+    po = purchasing.submit_purchase_order(po.id)
+
+    hints = _spy_hints(services)
+    login_as(services, f"p29-dashsrc-appr-{suffix}", "StrongPass123")
+    approvals.approve_and_apply(po.approval_request_id, note="Approved PO, sources requisition")
+
+    pending_approval_hints = [h for h in hints if h.scope_code == REQUISITION_PENDING_APPROVAL_SCOPE_CODE]
+    assert pending_approval_hints == [], "SourcingAdvanced must never produce a pending-approval hint"

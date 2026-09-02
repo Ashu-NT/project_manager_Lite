@@ -398,25 +398,13 @@ class InventoryProcurementWorkspaceCatalog(QObject):
         self._dashboard_purchase_order_view_invalidation_adapter.purchaseOrderDetailStale.connect(
             self._dashboard_workspace.refresh
         )
-        # P29: Dashboard's "Awaiting Approval" KPI/section counts Requisitions in
-        # {SUBMITTED, UNDER_REVIEW} (api/desktop/dashboard.py) -- a real dependency on
-        # Submitted/Approved/Rejected/Cancelled (each moves a Requisition into or out of that
-        # bucket). requisition_list/requisition_detail carry no finer-than-scope_code granularity
-        # (mirrors every other Inventory capability's own Dashboard wiring -- P20/P24/P25/P28B all
-        # react to the whole capability's list target, never a specific operation), so Created/
-        # LineAdded/ProfileUpdated/SourcingAdvanced also reach this refresh; those are harmless,
-        # not incorrect -- `refresh()` is idempotent and this exactly matches the established
-        # "Dashboard: full refresh() on either target, no narrower seam" acceptance class.
         self._dashboard_requisition_view_invalidation_adapter = RequisitionViewInvalidationAdapter(
             channel=self._view_invalidation_channel,
             tenant_id=self._active_tenant_id() or "",
             organization_id=self._active_organization_id() or "",
             parent=self,
         )
-        self._dashboard_requisition_view_invalidation_adapter.requisitionListStale.connect(
-            self._dashboard_workspace.refresh
-        )
-        self._dashboard_requisition_view_invalidation_adapter.requisitionDetailStale.connect(
+        self._dashboard_requisition_view_invalidation_adapter.requisitionPendingApprovalStale.connect(
             self._dashboard_workspace.refresh
         )
 
