@@ -1916,7 +1916,7 @@ document** - each is addressed when its owning capability's phase is implemented
   ("the project's planned-cost snapshot was recalculated") on the previously-unused
   `FinanceGovernanceUnitOfWork.planned_costs` accessor, via a new `FinanceGovernanceCommandBoundary.
   planned_cost()` method mirroring P19's `forecast_version()` shape exactly, field deleted (ADR-005
-  §TBD). `AssignmentRepository`/`ProjectResourceRepository` accessors were added to the shared UoW
+  §26.31). `AssignmentRepository`/`ProjectResourceRepository` accessors were added to the shared UoW
   (a small, precedent-following extension, not a new transaction stack) since `calculate_snapshot`'s
   diagnostics computation needed them and every sibling operation in that UoW is otherwise
   UoW-pure. Only `planned_cost_snapshot` (`ResourceScope`, project-scoped) exists — no
