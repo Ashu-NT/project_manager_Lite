@@ -681,6 +681,168 @@ shared Approval bridge, decomposing into 9 distinct PO-owned facts (more than P1
 
 No source was changed by this audit. Legacy Signal count unchanged at 19.
 
+**P30A — Inventory Reservation: semantic + transaction audit complete (design only, no migration
+yet).** Full source re-audit of `reservation_service.py` (5 direct producers: create/issue/
+link-document/unlink-document/close, the last shared by release and cancel),
+`stock_control_adjustments.py` (`hold_reservation`/`release_reservation`, invoked with
+`commit=False` so their own internal audit/emit branch never runs — the caller owns the commit),
+`stock_control_movements.py::issue_stock` (the `release_reserved_qty` path), and all 6 consumer
+binders. Confirms exactly 5 exact `inventory_reservations_changed.emit(...)` call sites, all
+Reservation-owned, no reflective/generic dispatch, no `ApprovalPostCommitEvent` usage (Reservation
+has no approval step at all — created directly `ACTIVE`), decomposing into fewer distinct facts
+than P17's rough "~5" estimate once document-link churn is set aside:
+
+- **3 Reservation-owned facts, not 5**: created (`create_reservation`), released/cancelled (one
+  shared `_close_reservation` producing either terminal status), consumption advanced
+  (`issue_reserved_stock` — partial and full issue are the same fact, distinguished only by the
+  server-derived resulting status, not a separate business action). **No profile/quantity-update
+  operation exists anywhere** (once created, a reservation's item/storeroom/quantity are
+  immutable — only status-transition fields ever change), **no separate activation/approval
+  step** (status starts at `ACTIVE` on create), and **no expiry**: `need_by_date` is stored but
+  never read by any status transition, scheduled job, or query filter anywhere in the module —
+  purely informational, not enforced. P17's classes B, C, F, and G (profile-changed,
+  activated/approved, expired, allocation-changed) do not exist as real facts for this aggregate.
+- **A 4th and 5th producer that are not business facts**: `link_document`/`unlink_document` mutate
+  only a `DocumentLink` association, never the reservation's own quantity/status fields, Balance,
+  or a ledger row — yet both still call `domain_events.inventory_reservations_changed.emit(...)`.
+  The closest sibling precedent, Purchase Order's own `link_document`/`unlink_document`
+  (`purchasing_service.py:142-176`), emits **no** legacy signal at all for the equivalent
+  operation. Recommend following that precedent: do not model document link/unlink as
+  `InventoryReservation*` DomainEvents in P30B — the existing activity/audit trail is sufficient,
+  matching P28A's own note that PO document link/unlink is "arguably owned by the already-
+  modernized Document capability rather than PO itself."
+- **Aggregate**: `StockReservation` — a single flat row per item/storeroom position (no child
+  `ReservationLine`; one reservation = one item = one storeroom), `version` field, optimistic
+  concurrency. No `location_id` field exists anywhere on the aggregate (Storeroom-level
+  granularity only). `requested_by_user_id`/`requested_by_username` are a snapshot of the
+  creating principal, not a validated Employee FK.
+- **Lifecycle** (`RESERVATION_STATUS_TRANSITIONS`, `application/common/support.py:71-77`):
+  `ACTIVE → {PARTIALLY_ISSUED, FULLY_ISSUED, RELEASED, CANCELLED}`,
+  `PARTIALLY_ISSUED → {FULLY_ISSUED, RELEASED}`; `FULLY_ISSUED`/`RELEASED`/`CANCELLED` are all
+  terminal, confirmed exhaustively from source, not inferred from method names.
+- **CRITICAL — Reservation → Stock Balance is a real, persisted mutation, not a derived read**:
+  `StockBalance.reserved_qty`/`available_qty` are maintained columns (with a `model_validator`
+  invariant, `available_qty == on_hand_qty - reserved_qty`, enforced on every load). `create`
+  increments `reserved_qty` via `_post_reservation_transaction` (`RESERVATION_HOLD`); `close`
+  (release/cancel) decrements it (`RESERVATION_RELEASE`); `issue_reserved_stock` decrements it via
+  `_post_movement_transaction`'s `release_reserved_qty` parameter alongside the on-hand decrease.
+  All three run inside the *same* commit as the Reservation row's own write (shared raw `Session`,
+  `commit=False` on every internal call, one `self._session.commit()` owned by
+  `ReservationService`) — genuine same-transaction cross-aggregate atomicity already exists today,
+  just not wrapped in a canonical UoW. `inventory_balances_changed` is correctly co-emitted on
+  create/issue/close (not on link/unlink-document, which never touches Balance) — classification
+  **B** (real mutation), not **D** (over-notification); Balance itself is explicitly out of P30B
+  scope per this phase's own brief and needs no change.
+- **Reservation → Ledger**: no separate `InventoryLedger` entity exists anywhere in the codebase
+  (confirmed by a repo-wide search) — `StockTransaction` rows *are* the ledger: append-only,
+  `RESERVATION_HOLD`/`RESERVATION_RELEASE`/`ISSUE` types, written in the same commit as the
+  Balance/Reservation rows, each carrying a `resulting_on_hand_qty`/`resulting_available_qty`
+  snapshot. `SqlAlchemyStockTransactionRepository` has no `update()` — genuinely immutable once
+  posted.
+- **Reservation → Requisition/PO/Receipt: NONE (classification D for all three)**, confirmed by a
+  full-module search — zero "reservation" reference anywhere under
+  `application/procurement/*` (`procurement_lifecycle.py`, `purchasing_lifecycle.py`,
+  `purchasing_receiving.py`). `INVENTORY_SOURCE_REFERENCE_TYPES` (shared by Reservation,
+  Requisition, and PO's own `source_reference_type` field) does list `"reservation"` as an
+  allowed value — the schema permits a future Requisition/PO to declare a Reservation as its
+  source — but no current code path ever sets it; the enum entry is unused, not wired.
+  Goods Receipt posting (`purchasing_receiving.py`) has no Reservation interaction at all — does
+  not auto-fulfill, allocate to, or change the status of any reservation.
+- **Reservation → Project/Task**: `source_reference_type`/`source_reference_id` is the same
+  shared free-text pair pattern as Requisition's own (enum-validated against
+  `project`/`task`/`work_order`/`reservation`/`requisition`/`purchase_order`, but the ID itself is
+  never checked for existence or cross-org membership) — the same source-reference-typing debt
+  P29 already documented for Requisition, not resolved here, not worsened here.
+- **Transaction ownership**: raw process-lifetime `Session` (`platform_services.session`, shared
+  with `StockControlService`), service-owned commit — classification **A**, not a canonical UoW,
+  not ApprovalService-owned. Same-transaction multi-repo atomicity (reservation + balance +
+  transaction/ledger) is real today, achieved only by every internal call passing `commit=False`
+  and one caller-owned `self._session.commit()` — fragile in the sense that it depends on every
+  future call site remembering the flag, not enforced by a type.
+- **Audit atomicity gap — same class P27A/P28A already found for Requisition/PO's raw-Session
+  operations**: `record_activity(...)` for the main action (create/issue/close) is called *after*
+  `self._session.commit()` has already succeeded, and defaults to `commit=True` (its own,
+  separate transaction). A failure there leaves "mutation committed, audit trail lost," and —
+  since the call isn't wrapped in `try`/`except` — would also prevent the legacy
+  `inventory_reservations_changed.emit(...)` a few lines later from ever running, compounding
+  silent UI staleness on top of the lost audit entry.
+- **No-op/idempotency**: no no-op gap to find for "update," because no update/profile-change
+  operation exists. Duplicate close (`INVENTORY_RESERVATION_STATUS_INVALID`/
+  `INVENTORY_RESERVATION_ALREADY_CONSUMED`) and over-issue
+  (`INVENTORY_RESERVATION_QTY_EXCEEDED`) are hard-rejected by explicit guards, not silently
+  no-op'd — a deliberate reject pattern, not a gap.
+- **Quantity invariants**: `reserved_qty > 0` enforced at creation
+  (`normalize_positive_quantity`); `issued_qty <= reserved_qty` enforced both in
+  `issue_reserved_stock` (`issue_qty > remaining_qty` guard) and independently in
+  `StockReservation`'s own `model_validator`; reserved-vs-available is enforced at the Balance
+  layer (`_post_reservation_transaction`'s `new_available < 0` guard). All server-computed, no
+  client-supplied `remaining_qty`.
+- **Concurrent reservation race — SAFE, verified mechanism, not just sequential tests**: both
+  `StockReservation.update()` and `StockBalance.update()` go through
+  `update_with_version_check` (`src/infra/persistence/db/optimistic.py`) — an atomic
+  `UPDATE ... WHERE id=? AND version=?`. Two concurrent reservations against the same balance can
+  both pass the in-app availability check against a stale read, but only the first to commit
+  succeeds; the second's version-guarded `UPDATE` affects zero rows and the repository raises
+  `ConcurrencyError` (`STALE_WRITE`) before any inconsistent state persists.
+  `ReservationService`'s blanket `except Exception: rollback; raise` propagates this untouched to
+  the caller — no silent oversubscription.
+- **Cross-org/reference integrity**: `_ensure_same_scope` explicitly checks both the Item's and
+  Storeroom's `organization_id` against the active organization at creation; no Location field
+  exists to independently verify. Requester is a session-principal snapshot, not a separately
+  org-checked Employee reference.
+- **Read models**: `reservation_list`/`reservation_detail`/`reservation_overview` — all live
+  queries through `ReservationService`, no separate cache, owned exclusively by the Reservations
+  workspace. Dashboard's "Open Reservations" KPI (`api/desktop/dashboard.py`) is a second genuine
+  consumer — a live count of `ACTIVE`/`PARTIALLY_ISSUED` reservations via
+  `list_reservations(limit=500)`, no caching. Inventory(Foundation)'s "Stock Balances" table
+  displays `reserved_qty`, but that is the **Balance** projection (classification **C**, derived
+  from Balance) — already kept fresh by `inventory_balances_changed`, which fires on every
+  quantity-affecting Reservation operation; its `inventory_reservations_changed` subscription is
+  redundant for that table, not a genuine Reservation dependency.
+- **Consumers**: all 6 workspace binders subscribe identically to all 4 remaining raw Inventory
+  signals (same fan-out pattern P24/P25/P27A/P28A already found and narrowed for their own
+  signals). Re-audit found only Reservations (owner) and Dashboard (KPI) have a real dependency;
+  Catalog, Pricing, and Procurement have **zero** "reserv" reference anywhere in their own
+  presenter/state-builder trees — the same incidental-subscription pattern already found and
+  removed elsewhere; Inventory(Foundation)'s dependency is real but on Balance, not Reservation
+  (see above).
+- **Proposed DomainEvents**: `InventoryReservationCreated`, `InventoryReservationReleased` /
+  `InventoryReservationCancelled` (or one `InventoryReservationClosed{resulting_status}` — an
+  open design choice for P30B, not resolved here, mirroring how P28A left PO's own two-vs-one
+  event shape choices to its implementation phase), `InventoryReservationConsumptionAdvanced`
+  (covers both partial and full issue — `resulting_status` distinguishes them, not a fact split).
+  Document link/unlink: no proposed event, per the PO precedent above.
+- **Proposed EventScope**: `reservation_list` (`OrganizationScope`) and `reservation_detail`
+  (`ResourceScope`, `module_code="inventory_procurement"`, `entity_type="stock_reservation"`) —
+  identical shape to Requisition's own P29 target. No project-specific or storeroom-specific scope
+  is justified — every real Reservation read model is either org-wide or single-entity.
+- **Cross-capability event matrix**: Reservation fact → Balance fact: yes, for create/close/issue
+  (existing `inventory_balances_changed` path, unchanged, out of scope); → Ledger fact: yes, a
+  `StockTransaction` row for the same three operations (already persisted, no new event needed);
+  → Requisition/PO/Receipt fact: none.
+- **Recommended sequencing — OPTION A**: P30B can fully retire `inventory_reservations_changed`
+  in one phase. Reservation is its sole owner (5 producer sites, zero cross-capability
+  producers); no cross-capability mutation blocks clean event ownership (Balance/Ledger stay
+  exactly as they are today, by this phase's own explicit scope boundary); the only
+  cross-workspace consumer with a genuine dependency (Dashboard's KPI) is trivially
+  re-subscribable to a typed event, the same move P29 already made for Dashboard's Requisition
+  KPIs. P30B's shape: (1) a new `InventoryReservationUnitOfWork` spanning
+  `reservations`/`balances`/`transactions` together (no existing Inventory UoW covers all three;
+  this is new, not an Option-A extension of an existing one — unlike P29's reuse of
+  `RequisitionSubmissionUnitOfWork`), replacing the current `commit=False`-threaded raw-Session
+  pattern with the same atomicity under a canonical UoW; (2) the 3 typed events above; (3) fix the
+  audit-atomicity gap as part of convergence (same fix class P27A/P28A each called for their own
+  capability); (4) a `ReservationViewInvalidationAdapter` mirroring
+  `requisition_view_invalidation_adapter.py`; (5) rewire Reservations + Dashboard onto it; (6)
+  drop the redundant subscription entirely from Catalog/Pricing/Procurement/Inventory(Foundation)
+  — the last keeps only its already-correct `inventory_balances_changed` subscription; (7) delete
+  the 5 legacy emit sites and the `DomainEvents` field.
+- `inventory_reservations_changed` **can be deleted in one implementation phase**: prerequisites
+  are exactly the 7 items above — no other capability's own modernization needs to happen first
+  (unlike PO/Requisition's mutual PO-approval-triggers-Requisition-sourcing blocker).
+
+No source was changed by this audit. Legacy Signal count unchanged at 17.
+
 ## 4. Current State
 
 **Legacy Signal count: 17 as of P29** (source-derived from
@@ -707,7 +869,10 @@ was last updated — `dataclasses.fields(domain_events)`, not a manual field cou
 zero producers, zero consumers, fields absent. Inventory/Procurement's remaining legacy signals
 (4: `inventory_balances_changed`, `inventory_reservations_changed`, `inventory_receipts_changed`,
 `inventory_cycle_counts_changed`) cover Stock Balance/Ledger, Reservation, Goods Receipt, and Cycle
-Count — none of which have been audited yet. **No next capability has been chosen.** Per this
+Count. **Reservation is now fully audited** (P30A, see §3) — recommends a single-phase P30B that
+can fully retire `inventory_reservations_changed`, no cross-capability blocker found — but **no
+next capability has been chosen/committed yet**; Stock Balance/Ledger, Goods Receipt, and Cycle
+Count remain unaudited. Per this
 document's own repeated caution, re-run prioritization from current source before committing to a
 target — concurrent development elsewhere may have changed readiness since P17/P26A. **Auth
 Credential & Session remains AUDITED / DEFERRED** (P26A, see §3) — still not recommended given no
@@ -745,7 +910,9 @@ Remaining capability groups, not yet assigned rigid phase numbers:
 - **Inventory/Procurement**: **Purchase Order — DONE (P28B/P28B-FIX, see §3)** and **Requisition —
   DONE (P29, see §3)**, both fully modernized: `inventory_purchase_orders_changed` and
   `inventory_requisitions_changed` both deleted (fields absent, zero producers, zero consumers).
-  Reservation, Stock Balance/Ledger, Cycle Count, Goods Receipt remain unaudited — no next
+  **Reservation — AUDITED (P30A, see §3)**: single-phase P30B recommended, no cross-capability
+  blocker (Balance/Ledger stay unchanged by design, Requisition/PO/Receipt have zero relationship
+  to Reservation). Stock Balance/Ledger, Cycle Count, Goods Receipt remain unaudited — no next
   Inventory/Procurement target has been chosen yet.
 - **Auth/Security — AUDITED / DEFERRED**: Auth Credential & Session Lifecycle (`auth_changed` -
   largest remaining raw-Session surface in the codebase). Fully audited in P26A (see §3): proposed
