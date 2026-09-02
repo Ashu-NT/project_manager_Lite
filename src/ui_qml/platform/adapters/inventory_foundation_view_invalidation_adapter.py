@@ -5,6 +5,7 @@ from PySide6.QtCore import QObject, Signal
 from src.core.modules.inventory_procurement.application.inventory.event_handlers.view_invalidation import (
     INVENTORY_CATEGORY,
     LOCATION_LIST_SCOPE_CODE,
+    REORDER_POLICY_LIST_SCOPE_CODE,
     STOREROOM_LIST_SCOPE_CODE,
 )
 from src.core.shared.events.view_invalidation import (
@@ -20,6 +21,7 @@ from src.ui_qml.platform.adapters.scoped_view_invalidation_subscription import (
 class InventoryFoundationViewInvalidationAdapter(QObject):
     storeroomListStale = Signal(str)  # storeroom_id
     locationListStale = Signal(str)  # location_id
+    reorderPolicyListStale = Signal(str)  # policy_id
 
     def __init__(
         self,
@@ -45,6 +47,8 @@ class InventoryFoundationViewInvalidationAdapter(QObject):
             self.storeroomListStale.emit(hint.entity_id or "")
         elif hint.scope_code == LOCATION_LIST_SCOPE_CODE:
             self.locationListStale.emit(hint.entity_id or "")
+        elif hint.scope_code == REORDER_POLICY_LIST_SCOPE_CODE:
+            self.reorderPolicyListStale.emit(hint.entity_id or "")
 
     def dispose(self) -> None:
         self._subscription.dispose()

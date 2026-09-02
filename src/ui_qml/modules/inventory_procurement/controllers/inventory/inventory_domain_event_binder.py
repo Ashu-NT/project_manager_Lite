@@ -9,7 +9,12 @@ def bind_domain_events(ctrl) -> None:
     removed (P24): the `item_options` selector is a real Item dependency, now served by
     `InventoryCatalogViewInvalidationAdapter.itemListStale` wired to the narrow
     `refresh_item_options()` seam in context.py; Category has zero dependency here
-    (source-proven), so no replacement subscription for it."""
+    (source-proven), so no replacement subscription for it. `inventory_reorder_policies_changed`
+    removed (P25): this IS the owning workspace (its "Foundation" panel embeds the
+    `ReorderPolicy` list via `build_foundation_snapshot`) -- now served by
+    `InventoryFoundationViewInvalidationAdapter.reorderPolicyListStale`, wired to a full
+    `refresh()` in context.py (no narrower seam exists in the same monolithic
+    `build_workspace_state` that already justifies full refresh for Storeroom/Location)."""
 
     def _on_domain_event(_payload: object) -> None:
         ctrl._request_domain_refresh()
@@ -20,7 +25,6 @@ def bind_domain_events(ctrl) -> None:
         domain_events.inventory_requisitions_changed,
         domain_events.inventory_purchase_orders_changed,
         domain_events.inventory_receipts_changed,
-        domain_events.inventory_reorder_policies_changed,
         domain_events.inventory_cycle_counts_changed,
     ):
         ctrl._subscribe_domain_signal(signal, _on_domain_event)

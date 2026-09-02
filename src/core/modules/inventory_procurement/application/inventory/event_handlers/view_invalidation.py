@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.core.modules.inventory_procurement.domain.inventory.foundation_events import (
+    InventoryReorderPolicyConfigured,
     LocationCreated,
     LocationProfileUpdated,
     StoreroomCreated,
@@ -17,6 +18,7 @@ from src.core.shared.events.view_invalidation import (
 INVENTORY_CATEGORY = "inventory"
 STOREROOM_LIST_SCOPE_CODE = "storeroom_list"
 LOCATION_LIST_SCOPE_CODE = "location_list"
+REORDER_POLICY_LIST_SCOPE_CODE = "reorder_policy_list"
 
 _OrgTarget = tuple[str, str]
 
@@ -97,10 +99,51 @@ def build_location_list_view_invalidation_handler(channel: ViewInvalidationChann
     return handle_location_event
 
 
+def build_reorder_policy_list_view_invalidation_handler(channel: ViewInvalidationChannel):
+    """`reorder_policy_list` is a single org-wide projection -- the Inventory workspace's own
+    "Foundation" panel (`list_reorder_policies`/`build_foundation_snapshot`), optionally filtered
+    by item/storeroom/location at query time but never cached as a separate per-item or
+    per-storeroom projection. Proven from source: no other Inventory/Procurement workspace
+    presenter references the `ReorderPolicy` entity at all -- the Dashboard/Pricing "reorder
+    required" low-stock signal is computed entirely from `StockItem`'s own embedded
+    `reorder_point`/`min_qty` fields (already covered by P24's `InventoryItemProfileUpdated`),
+    never from this table."""
+
+    current_correlation_id: list[str | None] = [None]
+    notified_targets: set[_OrgTarget] = set()
+
+    def handle_reorder_policy_event(
+        event: InventoryReorderPolicyConfigured,
+        context: DomainEventContext,
+    ) -> None:
+        if context.correlation_id != current_correlation_id[0]:
+            current_correlation_id[0] = context.correlation_id
+            notified_targets.clear()
+
+        target = (event.tenant_id, event.organization_id)
+        if target in notified_targets:
+            return
+        notified_targets.add(target)
+
+        channel.notify(
+            ViewInvalidationHint(
+                scope=OrganizationScope(event.tenant_id, event.organization_id),
+                category=INVENTORY_CATEGORY,
+                scope_code=REORDER_POLICY_LIST_SCOPE_CODE,
+                entity_type="inventory_reorder_policy",
+                entity_id=event.policy_id,
+            )
+        )
+
+    return handle_reorder_policy_event
+
+
 __all__ = [
     "build_storeroom_list_view_invalidation_handler",
     "build_location_list_view_invalidation_handler",
+    "build_reorder_policy_list_view_invalidation_handler",
     "INVENTORY_CATEGORY",
     "STOREROOM_LIST_SCOPE_CODE",
     "LOCATION_LIST_SCOPE_CODE",
+    "REORDER_POLICY_LIST_SCOPE_CODE",
 ]

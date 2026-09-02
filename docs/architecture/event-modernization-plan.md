@@ -206,9 +206,25 @@ Pricing (zero dependency on Item or Category anywhere in its own presenter/state
 subscription removed with no replacement, the same class of finding as P18B's Control-workspace
 `resources_changed` removal). See ADR-005 §26.21 for the full design.
 
+| P25 | Inventory Reorder Policy | Option A convergence — added a `reorder_policies` named repository accessor to the EXISTING `InventoryFoundationUnitOfWork` (shared with Storeroom/Location, P20), rather than a new UoW: `ReorderPolicy` is validated against the same Item/Storeroom/Location repositories, uses the same `storeroom`-scoped permission model, and is owned by the same `InventoryFoundationService` class that already held Storeroom/Location's own commands — `upsert_reorder_policy` moved off raw `self._session.commit()` onto this shared UoW, and gained a real compliance audit entry for the first time (previously only an activity-feed entry) | `InventoryReorderPolicyConfigured` — one semantic event for the single `upsert_reorder_policy` business operation (the desktop command is itself literally named `InventoryReorderPolicyUpsertCommand`): the caller never distinguishes create vs. update, so this is not split into Created/Updated | Narrow: `reorder_policy_list` (`OrganizationScope`) — one org-wide projection feeding only the Inventory workspace's own "Foundation" panel (`build_foundation_snapshot`); proven that no other Inventory/Procurement workspace references the `ReorderPolicy` entity at all — Dashboard/Pricing's "reorder required" low-stock signal is computed entirely from `StockItem`'s own embedded `reorder_point`/`min_qty` fields (P24), never from this table | `inventory_reorder_policies_changed` deleted |
+
+**Inventory Reorder Policy is fully modernized** as of P25. Re-audit resolved P17's own semantic
+uncertainty ("create/update may be combined into one service operation"): confirmed `upsert_reorder_policy`
+is a genuine upsert (natural key = organization + Item + Storeroom + optional Location, looked up
+via `get_for_scope`), not two business actions disguised as one — the desktop API command's own
+name (`InventoryReorderPolicyUpsertCommand`) already documents this. True no-op detection added
+to the update-via-scope-lookup path (candidate-vs-current comparison before any timestamp bump —
+previously always wrote/audited/emitted on identical input). All six Inventory workspace binders'
+`inventory_reorder_policies_changed` subscriptions re-audited: only the owning Inventory workspace
+had a real dependency (full `refresh()`, no narrower seam exists in the same monolithic
+`build_workspace_state` that already justifies full refresh for Storeroom/Location); Catalog/
+Dashboard/Pricing/Procurement/Reservations all had zero real dependency on the `ReorderPolicy`
+entity — all five subscriptions removed with no replacement. See ADR-005 §26.22 for the full
+design.
+
 ## 4. Current State
 
-**Legacy Signal count: 20 as of P24** (source-derived from `src/core/shared/events/domain_events.py`,
+**Legacy Signal count: 19 as of P25** (source-derived from `src/core/shared/events/domain_events.py`,
 re-verified against current source when this document was last updated).
 
 | Area | Count |
@@ -217,7 +233,7 @@ re-verified against current source when this document was last updated).
 | Auth/Security | 1 |
 | Project Management | 6 |
 | Finance | 6 |
-| Inventory/Procurement | 7 |
+| Inventory/Procurement | 6 |
 
 > **This is a snapshot, not a fact.** Recompute the count directly from
 > `src/core/shared/events/domain_events.py` before relying on it - do not trust this table if it
@@ -226,7 +242,7 @@ re-verified against current source when this document was last updated).
 
 ## 5. Current Priority
 
-**Inventory Item Catalog + Item Category are fully modernized (P24, see §3).** The next
+**Inventory Reorder Policy is fully modernized (P25, see §3).** The next
 capability has not yet been chosen — per this document's own repeated caution, re-run
 prioritization from current source before committing to a next target: concurrent development
 elsewhere may have changed readiness since P17.
@@ -239,9 +255,9 @@ concurrent development elsewhere in the codebase may change any capability's rea
 its turn comes up.
 
 P18 Project Resource, P19 Finance Forecast, P20 Inventory Storeroom/Location, P21 Finance
-Financial Setup, P22 Finance Rate Card, P23 PM Baseline Approval, and P24 Inventory Item Catalog +
-Item Category are all DONE (see §3). No further phase has a number assigned yet — see the
-remaining capability groups below.
+Financial Setup, P22 Finance Rate Card, P23 PM Baseline Approval, P24 Inventory Item Catalog +
+Item Category, and P25 Inventory Reorder Policy are all DONE (see §3). No further phase has a
+number assigned yet — see the remaining capability groups below.
 
 Remaining capability groups, not yet assigned rigid phase numbers:
 
@@ -252,7 +268,7 @@ Remaining capability groups, not yet assigned rigid phase numbers:
 - **Finance**: Financial Change, Project Commitment (fix the missing-rollback bug in
   `commitment_service.py` first), Project Cost Entry, Project Budget, Planned Cost, Billing
   Preparation.
-- **Inventory/Procurement**: Reorder Policy, Requisition, Purchase Order,
+- **Inventory/Procurement**: Requisition, Purchase Order,
   Reservation, Stock Balance/Ledger, Cycle Count, Goods Receipt.
 - **Auth/Security**: Auth Credential & Session Lifecycle (`auth_changed` - largest remaining
   raw-Session surface in the codebase; needs its own 2-phase split, transaction convergence

@@ -2538,6 +2538,76 @@ both fields absent. The legacy Signal count is 20 as of this phase (22 minus the
 confirmed source-derived). The Inventory Item Catalog and Item Category capabilities are fully
 modernized.
 
+**26.22 Inventory Reorder Policy: FULLY MODERNIZED (P25) —
+`inventory_reorder_policies_changed` DELETED.** Re-audited from CURRENT source: exactly one
+producer method, `InventoryFoundationService.upsert_reorder_policy` (`foundation_service.py`),
+confirming P17's own one-producer finding. Resolved P17's own explicitly-left-open semantic
+uncertainty ("create/update may be combined into one service operation"): this IS a genuine
+upsert, not two business actions disguised as one — the desktop API command itself is literally
+named `InventoryReorderPolicyUpsertCommand`, and the service method looks up an existing policy
+either by explicit `policy_id` (editing a known row) or by natural-key scope lookup
+(`get_for_scope(organization_id, stock_item_id, storeroom_id, location_id)`, when `policy_id` is
+omitted), then either creates or updates depending on whether one is found. The caller never
+distinguishes the two cases. Per this phase's own §2 instruction ("do not mechanically split a
+true business command merely because persistence sometimes INSERTs and sometimes UPDATEs"), one
+semantic event was chosen: `InventoryReorderPolicyConfigured` — not `Created`/`Updated`.
+
+Domain boundary audited (§3/§4): `ReorderPolicy`'s natural business identity is the composite
+(organization, Item, Storeroom, optional Location) key, not `policy_id` alone — confirmed from
+the repository's own `get_for_scope` signature and the IntegrityError message ("A reorder policy
+already exists for the selected stock scope"), proving a real DB uniqueness constraint on this
+exact tuple. `is_active` is a plain profile flag with no transition validation of its own (no
+`REORDER_POLICY_STATUS_TRANSITIONS`-equivalent map exists in source) — folded into the single
+Configured event, matching Category's own precedent (P24) rather than Item/Storeroom's separate
+status-change event.
+
+Transaction ownership (§5): Option A convergence — added a `reorder_policies` named repository
+accessor to the EXISTING `InventoryFoundationUnitOfWork` (P20's own Storeroom + Storage Location
+UoW), rather than building a new `InventoryReorderPolicyUnitOfWork` or reusing the Item-centric
+`InventoryCatalogUnitOfWork` (P24). Chosen because `ReorderPolicy` is owned by the SAME
+`InventoryFoundationService` class that already holds Storeroom/Location's own commands (not a
+separate service), is validated against those SAME repositories
+(`self._inventory_service.get_storeroom`/`self._get_location`), and uses the identical
+`storeroom`-scoped `require_scope_permission` authorization model — the same transactional
+cohesion criteria P20/P21/P22/P24 each applied for their own Option A choices. `upsert_reorder_policy`
+moved off raw `self._session.commit()`/`rollback()` onto `self._require_uow_factory().create(...)`,
+the SAME factory instance `InventoryFoundationService` was already constructed with (it had
+`uow_factory`/`_require_uow_factory()`/`_new_context()` wired in already, from Location's own
+prior convergence — only `upsert_reorder_policy` itself had not yet been migrated). True no-op
+detection added to the update-via-scope-lookup path (candidate-vs-current comparison before any
+timestamp bump — previously always wrote/audited/emitted on identical input, the same gap found
+in every prior no-op-audited phase). A real compliance audit entry (`record_audit_entry(uow, ...,
+commit=False, fail_closed=True)`) was added for the first time — confirmed absent from source
+before this phase, only an activity-feed entry existed.
+
+Reference integrity (§6) audited, no bug found: Item/Storeroom/Location/supplier references are
+all validated through the SAME already-org-scoped lookups Storeroom/Location/Item Catalog
+themselves use (`ItemMasterService.get_item`, `InventoryService.get_storeroom`,
+`_validate_optional_location` — which also confirms a supplied Location genuinely belongs to the
+selected Storeroom, not just the same organization). No cross-org bug existed to fix.
+
+Exactly one ViewInvalidation target (`application/inventory/event_handlers/view_invalidation.py`,
+joining Storeroom/Location's own handlers): `reorder_policy_list` (`OrganizationScope`). Re-audit
+of all six Inventory workspace binders (not P17's own outdated six-workspace assumption) found
+only ONE real consumer: the owning Inventory workspace's own "Foundation" panel
+(`build_foundation_snapshot`, the SAME monolithic state builder that already justifies
+Storeroom/Location's own full `refresh()` — P20). The other five (Catalog, Dashboard, Pricing,
+Procurement, Reservations) have ZERO dependency on the `ReorderPolicy` entity at all — confirmed
+a genuinely separate mechanism drives the Dashboard/Pricing "reorder required" low-stock signal:
+it is computed entirely from `StockItem`'s OWN embedded `reorder_point`/`min_qty` fields at
+stock-movement time (`stock_control_movements.py`), never consulting the `ReorderPolicy` table —
+a genuine, pre-existing architectural gap (the deeper per-storeroom policy is not yet wired into
+the live reorder decision), noted here for visibility but out of this phase's scope to fix. All
+five incidental subscriptions removed with no replacement, the same class of finding as P18B's
+Control-workspace `resources_changed` removal and P24's Pricing removal.
+
+`inventory_reorder_policies_changed` is now deleted from `DomainEvents` entirely — zero
+producers, zero consumers (all six workspace binders' legacy subscriptions removed, one replaced
+by the typed `InventoryFoundationViewInvalidationAdapter.reorderPolicyListStale` signal wired to
+the Inventory workspace's full `refresh()`), field absent. The legacy Signal count is 19 as of
+this phase (20 minus the one deletion — confirmed source-derived). The Inventory Reorder
+Policy capability is fully modernized.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

@@ -48,6 +48,7 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.uow.catal
 )
 from src.core.modules.inventory_procurement.application.inventory.event_handlers.view_invalidation import (
     build_location_list_view_invalidation_handler,
+    build_reorder_policy_list_view_invalidation_handler,
     build_storeroom_list_view_invalidation_handler,
 )
 from src.core.modules.inventory_procurement.application.catalog.event_handlers.view_invalidation import (
@@ -55,6 +56,7 @@ from src.core.modules.inventory_procurement.application.catalog.event_handlers.v
     build_item_list_view_invalidation_handler,
 )
 from src.core.modules.inventory_procurement.domain.inventory.foundation_events import (
+    InventoryReorderPolicyConfigured,
     LocationCreated,
     LocationProfileUpdated,
     StoreroomCreated,
@@ -273,6 +275,12 @@ def build_inventory_procurement_service_bundle(
         platform_services.platform_post_commit_bus.subscribe(
             _location_event_type, _location_list_view_invalidation_handler
         )
+    _reorder_policy_list_view_invalidation_handler = build_reorder_policy_list_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    platform_services.platform_post_commit_bus.subscribe(
+        InventoryReorderPolicyConfigured, _reorder_policy_list_view_invalidation_handler
+    )
     inventory_service = InventoryService(
         platform_services.session,
         storeroom_repo,

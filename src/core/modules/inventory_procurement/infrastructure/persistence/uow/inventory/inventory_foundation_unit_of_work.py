@@ -8,6 +8,7 @@ from src.core.modules.inventory_procurement.contracts.uow.inventory.inventory_fo
     InventoryFoundationUnitOfWork,
 )
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.inventory import (
+    SqlAlchemyReorderPolicyRepository,
     SqlAlchemyStorageLocationRepository,
     SqlAlchemyStoreroomRepository,
 )
@@ -55,6 +56,9 @@ class SqlAlchemyInventoryFoundationUnitOfWork(
             session, tenant_context_service=tenant_context_service
         )
         self.locations = SqlAlchemyStorageLocationRepository(
+            session, tenant_context_service=tenant_context_service
+        )
+        self.reorder_policies = SqlAlchemyReorderPolicyRepository(
             session, tenant_context_service=tenant_context_service
         )
 
