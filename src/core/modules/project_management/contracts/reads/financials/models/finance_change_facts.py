@@ -107,7 +107,6 @@ class FinancialChangeDetailFact:
     approval_request_id: str | None
     approval_status: str
     approval_requested_by: str
-    approval_requested_by_user_id: str | None
     approval_requested_at: datetime | None
     approval_decided_by: str
     approval_decided_at: datetime | None
@@ -125,6 +124,7 @@ class FinancialChangeDetailFact:
     rejected_at: datetime | None
     rejection_notes: str
     impact_count: int
+    approval_requested_by_user_id: str | None = None
     can_edit: bool = False
     can_add_impact: bool = False
     can_submit: bool = False

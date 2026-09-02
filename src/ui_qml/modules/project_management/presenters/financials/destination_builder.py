@@ -647,6 +647,7 @@ def build_destination_state(
             overview=state.overview,
             selected_project_id=project_id,
             selected_change_id=changes["selected_change_id"],
+            can_create_change=changes["can_create_change"],
             selected_change=changes["selected_change"],
             financial_changes=changes["financial_changes"],
             financial_change_impacts=changes["financial_change_impacts"],

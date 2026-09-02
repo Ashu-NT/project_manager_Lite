@@ -135,6 +135,7 @@ Item {
     property string billingLineSourceState: ""
     property var commercialProjectionModel: ({ "id": "", "fields": [] })
     property bool isBusy: false
+    property bool canCreateFinancialChange: false
     property string selectedActualEntryId: ""
     property string actualSortKey: "metaText"
     property int actualSortDirection: Qt.DescendingOrder
@@ -181,6 +182,11 @@ Item {
     signal financialChangeImpactSortRequested(string key, int direction)
     signal financialChangeFiltersRequested(string search, string status, string approvalStatus, string appliedState)
     signal financialChangeImpactFiltersRequested(string search, string impactType, string appliedState)
+    signal financialChangeRequestCreateRequested()
+    signal financialChangeRequestEditRequested(var change)
+    signal financialChangeLifecycleRequested(string action, var change, var impact)
+    signal financialChangeImpactCreateRequested(var change)
+    signal financialChangeImpactEditRequested(var change, var impact)
     signal varianceBaselineSelected(string baselineId)
     signal costPhasingPresetRequested(int months, string granularity)
     signal billingPreparationSelected(string preparationId)
@@ -661,6 +667,7 @@ Item {
             impactType: root.impactType
             impactAppliedState: root.impactAppliedState
             busy: root.isBusy
+            canCreate: root.canCreateFinancialChange
             onChangeSelected: function(changeId) {
                 root.financialChangeSelected(changeId)
             }
@@ -673,6 +680,22 @@ Item {
             }
             onImpactFiltersRequested: function(search, impactType, appliedState) {
                 root.financialChangeImpactFiltersRequested(search, impactType, appliedState)
+            }
+            onRequestCreateRequested: root.financialChangeRequestCreateRequested()
+            onRequestEditRequested: function(change) {
+                root.financialChangeRequestEditRequested(change)
+            }
+            onRequestLifecycleRequested: function(action, change) {
+                root.financialChangeLifecycleRequested(action, change, null)
+            }
+            onImpactCreateRequested: function(change) {
+                root.financialChangeImpactCreateRequested(change)
+            }
+            onImpactEditRequested: function(change, impact) {
+                root.financialChangeImpactEditRequested(change, impact)
+            }
+            onImpactRemoveRequested: function(change, impact) {
+                root.financialChangeLifecycleRequested("remove_impact", change, impact)
             }
         }
     }

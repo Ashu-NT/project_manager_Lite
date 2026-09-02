@@ -28,8 +28,9 @@ from src.core.modules.project_management.domain.financials.financial_change impo
     FinancialChangeImpactType,
     FinancialChangeStatus,
 )
-from src.core.modules.project_management.application.financials.invalidation import (
-    invalidation_scope,
+from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
+    FinancialChangeChanged,
+    FinancialChangeEventType,
 )
 from src.core.modules.project_management.infrastructure.approval.financial_change_apply_participant import (
     FinancialChangeApprovalParticipant,
@@ -131,9 +132,13 @@ def test_participant_apply_applies_change_on_the_supplied_session_with_budget_on
     assert applied.applied_forecast_id is None
     assert not applied.applied_schedule_count
     assert result.post_commit_events == (
-        ApprovalPostCommitEvent("financial_changes_changed", invalidation_scope(applied)),
         ApprovalPostCommitEvent("budgets_changed", project.id),
     )
+    change_event = next(
+        event for event in result.domain_events if isinstance(event, FinancialChangeChanged)
+    )
+    assert change_event.change_type is FinancialChangeEventType.APPLIED
+    assert change_event.applied_effects == ("budget",)
 
 
 def test_participant_reject_rejects_change_on_the_supplied_session(services, session):
@@ -145,8 +150,16 @@ def test_participant_reject_rejects_change_on_the_supplied_session(services, ses
 
     rejected = deps.financial_change_service._change_repo.get(change.id)
     assert rejected.status is FinancialChangeStatus.REJECTED
-    assert result.post_commit_events == (
-        ApprovalPostCommitEvent("financial_changes_changed", invalidation_scope(rejected)),
+    assert result.post_commit_events == ()
+    assert result.domain_events == (
+        FinancialChangeChanged(
+            tenant_id=rejected.tenant_id,
+            organization_id=rejected.organization_id,
+            project_id=rejected.project_id,
+            change_id=rejected.id,
+            change_type=FinancialChangeEventType.REJECTED,
+            occurred_at=rejected.rejected_at,
+        ),
     )
 
 
