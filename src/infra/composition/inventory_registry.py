@@ -43,9 +43,16 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.requisiti
 from src.core.modules.inventory_procurement.infrastructure.persistence.uow.inventory.inventory_foundation_unit_of_work import (
     SqlAlchemyInventoryFoundationUnitOfWorkFactory,
 )
+from src.core.modules.inventory_procurement.infrastructure.persistence.uow.catalog.inventory_catalog_unit_of_work import (
+    SqlAlchemyInventoryCatalogUnitOfWorkFactory,
+)
 from src.core.modules.inventory_procurement.application.inventory.event_handlers.view_invalidation import (
     build_location_list_view_invalidation_handler,
     build_storeroom_list_view_invalidation_handler,
+)
+from src.core.modules.inventory_procurement.application.catalog.event_handlers.view_invalidation import (
+    build_item_category_list_view_invalidation_handler,
+    build_item_list_view_invalidation_handler,
 )
 from src.core.modules.inventory_procurement.domain.inventory.foundation_events import (
     LocationCreated,
@@ -53,6 +60,13 @@ from src.core.modules.inventory_procurement.domain.inventory.foundation_events i
     StoreroomCreated,
     StoreroomProfileUpdated,
     StoreroomStatusChanged,
+)
+from src.core.modules.inventory_procurement.domain.catalog.catalog_events import (
+    InventoryItemCategoryCreated,
+    InventoryItemCategoryProfileUpdated,
+    InventoryItemCreated,
+    InventoryItemProfileUpdated,
+    InventoryItemStatusChanged,
 )
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.catalog import (
     SqlAlchemyInventoryItemCategoryRepository,
@@ -189,6 +203,40 @@ def build_inventory_procurement_service_bundle(
     )
     logger.debug("Inventory/Procurement repositories built")
     logger.debug("Inventory/Procurement core services build begin")
+    # P24: the canonical, capability-owned UoW for Item + Item Category commands -- shares the
+    # SAME composition-owned dispatcher/post-commit bus every Platform UnitOfWork factory
+    # already uses, never a second, module-local instance.
+    inventory_catalog_uow_session_factory = sessionmaker(
+        bind=platform_services.session.bind, future=True
+    )
+    inventory_catalog_uow_factory = SqlAlchemyInventoryCatalogUnitOfWorkFactory(
+        session_factory=inventory_catalog_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
+    _item_list_view_invalidation_handler = build_item_list_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _item_event_type in (
+        InventoryItemCreated,
+        InventoryItemProfileUpdated,
+        InventoryItemStatusChanged,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _item_event_type, _item_list_view_invalidation_handler
+        )
+    _item_category_list_view_invalidation_handler = build_item_category_list_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _item_category_event_type in (
+        InventoryItemCategoryCreated,
+        InventoryItemCategoryProfileUpdated,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _item_category_event_type, _item_category_list_view_invalidation_handler
+        )
     inventory_item_category_service = ItemCategoryService(
         platform_services.session,
         category_repo,
@@ -196,6 +244,7 @@ def build_inventory_procurement_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
+        uow_factory=inventory_catalog_uow_factory,
     )
     # P20: the canonical, capability-owned UoW for Storeroom + Storage Location commands --
     # shares the SAME composition-owned dispatcher/post-commit bus every Platform UnitOfWork
@@ -244,6 +293,7 @@ def build_inventory_procurement_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
+        uow_factory=inventory_catalog_uow_factory,
     )
     # Approval-P1: the narrow, capability-specific canonical UoW for `submit_requisition` --
     # shares the SAME composition-owned dispatcher/post-commit bus every Platform UnitOfWork

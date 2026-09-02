@@ -34,6 +34,7 @@ from .reservations_mutation_handler import (
     release_reservation,
 )
 from .reservations_refresh_service import refresh as _do_refresh
+from .reservations_refresh_service import refresh_item_options as _do_refresh_item_options
 from .reservations_refresh_service import refresh_storeroom_options as _do_refresh_storeroom_options
 from .reservations_selection_handler import (
     select_reservation,
@@ -201,6 +202,9 @@ class InventoryProcurementReservationsWorkspaceController(
 
     def refresh_storeroom_options(self) -> None:
         _do_refresh_storeroom_options(self)
+
+    def refresh_item_options(self) -> None:
+        _do_refresh_item_options(self)
 
     @Slot(str)
     def setSearchText(self, search_text: str) -> None:

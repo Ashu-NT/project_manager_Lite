@@ -188,9 +188,27 @@ never referenced Baseline business data at all). See ADR-005 §26.20 for the ful
 why a dedicated fresh-per-request UoW (the pattern every other capability uses) was rejected in
 favor of the shared-Session-preserving variant.
 
+| P24 | Inventory Item Catalog + Item Category | NEW: `InventoryCatalogUnitOfWork`/`Factory` (Option A convergence — Item + Category share one UoW, mirroring `InventoryFoundationUnitOfWork`'s storerooms/locations, since Items reference Categories by code within the same organization boundary) — `ItemMasterService`/`ItemCategoryService` moved off raw `self._session.commit()` onto this fresh-per-request UoW, and gained real compliance audit entries for the first time (previously only an activity-feed entry, never `record_audit_entry`, for either capability) | `InventoryItemCreated`, `InventoryItemProfileUpdated`, `InventoryItemStatusChanged` (mirrors `StoreroomProfileUpdated`/`StoreroomStatusChanged`'s exact split — Item shares Storeroom's own DRAFT/ACTIVE/INACTIVE/OBSOLETE-shaped status lifecycle); `InventoryItemCategoryCreated`, `InventoryItemCategoryProfileUpdated` (Category has no status-transition lifecycle of its own — `is_active` is a plain profile flag, folded into ProfileUpdated) | Narrow: `item_list` (`OrganizationScope`) — one org-wide projection feeding Catalog's own Item master list, Dashboard's low-stock row item labels, and every `item_options` selector (Inventory/Procurement/Reservations), proven from source to be the exact same underlying rows with no separately cached detail; `item_category_list` (`OrganizationScope`) — Catalog's own Category list/options, proven never to also stale `item_list` since `search_items`'s category label/equipment/project-usage flags are computed live at read time, never cached on the Item row | `inventory_items_changed`/`inventory_item_categories_changed` both deleted |
+
+**Inventory Item Catalog + Item Category are fully modernized** as of P24. The redundant
+`inventory_items_changed` publication inside `item_document_service.py`'s `link_document`/
+`unlink_document` — which never mutated the Item row at all, only ever calling P16D's
+`document_integration_service.link_existing_document`/`unlink_existing_document` (already typed,
+already driving the canonical `document_links` ViewInvalidation target) — was removed entirely,
+with no replacement Item DomainEvent, confirming P17's own finding. Re-audit of all six Inventory
+workspace binders found: Catalog (owner, full `refresh()` on either target — no narrower seam
+exists in its own monolithic `build_workspace_state`, the same class of acceptance P20 already
+established for Storeroom/Location); Dashboard (`item_list` only, full `refresh()` — its low-stock
+rows' item labels are a real, source-proven dependency, no narrower seam); Inventory/Procurement/
+Reservations (`item_list` only, narrow `refresh_item_options()` — newly extracted in this phase,
+mirroring the `refresh_site_options`/`refresh_storeroom_options` pattern P20 already established);
+Pricing (zero dependency on Item or Category anywhere in its own presenter/state builders —
+subscription removed with no replacement, the same class of finding as P18B's Control-workspace
+`resources_changed` removal). See ADR-005 §26.21 for the full design.
+
 ## 4. Current State
 
-**Legacy Signal count: 22 as of P23** (source-derived from `src/core/shared/events/domain_events.py`,
+**Legacy Signal count: 20 as of P24** (source-derived from `src/core/shared/events/domain_events.py`,
 re-verified against current source when this document was last updated).
 
 | Area | Count |
@@ -199,7 +217,7 @@ re-verified against current source when this document was last updated).
 | Auth/Security | 1 |
 | Project Management | 6 |
 | Finance | 6 |
-| Inventory/Procurement | 9 |
+| Inventory/Procurement | 7 |
 
 > **This is a snapshot, not a fact.** Recompute the count directly from
 > `src/core/shared/events/domain_events.py` before relying on it - do not trust this table if it
@@ -208,10 +226,10 @@ re-verified against current source when this document was last updated).
 
 ## 5. Current Priority
 
-**PM Baseline Approval is fully modernized (P23, see §3).** The next capability has not yet been
-chosen — per this document's own repeated caution, re-run prioritization from current source
-before committing to a next target: concurrent development elsewhere may have changed readiness
-since P17.
+**Inventory Item Catalog + Item Category are fully modernized (P24, see §3).** The next
+capability has not yet been chosen — per this document's own repeated caution, re-run
+prioritization from current source before committing to a next target: concurrent development
+elsewhere may have changed readiness since P17.
 
 ## 6. Provisional Roadmap
 
@@ -221,8 +239,9 @@ concurrent development elsewhere in the codebase may change any capability's rea
 its turn comes up.
 
 P18 Project Resource, P19 Finance Forecast, P20 Inventory Storeroom/Location, P21 Finance
-Financial Setup, P22 Finance Rate Card, and P23 PM Baseline Approval are all DONE (see §3). No
-further phase has a number assigned yet — see the remaining capability groups below.
+Financial Setup, P22 Finance Rate Card, P23 PM Baseline Approval, and P24 Inventory Item Catalog +
+Item Category are all DONE (see §3). No further phase has a number assigned yet — see the
+remaining capability groups below.
 
 Remaining capability groups, not yet assigned rigid phase numbers:
 
@@ -233,7 +252,7 @@ Remaining capability groups, not yet assigned rigid phase numbers:
 - **Finance**: Financial Change, Project Commitment (fix the missing-rollback bug in
   `commitment_service.py` first), Project Cost Entry, Project Budget, Planned Cost, Billing
   Preparation.
-- **Inventory/Procurement**: Item Catalog, Reorder Policy, Requisition, Purchase Order,
+- **Inventory/Procurement**: Reorder Policy, Requisition, Purchase Order,
   Reservation, Stock Balance/Ledger, Cycle Count, Goods Receipt.
 - **Auth/Security**: Auth Credential & Session Lifecycle (`auth_changed` - largest remaining
   raw-Session surface in the codebase; needs its own 2-phase split, transaction convergence

@@ -16,7 +16,11 @@ from .reservation_command_handler import (
     issue_reservation,
     release_reservation,
 )
-from .workspace_builder import build_storeroom_reference_options, build_workspace_state
+from .workspace_builder import (
+    build_item_reference_options,
+    build_storeroom_reference_options,
+    build_workspace_state,
+)
 
 class InventoryReservationsWorkspacePresenter:
     def __init__(
@@ -30,6 +34,9 @@ class InventoryReservationsWorkspacePresenter:
 
     def build_storeroom_reference_options(self):
         return build_storeroom_reference_options(self._desktop_api)
+
+    def build_item_reference_options(self):
+        return build_item_reference_options(self._desktop_api)
 
     def build_workspace_state(
         self,

@@ -6,14 +6,19 @@ from . import category_commands, category_queries
 from src.core.modules.inventory_procurement.contracts.repositories.catalog import (
     InventoryItemCategoryRepository,
 )
+from src.core.modules.inventory_procurement.contracts.uow.catalog.inventory_catalog_unit_of_work import (
+    InventoryCatalogUnitOfWorkFactory,
+)
 from src.core.modules.inventory_procurement.domain.catalog.item import (
     InventoryItemCategory,
 )
+from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
     require_tenant_context_service,
 )
+from src.core.shared.events.domain_event_context import DomainEventContext
 
 
 class ItemCategoryService:
@@ -26,6 +31,7 @@ class ItemCategoryService:
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
         activity_service=None,
+        uow_factory: InventoryCatalogUnitOfWorkFactory | None = None,
     ) -> None:
         self._session = session
         self._category_repo = category_repo
@@ -36,8 +42,16 @@ class ItemCategoryService:
         )
         self._user_session = user_session
         self._activity_service = activity_service
-        self._activity_service = activity_service
+        self._uow_factory: InventoryCatalogUnitOfWorkFactory | None = uow_factory
         self._catalog_operation_label = "inventory item categories"
+
+    def _require_uow_factory(self) -> InventoryCatalogUnitOfWorkFactory:
+        if self._uow_factory is None:
+            raise RuntimeError("Inventory catalog unit of work is not configured.")
+        return self._uow_factory
+
+    def _new_context(self) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id())
 
     def list_categories(
         self,

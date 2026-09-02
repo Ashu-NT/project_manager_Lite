@@ -2441,6 +2441,103 @@ producer, the approval participant's legacy `ApprovalPostCommitEvent`, is gone),
 replaced), field absent. The legacy Signal count is 22 as of this phase (23 minus the one
 deletion — confirmed source-derived). The PM Baseline Approval capability is fully modernized.
 
+**26.21 Inventory Item Catalog + Item Category: FULLY MODERNIZED (P24) —
+`inventory_items_changed`/`inventory_item_categories_changed` BOTH DELETED.** Re-audited from
+CURRENT source, confirming P17's own producer findings exactly: `item_commands.py`
+(`create_item`/`update_item`), `category_commands.py` (`create_category`/`update_category`), and
+a redundant third producer in `item_document_service.py` (`link_document`/`unlink_document`,
+emitting `inventory_items_changed` on every call despite never mutating the Item row — see
+below). Both capabilities used raw `Session` transaction ownership before this phase (`ItemMasterService`/
+`ItemCategoryService` calling `owner._session.commit()`/`rollback()` directly), with zero
+compliance audit entries ever recorded for either — only an activity-feed entry (`record_activity`,
+never `record_audit_entry`), confirmed absent from source, not merely un-wired.
+
+P24 chose Option A (§4): one coherent `InventoryCatalogUnitOfWork`/`Factory` for both `items` and
+`categories`, mirroring `InventoryFoundationUnitOfWork`'s own `storerooms`/`locations` pairing
+(P20, §3) exactly — Items reference Categories by code within the same organization boundary,
+and both share the identical `inventory.manage`/`inventory.read` permission model, so no
+"unnatural repository bag" concern applied. `ItemMasterService`/`ItemCategoryService` each
+gained a `uow_factory` constructor parameter (optional, matching `InventoryService`'s own P20
+shape) and a `_new_uow()`/`_require_uow_factory()` pair; their own repositories
+(`_item_repo`/`_category_repo`, bound to the service's original shared Session) remain
+read-only lookups, exactly like every other governed capability's pre-UoW-convergence repos —
+only the fresh, per-operation `uow.items`/`uow.categories` repositories are ever written to.
+Real `record_audit_entry(uow, ..., commit=False, fail_closed=True)` calls were added for the
+first time in this phase, atomic with the same transaction as the mutation and its typed event.
+
+Domain boundary audited (§2/§3): `StockItem` has a genuine DRAFT/ACTIVE/INACTIVE/OBSOLETE
+status-transition lifecycle (`ITEM_STATUS_TRANSITIONS`), structurally identical in shape to
+Storeroom's own (P20) — so Item's typed events mirror Storeroom's exact split:
+`InventoryItemCreated`, `InventoryItemProfileUpdated`, `InventoryItemStatusChanged` (carries
+`status: str`). `is_active` on `StockItem` is fully derived from `status` by a model validator
+(`object.__setattr__(self, "is_active", self.status == "ACTIVE")`) — never an independent
+field a caller sets, so it needed no separate handling in the profile/status split.
+`InventoryItemCategory` has no such lifecycle at all: no parent/hierarchy field exists, and
+`is_active` is a plain profile flag with no transition validation of its own — confirmed from
+source, not assumed — so exactly two Category events: `InventoryItemCategoryCreated`,
+`InventoryItemCategoryProfileUpdated` (covering every field including `is_active`). No vague
+`ItemChanged`/`CategoryChanged` catch-all. True no-op detection added to both `update_item` and
+`update_category` (candidate-vs-current comparison before any timestamp bump — previously
+always wrote/audited/emitted on identical input, the same gap found in every prior
+no-op-audited phase).
+
+Category reference integrity (§5) audited, no bug found: `_resolve_category_reference`'s
+lookup (`_category_repo.get_by_code(organization.id, category_code)`) is itself
+organization-scoped, so a category code from a different organization is indistinguishable from
+"not found" — a cross-organization assignment is already structurally impossible, not merely
+validated after the fact. An item keeps its OWN current category across an update even if that
+category later became inactive (`allow_existing_code`), but assigning a DIFFERENT category
+requires it to be active — a genuine, pre-existing, deliberate business rule, left unchanged.
+
+Exactly two ViewInvalidation targets (`application/catalog/event_handlers/view_invalidation.py`):
+`item_list` (`OrganizationScope`) and `item_category_list` (`OrganizationScope`). Proven from
+source that Catalog's `search_items`/`search_categories` are the SAME single query as their
+respective `list_*` calls (`search_items` is an in-memory filter over `list_items`'s own rows;
+`search_categories` likewise over `list_categories`) — no separately cached Item or Category
+detail projection exists at all (`build_selected_item_detail` re-derives from the same full item
+list on every call, never a second query), so no `ResourceScope` detail target was needed for
+either capability, unlike Forecast/RateCard/Baseline's genuinely separate detail caches. Category
+facts never invalidate `item_list`: `search_items`'s category label/equipment/project-usage
+flags (`_category_label`, `_is_equipment_item`) are computed live, at read time, from a freshly
+queried category lookup on every call — nothing is cached on the Item row that a Category change
+could make stale.
+
+Item document link/unlink duplicate publication (§12, the phase's critical finding): `item_document_service.
+link_document`/`unlink_document` never mutate the Item row at all — both call ONLY
+`document_integration_service.link_existing_document`/`unlink_existing_document` (P16D), which
+already records typed `DocumentReferenceLinked`/`DocumentReferenceUnlinked` via `uow.record_event`
+and drives the canonical `document_links` ViewInvalidation target. The `inventory_items_changed.
+emit(item.id)` call previously fired on every link/unlink was pure redundant coarse publication —
+confirmed, not assumed, since no Item field, version, or `updated_at` is ever touched by either
+method. Removed entirely, with no replacement `InventoryItemProfileUpdated` fabricated in its
+place: document linkage is a DocumentLink business fact, not an Item profile mutation. Proven
+that no Item list/options/detail projection needs a second invalidation for this action: P16D's
+own `document_links` target already drives Catalog's `refresh_selected_item_linked_documents()`
+narrow seam, unchanged by this phase.
+
+Six Inventory workspace binders re-audited from CURRENT source (not P17's own six-workspace
+characterization, which predates P20's own incidental-subscription removals): Catalog (owner —
+full `refresh()` on either target, since no narrower seam exists in its own monolithic
+`build_workspace_state`, the exact same acceptance P20 already established for Storeroom/
+Location — `item_list` and `item_category_list` are BOTH wired to `refresh()`, not a narrower
+split, because the state builder computes items/categories/overview/filter-options together in
+one call); Dashboard (`item_list` only, full `refresh()` — its low-stock rows' item labels
+(`item_lookup`) are a real, source-proven Item dependency; zero Category dependency found);
+Inventory/Procurement/Reservations (`item_list` only, each wired to a NEWLY EXTRACTED narrow
+`refresh_item_options()` seam — mirroring the `refresh_site_options`/`refresh_storeroom_options`
+pattern P20 already established for the identical class of dependency; zero Category dependency
+found in any of the three); Pricing (ZERO dependency on Item or Category anywhere in its own
+presenter/state builders — site/storeroom/supplier options only — subscription removed with no
+replacement, the same class of finding as P18B's Control-workspace `resources_changed` removal).
+
+`inventory_items_changed`/`inventory_item_categories_changed` are now BOTH deleted from
+`DomainEvents` entirely — zero producers (all three prior producers gone: `create_item`/
+`update_item`, `create_category`/`update_category`, and the redundant `item_document_service`
+emission), zero consumers (all six workspace binders' legacy subscriptions removed or replaced),
+both fields absent. The legacy Signal count is 20 as of this phase (22 minus the two deletions —
+confirmed source-derived). The Inventory Item Catalog and Item Category capabilities are fully
+modernized.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

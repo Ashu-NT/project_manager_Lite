@@ -7,8 +7,12 @@ from src.core.modules.inventory_procurement.contracts.repositories.catalog impor
     InventoryItemCategoryRepository,
     StockItemRepository,
 )
+from src.core.modules.inventory_procurement.contracts.uow.catalog.inventory_catalog_unit_of_work import (
+    InventoryCatalogUnitOfWorkFactory,
+)
 from src.core.modules.inventory_procurement.domain.catalog.item import StockItem
 from src.core.platform.application.master_data.documents import DocumentIntegrationService
+from src.core.platform.common.ids import generate_id
 from src.core.platform.domain.master_data.documents import Document, DocumentLink
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.application.master_data.party.party_service import PartyService
@@ -16,6 +20,7 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
     require_tenant_context_service,
 )
+from src.core.shared.events.domain_event_context import DomainEventContext
 
 
 class ItemMasterService:
@@ -31,6 +36,7 @@ class ItemMasterService:
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
         activity_service=None,
+        uow_factory: InventoryCatalogUnitOfWorkFactory | None = None,
     ) -> None:
         self._session = session
         self._item_repo = item_repo
@@ -44,8 +50,16 @@ class ItemMasterService:
         self._document_integration_service = document_integration_service
         self._user_session = user_session
         self._activity_service = activity_service
-        self._activity_service = activity_service
+        self._uow_factory: InventoryCatalogUnitOfWorkFactory | None = uow_factory
         self._catalog_operation_label = "inventory items"
+
+    def _require_uow_factory(self) -> InventoryCatalogUnitOfWorkFactory:
+        if self._uow_factory is None:
+            raise RuntimeError("Inventory catalog unit of work is not configured.")
+        return self._uow_factory
+
+    def _new_context(self) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id())
 
     def list_items(self, *, active_only: bool | None = None) -> list[StockItem]:
         return item_queries.list_items(self, active_only=active_only)

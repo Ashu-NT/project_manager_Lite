@@ -19,6 +19,10 @@ from src.core.modules.inventory_procurement.application.catalog.catalog_context 
 from src.core.modules.inventory_procurement.application.common.support import (
     normalize_inventory_code,
 )
+from src.core.modules.inventory_procurement.domain.catalog.catalog_events import (
+    InventoryItemCategoryCreated,
+    InventoryItemCategoryProfileUpdated,
+)
 from src.core.modules.inventory_procurement.domain.catalog.item import (
     InventoryItemCategory,
 )
@@ -27,7 +31,7 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.core.shared.events.domain_events import domain_events
+from src.core.shared.audit import record_audit_entry
 
 
 def create_category(
@@ -59,24 +63,47 @@ def create_category(
         supports_project_usage=bool(supports_project_usage),
         is_active=bool(is_active),
     )
-    try:
-        owner._category_repo.add(category)
-        owner._session.commit()
-    except IntegrityError as exc:
-        owner._session.rollback()
-        raise ValidationError(
-            "Category code already exists in the active organization.",
-            code="INVENTORY_CATEGORY_CODE_EXISTS",
-        ) from exc
-    except Exception:
-        owner._session.rollback()
-        raise
-    record_inventory_item_category_create_activity(
-        owner,
-        organization_id=organization.id,
-        category=category,
-    )
-    domain_events.inventory_item_categories_changed.emit(category.id)
+    now = datetime.now(timezone.utc)
+    uow = owner._require_uow_factory().create(context=owner._new_context())
+    with uow:
+        try:
+            uow.categories.add(category)
+        except IntegrityError as exc:
+            raise ValidationError(
+                "Category code already exists in the active organization.",
+                code="INVENTORY_CATEGORY_CODE_EXISTS",
+            ) from exc
+        record_inventory_item_category_create_activity(
+            uow,
+            organization_id=organization.id,
+            category=category,
+            commit=False,
+        )
+        record_audit_entry(
+            uow,
+            operation="create",
+            entity_type="inventory_item_category",
+            entity_id=category.id,
+            module="inventory_procurement",
+            organization_id=organization.id,
+            severity="low",
+            metadata={
+                "category_code": category.category_code,
+                "name": category.name,
+                "category_type": category.category_type,
+            },
+            commit=False,
+            fail_closed=True,
+        )
+        uow.record_event(
+            InventoryItemCategoryCreated(
+                tenant_id=organization.tenant_id,
+                organization_id=organization.id,
+                category_id=category.id,
+                occurred_at=now,
+            )
+        )
+        uow.commit()
     return category
 
 
@@ -115,7 +142,7 @@ def update_category(
                 "Category code already exists in the active organization.",
                 code="INVENTORY_CATEGORY_CODE_EXISTS",
             )
-    category = replace(
+    candidate = replace(
         category,
         category_code=next_category_code,
         name=category.name if name is None else name,
@@ -128,27 +155,54 @@ def update_category(
             else bool(supports_project_usage)
         ),
         is_active=category.is_active if is_active is None else bool(is_active),
-        updated_at=datetime.now(timezone.utc),
     )
-    try:
-        owner._category_repo.update(category)
-        owner._session.commit()
-    except IntegrityError as exc:
-        owner._session.rollback()
-        raise ValidationError(
-            "Category code already exists in the active organization.",
-            code="INVENTORY_CATEGORY_CODE_EXISTS",
-        ) from exc
-    except Exception:
-        owner._session.rollback()
-        raise
-    record_inventory_item_category_update_activity(
-        owner,
-        organization_id=organization.id,
-        category=category,
-    )
-    domain_events.inventory_item_categories_changed.emit(category.id)
-    return category
+    if candidate == category:
+        # True no-op (P24 §7): zero repository write, zero audit, zero typed event, no
+        # synthetic version/updated_at bump.
+        return category
+    now = datetime.now(timezone.utc)
+    candidate = replace(candidate, updated_at=now)
+    uow = owner._require_uow_factory().create(context=owner._new_context())
+    with uow:
+        try:
+            uow.categories.update(candidate)
+        except IntegrityError as exc:
+            raise ValidationError(
+                "Category code already exists in the active organization.",
+                code="INVENTORY_CATEGORY_CODE_EXISTS",
+            ) from exc
+        record_inventory_item_category_update_activity(
+            uow,
+            organization_id=organization.id,
+            category=candidate,
+            commit=False,
+        )
+        record_audit_entry(
+            uow,
+            operation="update",
+            entity_type="inventory_item_category",
+            entity_id=candidate.id,
+            module="inventory_procurement",
+            organization_id=organization.id,
+            severity="low",
+            metadata={
+                "category_code": candidate.category_code,
+                "name": candidate.name,
+                "is_active": candidate.is_active,
+            },
+            commit=False,
+            fail_closed=True,
+        )
+        uow.record_event(
+            InventoryItemCategoryProfileUpdated(
+                tenant_id=organization.tenant_id,
+                organization_id=organization.id,
+                category_id=candidate.id,
+                occurred_at=now,
+            )
+        )
+        uow.commit()
+    return candidate
 
 
 __all__ = ["create_category", "update_category"]

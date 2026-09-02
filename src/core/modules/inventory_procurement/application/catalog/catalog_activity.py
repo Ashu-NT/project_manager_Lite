@@ -63,6 +63,7 @@ def record_inventory_item_category_create_activity(
     *,
     organization_id: str,
     category: InventoryItemCategory,
+    commit: bool = True,
 ) -> None:
     record_activity(
         owner,
@@ -71,6 +72,7 @@ def record_inventory_item_category_create_activity(
         entity_id=category.id,
         module="inventory_procurement",
         details=_build_category_create_details(organization_id, category),
+        commit=commit,
     )
 
 
@@ -79,6 +81,7 @@ def record_inventory_item_category_update_activity(
     *,
     organization_id: str,
     category: InventoryItemCategory,
+    commit: bool = True,
 ) -> None:
     record_activity(
         owner,
@@ -87,6 +90,7 @@ def record_inventory_item_category_update_activity(
         entity_id=category.id,
         module="inventory_procurement",
         details=_build_category_update_details(organization_id, category),
+        commit=commit,
     )
 
 
@@ -95,6 +99,7 @@ def record_inventory_item_create_activity(
     *,
     organization_id: str,
     item: StockItem,
+    commit: bool = True,
 ) -> None:
     record_activity(
         owner,
@@ -103,6 +108,7 @@ def record_inventory_item_create_activity(
         entity_id=item.id,
         module="inventory_procurement",
         details=_build_item_details(organization_id, item),
+        commit=commit,
     )
 
 
@@ -111,6 +117,7 @@ def record_inventory_item_update_activity(
     *,
     organization_id: str,
     item: StockItem,
+    commit: bool = True,
 ) -> None:
     record_activity(
         owner,
@@ -119,6 +126,7 @@ def record_inventory_item_update_activity(
         entity_id=item.id,
         module="inventory_procurement",
         details=_build_item_details(organization_id, item),
+        commit=commit,
     )
 
 

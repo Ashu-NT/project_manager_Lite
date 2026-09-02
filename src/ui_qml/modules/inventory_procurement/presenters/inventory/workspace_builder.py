@@ -55,6 +55,16 @@ def build_party_reference_options(desktop_api):
     )
 
 
+def build_item_reference_options(desktop_api):
+    return (
+        InventorySelectorOptionViewModel(value="all", label="All items"),
+        *(
+            InventorySelectorOptionViewModel(value=option.value, label=option.label)
+            for option in desktop_api.list_items(active_only=None)
+        ),
+    )
+
+
 def build_workspace_state(
     desktop_api,
     *,
@@ -68,7 +78,6 @@ def build_workspace_state(
     selected_balance_id: str | None = None,
 ) -> InventoryInventoryWorkspaceViewModel:
     all_storerooms = desktop_api.list_storerooms(active_only=None)
-    all_items = desktop_api.list_items(active_only=None)
     all_balances = desktop_api.list_balances()
     all_transactions = desktop_api.list_transactions(limit=200)
 
@@ -89,13 +98,7 @@ def build_workspace_state(
             for option in desktop_api.list_transaction_types()
         ),
     )
-    item_options = (
-        InventorySelectorOptionViewModel(value="all", label="All items"),
-        *(
-            InventorySelectorOptionViewModel(value=option.value, label=option.label)
-            for option in all_items
-        ),
-    )
+    item_options = build_item_reference_options(desktop_api)
     manager_party_options = build_party_reference_options(desktop_api)
 
     normalized_search = (search_text or "").strip()

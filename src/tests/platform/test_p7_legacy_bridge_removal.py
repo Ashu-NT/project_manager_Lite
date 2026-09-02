@@ -108,12 +108,12 @@ def test_all_still_unmodernized_signals_survive_with_real_direct_consumers():
     `parties_changed`/`documents_changed` are deliberately absent from this list (P10D, P12B,
     P13B, P14B, P15B, P16D): all six capabilities are now fully modernized (create/profile events
     are typed), so their legacy signals were actually deleted, not merely left un-bridged like
-    the ones below."""
+    the ones below. `inventory_items_changed`/`inventory_item_categories_changed` are likewise
+    deliberately absent -- P24 fully modernized Item Catalog + Item Category."""
 
     for signal_name in (
         "auth_changed",
         "project_changed", "tasks_changed", "resources_changed",
-        "inventory_items_changed",
     ):
         assert hasattr(domain_events, signal_name), f"{signal_name} was deleted, not just un-bridged"
 
@@ -224,20 +224,25 @@ def test_pm_register_workspace_does_not_react_to_an_unrelated_inventory_signal(s
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.inventory_items_changed.emit(_unique("p7a-unrelated-inventory"))
+    domain_events.inventory_balances_changed.emit(_unique("p7a-unrelated-inventory"))
 
     assert refresh_calls == []
 
 
 def test_inventory_dashboard_direct_wired_to_every_inventory_signal(services):
-    """Inventory's dashboard binder now connects directly to all 10 inventory-module signals --
-    no generic `scope_code="inventory_procurement"` bridge filter involved."""
+    """Inventory's dashboard binder now connects directly to every still-legacy inventory-module
+    signal -- no generic `scope_code="inventory_procurement"` bridge filter involved.
+    `inventory_items_changed` is gone (P24): Dashboard's real Item dependency (low-stock row
+    labels) now reaches it through `InventoryCatalogViewInvalidationAdapter.itemListStale`,
+    proven separately alongside the remaining direct-wired legacy signal."""
     inventory_catalog = _inventory_catalog(services)
     controller = inventory_catalog.dashboardWorkspace
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.inventory_items_changed.emit(_unique("p7a-inv-item"))
+    inventory_catalog._dashboard_catalog_view_invalidation_adapter.itemListStale.emit(
+        _unique("p7a-inv-item")
+    )
     domain_events.inventory_purchase_orders_changed.emit(_unique("p7a-inv-po"))
 
     assert refresh_calls == ["refresh", "refresh"]
