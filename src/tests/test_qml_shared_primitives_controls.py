@@ -44,6 +44,7 @@ def test_qml_shared_theme_primitives_exist() -> None:
         QML_SHARED_ROOT / "Controls" / "SearchField.qml",
         QML_SHARED_ROOT / "Controls" / "qmldir",
         QML_SHARED_ROOT / "Widgets" / "MetricCard.qml",
+        QML_SHARED_ROOT / "Widgets" / "InfoTip.qml",
         QML_SHARED_ROOT / "Controls" / "SecondaryButton.qml",
         QML_SHARED_ROOT / "Controls" / "TextArea.qml",
         QML_SHARED_ROOT / "Controls" / "TextField.qml",
@@ -58,6 +59,29 @@ def test_qml_shared_theme_primitives_exist() -> None:
     ]
 
     assert all(path.exists() for path in expected_files)
+
+
+def test_shared_info_tip_and_disabled_secondary_button_contracts() -> None:
+    widgets_qmldir = (QML_SHARED_ROOT / "Widgets" / "qmldir").read_text(
+        encoding="utf-8"
+    )
+    info_tip = (QML_SHARED_ROOT / "Widgets" / "InfoTip.qml").read_text(
+        encoding="utf-8"
+    )
+    secondary_button = (
+        QML_SHARED_ROOT / "Controls" / "SecondaryButton.qml"
+    ).read_text(encoding="utf-8")
+
+    assert "InfoTip 1.0 InfoTip.qml" in widgets_qmldir
+    assert 'property string message: ""' in info_tip
+    assert "root.hovered || root.activeFocus" in info_tip
+    assert "property bool expanded: false" in info_tip
+    assert "Accessible.description: root.message" in info_tip
+    assert "implicitWidth: 24" in info_tip
+    assert "maximumToolTipWidth: 308" in info_tip
+    assert "Theme.AppTheme.elevationMediumShadow" in info_tip
+    assert "opacity: control.enabled ? 1.0 : 0.48" in secondary_button
+    assert "disabled: !control.enabled" in secondary_button
 
 
 def test_qml_modules_declare_stable_namespaces() -> None:

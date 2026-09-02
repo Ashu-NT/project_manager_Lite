@@ -35,6 +35,67 @@ def _application() -> QGuiApplication:
     return QGuiApplication.instance() or QGuiApplication(["r6c-budget-qml"])
 
 
+def test_shared_info_tip_and_disabled_secondary_button_load_at_runtime() -> None:
+    app = _application()
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    component.setData(
+        dedent(
+            """
+            import QtQuick
+            import QtQuick.Controls
+            import App.Controls 1.0 as AppControls
+            import App.Widgets 1.0 as AppWidgets
+
+            ApplicationWindow {
+                width: 640
+                height: 360
+                visible: true
+                Column {
+                    AppControls.SecondaryButton {
+                        objectName: "disabledButton"
+                        text: "Create Version"
+                        enabled: false
+                    }
+                    AppWidgets.InfoTip {
+                        objectName: "budgetInfoTip"
+                        message: "An open version exists."
+                    }
+                }
+            }
+            """
+        ).encode("utf-8"),
+        "r6c-shared-budget-controls.qml",
+    )
+
+    root = component.create()
+    assert root is not None, "\n".join(error.toString() for error in component.errors())
+    app.processEvents()
+
+    button = root.findChild(QObject, "disabledButton")
+    info_tip = root.findChild(QObject, "budgetInfoTip")
+    assert button is not None and button.property("enabled") is False
+    assert float(button.property("opacity")) == pytest.approx(0.48)
+    assert info_tip is not None and info_tip.property("visible") is True
+    assert info_tip.property("message") == "An open version exists."
+    assert float(info_tip.property("implicitWidth")) == pytest.approx(24.0)
+    assert int(info_tip.property("maximumToolTipWidth")) == 308
+
+    popup = info_tip.findChild(QObject, "infoTipPopup")
+    assert popup is not None
+    assert float(popup.property("implicitWidth")) <= 308.0
+
+    info_tip.setProperty("expanded", True)
+    QTest.qWait(400)
+    app.processEvents()
+    assert popup.property("visible") is True
+    assert 0 < float(popup.property("width")) <= 308.0
+    assert float(popup.property("height")) >= 54.0
+
+    root.deleteLater()
+    app.processEvents()
+
+
 @pytest.mark.parametrize(("width", "height"), VIEWPORTS)
 @pytest.mark.parametrize("dialog_type", DIALOGS)
 def test_budget_dialogs_fit_supported_viewports_and_keep_actions_reachable(

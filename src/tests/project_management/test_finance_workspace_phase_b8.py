@@ -156,6 +156,9 @@ def test_budget_create_action_stays_visible_when_open_version_blocks_creation() 
 
     assert "visible: root.showCreateVersion" in section
     assert "enabled: root.canCreateVersion && !root.busy" in section
+    assert "AppWidgets.InfoTip" in section
+    assert 'title: "Create Version unavailable"' in section
+    assert "accessibleLabel: \"Why Create Version is unavailable\"" in section
     assert "root.createVersionDisabledReason" in section
 
 

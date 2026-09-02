@@ -59,27 +59,18 @@ Item {
             AppControls.SecondaryButton {
                 visible: root.showCreateVersion && !Boolean(root.selectedState.canCreateSuccessor)
                 enabled: root.canCreateVersion && !root.busy
-                opacity: enabled ? 1.0 : 0.55
                 text: "Create Version"
                 iconName: "add"
                 onClicked: root.createVersionRequested()
             }
-            Text {
+            AppWidgets.InfoTip {
                 visible: root.showCreateVersion
                     && !root.canCreateVersion
                     && !Boolean(root.selectedState.canCreateSuccessor)
-                width: Math.min(
-                    420,
-                    Math.max(220, parent.width - (2 * Theme.AppTheme.spacingMd))
-                )
-                height: Math.max(Theme.AppTheme.toolbarHeight, implicitHeight)
-                verticalAlignment: Text.AlignVCenter
-                wrapMode: Text.WordWrap
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                text: root.createVersionDisabledReason
+                message: root.createVersionDisabledReason
                     || "Complete the open budget workflow before creating another version."
+                title: "Create Version unavailable"
+                accessibleLabel: "Why Create Version is unavailable"
             }
             AppControls.SecondaryButton {
                 visible: Boolean(root.selectedState.canCreateSuccessor)
