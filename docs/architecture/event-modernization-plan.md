@@ -1537,6 +1537,181 @@ signal" example was swapped to a still-legacy Finance signal, preserving the sam
 isolation property without inventing new Inventory wiring. The `PurchaseOrderLine` concurrency debt
 (§7) is explicitly NOT addressed here — recorded, not fixed.
 
+### P34A — Global Re-Audit + Re-Rank of Remaining Legacy Signals (AUDIT + ROADMAP ONLY)
+
+No production code, test, README, or ADR changed. Legacy Signal count unchanged at 13
+(`dataclasses.fields(DomainEvents)` re-verified: exactly the expected 6 PM + 6 Finance + 1 Auth,
+zero unexpected modules, zero stray Inventory fields).
+
+**Remaining Signal field list (source-derived)**:
+
+- **PM (6)**: `project_changed`, `tasks_changed`, `timesheet_periods_changed`,
+  `collaboration_changed`, `portfolio_changed`, `register_changed`
+- **Finance (6)**: `budgets_changed`, `billing_preparations_changed`, `planned_costs_changed`,
+  `cost_entries_changed`, `commitments_changed`, `financial_changes_changed`
+- **Auth (1)**: `auth_changed` — unchanged from P26A, carried forward AUDITED / DEFERRED
+
+**Producer/consumer matrix (compact)**:
+
+| Signal | Producer sites | Producer files | Consumers | Transaction | Audit |
+|---|---|---|---|---|---|
+| `timesheet_periods_changed` | 1 (single choke-point helper) | `timesheet_periods.py` | 5 | D, trivial (raw Session, single function) | **ATOMIC** |
+| `register_changed` | 3 | `register_lifecycle.py` | 3 | D, already `expected_version`-protected | ACTIVITY-ONLY |
+| `project_changed` | 7 | `projects/commands/lifecycle.py` (3) + `resources/commands/project_resource_commands.py` (4) | 11 (HIGH) | D, zero UoW despite an unused `ResourceUnitOfWork` existing | MIXED (financial-profile sub-writes atomic; plain Project updates activity-only) |
+| `portfolio_changed` | 8 | 4 files (dependencies/intake/scenarios/templates ×2 each) | 3 | D, zero UoW | MIXED, mostly **NONE** (3 of 4 files have zero audit/activity) |
+| `collaboration_changed` | 8 | `collaboration_comments.py` (6, durable) + `collaboration_presence.py` (2, ephemeral) | 3 | D, zero UoW | **NONE** |
+| `tasks_changed` | 22 direct (8 files) + 6 reflective `ApprovalPostCommitEvent` (5 in `task_apply_participant.py`, 1 conditional in `financial_change_apply_participant.py`) + 4 raw-session Timesheet co-producers | 10 files total | 10 (HIGH) | E — mixed: 5 approval sites already atomic (ApprovalService-owned); rest raw Session, zero UoW | **NONE/ACTIVITY-ONLY** — zero `record_audit_entry` anywhere in the 8 core task-command files |
+| `planned_costs_changed` | 1 | `planned_cost_service.py` | 1 | C — raw Session but savepoint-protected, `FinanceGovernanceUnitOfWork.planned_costs` repo already wired | **ATOMIC** |
+| `commitments_changed` | 1 | `commitment_service.py` | not deep-audited (flagged, low risk — single producer) | C — raw Session, repo already wired, **zero rollback protection** (confirmed live bug) | not verified this pass (producer's own audit call not confirmed) |
+| `cost_entries_changed` | 1 direct + 2 approval (`project_cost_apply_participant.py`) | `cost_entry_service.py` | not deep-audited (flagged, low risk) | C — raw Session, repo already wired, properly try/except/rollback wrapped | **ATOMIC** |
+| `budgets_changed` | 1 direct (`command_boundary.py::_emit_budget`, postcommit) + 2 approval (`budget_apply_participant.py`) + 1 cross-capability conditional (`financial_change_apply_participant.py:56`) | `budget_service.py` + 2 participants | 2+ (Financials workspace owner + Projects workspace `approvedBudgetVisible`, confirmed genuine) | **A — already canonical** `FinanceGovernanceUnitOfWork` via `FinanceGovernanceCommandBoundary` | **ATOMIC** (`_record_budget_audit`, `commit=False, fail_closed=True`) |
+| `financial_changes_changed` | 1 direct (reflective `_emit_scoped`, postcommit) + 2 approval | `financial_change_apply_participant.py` | 1 (Financials workspace owner) | **A — already canonical**, same UoW/boundary as Budget | not independently verified this pass; participant already atomic (ApprovalService-owned) |
+| `billing_preparations_changed` | submit (already `BillingPreparationSubmissionUnitOfWork`-based, postcommit legacy emit) + approve/reject (raw Session) + 2 approval + a genuinely different aggregate (`ProjectBillingProfile`) also emitting it | `preparation_service.py` + `billing_profile_service.py` + participant | not deep-audited | **E — mixed** (submit already UoW; rest raw Session) | MIXED |
+| `auth_changed` | 19 (10 files, re-confirmed this pass, unchanged from P26A) | Auth credentials/session/provisioning/authorization | 2 (`access_workspace_controller.py`, `admin_console/domain_event_binder.py`) | D — no canonical UoW yet (P26A finding, unchanged) | not re-audited (P26A stands) |
+
+**Corrections to older/assumed characterizations, source-proven this pass**:
+
+- `register_changed`'s aggregate is a **combined Risk/Issue/Change register** — one `RegisterEntry`
+  class (`domain/risk/register.py`) with a `RegisterEntryType` enum of `RISK`/`ISSUE`/`CHANGE`, not
+  a Risk-only register as the file path (`application/risk/...`) alone would suggest. One aggregate,
+  one lifecycle — LOW-MEDIUM overload, not multiple aggregates.
+- `budgets_changed` is **not** a 1-fact signal — `budget_service.py` has 8 distinct lifecycle
+  operations across 2 aggregates (`ProjectBudget`: create/create_successor/submit/approve/reject;
+  `BudgetLine`: add_line/update_line/delete_line) — MEDIUM-HIGH overload, though transaction/audit
+  posture is excellent (already canonical UoW + atomic audit for every one of those 8 operations).
+- `commitments_changed`'s P17-era "missing-rollback bug" is **reconfirmed still real and unfixed**:
+  `commitment_service.py`'s `_commit()` calls `self._session.commit()` with zero try/except/rollback
+  anywhere in the file — a genuinely live production correctness bug, not carried-forward folklore.
+- The Financials workspace's own `financials_refresh_mixin.py` (lines 579-628) already maps each of
+  the 6 Finance signals to specific destination panels (`overview`/`planning`/`performance`/
+  `commercial`/`costs`/`controls`) gated by a tenant/org/project scope check — a hand-rolled
+  precursor to `ViewInvalidationHint`/`ViewInvalidationChannel` that already does ~80% of the
+  ViewInvalidation design work for all 6 Finance signals at once.
+
+**Semantic overload classification**: HIGH — `tasks_changed` (8+ facts, mixed direct/approval/
+cross-capability), `collaboration_changed` (durable+ephemeral category error, confirmed still real),
+`billing_preparations_changed` (2 distinct aggregates — `ProjectBillingPreparation` and
+`ProjectBillingProfile` — sharing one signal, a real category error matching P17's old concern).
+MEDIUM-HIGH — `portfolio_changed` (4 sub-aggregates), `budgets_changed` (8 facts/2 aggregates,
+corrected above), `financial_changes_changed` (apply/reject + conditional Budget/Task/Forecast
+cascade = 4+ facts). LOW-MEDIUM — `project_changed` (2 aggregates), `register_changed` (1 aggregate,
+3 fact-types via one `type` field). LOW — `timesheet_periods_changed` (1 choke-point, 6 named
+transitions), `planned_costs_changed` (1 fact), `cost_entries_changed` (1 fact + approve/reject),
+`commitments_changed` (1 fact, not yet proven otherwise).
+
+**Cross-capability mutation graph — proven edges only, not inferred from co-emission**:
+
+- **`financial_change_apply_participant.py::apply()` → real (C) cross-capability mutation into
+  Budget** (`change.applied_budget_id` gate) **and into Task** (`change.applied_schedule_count`
+  gate), in the SAME `ApprovalHandlerResult`, alongside an already-typed `ForecastVersionChanged`
+  DomainEvent (P19) — one method genuinely mutates up to 4 different aggregates' persisted state in
+  one already-atomic transaction. This is the single most important finding for sequencing:
+  `financial_changes_changed`, `budgets_changed`, and `tasks_changed` are NOT 3 independent
+  deletions — this one participant is a live producer for all 3, and the participant already proves
+  `post_commit_events=` (legacy) and `domain_events=` (canonical) coexist in one `ApprovalHandlerResult`
+  without any ApprovalService redesign.
+- All other apparent PM/Finance groupings (Project/ProjectResource sharing `project_changed`;
+  Dependency/Intake/Scenario/Template sharing `portfolio_changed`; `ProjectBillingPreparation`/
+  `ProjectBillingProfile` sharing `billing_preparations_changed`) are **signal co-emission observed,
+  real persisted cross-mutation neither proven nor disproven this pass** — per this phase's own
+  explicit instruction not to infer relationships from co-emission alone, these are flagged for
+  verification during that capability's own eventual dedicated audit, not classified here.
+- `timesheet_periods_changed`'s co-emission of `tasks_changed` per affected project was confirmed to
+  exist (same helper function) but whether it is (B) a stale-read-model notification or (C) a real
+  Task-row mutation was not proven this pass — flag for Timesheet Period's own audit.
+
+**Approval coupling (§9) — remaining `ApprovalPostCommitEvent`/reflective-bridge usages**:
+`tasks_changed` (6: 5 in `task_apply_participant.py` + 1 conditional in
+`financial_change_apply_participant.py`), `budgets_changed` (3: 2 in `budget_apply_participant.py` +
+1 conditional), `financial_changes_changed` (2, in its own participant), `billing_preparations_changed`
+(2, in `billing_preparation_apply_participant.py`), `cost_entries_changed` (2, in
+`project_cost_apply_participant.py`, already `commit=False` atomic). **Every one of these can convert
+to `ApprovalHandlerResult.domain_events` with zero ApprovalService redesign** — `financial_change_
+apply_participant.py` already proves both channels coexist in one return value today.
+
+**Reflective legacy mechanisms still present in production** (test-only/dead references excluded):
+
+1. `ApprovalService._emit_signal_safely` (`approval_service.py:349-350`) — `getattr(domain_events,
+   signal_name, None)`, the dispatch every `ApprovalPostCommitEvent` above still routes through.
+2. `FinanceGovernanceCommandBoundary._emit_scoped`/`_emit_budget` (`command_boundary.py:176-199`) —
+   reflective (`_emit_scoped`, used for `financial_changes_changed`) and direct (`_emit_budget`, used
+   for `budgets_changed`) postcommit emit helpers, called after `uow.commit()` inside `_execute()`.
+   The SAME class's `rate_card()`/`forecast_version()`/`forecast_generation()` methods already prove
+   the precommit-`uow.record_event(...)` conversion pattern working in production (P19/P22) —
+   converting Budget/FinancialChange is a direct copy of an already-proven pattern in the same file.
+
+**Legacy allowlist health (§35)** — the P8 guard's `current ⊆ frozen` subset check (not equality)
+is mechanically correct, but **currently fails for real**: `cost_entries_changed`, `commitments_
+changed`, and `financial_changes_changed` are live fields in `DomainEvents` that are **absent from
+`FROZEN_LEGACY_SIGNAL_ALLOWLIST`** — and, confusingly, all three simultaneously appear in the SAME
+test file's `_DELETED_BRIDGE_NAMES` list (asserting they should have zero production references).
+This is not a stale-test-expects-a-deleted-signal problem (the direction every other P8 failure in
+this document represents) — it is the opposite: current source has *more* live Finance signals than
+the frozen baseline and the dead-name list both account for, most likely because these 3 fields were
+added by concurrent Finance-side development on this branch without updating either list. Not fixed
+here (P34A is audit-only) — flagged as its own distinct stale-test-debt item, separate from the
+already-known `resources_changed`/hardcoded-count staleness.
+
+**Stale regression-test debt (§34, not fixed)**: `test_p16d_document_link_typed_events.py::test_
+legacy_signal_count_decreased_by_exactly_one` (hardcoded `== 29`, now 13); `test_p7_legacy_bridge_
+removal.py::test_all_still_unmodernized_signals_survive_with_real_direct_consumers` (asserts
+`resources_changed` still exists — it doesn't, deleted in an earlier PM phase); the P8 allowlist/
+dead-name inconsistency above. **Recommendation: address AFTER the next capability**, not now and
+not held until every signal is gone — none of these three currently block reliable regression
+detection for Inventory/Procurement (already fully closed) or mask a real defect in whichever
+Finance/PM capability is modernized next; they are orthogonal bookkeeping debt.
+
+**Capability scorecard** (Auth excluded — kept AUDITED / DEFERRED per §29):
+
+| Capability | Signal | Facts | Producers | Real consumers | Txn readiness | Audit readiness | Cross-capability | UI precision | Correctness debt | Deletion confidence | Test readiness | Priority |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Planned Cost | `planned_costs_changed` | LOW | 1 | 1 | **A-adjacent (repo wired, unused)** | ATOMIC | NONE proven | LOW-risk (existing scope-check pattern portable) | LOW (concurrency guard already real) | **HIGH** | MEDIUM-HIGH | **1** |
+| Commitment | `commitments_changed` | LOW | 1 | not fully audited | **A-adjacent (repo wired, unused)** | not confirmed | NONE proven | LOW-risk | **HIGH (live rollback bug)** | **HIGH** | MEDIUM-HIGH | **2** |
+| Cost Entry | `cost_entries_changed` | LOW | 3 (1 direct + 2 approval) | not fully audited | **A-adjacent (repo wired, unused)** | ATOMIC | NONE proven | LOW-risk | LOW | **HIGH** | MEDIUM-HIGH | **3** |
+| Timesheet Period | `timesheet_periods_changed` | LOW | 1 | 5 | C (raw Session, needs new UoW) | ATOMIC | Task co-emission unproven | LOW-risk | LOW | HIGH | MEDIUM-HIGH | 4 |
+| Register | `register_changed` | LOW-MEDIUM | 3 | 3 | D | ACTIVITY-ONLY | NONE proven | LOW-risk | LOW | HIGH | MEDIUM | 5 |
+| Budget | `budgets_changed` | MEDIUM-HIGH | 4 (1 direct + 3 approval/cross) | 2+ | **A — already canonical** | ATOMIC | **HIGH (coupled to Financial Change)** | LOW-risk | LOW | MEDIUM (coupled) | MEDIUM-HIGH | 6 |
+| Financial Change | `financial_changes_changed` | MEDIUM-HIGH | 3 | 1 | **A — already canonical** | not confirmed | **HIGH (drives Budget+Task)** | LOW-risk | not confirmed | MEDIUM (coupled) | MEDIUM-HIGH | 7 |
+| Project | `project_changed` | LOW-MEDIUM | 7 | 11 (HIGH fan-out) | D | MIXED | 2 aggregates, unproven | LOW-risk | MEDIUM (no UoW, HIGH fan-out) | MEDIUM | MEDIUM | 8 |
+| Portfolio | `portfolio_changed` | MEDIUM-HIGH | 8 | 3 | D | **NONE (3 of 4 files)** | 4 sub-aggregates, unproven | LOW-risk | MEDIUM (audit gap) | MEDIUM | LOW-MEDIUM | 9 |
+| Billing Preparation | `billing_preparations_changed` | HIGH | 6+ | not fully audited | **E — mixed** | MIXED | 2 aggregates sharing 1 signal | LOW-risk | MEDIUM | LOW-MEDIUM | MEDIUM | 10 |
+| Collaboration | `collaboration_changed` | HIGH (category error) | 8 | 3 | D | **NONE** | unproven | **needs non-DomainEvent presence transport** | MEDIUM (audit gap) | LOW (needs transport split first) | LOW-MEDIUM | 11 |
+| Task | `tasks_changed` | HIGH | 28+ | 10 (HIGH fan-out) | E — mixed | **NONE/ACTIVITY-ONLY** | **HIGH (Financial Change cascades in)** | LOW-risk | MEDIUM (no audit anywhere) | LOW (blocked on Financial Change) | MEDIUM | 12 |
+
+**Recommended next three targets** (all Finance — same already-wired `FinanceGovernanceUnitOfWork`,
+same already-proven precommit-conversion pattern from P22 Rate Card, zero cross-capability coupling
+found for any of the three, all three independently reach `producers=0/consumers=0/field-deleted`):
+
+1. **`planned_costs_changed`** — lowest possible risk: 1 producer, 1 fact, already-atomic audit,
+   already-working `ConcurrencyError` guard, UoW repo already wired and unused. Proves the pattern
+   with the smallest possible blast radius before reusing it twice more.
+2. **`commitments_changed`** — same mechanical pattern, additionally closes a real, currently-live
+   commit-without-rollback correctness bug (highest governance value of the trio for comparable
+   effort).
+3. **`cost_entries_changed`** — same pattern again, already has 2 approval-owned sites proven atomic,
+   closes out the trio and leaves `financials_refresh_mixin.py`'s routing table 3/6 converted.
+
+**Mode for all three: DIRECT FULL MODERNIZATION** (not audit-first) — single producer (or a tight,
+already-atomic 2-3 site cluster) each, facts are semantically clear, transaction infrastructure is
+already built and merely unused, and the ViewInvalidation design is ~80% pre-existing in
+`financials_refresh_mixin.py`'s own routing table. This phase's own audit depth is sufficient; a
+dedicated P34B/P35A-style capability audit would be redundant scope, unlike Inventory's Receipt/Cycle
+Count which needed P32A specifically because of genuine remaining ambiguity that does not exist here.
+
+**Overall strategy: FINANCE FIRST**, specifically the Planned Cost → Commitment → Cost Entry trio,
+not by module-completion aesthetics but by architectural dependency: these three are the only
+remaining capabilities (PM or Finance) with an *already-wired, already-unused* canonical UoW and zero
+proven cross-capability coupling — the lowest-risk, highest-leverage cluster available. `Budget`/
+`Financial Change` are ALSO Finance and ALSO transaction-canonical, but are deliberately sequenced
+after the trio because they are provably coupled to each other and to PM's `Task` through one
+Approval participant — that coupling should be resolved as its own deliberate decision (likely a
+short comparative audit in the P32A style, given 3 signals converge on 1 participant), not
+accidentally forced by finishing Budget or Financial Change in isolation first. PM's cleanest signal,
+`Timesheet Period`, is a strong 4th-in-line candidate once the Finance trio lands, ahead of `Register`
+and well ahead of `Project`/`Portfolio` (both lower audit/transaction readiness) and `Collaboration`/
+`Task` (both need dedicated architecture work — a presence-transport split and a Financial-Change-
+coupling resolution, respectively — before a clean single-phase deletion is realistic).
+
 ## 4. Current State
 
 **Legacy Signal count: 13 as of P33** (source-derived from
@@ -1568,10 +1743,21 @@ and `inventory_receipts_changed` are all deleted — zero producers, zero consum
 **No Inventory/Procurement work remains for this document to prioritize.** Attention shifts entirely
 to the remaining modules — Project Management, Finance, Auth/Security — per §6. **Auth Credential &
 Session remains AUDITED / DEFERRED** (P26A, see §3) — still not recommended given no canonical UoW
-exists yet on that surface; Project Management's Task Lifecycle (highly overloaded) and Finance's
-several remaining capabilities are the most likely next candidates, but per this document's own
-repeated caution, re-run prioritization from current source before committing to a target —
-concurrent development elsewhere may have changed readiness since P17/P26A.
+exists yet on that surface.
+
+**P34A's global re-audit (see §3) recommends FINANCE FIRST, specifically `planned_costs_changed` →
+`commitments_changed` → `cost_entries_changed`, all as DIRECT FULL MODERNIZATION (no dedicated
+audit-first phase needed)**: all three already have an unused, fully-wired canonical
+`FinanceGovernanceUnitOfWork` repo accessor, a single (or tight, already-atomic) producer, and the
+same proven precommit-conversion pattern P22's Rate Card already demonstrated on the exact same
+class. `commitments_changed` additionally closes a real, currently-live commit-without-rollback bug
+in `commitment_service.py`. `budgets_changed`/`financial_changes_changed` are also transaction-
+canonical but are deliberately sequenced after the trio — P34A found they are genuinely coupled to
+each other AND to PM's `tasks_changed` through one Approval participant
+(`financial_change_apply_participant.py::apply()`), which needs its own deliberate resolution rather
+than being forced by finishing either signal in isolation. Per this document's own repeated caution,
+re-run prioritization from current source before committing further — concurrent development
+elsewhere may have changed readiness since P34A.
 
 **A pre-existing, explicitly-not-fixed note carried forward by P33**: `PurchaseOrderLineORM` has no
 `version` column and its repository performs a blind field overwrite on `update()` — confirmed real
