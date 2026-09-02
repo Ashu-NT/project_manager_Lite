@@ -843,9 +843,38 @@ than P17's rough "~5" estimate once document-link churn is set aside:
 
 No source was changed by this audit. Legacy Signal count unchanged at 17.
 
+**Inventory Reservation is fully modernized as of P30B**, implementing P30A's audit exactly as
+recommended (Option A: single phase, new `InventoryReservationUnitOfWork` since no existing
+Inventory UoW naturally owned this transaction).
+
+| Aspect | Status |
+|---|---|
+| Reservation transaction ownership | MODERNIZED — new `InventoryReservationUnitOfWork`/`SqlAlchemyInventoryReservationUnitOfWorkFactory` (fresh Session per call, mirrors `InventoryFoundationUnitOfWork`'s shape). Accessors: `reservations`/`balances`/`stock_transactions` (repos), `stock_service` (the existing, unmodified `StockControlService` posting logic rebound to this UoW's own session/repos — Balance/Ledger behavior preserved exactly, not re-implemented), `_enterprise_audit_service`/`_activity_service` |
+| Typed DomainEvents | CANONICALIZED — 4 new events in `reservation_events.py`: `InventoryReservationCreated`, `InventoryReservationConsumptionAdvanced` (covers both partial and full issue — `resulting_status` distinguishes them), `InventoryReservationReleased`, `InventoryReservationCancelled` (kept distinct from Released despite sharing the `_close_reservation` implementation helper) |
+| Enterprise audit | ADDED — `record_audit_entry(uow, ..., commit=False, fail_closed=True)` now runs atomically with create/issue/release/cancel; previously these paths had zero enterprise audit (best-effort activity-feed only, P30A finding — same gap class P27A/P28A found for Requisition/PO). Proven atomic by a real audit-failure-rollback regression test: Reservation row, Balance row, and StockTransaction row all roll back together, zero postcommit hint escapes |
+| Document link/unlink | RESOLVED, P16D-only — confirmed link/unlink mutate only `DocumentLink`, never the Reservation row/Balance/StockTransaction. The legacy `inventory_reservations_changed.emit(...)` in both is deleted with no replacement Reservation event, mirroring PO's own link/unlink (P28A) and P24's identical Item finding. `document_integration_service`'s own P16D-typed `document_links` target is unmodified. Proven by a regression test: zero Reservation DomainEvent, zero `reservation_list`/`reservation_detail`/`reservation_open_count` hints, unchanged `version`/`status` |
+| ViewInvalidation targets | `reservation_list` (`OrganizationScope`), `reservation_detail` (`ResourceScope`, `entity_type="stock_reservation"`) — identical shape to Requisition's own (P29). Plus a third, narrower `reservation_open_count` (`OrganizationScope`) reserved for Dashboard's KPI, mirroring `requisition_pending_approval`'s precedent (P29-FIX) |
+| Event → invalidation mapping | `Created` → list + open_count only (never detail — no pre-existing detail view can be stale for an id that didn't exist a moment ago, same reasoning P29-FIX applied). `ConsumptionAdvanced`/`Released`/`Cancelled` → list + detail. `open_count` is additionally computed from the KPI's own `{ACTIVE, PARTIALLY_ISSUED}` membership predicate: Created/Released/Cancelled always fire it; `ConsumptionAdvanced` only when `resulting_status == FULLY_ISSUED` — a partial issue keeps the reservation counted and must not stale the KPI. Proven by two dedicated regression tests (one per issue outcome) |
+| Consumer cutover | CUT OVER — new `ReservationViewInvalidationAdapter` (mirrors `RequisitionViewInvalidationAdapter`). Reservations workspace (owner): full `_request_domain_refresh()` on list or detail staleness. Dashboard: `reservationOpenCountStale` only. Catalog/Pricing/Procurement/Inventory(Foundation) legacy subscriptions removed, no replacement (P30A proved zero real Reservation dependency for all four; Inventory(Foundation)'s own Balance-table dependency is unaffected, still served by its unchanged `inventory_balances_changed` subscription). Reservations workspace's own `inventory_balances_changed` subscription was re-examined (P30A had not covered it) and found to have zero real dependency either (its "available stock" references are UI copy text) — deliberately left untouched rather than pruned, since narrowing a Balance-signal consumer is Balance-capability wiring, out of this phase's scope |
+| Concurrency | PRESERVED, re-verified — `update_with_version_check` (atomic `UPDATE ... WHERE id=? AND version=?`) unchanged, now exercised through the canonical UoW's own `balances` repo. A genuine two-Session regression test (mirroring P28B's `PurchaseRequisitionLine` race template) proves it: available stock 10, two transactions each reserve 8 against the same stale read; the first commits, the second's version-guarded write raises `ConcurrencyError`, final persisted `reserved_qty` is 8, never 16 |
+| Reservation → Balance/Ledger | UNCHANGED BY DESIGN — Reservation genuinely mutates persisted `StockBalance`/`StockTransaction` state via the same, unmodified posting logic; `inventory_balances_changed` continues to be emitted exactly as before. Balance/Ledger remain a separate, still-legacy capability, explicitly out of this phase's scope |
+| `inventory_reservations_changed` | DELETED — field, all 5 former producer sites (3 converged to typed events, 2 — document link/unlink — converged to no event at all), all 6 legacy consumer subscriptions. Legacy Signal count: 16 (17 → 16, confirmed via `dataclasses.fields(DomainEvents)`) |
+
+Test coverage added: `src/tests/inventory_procurement/test_p30b_reservation_full_modernization.py`
+(legacy-field-deleted proof, Created's list+open_count-only mapping, partial-issue's
+open-count-preserving mapping, full-issue's open-count-staling mapping, Released vs Cancelled as
+distinct event types, document link/unlink's zero-event proof, an audit-failure-rollback proof for
+the new UoW boundary, and the two-Session Balance concurrency race). Full
+`src/tests/inventory_procurement/` suite plus `src/tests/architecture/test_service_architecture.py`:
+246 passed, 3 pre-existing failures confirmed unrelated (unchanged from P28B/P29's own baseline —
+one `source_reference_type` test-data bug and two unrelated import/reporting tests, verified via
+`git stash` to fail identically on the pre-P30B baseline).
+
+See ADR-005 §26.27 for the full design.
+
 ## 4. Current State
 
-**Legacy Signal count: 17 as of P29** (source-derived from
+**Legacy Signal count: 16 as of P30B** (source-derived from
 `src/core/shared/events/domain_events.py`, re-verified against current source when this document
 was last updated — `dataclasses.fields(domain_events)`, not a manual field count).
 
@@ -855,7 +884,7 @@ was last updated — `dataclasses.fields(domain_events)`, not a manual field cou
 | Auth/Security | 1 |
 | Project Management | 6 |
 | Finance | 6 |
-| Inventory/Procurement | 4 |
+| Inventory/Procurement | 3 |
 
 > **This is a snapshot, not a fact.** Recompute the count directly from
 > `src/core/shared/events/domain_events.py` before relying on it - do not trust this table if it
@@ -864,21 +893,19 @@ was last updated — `dataclasses.fields(domain_events)`, not a manual field cou
 
 ## 5. Current Priority
 
-**Purchase Order and Inventory Requisition are both fully modernized** (P28B/P28B-FIX/P29, see
-§3). `inventory_purchase_orders_changed` and `inventory_requisitions_changed` are both deleted —
-zero producers, zero consumers, fields absent. Inventory/Procurement's remaining legacy signals
-(4: `inventory_balances_changed`, `inventory_reservations_changed`, `inventory_receipts_changed`,
-`inventory_cycle_counts_changed`) cover Stock Balance/Ledger, Reservation, Goods Receipt, and Cycle
-Count. **Reservation is now fully audited** (P30A, see §3) — recommends a single-phase P30B that
-can fully retire `inventory_reservations_changed`, no cross-capability blocker found — but **no
-next capability has been chosen/committed yet**; Stock Balance/Ledger, Goods Receipt, and Cycle
-Count remain unaudited. Per this
+**Purchase Order, Inventory Requisition, and Inventory Reservation are all fully modernized**
+(P28B/P28B-FIX/P29/P29-FIX/P30B, see §3). `inventory_purchase_orders_changed`,
+`inventory_requisitions_changed`, and `inventory_reservations_changed` are all deleted — zero
+producers, zero consumers, fields absent. Inventory/Procurement's remaining legacy signals (3:
+`inventory_balances_changed`, `inventory_receipts_changed`, `inventory_cycle_counts_changed`) cover
+Stock Balance/Ledger, Goods Receipt, and Cycle Count — **no next capability has been chosen yet**;
+all three remain unaudited. Per this
 document's own repeated caution, re-run prioritization from current source before committing to a
 target — concurrent development elsewhere may have changed readiness since P17/P26A. **Auth
 Credential & Session remains AUDITED / DEFERRED** (P26A, see §3) — still not recommended given no
 canonical UoW exists yet on that surface.
 
-**P28B/P28B-FIX/P29's own explicit non-gaps, resolved rather than carried forward**: the
+**P28B/P28B-FIX/P29/P29-FIX/P30B's own explicit non-gaps, resolved rather than carried forward**: the
 Procurement-workspace-refresh-breadth note from P28B (full `_request_domain_refresh()` on either
 PO/Requisition ViewInvalidation target, matching its pre-existing monolithic `build_workspace_state`)
 remains accepted, unaddressed future work, not a phase gap — no narrower seam existed before P28B
@@ -907,12 +934,11 @@ Remaining capability groups, not yet assigned rigid phase numbers:
 - **Finance**: Financial Change, Project Commitment (fix the missing-rollback bug in
   `commitment_service.py` first), Project Cost Entry, Project Budget, Planned Cost, Billing
   Preparation.
-- **Inventory/Procurement**: **Purchase Order — DONE (P28B/P28B-FIX, see §3)** and **Requisition —
-  DONE (P29, see §3)**, both fully modernized: `inventory_purchase_orders_changed` and
-  `inventory_requisitions_changed` both deleted (fields absent, zero producers, zero consumers).
-  **Reservation — AUDITED (P30A, see §3)**: single-phase P30B recommended, no cross-capability
-  blocker (Balance/Ledger stay unchanged by design, Requisition/PO/Receipt have zero relationship
-  to Reservation). Stock Balance/Ledger, Cycle Count, Goods Receipt remain unaudited — no next
+- **Inventory/Procurement**: **Purchase Order — DONE (P28B/P28B-FIX, see §3)**, **Requisition —
+  DONE (P29/P29-FIX, see §3)**, and **Reservation — DONE (P30B, see §3)**, all three fully
+  modernized: `inventory_purchase_orders_changed`, `inventory_requisitions_changed`, and
+  `inventory_reservations_changed` all deleted (fields absent, zero producers, zero consumers).
+  Stock Balance/Ledger, Cycle Count, Goods Receipt remain unaudited — no next
   Inventory/Procurement target has been chosen yet.
 - **Auth/Security — AUDITED / DEFERRED**: Auth Credential & Session Lifecycle (`auth_changed` -
   largest remaining raw-Session surface in the codebase). Fully audited in P26A (see §3): proposed
@@ -952,6 +978,11 @@ document** - each is addressed when its owning capability's phase is implemented
   `ApprovalHandlerResult.domain_events`, field deleted (ADR-005 §26.25). The supplier
   same-organization concern carried forward since P27A was investigated and found not to be a
   real gap - `PartyService.get_party` already scopes to the active organization.
+- ~~`inventory_reservations_changed`~~ **RESOLVED by P30B** - all 5 former producer sites
+  converged (3 onto a new `InventoryReservationUnitOfWork` and typed events, 2 — document
+  link/unlink — onto no event at all, matching PO's/Item's own precedent), field deleted (ADR-005
+  §26.27). Reservation's genuine Balance/Ledger mutation is unchanged, still routed through the
+  legacy `inventory_balances_changed` - Balance itself remains unmodernized.
 - `collaboration_changed` - durable comment mutations and ephemeral presence pings share one
   signal name; a category error, not just an overload - presence needs a different mechanism
   entirely, not a `DomainEvent`.
@@ -975,10 +1006,10 @@ document** - each is addressed when its owning capability's phase is implemented
   `ResourceMasterChanged`/`ResourceCapabilityChanged` now dispatch through the canonical
   post-commit bus (bespoke `Signal[T]` transport deleted); still zero real UI subscribers until
   P18B builds the ViewInvalidation handler.
-- Coarse Inventory workspace refresh fan-out - narrowing since P20; by P29 each of the 6
-  Inventory/Procurement workspace controllers subscribes only to the 4 remaining legacy signals
-  it has a real (or still-unaudited) dependency on, not a blanket 11 - PO and Requisition facts
-  now route through their own typed ViewInvalidation adapters instead.
+- Coarse Inventory workspace refresh fan-out - narrowing since P20; by P30B each of the 6
+  Inventory/Procurement workspace controllers subscribes only to the 3 remaining legacy signals
+  it has a real (or still-unaudited) dependency on, not a blanket 11 - PO, Requisition, and
+  Reservation facts now route through their own typed ViewInvalidation adapters instead.
 
 ## 8. Migration Checklist
 

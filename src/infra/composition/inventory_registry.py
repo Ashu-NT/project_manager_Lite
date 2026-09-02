@@ -40,6 +40,9 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.purchase_
 from src.core.modules.inventory_procurement.infrastructure.persistence.requisition_submission_unit_of_work import (
     SqlAlchemyRequisitionSubmissionUnitOfWorkFactory,
 )
+from src.core.modules.inventory_procurement.infrastructure.persistence.reservation_unit_of_work import (
+    SqlAlchemyInventoryReservationUnitOfWorkFactory,
+)
 from src.core.modules.inventory_procurement.infrastructure.persistence.uow.inventory.inventory_foundation_unit_of_work import (
     SqlAlchemyInventoryFoundationUnitOfWorkFactory,
 )
@@ -49,6 +52,7 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.uow.catal
 from src.core.modules.inventory_procurement.application.inventory.event_handlers.view_invalidation import (
     build_location_list_view_invalidation_handler,
     build_reorder_policy_list_view_invalidation_handler,
+    build_reservation_view_invalidation_handler,
     build_storeroom_list_view_invalidation_handler,
 )
 from src.core.modules.inventory_procurement.application.catalog.event_handlers.view_invalidation import (
@@ -95,6 +99,12 @@ from src.core.modules.inventory_procurement.domain.procurement.requisition_event
     InventoryRequisitionRejected,
     InventoryRequisitionSourcingAdvanced,
     InventoryRequisitionSubmitted,
+)
+from src.core.modules.inventory_procurement.domain.inventory.reservation_events import (
+    InventoryReservationCancelled,
+    InventoryReservationConsumptionAdvanced,
+    InventoryReservationCreated,
+    InventoryReservationReleased,
 )
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.catalog import (
     SqlAlchemyInventoryItemCategoryRepository,
@@ -460,6 +470,32 @@ def build_inventory_procurement_service_bundle(
         platform_services.platform_post_commit_bus.subscribe(
             _requisition_event_type, _requisition_view_invalidation_handler
         )
+
+    inventory_reservation_uow_session_factory = sessionmaker(
+        bind=platform_services.session.bind, future=True
+    )
+    inventory_reservation_uow_factory = SqlAlchemyInventoryReservationUnitOfWorkFactory(
+        session_factory=inventory_reservation_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        organization_repo=platform_services.organization_repo,
+        item_service=inventory_item_service,
+        inventory_service=inventory_service,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
+    _reservation_view_invalidation_handler = build_reservation_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _reservation_event_type in (
+        InventoryReservationCreated,
+        InventoryReservationConsumptionAdvanced,
+        InventoryReservationReleased,
+        InventoryReservationCancelled,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _reservation_event_type, _reservation_view_invalidation_handler
+        )
     inventory_reservation_service = ReservationService(
         platform_services.session,
         reservation_repo,
@@ -467,6 +503,7 @@ def build_inventory_procurement_service_bundle(
         item_service=inventory_item_service,
         inventory_service=inventory_service,
         stock_service=inventory_stock_service,
+        reservation_uow_factory=inventory_reservation_uow_factory,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         document_integration_service=platform_services.document_integration_service,

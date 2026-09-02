@@ -10,7 +10,6 @@ def bind_domain_events(ctrl) -> None:
 
     for signal in (
         domain_events.inventory_balances_changed,
-        domain_events.inventory_reservations_changed,
         domain_events.inventory_receipts_changed,
         domain_events.inventory_cycle_counts_changed,
     ):

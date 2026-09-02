@@ -27,6 +27,9 @@ from src.ui_qml.platform.adapters.purchase_order_view_invalidation_adapter impor
 from src.ui_qml.platform.adapters.requisition_view_invalidation_adapter import (
     RequisitionViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.reservation_view_invalidation_adapter import (
+    ReservationViewInvalidationAdapter,
+)
 from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import (
     TenantSwitcherPresenter,
 )
@@ -247,6 +250,18 @@ class InventoryProcurementWorkspaceCatalog(QObject):
         self._reservations_catalog_view_invalidation_adapter.itemListStale.connect(
             self._reservations_workspace.refresh_item_options
         )
+        self._reservations_reservation_view_invalidation_adapter = ReservationViewInvalidationAdapter(
+            channel=self._view_invalidation_channel,
+            tenant_id=self._active_tenant_id() or "",
+            organization_id=self._active_organization_id() or "",
+            parent=self,
+        )
+        self._reservations_reservation_view_invalidation_adapter.reservationListStale.connect(
+            self._reservations_workspace._request_domain_refresh
+        )
+        self._reservations_reservation_view_invalidation_adapter.reservationDetailStale.connect(
+            self._reservations_workspace._request_domain_refresh
+        )
         self._procurement_workspace = (
             InventoryProcurementProcurementWorkspaceController(
                 workspace_presenter=InventoryProcurementWorkspacePresenter(
@@ -405,6 +420,15 @@ class InventoryProcurementWorkspaceCatalog(QObject):
             parent=self,
         )
         self._dashboard_requisition_view_invalidation_adapter.requisitionPendingApprovalStale.connect(
+            self._dashboard_workspace.refresh
+        )
+        self._dashboard_reservation_view_invalidation_adapter = ReservationViewInvalidationAdapter(
+            channel=self._view_invalidation_channel,
+            tenant_id=self._active_tenant_id() or "",
+            organization_id=self._active_organization_id() or "",
+            parent=self,
+        )
+        self._dashboard_reservation_view_invalidation_adapter.reservationOpenCountStale.connect(
             self._dashboard_workspace.refresh
         )
 
