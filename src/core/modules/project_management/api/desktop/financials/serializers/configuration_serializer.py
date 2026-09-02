@@ -69,7 +69,9 @@ def serialize_finance_budget_workspace(
 ) -> FinancialConfigurationWorkspaceDto:
     return FinancialConfigurationWorkspaceDto(
         selected_budget_id=source.selected_budget_id,
+        show_create_budget_version=source.show_create_version,
         can_create_budget_version=source.can_create_version,
+        create_budget_version_disabled_reason=source.create_version_disabled_reason,
         budget_versions=tuple(_budget_version_dto(item) for item in source.versions.items),
         budget_version_page=source.versions.page,
         budget_version_page_size=source.versions.page_size,

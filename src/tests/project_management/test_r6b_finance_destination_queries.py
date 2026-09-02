@@ -128,15 +128,22 @@ def test_overview_uses_bounded_overview_contract_only() -> None:
 
 def test_planning_budget_tab_does_not_query_cost_or_performance_reads() -> None:
     api = MagicMock()
-    api.get_budget_workspace.return_value = FinancialConfigurationWorkspaceDto()
+    api.get_budget_workspace.return_value = FinancialConfigurationWorkspaceDto(
+        show_create_budget_version=True,
+        can_create_budget_version=False,
+        create_budget_version_disabled_reason="An open version exists.",
+    )
 
-    build_destination_state(
+    state = build_destination_state(
         api,
         destination="planning",
         subsection="budgets",
         selected_project_id="project-1",
     )
 
+    assert state.show_create_budget_version is True
+    assert state.can_create_budget_version is False
+    assert state.create_budget_version_disabled_reason == "An open version exists."
     api.get_budget_workspace.assert_called_once()
     kwargs = api.get_budget_workspace.call_args.kwargs
     assert kwargs["selected_budget_id"] == ""
@@ -287,6 +294,11 @@ def test_budget_reader_pages_versions_and_selected_lines_authoritatively(service
     assert first_page.lines.total == 1
     assert first_page.lines.items[0].budget_id == first.id
     assert first_page.lines.items[0].amount == Decimal("125")
+    assert first_page.show_create_version is True
+    assert first_page.can_create_version is False
+    assert "Draft or Submitted budget is already open" in (
+        first_page.create_version_disabled_reason
+    )
 
     second_page = query.get_budget_workspace(
         project.id,

@@ -13,7 +13,9 @@ Item {
     property string selectedBudgetId: ""
     property string sortKey: "revision"
     property int sortDirection: Qt.DescendingOrder
+    property bool showCreateVersion: false
     property bool canCreateVersion: false
+    property string createVersionDisabledReason: ""
     signal budgetSelected(string budgetId)
     signal pageRequested(int page)
     signal sortRequested(string key, int direction)
@@ -55,10 +57,29 @@ Item {
             spacing: Theme.AppTheme.spacingSm
 
             AppControls.SecondaryButton {
-                visible: root.canCreateVersion && !Boolean(root.selectedState.canCreateSuccessor)
+                visible: root.showCreateVersion && !Boolean(root.selectedState.canCreateSuccessor)
+                enabled: root.canCreateVersion && !root.busy
+                opacity: enabled ? 1.0 : 0.55
                 text: "Create Version"
                 iconName: "add"
                 onClicked: root.createVersionRequested()
+            }
+            Text {
+                visible: root.showCreateVersion
+                    && !root.canCreateVersion
+                    && !Boolean(root.selectedState.canCreateSuccessor)
+                width: Math.min(
+                    420,
+                    Math.max(220, parent.width - (2 * Theme.AppTheme.spacingMd))
+                )
+                height: Math.max(Theme.AppTheme.toolbarHeight, implicitHeight)
+                verticalAlignment: Text.AlignVCenter
+                wrapMode: Text.WordWrap
+                color: Theme.AppTheme.textSecondary
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
+                text: root.createVersionDisabledReason
+                    || "Complete the open budget workflow before creating another version."
             }
             AppControls.SecondaryButton {
                 visible: Boolean(root.selectedState.canCreateSuccessor)

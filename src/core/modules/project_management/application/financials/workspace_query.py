@@ -483,7 +483,14 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             selected_budget_id=normalized_budget_id,
             versions=versions,
             lines=lines,
+            show_create_version=can_manage,
             can_create_version=can_manage and not has_open,
+            create_version_disabled_reason=(
+                "A Draft or Submitted budget is already open. Complete its "
+                "workflow or delete the Draft before creating another version."
+                if can_manage and has_open
+                else ""
+            ),
         )
 
     def _has_project_permission(self, project_id: str, permission: str) -> bool:

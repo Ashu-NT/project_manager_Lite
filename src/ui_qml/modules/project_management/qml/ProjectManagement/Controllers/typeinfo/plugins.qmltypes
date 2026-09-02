@@ -241,7 +241,9 @@ Component {
     Property { name: "budgetVersionsTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "budgetLinesTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "selectedBudgetId"; type: "QString"; isReadonly: true }
+    Property { name: "showCreateBudgetVersion"; type: "bool"; isReadonly: true }
     Property { name: "canCreateBudgetVersion"; type: "bool"; isReadonly: true }
+    Property { name: "createBudgetVersionDisabledReason"; type: "QString"; isReadonly: true }
     Property { name: "currencyOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "defaultCurrencyCode"; type: "QString"; isReadonly: true }
     Property { name: "budgetVersionSortKey"; type: "QString"; isReadonly: true }

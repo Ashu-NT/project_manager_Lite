@@ -454,8 +454,12 @@ AppLayouts.WorkspaceFrame {
                     budgetVersionsTableModel: root.workspaceController ? root.workspaceController.budgetVersionsTableModel : null
                     budgetLinesTableModel: root.workspaceController ? root.workspaceController.budgetLinesTableModel : null
                     selectedBudgetId: root.workspaceController ? root.workspaceController.selectedBudgetId : ""
+                    showCreateBudgetVersion: root.workspaceController
+                        ? root.workspaceController.showCreateBudgetVersion : false
                     canCreateBudgetVersion: root.workspaceController
                         ? root.workspaceController.canCreateBudgetVersion : false
+                    createBudgetVersionDisabledReason: root.workspaceController
+                        ? root.workspaceController.createBudgetVersionDisabledReason : ""
                     budgetVersionSortKey: root.workspaceController ? root.workspaceController.budgetVersionSortKey : "revision"
                     budgetVersionSortDirection: root.workspaceController ? root.workspaceController.budgetVersionSortDirection : Qt.DescendingOrder
                     budgetLineSortKey: root.workspaceController ? root.workspaceController.budgetLineSortKey : "metaText"

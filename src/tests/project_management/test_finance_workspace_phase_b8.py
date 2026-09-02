@@ -148,6 +148,17 @@ def test_qml_uses_six_intent_destinations_and_secondary_finance_views() -> None:
     assert "FinancialsListPage" not in page
 
 
+def test_budget_create_action_stays_visible_when_open_version_blocks_creation() -> None:
+    root = Path("src/ui_qml/modules/project_management/qml/workspaces/financials")
+    section = (root / "sections/FinancialsBudgetVersionsSection.qml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "visible: root.showCreateVersion" in section
+    assert "enabled: root.canCreateVersion && !root.busy" in section
+    assert "root.createVersionDisabledReason" in section
+
+
 def test_financials_uses_flat_scrollable_navigation_and_project_scope_selector() -> None:
     financials_root = Path("src/ui_qml/modules/project_management/qml/workspaces/financials")
     page = (financials_root / "FinancialsWorkspacePage.qml").read_text(encoding="utf-8")

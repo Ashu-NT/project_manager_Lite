@@ -307,6 +307,9 @@ def test_explicit_budget_approval_request_always_uses_platform_approval(
     reviewer_row = reviewer_view.versions.items[0]
     assert reviewer_row.can_approve is True
     assert reviewer_row.can_reject is True
+    assert reviewer_view.show_create_version is False
+    assert reviewer_view.can_create_version is False
+    assert reviewer_view.create_version_disabled_reason == ""
 
     services["approval_service"].approve_and_apply(
         result.approval_request_id, note="Approved by another principal"

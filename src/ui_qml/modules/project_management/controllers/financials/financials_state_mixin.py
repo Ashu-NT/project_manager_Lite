@@ -304,11 +304,23 @@ class FinancialsStateMixin:
             self._selected_budget_id = value
             self.selectedBudgetIdChanged.emit()
 
+    def _set_show_create_budget_version(self, value: bool) -> None:
+        normalized = bool(value)
+        if normalized != self._show_create_budget_version:
+            self._show_create_budget_version = normalized
+            self.showCreateBudgetVersionChanged.emit()
+
     def _set_can_create_budget_version(self, value: bool) -> None:
         normalized = bool(value)
         if normalized != self._can_create_budget_version:
             self._can_create_budget_version = normalized
             self.canCreateBudgetVersionChanged.emit()
+
+    def _set_create_budget_version_disabled_reason(self, value: str) -> None:
+        normalized = str(value or "")
+        if normalized != self._create_budget_version_disabled_reason:
+            self._create_budget_version_disabled_reason = normalized
+            self.createBudgetVersionDisabledReasonChanged.emit()
 
     def _set_budget_sort_state(
         self,
