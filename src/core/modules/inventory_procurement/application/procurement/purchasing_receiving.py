@@ -13,6 +13,10 @@ from src.core.modules.inventory_procurement.application.common.support import (
 from src.core.modules.inventory_procurement.application.procurement.purchasing_support import (
     build_receipt_number,
 )
+from src.core.modules.inventory_procurement.domain.inventory.balance_events import (
+    StockOnHandQuantityChanged,
+    StockOnOrderQuantityChanged,
+)
 from src.core.modules.inventory_procurement.domain.procurement.purchasing import (
     PurchaseOrderLineStatus,
     PurchaseOrderStatus,
@@ -28,17 +32,18 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing_events
 from src.core.modules.inventory_procurement.domain.procurement.requisition_events import (
     InventoryRequisitionSourcingAdvanced,
 )
+from src.core.modules.inventory_procurement.domain.procurement.receipt_events import (
+    InventoryReceiptPosted,
+)
 from src.core.platform.domain.approval import ApprovalRequest
 from src.core.platform.contract.models.approval.contracts import (
     ApprovalHandlerResult,
-    ApprovalPostCommitEvent,
 )
 from src.core.platform.common.ids import generate_id
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 
 
 class PurchasingReceivingMixin:
@@ -82,7 +87,6 @@ class PurchasingReceivingMixin:
         effective_receipt_date = receipt.receipt_date or datetime.now(timezone.utc)
         created_receipt_lines: list[ReceiptLine] = []
         created_transactions = []
-        touched_balance_ids: set[str] = set()
         final_lines_by_id = dict(order_lines)
         tenant_id = self._tenant_context_service.require_active_tenant_id(
             operation_label="post receipt"
@@ -170,6 +174,17 @@ class PurchasingReceivingMixin:
                 )
                 uow.purchase_order_lines.update(po_line)
                 final_lines_by_id[po_line.id] = po_line
+                # Delta is computed as (resulting - previous), never re-derived from the
+                # line-UOM `accepted`/`processed` values -- avoids duplicating
+                # `post_adjustment`'s/`_adjust_on_order_balance`'s own UOM-to-stock-UOM
+                # conversion math (P31B §5).
+                previous_balance = uow.balances.get_for_stock_position(
+                    purchase_order.organization_id,
+                    po_line.stock_item_id,
+                    po_line.destination_storeroom_id,
+                )
+                previous_on_hand = float(previous_balance.on_hand_qty) if previous_balance else 0.0
+                previous_on_order = float(previous_balance.on_order_qty) if previous_balance else 0.0
                 if accepted > 0:
                     transaction = stock_service.post_adjustment(
                         stock_item_id=po_line.stock_item_id,
@@ -191,7 +206,18 @@ class PurchasingReceivingMixin:
                         po_line.destination_storeroom_id,
                     )
                     if balance is not None:
-                        touched_balance_ids.add(balance.id)
+                        uow.record_event(
+                            StockOnHandQuantityChanged(
+                                tenant_id=tenant_id,
+                                organization_id=purchase_order.organization_id,
+                                balance_id=balance.id,
+                                stock_item_id=balance.stock_item_id,
+                                storeroom_id=balance.storeroom_id,
+                                quantity_delta=float(balance.on_hand_qty) - previous_on_hand,
+                                resulting_quantity=balance.on_hand_qty,
+                                occurred_at=effective_receipt_date,
+                            )
+                        )
                 self._adjust_on_order_balance(
                     organization_id=purchase_order.organization_id,
                     item=self._item_service.get_item_for_internal_use(po_line.stock_item_id),
@@ -207,7 +233,19 @@ class PurchasingReceivingMixin:
                     po_line.destination_storeroom_id,
                 )
                 if balance is not None:
-                    touched_balance_ids.add(balance.id)
+                    if processed > 0:
+                        uow.record_event(
+                            StockOnOrderQuantityChanged(
+                                tenant_id=tenant_id,
+                                organization_id=purchase_order.organization_id,
+                                balance_id=balance.id,
+                                stock_item_id=balance.stock_item_id,
+                                storeroom_id=balance.storeroom_id,
+                                quantity_delta=float(balance.on_order_qty) - previous_on_order,
+                                resulting_quantity=balance.on_order_qty,
+                                occurred_at=effective_receipt_date,
+                            )
+                        )
             resulting_lines = list(final_lines_by_id.values())
             resulting_status = self._resolve_purchase_order_receiving_status(resulting_lines)
             purchase_order = replace(
@@ -281,10 +319,16 @@ class PurchasingReceivingMixin:
                     occurred_at=effective_receipt_date,
                 )
             )
+            uow.record_event(
+                InventoryReceiptPosted(
+                    tenant_id=tenant_id,
+                    organization_id=purchase_order.organization_id,
+                    receipt_id=receipt.id,
+                    purchase_order_id=purchase_order.id,
+                    occurred_at=effective_receipt_date,
+                )
+            )
             uow.commit()
-        domain_events.inventory_receipts_changed.emit(receipt.id)
-        for balance_id in touched_balance_ids:
-            domain_events.inventory_balances_changed.emit(balance_id)
         self._dispatch_procurement_financial_events()
         return receipt
 
@@ -324,10 +368,16 @@ class PurchasingReceivingMixin:
         self._purchase_order_repo.update(purchase_order)
         lines = self._purchase_order_line_repo.list_for_purchase_order(purchase_order.id)
         touched_requisition_ids: set[str] = set()
-        touched_balance_ids: set[str] = set()
+        balance_events: list[StockOnOrderQuantityChanged] = []
         for line in lines:
             line = replace(line, status=PurchaseOrderLineStatus.OPEN)
             self._purchase_order_line_repo.update(line)
+            previous_balance = self._balance_repo.get_for_stock_position(
+                purchase_order.organization_id,
+                line.stock_item_id,
+                line.destination_storeroom_id,
+            )
+            previous_on_order = float(previous_balance.on_order_qty) if previous_balance else 0.0
             self._adjust_on_order_balance(
                 organization_id=purchase_order.organization_id,
                 item=self._item_service.get_item_for_internal_use(line.stock_item_id),
@@ -342,7 +392,18 @@ class PurchasingReceivingMixin:
                 line.destination_storeroom_id,
             )
             if balance is not None:
-                touched_balance_ids.add(balance.id)
+                balance_events.append(
+                    StockOnOrderQuantityChanged(
+                        tenant_id=request.tenant_id,
+                        organization_id=purchase_order.organization_id,
+                        balance_id=balance.id,
+                        stock_item_id=balance.stock_item_id,
+                        storeroom_id=balance.storeroom_id,
+                        quantity_delta=float(balance.on_order_qty) - previous_on_order,
+                        resulting_quantity=balance.on_order_qty,
+                        occurred_at=effective_at,
+                    )
+                )
             if line.source_requisition_line_id:
                 requisition_line = self._require_requisition_line(line.source_requisition_line_id)
                 requisition_for_line = self._requisition_repo.get(
@@ -414,10 +475,6 @@ class PurchasingReceivingMixin:
             commit=False,
         )
         return ApprovalHandlerResult(
-            post_commit_events=tuple(
-                ApprovalPostCommitEvent("inventory_balances_changed", balance_id)
-                for balance_id in sorted(touched_balance_ids)
-            ),
             domain_events=(
                 InventoryPurchaseOrderApproved(
                     tenant_id=request.tenant_id,
@@ -427,6 +484,7 @@ class PurchasingReceivingMixin:
                     occurred_at=effective_at,
                 ),
                 *requisition_sourcing_events,
+                *balance_events,
             ),
         )
 

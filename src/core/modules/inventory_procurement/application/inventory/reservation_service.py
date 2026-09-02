@@ -16,14 +16,15 @@ from src.core.modules.inventory_procurement.application.common.support import (
     validate_transition,
 )
 from src.core.modules.inventory_procurement.application.inventory.service import InventoryService
-from src.core.modules.inventory_procurement.application.inventory.stock_control_service import (
-    StockControlService,
-)
 from src.core.modules.inventory_procurement.contracts.persistence.reservation_unit_of_work import (
     InventoryReservationUnitOfWorkFactory,
 )
 from src.core.modules.inventory_procurement.contracts.repositories.inventory import (
     StockReservationRepository,
+)
+from src.core.modules.inventory_procurement.domain.inventory.balance_events import (
+    StockOnHandQuantityChanged,
+    StockReservedQuantityChanged,
 )
 from src.core.modules.inventory_procurement.domain.inventory.reservation_events import (
     InventoryReservationCancelled,
@@ -45,7 +46,6 @@ from src.core.platform.application.master_data.documents import DocumentIntegrat
 from src.core.platform.domain.master_data.documents import Document, DocumentLink
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
     require_tenant_context_service,
@@ -65,7 +65,6 @@ class ReservationService:
         organization_repo: OrganizationRepository,
         item_service: ItemMasterService,
         inventory_service: InventoryService,
-        stock_service: StockControlService,
         reservation_uow_factory: InventoryReservationUnitOfWorkFactory | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
@@ -81,10 +80,6 @@ class ReservationService:
         )
         self._item_service = item_service
         self._inventory_service = inventory_service
-        # Retained only for the post-commit legacy `inventory_balances_changed` read -- Balance
-        # is explicitly out of scope for modernization here (P30B). All Reservation-owned
-        # mutations go through `_reservation_uow_factory` / `uow.stock_service` instead.
-        self._stock_service = stock_service
         self._reservation_uow_factory = reservation_uow_factory
         self._user_session = user_session
         self._activity_service = activity_service
@@ -227,10 +222,19 @@ class ReservationService:
                         occurred_at=occurred_at,
                     )
                 )
+                balance = uow.balances.get_for_stock_position(organization.id, item.id, storeroom.id)
+                self._record_balance_event(
+                    uow,
+                    event_type=StockReservedQuantityChanged,
+                    tenant_id=tenant_id,
+                    organization_id=organization.id,
+                    balance=balance,
+                    quantity_delta=reservation.reserved_qty,
+                    occurred_at=occurred_at,
+                )
                 uow.commit()
         except IntegrityError as exc:
             raise ValidationError("Reservation number already exists.", code="INVENTORY_RESERVATION_NUMBER_EXISTS") from exc
-        self._emit_legacy_balance_signal(stock_item_id=item.id, storeroom_id=storeroom.id)
         return reservation
 
     def release_reservation(self, reservation_id: str, *, note: str = "") -> StockReservation:
@@ -339,11 +343,31 @@ class ReservationService:
                     occurred_at=effective_at,
                 )
             )
+            # `issue_stock` mutates both `on_hand_qty` and `reserved_qty` (via
+            # `release_reserved_qty`) in the same call -- two genuine Balance facts from one
+            # operation, not merged into a catch-all (P31B §7/§13).
+            balance = uow.balances.get_for_stock_position(
+                reservation.organization_id, reservation.stock_item_id, reservation.storeroom_id
+            )
+            self._record_balance_event(
+                uow,
+                event_type=StockOnHandQuantityChanged,
+                tenant_id=tenant_id,
+                organization_id=reservation.organization_id,
+                balance=balance,
+                quantity_delta=-issue_qty,
+                occurred_at=effective_at,
+            )
+            self._record_balance_event(
+                uow,
+                event_type=StockReservedQuantityChanged,
+                tenant_id=tenant_id,
+                organization_id=reservation.organization_id,
+                balance=balance,
+                quantity_delta=-issue_qty,
+                occurred_at=effective_at,
+            )
             uow.commit()
-        self._emit_legacy_balance_signal(
-            stock_item_id=reservation.stock_item_id,
-            storeroom_id=reservation.storeroom_id,
-        )
         return reservation
 
     def list_reservation_documents(
@@ -549,11 +573,19 @@ class ReservationService:
                         occurred_at=effective_at,
                     )
                 )
+            balance = uow.balances.get_for_stock_position(
+                reservation.organization_id, reservation.stock_item_id, reservation.storeroom_id
+            )
+            self._record_balance_event(
+                uow,
+                event_type=StockReservedQuantityChanged,
+                tenant_id=tenant_id,
+                organization_id=reservation.organization_id,
+                balance=balance,
+                quantity_delta=-quantity_to_release,
+                occurred_at=effective_at,
+            )
             uow.commit()
-        self._emit_legacy_balance_signal(
-            stock_item_id=reservation.stock_item_id,
-            storeroom_id=reservation.storeroom_id,
-        )
         return reservation
 
     def _record_transaction_audit(self, uow, transaction) -> None:
@@ -575,17 +607,41 @@ class ReservationService:
             commit=False,
         )
 
-    def _emit_legacy_balance_signal(self, *, stock_item_id: str, storeroom_id: str) -> None:
-        # `inventory_balances_changed` is unchanged/retained -- Balance is a separate, still-
-        # legacy capability (explicitly out of scope for P30B). Reservation genuinely mutates
-        # persisted Balance state (see `uow.stock_service` above), so this notification is a
-        # real, correct fact about a different capability, not a compatibility shim for the
-        # just-retired `inventory_reservations_changed`.
-        balance = self._stock_service.get_balance_for_stock_position(
-            stock_item_id=stock_item_id, storeroom_id=storeroom_id
+    @staticmethod
+    def _record_balance_event(
+        uow,
+        *,
+        event_type,
+        tenant_id: str,
+        organization_id: str,
+        balance,
+        quantity_delta: float,
+        occurred_at: datetime,
+    ) -> None:
+        # P31B: Reservation genuinely mutates persisted Balance state in the same transaction as
+        # its own aggregate write -- record the canonical Balance fact here, in the same UoW,
+        # before commit (never a postcommit substitute for the business fact itself). `balance`
+        # is always non-None here: Reservation's own Balance mutation requires an existing
+        # balance row (`hold_reservation`/`release_reservation`/`issue_stock` all raise if none
+        # exists), so the row this method re-reads was already guaranteed present by the mutation
+        # that just ran in the same transaction.
+        if quantity_delta == 0:
+            return
+        resulting_quantity = (
+            balance.reserved_qty if event_type is StockReservedQuantityChanged else balance.on_hand_qty
         )
-        if balance is not None:
-            domain_events.inventory_balances_changed.emit(balance.id)
+        uow.record_event(
+            event_type(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                balance_id=balance.id,
+                stock_item_id=balance.stock_item_id,
+                storeroom_id=balance.storeroom_id,
+                quantity_delta=quantity_delta,
+                resulting_quantity=resulting_quantity,
+                occurred_at=occurred_at,
+            )
+        )
 
     def _require_reservation_uow_factory(self) -> InventoryReservationUnitOfWorkFactory:
         if self._reservation_uow_factory is None:

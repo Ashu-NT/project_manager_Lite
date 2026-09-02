@@ -107,7 +107,6 @@ def test_pm_financials_workspace_coalesces_scoped_finance_invalidations(services
     controller.refresh = lambda: refresh_calls.append("refresh")
 
     domain_events.budgets_changed.emit(project_id)
-    domain_events.planned_costs_changed.emit(project_id)
     domain_events.billing_preparations_changed.emit(project_id)
 
     qapp.processEvents()

@@ -18,7 +18,6 @@ from .reservations_bulk_handler import (
     select_visible_reservations,
     set_reservation_bulk_selection,
 )
-from .reservations_domain_event_binder import bind_domain_events
 from .reservations_export_handler import export_table
 from .reservations_filter_handler import (
     clear_filters,
@@ -117,7 +116,6 @@ class InventoryProcurementReservationsWorkspaceController(
         self._selected_reservation_ids: list[str] = []
         self._activity_api = activity_api
         self._detail_activity_items: list[dict[str, object]] = []
-        bind_domain_events(self)
         self.refresh()
 
     # ── Properties ───────────────────────────────────────────────────

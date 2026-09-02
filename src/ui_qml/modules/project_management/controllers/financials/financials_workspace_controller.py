@@ -20,6 +20,9 @@ from src.ui_qml.modules.project_management.controllers.financials.forecast_domai
 from src.ui_qml.modules.project_management.controllers.financials.financial_setup_domain_event_binder import (
     on_financial_profile_stale,
 )
+from src.ui_qml.modules.project_management.controllers.financials.planned_cost_domain_event_binder import (
+    on_planned_cost_snapshot_stale,
+)
 from src.ui_qml.modules.project_management.controllers.financials.rate_card_domain_event_binder import (
     on_rate_card_detail_stale,
     on_rate_card_list_stale,
@@ -758,6 +761,9 @@ class ProjectManagementFinancialsWorkspaceController(
 
     def onFinancialProfileStale(self, project_id: str) -> None:
         on_financial_profile_stale(self, project_id)
+
+    def onPlannedCostSnapshotStale(self, project_id: str) -> None:
+        on_planned_cost_snapshot_stale(self, project_id)
 
     def onRateCardListStale(self, rate_card_id: str) -> None:
         on_rate_card_list_stale(self, rate_card_id)

@@ -18,7 +18,6 @@ from .inventory_bulk_handler import (
     select_visible_balances,
     set_balance_bulk_selection,
 )
-from .inventory_domain_event_binder import bind_domain_events
 from .inventory_export_handler import export_table, is_balances_view
 from .inventory_filter_handler import (
     clear_filters,
@@ -206,7 +205,6 @@ class InventoryProcurementInventoryWorkspaceController(
         self._selected_location_id = ""
         self._activity_api = activity_api
         self._detail_activity_items: list[dict[str, object]] = []
-        bind_domain_events(self)
         self.refresh()
 
     # ── Properties ───────────────────────────────────────────────────

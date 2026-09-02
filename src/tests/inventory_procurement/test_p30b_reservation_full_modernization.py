@@ -349,18 +349,21 @@ def test_concurrent_reservation_rejects_stale_balance_write_no_oversubscription(
 # ---------------------------------------------------------------------------
 
 
-def test_reservations_binder_has_zero_balance_reference():
+def test_reservations_has_zero_balance_reference():
     """P30B-FIX: Reservations workspace has zero real Balance dependency -- its 'available
     stock' references (P30A/P30B) are UI copy text only. The incidental legacy
-    `inventory_balances_changed` subscription is removed with no replacement."""
-    import inspect
+    `inventory_balances_changed` subscription is removed with no replacement.
 
-    from src.ui_qml.modules.inventory_procurement.controllers.reservations import (
-        reservations_domain_event_binder,
-    )
+    P33-CLEANUP: `reservations_domain_event_binder.py` was deleted outright -- Reservations'
+    Balance incidence was the P30B-FIX-era reason it had zero legacy subscriptions, and by P33
+    the module's own last remaining subscription (`inventory_receipts_changed`) was also
+    removed, leaving the binder a permanent no-op that was then deleted rather than kept as an
+    empty shell. Its absence is itself the proof."""
+    import importlib.util
 
-    source = inspect.getsource(reservations_domain_event_binder)
-    assert "inventory_balances_changed" not in source
+    assert importlib.util.find_spec(
+        "src.ui_qml.modules.inventory_procurement.controllers.reservations.reservations_domain_event_binder"
+    ) is None
 
 
 def test_real_reservations_workspace_reacts_to_reservation_created_not_balance(services):
@@ -395,7 +398,11 @@ def test_real_reservations_workspace_reacts_to_reservation_created_not_balance(s
 
 def test_real_inventory_workspace_still_reacts_to_balance_mutation(services):
     """Unaffected by P30B-FIX -- Inventory(Foundation)'s own Balance dependency (its 'Stock
-    Balances' table) is genuine and must keep reacting."""
+    Balances' table) is genuine and must keep reacting. Mutation now goes through
+    `inventory_foundation_service.post_adjustment` (P31B) rather than the raw shared
+    `inventory_stock_service` instance directly -- manual stock movements converged onto a
+    canonical UoW recording a typed `StockOnHandQuantityChanged` fact, replacing the deleted
+    `inventory_balances_changed` legacy signal."""
     suffix = uuid4().hex[:6].upper()
     services["auth_service"].register_user(
         f"p30bfix-inv-{suffix}", "StrongPass123", role_names=["inventory_manager"]
@@ -406,10 +413,15 @@ def test_real_inventory_workspace_still_reacts_to_balance_mutation(services):
     calls: list[str] = []
     catalog._inventory_workspace.refresh = lambda: calls.append("inventory_refresh")
 
-    services["inventory_stock_service"].post_adjustment(
+    services["inventory_foundation_service"].post_adjustment(
         stock_item_id=item.id, storeroom_id=storeroom.id, quantity=1, direction="INCREASE"
     )
-    assert calls == ["inventory_refresh"], "Inventory workspace must still react to a genuine Balance mutation"
+    # `StockOnHandQuantityChanged` staless both `stock_balance_list` and `stock_balance_detail`
+    # (both genuinely stale -- Inventory(Foundation) shows both in one monolithic workspace).
+    # Without a live Qt event loop in this test harness, `_request_domain_refresh()`'s own
+    # QTimer(0) coalescing (P29-FIX) cannot batch the two hints into one call the way it does in
+    # the real running app -- asserting "reacted at all" here, not an exact call count.
+    assert calls, "Inventory workspace must still react to a genuine Balance mutation"
 
 
 def test_dashboard_wiring_reacts_to_reservation_open_count_signal(services):

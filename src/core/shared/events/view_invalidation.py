@@ -36,13 +36,6 @@ class OrganizationScope(EventScope):
 
 @dataclass(frozen=True, slots=True)
 class ResourceScope(EventScope):
-    """Exactly one resource/entity within one organization within one tenant, identified
-    generically by `(module_code, entity_type, entity_id)` -- never a capability-specific field
-    shape (P16D-FIX). `module_code` names the owning module of the resource itself (e.g. an
-    opaque cross-module business entity's own module, or `"platform"` for a Platform-owned
-    resource being targeted by its own id, such as a single document). A strict refinement of
-    `OrganizationScope`: every organization-breadth `ScopeFilter` matches it the same way it
-    would an `OrganizationScope` for the same tenant/organization."""
 
     tenant_id: str
     organization_id: str

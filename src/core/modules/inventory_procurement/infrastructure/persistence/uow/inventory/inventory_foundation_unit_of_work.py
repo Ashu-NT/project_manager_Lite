@@ -4,11 +4,19 @@ from collections.abc import Callable
 
 from sqlalchemy.orm import Session
 
+from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
+from src.core.modules.inventory_procurement.application.inventory.service import InventoryService
+from src.core.modules.inventory_procurement.application.inventory.stock_control_service import (
+    StockControlService,
+)
 from src.core.modules.inventory_procurement.contracts.uow.inventory.inventory_foundation_unit_of_work import (
     InventoryFoundationUnitOfWork,
 )
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.inventory import (
+    SqlAlchemyCycleCountRepository,
     SqlAlchemyReorderPolicyRepository,
+    SqlAlchemyStockBalanceRepository,
+    SqlAlchemyStockTransactionRepository,
     SqlAlchemyStorageLocationRepository,
     SqlAlchemyStoreroomRepository,
 )
@@ -16,6 +24,7 @@ from src.core.platform.application.history.activity.activity_service import Acti
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
+from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.infrastructure.persistence.repositories.history.activity.activity import (
     SqlAlchemyActivityRepository,
 )
@@ -43,6 +52,9 @@ class SqlAlchemyInventoryFoundationUnitOfWork(
         transactional_dispatcher: TransactionalEventDispatcher,
         post_commit_bus: PostCommitEventPublisher,
         context: DomainEventContext,
+        organization_repo: OrganizationRepository,
+        item_service: ItemMasterService,
+        inventory_service: InventoryService,
         tenant_context_service,
         user_session,
     ) -> None:
@@ -61,6 +73,26 @@ class SqlAlchemyInventoryFoundationUnitOfWork(
         self.reorder_policies = SqlAlchemyReorderPolicyRepository(
             session, tenant_context_service=tenant_context_service
         )
+        self.cycle_counts = SqlAlchemyCycleCountRepository(
+            session, tenant_context_service=tenant_context_service
+        )
+        self.balances = SqlAlchemyStockBalanceRepository(
+            session, tenant_context_service=tenant_context_service
+        )
+        self.stock_transactions = SqlAlchemyStockTransactionRepository(
+            session, tenant_context_service=tenant_context_service
+        )
+
+        self.stock_service = StockControlService(
+            session,
+            self.balances,
+            self.stock_transactions,
+            organization_repo=organization_repo,
+            item_service=item_service,
+            inventory_service=inventory_service,
+            tenant_context_service=tenant_context_service,
+            user_session=user_session,
+        )
 
         audit_repo = SqlAlchemyAuditRepository(session)
         audit_repo._tenant_context_service = tenant_context_service
@@ -70,10 +102,6 @@ class SqlAlchemyInventoryFoundationUnitOfWork(
             user_session=user_session,
             tenant_context_service=tenant_context_service,
         )
-        # Storeroom/Location activity recording was previously silent dead code (P20 finding):
-        # `InventoryService`/`InventoryFoundationService` were never wired with an
-        # `_activity_service` at all, so `record_activity(self, ...)` always no-opped. Bound
-        # to this same fresh transaction, mirroring Resource's P18A activity-atomicity fix.
         activity_repo = SqlAlchemyActivityRepository(session)
         activity_repo._tenant_context_service = tenant_context_service
         self._activity_service = ActivityService(
@@ -85,8 +113,6 @@ class SqlAlchemyInventoryFoundationUnitOfWork(
 
 
 class SqlAlchemyInventoryFoundationUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
-    """Closes over a session *factory* -- every `create()` call opens a genuinely fresh
-    `Session`, matching every other Platform/module canonical UoW factory's own convention."""
 
     def __init__(
         self,
@@ -94,6 +120,7 @@ class SqlAlchemyInventoryFoundationUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactory
         session_factory: Callable[[], Session],
         transactional_dispatcher: TransactionalEventDispatcher,
         post_commit_bus: PostCommitEventPublisher,
+        organization_repo: OrganizationRepository,
         tenant_context_service,
         user_session,
     ) -> None:
@@ -102,15 +129,32 @@ class SqlAlchemyInventoryFoundationUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactory
             transactional_dispatcher=transactional_dispatcher,
             post_commit_bus=post_commit_bus,
         )
+        self._organization_repo = organization_repo
+        self._item_service: ItemMasterService | None = None
+        self._inventory_service: InventoryService | None = None
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
 
+    def configure_stock_dependencies(
+        self, *, item_service: ItemMasterService, inventory_service: InventoryService
+    ) -> None:
+        self._item_service = item_service
+        self._inventory_service = inventory_service
+
     def create(self, *, context: DomainEventContext) -> SqlAlchemyInventoryFoundationUnitOfWork:
+        if self._item_service is None or self._inventory_service is None:
+            raise RuntimeError(
+                "SqlAlchemyInventoryFoundationUnitOfWorkFactory.configure_stock_dependencies() "
+                "must be called before create()."
+            )
         return SqlAlchemyInventoryFoundationUnitOfWork(
             session=self._session_factory(),
             transactional_dispatcher=self._transactional_dispatcher,
             post_commit_bus=self._post_commit_bus,
             context=context,
+            organization_repo=self._organization_repo,
+            item_service=self._item_service,
+            inventory_service=self._inventory_service,
             tenant_context_service=self._tenant_context_service,
             user_session=self._user_session,
         )

@@ -928,9 +928,793 @@ follow-up re-examined only two closure items:
 See ADR-005 §26.27 for the full design (updated in place with this correction and the explicit
 mapping table).
 
+**P31A — Stock Balance + StockTransaction/Ledger: system-wide semantic + transaction audit
+complete (design only, no migration yet).** Full source re-audit, deliberately going beyond
+`StockControlService` per this phase's own explicit instruction — traced every capability capable
+of writing `StockBalance`: Reservation, Purchase Order (approve/cancel), Goods Receipt, Cycle
+Count, and Inventory(Foundation)'s own manual stock-movement operations. Confirms 9 exact
+`inventory_balances_changed`-producing mechanisms across 5 files, no reflective/generic router
+beyond the one `ApprovalPostCommitEvent` bridge already known from P28A, and finds a genuine
+silent-mutation gap P30A/P30B's own narrower scope never had reason to surface.
+
+- **9 producer mechanisms, not one**: `stock_control_adjustments.py:314`
+  (`_post_transaction`, backing `post_opening_balance`/`post_adjustment`), `:424`
+  (`_post_reservation_transaction`, backing `hold_reservation`/`release_reservation` — live for any
+  future direct caller, but its sole current caller is Reservation's own UoW, always
+  `commit=False`, so this exact line never fires in practice today);
+  `stock_control_movements.py:183`/`:185` (`transfer_stock`'s two legs, source + destination
+  balance) and `:344` (`_post_movement_transaction`, backing `issue_stock`/`return_stock`);
+  `reservation_service.py:588` (P30B's own post-UoW-commit re-emission);
+  `purchasing_receiving.py:287` (`post_receipt`, post-UoW-commit, per touched balance) and `:418`
+  (`apply_submitted_purchase_order_approval`, via the legacy `ApprovalPostCommitEvent` reflective
+  bridge — a different production mechanism than every other site's direct `.emit()`);
+  `foundation_service.py:744` (`complete_cycle_count`, post-`self._session`-commit, only when
+  variance is nonzero). All 9 confirmed by a repo-wide grep, not assumed from
+  `StockControlService`'s own surface.
+- **A genuine, previously-undocumented silent-mutation gap**: `purchasing_lifecycle.py::
+  cancel_purchase_order` mutates `on_order_qty` (via the same `_adjust_on_order_balance` helper
+  approval uses to increment it) but contains **zero** `inventory_balances_changed` references
+  anywhere in that file — confirmed by a dedicated grep. A cancelled PO's on-order reversal is a
+  real Balance mutation with no legacy notification at all; any consumer relying solely on the
+  legacy signal shows a stale on-order figure until an unrelated refresh happens. Not fixed here
+  (P31A is audit-only) — flagged as a concrete prerequisite for P31B, and as a defect this phase
+  should close rather than carry forward as "legacy behavior."
+- **`StockBalance` writers, independent of signal correctness** (this phase's own §2 mandate — do
+  not assume every mutation is correctly signalled): confirmed exactly 3 code paths can create the
+  *first* balance row for a position — `_post_transaction` (opening balance/adjustment),
+  `_post_movement_transaction` (`RETURN`/`TRANSFER_IN` only), and `_adjust_on_order_balance` (PO
+  approval). All persisted mutations funnel through exactly two repository methods
+  (`SqlAlchemyStockBalanceRepository.add`/`.update`) regardless of which of the 9 producer call
+  sites or 5 capabilities originates the write — confirmed no other write path exists (no direct
+  ORM instantiation outside the mapper, no bulk-import path, no migration seed data).
+- **`StockBalance` role: HYBRID, not the simple "maintained aggregate" P30A's narrower audit
+  described**. `on_hand_qty`/`reserved_qty`/`on_order_qty` are genuinely independently maintained,
+  authoritative running totals (classification A) — each mutated by a different capability with no
+  single owner. `available_qty` is **strictly derived**, not independently writable: a
+  `model_validator` enforces `available_qty == on_hand_qty - reserved_qty` on every construction —
+  confirmed no writer ever sets it inconsistently, so it needs no independent event/write path of
+  its own (classification B for this one field only). `committed_qty` exists in the schema (ORM,
+  mapper, domain, serializers, UI) but is **never mutated by any current business operation** —
+  confirmed by a repo-wide grep across every posting method — a vestigial, always-zero field, not
+  a maintained dimension. Identity: `UniqueConstraint(organization_id, stock_item_id,
+  storeroom_id)` — **no `location_id`** in the key; Balance has no location-level granularity
+  despite `StorageLocation` existing as a separate hierarchy. `version` is the optimistic
+  concurrency column, incremented on every `update()`.
+- **`StockTransaction` role: immutable, append-only business ledger** — confirmed no `update()`
+  method exists on its repository. Exactly 9 `StockTransactionType` values, exhaustively
+  enumerated from source (not inferred): `OPENING_BALANCE`, `ADJUSTMENT_INCREASE`,
+  `ADJUSTMENT_DECREASE`, `ISSUE`, `RETURN`, `TRANSFER_OUT`, `TRANSFER_IN`, `RESERVATION_HOLD`,
+  `RESERVATION_RELEASE`. **No dedicated `RECEIPT` type** — Goods Receipt posts as
+  `ADJUSTMENT_INCREASE` with `reference_type="inventory_receipt"`. **No dedicated `CYCLE_COUNT`
+  type** — Cycle Count posts as `ADJUSTMENT_INCREASE`/`DECREASE` with
+  `reference_type="cycle_count"`. **`on_order_qty` changes never produce a `StockTransaction` row
+  at all** — `_adjust_on_order_balance` (PO approve/cancel, Receipt's on-order decrement) mutates
+  Balance directly with no ledger entry; this is consistent, not a bug, but means the ledger has no
+  provenance for the entire on-order dimension. `reference_type`/`reference_id` are free-form text
+  (`normalize_optional_text`, no enum), unlike `StockReservation`'s own enum-constrained
+  `source_reference_type` — less strict provenance than Reservation's own source references. No
+  reconciliation capability (Balance vs. `sum(StockTransaction)`) exists anywhere in source —
+  confirmed by a targeted grep — Balance is independently maintained, never derived-on-read from
+  the ledger.
+- **Balance↔Ledger atomic consistency, confirmed by capability**: every on-hand/reserved-affecting
+  operation writes Balance + `StockTransaction` in the same transaction/session across all 5
+  producer files — no path found where one commits without the other for those two fields.
+  `on_order_qty` changes simply never touch the ledger (see above) — the "consistency model"
+  doesn't apply there, there is nothing to be inconsistent with.
+- **Reservation → Balance** (recap only, P30B unchanged): create → `reserved_qty` +=; issue
+  (partial/full) → `on_hand_qty` -=, `reserved_qty` -= (via `issue_stock`'s
+  `release_reserved_qty`); release/cancel → `reserved_qty` -=. All atomic with `StockTransaction`
+  (`RESERVATION_HOLD`/`RESERVATION_RELEASE`/`ISSUE`) and, since P30B, atomic with enterprise audit
+  too via `InventoryReservationUnitOfWork`.
+- **Purchase Order → Balance, reconfirmed with exact operations**: approve → `on_order_qty` +=
+  `quantity_ordered` per line, via `ApprovalService`'s own fresh Session/UoW, producer via the
+  legacy `ApprovalPostCommitEvent` bridge (not a direct `.emit()`), no `StockTransaction`, no
+  enterprise-audit call for the Balance mutation specifically (only an activity-feed entry for the
+  PO approval itself). Cancel → `on_order_qty` -= outstanding per line (only if the PO was ever
+  approved — `prior_status != DRAFT`), via the canonical `PurchaseOrderSubmissionUnitOfWork`, no
+  `StockTransaction`, **no legacy signal at all** (the gap above). Reject → no Balance touch
+  (on-order was never incremented). Send/Close → no Balance touch, confirmed from source.
+- **Goods Receipt → Balance, critical finding — Receipt is already on a canonical UoW**:
+  `post_receipt` reuses the **same** `PurchaseOrderSubmissionUnitOfWork` PO's own
+  create/submit/cancel commands use (`self._require_purchase_order_uow_factory()`), not a raw
+  Session. Per accepted receipt line: `on_hand_qty` += accepted, via a fresh `StockControlService`
+  bound to the *same* UoW session (built by `_build_purchase_order_receiving_collaborators`,
+  mirroring exactly the "capability-UoW-session → fresh `StockControlService`" pattern P30B later
+  used for Reservation) — writes a real `ADJUSTMENT_INCREASE` `StockTransaction`. Separately,
+  `on_order_qty` -= processed (accepted+rejected) via `_adjust_on_order_balance` on the same UoW's
+  `balances` repo — no `StockTransaction`, confirming even a *rejected* line still consumes PO
+  open-quantity even though nothing enters stock. Enterprise audit: atomic (`record_audit_entry`
+  for the receipt itself, `fail_closed=True`, inside the same UoW). Legacy signals
+  (`inventory_receipts_changed` always, `inventory_balances_changed` per touched balance) both
+  emitted post-commit. **This directly resolves this phase's central sequencing question**:
+  Receipt's transaction boundary needs no work to host a canonical Balance event.
+- **Cycle Count → Balance, confirms "counting ≠ changing stock" cleanly**: `schedule_cycle_count`
+  only *reads* Balance for an `expected_qty` snapshot, no mutation. `complete_cycle_count` mutates
+  Balance **only when `variance != 0`** (`abs(variance) > 1e-9`), via
+  `self._stock_service.post_adjustment` (direction from variance sign, `reference_type=
+  "cycle_count"`) — writes a real `StockTransaction`. Transaction boundary: **raw
+  `self._session`**, not `InventoryFoundationService`'s own `InventoryFoundationUnitOfWork` — that
+  UoW is imported and already used by three *other* methods in the same class (Storeroom/Location
+  create/update, confirmed at lines 175/298/487), but Cycle Count's own two methods bypass it
+  entirely, `self._session.commit()` directly. Zero enterprise audit (`record_audit_entry` is never
+  called from either method — activity-feed only, and even that runs after the commit, the same
+  non-atomic-audit gap class P27A/P28A/P30A each found for their own raw-Session capability). Both
+  legacy signals emitted post-commit, `inventory_balances_changed` conditionally.
+- **Other Balance mutations — Inventory(Foundation)'s own manual stock operations, a distinct
+  producer group P30A's narrower scope never covered**: `post_opening_balance`, `post_adjustment`,
+  `issue_stock`, `return_stock`, `transfer_stock` are all directly callable from the Inventory
+  workspace's own "Recent Movements" panel (`api/desktop/inventory/movements.py`), every call site
+  using `StockControlService`'s **default `commit=True`** — meaning `StockControlService` is its
+  own transaction owner here (raw Session, self-contained mini-transaction), not participating in
+  any capability UoW. Zero enterprise audit for any of the five. No duplicate-submission guard for
+  four of the five (`post_adjustment`/`issue_stock`/`return_stock`/`transfer_stock`);
+  `post_opening_balance` alone has a one-time-only guard (rejects if any transaction already exists
+  for that position). `transfer_stock` mutates two Balance rows (source `TRANSFER_OUT`,
+  destination `TRANSFER_IN`) and writes two `StockTransaction` rows, both legs posted with
+  `commit=False` internally then one outer `self._session.commit()` — genuinely atomic across both
+  rows, then two direct `.emit()` calls (one per balance) after commit.
+- **First-balance-creation race — SAFE, but with real error-quality gaps**: the DB-level
+  `UniqueConstraint(organization_id, stock_item_id, storeroom_id)` prevents a genuine duplicate
+  row — the losing concurrent `INSERT` raises `IntegrityError`, caught by the surrounding
+  `except IntegrityError` in `_post_transaction`/`_post_movement_transaction`. But that handler
+  unconditionally reports `"Stock transaction number already exists"` even when the real cause is
+  the *Balance* unique-constraint collision, not the (separately-constrained)
+  `StockTransactionORM.transaction_number` one — a misattributed error message, not a correctness
+  gap. `_adjust_on_order_balance` (PO approve/cancel/Receipt) has **no** `try`/`except
+  IntegrityError` of its own around its `repo.add(...)` call — a first-row race hit via PO approval
+  would propagate a raw, unwrapped SQLAlchemy `IntegrityError` all the way to the caller — safe (no
+  duplicate row, no silent corruption) but a worse error-UX gap than the misattributed-message
+  case. Neither is fixed here.
+- **Quantity invariants, exhaustive, service-layer only (no DB `CheckConstraint` exists
+  anywhere for any of these)**: `on_hand_qty >= 0`, `reserved_qty >= 0`, `on_order_qty >= 0`
+  (each an explicit `ValidationError` guard in its own posting method); `available_qty ==
+  on_hand_qty - reserved_qty` (hard `model_validator`, every construction); issue quantity ≤
+  available (via the combined on-hand/reserved guard); release quantity ≤ reserved (guarded at
+  both the Reservation row and the Balance row); receipt quantity ≤ remaining PO quantity (explicit
+  `INVENTORY_RECEIPT_EXCEEDS_OPEN_QTY` check); a cycle-count correction that would drive on-hand
+  negative is **rejected**, not applied (same generic on-hand ≥ 0 guard — a live business question
+  worth flagging, not resolved here: a physical count correction is arguably supposed to win over
+  this guard, since it exists precisely to correct system state to physical reality); transfer-out
+  is bound by the same on-hand ≥ 0 guard.
+- **`available_qty` semantics: persisted but strictly derived**, confirmed via the
+  `model_validator` above — no writer ever needs to independently compute or carry it; a future
+  Balance event needs only `on_hand_qty`/`reserved_qty` (or their delta) to let a consumer derive
+  `available_qty` itself, or can carry the resulting value as a convenience field.
+- **Concurrency mechanism: uniform across every producer**, confirmed — all Balance writes funnel
+  through the same `SqlAlchemyStockBalanceRepository.update()`, which uses
+  `update_with_version_check` (atomic `UPDATE ... WHERE id=? AND version=?`), regardless of which
+  of the 5 capabilities or which Session/UoW originates the write. No `SELECT FOR UPDATE` anywhere
+  — purely optimistic, never pessimistic. No automatic retry anywhere — `ConcurrencyError`
+  propagates to the caller in every case. **Whole-row optimistic versioning, confirmed and
+  reported as instructed, not treated as a defect**: because `update()` writes every column from
+  the caller's own (possibly stale-in-other-fields) read, two capabilities changing *different*
+  fields on the *same* balance row concurrently (e.g. Reservation's `reserved_qty` vs. Receipt's
+  `on_hand_qty`) will still conflict at the version level even though their fields don't logically
+  overlap — a real, safety-preserving but contention-increasing characteristic of the current
+  design, not something P31A resolves.
+- **`StockControlService`'s architectural role: mixed, dual-mode by design, not accidental**. It
+  simultaneously holds Balance/Ledger invariants (average-cost calculation, quantity-delta
+  resolution, the `reorder_required` formula, every negative-quantity guard) *and* acts as its own
+  transaction owner when called with the default `commit=True` (every manual-movement call site)
+  — but cleanly accepts an externally-owned Session/UoW when called with `commit=False`
+  (Reservation's own UoW since P30B, Receipt's PO UoW, Cycle Count's raw `self._session`). Public
+  mutation surface: `post_opening_balance`, `post_adjustment`, `hold_reservation`,
+  `release_reservation`, `issue_stock`, `return_stock`, `transfer_stock` (7); reads:
+  `list_balances`, `get_balance`, `get_balance_for_stock_position`, `list_transactions`.
+  `_adjust_on_order_balance` (the on-order mutator) lives **outside** `StockControlService`
+  entirely, as PO's own private helper in `purchasing_support.py` — on-order mutation bypasses
+  `StockControlService` completely, a distinct architectural seam from every on-hand/reserved
+  mutation. Legacy-signal emission only happens inside `StockControlService`'s own methods when
+  `commit=True`; every `commit=False` caller (Reservation, Receipt, Cycle Count) correctly
+  re-emits it themselves, externally, post their own outer commit.
+- **No service locator, confirmed clean**: every capability UoW that needs
+  `StockControlService` constructs a **fresh instance bound to its own session** at UoW-
+  construction time — Reservation's `InventoryReservationUnitOfWork` (P30B) and Receipt's
+  `_build_purchase_order_receiving_collaborators` factory both follow the identical
+  "capability-UoW-session → fresh `StockControlService`" pattern, proven twice already. The one
+  process-wide shared instance (`inventory_stock_service` in `inventory_registry.py`) is plain,
+  explicit constructor injection — passed by name into Cycle Count, Manual Movements, and
+  Dashboard's read-only balance queries — never a `container.get()`/`repository_for()`/global
+  singleton resolution. Dependency direction is consistently one-way: capability → session →
+  service, never the reverse.
+- **Event ownership recommendation (§21's core question) — Option A**: since Balance mutation
+  already happens *inside* the originating capability's own transaction (confirmed for all 5
+  groups above), the originating capability's own UoW should record **both** its own typed event
+  and a separate Balance-fact typed event in the same `uow.record_event(...)` sequence — exactly
+  the multi-event-per-operation pattern PO approval already uses today
+  (`PurchaseOrderApproved` + `InventoryRequisitionSourcingAdvanced` from one operation). Option C
+  (a transactional handler reacting to the originating event to *perform* the mutation) is invalid
+  here, as the brief itself anticipated: the mutation already happened before any event dispatch —
+  a reactive handler would either duplicate the write or run too late.
+- **Proposed Balance event vocabulary — narrow, field-oriented, not movement-type-oriented**:
+  `StockOnHandQuantityChanged`, `StockReservedQuantityChanged`, `StockOnOrderQuantityChanged`.
+  Chosen over a 9-event movement-type-mirroring vocabulary (would recreate the legacy signal's own
+  overload risk) and over a single generic `StockBalanceChanged`/`InventoryStockBalanceUpdated`
+  (would recreate the exact problem this phase exists to solve — Dashboard's dedicated "On Order
+  Qty" KPI and Pricing's `on_order_qty`-only metric must not refresh on a Reservation-only change,
+  mirroring the exact class of over-notification P30B already fixed once for
+  `reservation_open_count`). `issue_stock` touches both on-hand and reserved in one call — record
+  **both** events from that one operation, the same multi-event pattern as PO approval. Not
+  recorded here as a decision, only as the recommended shape.
+- **Separate Ledger DomainEvents: NOT recommended.** No consumer or business process was found
+  anywhere in this audit reacting specifically to "a `StockTransaction` was posted" independent of
+  the Balance-quantity fact itself — Inventory(Foundation)'s own "Recent Movements" panel is
+  rebuilt by the same monolithic `refresh()` as its Balance table, already covered by the Balance
+  events' own ViewInvalidation target. `StockTransaction` remains a pure persistence/ledger
+  mechanism, not a DomainEvent-worthy capability of its own.
+- **Proposed event payload identity: `balance_id`** (the persisted `StockBalance.id` surrogate
+  key) as the `ResourceScope` `entity_id` — already the exact payload every current legacy
+  `.emit(balance.id)` call site uses, already stable for the row's lifetime. Not a compound
+  organization+item+storeroom string.
+- **Proposed `EventScope`**: `stock_balance_list` (`OrganizationScope`) and `stock_balance_detail`
+  (`ResourceScope`, `module_code="inventory_procurement"`, `entity_type="stock_balance"`,
+  `entity_id=balance_id`) — no separate storeroom-filtered scope is justified; every current
+  consumer filters the same org-wide collection live/client-side at query time, confirmed from
+  source, matching P20's own established storeroom-scope precedent. A third, narrower target for
+  Dashboard's/Pricing's on-order-only KPIs (mirroring P30B's `reservation_open_count`) is a P31B
+  design candidate, not decided here.
+- **Balance consumers — recomputed from current source, field-by-field, not inherited from prior
+  phases' labels (this phase's own explicit instruction)**: P30B's own "5 genuine consumers"
+  characterization for `inventory_balances_changed` (Catalog, Dashboard, Inventory(Foundation),
+  Pricing, Procurement) is **only 3/5 accurate on independent re-verification** — Catalog and
+  Procurement have **zero** real Balance-field reference anywhere in either their desktop-API
+  *or* QML-presenter layers (confirmed by an exhaustive keyword sweep of every file in both
+  layers for every Balance field name plus `StockBalance`/`stock_service`/`stock_report`) — the
+  same class of incidental-subscription mislabeling this document's own P30B-FIX entry just
+  corrected for a different signal. **Dashboard (genuine)**: of 8 metrics, exactly 3 are
+  Balance-derived and each depends on a *different* field subset — "Stock Positions"
+  (`len(balances)`, row-count only), "Low Stock" (`reorder_required` for row membership;
+  `available_qty`/`reserved_qty`/`on_order_qty` for row content — `reorder_required` itself is
+  computed only from `on_hand_qty`/`reserved_qty` vs. `item.reorder_point`, confirmed **never**
+  recomputed by `_adjust_on_order_balance`, so a PO-only on-order change never staless this row
+  set), "On Order Qty" (`sum(on_order_qty)` **only** — the cleanest single-field dependency found
+  in the whole audit). **Pricing (genuine, and considerably deeper than previously assumed)**:
+  its own `stock_report` (feeding both its workspace snapshot metrics/rows *and* its CSV/Excel
+  stock-status export) reads `reorder_required`, `on_order_qty`, `reserved_qty`, `available_qty`,
+  `average_cost`, `uom`, `last_receipt_at`, `last_issue_at` — confirmed at
+  `api/desktop/pricing/api.py` (not merely the UI-copy-text "reserved" this document's own earlier
+  P30A entry found when it checked only the QML-presenter layer for Reservation specifically, not
+  Balance). **Inventory(Foundation) (genuine, primary owner)**: its own serializer exhaustively
+  round-trips every `StockBalance` field — `on_hand_qty`, `reserved_qty`, `available_qty`,
+  `on_order_qty`, `committed_qty` (even the vestigial always-zero one), `average_cost`,
+  `reorder_required` — plus `StockTransaction`'s `resulting_on_hand_qty`/`resulting_available_qty`
+  in the same monolithic "Stock Balances" + "Recent Movements" workspace, confirmed from source,
+  not inferred from its own subtitle text.
+- **Proposed ViewInvalidation consumer cutover shape (design only)**: Dashboard subscribes only to
+  `StockOnHandQuantityChanged`/`StockReservedQuantityChanged` for "Low Stock"/"Stock Positions"
+  and only to `StockOnOrderQuantityChanged` for "On Order Qty" — three narrow reactions instead of
+  one blanket refresh. Pricing and Inventory(Foundation), given their much broader field
+  dependency, subscribe to all three onto their own existing monolithic `refresh()` — the same
+  "broad refresh for the owning workspace is acceptable" precedent already established for every
+  other Inventory capability. Catalog and Procurement's subscriptions are removed outright, no
+  replacement.
+- **Recommended sequencing — OPTION A**: Balance can modernize before Receipt or Cycle Count
+  modernize as their own capabilities. Receipt needs zero transaction-boundary work (already
+  canonical, confirmed above). Cycle Count and Manual Movements need their raw-Session Balance-
+  mutating code paths moved onto a canonical UoW — either a new one or an extension of the
+  already-existing `InventoryFoundationUnitOfWork` (which already covers three sibling methods in
+  the same class) — but this is transaction-boundary work for the *Balance mutation code path
+  itself*, not "modernizing Cycle Count/Manual-Movements as their own capabilities": their own
+  legacy signals (`inventory_cycle_counts_changed`) and UI stay untouched, exactly mirroring how
+  P28B gave PO's approval-triggered Requisition-sourcing mutation its own typed event years ahead
+  of Requisition's own full P29 modernization.
+- **`inventory_balances_changed` can be deleted in one P31B**, with these prerequisites: (1) all 9
+  current producer mechanisms converge onto the 3-event vocabulary in their own existing (Reservation,
+  PO approve/cancel, Receipt) or minimally-extended (Cycle Count, Manual Movements) transactions;
+  (2) the PO-cancel missing-signal gap is closed as part of adding its typed event (the same code
+  path, not separate work); (3) Cycle Count's and Manual Movements' raw-Session paths gain a
+  canonical UoW; (4) the 3 genuine consumers (Dashboard, Inventory(Foundation), Pricing) cut over;
+  (5) the 2 incidental consumers (Catalog, Procurement) drop their subscription, no replacement;
+  (6) field deleted. Larger in scope than P30B (5 capability groups, not 1) but not architecturally
+  blocked by anything external — every pattern required is already proven at least once elsewhere
+  in this codebase.
+
+No source was changed by this audit. Legacy Signal count unchanged at 16.
+
+**Inventory Stock Balance is fully modernized as of P31B**, implementing P31A's audit exactly as
+recommended (Option A: single phase, distributed transaction ownership preserved — no centralized
+Balance mega-UoW).
+
+| Aspect | Status |
+|---|---|
+| Typed DomainEvents | CANONICALIZED — 3 new events in `balance_events.py`: `StockOnHandQuantityChanged`, `StockReservedQuantityChanged`, `StockOnOrderQuantityChanged` — field-oriented, not movement-type-oriented (would have recreated the legacy signal's own overload) and not a single generic `StockBalanceChanged` (would have recreated its imprecision). Each carries `balance_id`/`stock_item_id`/`storeroom_id`/`quantity_delta`/`resulting_quantity`, computed as `resulting − previous` rather than re-derived from a caller's line-UOM quantity (avoids duplicating UOM-conversion math) |
+| Transaction ownership | DISTRIBUTED, preserved per capability — Reservation records its own Balance fact in its own `InventoryReservationUnitOfWork` (P30B, unchanged); PO approval records its own in `ApprovalService`'s own `PlatformUnitOfWork`; PO cancel and Receipt record theirs in the shared `PurchaseOrderSubmissionUnitOfWork` (already canonical, no transaction-boundary work needed — P31A's own finding confirmed); Cycle Count and Inventory(Foundation)'s manual stock movements (opening balance/adjustment/issue/return/transfer) converged onto the *existing* `InventoryFoundationUnitOfWork` (P20), extended with `cycle_counts`/`balances`/`stock_transactions` repos and a `stock_service` accessor — the same "capability-UoW-session → fresh `StockControlService`" pattern P30B/Receipt already proved, not a new architecture |
+| `StockControlService` | PRESERVED exactly as P31A characterized it — dual-mode (self-owned transaction by default, clean `commit=False` participant otherwise), reused unmodified by every writer. One narrow, consistent addition: `transfer_stock` gained the same `commit: bool = True` parameter every sibling method already had (it previously always self-committed, which would have prematurely committed a caller's UoW) — not a broader refactor |
+| Reservation → Balance | UNCHANGED mutation behavior, now records `StockReservedQuantityChanged` (create/release/cancel) and both `StockReservedQuantityChanged` + `StockOnHandQuantityChanged` (issue, from the one call that mutates both fields) in place of the retired `_emit_legacy_balance_signal` |
+| PO approval → Balance | Records `StockOnOrderQuantityChanged` via `ApprovalHandlerResult.domain_events` — the reflective `ApprovalPostCommitEvent("inventory_balances_changed", ...)` bridge is deleted, not left coexisting |
+| PO cancel → Balance | **P31A's confirmed silent-mutation gap is fixed** — `cancel_purchase_order`'s on-order reversal (for a PO cancelled past `DRAFT`) now records `StockOnOrderQuantityChanged`; previously emitted nothing at all. Proven by a dedicated regression test |
+| Receipt → Balance | Records both `StockOnHandQuantityChanged` and `StockOnOrderQuantityChanged` per accepted/processed line, in the same already-canonical UoW; `inventory_receipts_changed` is unchanged/retained — Receipt itself is not modernized as a capability |
+| Cycle Count → Balance | Converged onto `InventoryFoundationUnitOfWork`; records `StockOnHandQuantityChanged` only when `abs(variance) > 1e-9` — a zero-variance completion mutates nothing and records nothing, preserving "counting ≠ changing stock". Gains real atomic enterprise audit for the first time (previously zero, P31A finding); `inventory_cycle_counts_changed` is unchanged/retained |
+| Manual stock movements | `post_opening_balance`/`post_adjustment`/`issue_stock`/`return_stock`/`transfer_stock` moved from the desktop API calling the raw shared `StockControlService` instance directly (self-committing, `movements.py`) to calling 5 new `InventoryFoundationService` methods that open the UoW, delegate to `uow.stock_service.*(commit=False)`, record the Balance fact(s), and commit. Each also gains atomic enterprise audit for the first time (previously zero). `transfer_stock` records two distinct `StockOnHandQuantityChanged` facts (source + destination), not one org-wide event |
+| Concurrency | PRESERVED — every writer still funnels through the same `update_with_version_check`. A genuine two-Session cross-capability test (manual on-hand adjustment vs. a reservation hold on the *same* balance row) proves whole-row optimistic versioning still rejects the loser with `ConcurrencyError`, no lost update |
+| Consumer cutover | New `StockBalanceViewInvalidationAdapter` (`stockBalanceListStale`/`stockBalanceDetailStale`, mirroring every prior typed adapter). Inventory(Foundation), Pricing, and Dashboard — all 3 re-confirmed genuine by this phase's own field-level re-audit (correcting P30B's stale "5 genuine" label to 3, per P31A) — subscribe to both signals via `_request_domain_refresh`, matching the coalescing-safe pattern P30B-FIX established. Catalog and Procurement's legacy subscriptions are removed outright, no replacement — proven zero-reaction by a dedicated regression test. All 3 typed events route to the *same* two targets (`stock_balance_list`/`stock_balance_detail`) because every genuine consumer's own field-level audit showed a dependency spanning all three quantity dimensions, not because field-sensitivity was skipped (see the handler's own docstring for the full reasoning) |
+| `inventory_balances_changed` | DELETED — field, all 9 former producer mechanisms (8 direct `.emit()` sites across `stock_control_adjustments.py`/`stock_control_movements.py`/`reservation_service.py`/`purchasing_receiving.py`/`foundation_service.py`, plus the 1 reflective `ApprovalPostCommitEvent` bridge), all 5 legacy consumer subscriptions. The one confirmed-dead `.emit()` site (`_post_reservation_transaction`'s own unreachable `if commit:` branch) was deleted along with the rest, not converted. Legacy Signal count: 15 (16 → 15, confirmed via `dataclasses.fields(DomainEvents)`) |
+
+Test coverage added: `src/tests/inventory_procurement/test_p31b_stock_balance_full_modernization.py`
+(legacy-field-deleted proof, per-capability event-recording proofs for Reservation/PO-approve/
+PO-cancel/PO-reject/Receipt/Cycle-Count-zero-variance/Cycle-Count-nonzero-variance/manual-
+adjustment/manual-transfer, two atomicity-rollback proofs for Cycle Count's and Manual Movements'
+newly-atomic audit, the cross-capability two-Session concurrency race, and consumer-cutover proofs
+for both the 3 genuine and 2 incidental workspaces). One existing P30B-FIX test
+(`test_real_inventory_workspace_still_reacts_to_balance_mutation`) was updated in place — its
+Balance-mutation call site moved from the raw `inventory_stock_service` instance to
+`inventory_foundation_service.post_adjustment`, the new canonical entry point; its exact-one-
+refresh assertion was relaxed to "reacted at all" since asserting an exact call count depends on a
+live Qt event loop's `QTimer(0)` coalescing (P29-FIX), which this synchronous test harness does not
+run — the same class of test-environment limitation already accepted elsewhere in this suite, not
+a production behavior change. Full `src/tests/inventory_procurement/` suite plus
+`src/tests/architecture/test_service_architecture.py`: 268 passed, 3 pre-existing failures
+confirmed unrelated (unchanged from P30B/P30B-FIX's own baseline — one `source_reference_type`
+test-data bug and two unrelated import/reporting tests).
+
+See ADR-005 §26.28 for the full design.
+
+**P32A — Remaining Inventory re-rank: Goods Receipt vs Cycle Count, short comparative audit +
+sequencing decision (design only, no migration yet).** Full source re-audit of both remaining
+Inventory legacy signals now that P31B changed important prerequisites for both. Confirms `inventory_
+receipts_changed` has exactly 1 producer file (`purchasing_receiving.py::post_receipt`, the *only*
+Receipt mutation method that exists) and `inventory_cycle_counts_changed` has exactly 1 producer
+file (`foundation_service.py`, 2 methods: `schedule_cycle_count`/`complete_cycle_count`); both
+still have all 6 legacy workspace-binder subscriptions, re-classified below.
+
+- **Goods Receipt has no lifecycle at all — a single durable fact, not several.**
+  `ReceiptStatus` has exactly one value (`POSTED`); `ReceiptHeader`/`ReceiptLine` have no `update()`
+  method on either repository (confirmed) and no `version` field on `ReceiptHeader` — genuinely
+  immutable, append-only once posted. No cancel/reverse/void/update/document-link method exists
+  anywhere (`post_receipt` is the sole mutator, confirmed by a repo-wide grep for every
+  `_receipt_header_repo`/`_receipt_line_repo` call site). One semantic fact:
+  `InventoryReceiptPosted` (not `ReceiptCreated`+`ReceiptPosted` — it's created already-posted, no
+  separate posting step exists to split out).
+- **Cycle Count has a real, if narrow, lifecycle.** `CycleCountStatus`: `PLANNED → COMPLETED` is
+  the only reachable transition (`IN_PROGRESS`/`CANCELLED` are both defined but confirmed
+  unreachable — no producer ever sets either, re-confirmed from current source). Flat aggregate
+  (no child lines), its own real `version` field with `expected_version`/`ConcurrencyError`
+  protection on `complete_cycle_count` (Cycle Count's own concurrency is *better* protected than
+  Receipt's, which has none because it has no update path to conflict on). Two semantic facts:
+  `InventoryCycleCountScheduled` and `InventoryCycleCountCompleted` (variance-driven Balance
+  adjustment is already a separate, already-canonical Balance fact per P31B — not a Cycle Count
+  fact).
+- **Transaction readiness — Receipt is 100% canonical today; Cycle Count is 50% canonical.**
+  Receipt's sole operation (`post_receipt`) already runs on the shared
+  `PurchaseOrderSubmissionUnitOfWork`, already has atomic `record_audit_entry` (`fail_closed=True`,
+  confirmed pre-existing from P28A). Cycle Count's `complete_cycle_count` was converged onto the
+  extended `InventoryFoundationUnitOfWork` with atomic audit in P31B; `schedule_cycle_count` was
+  explicitly out of P31B's scope (it never mutates Balance) and remains raw `self._session`, with
+  **zero** atomic enterprise audit — activity-feed-only, non-atomic, the same gap class every other
+  capability's first-touched raw-Session operation has shown. This is the one genuinely open
+  transaction-convergence item between the two capabilities, and it is a small, already-proven
+  extension (the identical `with self._require_uow_factory().create(...)` pattern
+  `complete_cycle_count` already uses, in the same class).
+- **Cross-capability mutations — Receipt has real, but already-canonical, external coupling;
+  Cycle Count has none beyond Balance at all.** Receipt mutates `PurchaseOrderLine`/`PurchaseOrder`
+  receiving state — already fully typed via the existing `InventoryPurchaseOrderReceivingAdvanced`
+  event (one per `post_receipt` call, deduplicated by resulting status) — confirming the PO
+  receiving boundary is already canonical, no observability gap remains. Cycle Count touches only
+  its own aggregate plus `StockBalance`/`StockTransaction` (both already canonical, P31B) — no
+  Item, Storeroom, Location, PO, Requisition, or approval coupling of any kind, confirmed by
+  source. This makes Cycle Count's semantic decomposition the simpler of the two — nothing to
+  coordinate with another capability's own event vocabulary at all.
+- **Ledger**: both post as `ADJUSTMENT_INCREASE`/`ADJUSTMENT_DECREASE` (no dedicated
+  `RECEIPT`/`CYCLE_COUNT` `StockTransactionType`, confirmed unchanged from P31A) — no Ledger
+  DomainEvents proposed for either, per this phase's own explicit instruction and P31A's original
+  finding.
+- **Document link/unlink**: confirmed absent for both capabilities entirely — no such method
+  exists on either. Nothing to resolve.
+- **No-op/idempotency — Receipt carries the real open risk, Cycle Count does not.** Receipt has no
+  idempotency key; a retry posting a *smaller*, still-within-outstanding quantity would silently
+  double-post (P31A finding, unchanged, not fixed here). `complete_cycle_count` is hard-guarded
+  against re-posting a `COMPLETED`/`CANCELLED` count; `schedule_cycle_count`'s only gap is that
+  nothing prevents scheduling multiple concurrent `PLANNED` counts for the same item/storeroom
+  position (uniqueness is only on the generated `cycle_count_number`, not the position) — a real
+  but minor data-model gap, not fixed here either.
+- **Consumers, re-classified from current source, not carried forward from P30B's stale labels**:
+  - `inventory_receipts_changed` — **4 genuine, 2 incidental**. Procurement = OWNER (its own
+    `receipt_mapper.py`/`receipt_command_handler.py` — a real `receipt_list`/lines view embedded in
+    PO detail, not a standalone Receipt workspace). Dashboard = REAL (Receiving Queue KPI, a
+    per-PO receipt count). Pricing = REAL (`procurement_report.receipts`, its own stock/procurement
+    export). Inventory(Foundation) = REAL, newly confirmed — its "tracking signals" panel reads
+    `ReceiptLine.lot_number`/`serial_number`/`expiry_date`/`quantity_accepted` directly for
+    expiring/expired-lot alerts, a dependency P30B/P31A's own narrower scopes never had reason to
+    surface. Catalog and Reservations = INCIDENTAL, zero references anywhere in either.
+  - `inventory_cycle_counts_changed` — **1 genuine, 5 incidental**. Inventory(Foundation) = OWNER
+    (its own `cycle_count_handler.py`/`foundation_builder.py`, part of the same "Foundation" panel
+    as Storeroom/Location/ReorderPolicy). Catalog, Pricing, Procurement, Dashboard, and Reservations
+    all have **zero** `cycle_count`/`CycleCount` reference anywhere in either their desktop-API or
+    presenter layers — the most incidental-heavy signal audited yet (5 of 6 subscriptions are
+    pure legacy fan-out with no real dependency at all).
+- **ViewInvalidation complexity**: Receipt would need `receipt_list`/`receipt_detail`
+  (`OrganizationScope`/`ResourceScope`) plus is genuinely embedded in Procurement's own PO-detail
+  refresh — no new scope type required, but 4 real consumers to route precisely. Cycle Count would
+  need only `cycle_count_list`/`cycle_count_detail`, both trivially expressible the same way, with
+  exactly 1 real consumer to route — the simpler of the two by a wide margin.
+- **Deletion feasibility — both YES in one phase.** Receipt: trivially, given a single fact and an
+  already-fully-canonical transaction. Cycle Count: also YES, with `schedule_cycle_count`'s UoW
+  convergence folded into the same phase (the identical pattern already proven).
+- **Architectural size comparison**:
+
+  | Dimension | Goods Receipt | Cycle Count |
+  |---|---|---|
+  | Transaction convergence | LOW (already done) | LOW (one small extension of an already-proven pattern) |
+  | Semantic decomposition | LOW (1 fact) | LOW (2 facts) |
+  | Cross-capability coupling | LOW (already canonical, but real — PO) | LOW (none beyond Balance) |
+  | Consumer cutover | MEDIUM (4 genuine consumers across 4 workspaces) | LOW (1 genuine consumer, 1 workspace) |
+  | Concurrency risk | LOW (no update path to conflict on) | LOW (already version-protected) |
+  | Legacy-signal deletion confidence | HIGH | HIGH |
+  | Meaningful gap closed | No open governance gap (audit already atomic) | Yes — `schedule_cycle_count` gains atomic audit for the first time |
+
+- **Recommended P32B: CYCLE COUNT.** Applying the priority order exactly as instructed: criteria
+  1 (deletable in one phase), 2 (cross-capability boundaries canonical), and 4 (semantic clarity)
+  are ties — both capabilities pass cleanly. Criterion 3 (transaction ownership already canonical)
+  gives Receipt a marginal edge (100% vs. Cycle Count's one small remaining extension), but that
+  edge is trivial in absolute terms — the exact same proven UoW pattern, in the same class, already
+  built this phase. Criteria 5 (consumer cutover precision) and 6 (meaningful correctness/audit gap
+  closed) both favor Cycle Count clearly and substantially: a 1-genuine-consumer cutover is a much
+  smaller, lower-risk surface than Receipt's 4-genuine-consumer cutover, and Cycle Count's
+  modernization closes a real, currently-open atomic-audit gap (`schedule_cycle_count`) that Receipt
+  has no equivalent of. Criterion 7 (smaller architectural surface) also favors Cycle Count — zero
+  cross-capability coupling of any kind beyond the already-solved Balance boundary, versus Receipt's
+  real (if already-canonical) coupling to PO's own vocabulary. The one criterion favoring Receipt is
+  the least consequential of the differences found; the criteria most likely to carry real
+  implementation risk (consumer cutover breadth, remaining governance gaps) both favor Cycle Count.
+  **Goods Receipt is the expected following Inventory phase** — its own transaction/Balance/PO
+  boundaries are already fully solved by this and prior phases, leaving only its typed-event
+  vocabulary, ViewInvalidation cutover, and the pre-existing no-op/idempotency gap as future work,
+  none of which is architecturally uncertain.
+- **After both**: deleting `inventory_cycle_counts_changed` (future P32B) and
+  `inventory_receipts_changed` (the expected following phase) would leave **zero** legacy Inventory
+  Signal fields — every Inventory/Procurement capability (Item/Category, Storeroom/Location,
+  Reorder Policy, Purchase Order, Requisition, Reservation, Stock Balance, Goods Receipt, Cycle
+  Count) fully modernized. `StockTransaction` remains the unmodified, canonical persistence ledger
+  throughout — confirmed, again, not to need its own DomainEvent family.
+
+No source was changed by this audit. Legacy Signal count unchanged at 15.
+
+### P32B — Inventory Cycle Count Full Modernization
+
+`inventory_cycle_counts_changed` is **DELETED**. `schedule_cycle_count` converges onto the
+canonical `InventoryFoundationUnitOfWork` (the same class `complete_cycle_count` already used
+since P31B), gaining an atomic enterprise audit entry of its own for the first time — previously
+activity-feed-only, non-atomic, the same first-touched-raw-Session gap class every other
+capability showed before its own modernization phase. Two typed, field-oriented events replace the
+legacy signal: `InventoryCycleCountScheduled` (tenant_id, organization_id, cycle_count_id,
+storeroom_id, occurred_at) and `InventoryCycleCountCompleted` (adds `variance_qty`) — mirroring the
+minimal, fact-oriented vocabulary established for Reservation (P30B) and Balance (P31B), not a
+generic "CycleCountChanged" catch-all.
+
+`cycle_count_list`/`cycle_count_detail` (`OrganizationScope`/`ResourceScope`) are Cycle Count's own
+two ViewInvalidation projections, owned exclusively by the Inventory(Foundation) workspace.
+Scheduled invalidates list only (a brand-new row cannot have a stale pre-existing detail view
+open, mirroring Reservation's Created-vs-other-events split); Completed invalidates both list and
+detail. Stock Balance's own event semantics (`StockOnHandQuantityChanged` on nonzero variance,
+already correct since P31B) are unchanged — `complete_cycle_count` now records both its own
+`InventoryCycleCountCompleted` and, when variance is nonzero, the pre-existing Balance fact, in the
+same transaction.
+
+The 5 incidental legacy subscriptions confirmed zero-dependency by P32A (Catalog, Pricing,
+Procurement, Dashboard, Reservations) are removed with no replacement. Inventory(Foundation)'s own
+subscription is replaced by the new `CycleCountViewInvalidationAdapter`
+(`cycleCountListStale`/`cycleCountDetailStale`), wired via `_request_domain_refresh()` matching
+every other Inventory/Procurement adapter since P30B-FIX.
+
+No start/in-progress or cancel operation was invented — the lifecycle is unchanged
+(`PLANNED → COMPLETED`, with `CANCELLED` as the only other terminal state, neither newly reachable
+here). Stock Balance and StockTransaction semantics are untouched. Goods Receipt was not
+modernized and `inventory_receipts_changed` was not deleted — it remains Inventory/Procurement's
+one remaining legacy Inventory signal, the expected next phase per P32A's own comparison.
+
+Regression: full `src/tests/inventory_procurement/` (269 passed, the same 3 pre-existing failures
+reconfirmed via `git stash` — a `source_reference_type="project_task"` test-data bug and a
+requisition-submission `AttributeError`, both unrelated to Inventory and unchanged since P31B) plus
+`src/tests/architecture/test_service_architecture.py` (7 passed) and
+`src/tests/platform/test_p8_platform_event_architecture_canonicalization.py` (31 passed, the same 5
+pre-existing Finance-signal failures — `commitments_changed`/`cost_entries_changed`/
+`financial_changes_changed` — reconfirmed via `git stash` as unrelated to Inventory, from
+concurrent Finance work elsewhere on the branch). New `test_p32b_cycle_count_full_modernization.py`
+(8 tests) covers: legacy-field-deleted, Scheduled → list-only hint, Scheduled audit-failure
+rollback (zero creation, zero hints), Completed zero-variance → list+detail hint with **no**
+Balance event, Completed nonzero-variance → list+detail hint **and** the Balance event, stale-version
+rollback (zero hints of either kind), the 5 incidental consumers' zero reaction, and
+Inventory(Foundation)'s genuine reaction.
+
+Legacy Signal count: 15 → **14**. Cycle Count is now FULLY MODERNIZED — the eighth Inventory/
+Procurement capability to reach that state (Item/Category, Storeroom/Location, Reorder Policy,
+Purchase Order, Requisition, Reservation, Stock Balance, and now Cycle Count). Goods Receipt is
+the only remaining Inventory/Procurement capability with a legacy signal.
+
+### P33 — Goods Receipt Full Modernization + Inventory Legacy Completion
+
+`inventory_receipts_changed` is **DELETED**. `post_receipt`'s transaction ownership was already
+canonical (`PurchaseOrderSubmissionUnitOfWork`, confirmed by P28A/P31A and unchanged here) and its
+enterprise audit was already atomic — this phase adds exactly one new typed fact,
+`InventoryReceiptPosted` (`tenant_id`, `organization_id`, `receipt_id`, `purchase_order_id`,
+`occurred_at`), recorded precommit in the same transaction as the pre-existing
+`InventoryPurchaseOrderReceivingAdvanced` and Balance facts (P31B). **Source correction to this
+phase's own brief**: the suggested payload's `storeroom_id` field does not exist on `ReceiptHeader`
+— storeroom is a per-*line* attribute (`destination_storeroom_id`, which can differ across a single
+receipt's lines), not a Receipt-header identity field, so it was omitted rather than assumed.
+
+**One receipt, one fact.** A Receipt with multiple lines still records exactly one
+`InventoryReceiptPosted` — proven by a dedicated multi-line, multi-item regression test. Balance
+facts remain per affected `StockBalance` row (P31B semantics, unchanged); PO receiving facts remain
+exactly as P28 defined them (unchanged). `InventoryReceiptPosted` does not substitute for either —
+it represents only "a Receipt was posted," never PO state or Balance state.
+
+**No `receipt_detail` target invented.** Source audit found `get_receipt` is purely an internal
+application-layer helper (used only by `list_receipt_lines` for scope validation) — never exposed
+through any desktop API, and no UI presenter fetches a single Receipt by id. Every genuine consumer
+reads Receipt exclusively through list-shaped queries (`list_receipts`/`list_receipt_lines`,
+optionally filtered by `purchase_order_id` at query time but never cached as a separate per-filter
+projection, mirroring `reorder_policy_list`'s own precedent). Only `receipt_list`
+(`OrganizationScope`, category `procurement`, entity_type `inventory_receipt`) was built — inventing
+a `receipt_detail` ResourceScope pair, matching every prior phase's list/detail default, would have
+been an unjustified target with no corresponding stale read model.
+
+**Consumer re-audit, field-precise, not inferred from co-occurring PO/Balance events (§21/§24 of
+this phase's own brief).** All 4 of P32A's "genuine" consumers were re-verified at the field level
+and confirmed still genuine, each for a distinct reason: **Procurement** (OWNER) reads
+`list_receipts`/`list_receipt_lines` directly for its PO-scoped receipt-history panel and an
+org-wide receipt count in its overview KPIs. **Dashboard** reads `list_receipts` directly for a
+per-PO "Receipts N" count embedded in its Receiving Queue rows — genuinely Receipt-owned data, not
+derivable from `InventoryPurchaseOrderReceivingAdvanced`'s own payload (`resulting_status` only).
+**Pricing** reads `list_receipts` (via the reporting service) directly for its own live "Receipts"
+metric count — confirmed NOT explainable by its Balance dependency alone (Pricing's `last_receipt_at`
+field usage IS Balance-derived and already covered by `StockOnHandQuantityChanged`, but the
+"Receipts" metric is separate, genuine Receipt data). **Inventory(Foundation)** reads
+`list_receipts`/`list_receipt_lines` directly for its lot/serial/expiry tracking-signal panel. No
+consumer was reclassified from P32A's original 4-genuine/2-incidental split, but each was
+independently re-derived from source rather than carried forward. **Catalog and Reservations**
+(INCIDENTAL) — zero Receipt-data references anywhere in either, confirmed by source and by a
+dedicated zero-reaction regression test; their legacy subscriptions are removed with no replacement.
+
+**Six legacy binder files, six different outcomes.** All 6 (Catalog, Procurement, Pricing,
+Reservations, Inventory(Foundation), Dashboard's own inline binder) had `inventory_receipts_changed`
+as their ONLY remaining subscription (the last Inventory legacy signal standing after P32B). At P33
+time these were left as documented no-op stubs, preserving each controller's `__init__` calling
+convention. **P33-CLEANUP removed the stubs outright**: the 5 free-function binder files
+(Catalog/Procurement/Pricing/Reservations/Inventory(Foundation)) are deleted, their imports and
+`bind_domain_events(self)` call sites removed from each workspace controller's `__init__`;
+Dashboard's own inline `_bind_domain_events` method and its call site are deleted the same way. The
+now-dead `_subscribe_domain_signal`/`_disconnect_domain_event_subscriptions` legacy-Signal-
+subscription machinery on `InventoryProcurementWorkspaceControllerBase` (zero remaining callers
+anywhere in the module once the 6 binders were gone) was removed too — the still-live
+`_request_domain_refresh`/`_schedule_domain_refresh`/`_execute_scheduled_domain_refresh` coalescing
+mechanism every typed ViewInvalidation adapter depends on is untouched. The 4 genuine consumers' real
+Receipt dependency remains covered by 4 separate `ReceiptViewInvalidationAdapter` instances (one per
+consuming workspace) wired through `_request_domain_refresh` in `context.py`, mirroring the
+per-workspace-adapter-instance pattern already established for PO/Requisition. Catalog's and
+Reservations' subscriptions remain removed with no replacement of any kind.
+
+**§14 finding — PurchaseOrderLine concurrency, pre-existing, NOT fixed by this phase.** Source audit
+confirms `PurchaseOrderLineORM` has no `version` column at all (unlike `PurchaseOrder`/`CycleCount`/
+`StockBalance`/`StockReservation`, all `update_with_version_check`-protected) and
+`SqlAlchemyPurchaseOrderLineRepository.update()` performs a blind field overwrite. This is not new —
+P28A already documented it neutrally ("child PurchaseOrderLine (no own version field, additive-only
+mutation)"). A repository-level two-session regression test (mirroring P31B's own template) proves
+the race is real: two independent reads of the same line's `quantity_received` before either write,
+followed by two independent writes, both succeed — neither is rejected, confirming a genuine lost-
+update risk on concurrent same-line receiving. **Deliberately not fixed here** — hardening it would
+require a schema migration (a new `version` column) unrelated to and out of proportion with this
+phase's actual goal (the Receipt DomainEvent + ViewInvalidation cutover does not depend on it, and
+neither `post_receipt`'s per-call `outstanding` guard nor its idempotency behavior is touched by
+this event-modernization work). Carried forward as an explicit, source-confirmed, unresolved
+architectural note, exactly as P31A carried forward (and P31B later fixed, when directly relevant)
+the analogous PO-cancel silent-mutation gap.
+
+`inventory_receipts_changed` is now deleted from `DomainEvents` entirely — zero producers (the one
+`.emit()` site in `post_receipt` converted), zero consumers (all 6 legacy subscriptions removed —
+2 incidental with no replacement, 4 replaced by the typed adapter). **Zero Inventory/Procurement
+legacy Signal fields remain** — `dataclasses.fields(DomainEvents)` carries no `inventory_`-prefixed
+name at all, proven by a dedicated architecture-guard test. The legacy Signal count is 13 as of this
+phase (14 minus the one deletion — confirmed source-derived). Goods Receipt is now fully modernized —
+the ninth and final Inventory/Procurement capability to reach that state. **Inventory/Procurement's
+entire event-modernization surface (Item/Category, Storeroom/Location, Reorder Policy, Purchase
+Order, Requisition, Reservation, Stock Balance, Cycle Count, Goods Receipt) is complete.**
+`StockTransaction` remains, throughout, the unmodified canonical persistence ledger — confirmed
+again not to need its own DomainEvent family. This does **not** mark the overall (all-module)
+event-modernization project complete — Project Management, Finance, and Auth/Security legacy
+signals remain, per §6.
+
+### P33-CLEANUP — Structural Cleanup, Not a Modernization Phase
+
+No business behavior changed; legacy Signal count unchanged at 13 (Inventory/Procurement's own
+count was already zero after P33). Obsolete Inventory legacy-Signal wiring left as documented no-op
+stubs at P33 time is deleted outright, per this document's own §9 Pre-Release Convergence Rule ("no
+compatibility shell, no deprecated wrapper, no empty placeholder"): the 5 free-function
+`*_domain_event_binder.py` files (Catalog/Procurement/Pricing/Reservations/Inventory(Foundation)),
+Dashboard's own inline `_bind_domain_events` no-op method, their import/call sites in each
+controller's `__init__`, and the now-zero-caller `_subscribe_domain_signal`/
+`_disconnect_domain_event_subscriptions` legacy-Signal-subscription machinery on
+`InventoryProcurementWorkspaceControllerBase` (plus its now-unused `Callable`/`Any`/`DomainSignal`
+imports). The still-live `_request_domain_refresh`/`_schedule_domain_refresh`/
+`_execute_scheduled_domain_refresh` coalescing mechanism, and every typed ViewInvalidation adapter
+that depends on it, is untouched. Two stale test-source-inspection assertions (P20's Catalog test,
+P30B-FIX's Reservations test) that imported the now-deleted binder modules directly were rewritten
+to assert the module's absence instead (a stronger proof of "zero legacy responsibility" than
+inspecting dead source). One incidentally-discovered stale test outside Inventory/Procurement
+(`test_p7_legacy_bridge_removal.py`'s `..._does_not_react_to_an_unrelated_inventory_signal`, which
+emitted the already-P31B-deleted `inventory_balances_changed`) was also corrected — its "unrelated
+signal" example was swapped to a still-legacy Finance signal, preserving the same cross-module-
+isolation property without inventing new Inventory wiring. The `PurchaseOrderLine` concurrency debt
+(§7) is explicitly NOT addressed here — recorded, not fixed.
+
+### P34A — Global Re-Audit + Re-Rank of Remaining Legacy Signals (AUDIT + ROADMAP ONLY)
+
+No production code, test, README, or ADR changed. Legacy Signal count unchanged at 13
+(`dataclasses.fields(DomainEvents)` re-verified: exactly the expected 6 PM + 6 Finance + 1 Auth,
+zero unexpected modules, zero stray Inventory fields).
+
+**Remaining Signal field list (source-derived)**:
+
+- **PM (6)**: `project_changed`, `tasks_changed`, `timesheet_periods_changed`,
+  `collaboration_changed`, `portfolio_changed`, `register_changed`
+- **Finance (6)**: `budgets_changed`, `billing_preparations_changed`, `planned_costs_changed`,
+  `cost_entries_changed`, `commitments_changed`, `financial_changes_changed`
+- **Auth (1)**: `auth_changed` — unchanged from P26A, carried forward AUDITED / DEFERRED
+
+**Producer/consumer matrix (compact)**:
+
+| Signal | Producer sites | Producer files | Consumers | Transaction | Audit |
+|---|---|---|---|---|---|
+| `timesheet_periods_changed` | 1 (single choke-point helper) | `timesheet_periods.py` | 5 | D, trivial (raw Session, single function) | **ATOMIC** |
+| `register_changed` | 3 | `register_lifecycle.py` | 3 | D, already `expected_version`-protected | ACTIVITY-ONLY |
+| `project_changed` | 7 | `projects/commands/lifecycle.py` (3) + `resources/commands/project_resource_commands.py` (4) | 11 (HIGH) | D, zero UoW despite an unused `ResourceUnitOfWork` existing | MIXED (financial-profile sub-writes atomic; plain Project updates activity-only) |
+| `portfolio_changed` | 8 | 4 files (dependencies/intake/scenarios/templates ×2 each) | 3 | D, zero UoW | MIXED, mostly **NONE** (3 of 4 files have zero audit/activity) |
+| `collaboration_changed` | 8 | `collaboration_comments.py` (6, durable) + `collaboration_presence.py` (2, ephemeral) | 3 | D, zero UoW | **NONE** |
+| `tasks_changed` | 22 direct (8 files) + 6 reflective `ApprovalPostCommitEvent` (5 in `task_apply_participant.py`, 1 conditional in `financial_change_apply_participant.py`) + 4 raw-session Timesheet co-producers | 10 files total | 10 (HIGH) | E — mixed: 5 approval sites already atomic (ApprovalService-owned); rest raw Session, zero UoW | **NONE/ACTIVITY-ONLY** — zero `record_audit_entry` anywhere in the 8 core task-command files |
+| `planned_costs_changed` | 1 | `planned_cost_service.py` | 1 | C — raw Session but savepoint-protected, `FinanceGovernanceUnitOfWork.planned_costs` repo already wired | **ATOMIC** |
+| `commitments_changed` | 1 | `commitment_service.py` | not deep-audited (flagged, low risk — single producer) | C — raw Session, repo already wired, **zero rollback protection** (confirmed live bug) | not verified this pass (producer's own audit call not confirmed) |
+| `cost_entries_changed` | 1 direct + 2 approval (`project_cost_apply_participant.py`) | `cost_entry_service.py` | not deep-audited (flagged, low risk) | C — raw Session, repo already wired, properly try/except/rollback wrapped | **ATOMIC** |
+| `budgets_changed` | 1 direct (`command_boundary.py::_emit_budget`, postcommit) + 2 approval (`budget_apply_participant.py`) + 1 cross-capability conditional (`financial_change_apply_participant.py:56`) | `budget_service.py` + 2 participants | 2+ (Financials workspace owner + Projects workspace `approvedBudgetVisible`, confirmed genuine) | **A — already canonical** `FinanceGovernanceUnitOfWork` via `FinanceGovernanceCommandBoundary` | **ATOMIC** (`_record_budget_audit`, `commit=False, fail_closed=True`) |
+| `financial_changes_changed` | 1 direct (reflective `_emit_scoped`, postcommit) + 2 approval | `financial_change_apply_participant.py` | 1 (Financials workspace owner) | **A — already canonical**, same UoW/boundary as Budget | not independently verified this pass; participant already atomic (ApprovalService-owned) |
+| `billing_preparations_changed` | submit (already `BillingPreparationSubmissionUnitOfWork`-based, postcommit legacy emit) + approve/reject (raw Session) + 2 approval + a genuinely different aggregate (`ProjectBillingProfile`) also emitting it | `preparation_service.py` + `billing_profile_service.py` + participant | not deep-audited | **E — mixed** (submit already UoW; rest raw Session) | MIXED |
+| `auth_changed` | 19 (10 files, re-confirmed this pass, unchanged from P26A) | Auth credentials/session/provisioning/authorization | 2 (`access_workspace_controller.py`, `admin_console/domain_event_binder.py`) | D — no canonical UoW yet (P26A finding, unchanged) | not re-audited (P26A stands) |
+
+**Corrections to older/assumed characterizations, source-proven this pass**:
+
+- `register_changed`'s aggregate is a **combined Risk/Issue/Change register** — one `RegisterEntry`
+  class (`domain/risk/register.py`) with a `RegisterEntryType` enum of `RISK`/`ISSUE`/`CHANGE`, not
+  a Risk-only register as the file path (`application/risk/...`) alone would suggest. One aggregate,
+  one lifecycle — LOW-MEDIUM overload, not multiple aggregates.
+- `budgets_changed` is **not** a 1-fact signal — `budget_service.py` has 8 distinct lifecycle
+  operations across 2 aggregates (`ProjectBudget`: create/create_successor/submit/approve/reject;
+  `BudgetLine`: add_line/update_line/delete_line) — MEDIUM-HIGH overload, though transaction/audit
+  posture is excellent (already canonical UoW + atomic audit for every one of those 8 operations).
+- `commitments_changed`'s P17-era "missing-rollback bug" is **reconfirmed still real and unfixed**:
+  `commitment_service.py`'s `_commit()` calls `self._session.commit()` with zero try/except/rollback
+  anywhere in the file — a genuinely live production correctness bug, not carried-forward folklore.
+- The Financials workspace's own `financials_refresh_mixin.py` (lines 579-628) already maps each of
+  the 6 Finance signals to specific destination panels (`overview`/`planning`/`performance`/
+  `commercial`/`costs`/`controls`) gated by a tenant/org/project scope check — a hand-rolled
+  precursor to `ViewInvalidationHint`/`ViewInvalidationChannel` that already does ~80% of the
+  ViewInvalidation design work for all 6 Finance signals at once.
+
+**Semantic overload classification**: HIGH — `tasks_changed` (8+ facts, mixed direct/approval/
+cross-capability), `collaboration_changed` (durable+ephemeral category error, confirmed still real),
+`billing_preparations_changed` (2 distinct aggregates — `ProjectBillingPreparation` and
+`ProjectBillingProfile` — sharing one signal, a real category error matching P17's old concern).
+MEDIUM-HIGH — `portfolio_changed` (4 sub-aggregates), `budgets_changed` (8 facts/2 aggregates,
+corrected above), `financial_changes_changed` (apply/reject + conditional Budget/Task/Forecast
+cascade = 4+ facts). LOW-MEDIUM — `project_changed` (2 aggregates), `register_changed` (1 aggregate,
+3 fact-types via one `type` field). LOW — `timesheet_periods_changed` (1 choke-point, 6 named
+transitions), `planned_costs_changed` (1 fact), `cost_entries_changed` (1 fact + approve/reject),
+`commitments_changed` (1 fact, not yet proven otherwise).
+
+**Cross-capability mutation graph — proven edges only, not inferred from co-emission**:
+
+- **`financial_change_apply_participant.py::apply()` → real (C) cross-capability mutation into
+  Budget** (`change.applied_budget_id` gate) **and into Task** (`change.applied_schedule_count`
+  gate), in the SAME `ApprovalHandlerResult`, alongside an already-typed `ForecastVersionChanged`
+  DomainEvent (P19) — one method genuinely mutates up to 4 different aggregates' persisted state in
+  one already-atomic transaction. This is the single most important finding for sequencing:
+  `financial_changes_changed`, `budgets_changed`, and `tasks_changed` are NOT 3 independent
+  deletions — this one participant is a live producer for all 3, and the participant already proves
+  `post_commit_events=` (legacy) and `domain_events=` (canonical) coexist in one `ApprovalHandlerResult`
+  without any ApprovalService redesign.
+- All other apparent PM/Finance groupings (Project/ProjectResource sharing `project_changed`;
+  Dependency/Intake/Scenario/Template sharing `portfolio_changed`; `ProjectBillingPreparation`/
+  `ProjectBillingProfile` sharing `billing_preparations_changed`) are **signal co-emission observed,
+  real persisted cross-mutation neither proven nor disproven this pass** — per this phase's own
+  explicit instruction not to infer relationships from co-emission alone, these are flagged for
+  verification during that capability's own eventual dedicated audit, not classified here.
+- `timesheet_periods_changed`'s co-emission of `tasks_changed` per affected project was confirmed to
+  exist (same helper function) but whether it is (B) a stale-read-model notification or (C) a real
+  Task-row mutation was not proven this pass — flag for Timesheet Period's own audit.
+
+**Approval coupling (§9) — remaining `ApprovalPostCommitEvent`/reflective-bridge usages**:
+`tasks_changed` (6: 5 in `task_apply_participant.py` + 1 conditional in
+`financial_change_apply_participant.py`), `budgets_changed` (3: 2 in `budget_apply_participant.py` +
+1 conditional), `financial_changes_changed` (2, in its own participant), `billing_preparations_changed`
+(2, in `billing_preparation_apply_participant.py`), `cost_entries_changed` (2, in
+`project_cost_apply_participant.py`, already `commit=False` atomic). **Every one of these can convert
+to `ApprovalHandlerResult.domain_events` with zero ApprovalService redesign** — `financial_change_
+apply_participant.py` already proves both channels coexist in one return value today.
+
+**Reflective legacy mechanisms still present in production** (test-only/dead references excluded):
+
+1. `ApprovalService._emit_signal_safely` (`approval_service.py:349-350`) — `getattr(domain_events,
+   signal_name, None)`, the dispatch every `ApprovalPostCommitEvent` above still routes through.
+2. `FinanceGovernanceCommandBoundary._emit_scoped`/`_emit_budget` (`command_boundary.py:176-199`) —
+   reflective (`_emit_scoped`, used for `financial_changes_changed`) and direct (`_emit_budget`, used
+   for `budgets_changed`) postcommit emit helpers, called after `uow.commit()` inside `_execute()`.
+   The SAME class's `rate_card()`/`forecast_version()`/`forecast_generation()` methods already prove
+   the precommit-`uow.record_event(...)` conversion pattern working in production (P19/P22) —
+   converting Budget/FinancialChange is a direct copy of an already-proven pattern in the same file.
+
+**Legacy allowlist health (§35)** — the P8 guard's `current ⊆ frozen` subset check (not equality)
+is mechanically correct, but **currently fails for real**: `cost_entries_changed`, `commitments_
+changed`, and `financial_changes_changed` are live fields in `DomainEvents` that are **absent from
+`FROZEN_LEGACY_SIGNAL_ALLOWLIST`** — and, confusingly, all three simultaneously appear in the SAME
+test file's `_DELETED_BRIDGE_NAMES` list (asserting they should have zero production references).
+This is not a stale-test-expects-a-deleted-signal problem (the direction every other P8 failure in
+this document represents) — it is the opposite: current source has *more* live Finance signals than
+the frozen baseline and the dead-name list both account for, most likely because these 3 fields were
+added by concurrent Finance-side development on this branch without updating either list. Not fixed
+here (P34A is audit-only) — flagged as its own distinct stale-test-debt item, separate from the
+already-known `resources_changed`/hardcoded-count staleness.
+
+**Stale regression-test debt (§34, not fixed)**: `test_p16d_document_link_typed_events.py::test_
+legacy_signal_count_decreased_by_exactly_one` (hardcoded `== 29`, now 13); `test_p7_legacy_bridge_
+removal.py::test_all_still_unmodernized_signals_survive_with_real_direct_consumers` (asserts
+`resources_changed` still exists — it doesn't, deleted in an earlier PM phase); the P8 allowlist/
+dead-name inconsistency above. **Recommendation: address AFTER the next capability**, not now and
+not held until every signal is gone — none of these three currently block reliable regression
+detection for Inventory/Procurement (already fully closed) or mask a real defect in whichever
+Finance/PM capability is modernized next; they are orthogonal bookkeeping debt.
+
+**Capability scorecard** (Auth excluded — kept AUDITED / DEFERRED per §29):
+
+| Capability | Signal | Facts | Producers | Real consumers | Txn readiness | Audit readiness | Cross-capability | UI precision | Correctness debt | Deletion confidence | Test readiness | Priority |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Planned Cost | `planned_costs_changed` | LOW | 1 | 1 | **A-adjacent (repo wired, unused)** | ATOMIC | NONE proven | LOW-risk (existing scope-check pattern portable) | LOW (concurrency guard already real) | **HIGH** | MEDIUM-HIGH | **1** |
+| Commitment | `commitments_changed` | LOW | 1 | not fully audited | **A-adjacent (repo wired, unused)** | not confirmed | NONE proven | LOW-risk | **HIGH (live rollback bug)** | **HIGH** | MEDIUM-HIGH | **2** |
+| Cost Entry | `cost_entries_changed` | LOW | 3 (1 direct + 2 approval) | not fully audited | **A-adjacent (repo wired, unused)** | ATOMIC | NONE proven | LOW-risk | LOW | **HIGH** | MEDIUM-HIGH | **3** |
+| Timesheet Period | `timesheet_periods_changed` | LOW | 1 | 5 | C (raw Session, needs new UoW) | ATOMIC | Task co-emission unproven | LOW-risk | LOW | HIGH | MEDIUM-HIGH | 4 |
+| Register | `register_changed` | LOW-MEDIUM | 3 | 3 | D | ACTIVITY-ONLY | NONE proven | LOW-risk | LOW | HIGH | MEDIUM | 5 |
+| Budget | `budgets_changed` | MEDIUM-HIGH | 4 (1 direct + 3 approval/cross) | 2+ | **A — already canonical** | ATOMIC | **HIGH (coupled to Financial Change)** | LOW-risk | LOW | MEDIUM (coupled) | MEDIUM-HIGH | 6 |
+| Financial Change | `financial_changes_changed` | MEDIUM-HIGH | 3 | 1 | **A — already canonical** | not confirmed | **HIGH (drives Budget+Task)** | LOW-risk | not confirmed | MEDIUM (coupled) | MEDIUM-HIGH | 7 |
+| Project | `project_changed` | LOW-MEDIUM | 7 | 11 (HIGH fan-out) | D | MIXED | 2 aggregates, unproven | LOW-risk | MEDIUM (no UoW, HIGH fan-out) | MEDIUM | MEDIUM | 8 |
+| Portfolio | `portfolio_changed` | MEDIUM-HIGH | 8 | 3 | D | **NONE (3 of 4 files)** | 4 sub-aggregates, unproven | LOW-risk | MEDIUM (audit gap) | MEDIUM | LOW-MEDIUM | 9 |
+| Billing Preparation | `billing_preparations_changed` | HIGH | 6+ | not fully audited | **E — mixed** | MIXED | 2 aggregates sharing 1 signal | LOW-risk | MEDIUM | LOW-MEDIUM | MEDIUM | 10 |
+| Collaboration | `collaboration_changed` | HIGH (category error) | 8 | 3 | D | **NONE** | unproven | **needs non-DomainEvent presence transport** | MEDIUM (audit gap) | LOW (needs transport split first) | LOW-MEDIUM | 11 |
+| Task | `tasks_changed` | HIGH | 28+ | 10 (HIGH fan-out) | E — mixed | **NONE/ACTIVITY-ONLY** | **HIGH (Financial Change cascades in)** | LOW-risk | MEDIUM (no audit anywhere) | LOW (blocked on Financial Change) | MEDIUM | 12 |
+
+**Recommended next three targets** (all Finance — same already-wired `FinanceGovernanceUnitOfWork`,
+same already-proven precommit-conversion pattern from P22 Rate Card, zero cross-capability coupling
+found for any of the three, all three independently reach `producers=0/consumers=0/field-deleted`):
+
+1. **`planned_costs_changed`** — lowest possible risk: 1 producer, 1 fact, already-atomic audit,
+   already-working `ConcurrencyError` guard, UoW repo already wired and unused. Proves the pattern
+   with the smallest possible blast radius before reusing it twice more.
+2. **`commitments_changed`** — same mechanical pattern, additionally closes a real, currently-live
+   commit-without-rollback correctness bug (highest governance value of the trio for comparable
+   effort).
+3. **`cost_entries_changed`** — same pattern again, already has 2 approval-owned sites proven atomic,
+   closes out the trio and leaves `financials_refresh_mixin.py`'s routing table 3/6 converted.
+
+**Mode for all three: DIRECT FULL MODERNIZATION** (not audit-first) — single producer (or a tight,
+already-atomic 2-3 site cluster) each, facts are semantically clear, transaction infrastructure is
+already built and merely unused, and the ViewInvalidation design is ~80% pre-existing in
+`financials_refresh_mixin.py`'s own routing table. This phase's own audit depth is sufficient; a
+dedicated P34B/P35A-style capability audit would be redundant scope, unlike Inventory's Receipt/Cycle
+Count which needed P32A specifically because of genuine remaining ambiguity that does not exist here.
+
+**Overall strategy: FINANCE FIRST**, specifically the Planned Cost → Commitment → Cost Entry trio,
+not by module-completion aesthetics but by architectural dependency: these three are the only
+remaining capabilities (PM or Finance) with an *already-wired, already-unused* canonical UoW and zero
+proven cross-capability coupling — the lowest-risk, highest-leverage cluster available. `Budget`/
+`Financial Change` are ALSO Finance and ALSO transaction-canonical, but are deliberately sequenced
+after the trio because they are provably coupled to each other and to PM's `Task` through one
+Approval participant — that coupling should be resolved as its own deliberate decision (likely a
+short comparative audit in the P32A style, given 3 signals converge on 1 participant), not
+accidentally forced by finishing Budget or Financial Change in isolation first. PM's cleanest signal,
+`Timesheet Period`, is a strong 4th-in-line candidate once the Finance trio lands, ahead of `Register`
+and well ahead of `Project`/`Portfolio` (both lower audit/transaction readiness) and `Collaboration`/
+`Task` (both need dedicated architecture work — a presence-transport split and a Financial-Change-
+coupling resolution, respectively — before a clean single-phase deletion is realistic).
+
 ## 4. Current State
 
-**Legacy Signal count: 16 as of P30B** (source-derived from
+**Legacy Signal count: 13 as of P33** (source-derived from
 `src/core/shared/events/domain_events.py`, re-verified against current source when this document
 was last updated — `dataclasses.fields(domain_events)`, not a manual field count).
 
@@ -940,7 +1724,7 @@ was last updated — `dataclasses.fields(domain_events)`, not a manual field cou
 | Auth/Security | 1 |
 | Project Management | 6 |
 | Finance | 6 |
-| Inventory/Procurement | 3 |
+| Inventory/Procurement | 0 |
 
 > **This is a snapshot, not a fact.** Recompute the count directly from
 > `src/core/shared/events/domain_events.py` before relying on it - do not trust this table if it
@@ -949,19 +1733,44 @@ was last updated — `dataclasses.fields(domain_events)`, not a manual field cou
 
 ## 5. Current Priority
 
-**Purchase Order, Inventory Requisition, and Inventory Reservation are all fully modernized**
-(P28B/P28B-FIX/P29/P29-FIX/P30B, see §3). `inventory_purchase_orders_changed`,
-`inventory_requisitions_changed`, and `inventory_reservations_changed` are all deleted — zero
-producers, zero consumers, fields absent. Inventory/Procurement's remaining legacy signals (3:
-`inventory_balances_changed`, `inventory_receipts_changed`, `inventory_cycle_counts_changed`) cover
-Stock Balance/Ledger, Goods Receipt, and Cycle Count — **no next capability has been chosen yet**;
-all three remain unaudited. Per this
-document's own repeated caution, re-run prioritization from current source before committing to a
-target — concurrent development elsewhere may have changed readiness since P17/P26A. **Auth
-Credential & Session remains AUDITED / DEFERRED** (P26A, see §3) — still not recommended given no
-canonical UoW exists yet on that surface.
+**Inventory/Procurement's entire event-modernization surface is COMPLETE as of P33** (P28B/
+P28B-FIX/P29/P29-FIX/P30B/P30B-FIX/P31B/P32B/P33, see §3) — all nine capabilities (Item/Category,
+Storeroom/Location, Reorder Policy, Purchase Order, Requisition, Reservation, Stock Balance, Cycle
+Count, Goods Receipt) fully modernized, `dataclasses.fields(DomainEvents)` carries zero
+`inventory_`-prefixed names. `inventory_purchase_orders_changed`, `inventory_requisitions_changed`,
+`inventory_reservations_changed`, `inventory_balances_changed`, `inventory_cycle_counts_changed`,
+and `inventory_receipts_changed` are all deleted — zero producers, zero consumers, fields absent.
+**No Inventory/Procurement work remains for this document to prioritize.** Attention shifts entirely
+to the remaining modules — Project Management, Finance, Auth/Security — per §6. **Auth Credential &
+Session remains AUDITED / DEFERRED** (P26A, see §3) — still not recommended given no canonical UoW
+exists yet on that surface.
 
-**P28B/P28B-FIX/P29/P29-FIX/P30B's own explicit non-gaps, resolved rather than carried forward**: the
+**P34A's global re-audit (see §3) recommends FINANCE FIRST, specifically `planned_costs_changed` →
+`commitments_changed` → `cost_entries_changed`, all as DIRECT FULL MODERNIZATION (no dedicated
+audit-first phase needed)**: all three already have an unused, fully-wired canonical
+`FinanceGovernanceUnitOfWork` repo accessor, a single (or tight, already-atomic) producer, and the
+same proven precommit-conversion pattern P22's Rate Card already demonstrated on the exact same
+class. `commitments_changed` additionally closes a real, currently-live commit-without-rollback bug
+in `commitment_service.py`. `budgets_changed`/`financial_changes_changed` are also transaction-
+canonical but are deliberately sequenced after the trio — P34A found they are genuinely coupled to
+each other AND to PM's `tasks_changed` through one Approval participant
+(`financial_change_apply_participant.py::apply()`), which needs its own deliberate resolution rather
+than being forced by finishing either signal in isolation. Per this document's own repeated caution,
+re-run prioritization from current source before committing further — concurrent development
+elsewhere may have changed readiness since P34A.
+
+**A pre-existing, explicitly-not-fixed note carried forward by P33**: `PurchaseOrderLineORM` has no
+`version` column and its repository performs a blind field overwrite on `update()` — confirmed real
+by a two-session regression test (P33 §14), contrasted directly against `PurchaseRequisitionLine`
+(the sibling aggregate, which IS `update_with_version_check`-protected, per P28B's own
+`test_requisition_line_sourcing_rejects_concurrent_stale_update`). This is not new — P28A already
+characterized it neutrally ("no own version field, additive-only mutation") — and P33 deliberately
+did not fix it, since doing so would require a schema migration unrelated to and out of proportion
+with the Receipt DomainEvent/ViewInvalidation work that was this phase's actual goal. Flagged here
+as an explicit, unresolved architectural note for any future phase that touches PO-line receiving
+concurrency directly.
+
+**P28B/P28B-FIX/P29/P29-FIX/P30B/P30B-FIX/P31A/P31B/P32A/P32B/P33's own explicit non-gaps, resolved rather than carried forward**: the
 Procurement-workspace-refresh-breadth note from P28B (full `_request_domain_refresh()` on either
 PO/Requisition ViewInvalidation target, matching its pre-existing monolithic `build_workspace_state`)
 remains accepted, unaddressed future work, not a phase gap — no narrower seam existed before P28B
@@ -990,12 +1799,15 @@ Remaining capability groups, not yet assigned rigid phase numbers:
 - **Finance**: Financial Change, Project Commitment (fix the missing-rollback bug in
   `commitment_service.py` first), Project Cost Entry, Project Budget, Planned Cost, Billing
   Preparation.
-- **Inventory/Procurement**: **Purchase Order — DONE (P28B/P28B-FIX, see §3)**, **Requisition —
-  DONE (P29/P29-FIX, see §3)**, and **Reservation — DONE (P30B, see §3)**, all three fully
-  modernized: `inventory_purchase_orders_changed`, `inventory_requisitions_changed`, and
-  `inventory_reservations_changed` all deleted (fields absent, zero producers, zero consumers).
-  Stock Balance/Ledger, Cycle Count, Goods Receipt remain unaudited — no next
-  Inventory/Procurement target has been chosen yet.
+- **Inventory/Procurement — ALL NINE CAPABILITIES DONE, MODULE COMPLETE**: **Purchase Order — DONE
+  (P28B/P28B-FIX, see §3)**, **Requisition — DONE (P29/P29-FIX, see §3)**, **Reservation — DONE
+  (P30B/P30B-FIX, see §3)**, **Stock Balance — DONE (P31A/P31B, see §3)**, **Cycle Count — DONE
+  (P32A/P32B, see §3)**, and **Goods Receipt — DONE (P32A/P33, see §3)**. `inventory_purchase_
+  orders_changed`, `inventory_requisitions_changed`, `inventory_reservations_changed`,
+  `inventory_balances_changed`, `inventory_cycle_counts_changed`, and `inventory_receipts_changed`
+  are all deleted (fields absent, zero producers, zero consumers) — `dataclasses.fields(
+  DomainEvents)` carries zero `inventory_`-prefixed names. **No further Inventory/Procurement phase
+  is needed.**
 - **Auth/Security — AUDITED / DEFERRED**: Auth Credential & Session Lifecycle (`auth_changed` -
   largest remaining raw-Session surface in the codebase). Fully audited in P26A (see §3): proposed
   **P26B** (Credentials + Account Security + Session Persistence) and **P26C**
@@ -1023,9 +1835,52 @@ document** - each is addressed when its owning capability's phase is implemented
   cannot be deleted in one phase (no UoW convergence yet; custom-role bulk-revocation and
   registration's Membership/RoleBinding conflation each need their own fix first).
 - `project_changed` - broadest PM fan-out signal; touches 11 consumer files.
-- `inventory_balances_changed` - ledger/balance overload; StockBalance is a maintained running
-  total, not a derived read, so typed events here must carry enough identity to avoid
-  reintroducing ambiguity.
+- ~~`inventory_receipts_changed`~~ **RESOLVED by P33 — Inventory/Procurement's LAST legacy Signal,
+  module now COMPLETE** - the one producer (`post_receipt`) now records a single typed
+  `InventoryReceiptPosted` fact ("a Receipt was posted") alongside the pre-existing
+  `InventoryPurchaseOrderReceivingAdvanced` and Balance facts in the same already-canonical
+  `PurchaseOrderSubmissionUnitOfWork` transaction, field deleted (ADR-005 §26.30). Only a
+  `receipt_list` (`OrganizationScope`) ViewInvalidation target exists — no `receipt_detail` was
+  invented, since source confirmed no single-Receipt read model exists anywhere in the UI. All 6
+  legacy subscriptions removed: 2 confirmed incidental (Catalog, Reservations, no replacement), 4
+  confirmed genuine at the field level (Procurement, Dashboard, Pricing, Inventory(Foundation),
+  each replaced by its own `ReceiptViewInvalidationAdapter` instance). A pre-existing,
+  P28A-documented gap (`PurchaseOrderLineORM` has no `version` column, unlike its sibling
+  `PurchaseRequisitionLine`) was confirmed still real by a two-session regression test but
+  deliberately left unfixed — out of proportion with this phase's actual scope. `dataclasses.
+  fields(DomainEvents)` now carries zero `inventory_`-prefixed names.
+- **PRE-EXISTING CORRECTNESS / CONCURRENCY DEBT — `PurchaseOrderLine` receiving has no optimistic
+  concurrency protection.** `PurchaseOrderLineORM` has no `version` column at all (unlike
+  `PurchaseOrder`/`CycleCount`/`StockBalance`/`StockReservation`/`PurchaseRequisitionLine`, all
+  `update_with_version_check`-protected), and `SqlAlchemyPurchaseOrderLineRepository.update()`
+  performs a blind field overwrite. First neutrally documented by P28A ("no own version field,
+  additive-only mutation"); reconfirmed real by a two-session repository-level regression test in
+  P33 (`test_purchase_order_line_receiving_has_no_optimistic_concurrency_protection`) — two
+  concurrent receipts against the same PO line, each reading the other's pre-write state, both
+  succeed with neither rejected, a genuine lost-update risk. **Not a P33 or P33-CLEANUP
+  regression** — pre-existing since the aggregate was first built, orthogonal to the Receipt
+  DomainEvent/ViewInvalidation work, and deliberately left unfixed both times since a real fix
+  requires a schema migration (a new `version` column) out of proportion with either phase's own
+  scope. Revisit only if/when a phase's actual goal directly requires PO-line write-conflict
+  safety.
+- ~~`inventory_cycle_counts_changed`~~ **RESOLVED by P32B** - both producer operations
+  (`schedule_cycle_count`, `complete_cycle_count`) converged onto the canonical
+  `InventoryFoundationUnitOfWork`, gaining an atomic enterprise audit for `schedule_cycle_count`
+  for the first time; 2 typed, field-oriented facts (`InventoryCycleCountScheduled`/
+  `InventoryCycleCountCompleted`) replace the legacy signal, field deleted (ADR-005 §26.29). The 5
+  incidental legacy subscriptions confirmed zero-dependency by P32A (Catalog, Pricing, Procurement,
+  Dashboard, Reservations) are removed with no replacement. Goods Receipt's own legacy signal
+  (`inventory_receipts_changed`) is unchanged — it was not modernized in its own right, mirroring
+  how P30B/P32B each left the other's signal untouched while still recording their own genuine
+  Balance mutation.
+- ~~`inventory_balances_changed`~~ **RESOLVED by P31B** - all 9 former producer mechanisms
+  (Reservation, PO approve/cancel, Receipt, Cycle Count, Manual Movements) converged onto 3 typed,
+  field-oriented facts (`StockOnHandQuantityChanged`/`StockReservedQuantityChanged`/
+  `StockOnOrderQuantityChanged`), field deleted (ADR-005 §26.28). The P31A-confirmed
+  `cancel_purchase_order` silent-mutation gap is fixed, not carried forward. Receipt's and Cycle
+  Count's own legacy signals (`inventory_receipts_changed`/`inventory_cycle_counts_changed`) are
+  unchanged — neither capability was modernized in its own right, mirroring how P30B left
+  Balance's own signal untouched while still recording Reservation's genuine Balance mutation.
 - ~~`inventory_purchase_orders_changed`~~ **RESOLVED by P28B** - all 12 producer sites converged,
   field deleted; the PO-approval → Requisition-sourcing-mutation boundary is now the typed
   `InventoryRequisitionSourcingAdvanced` fact (ADR-005 §26.23).
@@ -1037,8 +1892,9 @@ document** - each is addressed when its owning capability's phase is implemented
 - ~~`inventory_reservations_changed`~~ **RESOLVED by P30B** - all 5 former producer sites
   converged (3 onto a new `InventoryReservationUnitOfWork` and typed events, 2 — document
   link/unlink — onto no event at all, matching PO's/Item's own precedent), field deleted (ADR-005
-  §26.27). Reservation's genuine Balance/Ledger mutation is unchanged, still routed through the
-  legacy `inventory_balances_changed` - Balance itself remains unmodernized.
+  §26.27). Reservation's genuine Balance/Ledger mutation was unchanged at the time, still routed
+  through the legacy `inventory_balances_changed` - Balance itself was not yet modernized (now
+  resolved by P31B, see below).
 - `collaboration_changed` - durable comment mutations and ephemeral presence pings share one
   signal name; a category error, not just an overload - presence needs a different mechanism
   entirely, not a `DomainEvent`.
@@ -1062,10 +1918,16 @@ document** - each is addressed when its owning capability's phase is implemented
   `ResourceMasterChanged`/`ResourceCapabilityChanged` now dispatch through the canonical
   post-commit bus (bespoke `Signal[T]` transport deleted); still zero real UI subscribers until
   P18B builds the ViewInvalidation handler.
-- Coarse Inventory workspace refresh fan-out - narrowing since P20; by P30B each of the 6
-  Inventory/Procurement workspace controllers subscribes only to the 3 remaining legacy signals
-  it has a real (or still-unaudited) dependency on, not a blanket 11 - PO, Requisition, and
-  Reservation facts now route through their own typed ViewInvalidation adapters instead.
+- ~~Coarse Inventory workspace refresh fan-out~~ **RESOLVED by P33, dead wiring removed by
+  P33-CLEANUP** - narrowed from a blanket 11 since P20, through 1 (`inventory_receipts_changed`) as
+  of P32B, to **zero** as of P33. All 6 legacy binder files/methods across every Inventory/
+  Procurement workspace controller (left as empty stubs at P33 time) were deleted outright by
+  P33-CLEANUP, along with the now-dead `_subscribe_domain_signal`/
+  `_disconnect_domain_event_subscriptions` legacy-Signal machinery on
+  `InventoryProcurementWorkspaceControllerBase` — no compatibility shell was kept. Every
+  Inventory/Procurement fact (Storeroom, Location, Reorder Policy, PO, Requisition,
+  Reservation, Stock Balance, Cycle Count, Receipt) routes through its own typed ViewInvalidation
+  adapter.
 
 ## 8. Migration Checklist
 

@@ -50,6 +50,8 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.uow.catal
     SqlAlchemyInventoryCatalogUnitOfWorkFactory,
 )
 from src.core.modules.inventory_procurement.application.inventory.event_handlers.view_invalidation import (
+    build_balance_view_invalidation_handler,
+    build_cycle_count_view_invalidation_handler,
     build_location_list_view_invalidation_handler,
     build_reorder_policy_list_view_invalidation_handler,
     build_reservation_view_invalidation_handler,
@@ -61,6 +63,7 @@ from src.core.modules.inventory_procurement.application.catalog.event_handlers.v
 )
 from src.core.modules.inventory_procurement.application.procurement.event_handlers.view_invalidation import (
     build_purchase_order_view_invalidation_handler,
+    build_receipt_view_invalidation_handler,
     build_requisition_view_invalidation_handler,
 )
 from src.core.modules.inventory_procurement.domain.inventory.foundation_events import (
@@ -90,6 +93,9 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing_events
     InventoryPurchaseOrderSent,
     InventoryPurchaseOrderSubmitted,
 )
+from src.core.modules.inventory_procurement.domain.procurement.receipt_events import (
+    InventoryReceiptPosted,
+)
 from src.core.modules.inventory_procurement.domain.procurement.requisition_events import (
     InventoryRequisitionApproved,
     InventoryRequisitionCancelled,
@@ -105,6 +111,15 @@ from src.core.modules.inventory_procurement.domain.inventory.reservation_events 
     InventoryReservationConsumptionAdvanced,
     InventoryReservationCreated,
     InventoryReservationReleased,
+)
+from src.core.modules.inventory_procurement.domain.inventory.balance_events import (
+    StockOnHandQuantityChanged,
+    StockOnOrderQuantityChanged,
+    StockReservedQuantityChanged,
+)
+from src.core.modules.inventory_procurement.domain.inventory.cycle_count_events import (
+    InventoryCycleCountCompleted,
+    InventoryCycleCountScheduled,
 )
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.catalog import (
     SqlAlchemyInventoryItemCategoryRepository,
@@ -241,9 +256,6 @@ def build_inventory_procurement_service_bundle(
     )
     logger.debug("Inventory/Procurement repositories built")
     logger.debug("Inventory/Procurement core services build begin")
-    # P24: the canonical, capability-owned UoW for Item + Item Category commands -- shares the
-    # SAME composition-owned dispatcher/post-commit bus every Platform UnitOfWork factory
-    # already uses, never a second, module-local instance.
     inventory_catalog_uow_session_factory = sessionmaker(
         bind=platform_services.session.bind, future=True
     )
@@ -284,9 +296,7 @@ def build_inventory_procurement_service_bundle(
         activity_service=platform_services.activity_service,
         uow_factory=inventory_catalog_uow_factory,
     )
-    # P20: the canonical, capability-owned UoW for Storeroom + Storage Location commands --
-    # shares the SAME composition-owned dispatcher/post-commit bus every Platform UnitOfWork
-    # factory already uses, never a second, module-local instance.
+
     inventory_foundation_uow_session_factory = sessionmaker(
         bind=platform_services.session.bind, future=True
     )
@@ -294,6 +304,7 @@ def build_inventory_procurement_service_bundle(
         session_factory=inventory_foundation_uow_session_factory,
         transactional_dispatcher=platform_services.platform_transactional_dispatcher,
         post_commit_bus=platform_services.platform_post_commit_bus,
+        organization_repo=platform_services.organization_repo,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
@@ -339,9 +350,12 @@ def build_inventory_procurement_service_bundle(
         activity_service=platform_services.activity_service,
         uow_factory=inventory_catalog_uow_factory,
     )
-    # Approval-P1: the narrow, capability-specific canonical UoW for `submit_requisition` --
-    # shares the SAME composition-owned dispatcher/post-commit bus every Platform UnitOfWork
-    # factory already uses, never a second, module-local instance.
+
+    inventory_foundation_uow_factory.configure_stock_dependencies(
+        item_service=inventory_item_service,
+        inventory_service=inventory_service,
+    )
+
     requisition_submission_uow_session_factory = sessionmaker(
         bind=platform_services.session.bind, future=True
     )
@@ -470,6 +484,12 @@ def build_inventory_procurement_service_bundle(
         platform_services.platform_post_commit_bus.subscribe(
             _requisition_event_type, _requisition_view_invalidation_handler
         )
+    _receipt_view_invalidation_handler = build_receipt_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    platform_services.platform_post_commit_bus.subscribe(
+        InventoryReceiptPosted, _receipt_view_invalidation_handler
+    )
 
     inventory_reservation_uow_session_factory = sessionmaker(
         bind=platform_services.session.bind, future=True
@@ -496,13 +516,33 @@ def build_inventory_procurement_service_bundle(
         platform_services.platform_post_commit_bus.subscribe(
             _reservation_event_type, _reservation_view_invalidation_handler
         )
+    _balance_view_invalidation_handler = build_balance_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _balance_event_type in (
+        StockOnHandQuantityChanged,
+        StockReservedQuantityChanged,
+        StockOnOrderQuantityChanged,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _balance_event_type, _balance_view_invalidation_handler
+        )
+    _cycle_count_view_invalidation_handler = build_cycle_count_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _cycle_count_event_type in (
+        InventoryCycleCountScheduled,
+        InventoryCycleCountCompleted,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _cycle_count_event_type, _cycle_count_view_invalidation_handler
+        )
     inventory_reservation_service = ReservationService(
         platform_services.session,
         reservation_repo,
         organization_repo=platform_services.organization_repo,
         item_service=inventory_item_service,
         inventory_service=inventory_service,
-        stock_service=inventory_stock_service,
         reservation_uow_factory=inventory_reservation_uow_factory,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,

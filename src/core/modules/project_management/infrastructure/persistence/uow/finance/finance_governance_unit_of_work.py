@@ -16,9 +16,15 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.forecasts.forecast import SqlAlchemyProjectForecastRepository
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.planned_costs.planned_cost import SqlAlchemyProjectPlannedCostVersionRepository
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_cards import SqlAlchemyProjectRateCardRepository
-from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import SqlAlchemyProjectRepository
+from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
+    SqlAlchemyProjectRepository,
+    SqlAlchemyProjectResourceRepository,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.register.register import SqlAlchemyRegisterEntryRepository
-from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import SqlAlchemyTaskRepository
+from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import (
+    SqlAlchemyAssignmentRepository,
+    SqlAlchemyTaskRepository,
+)
 from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
 from src.core.platform.infrastructure.persistence.repositories.approval.approval import SqlAlchemyApprovalRepository
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import SqlAlchemyAuditRepository
@@ -42,6 +48,8 @@ class SqlAlchemyFinanceGovernanceUnitOfWork(SqlAlchemyUnitOfWorkBase, FinanceGov
         self.profiles = SqlAlchemyProjectFinancialProfileRepository(session)
         self.cost_codes = SqlAlchemyProjectCostCodeRepository(session)
         self.planned_costs = SqlAlchemyProjectPlannedCostVersionRepository(session)
+        self.assignments = SqlAlchemyAssignmentRepository(session)
+        self.project_resources = SqlAlchemyProjectResourceRepository(session)
         self.commitments = SqlAlchemyProjectCommitmentRepository(session)
         self.cost_entries = SqlAlchemyProjectCostEntryRepository(session)
         self.register_entries = SqlAlchemyRegisterEntryRepository(session)
@@ -49,8 +57,9 @@ class SqlAlchemyFinanceGovernanceUnitOfWork(SqlAlchemyUnitOfWorkBase, FinanceGov
         self.rate_cards = SqlAlchemyProjectRateCardRepository(session)
         scoped = (
             self.projects, self.tasks, self.budgets, self.forecasts, self.changes,
-            self.profiles, self.cost_codes, self.planned_costs, self.commitments,
-            self.cost_entries, self.register_entries, self.approvals, self.rate_cards,
+            self.profiles, self.cost_codes, self.planned_costs, self.assignments,
+            self.project_resources, self.commitments, self.cost_entries,
+            self.register_entries, self.approvals, self.rate_cards,
         )
         for repository in scoped:
             repository._tenant_context_service = tenant_context_service

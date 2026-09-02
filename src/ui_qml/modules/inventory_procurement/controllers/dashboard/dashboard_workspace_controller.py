@@ -5,7 +5,6 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.inventory_procurement.controllers.common import (
     InventoryProcurementWorkspaceControllerBase,
     serialize_dashboard_overview_view_model,
@@ -50,7 +49,6 @@ class InventoryProcurementDashboardWorkspaceController(
         self._overview: dict[str, object] = {"title": "", "subtitle": "", "metrics": []}
         self._context_label = ""
         self._sections: list[dict[str, object]] = []
-        self._bind_domain_events()
         self.refresh()
 
     @Property("QVariantMap", notify=overviewChanged)
@@ -106,18 +104,6 @@ class InventoryProcurementDashboardWorkspaceController(
             self._set_error_message(str(exc))
         finally:
             self._set_is_loading(False)
-
-    def _bind_domain_events(self) -> None:
-
-        def _on_domain_event(_payload: object) -> None:
-            self._request_domain_refresh()
-
-        for signal in (
-            domain_events.inventory_balances_changed,
-            domain_events.inventory_receipts_changed,
-            domain_events.inventory_cycle_counts_changed,
-        ):
-            self._subscribe_domain_signal(signal, _on_domain_event)
 
     def _set_overview(self, overview: dict[str, object]) -> None:
         if overview == self._overview:

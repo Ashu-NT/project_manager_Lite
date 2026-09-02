@@ -26,7 +26,6 @@ from src.core.modules.inventory_procurement.domain.inventory.stock import (
 )
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.master_data.org import Organization
-from src.core.shared.events.domain_events import domain_events
 
 
 class StockControlMovementMixin:
@@ -126,6 +125,7 @@ class StockControlMovementMixin:
         uom: str | None = None,
         transaction_at: datetime | None = None,
         notes: str = "",
+        commit: bool = True,
     ) -> tuple[StockTransaction, StockTransaction]:
         self._require_manage("transfer stock")
         organization = self._active_organization()
@@ -171,18 +171,16 @@ class StockControlMovementMixin:
                 notes=notes,
                 commit=False,
             )
-            self._session.commit()
+            if commit:
+                self._session.commit()
+            else:
+                self._session.flush()
         except Exception:
             self._session.rollback()
             raise
-        self._record_transaction_audit(item.id, source.id, outbound)
-        self._record_transaction_audit(item.id, destination.id, inbound)
-        source_balance = self._balance_repo.get_for_stock_position(organization.id, item.id, source.id)
-        destination_balance = self._balance_repo.get_for_stock_position(organization.id, item.id, destination.id)
-        if source_balance is not None:
-            domain_events.inventory_balances_changed.emit(source_balance.id)
-        if destination_balance is not None:
-            domain_events.inventory_balances_changed.emit(destination_balance.id)
+        if commit:
+            self._record_transaction_audit(item.id, source.id, outbound)
+            self._record_transaction_audit(item.id, destination.id, inbound)
         return outbound, inbound
 
     def _post_movement_transaction(
@@ -341,7 +339,6 @@ class StockControlMovementMixin:
             raise
         if commit:
             self._record_transaction_audit(item.id, storeroom.id, transaction)
-            domain_events.inventory_balances_changed.emit(balance.id)
         return transaction
 
 

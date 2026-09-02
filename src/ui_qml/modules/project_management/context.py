@@ -23,6 +23,9 @@ from src.ui_qml.platform.adapters.financial_profile_view_invalidation_adapter im
 from src.ui_qml.platform.adapters.forecast_view_invalidation_adapter import (
     ForecastViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.planned_cost_view_invalidation_adapter import (
+    PlannedCostViewInvalidationAdapter,
+)
 from src.ui_qml.platform.adapters.rate_card_view_invalidation_adapter import (
     RateCardViewInvalidationAdapter,
 )
@@ -166,6 +169,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self._approval_view_invalidation_adapter: ApprovalViewInvalidationAdapter | None = None
         self._employee_view_invalidation_adapter: EmployeeViewInvalidationAdapter | None = None
         self._forecast_view_invalidation_adapter: ForecastViewInvalidationAdapter | None = None
+        self._planned_cost_view_invalidation_adapter: PlannedCostViewInvalidationAdapter | None = None
         self._financial_profile_view_invalidation_adapter: FinancialProfileViewInvalidationAdapter | None = None
         self._rate_card_view_invalidation_adapter: RateCardViewInvalidationAdapter | None = None
         self._scheduling_baseline_view_invalidation_adapter: BaselineViewInvalidationAdapter | None = None
@@ -302,6 +306,16 @@ class ProjectManagementWorkspaceCatalog(QObject):
             )
             self._forecast_view_invalidation_adapter.forecastApprovedBasisStale.connect(
                 self._financials_workspace.onForecastApprovedBasisStale
+            )
+
+            self._planned_cost_view_invalidation_adapter = PlannedCostViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._planned_cost_view_invalidation_adapter.plannedCostSnapshotStale.connect(
+                self._financials_workspace.onPlannedCostSnapshotStale
             )
 
             self._financial_profile_view_invalidation_adapter = FinancialProfileViewInvalidationAdapter(
@@ -568,6 +582,11 @@ class ProjectManagementWorkspaceCatalog(QObject):
             )
         if self._forecast_view_invalidation_adapter is not None:
             self._forecast_view_invalidation_adapter.set_active_scope(
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+            )
+        if self._planned_cost_view_invalidation_adapter is not None:
+            self._planned_cost_view_invalidation_adapter.set_active_scope(
                 tenant_id=self._active_tenant_id() or "",
                 organization_id=self._active_organization_id() or "",
             )

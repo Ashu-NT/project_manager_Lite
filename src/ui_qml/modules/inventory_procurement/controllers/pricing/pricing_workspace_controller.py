@@ -13,7 +13,6 @@ from src.ui_qml.modules.inventory_procurement.presenters import (
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 from .pricing_activity_handler import load_detail_activity
-from .pricing_domain_event_binder import bind_domain_events
 from .pricing_export_handler import (
     export_procurement_overview_csv,
     export_procurement_overview_excel,
@@ -130,7 +129,6 @@ class InventoryProcurementPricingWorkspaceController(
         self._selected_supplier_pricing_id = ""
         self._activity_api = activity_api
         self._detail_activity_items: list[dict[str, object]] = []
-        bind_domain_events(self)
         self.refresh()
 
     # ── Properties ───────────────────────────────────────────────────
