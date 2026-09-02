@@ -100,6 +100,7 @@ def purchase_requisition_line_to_orm(line: PurchaseRequisitionLine) -> PurchaseR
         suggested_supplier_party_id=line.suggested_supplier_party_id,
         status=line.status,
         notes=line.notes or None,
+        version=line.version,
     )
 
 
@@ -118,6 +119,7 @@ def purchase_requisition_line_from_orm(obj: PurchaseRequisitionLineORM) -> Purch
         suggested_supplier_party_id=obj.suggested_supplier_party_id,
         status=PurchaseRequisitionLineStatus(obj.status),
         notes=obj.notes or "",
+        version=obj.version,
     )
 
 

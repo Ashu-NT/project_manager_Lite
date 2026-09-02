@@ -49,7 +49,6 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
     require_tenant_context_service,
 )
 from src.core.modules.inventory_procurement.application.common.support import normalize_optional_text
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.time.clock import Clock
 
 
@@ -86,6 +85,7 @@ class PurchasingService(
         activity_service=None,
         document_integration_service: DocumentIntegrationService | None = None,
         procurement_financial_outbox_service: IntegrationOutboxService | None = None,
+        receiving_collaborators_factory=None,
     ) -> None:
         self._session: Session = session
         self._purchase_order_repo: PurchaseOrderRepository = purchase_order_repo
@@ -105,23 +105,17 @@ class PurchasingService(
         self._item_service: ItemMasterService = item_service
         self._stock_service: StockControlService = stock_service
         self._approval_service: ApprovalService = approval_service
-        # Approval-P1: `submit_purchase_order`'s own canonical transaction owner -- the purchase
-        # order transition, the governed `ApprovalRequest`, and the Approval audit trail all
-        # commit atomically through this ONE fresh Session. Optional only so this constructor
-        # stays backward-compatible for any test double that never calls `submit_purchase_order`;
-        # production composition always supplies it.
+
         self._purchase_order_submission_uow_factory = purchase_order_submission_uow_factory
-        # Approval-P2: `occurred_at` on the `ApprovalRequested` recorded by
-        # `submit_purchase_order` comes from this Clock, never `datetime.now()`. Optional only so
-        # this constructor stays backward-compatible for the apply-participant's own fresh,
-        # submission-unrelated `PurchasingService` instance; production composition always
-        # supplies a real `SystemClock()`.
+ 
         self._clock = clock
         self._user_session = user_session
         self._activity_service = activity_service
         self._document_integration_service: DocumentIntegrationService | None = document_integration_service
         self._procurement_financial_outbox_service = procurement_financial_outbox_service
         self._procurement_financial_dispatcher = None
+
+        self._receiving_collaborators_factory = receiving_collaborators_factory
 
     def set_procurement_financial_dispatcher(self, dispatcher) -> None:
         self._procurement_financial_dispatcher = dispatcher
@@ -179,7 +173,6 @@ class PurchasingService(
                 "link_role": normalize_optional_text(link_role) or "reference",
             },
         )
-        domain_events.inventory_purchase_orders_changed.emit(po.id)
         return link
 
     def unlink_document(
@@ -216,7 +209,5 @@ class PurchasingService(
                 "link_role": normalize_optional_text(link_role) or "reference",
             },
         )
-        domain_events.inventory_purchase_orders_changed.emit(po.id)
-
 
 __all__ = ["PurchasingService"]

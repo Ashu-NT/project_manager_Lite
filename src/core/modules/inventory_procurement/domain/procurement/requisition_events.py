@@ -1,0 +1,17 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class InventoryRequisitionSourcingAdvanced:
+    tenant_id: str
+    organization_id: str
+    requisition_id: str
+    purchase_order_id: str
+    resulting_status: str
+    occurred_at: datetime
+
+
+__all__ = ["InventoryRequisitionSourcingAdvanced"]

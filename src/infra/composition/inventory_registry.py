@@ -55,6 +55,10 @@ from src.core.modules.inventory_procurement.application.catalog.event_handlers.v
     build_item_category_list_view_invalidation_handler,
     build_item_list_view_invalidation_handler,
 )
+from src.core.modules.inventory_procurement.application.procurement.event_handlers.view_invalidation import (
+    build_purchase_order_view_invalidation_handler,
+    build_requisition_sourcing_view_invalidation_handler,
+)
 from src.core.modules.inventory_procurement.domain.inventory.foundation_events import (
     InventoryReorderPolicyConfigured,
     LocationCreated,
@@ -69,6 +73,21 @@ from src.core.modules.inventory_procurement.domain.catalog.catalog_events import
     InventoryItemCreated,
     InventoryItemProfileUpdated,
     InventoryItemStatusChanged,
+)
+from src.core.modules.inventory_procurement.domain.procurement.purchasing_events import (
+    InventoryPurchaseOrderApproved,
+    InventoryPurchaseOrderCancelled,
+    InventoryPurchaseOrderClosed,
+    InventoryPurchaseOrderCreated,
+    InventoryPurchaseOrderLineAdded,
+    InventoryPurchaseOrderProfileUpdated,
+    InventoryPurchaseOrderReceivingAdvanced,
+    InventoryPurchaseOrderRejected,
+    InventoryPurchaseOrderSent,
+    InventoryPurchaseOrderSubmitted,
+)
+from src.core.modules.inventory_procurement.domain.procurement.requisition_events import (
+    InventoryRequisitionSourcingAdvanced,
 )
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.catalog import (
     SqlAlchemyInventoryItemCategoryRepository,
@@ -350,6 +369,29 @@ def build_inventory_procurement_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
+    def _build_purchase_order_receiving_collaborators(session: Session):
+        receipt_header_repo = SqlAlchemyReceiptHeaderRepository(
+            session, tenant_context_service=platform_services.tenant_context_service
+        )
+        receipt_line_repo = SqlAlchemyReceiptLineRepository(
+            session, tenant_context_service=platform_services.tenant_context_service
+        )
+        stock_service = StockControlService(
+            session,
+            SqlAlchemyStockBalanceRepository(
+                session, tenant_context_service=platform_services.tenant_context_service
+            ),
+            SqlAlchemyStockTransactionRepository(
+                session, tenant_context_service=platform_services.tenant_context_service
+            ),
+            organization_repo=platform_services.organization_repo,
+            item_service=inventory_item_service,
+            inventory_service=inventory_service,
+            tenant_context_service=platform_services.tenant_context_service,
+            user_session=platform_services.user_session,
+        )
+        return receipt_header_repo, receipt_line_repo, stock_service
+
     inventory_purchasing_service = PurchasingService(
         platform_services.session,
         purchase_order_repo,
@@ -375,6 +417,33 @@ def build_inventory_procurement_service_bundle(
         user_session=platform_services.user_session,
         document_integration_service=platform_services.document_integration_service,
         procurement_financial_outbox_service=procurement_financial_outbox_service,
+        receiving_collaborators_factory=_build_purchase_order_receiving_collaborators,
+    )
+    _purchase_order_view_invalidation_handler = build_purchase_order_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _purchase_order_event_type in (
+        InventoryPurchaseOrderCreated,
+        InventoryPurchaseOrderLineAdded,
+        InventoryPurchaseOrderProfileUpdated,
+        InventoryPurchaseOrderSubmitted,
+        InventoryPurchaseOrderApproved,
+        InventoryPurchaseOrderRejected,
+        InventoryPurchaseOrderCancelled,
+        InventoryPurchaseOrderSent,
+        InventoryPurchaseOrderClosed,
+        InventoryPurchaseOrderReceivingAdvanced,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _purchase_order_event_type, _purchase_order_view_invalidation_handler
+        )
+    _requisition_sourcing_view_invalidation_handler = (
+        build_requisition_sourcing_view_invalidation_handler(
+            platform_services.platform_view_invalidation_channel
+        )
+    )
+    platform_services.platform_post_commit_bus.subscribe(
+        InventoryRequisitionSourcingAdvanced, _requisition_sourcing_view_invalidation_handler
     )
     inventory_reservation_service = ReservationService(
         platform_services.session,
@@ -402,11 +471,6 @@ def build_inventory_procurement_service_bundle(
         user_session=platform_services.user_session,
         uow_factory=inventory_foundation_uow_factory,
     )
-    # P4 Step 2 (ADR-005 Section 24, Round 7/8): backed by module-owned, session-parameterized
-    # approval transaction participants, whose bound apply/reject method is registered directly,
-    # alongside a dependencies_factory(session) closure over this call site's ambient
-    # collaborators -- ApprovalService itself now calls dependencies_factory(uow_session) once
-    # per approve_and_apply/reject call, against its own fresh PlatformUnitOfWork Session.
     procurement_approval_participant = ProcurementApprovalParticipant()
     procurement_dependencies_factory = lambda uow_session: build_procurement_approval_deps(
         uow_session,
@@ -491,10 +555,6 @@ def build_inventory_procurement_service_bundle(
     def _storeroom_exists_for_role_governance(
         session: Session, tenant_id: str, storeroom_id: str
     ) -> bool:
-        # P5C-1 (reopened storeroom finding): a FRESH repository bound to the calling
-        # RoleGovernanceUnitOfWork's own Session, never the legacy shared one -- the existence
-        # check must read within the same transaction as the binding mutation and audit it
-        # gates. See `ScopeExistsResolver` in `role_governance_service.py`.
         storeroom = SqlAlchemyStoreroomRepository(
             session, tenant_context_service=platform_services.tenant_context_service
         ).get_for_tenant(storeroom_id, tenant_id)

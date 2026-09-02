@@ -1,10 +1,3 @@
-"""P4-PRE Step 1 (ADR-005 Section 24, Round 8): `PurchasingApprovalParticipant` +
-`build_purchasing_approval_deps` -- proves the participant is genuinely session-parameterizable
-(the Step-2 readiness criterion) and behaves identically to
-`PurchasingReceivingMixin.apply_submitted_purchase_order_approval`/`_rejection` (kept unmodified --
-the still-registered, long-lived `PurchasingService` calls them too).
-"""
-
 from __future__ import annotations
 
 from datetime import date
@@ -13,10 +6,16 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from src.core.modules.inventory_procurement.domain.procurement.purchasing_events import (
+    InventoryPurchaseOrderApproved,
+    InventoryPurchaseOrderRejected,
+)
+from src.core.modules.inventory_procurement.domain.procurement.requisition_events import (
+    InventoryRequisitionSourcingAdvanced,
+)
 from src.core.modules.inventory_procurement.infrastructure.approval.purchasing_apply_participant import (
     PurchasingApprovalParticipant,
 )
-from src.core.platform.contract.models.approval.contracts import ApprovalPostCommitEvent
 from src.core.platform.domain.master_data.party import PartyType
 from src.infra.composition.approval_apply_dependencies.purchasing import (
     build_purchasing_approval_deps,
@@ -134,11 +133,6 @@ def test_participant_apply_approves_purchase_order_on_the_supplied_session(servi
     deps = _deps(services, session)
 
     result = PurchasingApprovalParticipant().apply(request, deps)
-    # The participant only stages the new StockBalance INSERT (via `_adjust_on_order_balance`);
-    # it never flushes or commits (see `test_participant_never_calls_commit_or_rollback` below).
-    # The test session fixture disables autoflush, so a plain SELECT-based lookup like
-    # `get_for_stock_position` would not see it without this explicit flush -- a real caller's
-    # eventual commit would flush it the same way.
     session.flush()
 
     approved = deps.purchasing_service._purchase_order_repo.get(purchase_order.id)
@@ -160,20 +154,22 @@ def test_participant_apply_approves_purchase_order_on_the_supplied_session(servi
     assert balance.on_order_qty == pytest.approx(5.0)
     assert balance.on_hand_qty == pytest.approx(0.0)
 
-    # Note (discovered while writing this test, confirmed pre-existing and NOT a participant
-    # regression): `apply_submitted_purchase_order_approval` re-queries `get_for_stock_position`
-    # immediately after `_adjust_on_order_balance` staged the brand-new `StockBalance` row (via
-    # plain `session.add`, no flush) to decide whether to include an
-    # "inventory_balances_changed" post-commit event. Both the test session fixture
-    # (`src/tests/conftest.py`) and production's own `SessionLocal`
-    # (`src/infra/persistence/db/session_factory.py`) are constructed with `autoflush=False`, so
-    # that re-query cannot see the still-unflushed insert and the event is omitted -- this is
-    # existing, unmodified production behavior for a purchase-order line whose stock position has
-    # no prior balance row, reproduced here exactly, not introduced by the participant.
-    assert result.post_commit_events == (
-        ApprovalPostCommitEvent("inventory_purchase_orders_changed", purchase_order.id),
-        ApprovalPostCommitEvent("inventory_requisitions_changed", requisition.id),
-    )
+ 
+    assert result.post_commit_events == ()
+
+    assert len(result.domain_events) == 2
+    po_approved, requisition_sourcing = result.domain_events
+    assert isinstance(po_approved, InventoryPurchaseOrderApproved)
+    assert po_approved.purchase_order_id == purchase_order.id
+    assert po_approved.approval_request_id == request.id
+    assert po_approved.organization_id == purchase_order.organization_id
+    assert po_approved.tenant_id == request.tenant_id
+    assert isinstance(requisition_sourcing, InventoryRequisitionSourcingAdvanced)
+    assert requisition_sourcing.requisition_id == requisition.id
+    assert requisition_sourcing.purchase_order_id == purchase_order.id
+    assert requisition_sourcing.resulting_status == "FULLY_SOURCED"
+    assert requisition_sourcing.organization_id == purchase_order.organization_id
+    assert requisition_sourcing.tenant_id == request.tenant_id
 
 
 def test_participant_reject_rejects_purchase_order_on_the_supplied_session(services, session):
@@ -196,9 +192,14 @@ def test_participant_reject_rejects_purchase_order_on_the_supplied_session(servi
     lines = deps.purchasing_service._purchase_order_line_repo.list_for_purchase_order(purchase_order.id)
     assert rejected.status.value == "REJECTED"
     assert [line.status.value for line in lines] == ["CANCELLED"]
-    assert result.post_commit_events == (
-        ApprovalPostCommitEvent("inventory_purchase_orders_changed", purchase_order.id),
-    )
+    assert result.post_commit_events == ()
+    assert len(result.domain_events) == 1
+    rejected_event = result.domain_events[0]
+    assert isinstance(rejected_event, InventoryPurchaseOrderRejected)
+    assert rejected_event.purchase_order_id == purchase_order.id
+    assert rejected_event.approval_request_id == request.id
+    assert rejected_event.organization_id == purchase_order.organization_id
+    assert rejected_event.tenant_id == request.tenant_id
 
 
 def test_participant_never_calls_commit_or_rollback(services, session, monkeypatch):

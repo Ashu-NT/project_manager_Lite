@@ -292,6 +292,200 @@ decomposing into far more distinct facts than a single signal name suggests:
 
 No source was changed by this audit. Legacy Signal count unchanged at 19.
 
+**P27A — Inventory Requisition: semantic + transaction audit complete (design only, no migration
+yet).** Full source re-audit of `procurement_lifecycle.py` (5 direct producers), `procurement_
+approval.py` (2 approval-bridge producers), and `purchasing_receiving.py` (1 cross-capability
+re-emission from Purchase Order's own approval participant), plus all 6 consumer binders. Confirms
+7 exact `inventory_requisitions_changed` producer sites genuinely owned by Requisition, no
+reflective/generic dispatch, decomposing into more distinct facts than P17's rough "~5" estimate:
+
+- **7 Requisition-owned facts**: header created, line added (the *only* line-mutation command —
+  no update-line/remove-line exists anywhere), header profile updated (DRAFT only), submitted,
+  approved, rejected, cancelled.
+- **An 8th, mis-attributed fact**: `purchasing_receiving.py`'s Purchase-Order-approval participant
+  mutates the referenced Requisition Line's sourced quantity/status and derives the header status
+  (`APPROVED → PARTIALLY_SOURCED → FULLY_SOURCED`), then re-emits `inventory_requisitions_changed`
+  for every touched requisition. This is a Purchase-Order-owned business fact bleeding into
+  Requisition's signal, not a genuine Requisition action — its correct event ownership is an open
+  question for whichever phase modernizes Purchase Orders, not resolved here.
+- **Aggregate**: `PurchaseRequisition` (has `version`, optimistic concurrency) + child
+  `PurchaseRequisitionLine` (no own version field). Header status is direct for the early
+  transitions, line-derived for the sourcing transitions. `FULLY_SOURCED → CLOSED` is defined in
+  the transition table but unreachable — no producer transitions to it.
+- **Transaction ownership**: create/add-line/update/cancel are raw-Session, service-owned commit,
+  with **no atomic audit at all** (only a best-effort activity-feed entry committed in a *separate*
+  transaction after the mutation already committed — the same gap class P22-P25 each closed for
+  their own capability). `submit_requisition` already uses a canonical UoW
+  (`RequisitionSubmissionUnitOfWork`, with `requisitions`/`requisition_lines`/`approvals`/atomic
+  `EnterpriseAuditService` already wired) — the natural Option A extension target for the other
+  four operations, not a new UoW. Approve/reject are ApprovalService-owned, still on the legacy
+  string-keyed `ApprovalPostCommitEvent` bridge rather than P23's typed
+  `ApprovalHandlerResult(domain_events=(...))` pattern.
+- **Scope**: `PurchaseRequisition` has `organization_id` only, no `tenant_id` field --
+  `OrganizationScope` is correct (list/KPI targets), `ResourceScope` for a cached detail view --
+  matching every other Inventory capability's precedent, not an Auth-style `TenantScope`.
+- **Consumers**: all 6 workspace binders subscribe identically to all 6 remaining raw Inventory
+  signals. Re-audit found Procurement (owner: list + detail + lines) and Dashboard (declared
+  blanket KPI-rollup policy) have real dependencies; Catalog, Reservations, Pricing, and
+  Inventory(Foundation) have **zero** "requisition" reference anywhere in their own
+  presenter/state-builder trees -- the same incidental-subscription pattern P24/P25 already found
+  and removed for Item/Category/ReorderPolicy in these exact same workspaces.
+- **No-op**: `update_requisition` has no no-op detection -- always writes/activity-logs/emits even
+  for an identical payload, the same gap class found and fixed in every prior modernized phase.
+- **ReorderPolicy**: zero relationship anywhere in requisition creation -- the same pre-existing
+  replenishment-architecture gap P25 already documented, not fixed here.
+- **Recommended P27B shape**: one phase, for the 7 Requisition-owned facts, converging onto the
+  existing `RequisitionSubmissionUnitOfWork` extended to also own create/add-line/update/cancel
+  (Option A). The 8th, PO-triggered fact is explicitly out of P27B's scope.
+- `inventory_requisitions_changed` **cannot be fully deleted in P27B** -- the PO-sourcing
+  side-effect will keep emitting it until Purchase Orders' own modernization phase resolves that
+  boundary; producers CAN converge from 7 to that single remaining PO-triggered site.
+
+No source was changed by this audit. Legacy Signal count unchanged at 19.
+
+**P28A — Purchase Order: semantic + transaction audit complete (design only, no migration yet).**
+Full source re-audit of `purchasing_lifecycle.py` (7 direct producers: create/add-line/update/
+cancel/send/close/submit), `purchasing_service.py` (2 direct producers: link/unlink document),
+`purchasing_receiving.py` (1 direct producer — `post_receipt` — plus 2 producers via the legacy
+`ApprovalPostCommitEvent` bridge — approve/reject), the shared `ApprovalService` approve/reject
+machinery, and all 6 consumer binders. Confirms 12 exact `inventory_purchase_orders_changed`
+producer sites (10 direct `.emit()` + 2 reflective via `getattr(domain_events, signal_name)`
+dispatch in `approval_service.py`), no PO-specific reflective/generic helper beyond that one
+shared Approval bridge, decomposing into 9 distinct PO-owned facts (more than P17's rough "six"):
+
+- **9 PO-owned facts** (all confirmed in source, none assumed from naming): header created, line
+  added (the *only* line-mutation command — no update-line/remove-line exists, mirroring P27A's
+  identical Requisition finding), header profile updated (DRAFT only), submitted, approved,
+  rejected, cancelled, sent, closed. (Document link/unlink is a minor 10th fact family, arguably
+  owned by the already-modernized Document capability rather than PO itself.)
+- **Aggregate**: `PurchaseOrder` (has `version`, optimistic concurrency — but enforced only on
+  `update`/`cancel`, NOT on `submit`/`send`/`close`, a real gap) + child `PurchaseOrderLine` (no
+  own version field, additive-only mutation).
+- **Lifecycle**: `DRAFT, SUBMITTED, UNDER_REVIEW, APPROVED, REJECTED, SENT, PARTIALLY_RECEIVED,
+  FULLY_RECEIVED, CLOSED, CANCELLED`, exact transition table confirmed in
+  `application/common/support.py`; terminal states `REJECTED`/`CANCELLED`/`CLOSED`.
+  Receiving-driven `→PARTIALLY_RECEIVED/FULLY_RECEIVED` and approval-driven `→APPROVED/REJECTED`
+  are both real, source-confirmed transitions.
+- **Transaction ownership — three distinct patterns coexist**: (1) raw process-lifetime `Session`,
+  best-effort separate-transaction audit — create/add-line/update/cancel/send/close/
+  link/unlink-document; (2) canonical `PurchaseOrderSubmissionUnitOfWork` (fresh Session per call)
+  — submit only, ATOMIC audit, but its legacy activity-feed entry is still separately committed
+  after `uow.commit()`; (3) `ApprovalService`'s own fresh `PlatformUnitOfWork` — approve/reject,
+  ATOMIC, and uniquely the same transaction also atomically covers `PurchaseOrderLine`,
+  `StockBalance.on_order_qty`, and (on approve) `PurchaseRequisitionLine`/`PurchaseRequisition`
+  sourcing state, all four aggregates committed together with the `ApprovalRequest` decision
+  itself. `post_receipt` is a fourth, separate raw-`Session` pattern, not the
+  ApprovalService-mediated flow.
+- **CRITICAL — PO approval mutates Requisition sourcing state in the identical transaction as PO's
+  own status change**: confirmed via `purchasing_receiving.py::apply_submitted_purchase_order_
+  approval`. Gated per-line (`if line.source_requisition_line_id:` — not every PO approval touches
+  a Requisition), additive (`quantity_sourced += sourced_qty`) with an explicit over-sourcing guard
+  (`INVENTORY_REQUISITION_LINE_OVERSOURCED`) plus a second domain-layer range guard, correctly
+  deduplicated to one header-status refresh and one legacy-signal emission per distinct touched
+  Requisition even when several PO lines source different lines of the same Requisition. One PO
+  can source multiple Requisitions; one Requisition can be sourced by multiple POs over time
+  (nothing scopes a Requisition line to a single PO). PO's own status flips to `APPROVED` before
+  the Requisition-sourcing loop runs, same method, same `uow._session`, one `uow.commit()` —
+  proven atomic by a test that monkeypatches `Session.commit`/`rollback` to assert the participant
+  itself never calls either. **A genuine, previously-undocumented concurrency gap**:
+  `PurchaseRequisitionLine` has no `version` column read/compared/incremented anywhere (unlike
+  `PurchaseRequisition` and `PurchaseOrder`, which do have one) — two POs approved concurrently
+  against the same Requisition line, in two separate `ApprovalService` transactions, could each
+  read the same stale `quantity_sourced`, both pass the over-sourcing guard against stale data, and
+  both commit an additive update: a real cross-transaction lost-update race, not merely a
+  documentation gap.
+- **PO → Stock Balance is a real mutation, not over-notification**: `on_order_qty` is genuinely
+  incremented on approval and reversed on cancel (`_adjust_on_order_balance`); `on_hand_qty` is
+  untouched by approval, changing only via `post_receipt`.
+- **PO → Receipt**: `ReceiptHeader` references `purchase_order_id` (one-directional); no Receipt is
+  auto-created at PO create/approve; `post_receipt` is a wholly separate, later, manually-triggered
+  operation that mutates PO line/header status (`PARTIALLY_RECEIVED`/`FULLY_RECEIVED`) and is
+  itself a 12th `inventory_purchase_orders_changed` producer, on its own raw-`Session` transaction
+  pattern — distinct from the ApprovalService-mediated approve/reject flow.
+- **PO creation from Requisition**: manual line selection, never auto-generated;
+  `source_requisition_id` (header, advisory) and `source_requisition_line_id` (per-line, optional)
+  allow a single PO to mix requisition-sourced and direct/catalog lines; creation and line-add only
+  *read* the Requisition to validate remaining quantity/org — only **approval** mutates it,
+  confirmed from both the PO and (via P27A) the Requisition side.
+- **Approval architecture**: no formal `ApprovalParticipant` protocol exists — a structural
+  duck-typed convention (`.apply()`/`.reject()`). `PurchasingApprovalParticipant` delegates to a
+  fresh `PurchasingService` bound to `ApprovalService`'s own fresh UoW Session (never the app's
+  shared session). Still reports through the **legacy** `ApprovalHandlerResult(post_commit_events=
+  (ApprovalPostCommitEvent(...), ...))` string-keyed bridge — same as Requisition's own approval
+  participant — never the P19/P23 typed `domain_events` tuple, even though
+  `ApprovalService.approve_and_apply` already unconditionally drains `handler_result.domain_events`
+  into `uow.record_event(...)` inside the same transaction today; that seam sits ready and unused
+  for this exact boundary.
+- **Cross-org integrity**: PO creation explicitly checks site/supplier/requisition organization.
+  Line-add and approval do not independently re-verify the sourced Requisition line's organization
+  against the PO's own — approval relies only on the requisition-line repository's ambient
+  tenant-scoped query (fail-closed on lookup, but not an explicit assertion). Confirms and sharpens
+  P27A's flagged gap: `PurchaseRequisitionLine.suggested_supplier_party_id` is validated for
+  active/business-party-type only, never for same-organization membership.
+- **No-op/idempotency**: `update_purchase_order` has no no-op guard (same gap class as every prior
+  phase's first audit). Duplicate submit is hard-rejected by the DRAFT-only guard, not silently
+  no-op'd. Approval-level replay is blocked by `ApprovalRequest`'s own "already decided" guard once
+  committed, but the Requisition-sourcing race above is a genuine cross-transaction gap, not
+  covered by that guard.
+- **Recommended event ownership (Option A, evaluated against B/C)**: the PO approval participant
+  should return **both** `PurchaseOrderApproved` and a batched, per-Requisition sourcing event (one
+  event per touched Requisition, not per line or per PO-line-touch — mirroring the existing
+  `touched_requisition_ids` dedup) in the same `ApprovalHandlerResult.domain_events` tuple,
+  recorded by `ApprovalService` on its own already-atomic UoW. This requires no new transactional
+  machinery (the `domain_events` → `uow.record_event` seam already runs unconditionally today),
+  preserves the exact atomicity already relied upon, and the participant already holds direct,
+  same-Session access to every Requisition object it would need. Option B (a separate transactional
+  handler reacting to `PurchaseOrderApproved` alone) was rejected: it would either collapse back
+  into Option A (if run pre-commit on the same Session) or reintroduce a dual-write/
+  eventual-consistency window that does not exist today, worsening the already-identified
+  `PurchaseRequisitionLine` version gap rather than fixing it. No cleaner Option C seam was found.
+- **Proposed cross-capability event**: a Requisition-owned, PO-caused event (not
+  `InventoryRequisitionChanged`) — e.g. `RequisitionSourcingAdvancedByPurchaseOrder` — one per
+  touched Requisition per approval, carrying the set of `(requisition_line_id,
+  quantity_sourced_delta, resulting_line_status)` plus resulting header status (only if it actually
+  changed) and causal `purchase_order_id`/`approval_request_id` metadata, so a future consumer can
+  distinguish this from a genuine Requisition self-action.
+- **Consumers**: 6 workspace binders subscribe identically to all 6 remaining raw Inventory signals
+  (same fan-out pattern P24/P25/P27A already found for their own signals). Re-audit found only
+  Procurement (owner — PO list/detail/lines, monolithically entangled with Requisition list/detail
+  in the same `build_workspace_state`) and Dashboard (3 of 8 KPIs plus 2 of 3 dashboard sections
+  genuinely PO/Requisition/Balance-driven, org-wide `purchase_order_list` shape only, no detail
+  dependency) have real dependencies; Reservations, Pricing, Inventory(Foundation), and Catalog
+  have **zero** real PO reference anywhere in their own presenter/state-builder trees — the same
+  incidental-subscription pattern already found and removed for other Inventory signals in
+  P24/P25/P27A.
+- **Proposed ViewInvalidation targets**: `purchase_order_list` (`OrganizationScope`) and
+  `purchase_order_detail` (exact `ResourceScope`, `entity_type="purchase_order"`) — no separate
+  `purchase_order_receiving` target is justified (no distinct receiving-queue projection exists;
+  it's the same detail read). On the Requisition side: `requisition_list` (`OrganizationScope`) and
+  `requisition_detail` (`ResourceScope`, `entity_type="purchase_requisition"`) both go stale on a
+  PO-triggered sourcing event — a genuine two-capability fan-out from one PO approval, not
+  expressible by `inventory_requisitions_changed` alone once retired.
+- **Recommended sequencing**: **OPTION A** — P28B (Purchase Order's own 9 facts, including
+  converting `purchasing_receiving.py`'s three producer sites — approve/reject/post_receipt's
+  PO-status consequence — off the legacy bridge, AND introducing the one Requisition-owned
+  `RequisitionSourcingAdvancedByPurchaseOrder` event as part of PO's own transaction) fully retires
+  `inventory_purchase_orders_changed` in one phase; **P29** (Requisition's own 7 already-audited
+  facts from P27A, Option A extension of `RequisitionSubmissionUnitOfWork`) then fully retires
+  `inventory_requisitions_changed`, since P28B will have eliminated the sole non-Requisition-owned
+  producer. Combining PO and Requisition into one phase (roadmap Option B) is not required —
+  Requisition's other 7 facts run on entirely separate transaction paths untouched by PO's approval
+  mutation.
+- `inventory_purchase_orders_changed` **can be deleted in P28B**, provided P28B's scope explicitly
+  includes all 12 producer sites (not just `purchasing_lifecycle.py`'s 7) — the 2
+  `purchasing_service.py` document-link sites and all 3 `purchasing_receiving.py` sites
+  (post_receipt, approve, reject) must convert too, or the signal survives with a residual
+  producer.
+- P28B **will unblock full P29 Requisition modernization** — once the PO-approval-triggered
+  Requisition mutation reports through a typed event instead of the legacy
+  `ApprovalPostCommitEvent("inventory_requisitions_changed", ...)` loop, zero non-Requisition-owned
+  producers remain. Recommend fixing the `PurchaseRequisitionLine` version-field/locking gap as
+  part of P28B (it's what makes the new sourcing event trustworthy) even though the field belongs
+  to Requisition's own aggregate; the Requisition supplier same-organization validation gap is
+  lower urgency and can wait for P29.
+
+No source was changed by this audit. Legacy Signal count unchanged at 19.
+
 ## 4. Current State
 
 **Legacy Signal count: 19 as of P25** (source-derived from `src/core/shared/events/domain_events.py`,
@@ -324,7 +518,29 @@ Auth transport for an extended period, for comparatively little near-term benefi
 capabilities. The next capability to actually implement has not yet been chosen — per this
 document's own repeated caution, re-run prioritization from current source before committing to a
 next target: concurrent development elsewhere may have changed readiness since P17. Auth returns
-to consideration once cleaner remaining capabilities are modernized.
+to consideration once cleaner remaining capabilities are modernized. **Inventory Requisition is
+AUDITED / DEFERRED — BLOCKED BY PURCHASE ORDER SOURCING BOUNDARY** — P27A (see §3) completed the
+semantic + transaction audit, but implementation is deliberately deferred, not next-up: 7 of the 8
+producer paths are genuinely Requisition-owned and could converge cleanly, but the 8th (Purchase
+Order's own approval participant mutating `RequisitionLine.quantity_sourced`/`status` and deriving
+the header's sourcing status inside PO's own transaction) is a real cross-capability mutation, not
+a mere reference — modernizing only the 7 now would leave `inventory_requisitions_changed`
+present, one PO-owned producer present, and legacy consumers present, intentionally creating
+another hybrid typed+legacy capability. Sequencing removes this blocker first: **Purchase Order**
+is next, with its own audit/design phase that must explicitly decide how to model the
+PO-approval → Requisition-sourcing-mutation fact (see §3's P27A entry and the open boundary note
+below) before Requisition's own implementation phase can retire the legacy signal cleanly.
+Supplier-reference same-organization integrity was **not independently verified** during P27A —
+recorded as a needs-final-verification item for whichever phase implements Requisition, not a
+proven bug. **Purchase Order's own audit/design phase (P28A, see §3) is now complete** and resolves
+the boundary: PO approval's Requisition-sourcing mutation should be represented as a
+`RequisitionSourcingAdvancedByPurchaseOrder` event returned alongside `PurchaseOrderApproved` in
+the same `ApprovalHandlerResult.domain_events` tuple (Option A), recorded by `ApprovalService` on
+its already-atomic UoW — no new transactional machinery required. **Purchase Order (P28B) is next
+to implement**, followed by **Requisition (P29)** once P28B has eliminated the sole
+non-Requisition-owned producer of `inventory_requisitions_changed`. P28A also surfaced a genuine
+cross-transaction concurrency gap (no `version` field on `PurchaseRequisitionLine`) that should be
+closed as part of P28B, since it underwrites the correctness of the new sourcing event.
 
 ## 6. Provisional Roadmap
 
@@ -347,8 +563,23 @@ Remaining capability groups, not yet assigned rigid phase numbers:
 - **Finance**: Financial Change, Project Commitment (fix the missing-rollback bug in
   `commitment_service.py` first), Project Cost Entry, Project Budget, Planned Cost, Billing
   Preparation.
-- **Inventory/Procurement**: Requisition, Purchase Order,
-  Reservation, Stock Balance/Ledger, Cycle Count, Goods Receipt.
+- **Inventory/Procurement**: **Purchase Order — AUDITED / DEFERRED, next to implement (P28B)**.
+  Fully audited in P28A (see §3): 12 exact `inventory_purchase_orders_changed` producer sites (10
+  direct + 2 via the legacy Approval bridge) decomposing into 9 PO-owned facts, plus the critical
+  cross-capability finding that PO approval mutates `PurchaseRequisitionLine.quantity_sourced`/
+  `status` and the Requisition header's sourcing status inside PO's own atomic transaction.
+  Recommended design: PO approval returns both `PurchaseOrderApproved` and a batched
+  `RequisitionSourcingAdvancedByPurchaseOrder` event (Option A — same `ApprovalHandlerResult.
+  domain_events` tuple, same UoW, no new transactional machinery), one event per touched
+  Requisition. **Requisition (P29) — AUDITED / DEFERRED, blocked by Purchase Order**. Fully
+  audited in P27A (see §3): 7 of 8 `inventory_requisitions_changed` producers are Requisition-owned
+  and could converge onto the existing `RequisitionSubmissionUnitOfWork` (Option A extension); the
+  8th (PO-owned) producer is eliminated by P28B, which is a prerequisite for P29 to fully retire
+  `inventory_requisitions_changed`. P28A also found a genuine, previously-undocumented
+  cross-transaction concurrency gap — `PurchaseRequisitionLine` has no `version` column read/
+  compared anywhere, unlike `PurchaseRequisition`/`PurchaseOrder` — recommended fixed as part of
+  P28B since it underwrites the new sourcing event's correctness. Reservation, Stock
+  Balance/Ledger, Cycle Count, Goods Receipt remain unaudited.
 - **Auth/Security — AUDITED / DEFERRED**: Auth Credential & Session Lifecycle (`auth_changed` -
   largest remaining raw-Session surface in the codebase). Fully audited in P26A (see §3): proposed
   **P26B** (Credentials + Account Security + Session Persistence) and **P26C**
@@ -379,9 +610,12 @@ document** - each is addressed when its owning capability's phase is implemented
 - `inventory_balances_changed` - ledger/balance overload; StockBalance is a maintained running
   total, not a derived read, so typed events here must carry enough identity to avoid
   reintroducing ambiguity.
-- `inventory_purchase_orders_changed` - mixed transaction model (one submission path already on
-  a canonical UoW, everything else raw `Session`) plus cross-signal coupling with Balance and
-  Receipt in the receiving flow.
+- `inventory_purchase_orders_changed` - mixed transaction model (submission on a canonical UoW,
+  approve/reject on `ApprovalService`'s own UoW, everything else raw `Session`) plus real
+  cross-signal coupling with Balance (`on_order_qty`, a genuine mutation) and Receipt in the
+  receiving flow. Fully decomposed and sequencing-planned in P28A (§3) - 12 producer sites across
+  9 PO-owned facts, with the PO-approval → Requisition-sourcing-mutation boundary resolved
+  (Option A: batched Requisition event alongside `PurchaseOrderApproved`, same transaction).
 - `collaboration_changed` - durable comment mutations and ephemeral presence pings share one
   signal name; a category error, not just an overload - presence needs a different mechanism
   entirely, not a `DomainEvent`.
