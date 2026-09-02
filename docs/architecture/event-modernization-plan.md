@@ -222,6 +222,76 @@ Dashboard/Pricing/Procurement/Reservations all had zero real dependency on the `
 entity — all five subscriptions removed with no replacement. See ADR-005 §26.22 for the full
 design.
 
+**P26A — Auth Credential & Session: semantic + transaction audit complete (design only, no
+migration yet).** Full source re-audit of all 10 raw-Session producer files
+(`authentication_transactions.py`, `password_service.py`, `mfa_service.py`,
+`federated_identity_service.py`, `session_service.py`, `user_admin_service.py`,
+`bootstrap_service.py`, `registration_service.py`, `tenant_role_administration_service.py`,
+`role_policy_reconciliation_service.py`) and both consumers (`admin_console/domain_event_binder.py`,
+`access_workspace_controller.py`), performed directly by the main agent from current source
+(re-verified after a workspace-integrity recovery: an earlier draft of this audit was produced
+unintentionally by an unauthorized research subagent and was discarded before this entry was
+written). Confirms 19 exact `auth_changed.emit(...)` call sites, no reflective/generic dispatch,
+decomposing into far more distinct facts than a single signal name suggests:
+
+- **Durable Auth-owned DomainEvent candidates** (mutate `UserAccount`/`AuthSession`, atomic
+  same-transaction audit already in place for every one): password changed (self-service/admin
+  reset/force-reset-required), MFA provisioned/enabled/disabled, federated identity linked,
+  session policy changed, all-sessions revoked, account enabled/disabled, account unlocked,
+  profile updated, login success, failed login recorded (`register_failed_login` — one emit site
+  per failed attempt regardless of whether it crosses the lockout threshold on that call; lockout
+  is a data state on the same row, not a separate emit), user registered / bootstrap admin
+  created.
+- **Already-correct session/application-context transitions, never routed through `auth_changed`**
+  (confirmed via `context_switch_service.py::commit_context_switch`): active organization/tenant
+  switch. `UserSessionContext` (`domain/security/auth/session.py`) already has its own
+  `_notify_context_changed()` hook, wired today only to `auth_service.persist_session_context`
+  (a persistence side-effect, not yet any UI reactivity path) — the existing proof that a
+  non-`DomainEvent` session-context mechanism already coexists correctly alongside the legacy
+  signal.
+- **Misrouted — belong to Authorization, not Auth** (`tenant_role_administration_service.py`,
+  `role_policy_reconciliation_service.py`): custom-role permission update, custom-role retirement,
+  policy-reconciliation apply — each loops `auth_changed.emit(user_id)` per affected user for a
+  fact that is semantically Authorization/RoleBinding, not Auth. `retire_custom_role`'s cascading
+  revocation (`revoke_active_for_role`, a raw bulk-SQL `UPDATE` at
+  `infrastructure/persistence/repositories/security/auth/auth.py:583`) bypasses the domain layer
+  entirely — the already-existing typed `RoleBindingRevoked` event does not fire for this path, so
+  `auth_changed` is currently the *sole* notification for it, not a redundant duplicate.
+- **Under-instrumented, not over-instrumented**: `registration_service.py::_create_user` (shared
+  by `register_user`/`onboard_tenant_user`/bootstrap's own user creation) constructs
+  `UserTenantMembership` and `RoleBinding` directly via their repositories inside its own
+  `session.begin_nested()`, bypassing the typed `TenantMembershipActivated`/`RoleBindingAssigned`
+  events entirely. Registration produces zero typed Membership/RoleBinding events for a brand-new
+  user today.
+- **Security-correctness finding** (not exploitable under normal operation): in
+  `authentication_transactions.py`, `complete_successful_authentication` re-raises (fail-closed) if
+  its atomic audit persistence fails; `register_failed_login` swallows the identical exception
+  class without re-raising (fail-open) — a failed login whose audit persistence fails silently
+  leaves no lockout-counter increment and no record. Every other producer's audit staging is
+  correctly atomic (same transaction, before commit).
+- **Consumers are narrower than their wiring suggests**: `access_workspace_controller.py` already
+  performs its own narrow `_refresh_after_security_change()` from every admin action it triggers
+  itself — its `auth_changed` subscription is only load-bearing for *other*-originated changes.
+  `admin_console/domain_event_binder.py` still triggers a full `_request_domain_refresh()`.
+- **No canonical UnitOfWork exists anywhere on this surface** — all 19 producers mutate a shared,
+  manually-committed `AuthService._session` directly; typed-event work here cannot simply add
+  `uow.record_event(...)` the way prior phases did, since no UoW abstraction is in place yet. This
+  is itself a prerequisite design decision for whichever phase migrates this surface first.
+- **Recommended migration slicing**: **P26B** — Credentials + Account Security + Session
+  Persistence (password, MFA, federated identity, enable/disable/lock/unlock, profile, session
+  policy/revocation) — one cohesive transactional surface, the single largest and cleanest slice,
+  no open security question. **P26C** — Login/Registration/Provisioning — must resolve the
+  fail-open/fail-closed audit asymmetry and the registration Membership/RoleBinding conflation
+  (reusing the existing typed Membership/RoleBinding vocabulary, not inventing an Auth-owned
+  substitute) as part of the slice, not deferred further. **Not an Auth phase** — the
+  custom-role/policy-reconciliation cleanup (extending `revoke_active_for_role` to emit the
+  already-existing `RoleBindingRevoked`) belongs to Authorization's own backlog.
+- `auth_changed` **cannot be safely deleted in one phase**: no UoW convergence yet, the
+  RoleBinding-bulk-SQL-bypass gap, and the registration Membership/RoleBinding conflation each need
+  their own fix first.
+
+No source was changed by this audit. Legacy Signal count unchanged at 19.
+
 ## 4. Current State
 
 **Legacy Signal count: 19 as of P25** (source-derived from `src/core/shared/events/domain_events.py`,
@@ -242,10 +312,19 @@ re-verified against current source when this document was last updated).
 
 ## 5. Current Priority
 
-**Inventory Reorder Policy is fully modernized (P25, see §3).** The next
-capability has not yet been chosen — per this document's own repeated caution, re-run
-prioritization from current source before committing to a next target: concurrent development
-elsewhere may have changed readiness since P17.
+**Inventory Reorder Policy is fully modernized (P25, see §3). Auth Credential & Session is
+AUDITED / DEFERRED** — P26A (see §3) completed the semantic + transaction audit, but
+implementation (the proposed P26B/P26C slices) is a deliberate deferral, not an in-progress or
+next-up item: the audit itself showed `auth_changed` spans too many distinct ownership boundaries
+(Auth durable facts, Authorization-owned facts, Login/failed-login's own security-correctness
+question, Registration/Bootstrap's Membership/RoleBinding under-instrumentation) with no canonical
+UoW yet in place on this surface, so a partial migration would leave `auth_changed` alive, both
+legacy consumers still wired, and the legacy Signal field count unchanged — a mixed typed/legacy
+Auth transport for an extended period, for comparatively little near-term benefit versus other
+capabilities. The next capability to actually implement has not yet been chosen — per this
+document's own repeated caution, re-run prioritization from current source before committing to a
+next target: concurrent development elsewhere may have changed readiness since P17. Auth returns
+to consideration once cleaner remaining capabilities are modernized.
 
 ## 6. Provisional Roadmap
 
@@ -270,9 +349,20 @@ Remaining capability groups, not yet assigned rigid phase numbers:
   Preparation.
 - **Inventory/Procurement**: Requisition, Purchase Order,
   Reservation, Stock Balance/Ledger, Cycle Count, Goods Receipt.
-- **Auth/Security**: Auth Credential & Session Lifecycle (`auth_changed` - largest remaining
-  raw-Session surface in the codebase; needs its own 2-phase split, transaction convergence
-  before typed-event work).
+- **Auth/Security — AUDITED / DEFERRED**: Auth Credential & Session Lifecycle (`auth_changed` -
+  largest remaining raw-Session surface in the codebase). Fully audited in P26A (see §3): proposed
+  **P26B** (Credentials + Account Security + Session Persistence) and **P26C**
+  (Login/Registration/Provisioning), with no canonical UnitOfWork yet on this surface -
+  transaction convergence is a prerequisite for whichever slice goes first. **Implementation is
+  deliberately deferred** (post-P26A roadmap decision): 19 producers span multiple ownership
+  boundaries (Auth durable facts, Authorization-owned custom-role/policy-reconciliation facts,
+  Login/failed-login's own fail-open/fail-closed question, Registration/Bootstrap's
+  Membership/RoleBinding under-instrumentation), so a single partial slice would not retire
+  `auth_changed`, would not reduce the legacy consumer count, and would not change the legacy
+  Signal field count - not the best next modernization step versus other capabilities below.
+  Revisit after cleaner remaining capabilities are modernized. Custom-role/policy-reconciliation's
+  `auth_changed` usage remains a separate, Authorization-owned cleanup, not part of either Auth
+  slice.
 
 ## 7. Known Architectural Hotspots
 
@@ -282,7 +372,9 @@ document** - each is addressed when its owning capability's phase is implemented
 - `tasks_changed` - highly overloaded (~9 distinct real business facts under one signal name,
   the worst offender in the system by call-site count).
 - `auth_changed` - covers multiple unrelated security facts (password, MFA, federated identity,
-  session, bootstrap/registration, custom-role).
+  session, bootstrap/registration, custom-role). Fully decomposed and slice-planned in P26A (§3) -
+  cannot be deleted in one phase (no UoW convergence yet; custom-role bulk-revocation and
+  registration's Membership/RoleBinding conflation each need their own fix first).
 - `project_changed` - broadest PM fan-out signal; touches 11 consumer files.
 - `inventory_balances_changed` - ledger/balance overload; StockBalance is a maintained running
   total, not a derived read, so typed events here must carry enough identity to avoid
