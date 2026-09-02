@@ -13,6 +13,19 @@ from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.financials.budgets.budget_service import (
+    BudgetService,
+)
+from src.core.modules.project_management.application.financials.forecasts.version_service import (
+    ForecastVersionService,
+)
+from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
+    FinancialChangeChanged,
+    FinancialChangeEventType,
+)
+from src.core.modules.project_management.application.financials.successor_models import (
+    ApprovedFinancialLineAdjustment,
+)
 from src.core.modules.project_management.contracts.ports.schedule_change import (
     ApprovedScheduleChangePort,
     ApprovedTaskScheduleChange,
@@ -32,10 +45,7 @@ from src.core.modules.project_management.contracts.repositories.finance.forecast
 )
 from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
-from src.core.modules.project_management.domain.financials.budget import (
-    BudgetLine,
-    ProjectBudget,
-)
+from src.core.modules.project_management.domain.financials.budget import ProjectBudget
 from src.core.modules.project_management.domain.financials.configuration import CostCodePolicy
 from src.core.modules.project_management.domain.financials.financial_change import (
     FinancialChangeImpact,
@@ -43,16 +53,7 @@ from src.core.modules.project_management.domain.financials.financial_change impo
     FinancialChangeRequest,
     FinancialChangeStatus,
 )
-from src.core.modules.project_management.domain.financials.forecast import (
-    ForecastDecisionAction,
-    ForecastDecisionReason,
-    ForecastGenerationMode,
-    ForecastLine,
-    ForecastLineSourceKind,
-    ForecastLineSourceType,
-    ForecastSourceDecision,
-    ProjectForecast,
-)
+from src.core.modules.project_management.domain.financials.forecast import ProjectForecast
 from src.core.platform.application.approval.approval_mutation_participant import (
     request_approval_using,
 )
@@ -88,6 +89,8 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         cost_code_repo: ProjectCostCodeRepository,
         task_repo: TaskRepository,
         task_service: ApprovedScheduleChangePort,
+        budget_authority: BudgetService | None = None,
+        forecast_authority: ForecastVersionService | None = None,
         approval_service: ApprovalService | None,
         clock: Clock,
         approval_repo: ApprovalRepository | None = None,
@@ -107,6 +110,8 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         self._cost_code_repo = cost_code_repo
         self._task_repo = task_repo
         self._task_service = task_service
+        self._budget_authority = budget_authority
+        self._forecast_authority = forecast_authority
         self._approval_service = approval_service
         self._clock = clock
         self._approval_repo = approval_repo
@@ -193,6 +198,37 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
                     code="FINANCIAL_CHANGE_REVISION_CONFLICT",
                 ) from exc
             raise
+        self._emit_change_event(change, FinancialChangeEventType.CREATED)
+        return change
+
+    def update_change(
+        self,
+        change_id: str,
+        *,
+        title: str,
+        reason: str,
+        description: str,
+        effective_date: date,
+        expected_version: int,
+    ) -> FinancialChangeRequest:
+        change = self._require_mutable_change(
+            change_id, expected_version, "update financial change"
+        )
+        now = self._clock.now()
+        change.update_draft(
+            title=title,
+            reason=reason,
+            description=description,
+            effective_date=effective_date,
+            updated_at=now,
+        )
+        for impact in self._change_repo.list_impacts(change.id):
+            if impact.cost_code_id:
+                self._require_cost_code(change.project_id, impact.cost_code_id, effective_date)
+        self._change_repo.update(change, expected_row_version=expected_version)
+        self._audit_change("update", change)
+        self._session.flush()
+        self._emit_change_event(change, FinancialChangeEventType.UPDATED)
         return change
 
     def add_impact(
@@ -274,7 +310,130 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         self._change_repo.update(change, expected_row_version=expected_change_version)
         self._audit_impact("add", change, impact)
         self._session.flush()
+        self._emit_change_event(
+            change, FinancialChangeEventType.IMPACT_ADDED, impact_id=impact.id
+        )
         return impact
+
+    def update_impact(
+        self,
+        impact_id: str,
+        *,
+        description: str,
+        expected_impact_version: int,
+        expected_change_version: int,
+        amount: Decimal = Decimal("0"),
+        currency_code: str | None = None,
+        cost_code_id: str | None = None,
+        task_id: str | None = None,
+        target_line_id: str | None = None,
+        schedule_start: date | None = None,
+        schedule_finish: date | None = None,
+    ) -> FinancialChangeImpact:
+        impact = self._require_impact(impact_id)
+        change = self._require_mutable_change(
+            impact.change_request_id,
+            expected_change_version,
+            "update financial change impact",
+        )
+        if impact.row_version != expected_impact_version:
+            raise ConcurrencyError(
+                "Financial change impact was updated since you opened it.", code="STALE_WRITE"
+            )
+        resolved_currency = currency_code or (change.currency_code if amount != 0 else None)
+        if resolved_currency and resolved_currency != change.currency_code:
+            raise BusinessRuleError(
+                "Financial change impact currency must match the project finance currency.",
+                code="FINANCIAL_CHANGE_CURRENCY_MISMATCH",
+            )
+        if cost_code_id:
+            self._require_cost_code(change.project_id, cost_code_id, change.effective_date)
+        task = self._require_task(change.project_id, task_id) if task_id else None
+        now = self._clock.now()
+        impact.update_draft(
+            description=description,
+            amount=amount,
+            currency_code=resolved_currency,
+            cost_code_id=cost_code_id,
+            task_id=task_id,
+            target_line_id=target_line_id,
+            target_task_version=(
+                task.version
+                if task is not None
+                and impact.impact_type is FinancialChangeImpactType.SCHEDULE
+                else None
+            ),
+            schedule_start=schedule_start,
+            schedule_finish=schedule_finish,
+            updated_at=now,
+        )
+        self._validate_target(change, impact)
+        if impact.impact_type is FinancialChangeImpactType.SCHEDULE:
+            self._task_service._validate_approved_schedule_changes(
+                self._schedule_commands(change, [impact])
+            )
+        for row in self._change_repo.list_impacts(change.id):
+            if row.id == impact.id:
+                continue
+            if (
+                impact.target_line_id
+                and row.impact_type is impact.impact_type
+                and row.target_line_id == impact.target_line_id
+            ):
+                raise BusinessRuleError(
+                    "Only one impact may target a canonical line in one change request.",
+                    code="FINANCIAL_CHANGE_DUPLICATE_TARGET",
+                )
+            if (
+                impact.impact_type is FinancialChangeImpactType.SCHEDULE
+                and row.impact_type is FinancialChangeImpactType.SCHEDULE
+                and row.task_id == impact.task_id
+            ):
+                raise BusinessRuleError(
+                    "A financial change may adjust each task schedule only once.",
+                    code="FINANCIAL_CHANGE_DUPLICATE_SCHEDULE_TARGET",
+                )
+        self._change_repo.update_impact(
+            impact, expected_row_version=expected_impact_version
+        )
+        change.touch(updated_at=now)
+        self._change_repo.update(change, expected_row_version=expected_change_version)
+        self._audit_impact("update", change, impact)
+        self._session.flush()
+        self._emit_change_event(
+            change, FinancialChangeEventType.IMPACT_UPDATED, impact_id=impact.id
+        )
+        return impact
+
+    def remove_impact(
+        self,
+        impact_id: str,
+        *,
+        expected_impact_version: int,
+        expected_change_version: int,
+    ) -> FinancialChangeRequest:
+        impact = self._require_impact(impact_id)
+        change = self._require_mutable_change(
+            impact.change_request_id,
+            expected_change_version,
+            "remove financial change impact",
+        )
+        if impact.applied_reference_id:
+            raise BusinessRuleError(
+                "Applied financial change impacts cannot be removed.",
+                code="FINANCIAL_CHANGE_IMPACT_APPLIED",
+            )
+        self._audit_impact("remove", change, impact)
+        self._change_repo.delete_impact(
+            impact.id, expected_row_version=expected_impact_version
+        )
+        change.touch(updated_at=self._clock.now())
+        self._change_repo.update(change, expected_row_version=expected_change_version)
+        self._session.flush()
+        self._emit_change_event(
+            change, FinancialChangeEventType.IMPACT_REMOVED, impact_id=impact.id
+        )
+        return change
 
     def submit_change(
         self,
@@ -378,6 +537,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         self._session.flush()
         if self._approval_requested_staged is not None:
             self._approval_requested_staged(approval)
+        self._emit_change_event(change, FinancialChangeEventType.SUBMITTED)
         return change
 
     def _apply_approval_decision(
@@ -447,83 +607,34 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         actor: str,
         now: datetime,
     ) -> str | None:
-        relevant = [row for row in impacts if row.impact_type is FinancialChangeImpactType.BUDGET]
+        relevant = [
+            row for row in impacts if row.impact_type is FinancialChangeImpactType.BUDGET
+        ]
         if not relevant:
             return None
-        base = self._require_base_budget(change)
-        base_lines = self._budget_repo.list_lines(base.id)
-        by_target = {row.target_line_id: row for row in relevant if row.target_line_id}
-        latest = self._budget_repo.get_latest_for_project(change.project_id)
-        successor = ProjectBudget.create(
-            tenant_id=change.tenant_id,
-            organization_id=change.organization_id,
+        if self._budget_authority is None:
+            raise BusinessRuleError(
+                "Budget authority is unavailable for financial change application.",
+                code="FINANCIAL_CHANGE_BUDGET_AUTHORITY_REQUIRED",
+            )
+        result = self._budget_authority._apply_approved_financial_change(
+            base_budget_id=change.base_budget_id or "",
+            expected_base_revision=change.base_budget_revision or 0,
             project_id=change.project_id,
-            predecessor_budget_id=base.id,
             name=f"Change {change.revision}: {change.title}",
-            currency_code=change.currency_code,
-            revision=(latest.revision + 1) if latest else 1,
-            created_at=now,
+            reason=f"Applied financial change {change.id}: {change.reason}",
+            actor_id=actor,
+            adjustments=tuple(self._line_adjustment(row) for row in relevant),
+            occurred_at=now,
         )
-        successor.update_notes(f"Applied financial change {change.id}: {change.reason}")
-        successor.submit(submitted_by=actor, submitted_at=now, notes=change.reason)
-        successor.approve(approved_by=actor, approved_at=now, notes=change.reason)
-        base_version = base.row_version
-        base.supersede(superseded_by=actor, superseded_at=now)
-        self._budget_repo.update(base, expected_row_version=base_version)
-        self._budget_repo.flush()
-        self._budget_repo.add(successor)
-        self._budget_repo.flush()
-        for source in base_lines:
-            impact = by_target.get(source.id)
-            amount = source.amount + (impact.amount if impact else Decimal("0"))
-            if amount < 0:
-                raise BusinessRuleError(
-                    "Budget change would make a successor line negative.",
-                    code="FINANCIAL_CHANGE_BUDGET_NEGATIVE_RESULT",
-                )
-            line = BudgetLine.create(
-                tenant_id=change.tenant_id,
-                organization_id=change.organization_id,
-                budget_id=successor.id,
-                project_id=change.project_id,
-                cost_code_id=source.cost_code_id,
-                task_id=source.task_id,
-                description=impact.description if impact else source.description,
-                amount=amount,
-                currency_code=change.currency_code,
-                created_at=now,
-            )
-            self._budget_repo.add_line(line)
-            if impact:
-                self._change_repo.update_impact_application(
-                    impact.id,
-                    applied_reference_type="budget_line",
-                    applied_reference_id=line.id,
-                )
-        for impact in relevant:
-            if impact.target_line_id:
-                continue
-            line = BudgetLine.create(
-                tenant_id=change.tenant_id,
-                organization_id=change.organization_id,
-                budget_id=successor.id,
-                project_id=change.project_id,
-                cost_code_id=impact.cost_code_id or "",
-                task_id=impact.task_id,
-                description=impact.description,
-                amount=impact.amount,
-                currency_code=change.currency_code,
-                created_at=now,
-            )
-            self._budget_repo.add_line(line)
+        for impact_id, line_id in result.line_references:
             self._change_repo.update_impact_application(
-                impact.id,
+                impact_id,
                 applied_reference_type="budget_line",
-                applied_reference_id=line.id,
+                applied_reference_id=line_id,
             )
-        self._budget_repo.flush()
-        self._audit_version("project_budget", successor.id, change, now)
-        return successor.id
+        self._audit_version("project_budget", result.version_id, change, now)
+        return result.version_id
 
     def _apply_forecast_successor(
         self,
@@ -537,124 +648,30 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         ]
         if not relevant:
             return None
-        base = self._require_base_forecast(change)
-        base_lines = self._forecast_repo.list_lines(base.id)
-        base_snapshot_at = base.updated_at
-        by_target = {row.target_line_id: row for row in relevant if row.target_line_id}
-        latest = self._forecast_repo.get_latest_for_project(change.project_id)
-        successor = ProjectForecast.create(
-            tenant_id=change.tenant_id,
-            organization_id=change.organization_id,
+        if self._forecast_authority is None:
+            raise BusinessRuleError(
+                "Forecast authority is unavailable for financial change application.",
+                code="FINANCIAL_CHANGE_FORECAST_AUTHORITY_REQUIRED",
+            )
+        result = self._forecast_authority._apply_approved_financial_change(
+            base_forecast_id=change.base_forecast_id or "",
+            expected_base_revision=change.base_forecast_revision or 0,
             project_id=change.project_id,
             name=f"Change {change.revision}: {change.title}",
-            currency_code=change.currency_code,
+            reason=f"Applied financial change {change.id}: {change.reason}",
+            actor_id=actor,
             as_of_date=change.effective_date,
-            generation_mode=ForecastGenerationMode.HYBRID,
-            created_by=actor,
-            revision=(latest.revision + 1) if latest else 1,
-            notes=f"Applied financial change {change.id}: {change.reason}",
-            created_at=now,
+            adjustments=tuple(self._line_adjustment(row) for row in relevant),
+            occurred_at=now,
         )
-        successor.submit(submitted_by=actor, submitted_at=now, notes=change.reason)
-        successor.approve(approved_by=actor, approved_at=now, notes=change.reason)
-        base_version = base.row_version
-        base.supersede(superseded_by=actor, superseded_at=now)
-        self._forecast_repo.update(base, expected_row_version=base_version)
-        self._forecast_repo.flush()
-        self._forecast_repo.add(successor)
-        self._forecast_repo.flush()
-        decisions: list[ForecastSourceDecision] = []
-        for source in base_lines:
-            impact = by_target.get(source.id)
-            amount = source.amount + (impact.amount if impact else Decimal("0"))
-            if amount < 0:
-                raise BusinessRuleError(
-                    "Forecast change would make a successor line negative.",
-                    code="FINANCIAL_CHANGE_FORECAST_NEGATIVE_RESULT",
-                )
-            reference_type = "financial_change_impact" if impact else "project_forecast_line"
-            reference_id = impact.id if impact else source.id
-            source_type = (
-                ForecastLineSourceType.FINANCIAL_CHANGE
-                if impact
-                else ForecastLineSourceType.BASE_FORECAST
-            )
-            source_kind = (
-                ForecastLineSourceKind.MANUAL
-                if impact
-                else ForecastLineSourceKind.AUTOMATIC
-            )
-            line = ForecastLine.create(
-                tenant_id=change.tenant_id,
-                organization_id=change.organization_id,
-                forecast_id=successor.id,
-                project_id=change.project_id,
-                cost_code_id=source.cost_code_id,
-                task_id=source.task_id,
-                description=impact.description if impact else source.description,
-                amount=amount,
-                currency_code=change.currency_code,
-                source_kind=source_kind,
-                source_type=source_type,
-                source_reference_type=reference_type,
-                source_reference_id=reference_id,
-                source_snapshot_at=now if impact else base_snapshot_at,
-                period_start=source.period_start,
-                period_end=source.period_end,
-                created_by=actor,
-                created_at=now,
-            )
-            self._forecast_repo.add_line(line)
-            decisions.append(
-                self._included_decision(successor, line, source_type, reference_type, reference_id, now)
-            )
-            if impact:
-                self._change_repo.update_impact_application(
-                    impact.id,
-                    applied_reference_type="forecast_line",
-                    applied_reference_id=line.id,
-                )
-        for impact in relevant:
-            if impact.target_line_id:
-                continue
-            line = ForecastLine.create(
-                tenant_id=change.tenant_id,
-                organization_id=change.organization_id,
-                forecast_id=successor.id,
-                project_id=change.project_id,
-                cost_code_id=impact.cost_code_id or "",
-                task_id=impact.task_id,
-                description=impact.description,
-                amount=impact.amount,
-                currency_code=change.currency_code,
-                source_kind=ForecastLineSourceKind.MANUAL,
-                source_type=ForecastLineSourceType.FINANCIAL_CHANGE,
-                source_reference_type="financial_change_impact",
-                source_reference_id=impact.id,
-                source_snapshot_at=now,
-                created_by=actor,
-                created_at=now,
-            )
-            self._forecast_repo.add_line(line)
-            decisions.append(
-                self._included_decision(
-                    successor,
-                    line,
-                    ForecastLineSourceType.FINANCIAL_CHANGE,
-                    "financial_change_impact",
-                    impact.id,
-                    now,
-                )
-            )
+        for impact_id, line_id in result.line_references:
             self._change_repo.update_impact_application(
-                impact.id,
+                impact_id,
                 applied_reference_type="forecast_line",
-                applied_reference_id=line.id,
+                applied_reference_id=line_id,
             )
-        self._forecast_repo.add_decisions(decisions)
-        self._forecast_repo.flush()
-        self._audit_version("project_forecast", successor.id, change, now)
-        return successor.id
+        self._audit_version("project_forecast", result.version_id, change, now)
+        return result.version_id
 
     def _apply_schedule_changes(
         self,
@@ -700,37 +717,16 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         ]
 
     @staticmethod
-    def _included_decision(
-        forecast: ProjectForecast,
-        line: ForecastLine,
-        source_type: ForecastLineSourceType,
-        reference_type: str,
-        reference_id: str,
-        now: datetime,
-    ) -> ForecastSourceDecision:
-        reason = (
-            ForecastDecisionReason.FINANCIAL_CHANGE
-            if source_type is ForecastLineSourceType.FINANCIAL_CHANGE
-            else ForecastDecisionReason.BASE_FORECAST
-        )
-        return ForecastSourceDecision.create(
-            tenant_id=forecast.tenant_id,
-            organization_id=forecast.organization_id,
-            forecast_id=forecast.id,
-            project_id=forecast.project_id,
-            cost_code_id=line.cost_code_id,
-            task_id=line.task_id,
-            source_type=source_type,
-            source_reference_type=reference_type,
-            source_reference_id=reference_id,
-            action=ForecastDecisionAction.INCLUDED,
-            reason=reason,
-            source_amount=line.amount,
-            included_amount=line.amount,
-            excluded_amount=Decimal("0"),
-            currency_code=forecast.currency_code,
-            source_snapshot_at=line.source_snapshot_at or now,
-            created_at=now,
+    def _line_adjustment(
+        impact: FinancialChangeImpact,
+    ) -> ApprovedFinancialLineAdjustment:
+        return ApprovedFinancialLineAdjustment(
+            impact_id=impact.id,
+            description=impact.description,
+            amount=impact.amount,
+            cost_code_id=impact.cost_code_id or "",
+            task_id=impact.task_id,
+            target_line_id=impact.target_line_id,
         )
 
     def _validate_target(
@@ -838,6 +834,36 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
                 "Financial change not found.", code="FINANCIAL_CHANGE_NOT_FOUND"
             )
         return change
+
+    def _require_impact(self, impact_id: str) -> FinancialChangeImpact:
+        impact = self._change_repo.get_impact(impact_id)
+        if impact is None:
+            raise NotFoundError(
+                "Financial change impact not found.",
+                code="FINANCIAL_CHANGE_IMPACT_NOT_FOUND",
+            )
+        return impact
+
+    def _emit_change_event(
+        self,
+        change: FinancialChangeRequest,
+        change_type: FinancialChangeEventType,
+        *,
+        impact_id: str | None = None,
+    ) -> None:
+        if self._record_event is None:
+            return
+        self._record_event(
+            FinancialChangeChanged(
+                tenant_id=change.tenant_id,
+                organization_id=change.organization_id,
+                project_id=change.project_id,
+                change_id=change.id,
+                change_type=change_type,
+                impact_id=impact_id,
+                occurred_at=change.updated_at,
+            )
+        )
 
     def _require_cost_code(
         self, project_id: str, cost_code_id: str, effective_date: date

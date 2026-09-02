@@ -50,6 +50,7 @@ def serialize_finance_change_workspace(
         impact_search=impact_search,
         impact_type=impact_type,
         impact_applied_state=impact_applied_state,
+        can_create=source.can_create,
     )
 
 
@@ -121,6 +122,11 @@ def _detail(item) -> FinancialChangeDetailDto:
             "appliedForecastId": item.applied_forecast_id or "",
             "appliedScheduleCount": item.applied_schedule_count,
             "version": item.row_version,
+            "canEdit": item.can_edit,
+            "canAddImpact": item.can_add_impact,
+            "canSubmit": item.can_submit,
+            "canApprove": item.can_approve,
+            "canReject": item.can_reject,
         },
     )
 
@@ -159,6 +165,9 @@ def _impact_record(item) -> FinancialChangeTableRecordDto:
             "scheduleFinish": _date_value(item.schedule_finish),
             "appliedReferenceType": item.applied_reference_type or "",
             "appliedReferenceId": item.applied_reference_id or "",
+            "version": item.row_version,
+            "canEdit": item.can_edit,
+            "canRemove": item.can_remove,
         },
     )
 

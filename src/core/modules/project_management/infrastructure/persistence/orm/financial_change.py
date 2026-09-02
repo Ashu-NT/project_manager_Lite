@@ -228,6 +228,7 @@ class FinancialChangeImpactORM(Base):
             "(impact_type = 'schedule' AND applied_reference_type = 'task')",
             name="ck_pf_change_impacts_applied_type",
         ),
+        CheckConstraint("version >= 1", name="ck_pf_change_impacts_version"),
         {"info": {"rls_scope": "tenant_organization"}},
     )
 
@@ -257,7 +258,9 @@ class FinancialChangeImpactORM(Base):
     schedule_finish: Mapped[date | None] = mapped_column(Date, nullable=True)
     applied_reference_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
     applied_reference_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 Index(

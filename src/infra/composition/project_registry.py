@@ -764,6 +764,7 @@ def build_project_management_service_bundle(
             tenant_context_service=platform_services.tenant_context_service,
             work_calendar_engine=work_calendar_engine,
             module_catalog_service=platform_services.module_catalog_service,
+            record_event=uow.record_event,
         )
         change_operations = change_deps.financial_change_service
         change_operations._approval_repo = uow.approvals

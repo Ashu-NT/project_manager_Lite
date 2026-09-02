@@ -10,8 +10,9 @@ from src.core.modules.project_management.application.financials.forecasts.foreca
     ForecastVersionChangeType,
     ForecastVersionChanged,
 )
-from src.core.modules.project_management.application.financials.invalidation import (
-    invalidation_scope,
+from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
+    FinancialChangeChanged,
+    FinancialChangeEventType,
 )
 from src.core.modules.project_management.infrastructure.approval._financial_decision_actor import (
     require_financial_decision_actor,
@@ -47,18 +48,31 @@ class FinancialChangeApprovalParticipant:
             approval_request_id=request.id,
             applied_by=applied_by,
         )
-        events = [
-            ApprovalPostCommitEvent(
-                "financial_changes_changed", invalidation_scope(change)
-            )
-        ]
+        events: list[ApprovalPostCommitEvent] = []
         if change.applied_budget_id:
             events.append(ApprovalPostCommitEvent("budgets_changed", change.project_id))
         if change.applied_schedule_count:
             events.append(ApprovalPostCommitEvent("tasks_changed", change.project_id))
-        domain_events: tuple[ForecastVersionChanged, ...] = ()
+        effects = []
+        if change.applied_budget_id:
+            effects.append("budget")
         if change.applied_forecast_id:
-            domain_events = (
+            effects.append("forecast")
+        if change.applied_schedule_count:
+            effects.append("schedule")
+        domain_events: tuple[object, ...] = (
+            FinancialChangeChanged(
+                tenant_id=change.tenant_id,
+                organization_id=change.organization_id,
+                project_id=change.project_id,
+                change_id=change.id,
+                change_type=FinancialChangeEventType.APPLIED,
+                occurred_at=change.applied_at or datetime.now(timezone.utc),
+                applied_effects=tuple(effects),
+            ),
+        )
+        if change.applied_forecast_id:
+            domain_events += (
                 ForecastVersionChanged(
                     tenant_id=change.tenant_id,
                     organization_id=change.organization_id,
@@ -85,9 +99,14 @@ class FinancialChangeApprovalParticipant:
             notes=request.decision_note or "",
         )
         return ApprovalHandlerResult(
-            post_commit_events=(
-                ApprovalPostCommitEvent(
-                    "financial_changes_changed", invalidation_scope(change)
+            domain_events=(
+                FinancialChangeChanged(
+                    tenant_id=change.tenant_id,
+                    organization_id=change.organization_id,
+                    project_id=change.project_id,
+                    change_id=change.id,
+                    change_type=FinancialChangeEventType.REJECTED,
+                    occurred_at=change.rejected_at or datetime.now(timezone.utc),
                 ),
             )
         )

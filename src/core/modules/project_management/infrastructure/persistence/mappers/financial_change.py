@@ -101,7 +101,9 @@ def financial_change_impact_to_orm(value: FinancialChangeImpact) -> FinancialCha
         schedule_finish=value.schedule_finish,
         applied_reference_type=value.applied_reference_type,
         applied_reference_id=value.applied_reference_id,
+        version=value.row_version,
         created_at=value.created_at,
+        updated_at=value.updated_at,
     )
 
 
@@ -124,7 +126,9 @@ def financial_change_impact_from_orm(value: FinancialChangeImpactORM) -> Financi
         schedule_finish=value.schedule_finish,
         applied_reference_type=value.applied_reference_type,
         applied_reference_id=value.applied_reference_id,
+        row_version=value.version,
         created_at=value.created_at,
+        updated_at=value.updated_at,
     )
 
 

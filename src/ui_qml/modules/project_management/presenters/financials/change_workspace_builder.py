@@ -76,6 +76,7 @@ def build_change_workspace_views(source: FinancialChangeWorkspaceDto) -> dict[st
         "impact_search": source.impact_search,
         "impact_type": source.impact_type,
         "impact_applied_state": source.impact_applied_state,
+        "can_create_change": source.can_create,
     }
 
 

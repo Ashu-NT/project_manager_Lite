@@ -192,6 +192,22 @@ class FinancialChangeRequest:
     def touch(self, *, updated_at: datetime) -> None:
         self.updated_at = updated_at
 
+    def update_draft(
+        self,
+        *,
+        title: str,
+        reason: str,
+        description: str,
+        effective_date: date,
+        updated_at: datetime,
+    ) -> None:
+        self.ensure_draft()
+        self.title = title
+        self.reason = reason
+        self.description = description
+        self.effective_date = effective_date
+        self.updated_at = updated_at
+
     def submit(
         self,
         *,
@@ -292,7 +308,9 @@ class FinancialChangeImpact:
     schedule_finish: date | None = None
     applied_reference_type: str | None = None
     applied_reference_id: str | None = None
+    row_version: int = 1
     created_at: datetime = field(default_factory=_utc_now)
+    updated_at: datetime = field(default_factory=_utc_now)
 
     @field_validator(
         "id", "tenant_id", "organization_id", "change_request_id", "project_id",
@@ -338,10 +356,23 @@ class FinancialChangeImpact:
         currency.minor_unit_quantum()
         return currency.code
 
-    @field_validator("created_at", mode="before")
+    @field_validator("created_at", "updated_at", mode="before")
     @classmethod
-    def _created_timestamp(cls, value: object) -> datetime:
-        return _timestamp(value, code="FINANCIAL_CHANGE_IMPACT_CREATED_AT_INVALID")
+    def _created_timestamp(cls, value: object, info) -> datetime:
+        return _timestamp(
+            value, code=f"FINANCIAL_CHANGE_IMPACT_{info.field_name.upper()}_INVALID"
+        )
+
+    @field_validator("row_version", mode="before")
+    @classmethod
+    def _row_version(cls, value: object) -> int:
+        resolved = int(value or 0)
+        if resolved < 1:
+            raise ValidationError(
+                "Financial change impact version must be positive.",
+                code="FINANCIAL_CHANGE_IMPACT_VERSION_INVALID",
+            )
+        return resolved
 
     @field_validator("target_task_version", mode="before")
     @classmethod
@@ -409,6 +440,51 @@ class FinancialChangeImpact:
             )
         return self
 
+    def update_draft(
+        self,
+        *,
+        description: str,
+        amount: Decimal,
+        currency_code: str | None,
+        cost_code_id: str | None,
+        task_id: str | None,
+        target_line_id: str | None,
+        target_task_version: int | None,
+        schedule_start: date | None,
+        schedule_finish: date | None,
+        updated_at: datetime,
+    ) -> None:
+        candidate = FinancialChangeImpact(
+            id=self.id,
+            tenant_id=self.tenant_id,
+            organization_id=self.organization_id,
+            change_request_id=self.change_request_id,
+            project_id=self.project_id,
+            impact_type=self.impact_type,
+            description=description,
+            amount=amount,
+            currency_code=currency_code,
+            cost_code_id=cost_code_id,
+            task_id=task_id,
+            target_line_id=target_line_id,
+            target_task_version=target_task_version,
+            schedule_start=schedule_start,
+            schedule_finish=schedule_finish,
+            row_version=self.row_version,
+            created_at=self.created_at,
+            updated_at=updated_at,
+        )
+        self.description = candidate.description
+        self.amount = candidate.amount
+        self.currency_code = candidate.currency_code
+        self.cost_code_id = candidate.cost_code_id
+        self.task_id = candidate.task_id
+        self.target_line_id = candidate.target_line_id
+        self.target_task_version = candidate.target_task_version
+        self.schedule_start = candidate.schedule_start
+        self.schedule_finish = candidate.schedule_finish
+        self.updated_at = candidate.updated_at
+
     @staticmethod
     def create(
         *,
@@ -421,6 +497,7 @@ class FinancialChangeImpact:
         created_at: datetime | None = None,
         **values,
     ) -> "FinancialChangeImpact":
+        now = created_at or _utc_now()
         return FinancialChangeImpact(
             id=generate_id(),
             tenant_id=tenant_id,
@@ -429,7 +506,8 @@ class FinancialChangeImpact:
             project_id=project_id,
             impact_type=impact_type,
             description=description,
-            created_at=created_at or _utc_now(),
+            created_at=now,
+            updated_at=now,
             **values,
         )
 

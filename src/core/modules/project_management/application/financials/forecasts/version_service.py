@@ -22,6 +22,10 @@ from src.core.modules.project_management.application.financials.forecasts.foreca
 from src.core.modules.project_management.application.financials.forecasts.approval_result import (
     ForecastApprovalRequestResult,
 )
+from src.core.modules.project_management.application.financials.successor_models import (
+    ApprovedFinancialLineAdjustment,
+    ApprovedFinancialSuccessorResult,
+)
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
@@ -33,6 +37,8 @@ from src.core.modules.project_management.contracts.repositories.projects.project
 from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
 from src.core.modules.project_management.domain.financials.configuration import CostCodePolicy
 from src.core.modules.project_management.domain.financials.forecast import (
+    ForecastDecisionAction,
+    ForecastDecisionReason,
     ForecastGenerationMode,
     ForecastLine,
     ForecastLineSourceKind,
@@ -493,6 +499,188 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
             forecast, change_type=ForecastVersionChangeType.APPROVED, occurred_at=now
         )
         return forecast
+
+    def _apply_approved_financial_change(
+        self,
+        *,
+        base_forecast_id: str,
+        expected_base_revision: int,
+        project_id: str,
+        name: str,
+        reason: str,
+        actor_id: str,
+        as_of_date: date,
+        adjustments: tuple[ApprovedFinancialLineAdjustment, ...],
+        occurred_at: datetime,
+    ) -> ApprovedFinancialSuccessorResult:
+        """Apply an already-approved Change through the Forecast authority."""
+        base = self._require_forecast(base_forecast_id)
+        if (
+            base.project_id != project_id
+            or base.status is not ForecastStatus.APPROVED
+            or base.revision != expected_base_revision
+        ):
+            raise ConcurrencyError(
+                "The approved forecast changed after this financial change was drafted.",
+                code="FINANCIAL_CHANGE_FORECAST_BASE_STALE",
+            )
+        current = self._forecast_repo.get_approved_for_project(project_id)
+        if current is None or current.id != base.id or current.revision != base.revision:
+            raise ConcurrencyError(
+                "The approved forecast changed after this financial change was drafted.",
+                code="FINANCIAL_CHANGE_FORECAST_BASE_STALE",
+            )
+        if self._forecast_repo.has_open_for_project(project_id):
+            raise BusinessRuleError(
+                "An open forecast version must be resolved before applying a financial change.",
+                code="FINANCIAL_CHANGE_OPEN_FORECAST_EXISTS",
+            )
+        by_target = {row.target_line_id: row for row in adjustments if row.target_line_id}
+        latest = self._forecast_repo.get_latest_for_project(project_id)
+        successor = ProjectForecast.create(
+            tenant_id=base.tenant_id,
+            organization_id=base.organization_id,
+            project_id=project_id,
+            name=name,
+            currency_code=base.currency_code,
+            as_of_date=as_of_date,
+            generation_mode=ForecastGenerationMode.HYBRID,
+            created_by=actor_id,
+            revision=(latest.revision + 1) if latest else 1,
+            notes=reason,
+            created_at=occurred_at,
+        )
+        successor.submit(submitted_by=actor_id, submitted_at=occurred_at, notes=reason)
+        successor.approve(approved_by=actor_id, approved_at=occurred_at, notes=reason)
+        base_version = base.row_version
+        base.supersede(superseded_by=actor_id, superseded_at=occurred_at)
+        self._forecast_repo.update(base, expected_row_version=base_version)
+        self._forecast_repo.flush()
+        self._forecast_repo.add(successor)
+        self._forecast_repo.flush()
+        references: list[tuple[str, str]] = []
+        decisions: list[ForecastSourceDecision] = []
+        for source in self._forecast_repo.list_lines(base.id):
+            adjustment = by_target.get(source.id)
+            amount = source.amount + (adjustment.amount if adjustment else Decimal("0"))
+            if amount < 0:
+                raise BusinessRuleError(
+                    "Forecast change would make a successor line negative.",
+                    code="FINANCIAL_CHANGE_FORECAST_NEGATIVE_RESULT",
+                )
+            reference_type = (
+                "financial_change_impact" if adjustment else "project_forecast_line"
+            )
+            reference_id = adjustment.impact_id if adjustment else source.id
+            source_type = (
+                ForecastLineSourceType.FINANCIAL_CHANGE
+                if adjustment
+                else ForecastLineSourceType.BASE_FORECAST
+            )
+            line = ForecastLine.create(
+                tenant_id=base.tenant_id,
+                organization_id=base.organization_id,
+                forecast_id=successor.id,
+                project_id=project_id,
+                cost_code_id=source.cost_code_id,
+                task_id=source.task_id,
+                description=adjustment.description if adjustment else source.description,
+                amount=amount,
+                currency_code=base.currency_code,
+                source_kind=(
+                    ForecastLineSourceKind.MANUAL
+                    if adjustment
+                    else ForecastLineSourceKind.AUTOMATIC
+                ),
+                source_type=source_type,
+                source_reference_type=reference_type,
+                source_reference_id=reference_id,
+                source_snapshot_at=occurred_at if adjustment else base.updated_at,
+                period_start=source.period_start,
+                period_end=source.period_end,
+                created_by=actor_id,
+                created_at=occurred_at,
+            )
+            self._forecast_repo.add_line(line)
+            decisions.append(
+                self._financial_change_source_decision(
+                    successor, line, source_type, reference_type, reference_id, occurred_at
+                )
+            )
+            if adjustment:
+                references.append((adjustment.impact_id, line.id))
+        for adjustment in adjustments:
+            if adjustment.target_line_id:
+                continue
+            line = ForecastLine.create(
+                tenant_id=base.tenant_id,
+                organization_id=base.organization_id,
+                forecast_id=successor.id,
+                project_id=project_id,
+                cost_code_id=adjustment.cost_code_id,
+                task_id=adjustment.task_id,
+                description=adjustment.description,
+                amount=adjustment.amount,
+                currency_code=base.currency_code,
+                source_kind=ForecastLineSourceKind.MANUAL,
+                source_type=ForecastLineSourceType.FINANCIAL_CHANGE,
+                source_reference_type="financial_change_impact",
+                source_reference_id=adjustment.impact_id,
+                source_snapshot_at=occurred_at,
+                created_by=actor_id,
+                created_at=occurred_at,
+            )
+            self._forecast_repo.add_line(line)
+            decisions.append(
+                self._financial_change_source_decision(
+                    successor,
+                    line,
+                    ForecastLineSourceType.FINANCIAL_CHANGE,
+                    "financial_change_impact",
+                    adjustment.impact_id,
+                    occurred_at,
+                )
+            )
+            references.append((adjustment.impact_id, line.id))
+        self._forecast_repo.add_decisions(decisions)
+        self._forecast_repo.flush()
+        self._record_forecast_audit("apply_financial_change", successor)
+        return ApprovedFinancialSuccessorResult(
+            version_id=successor.id, line_references=tuple(references)
+        )
+
+    @staticmethod
+    def _financial_change_source_decision(
+        forecast: ProjectForecast,
+        line: ForecastLine,
+        source_type: ForecastLineSourceType,
+        reference_type: str,
+        reference_id: str,
+        occurred_at: datetime,
+    ) -> ForecastSourceDecision:
+        return ForecastSourceDecision.create(
+            tenant_id=forecast.tenant_id,
+            organization_id=forecast.organization_id,
+            forecast_id=forecast.id,
+            project_id=forecast.project_id,
+            cost_code_id=line.cost_code_id,
+            task_id=line.task_id,
+            source_type=source_type,
+            source_reference_type=reference_type,
+            source_reference_id=reference_id,
+            action=ForecastDecisionAction.INCLUDED,
+            reason=(
+                ForecastDecisionReason.FINANCIAL_CHANGE
+                if source_type is ForecastLineSourceType.FINANCIAL_CHANGE
+                else ForecastDecisionReason.BASE_FORECAST
+            ),
+            source_amount=line.amount,
+            included_amount=line.amount,
+            excluded_amount=Decimal("0"),
+            currency_code=forecast.currency_code,
+            source_snapshot_at=line.source_snapshot_at or occurred_at,
+            created_at=occurred_at,
+        )
 
     def _apply_rejection_decision(
         self, *, forecast_id: str, rejected_by: str, expected_version: int, notes: str

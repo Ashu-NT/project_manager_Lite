@@ -82,6 +82,7 @@ from src.core.modules.project_management.api.desktop.financials.models.rates imp
     FinancialRateWorkspaceDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.changes import (
+    FinancialChangeMutationDto,
     FinancialChangeWorkspaceDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
@@ -124,6 +125,17 @@ from src.core.modules.project_management.api.desktop.financials.commands.budgets
 from src.core.modules.project_management.api.desktop.financials.commands.forecasts import (
     FinancialGenerateForecastCommand,
     FinancialVersionedForecastCommand,
+)
+from src.core.modules.project_management.api.desktop.financials.commands.changes import (
+    FinancialChangeImpactCommand,
+    FinancialCreateChangeCommand,
+    FinancialRemoveChangeImpactCommand,
+    FinancialSubmitChangeCommand,
+    FinancialUpdateChangeCommand,
+    FinancialUpdateChangeImpactCommand,
+)
+from src.core.modules.project_management.domain.financials.financial_change import (
+    FinancialChangeImpactType,
 )
 from src.core.modules.project_management.api.desktop.financials.models.budgets import (
     FinancialBudgetLineMutationDto,
@@ -965,6 +977,156 @@ class ProjectManagementFinancialsDesktopApi:
             impact_type=impact_type,
             impact_applied_state=impact_applied_state,
         )
+
+    def create_financial_change(
+        self, command: FinancialCreateChangeCommand
+    ) -> FinancialChangeMutationDto:
+        change = self._require_finance_governance_commands().financial_change(
+            lambda service: service.create_change(
+                command.project_id,
+                title=command.title,
+                reason=command.reason,
+                description=command.description,
+                effective_date=self._command_date(command.effective_date, "Effective date"),
+                created_by=self._change_actor_id(service),
+            ),
+            project_id=command.project_id,
+        )
+        return self._change_mutation_dto(change)
+
+    def update_financial_change(
+        self, command: FinancialUpdateChangeCommand
+    ) -> FinancialChangeMutationDto:
+        change = self._require_finance_governance_commands().financial_change(
+            lambda service: service.update_change(
+                command.change_id,
+                title=command.title,
+                reason=command.reason,
+                description=command.description,
+                effective_date=self._command_date(command.effective_date, "Effective date"),
+                expected_version=command.expected_version,
+            )
+        )
+        return self._change_mutation_dto(change)
+
+    def add_financial_change_impact(
+        self, command: FinancialChangeImpactCommand
+    ) -> FinancialChangeMutationDto:
+        def add_impact(service):
+            impact = service.add_impact(
+                command.change_id, **self._change_impact_arguments(command)
+            )
+            return service.get_change(impact.change_request_id), impact
+
+        change, impact = self._require_finance_governance_commands().financial_change(
+            add_impact
+        )
+        return self._change_mutation_dto(change, impact=impact)
+
+    def update_financial_change_impact(
+        self, command: FinancialUpdateChangeImpactCommand
+    ) -> FinancialChangeMutationDto:
+        def update_impact(service):
+            impact = service.update_impact(
+                command.impact_id,
+                expected_impact_version=command.expected_impact_version,
+                **self._change_impact_arguments(command),
+            )
+            return service.get_change(impact.change_request_id), impact
+
+        change, impact = self._require_finance_governance_commands().financial_change(
+            update_impact
+        )
+        return self._change_mutation_dto(change, impact=impact)
+
+    def remove_financial_change_impact(
+        self, command: FinancialRemoveChangeImpactCommand
+    ) -> FinancialChangeMutationDto:
+        change = self._require_finance_governance_commands().financial_change(
+            lambda service: service.remove_impact(
+                command.impact_id,
+                expected_impact_version=command.expected_impact_version,
+                expected_change_version=command.expected_change_version,
+            )
+        )
+        return self._change_mutation_dto(change)
+
+    def submit_financial_change(
+        self, command: FinancialSubmitChangeCommand
+    ) -> FinancialChangeMutationDto:
+        change = self._require_finance_governance_commands().financial_change(
+            lambda service: service.submit_change(
+                command.change_id,
+                submitted_by=self._change_actor_id(service),
+                expected_version=command.expected_version,
+            )
+        )
+        return self._change_mutation_dto(change)
+
+    @staticmethod
+    def _change_impact_arguments(command) -> dict[str, object]:
+        try:
+            impact_type = FinancialChangeImpactType(str(command.impact_type).strip().lower())
+        except ValueError as exc:
+            raise ValidationError(
+                "Impact type must be Budget, Forecast, or Schedule.",
+                code="FINANCIAL_CHANGE_IMPACT_TYPE_INVALID",
+            ) from exc
+        return {
+            "impact_type": impact_type,
+            "description": command.description,
+            "expected_change_version": command.expected_change_version,
+            "amount": ProjectManagementFinancialsDesktopApi._change_command_amount(command.amount),
+            "currency_code": command.currency_code or None,
+            "cost_code_id": command.cost_code_id,
+            "task_id": command.task_id,
+            "target_line_id": command.target_line_id,
+            "schedule_start": ProjectManagementFinancialsDesktopApi._optional_command_date(command.schedule_start),
+            "schedule_finish": ProjectManagementFinancialsDesktopApi._optional_command_date(command.schedule_finish),
+        }
+
+    @staticmethod
+    def _change_mutation_dto(change, *, impact=None) -> FinancialChangeMutationDto:
+        status = getattr(change, "status", "")
+        return FinancialChangeMutationDto(
+            change_id=change.id,
+            project_id=change.project_id,
+            status=getattr(status, "value", status),
+            row_version=change.row_version,
+            impact_id=getattr(impact, "id", ""),
+            impact_row_version=getattr(impact, "row_version", 0),
+            approval_request_id=change.approval_request_id or "",
+        )
+
+    @staticmethod
+    def _change_actor_id(service) -> str:
+        actor_id = getattr(
+            getattr(getattr(service, "_user_session", None), "principal", None),
+            "user_id",
+            None,
+        )
+        if not actor_id:
+            raise ValidationError(
+                "An authenticated actor is required for Financial Change commands.",
+                code="FINANCIAL_CHANGE_ACTOR_REQUIRED",
+            )
+        return str(actor_id)
+
+    @staticmethod
+    def _change_command_amount(value: str) -> Decimal:
+        try:
+            amount = Decimal(str(value or "0").strip())
+        except (InvalidOperation, ValueError) as exc:
+            raise ValidationError(
+                "Impact amount must be a canonical decimal value.",
+                code="FINANCIAL_CHANGE_IMPACT_AMOUNT_INVALID",
+            ) from exc
+        if not amount.is_finite():
+            raise ValidationError(
+                "Impact amount must be finite.",
+                code="FINANCIAL_CHANGE_IMPACT_AMOUNT_INVALID",
+            )
+        return amount
 
     def get_performance_evm(
         self,

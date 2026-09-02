@@ -856,6 +856,39 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             else None
         )
         resolved_id = selected.id if selected is not None else ""
+        can_manage = self._has_project_permission(
+            project_id, "financial_change.manage"
+        )
+        can_request = self._has_project_permission(project_id, "approval.request")
+        can_decide = self._has_project_permission(project_id, "approval.decide")
+        principal = getattr(self._user_session, "principal", None)
+        principal_id = str(getattr(principal, "user_id", "") or "")
+        if selected is not None:
+            is_draft = selected.status == "draft"
+            is_pending = (
+                selected.status == "pending_approval"
+                and selected.approval_status.upper() == "PENDING"
+                and bool(selected.approval_request_id)
+            )
+            can_decide_selected = (
+                can_decide
+                and is_pending
+                and bool(principal_id)
+                and selected.approval_requested_by_user_id != principal_id
+            )
+            selected = replace(
+                selected,
+                can_edit=can_manage and is_draft,
+                can_add_impact=can_manage and is_draft,
+                can_submit=(
+                    can_manage
+                    and can_request
+                    and is_draft
+                    and selected.impact_count > 0
+                ),
+                can_approve=can_decide_selected,
+                can_reject=can_decide_selected,
+            )
         requested_impacts = impact_request or FinancialChangeImpactQuery()
         impacts = (
             self._change_reader.list_impacts(
@@ -877,11 +910,23 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
                 ),
             )
         )
+        impacts = replace(
+            impacts,
+            items=tuple(
+                replace(
+                    item,
+                    can_edit=bool(selected and selected.can_edit),
+                    can_remove=bool(selected and selected.can_edit),
+                )
+                for item in impacts.items
+            ),
+        )
         return FinanceChangeWorkspaceFacts(
             selected_change_id=resolved_id,
             selected_change=selected,
             changes=changes,
             impacts=impacts,
+            can_create=can_manage,
         )
 
     def get_billing_read_workspace(

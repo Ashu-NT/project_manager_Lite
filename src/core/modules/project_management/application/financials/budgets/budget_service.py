@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy.exc import IntegrityError
@@ -14,6 +15,10 @@ from src.core.modules.project_management.application.common.module_guard import 
 from src.core.modules.project_management.application.financials.budgets.approval_result import (
     BudgetApprovalOutcome,
     BudgetApprovalResult,
+)
+from src.core.modules.project_management.application.financials.successor_models import (
+    ApprovedFinancialLineAdjustment,
+    ApprovedFinancialSuccessorResult,
 )
 from src.core.modules.project_management.contracts.repositories.finance.budgets.budget import (
     ProjectBudgetRepository,
@@ -657,6 +662,108 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         self._record_budget_audit(operation="approve", budget=budget)
         self._session.flush()
         return budget
+
+    def _apply_approved_financial_change(
+        self,
+        *,
+        base_budget_id: str,
+        expected_base_revision: int,
+        project_id: str,
+        name: str,
+        reason: str,
+        actor_id: str,
+        adjustments: tuple[ApprovedFinancialLineAdjustment, ...],
+        occurred_at: datetime,
+    ) -> ApprovedFinancialSuccessorResult:
+        """Apply an already-approved Change through the Budget authority."""
+        base = self._require_budget(base_budget_id)
+        if (
+            base.project_id != project_id
+            or base.status is not BudgetStatus.APPROVED
+            or base.revision != expected_base_revision
+        ):
+            raise ConcurrencyError(
+                "The approved budget changed after this financial change was drafted.",
+                code="FINANCIAL_CHANGE_BUDGET_BASE_STALE",
+            )
+        current = self._budget_repo.get_approved_for_project(project_id)
+        if current is None or current.id != base.id or current.revision != base.revision:
+            raise ConcurrencyError(
+                "The approved budget changed after this financial change was drafted.",
+                code="FINANCIAL_CHANGE_BUDGET_BASE_STALE",
+            )
+        if self._budget_repo.has_open_for_project(project_id):
+            raise BusinessRuleError(
+                "An open budget version must be resolved before applying a financial change.",
+                code="FINANCIAL_CHANGE_OPEN_BUDGET_EXISTS",
+            )
+        by_target = {row.target_line_id: row for row in adjustments if row.target_line_id}
+        latest = self._budget_repo.get_latest_for_project(project_id)
+        successor = ProjectBudget.create(
+            tenant_id=base.tenant_id,
+            organization_id=base.organization_id,
+            project_id=project_id,
+            predecessor_budget_id=base.id,
+            name=name,
+            currency_code=base.currency_code,
+            revision=(latest.revision + 1) if latest else 1,
+            created_at=occurred_at,
+        )
+        successor.update_notes(reason)
+        successor.submit(submitted_by=actor_id, submitted_at=occurred_at, notes=reason)
+        successor.approve(approved_by=actor_id, approved_at=occurred_at, notes=reason)
+        base_version = base.row_version
+        base.supersede(superseded_by=actor_id, superseded_at=occurred_at)
+        self._budget_repo.update(base, expected_row_version=base_version)
+        self._budget_repo.flush()
+        self._budget_repo.add(successor)
+        self._budget_repo.flush()
+        references: list[tuple[str, str]] = []
+        for source in self._budget_repo.list_lines(base.id):
+            adjustment = by_target.get(source.id)
+            amount = source.amount + (adjustment.amount if adjustment else Decimal("0"))
+            if amount < 0:
+                raise BusinessRuleError(
+                    "Budget change would make a successor line negative.",
+                    code="FINANCIAL_CHANGE_BUDGET_NEGATIVE_RESULT",
+                )
+            line = BudgetLine.create(
+                tenant_id=base.tenant_id,
+                organization_id=base.organization_id,
+                budget_id=successor.id,
+                project_id=project_id,
+                cost_code_id=source.cost_code_id,
+                task_id=source.task_id,
+                description=adjustment.description if adjustment else source.description,
+                amount=amount,
+                currency_code=base.currency_code,
+                created_at=occurred_at,
+            )
+            self._budget_repo.add_line(line)
+            if adjustment:
+                references.append((adjustment.impact_id, line.id))
+        for adjustment in adjustments:
+            if adjustment.target_line_id:
+                continue
+            line = BudgetLine.create(
+                tenant_id=base.tenant_id,
+                organization_id=base.organization_id,
+                budget_id=successor.id,
+                project_id=project_id,
+                cost_code_id=adjustment.cost_code_id,
+                task_id=adjustment.task_id,
+                description=adjustment.description,
+                amount=adjustment.amount,
+                currency_code=base.currency_code,
+                created_at=occurred_at,
+            )
+            self._budget_repo.add_line(line)
+            references.append((adjustment.impact_id, line.id))
+        self._budget_repo.flush()
+        self._record_budget_audit(operation="apply_financial_change", budget=successor)
+        return ApprovedFinancialSuccessorResult(
+            version_id=successor.id, line_references=tuple(references)
+        )
 
     def _apply_rejection_decision(
         self, *, budget_id: str, rejected_by: str, expected_version: int, notes: str

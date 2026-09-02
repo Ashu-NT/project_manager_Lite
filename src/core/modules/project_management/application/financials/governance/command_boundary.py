@@ -111,9 +111,7 @@ class FinanceGovernanceCommandBoundary:
     ) -> T:
         return self._execute(
             lambda operations: command(operations.financial_changes),
-            invalidation=lambda result: self._emit_scoped(
-                "financial_changes_changed", result, project_id
-            ),
+            invalidation=None,
         )
 
     def financial_setup(

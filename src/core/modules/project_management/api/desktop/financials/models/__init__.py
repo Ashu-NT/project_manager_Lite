@@ -51,6 +51,7 @@ from src.core.modules.project_management.api.desktop.financials.models.rates imp
 )
 from src.core.modules.project_management.api.desktop.financials.models.changes import (
     FinancialChangeDetailDto,
+    FinancialChangeMutationDto,
     FinancialChangeTableRecordDto,
     FinancialChangeWorkspaceDto,
 )
@@ -99,6 +100,7 @@ __all__ = [
     "FinancialCostEntryDto",
     "FinancialCostEntryPageDto",
     "FinancialChangeDetailDto",
+    "FinancialChangeMutationDto",
     "FinancialChangeTableRecordDto",
     "FinancialChangeWorkspaceDto",
     "FinancialBaselineVersionDto",

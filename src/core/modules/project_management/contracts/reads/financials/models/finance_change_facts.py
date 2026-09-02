@@ -107,6 +107,7 @@ class FinancialChangeDetailFact:
     approval_request_id: str | None
     approval_status: str
     approval_requested_by: str
+    approval_requested_by_user_id: str | None
     approval_requested_at: datetime | None
     approval_decided_by: str
     approval_decided_at: datetime | None
@@ -124,6 +125,11 @@ class FinancialChangeDetailFact:
     rejected_at: datetime | None
     rejection_notes: str
     impact_count: int
+    can_edit: bool = False
+    can_add_impact: bool = False
+    can_submit: bool = False
+    can_approve: bool = False
+    can_reject: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -146,7 +152,11 @@ class FinancialChangeImpactFact:
     schedule_finish: date | None
     applied_reference_type: str | None
     applied_reference_id: str | None
+    row_version: int
     created_at: datetime
+    updated_at: datetime
+    can_edit: bool = False
+    can_remove: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -155,6 +165,7 @@ class FinanceChangeWorkspaceFacts:
     selected_change: FinancialChangeDetailFact | None
     changes: FinancePageFacts[FinancialChangeSummaryFact]
     impacts: FinancePageFacts[FinancialChangeImpactFact]
+    can_create: bool = False
 
 
 __all__ = [

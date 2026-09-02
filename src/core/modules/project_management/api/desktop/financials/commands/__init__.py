@@ -37,8 +37,22 @@ from src.core.modules.project_management.api.desktop.financials.commands.billing
     FinancialMarkBillingScheduleLineReadyCommand,
     FinancialVersionedBillingPreparationCommand,
 )
+from src.core.modules.project_management.api.desktop.financials.commands.changes import (
+    FinancialChangeImpactCommand,
+    FinancialCreateChangeCommand,
+    FinancialRemoveChangeImpactCommand,
+    FinancialSubmitChangeCommand,
+    FinancialUpdateChangeCommand,
+    FinancialUpdateChangeImpactCommand,
+)
 
 __all__ = [
+    "FinancialChangeImpactCommand",
+    "FinancialCreateChangeCommand",
+    "FinancialRemoveChangeImpactCommand",
+    "FinancialSubmitChangeCommand",
+    "FinancialUpdateChangeCommand",
+    "FinancialUpdateChangeImpactCommand",
     "FinancialAddBudgetLineCommand",
     "FinancialActivateBillingProfileCommand",
     "FinancialAddApprovedTimeBillingSourceCommand",
