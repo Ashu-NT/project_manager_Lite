@@ -365,7 +365,7 @@ Window {
     window.deleteLater()
 
 
-def test_change_qml_contract_is_server_read_only():
+def test_change_qml_contract_keeps_authoritative_tables_and_governed_actions():
     source = (
         "src/ui_qml/modules/project_management/qml/workspaces/financials/sections/"
         "FinancialsChangeSection.qml"
@@ -374,5 +374,11 @@ def test_change_qml_contract_is_server_read_only():
     assert text.count('sortingMode: "server"') == 2
     assert "changeSelected" in text
     assert "impactFiltersRequested" in text
-    for forbidden in ("Add Change", "Create Change", "Apply Change", "Approve Change"):
-        assert forbidden not in text
+    assert "requestCreateRequested" in text
+    assert "requestEditRequested" in text
+    assert "impactCreateRequested" in text
+    assert "impactEditRequested" in text
+    assert "impactRemoveRequested" in text
+    assert "requestLifecycleRequested" in text
+    assert "model.append" not in text
+    assert "model.remove" not in text

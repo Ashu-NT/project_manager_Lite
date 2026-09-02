@@ -4,6 +4,11 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
+from textwrap import dedent
+
+import pytest
+from PySide6.QtCore import QObject
+from PySide6.QtQml import QQmlComponent
 
 from src.core.modules.project_management.api.desktop.financials import (
     FinancialChangeImpactCommand,
@@ -28,6 +33,10 @@ from src.core.modules.project_management.domain.financials.financial_change impo
     FinancialChangeStatus,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
+from src.ui_qml.shell.qml_engine import create_qml_engine
+from src.ui_qml.modules.project_management.presenters.financials.command_handler import (
+    _impact_fields,
+)
 
 
 def _change(version: int = 1):
@@ -165,6 +174,21 @@ def test_typed_financial_change_commands_route_through_one_governance_boundary()
     assert add_call[2]["amount"] == Decimal("125.50")
 
 
+def test_financial_change_presenter_emits_canonical_decimal_string() -> None:
+    fields = _impact_fields(
+        {
+            "changeId": "change-1",
+            "changeVersion": 2,
+            "impactType": "budget",
+            "description": "Additional scope",
+            "amount": "1E+2",
+        }
+    )
+
+    assert fields["amount"] == "100"
+    assert isinstance(fields["amount"], str)
+
+
 def test_financial_change_event_invalidation_is_typed_and_effect_specific() -> None:
     channel = SimpleNamespace(hints=[])
     channel.notify = channel.hints.append
@@ -211,3 +235,62 @@ def test_qml_financial_change_commands_use_central_dialog_host_and_typed_slots()
     assert "FinancialChangeRequestDialog" in host
     assert "FinancialChangeImpactDialog" in host
     assert "FinancialChangeLifecycleDialog" in host
+
+
+@pytest.mark.parametrize(
+    "dialog_type",
+    (
+        "FinancialChangeRequestDialog",
+        "FinancialChangeImpactDialog",
+        "FinancialChangeLifecycleDialog",
+    ),
+)
+@pytest.mark.parametrize(
+    ("width", "height"),
+    ((1024, 640), (1280, 720), (1366, 768), (1440, 900), (1920, 1080)),
+)
+def test_financial_change_dialogs_fit_supported_viewports(
+    qapp, dialog_type: str, width: int, height: int
+) -> None:
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    dialog_url = (
+        Path(
+            "src/ui_qml/modules/project_management/qml/workspaces/financials/dialogs"
+        ).resolve()
+        / f"{dialog_type}.qml"
+    ).as_uri()
+    component.setData(
+        dedent(
+            f"""
+            import QtQuick
+            import QtQuick.Controls
+            ApplicationWindow {{
+                width: {width}
+                height: {height}
+                visible: true
+                readonly property var changeDialog: dialogLoader.item
+                Loader {{
+                    id: dialogLoader
+                    source: "{dialog_url}"
+                    onLoaded: item.open()
+                }}
+            }}
+            """
+        ).encode("utf-8"),
+        f"r6c-{dialog_type}-{width}x{height}.qml",
+    )
+    root = component.create()
+    assert root is not None, "\n".join(
+        error.toString() for error in component.errors()
+    )
+    qapp.processEvents()
+    dialog = root.property("changeDialog")
+    assert dialog is not None
+    assert 0 < float(dialog.property("width")) <= width
+    assert 0 < float(dialog.property("height")) <= height
+    assert dialog.findChild(QObject, "dialogCancelButton") is not None
+    assert dialog.findChild(QObject, "dialogSubmitButton") is not None
+    dialog.close()
+    root.deleteLater()
+    qapp.processEvents()

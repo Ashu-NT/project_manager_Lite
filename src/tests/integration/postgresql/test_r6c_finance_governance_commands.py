@@ -33,9 +33,13 @@ from src.core.modules.project_management.application.financials.governance impor
     FinanceGovernanceCommandBoundary,
     FinanceGovernanceOperations,
 )
+from src.core.modules.project_management.domain.financials.financial_change import (
+    FinancialChangeImpactType,
+)
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
     FinancePageRequest,
 )
+from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
 )
@@ -152,6 +156,7 @@ def seeded_r6c_scopes(postgres_test_environment):
 def _user_session() -> UserSessionContext:
     permissions = frozenset(
         {
+            "finance.read",
             "finance.manage",
             "budget.manage",
             "forecast.manage",
@@ -258,6 +263,7 @@ def _boundary(postgres_test_environment, *, scope: _TenantContext):
                 tenant_context_service=scope,
                 record_event=uow.record_event,
             ),
+            planned_costs=SimpleNamespace(),
         )
 
     return FinanceGovernanceCommandBoundary(
@@ -314,6 +320,18 @@ def test_r6c_commands_use_app_runtime_and_preserve_rls_scope(postgres_test_envir
         ),
         project_id=PROJECT_A,
     )
+    impact = boundary.financial_change(
+        lambda service: service.add_impact(
+            change.id,
+            impact_type=FinancialChangeImpactType.BUDGET,
+            description="R6C governed budget impact",
+            amount=Decimal("10.25"),
+            currency_code="USD",
+            cost_code_id=setup.id,
+            expected_change_version=change.row_version,
+        ),
+        project_id=PROJECT_A,
+    )
 
     session = postgres_test_environment.runtime_session(
         tenant_id=TENANT_A,
@@ -357,6 +375,10 @@ def test_r6c_commands_use_app_runtime_and_preserve_rls_scope(postgres_test_envir
             text("SELECT count(*) FROM project_finance_change_requests WHERE id=:id"),
             {"id": change.id},
         ) == 1
+        assert session.scalar(
+            text("SELECT count(*) FROM project_finance_change_impacts WHERE id=:id"),
+            {"id": impact.id},
+        ) == 1
     finally:
         session.close()
 
@@ -387,6 +409,163 @@ def test_r6c_command_same_tenant_foreign_organization_is_denied(
             lambda service: service.create_cost_code(
                 code="R6C-FOREIGN-ORG",
                 name="Must be denied",
+            )
+        )
+
+
+def test_financial_change_impact_child_table_denies_foreign_direct_writes(
+    postgres_test_environment,
+) -> None:
+    with postgres_test_environment.admin_engine.connect() as connection:
+        row = connection.execute(
+            text(
+                "SELECT i.id AS impact_id, i.change_request_id, i.cost_code_id "
+                "FROM project_finance_change_impacts i "
+                "WHERE i.tenant_id=:tenant AND i.organization_id=:organization "
+                "AND i.description='R6C governed budget impact'"
+            ),
+            {"tenant": TENANT_A, "organization": ORG_A},
+        ).mappings().one()
+
+    foreign = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_B,
+        organization_id=ORG_B,
+    )
+    try:
+        assert foreign.scalar(
+            text("SELECT count(*) FROM project_finance_change_impacts WHERE id=:id"),
+            {"id": row["impact_id"]},
+        ) == 0
+        with pytest.raises(DBAPIError):
+            foreign.execute(
+                text(
+                    "INSERT INTO project_finance_change_impacts "
+                    "(id, tenant_id, organization_id, change_request_id, project_id, "
+                    "impact_type, description, amount, currency_code, cost_code_id, "
+                    "version, created_at, updated_at) VALUES "
+                    "('r6c-change-impact-attack', :tenant, :organization, :change, "
+                    ":project, 'budget', 'foreign child attack', 1.00, 'USD', "
+                    ":cost_code, 1, :now, :now)"
+                ),
+                {
+                    "tenant": TENANT_A,
+                    "organization": ORG_A,
+                    "change": row["change_request_id"],
+                    "project": PROJECT_A,
+                    "cost_code": row["cost_code_id"],
+                    "now": datetime.now(timezone.utc),
+                },
+            )
+            foreign.commit()
+        foreign.rollback()
+
+        updated = foreign.execute(
+            text(
+                "UPDATE project_finance_change_impacts "
+                "SET description='foreign update' WHERE id=:id"
+            ),
+            {"id": row["impact_id"]},
+        )
+        assert updated.rowcount == 0
+        foreign.commit()
+
+        deleted = foreign.execute(
+            text("DELETE FROM project_finance_change_impacts WHERE id=:id"),
+            {"id": row["impact_id"]},
+        )
+        assert deleted.rowcount == 0
+        foreign.commit()
+    finally:
+        foreign.rollback()
+        foreign.close()
+
+
+def test_financial_change_request_and_impact_stale_writes_fail_closed(
+    postgres_test_environment,
+) -> None:
+    boundary = _boundary(
+        postgres_test_environment,
+        scope=_TenantContext(TENANT_A, ORG_A),
+    )
+    change = boundary.financial_change(
+        lambda service: service.create_change(
+            PROJECT_A,
+            title="R6C Concurrency Change",
+            reason="Live stale-write proof",
+            effective_date=date(2026, 9, 2),
+            created_by="r6c-runtime-user",
+        ),
+        project_id=PROJECT_A,
+    )
+    updated = boundary.financial_change(
+        lambda service: service.update_change(
+            change.id,
+            title="R6C Concurrency Change A",
+            reason=change.reason,
+            description=change.description,
+            effective_date=change.effective_date,
+            expected_version=change.row_version,
+        )
+    )
+    with pytest.raises(ConcurrencyError):
+        boundary.financial_change(
+            lambda service: service.update_change(
+                change.id,
+                title="R6C Concurrency Change B",
+                reason=change.reason,
+                description=change.description,
+                effective_date=change.effective_date,
+                expected_version=change.row_version,
+            )
+        )
+
+    with postgres_test_environment.admin_engine.connect() as connection:
+        cost_code_id = connection.scalar(
+            text(
+                "SELECT id FROM project_finance_cost_codes "
+                "WHERE tenant_id=:tenant AND organization_id=:organization "
+                "AND code='R6C-RUNTIME'"
+            ),
+            {"tenant": TENANT_A, "organization": ORG_A},
+        )
+    impact = boundary.financial_change(
+        lambda service: service.add_impact(
+            change.id,
+            impact_type=FinancialChangeImpactType.BUDGET,
+            description="Concurrent impact",
+            amount=Decimal("2.00"),
+            currency_code="USD",
+            cost_code_id=cost_code_id,
+            expected_change_version=updated.row_version,
+        )
+    )
+    first_impact_update = boundary.financial_change(
+        lambda service: service.update_impact(
+            impact.id,
+            impact_type=impact.impact_type,
+            description="Concurrent impact A",
+            amount=impact.amount,
+            currency_code=impact.currency_code,
+            cost_code_id=impact.cost_code_id,
+            expected_impact_version=impact.row_version,
+            expected_change_version=updated.row_version + 1,
+        )
+    )
+    current_change = boundary.financial_change(
+        lambda service: service.get_change(change.id)
+    )
+    assert first_impact_update.row_version == impact.row_version + 1
+    with pytest.raises(ConcurrencyError):
+        boundary.financial_change(
+            lambda service: service.update_impact(
+                impact.id,
+                impact_type=impact.impact_type,
+                description="Concurrent impact B",
+                amount=impact.amount,
+                currency_code=impact.currency_code,
+                cost_code_id=impact.cost_code_id,
+                expected_impact_version=impact.row_version,
+                expected_change_version=current_change.row_version,
             )
         )
 

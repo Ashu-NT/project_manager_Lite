@@ -325,6 +325,9 @@ def update_financial_change(desktop_api, payload: dict[str, Any]):
 
 def _impact_fields(payload: dict[str, Any]) -> dict[str, Any]:
     impact_type = require_text(payload, "impactType", "Impact type is required.")
+    amount = require_decimal(
+        payload, "amount", "Impact amount must be a valid number."
+    )
     return {
         "change_id": require_text(payload, "changeId", "Select a Change Request."),
         "expected_change_version": require_int(
@@ -334,9 +337,7 @@ def _impact_fields(payload: dict[str, Any]) -> dict[str, Any]:
         "description": require_text(
             payload, "description", "Impact description is required."
         ),
-        "amount": require_decimal(
-            payload, "amount", "Impact amount must be a valid number."
-        ),
+        "amount": format(amount, "f"),
         "currency_code": (optional_text(payload, "currency") or "").upper(),
         "cost_code_id": optional_text(payload, "costCodeId"),
         "task_id": optional_text(payload, "taskId"),

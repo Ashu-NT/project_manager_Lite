@@ -26,9 +26,6 @@ from src.core.modules.project_management.application.financials.planned_costs.pl
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_service import (
     ProjectRateCardService,
 )
-from src.core.modules.project_management.application.financials.invalidation import (
-    invalidation_scope,
-)
 from src.core.modules.project_management.contracts.uow.finance.finance_governance_unit_of_work import (
     FinanceGovernanceUnitOfWork,
     FinanceGovernanceUnitOfWorkFactory,
@@ -183,27 +180,6 @@ class FinanceGovernanceCommandBoundary:
         project_id = getattr(result, "project_id", None) or fallback_project_id
         if project_id:
             domain_events.budgets_changed.emit(str(project_id))
-
-    @staticmethod
-    def _emit_scoped(
-        signal_name: str,
-        result: object,
-        fallback_project_id: str | None,
-    ) -> None:
-        entity = getattr(result, "forecast", result)
-        if not getattr(entity, "tenant_id", None) or not getattr(
-            entity, "organization_id", None
-        ):
-            logger.warning(
-                "Finance governance invalidation skipped: result has no tenant scope "
-                "signal=%s result_type=%s",
-                signal_name,
-                type(result).__name__,
-            )
-            return
-        signal = getattr(domain_events, signal_name)
-        signal.emit(invalidation_scope(entity, project_id=fallback_project_id))
-
 
 class FinanceGovernedServicePort:
     """Read delegation plus canonical command routing for one Finance service family."""
