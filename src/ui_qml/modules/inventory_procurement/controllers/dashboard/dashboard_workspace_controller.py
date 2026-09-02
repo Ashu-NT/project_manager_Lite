@@ -49,7 +49,6 @@ class InventoryProcurementDashboardWorkspaceController(
         self._overview: dict[str, object] = {"title": "", "subtitle": "", "metrics": []}
         self._context_label = ""
         self._sections: list[dict[str, object]] = []
-        self._bind_domain_events()
         self.refresh()
 
     @Property("QVariantMap", notify=overviewChanged)
@@ -105,11 +104,6 @@ class InventoryProcurementDashboardWorkspaceController(
             self._set_error_message(str(exc))
         finally:
             self._set_is_loading(False)
-
-    def _bind_domain_events(self) -> None:
-        """P33: `inventory_receipts_changed` deleted -- Dashboard's genuine Receipt dependency
-        (per-PO "Receipts N" count) is now covered by the typed `ReceiptViewInvalidationAdapter`
-        wired in `context.py`, not this legacy binder."""
 
     def _set_overview(self, overview: dict[str, object]) -> None:
         if overview == self._overview:

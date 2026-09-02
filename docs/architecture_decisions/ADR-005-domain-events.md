@@ -3117,16 +3117,26 @@ re-classification if the dependency turned out to be Balance-only. **Inventory(F
 anywhere in either, confirmed by source and by a dedicated zero-reaction regression test; their
 legacy subscriptions are removed with no replacement.
 
-**Six legacy binder files, all now empty stubs.** All 6 (Catalog, Procurement, Pricing,
-Reservations, Inventory(Foundation), Dashboard's own inline binder) had `inventory_receipts_changed`
-as their ONLY remaining subscription — the last Inventory legacy signal standing after P32B. Rather
-than delete the binder files/call sites outright (a larger, out-of-scope structural change), each
-`bind_domain_events(ctrl)` function body is replaced with a documented no-op, preserving the
-calling convention each controller's `__init__` already relies on. The 4 genuine consumers' real
-Receipt dependency is covered instead by 4 separate `ReceiptViewInvalidationAdapter` instances (one
-per consuming workspace: Procurement, Dashboard, Pricing, Inventory(Foundation)), wired through
+**Six legacy binder files, all now empty stubs — deleted outright by the immediately-following
+P33-CLEANUP pass (see below), not kept.** All 6 (Catalog, Procurement, Pricing, Reservations,
+Inventory(Foundation), Dashboard's own inline binder) had `inventory_receipts_changed` as their
+ONLY remaining subscription — the last Inventory legacy signal standing after P32B. At P33 time
+each `bind_domain_events(ctrl)` function body was replaced with a documented no-op rather than
+deleting the binder files/call sites outright, preserving the calling convention each controller's
+`__init__` relies on while the rest of P33 was still landing. The 4 genuine consumers' real Receipt
+dependency is covered instead by 4 separate `ReceiptViewInvalidationAdapter` instances (one per
+consuming workspace: Procurement, Dashboard, Pricing, Inventory(Foundation)), wired through
 `_request_domain_refresh` in `context.py` — mirroring the per-workspace-adapter-instance pattern
 already established for the PO/Requisition adapters.
+
+**P33-CLEANUP (structural cleanup, not a modernization phase) then deleted the no-op stubs.** Per
+this document's own Pre-Release Convergence Rule (no compatibility shell, no deprecated wrapper, no
+empty placeholder): the 5 free-function binder files, Dashboard's inline method, and their import/
+call sites in each controller's `__init__` are gone; the now-zero-caller `_subscribe_domain_signal`/
+`_disconnect_domain_event_subscriptions` legacy-Signal machinery on
+`InventoryProcurementWorkspaceControllerBase` (and its now-unused `Callable`/`Any`/`DomainSignal`
+imports) is gone too. The still-live `_request_domain_refresh` coalescing mechanism every typed
+ViewInvalidation adapter depends on is untouched. No business behavior changed.
 
 **§14 finding — PurchaseOrderLine concurrency, pre-existing, deliberately NOT fixed.** Source audit
 confirms `PurchaseOrderLineORM` has no `version` column at all (unlike `PurchaseOrder`/`CycleCount`/

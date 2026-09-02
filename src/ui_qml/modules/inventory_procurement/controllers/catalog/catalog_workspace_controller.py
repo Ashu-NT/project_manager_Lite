@@ -23,7 +23,6 @@ from .catalog_bulk_handler import (
     set_item_bulk_selection,
 )
 from .catalog_document_handler import link_document, unlink_document
-from .catalog_domain_event_binder import bind_domain_events
 from .catalog_export_handler import export_table, is_items_view
 from .catalog_filter_handler import (
     clear_filters,
@@ -169,7 +168,6 @@ class InventoryProcurementCatalogWorkspaceController(
         self._bulk_status_options: list[dict[str, str]] = []
         self._activity_api = activity_api
         self._detail_activity_items: list[dict[str, object]] = []
-        bind_domain_events(self)
         self.refresh()
 
     # ── Properties ───────────────────────────────────────────────────

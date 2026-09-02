@@ -216,15 +216,20 @@ def test_pm_register_workspace_direct_wired_to_register_changed_exactly_once(ser
     assert refresh_calls == ["refresh"]
 
 
-def test_pm_register_workspace_does_not_react_to_an_unrelated_inventory_signal(services):
-    """Direct wiring must not accidentally widen scope -- an Inventory-only signal must never
-    reach a PM controller."""
+def test_pm_register_workspace_does_not_react_to_an_unrelated_signal(services):
+    """Direct wiring must not accidentally widen scope -- an unrelated other-module signal must
+    never reach a PM controller.
+
+    P33-CLEANUP: was `..._an_unrelated_inventory_signal`, emitting `inventory_balances_changed`
+    (deleted at P31B). Inventory/Procurement now has ZERO legacy Signal fields (P33) -- there is
+    no longer any Inventory signal left to use as the "unrelated" example, so this now uses a
+    still-legacy Finance signal instead, preserving the same cross-module-isolation property."""
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.registerWorkspace
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.inventory_balances_changed.emit(_unique("p7a-unrelated-inventory"))
+    domain_events.commitments_changed.emit(_unique("p7a-unrelated-finance"))
 
     assert refresh_calls == []
 

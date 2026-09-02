@@ -338,20 +338,21 @@ def test_storeroom_mutation_hint_is_scoped_to_the_active_organization(services):
 # ---------------------------------------------------------------------------
 
 
-def test_catalog_binder_has_zero_storeroom_or_location_references():
+def test_catalog_has_zero_storeroom_or_location_references():
     """Catalog: E (incidental) -- proven from source (P20 §11) that no Catalog presenter
     reads Storeroom or Location data at all. Confirms the subscription was removed with no
-    replacement, matching the Control-workspace precedent from P18B."""
-    import inspect
+    replacement, matching the Control-workspace precedent from P18B.
 
-    from src.ui_qml.modules.inventory_procurement.controllers.catalog import (
-        catalog_domain_event_binder,
-    )
+    P33-CLEANUP: `catalog_domain_event_binder.py` was deleted outright -- Catalog's Storeroom/
+    Location incidence was the P20-era reason it had zero legacy subscriptions, and by P33 the
+    module's own last remaining subscription (`inventory_receipts_changed`) was also removed,
+    leaving the binder a permanent no-op that was then deleted rather than kept as an empty
+    shell. Its absence is itself the proof."""
+    import importlib.util
 
-    source = inspect.getsource(catalog_domain_event_binder)
-    assert "inventory_storerooms_changed" not in source
-    assert "inventory_locations_changed" not in source
-    assert not hasattr(catalog_domain_event_binder, "InventoryFoundationViewInvalidationAdapter")
+    assert importlib.util.find_spec(
+        "src.ui_qml.modules.inventory_procurement.controllers.catalog.catalog_domain_event_binder"
+    ) is None
 
 
 def test_pricing_and_procurement_controllers_expose_refresh_site_options_seam():

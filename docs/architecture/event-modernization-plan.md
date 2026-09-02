@@ -1468,13 +1468,21 @@ dedicated zero-reaction regression test; their legacy subscriptions are removed 
 
 **Six legacy binder files, six different outcomes.** All 6 (Catalog, Procurement, Pricing,
 Reservations, Inventory(Foundation), Dashboard's own inline binder) had `inventory_receipts_changed`
-as their ONLY remaining subscription (the last Inventory legacy signal standing after P32B). The 4
-genuine consumers' binders are now empty stubs (documented no-ops — the calling convention in each
-controller's `__init__` is preserved, but there is nothing left to subscribe to) with their real
-Receipt dependency covered instead by 4 separate `ReceiptViewInvalidationAdapter` instances (one per
+as their ONLY remaining subscription (the last Inventory legacy signal standing after P32B). At P33
+time these were left as documented no-op stubs, preserving each controller's `__init__` calling
+convention. **P33-CLEANUP removed the stubs outright**: the 5 free-function binder files
+(Catalog/Procurement/Pricing/Reservations/Inventory(Foundation)) are deleted, their imports and
+`bind_domain_events(self)` call sites removed from each workspace controller's `__init__`;
+Dashboard's own inline `_bind_domain_events` method and its call site are deleted the same way. The
+now-dead `_subscribe_domain_signal`/`_disconnect_domain_event_subscriptions` legacy-Signal-
+subscription machinery on `InventoryProcurementWorkspaceControllerBase` (zero remaining callers
+anywhere in the module once the 6 binders were gone) was removed too — the still-live
+`_request_domain_refresh`/`_schedule_domain_refresh`/`_execute_scheduled_domain_refresh` coalescing
+mechanism every typed ViewInvalidation adapter depends on is untouched. The 4 genuine consumers' real
+Receipt dependency remains covered by 4 separate `ReceiptViewInvalidationAdapter` instances (one per
 consuming workspace) wired through `_request_domain_refresh` in `context.py`, mirroring the
 per-workspace-adapter-instance pattern already established for PO/Requisition. Catalog's and
-Reservations' binders are also now empty stubs, with no replacement of any kind.
+Reservations' subscriptions remain removed with no replacement of any kind.
 
 **§14 finding — PurchaseOrderLine concurrency, pre-existing, NOT fixed by this phase.** Source audit
 confirms `PurchaseOrderLineORM` has no `version` column at all (unlike `PurchaseOrder`/`CycleCount`/
@@ -1505,6 +1513,29 @@ Order, Requisition, Reservation, Stock Balance, Cycle Count, Goods Receipt) is c
 again not to need its own DomainEvent family. This does **not** mark the overall (all-module)
 event-modernization project complete — Project Management, Finance, and Auth/Security legacy
 signals remain, per §6.
+
+### P33-CLEANUP — Structural Cleanup, Not a Modernization Phase
+
+No business behavior changed; legacy Signal count unchanged at 13 (Inventory/Procurement's own
+count was already zero after P33). Obsolete Inventory legacy-Signal wiring left as documented no-op
+stubs at P33 time is deleted outright, per this document's own §9 Pre-Release Convergence Rule ("no
+compatibility shell, no deprecated wrapper, no empty placeholder"): the 5 free-function
+`*_domain_event_binder.py` files (Catalog/Procurement/Pricing/Reservations/Inventory(Foundation)),
+Dashboard's own inline `_bind_domain_events` no-op method, their import/call sites in each
+controller's `__init__`, and the now-zero-caller `_subscribe_domain_signal`/
+`_disconnect_domain_event_subscriptions` legacy-Signal-subscription machinery on
+`InventoryProcurementWorkspaceControllerBase` (plus its now-unused `Callable`/`Any`/`DomainSignal`
+imports). The still-live `_request_domain_refresh`/`_schedule_domain_refresh`/
+`_execute_scheduled_domain_refresh` coalescing mechanism, and every typed ViewInvalidation adapter
+that depends on it, is untouched. Two stale test-source-inspection assertions (P20's Catalog test,
+P30B-FIX's Reservations test) that imported the now-deleted binder modules directly were rewritten
+to assert the module's absence instead (a stronger proof of "zero legacy responsibility" than
+inspecting dead source). One incidentally-discovered stale test outside Inventory/Procurement
+(`test_p7_legacy_bridge_removal.py`'s `..._does_not_react_to_an_unrelated_inventory_signal`, which
+emitted the already-P31B-deleted `inventory_balances_changed`) was also corrected — its "unrelated
+signal" example was swapped to a still-legacy Finance signal, preserving the same cross-module-
+isolation property without inventing new Inventory wiring. The `PurchaseOrderLine` concurrency debt
+(§7) is explicitly NOT addressed here — recorded, not fixed.
 
 ## 4. Current State
 
@@ -1632,6 +1663,20 @@ document** - each is addressed when its owning capability's phase is implemented
   `PurchaseRequisitionLine`) was confirmed still real by a two-session regression test but
   deliberately left unfixed — out of proportion with this phase's actual scope. `dataclasses.
   fields(DomainEvents)` now carries zero `inventory_`-prefixed names.
+- **PRE-EXISTING CORRECTNESS / CONCURRENCY DEBT — `PurchaseOrderLine` receiving has no optimistic
+  concurrency protection.** `PurchaseOrderLineORM` has no `version` column at all (unlike
+  `PurchaseOrder`/`CycleCount`/`StockBalance`/`StockReservation`/`PurchaseRequisitionLine`, all
+  `update_with_version_check`-protected), and `SqlAlchemyPurchaseOrderLineRepository.update()`
+  performs a blind field overwrite. First neutrally documented by P28A ("no own version field,
+  additive-only mutation"); reconfirmed real by a two-session repository-level regression test in
+  P33 (`test_purchase_order_line_receiving_has_no_optimistic_concurrency_protection`) — two
+  concurrent receipts against the same PO line, each reading the other's pre-write state, both
+  succeed with neither rejected, a genuine lost-update risk. **Not a P33 or P33-CLEANUP
+  regression** — pre-existing since the aggregate was first built, orthogonal to the Receipt
+  DomainEvent/ViewInvalidation work, and deliberately left unfixed both times since a real fix
+  requires a schema migration (a new `version` column) out of proportion with either phase's own
+  scope. Revisit only if/when a phase's actual goal directly requires PO-line write-conflict
+  safety.
 - ~~`inventory_cycle_counts_changed`~~ **RESOLVED by P32B** - both producer operations
   (`schedule_cycle_count`, `complete_cycle_count`) converged onto the canonical
   `InventoryFoundationUnitOfWork`, gaining an atomic enterprise audit for `schedule_cycle_count`
@@ -1687,10 +1732,14 @@ document** - each is addressed when its owning capability's phase is implemented
   `ResourceMasterChanged`/`ResourceCapabilityChanged` now dispatch through the canonical
   post-commit bus (bespoke `Signal[T]` transport deleted); still zero real UI subscribers until
   P18B builds the ViewInvalidation handler.
-- ~~Coarse Inventory workspace refresh fan-out~~ **RESOLVED by P33** - narrowed from a blanket 11
-  since P20, through 1 (`inventory_receipts_changed`) as of P32B, to **zero** as of P33: all 6
-  legacy binder files across every Inventory/Procurement workspace controller are now empty stubs.
-  Every Inventory/Procurement fact (Storeroom, Location, Reorder Policy, PO, Requisition,
+- ~~Coarse Inventory workspace refresh fan-out~~ **RESOLVED by P33, dead wiring removed by
+  P33-CLEANUP** - narrowed from a blanket 11 since P20, through 1 (`inventory_receipts_changed`) as
+  of P32B, to **zero** as of P33. All 6 legacy binder files/methods across every Inventory/
+  Procurement workspace controller (left as empty stubs at P33 time) were deleted outright by
+  P33-CLEANUP, along with the now-dead `_subscribe_domain_signal`/
+  `_disconnect_domain_event_subscriptions` legacy-Signal machinery on
+  `InventoryProcurementWorkspaceControllerBase` — no compatibility shell was kept. Every
+  Inventory/Procurement fact (Storeroom, Location, Reorder Policy, PO, Requisition,
   Reservation, Stock Balance, Cycle Count, Receipt) routes through its own typed ViewInvalidation
   adapter.
 

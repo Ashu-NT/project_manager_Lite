@@ -21,7 +21,6 @@ from .procurement_bulk_handler import (
     set_purchase_order_bulk_selection,
     set_requisition_bulk_selection,
 )
-from .procurement_domain_event_binder import bind_domain_events
 from .procurement_export_handler import export_table, is_requisitions_view
 from .procurement_filter_handler import (
     clear_filters,
@@ -196,7 +195,6 @@ class InventoryProcurementProcurementWorkspaceController(
         self._active_view = "requisitions"
         self._activity_api = activity_api
         self._detail_activity_items: list[dict[str, object]] = []
-        bind_domain_events(self)
         self.refresh()
 
     # ── Properties ───────────────────────────────────────────────────
