@@ -32,8 +32,12 @@ from src.core.modules.inventory_procurement.domain.inventory.reservation_events 
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.inventory import (
     SqlAlchemyStockBalanceRepository,
 )
+from src.application.runtime import build_desktop_api_registry
 from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.shared.events.domain_events import domain_events
+from src.ui_qml.modules.inventory_procurement.context import (
+    InventoryProcurementWorkspaceCatalog,
+)
 from src.tests.ui_runtime_helpers import login_as
 
 
@@ -57,6 +61,11 @@ def _reservation_context(services, suffix):
         stock_item_id=item.id, storeroom_id=storeroom.id, quantity=10, unit_cost=5.0
     )
     return site, storeroom, item
+
+
+def _pm_catalog(services) -> InventoryProcurementWorkspaceCatalog:
+    registry = build_desktop_api_registry(services)
+    return InventoryProcurementWorkspaceCatalog(desktop_api_registry=registry)
 
 
 def _spy_hints(services):
@@ -332,3 +341,144 @@ def test_concurrent_reservation_rejects_stale_balance_write_no_oversubscription(
     assert final.reserved_qty == 8.0, "only A's reservation may persist"
     assert final.available_qty == 2.0
     assert final.version == 2
+
+
+# ---------------------------------------------------------------------------
+# P30B-FIX: proven incidental Reservations<->Balance subscription removed +
+# reservation_open_count mapping verified end-to-end
+# ---------------------------------------------------------------------------
+
+
+def test_reservations_binder_has_zero_balance_reference():
+    """P30B-FIX: Reservations workspace has zero real Balance dependency -- its 'available
+    stock' references (P30A/P30B) are UI copy text only. The incidental legacy
+    `inventory_balances_changed` subscription is removed with no replacement."""
+    import inspect
+
+    from src.ui_qml.modules.inventory_procurement.controllers.reservations import (
+        reservations_domain_event_binder,
+    )
+
+    source = inspect.getsource(reservations_domain_event_binder)
+    assert "inventory_balances_changed" not in source
+
+
+def test_real_reservations_workspace_reacts_to_reservation_created_not_balance(services):
+    suffix = uuid4().hex[:6].upper()
+    services["auth_service"].register_user(
+        f"p30bfix-res-{suffix}", "StrongPass123", role_names=["inventory_manager"]
+    )
+    site, storeroom, item = _reservation_context(services, suffix)
+    login_as(services, f"p30bfix-res-{suffix}", "StrongPass123")
+    catalog = _pm_catalog(services)
+    calls: list[str] = []
+    catalog._reservations_workspace.refresh = lambda: calls.append("reservations_refresh")
+
+    services["inventory_reservation_service"].create_reservation(
+        stock_item_id=item.id,
+        storeroom_id=storeroom.id,
+        reserved_qty=2,
+        source_reference_type="task",
+        source_reference_id="TASK-FIX-1",
+    )
+    assert calls == ["reservations_refresh"], "Reservations workspace must react to its own ReservationCreated"
+
+    calls.clear()
+    other_item = services["inventory_item_service"].create_item(
+        item_code=f"P30BFIX-OTHER-{suffix}", name="Other item", status="ACTIVE", stock_uom="EA"
+    )
+    services["inventory_stock_service"].post_opening_balance(
+        stock_item_id=other_item.id, storeroom_id=storeroom.id, quantity=5, unit_cost=1.0
+    )
+    assert calls == [], "Reservations workspace must NOT react to a Balance-only mutation (P30B-FIX)"
+
+
+def test_real_inventory_workspace_still_reacts_to_balance_mutation(services):
+    """Unaffected by P30B-FIX -- Inventory(Foundation)'s own Balance dependency (its 'Stock
+    Balances' table) is genuine and must keep reacting."""
+    suffix = uuid4().hex[:6].upper()
+    services["auth_service"].register_user(
+        f"p30bfix-inv-{suffix}", "StrongPass123", role_names=["inventory_manager"]
+    )
+    site, storeroom, item = _reservation_context(services, suffix)
+    login_as(services, f"p30bfix-inv-{suffix}", "StrongPass123")
+    catalog = _pm_catalog(services)
+    calls: list[str] = []
+    catalog._inventory_workspace.refresh = lambda: calls.append("inventory_refresh")
+
+    services["inventory_stock_service"].post_adjustment(
+        stock_item_id=item.id, storeroom_id=storeroom.id, quantity=1, direction="INCREASE"
+    )
+    assert calls == ["inventory_refresh"], "Inventory workspace must still react to a genuine Balance mutation"
+
+
+def test_dashboard_wiring_reacts_to_reservation_open_count_signal(services):
+    """P30B-FIX §2/§4: proves the real `context.py` wiring -- the adapter's own
+    `reservationOpenCountStale` signal reaches Dashboard's refresh entrypoint. Exercised via the
+    adapter's own signal directly rather than a full create/issue/release round trip: Reservation
+    operations also legitimately mutate Balance (a separate, still-legacy signal Dashboard's own
+    pre-existing binder already reacts to independently of this phase), so routing a real
+    operation through the whole stack would conflate two genuinely separate notification paths
+    instead of isolating what this test needs to prove. *Which* events raise
+    `reservationOpenCountStale` in the first place is proven precisely, event-by-event, by the
+    hint-level tests above (`test_create_reservation_produces_typed_event_list_and_open_count_hints`,
+    `test_issue_partial_advances_consumption_and_does_not_stale_open_count`,
+    `test_issue_full_advances_consumption_and_staless_open_count`, and
+    `test_release_and_cancel_produce_distinct_event_types` combined with the
+    `RESERVATION_OPEN_COUNT_SCOPE_CODE` assertions in this file)."""
+    suffix = uuid4().hex[:6].upper()
+    services["auth_service"].register_user(
+        f"p30bfix-dashwire-{suffix}", "StrongPass123", role_names=["inventory_manager"]
+    )
+    login_as(services, f"p30bfix-dashwire-{suffix}", "StrongPass123")
+    catalog = _pm_catalog(services)
+    calls: list[str] = []
+    catalog._dashboard_workspace.refresh = lambda: calls.append("dashboard_refresh")
+
+    catalog._dashboard_reservation_view_invalidation_adapter.reservationOpenCountStale.emit(
+        "some-reservation-id"
+    )
+
+    assert calls == ["dashboard_refresh"], "Dashboard must react to reservationOpenCountStale"
+
+
+def test_dashboard_does_not_react_to_document_link_unlink(services):
+    """Document link/unlink never touches Balance either (P30A/P30B), so this is the one
+    end-to-end Dashboard scenario clean enough to assert a real zero-refresh outcome without the
+    Balance-signal entanglement noted above."""
+    suffix = uuid4().hex[:6].upper()
+    services["auth_service"].register_user(
+        f"p30bfix-dashdoc-{suffix}", "StrongPass123", role_names=["inventory_manager"]
+    )
+    site, storeroom, item = _reservation_context(services, suffix)
+    login_as(services, f"p30bfix-dashdoc-{suffix}", "StrongPass123")
+    catalog = _pm_catalog(services)
+    reservations = services["inventory_reservation_service"]
+    calls: list[str] = []
+    catalog._dashboard_workspace.refresh = lambda: calls.append("dashboard_refresh")
+
+    reservation = reservations.create_reservation(
+        stock_item_id=item.id,
+        storeroom_id=storeroom.id,
+        reserved_qty=1,
+        source_reference_type="task",
+        source_reference_id="TASK-FIX-D1",
+    )
+    calls.clear()
+
+    class _FakeDocumentIntegrationService:
+        def link_existing_document(self, **kwargs):
+            return object()
+
+        def unlink_existing_document(self, **kwargs):
+            pass
+
+    original = reservations._document_integration_service
+    reservations._document_integration_service = _FakeDocumentIntegrationService()
+    try:
+        reservations.link_document(reservation.id, document_id="fake-doc")
+        reservations.unlink_document(reservation.id, document_id="fake-doc")
+    finally:
+        reservations._document_integration_service = original
+
+    assert calls == [], "document link/unlink must never refresh Dashboard's Reservation KPI"
