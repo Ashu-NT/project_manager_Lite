@@ -34,7 +34,9 @@ class FinancialProfileDto:
 class FinancialConfigurationWorkspaceDto:
     profile: FinancialProfileDto = field(default_factory=FinancialProfileDto)
     selected_budget_id: str = ""
+    show_create_budget_version: bool = False
     can_create_budget_version: bool = False
+    create_budget_version_disabled_reason: str = ""
     budget_versions: tuple[FinancialConfigurationRecordDto, ...] = ()
     budget_version_page: int = 1
     budget_version_page_size: int = 50

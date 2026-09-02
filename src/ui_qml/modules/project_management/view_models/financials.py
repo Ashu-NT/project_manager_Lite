@@ -141,7 +141,9 @@ class FinancialsWorkspaceViewModel:
     report_basis: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     financial_profile: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     selected_budget_id: str = ""
+    show_create_budget_version: bool = False
     can_create_budget_version: bool = False
+    create_budget_version_disabled_reason: str = ""
     budget_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     budget_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     budget_version_sort_key: str = "revision"

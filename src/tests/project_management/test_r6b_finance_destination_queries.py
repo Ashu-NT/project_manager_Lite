@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from contextlib import contextmanager
+from pathlib import Path
 from unittest.mock import MagicMock, call
 
 import pytest
@@ -127,15 +128,22 @@ def test_overview_uses_bounded_overview_contract_only() -> None:
 
 def test_planning_budget_tab_does_not_query_cost_or_performance_reads() -> None:
     api = MagicMock()
-    api.get_budget_workspace.return_value = FinancialConfigurationWorkspaceDto()
+    api.get_budget_workspace.return_value = FinancialConfigurationWorkspaceDto(
+        show_create_budget_version=True,
+        can_create_budget_version=False,
+        create_budget_version_disabled_reason="An open version exists.",
+    )
 
-    build_destination_state(
+    state = build_destination_state(
         api,
         destination="planning",
         subsection="budgets",
         selected_project_id="project-1",
     )
 
+    assert state.show_create_budget_version is True
+    assert state.can_create_budget_version is False
+    assert state.create_budget_version_disabled_reason == "An open version exists."
     api.get_budget_workspace.assert_called_once()
     kwargs = api.get_budget_workspace.call_args.kwargs
     assert kwargs["selected_budget_id"] == ""
@@ -286,6 +294,11 @@ def test_budget_reader_pages_versions_and_selected_lines_authoritatively(service
     assert first_page.lines.total == 1
     assert first_page.lines.items[0].budget_id == first.id
     assert first_page.lines.items[0].amount == Decimal("125")
+    assert first_page.show_create_version is True
+    assert first_page.can_create_version is False
+    assert "Draft or Submitted budget is already open" in (
+        first_page.create_version_disabled_reason
+    )
 
     second_page = query.get_budget_workspace(
         project.id,
@@ -804,6 +817,62 @@ Window {
     qapp.processEvents()
     assert window.property("staleAccepted") is False
     assert window.property("acceptedItemCount") == 0
+    window.deleteLater()
+
+
+def test_searchable_selector_appends_server_pages_without_pagination_buttons(qapp) -> None:
+    source = Path(
+        "src/ui_qml/shared/qml/App/Controls/SearchablePagedSelector.qml"
+    ).read_text(encoding="utf-8")
+    assert 'text: "Prev"' not in source
+    assert 'text: "Next"' not in source
+
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    component.setData(
+        b"""
+import QtQuick
+import App.Controls 1.0
+Window {
+    property int acceptedItemCount: -1
+    property string secondItemLabel: ""
+    visible: true
+    width: 640
+    height: 480
+    SearchablePagedSelector {
+        id: selector
+        contextKey: "project-a"
+    }
+    Component.onCompleted: {
+        selector.requestLookup(1)
+        selector.acceptResult({
+            "ok": true,
+            "items": [{"value": "one", "label": "One"}],
+            "page": 1,
+            "total": 2,
+            "hasMore": true
+        }, selector._generation, "project-a")
+        selector.requestLookup(2)
+        selector.acceptResult({
+            "ok": true,
+            "items": [{"value": "two", "label": "Two"}],
+            "page": 2,
+            "total": 2,
+            "hasMore": false
+        }, selector._generation, "project-a")
+        acceptedItemCount = selector.items.length
+        secondItemLabel = selector.items[1].label
+    }
+}
+""",
+        QUrl(),
+    )
+    assert component.isReady(), [error.toString() for error in component.errors()]
+    window = component.create()
+    assert window is not None
+    qapp.processEvents()
+    assert window.property("acceptedItemCount") == 2
+    assert window.property("secondItemLabel") == "Two"
     window.deleteLater()
 
 

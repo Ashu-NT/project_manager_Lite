@@ -343,3 +343,10 @@ def test_billing_qml_contract_is_server_read_only():
     assert "Local handoff" not in text
     for forbidden in ('text: "Create Preparation"', 'text: "Approve Preparation"', 'text: "Deliver"', 'text: "Edit Profile"'):
         assert forbidden not in text
+
+
+def test_billing_filter_helpers_are_safe_during_qml_initialization():
+    source = "src/ui_qml/modules/project_management/qml/workspaces/financials/sections/FinancialsBillingPreparationSection.qml"
+    text = open(source, encoding="utf-8").read()
+    assert "replaceAll" not in text
+    assert "if (!model || model.length === undefined) return 0" in text

@@ -391,10 +391,21 @@ The authoritative R6B Budget reader now projects row versions, lineage, approval
 evidence, cost-code/task identities, and deny-safe action capabilities. Open-
 version eligibility is returned in the existing count round trip, preserving the
 bounded five-statement Budget master/detail read instead of adding another query.
+Authorized users always retain a visible `Create Version` action. While a Draft
+or Submitted version is open, the action is disabled with the server-projected
+reason instead of disappearing; users without Budget management permission do
+not receive the action. Approved history remains immutable and exposes
+`Create Successor` when lineage-preserving revision creation is eligible.
 Cost Code and optional Task use bounded server lookups. The three responsive
 dialogs use the shared centered, scrollable, pinned-footer shell; validation stays
 visible, entered values remain in the open dialog after a conflict, and an
 authoritative Planning refresh replaces stale versions without automatic retry.
+
+All finite Finance dropdowns use the same shared `AppControls.ComboBox` as
+Projects and Tasks. Large project/task/cost-code lookups retain the shared
+server-paged selector, but its UX is a continuous searchable result list:
+additional bounded pages load while scrolling and table-style Previous/Next
+pagination is not exposed inside the dropdown.
 
 ### R6C-B Migration And Runtime Repair
 
@@ -406,6 +417,20 @@ both fresh databases and developer databases already stamped at
 repaired on restart without deleting local data. The same runtime patch removed
 the unknown `submit` icon and made selected-Budget QML state null-safe during
 refresh.
+
+The desktop SQLite engine now enables WAL and a bounded 15-second busy timeout.
+This allows the long-lived read side and fresh Finance command UoWs to coexist
+without read/write lock failures while preserving operation-scoped commits; it
+does not add blind command retries. Unexpected Finance mutation exceptions keep
+their full traceback in application logs but expose only a stable, non-sensitive
+error message/code to QML, so SQL text and bound values cannot reach the UI.
+
+Because R6C commands now use fresh sessions while the remaining desktop graph
+still has one process-lived session, the Finance command boundary performs a
+SQLite-only handoff: any retained transaction on that shared session is rolled
+back before the fresh command UoW opens. PostgreSQL is unchanged. A file-backed
+regression deliberately holds `BEGIN IMMEDIATE` on the shared session and proves
+the subsequent Budget command commits through its isolated UoW.
 
 ### R6C-B Verification
 
@@ -423,6 +448,9 @@ refresh.
 - No superseded Budget desktop/controller/presenter/dialog/DI path was found;
   policy-controlled direct service approval remains the distinct current
   non-QML semantic already approved in this document, not a compatibility path.
+- Shared Finance selector, continuous-scroll page append, file-backed SQLite
+  WAL concurrency/session handoff, Billing QML initialization, and safe
+  mutation-boundary regressions: `86 passed`.
 - No R6D work was started and nothing was committed.
 
 R6C remains open. The next stage is R6C-C Forecast Governance Command UX. R6C-D

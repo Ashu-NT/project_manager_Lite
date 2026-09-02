@@ -70,7 +70,9 @@ Item {
     property var budgetVersionsTableModel: null
     property var budgetLinesTableModel: null
     property string selectedBudgetId: ""
+    property bool showCreateBudgetVersion: false
     property bool canCreateBudgetVersion: false
+    property string createBudgetVersionDisabledReason: ""
     property string budgetVersionSortKey: "revision"
     property int budgetVersionSortDirection: Qt.DescendingOrder
     property string budgetLineSortKey: "metaText"
@@ -305,7 +307,9 @@ Item {
                 selectedBudgetId: root.selectedBudgetId
                 sortKey: root.budgetVersionSortKey
                 sortDirection: root.budgetVersionSortDirection
+                showCreateVersion: root.showCreateBudgetVersion
                 canCreateVersion: root.canCreateBudgetVersion
+                createVersionDisabledReason: root.createBudgetVersionDisabledReason
                 onBudgetSelected: function(budgetId) { root.budgetVersionSelected(budgetId) }
                 onPageRequested: function(page) { root.budgetVersionPageRequested(page) }
                 onSortRequested: function(key, direction) { root.budgetVersionSortRequested(key, direction) }

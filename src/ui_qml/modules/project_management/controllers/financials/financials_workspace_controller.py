@@ -109,7 +109,9 @@ class ProjectManagementFinancialsWorkspaceController(
     budgetVersionsChanged = Signal()
     budgetLinesChanged = Signal()
     selectedBudgetIdChanged = Signal()
+    showCreateBudgetVersionChanged = Signal()
     canCreateBudgetVersionChanged = Signal()
+    createBudgetVersionDisabledReasonChanged = Signal()
     budgetVersionSortKeyChanged = Signal()
     budgetVersionSortDirectionChanged = Signal()
     budgetLineSortKeyChanged = Signal()
@@ -235,7 +237,9 @@ class ProjectManagementFinancialsWorkspaceController(
         self._budget_versions_table_model = DynamicTableModel(self)
         self._budget_lines_table_model = DynamicTableModel(self)
         self._selected_budget_id = ""
+        self._show_create_budget_version = False
         self._can_create_budget_version = False
+        self._create_budget_version_disabled_reason = ""
         self._budget_version_page = 1
         self._budget_version_sort_key = "revision"
         self._budget_version_sort_direction = Qt.DescendingOrder.value
@@ -531,8 +535,15 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property(str, notify=selectedBudgetIdChanged)
     def selectedBudgetId(self) -> str: return self._selected_budget_id
 
+    @Property(bool, notify=showCreateBudgetVersionChanged)
+    def showCreateBudgetVersion(self) -> bool: return self._show_create_budget_version
+
     @Property(bool, notify=canCreateBudgetVersionChanged)
     def canCreateBudgetVersion(self) -> bool: return self._can_create_budget_version
+
+    @Property(str, notify=createBudgetVersionDisabledReasonChanged)
+    def createBudgetVersionDisabledReason(self) -> str:
+        return self._create_budget_version_disabled_reason
 
     @Property("QVariantList", constant=True)
     def currencyOptions(self) -> list[dict[str, str]]: return CURRENCY_OPTIONS

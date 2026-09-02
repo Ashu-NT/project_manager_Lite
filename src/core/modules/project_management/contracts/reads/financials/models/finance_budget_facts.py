@@ -97,7 +97,9 @@ class FinanceBudgetWorkspaceFacts:
     selected_budget_id: str
     versions: BudgetVersionPageFacts
     lines: FinancePageFacts[BudgetLineFact]
+    show_create_version: bool = False
     can_create_version: bool = False
+    create_version_disabled_reason: str = ""
 
 
 __all__ = [

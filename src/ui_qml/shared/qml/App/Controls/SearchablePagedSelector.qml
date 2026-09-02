@@ -64,12 +64,32 @@ QQC2.Control {
             root.lookupError = String((result && result.message) || "Unable to load options.")
             return false
         }
-        root.items = result.items || []
-        root.currentPage = Math.max(1, Number(result.page || 1))
+        const acceptedPage = Math.max(1, Number(result.page || 1))
+        const acceptedItems = result.items || []
+        root.items = acceptedPage > 1
+            ? root._appendUniqueItems(root.items, acceptedItems)
+            : acceptedItems
+        root.currentPage = acceptedPage
         root.total = Math.max(0, Number(result.total || 0))
         root.hasMore = Boolean(result.hasMore)
         root.lookupError = ""
         return true
+    }
+
+    function _appendUniqueItems(existingItems, nextItems) {
+        const merged = (existingItems || []).slice()
+        const knownValues = {}
+        for (let i = 0; i < merged.length; i += 1)
+            knownValues[String(merged[i].value || "")] = true
+        for (let j = 0; j < (nextItems || []).length; j += 1) {
+            const item = nextItems[j]
+            const value = String(item.value || "")
+            if (!knownValues[value]) {
+                knownValues[value] = true
+                merged.push(item)
+            }
+        }
+        return merged
     }
 
     function setResolvedItem(item) {
@@ -206,6 +226,13 @@ QQC2.Control {
                 Keys.onEnterPressed: root.selectItem(root.items[currentIndex])
                 QQC2.ScrollBar.vertical: QQC2.ScrollBar {}
 
+                onContentYChanged: {
+                    const nearEnd = contentHeight > height
+                        && contentY + height >= contentHeight - 48
+                    if (nearEnd && root.hasMore && !root.lookupBusy)
+                        root.requestLookup(root.currentPage + 1)
+                }
+
                 header: QQC2.ItemDelegate {
                     width: resultList.width
                     height: root.allowEmpty ? implicitHeight : 0
@@ -242,21 +269,16 @@ QQC2.Control {
                 Label {
                     Layout.fillWidth: true
                     text: root.total > 0
-                        ? "Page " + root.currentPage + " of " + Math.max(1, Math.ceil(root.total / root.pageSize))
+                        ? root.items.length + " of " + root.total + " results"
                         : "0 results"
                     color: Theme.AppTheme.textMuted
                 }
 
-                SecondaryButton {
-                    text: "Prev"
-                    enabled: !root.lookupBusy && root.currentPage > 1
-                    onClicked: root.requestLookup(root.currentPage - 1)
-                }
-
-                SecondaryButton {
-                    text: "Next"
-                    enabled: !root.lookupBusy && root.hasMore
-                    onClicked: root.requestLookup(root.currentPage + 1)
+                QQC2.BusyIndicator {
+                    visible: root.lookupBusy && root.currentPage > 1
+                    running: visible
+                    Layout.preferredWidth: Theme.AppTheme.toolbarIconSize
+                    Layout.preferredHeight: Theme.AppTheme.toolbarIconSize
                 }
             }
         }
