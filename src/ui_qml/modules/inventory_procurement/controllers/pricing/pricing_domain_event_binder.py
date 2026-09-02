@@ -9,7 +9,10 @@ def bind_domain_events(ctrl) -> None:
     removed (P24): source-proven zero dependency on Item or Category data anywhere in Pricing's
     own presenter/state builders (site/storeroom/supplier options only) -- removed with no
     replacement, the same class of finding as P18B's Control-workspace `resources_changed`
-    removal."""
+    removal. `inventory_reorder_policies_changed` removed (P25): same class of finding -- zero
+    dependency on the `ReorderPolicy` entity anywhere in Pricing's own builders (its "reorder
+    required" low-stock signal is computed entirely from `StockItem`'s own embedded fields, never
+    from this table) -- removed with no replacement."""
 
     def _on_domain_event(_payload: object) -> None:
         ctrl._request_domain_refresh()
@@ -20,7 +23,6 @@ def bind_domain_events(ctrl) -> None:
         domain_events.inventory_requisitions_changed,
         domain_events.inventory_purchase_orders_changed,
         domain_events.inventory_receipts_changed,
-        domain_events.inventory_reorder_policies_changed,
         domain_events.inventory_cycle_counts_changed,
     ):
         ctrl._subscribe_domain_signal(signal, _on_domain_event)

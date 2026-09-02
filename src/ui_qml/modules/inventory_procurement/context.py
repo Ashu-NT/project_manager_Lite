@@ -199,6 +199,9 @@ class InventoryProcurementWorkspaceCatalog(QObject):
         self._inventory_foundation_view_invalidation_adapter.locationListStale.connect(
             self._inventory_workspace.refresh
         )
+        self._inventory_foundation_view_invalidation_adapter.reorderPolicyListStale.connect(
+            self._inventory_workspace.refresh
+        )
         self._inventory_catalog_view_invalidation_adapter = InventoryCatalogViewInvalidationAdapter(
             channel=self._view_invalidation_channel,
             tenant_id=self._active_tenant_id() or "",

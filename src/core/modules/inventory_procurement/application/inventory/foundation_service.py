@@ -32,6 +32,7 @@ from src.core.modules.inventory_procurement.domain.inventory.foundation import (
     StorageLocationType,
 )
 from src.core.modules.inventory_procurement.domain.inventory.foundation_events import (
+    InventoryReorderPolicyConfigured,
     LocationCreated,
     LocationProfileUpdated,
 )
@@ -436,9 +437,8 @@ class InventoryFoundationService:
                 storeroom.id,
                 normalized_location_id,
             )
-        now = datetime.now(timezone.utc)
         if policy is None:
-            policy = ReorderPolicy.create(
+            candidate = ReorderPolicy.create(
                 organization_id=organization.id,
                 stock_item_id=item.id,
                 storeroom_id=storeroom.id,
@@ -455,10 +455,9 @@ class InventoryFoundationService:
                 preferred_supplier_party_id=normalized_supplier_id
                 or item.preferred_party_id,
             )
-            action = "inventory_reorder_policy.create"
-            save_method = self._reorder_policy_repo.add
+            is_create = True
         else:
-            policy = replace(
+            candidate = replace(
                 policy,
                 stock_item_id=item.id,
                 storeroom_id=storeroom.id,
@@ -473,38 +472,74 @@ class InventoryFoundationService:
                 lead_time_days=lead_time_days,
                 review_period_days=review_period_days,
                 preferred_supplier_party_id=normalized_supplier_id or item.preferred_party_id,
-                updated_at=now,
             )
-            action = "inventory_reorder_policy.update"
-            save_method = self._reorder_policy_repo.update
-        try:
-            save_method(policy)
-            self._session.commit()
-        except IntegrityError as exc:
-            self._session.rollback()
-            raise ValidationError(
-                "A reorder policy already exists for the selected stock scope.",
-                code="INVENTORY_REORDER_POLICY_EXISTS",
-            ) from exc
-        except Exception:
-            self._session.rollback()
-            raise
-        record_activity(
-            self,
-            action=action,
-            entity_type="inventory_reorder_policy",
-            entity_id=policy.id,
-            module="inventory",
-            details={
-                "stock_item_id": policy.stock_item_id,
-                "storeroom_id": policy.storeroom_id,
-                "location_id": policy.location_id or "",
-                "reorder_point": str(policy.reorder_point),
-                "reorder_qty": str(policy.reorder_qty),
-            },
+            if candidate == policy:
+                # True no-op (P25 §7): zero repository write, zero audit, zero typed event, no
+                # synthetic version/updated_at bump.
+                return policy
+            is_create = False
+        now = datetime.now(timezone.utc)
+        if not is_create:
+            candidate = replace(candidate, updated_at=now)
+        action = (
+            "inventory_reorder_policy.create" if is_create else "inventory_reorder_policy.update"
         )
-        domain_events.inventory_reorder_policies_changed.emit(policy.id)
-        return policy
+        with self._require_uow_factory().create(context=self._new_context()) as uow:
+            try:
+                if is_create:
+                    uow.reorder_policies.add(candidate)
+                else:
+                    uow.reorder_policies.update(candidate)
+            except IntegrityError as exc:
+                raise ValidationError(
+                    "A reorder policy already exists for the selected stock scope.",
+                    code="INVENTORY_REORDER_POLICY_EXISTS",
+                ) from exc
+            record_activity(
+                uow,
+                action=action,
+                entity_type="inventory_reorder_policy",
+                entity_id=candidate.id,
+                module="inventory",
+                details={
+                    "stock_item_id": candidate.stock_item_id,
+                    "storeroom_id": candidate.storeroom_id,
+                    "location_id": candidate.location_id or "",
+                    "reorder_point": str(candidate.reorder_point),
+                    "reorder_qty": str(candidate.reorder_qty),
+                },
+                commit=False,
+            )
+            record_audit_entry(
+                uow,
+                operation="create" if is_create else "update",
+                entity_type="inventory_reorder_policy",
+                entity_id=candidate.id,
+                module="inventory",
+                severity="low",
+                metadata={
+                    "stock_item_id": candidate.stock_item_id,
+                    "storeroom_id": candidate.storeroom_id,
+                    "location_id": candidate.location_id or "",
+                    "reorder_point": str(candidate.reorder_point),
+                    "reorder_qty": str(candidate.reorder_qty),
+                },
+                commit=False,
+                fail_closed=True,
+            )
+            uow.record_event(
+                InventoryReorderPolicyConfigured(
+                    tenant_id=organization.tenant_id,
+                    organization_id=organization.id,
+                    policy_id=candidate.id,
+                    stock_item_id=candidate.stock_item_id,
+                    storeroom_id=candidate.storeroom_id,
+                    location_id=candidate.location_id,
+                    occurred_at=now,
+                )
+            )
+            uow.commit()
+        return candidate
 
     def list_cycle_counts(
         self,

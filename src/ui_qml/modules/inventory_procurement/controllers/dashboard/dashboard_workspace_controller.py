@@ -108,6 +108,15 @@ class InventoryProcurementDashboardWorkspaceController(
             self._set_is_loading(False)
 
     def _bind_domain_events(self) -> None:
+        """P7A: direct-wired to every Inventory/Procurement legacy signal (this dashboard
+        genuinely reacts to any inventory mutation, by design) -- no generic `domain_changed`
+        bridge. `inventory_items_changed`/`inventory_item_categories_changed` removed (P24): the
+        low-stock rows' item labels are a real Item dependency, now served by
+        `InventoryCatalogViewInvalidationAdapter.itemListStale` wired to `refresh()` in
+        context.py; Category has zero dependency here. `inventory_reorder_policies_changed`
+        removed (P25): the Dashboard/Pricing "reorder required" low-stock signal is computed
+        entirely from `StockItem`'s own embedded fields, never from the `ReorderPolicy` table --
+        removed with no replacement."""
 
         def _on_domain_event(_payload: object) -> None:
             self._request_domain_refresh()
@@ -118,7 +127,6 @@ class InventoryProcurementDashboardWorkspaceController(
             domain_events.inventory_requisitions_changed,
             domain_events.inventory_purchase_orders_changed,
             domain_events.inventory_receipts_changed,
-            domain_events.inventory_reorder_policies_changed,
             domain_events.inventory_cycle_counts_changed,
         ):
             self._subscribe_domain_signal(signal, _on_domain_event)
