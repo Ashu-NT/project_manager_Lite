@@ -2,12 +2,14 @@ import QtQuick
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
+import App.Theme 1.0 as Theme
 
 AppWidgets.EntityDialog {
     id: root
 
     property string action: "submit"
     property var forecast: null
+    property string projectLabel: ""
     signal decided(string action, string forecastId, int version, string requestId, string notes)
 
     readonly property var _state: root.forecast ? (root.forecast.state || {}) : ({})
@@ -49,18 +51,56 @@ AppWidgets.EntityDialog {
     }
     onRejected: root.close()
 
-    AppWidgets.FormField {
+    ColumnLayout {
         Layout.fillWidth: true
-        label: root.action === "reject" ? "Decision reason" : "Notes"
-        required: root.action === "reject"
-        AppControls.TextArea {
-            id: notesField
+        spacing: Theme.AppTheme.spacingMd
+
+        AppWidgets.SectionCard {
             Layout.fillWidth: true
-            Layout.preferredHeight: 96
-            wrapMode: TextEdit.WordWrap
-            placeholderText: root.action === "reject"
-                ? "Explain what must change before a new Forecast is generated."
-                : "Optional context for the audit trail"
+            title: "Decision context"
+
+            GridLayout {
+                width: parent ? parent.width : 0
+                columns: width >= 420 ? 2 : 1
+                columnSpacing: Theme.AppTheme.spacingMd
+                rowSpacing: Theme.AppTheme.spacingXs
+
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    text: "Project\n" + (root.projectLabel || "Selected project")
+                    wrapMode: Text.WordWrap
+                }
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    text: "Forecast\n" + String(root.forecast ? root.forecast.title || "" : "")
+                    wrapMode: Text.WordWrap
+                }
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    text: "State\n" + String(root.forecast ? root.forecast.statusLabel || "" : "")
+                    wrapMode: Text.WordWrap
+                }
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    text: "Basis\n" + String(root.forecast ? root.forecast.subtitle || "" : "")
+                    wrapMode: Text.WordWrap
+                }
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: root.action === "reject" ? "Decision reason" : "Notes"
+            required: root.action === "reject"
+            AppControls.TextArea {
+                id: notesField
+                Layout.fillWidth: true
+                Layout.preferredHeight: 96
+                wrapMode: TextEdit.WordWrap
+                placeholderText: root.action === "reject"
+                    ? "Explain what must change before a new Forecast is generated."
+                    : "Optional context for the audit trail"
+            }
         }
     }
 }

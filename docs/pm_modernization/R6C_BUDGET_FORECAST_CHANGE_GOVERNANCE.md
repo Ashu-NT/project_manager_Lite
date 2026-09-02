@@ -2,7 +2,8 @@
 
 ## 1. Status
 
-**R6C IN PROGRESS.** R6A and R6B are closed. This document records the verified
+**R6C IN PROGRESS.** R6A and R6B are closed. R6C-A, R6C-B, and R6C-C are
+complete. R6C-D through R6C-H remain open. This document records the verified
 R6C starting state and is the execution ledger for the forward-only write
 cutover. R6C must not be marked closed until every blocking exit gate is green.
 
@@ -455,5 +456,155 @@ the subsequent Budget command commits through its isolated UoW.
   mutation-boundary regressions: `86 passed`.
 - No R6D work was started and nothing was committed.
 
-R6C remains open. The next stage is R6C-C Forecast Governance Command UX. R6C-D
-through R6C-H remain deferred to their approved stages.
+## R6C-C Forecast Governance Command UX
+
+**Status: COMPLETE.** The existing Finance -> Planning -> Forecast destination
+is the only Forecast command UX. R6C remains open; R6C-D through R6C-H were not
+started by this stage.
+
+### R6C-C Authority Inventory
+
+- CURRENT AUTHORITATIVE COMMAND: `generate_draft` creates one server-calculated
+  Draft Forecast, its lines, source decisions, audit, and typed events in one
+  Finance UoW. It resolves Planned Cost, posted Actual offsets, open
+  Commitments, financial dimensions, project currency, Manual ETC decisions,
+  and Risk contingency decisions on the server.
+- CURRENT AUTHORITATIVE COMMAND: `submit_forecast` transitions a populated
+  mutable Draft using the selected row version. `request_forecast_approval`
+  creates the explicit Platform Approval request for the Submitted revision.
+  These are deliberate separate user actions, matching the established Budget
+  governance UX; neither action can partially perform the other.
+- CURRENT AUTHORITATIVE COMMAND: Platform Approval `forecast.approve` applies or
+  rejects through a fresh session-bound `ForecastApprovalParticipant`. The
+  requester cannot decide their own request, and the deciding principal is the
+  actor recorded on the Forecast.
+- INTERNAL SUPPORT OPERATION: `create_forecast`, Forecast line add/update/delete,
+  and direct domain transition helpers remain transaction-neutral application
+  operations. They are not exposed by Forecast QML or its desktop command API.
+  The R6B line DataTable remains a read projection, not a generic editor.
+- NOT SUPPORTED: explicit successor creation, predecessor identity, regeneration,
+  Draft metadata editing, and post-generation Manual ETC/Risk contingency CRUD.
+  Generation assigns the next revision and the one-open-version invariant
+  prevents parallel current drafts. Approval supersedes the previous approved
+  revision. No unsupported button or synthetic lineage was added.
+- DEAD/SUPERSEDED: no older Forecast desktop command, controller slot, presenter,
+  QML dialog, route, DI registration, compatibility write adapter, or transaction
+  wrapper was found. Nothing was retained as a legacy production path.
+
+### R6C-C Command Architecture
+
+The active path is QML -> Financials controller -> presenter command mapper ->
+typed desktop DTO/API -> `FinanceGovernanceCommandBoundary` -> transaction-neutral
+Forecast service -> Finance UoW -> commit -> typed ViewInvalidation -> existing
+R6B Reader refresh. The desktop DTO uses canonical decimal strings and ISO dates;
+the adapter converts finite monetary values to `Decimal`. There is no Forecast
+`float()` conversion or persisted calculation in QML.
+
+Generation uses `FinancialGenerateForecastCommand` with typed Manual ETC and
+Risk contingency items. Submit and approval request use
+`FinancialVersionedForecastCommand`, preserving the authoritative row version.
+Approval/rejection use the shared Platform Approval desktop path and request ID,
+not a Forecast-specific decision engine.
+
+### R6C-C Generation And Source Semantics
+
+Manual ETC is replacement authority, never extra ETC. A Cost Code-level amount
+replaces remaining plan for that Cost Code; a Cost Code + Task amount replaces
+only that matching slice. Overlapping dimensions and duplicate decisions are
+rejected server-side. Manual inputs are generation-time decisions and cannot be
+edited as generic generated lines.
+
+Risk identity and lifecycle remain Register-owned. The bounded selector returns
+only scoped, eligible open/in-progress/mitigated project Risks. Finance stores
+only the explicit monetary contingency; no probability-times-impact engine was
+introduced. Cost Code, Task, and Risk selectors use bounded server paging,
+search, deterministic ordering, project/tenant/organization scope, and stale
+lookup generation guards.
+
+The server retains source-decision evidence for included, excluded, offset, and
+replacement facts. As-of, ETC, EAC, VAC, currency, and supersession mathematics
+were not changed. Currency is resolved from the selected Project financial
+profile; the dialog communicates this without making currency a client-owned
+input or adding FX behavior.
+
+### R6C-C Lifecycle, Capabilities, And UX
+
+The Forecast section exposes Generate, Submit, Request Approval, Approve, and
+Reject only from server-projected capabilities. Manage, approval-request, and
+approval-decision rights remain distinct; requester identity is included in the
+read model so SoD is deny-safe. Capability state clears before Forecast refresh
+and on destination reset, preventing privileged-button flicker or stale actions
+after project/organization/permission changes.
+
+The existing master/detail DataTables retain authoritative server paging,
+filtering, sorting, explicit selection, and no first-row auto-selection. Commands
+never mutate visible rows locally. Success refreshes Planning, Overview, and
+Performance through the existing scoped invalidation/read flow. Conflicts are
+not retried; the authoritative Forecast is refreshed and intentional input must
+be reviewed. Shared mutation state prevents double submission and generation.
+
+The centered dialogs use the shared scrollable body and pinned action footer.
+Generation stages all inputs required by the one atomic backend operation and
+states replacement/Risk/currency authority. Lifecycle dialogs show Project,
+Forecast revision/name, status, as-of/generation basis, and decision notes.
+Viewport, footer reachability, initial focus, Escape, and validation focus are
+covered at 1024x640, 1280x720, 1366x768, 1440x900, and 1920x1080.
+
+### R6C-C Concurrency, Atomicity, And Invalidation
+
+All mutable operations preserve optimistic row versions. Stale Submit fails with
+`STALE_WRITE`; a second open generation fails with
+`PROJECT_FORECAST_OPEN_VERSION_EXISTS`, backed by the scoped unique constraint.
+Approval request state permits one decision; Platform Approval owns the decision
+transaction and enforces self-decision denial.
+
+Forecast approval previously used an inner SQLAlchemy SAVEPOINT. Under SQLite's
+deferred transaction behavior, a participant failure after the SAVEPOINT release
+could leave the Forecast Approved while the Platform request rolled back. R6C-C
+removed that nested transaction: the Platform Approval UoW is now the sole
+physical transaction owner. Fault injection proves both the Forecast transition
+and Approval decision roll back together. Existing generation audit-failure and
+command-boundary commit-failure tests prove no partial root, line, source
+decision, audit, or success invalidation.
+
+Approval participants return canonical `ForecastVersionChanged` domain events.
+They do not reintroduce the retired `forecasts_changed` signal. Approved events
+invalidate Forecast planning and approved-basis projections; rejected/submitted
+events invalidate planning only. Commit happens before observable invalidation.
+
+### R6C-C PostgreSQL And Authorization Evidence
+
+The repository Docker PostgreSQL 16 stack was recreated and migrated from
+Alembic head. Live tests run through `app_runtime`, which is non-owner,
+`NOSUPERUSER`, and `NOBYPASSRLS`. Governed generation persisted a Forecast and
+Manual ETC line through the real command boundary. Cross-tenant and same-tenant
+cross-organization commands were denied. Direct foreign-scope inserts into both
+Forecast Line and Forecast Source Decision were denied. The bounded Forecast and
+Finance lookup Readers also passed through the runtime role. Application-layer
+tests separately deny generation without `forecast.manage`; RLS is defense in
+depth, not application authorization.
+
+### R6C-C Verification And Reconciliation
+
+- Final targeted Forecast/Finance/Budget/controller/approval/read/concurrency
+  matrix: `148 passed, 1 skipped`; responsive Forecast/Budget/read slice:
+  `33 passed`.
+- Live PostgreSQL R6C command/RLS matrix: `5 passed`; combined Forecast
+  Reader/lookup/command runtime-role slice: `9 passed`.
+- Forecast dialogs at all five required viewports: `10 passed` within the
+  responsive matrix. Authored Forecast/host/workspace QML passes `qmllint`.
+- Targeted Python compilation and `git diff --check`: PASS.
+- Forecast transaction-neutrality, governed-port composition, typed-event
+  retirement, and approval registration guards pass.
+- The broad pre-existing P8 legacy-signal guard remains red for active
+  `financial_changes_changed`, `commitments_changed`, and
+  `cost_entries_changed` production paths (`5 failed, 29 passed`). It has no
+  Forecast failure and is deferred to the owning R6C-D/R6C-F cleanup; R6C-C did
+  not expand its frozen allowlist or modify those unrelated signals.
+- No files were deleted because the source scan found no superseded Forecast
+  production path. No compatibility marker or temporary R6C-C scaffold remains.
+- No Financial Change UX, R6C-D, or R6D-R6G implementation was started. Nothing
+  was committed by this implementation pass.
+
+R6C remains open. The next approved stage is R6C-D Financial Change Governance
+Command UX; do not start it implicitly.

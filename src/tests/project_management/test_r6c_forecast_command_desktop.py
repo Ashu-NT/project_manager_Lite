@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from src.core.modules.project_management.api.desktop.financials.api import (
     ProjectManagementFinancialsDesktopApi,
 )
@@ -11,6 +13,7 @@ from src.core.modules.project_management.api.desktop.financials.commands.forecas
     FinancialRiskContingencyCommand,
     FinancialVersionedForecastCommand,
 )
+from src.core.platform.common.exceptions import ValidationError
 
 
 class _Boundary:
@@ -120,3 +123,41 @@ def test_submit_and_request_approval_preserve_expected_version() -> None:
         "request", "forecast-1", {"expected_version": 3, "notes": "Ready"}
     )
     assert requested.approval_request_id == "approval-1"
+
+
+@pytest.mark.parametrize("amount", ("NaN", "Infinity", "not-money"))
+def test_generate_forecast_rejects_non_canonical_or_non_finite_money(amount: str) -> None:
+    boundary = _Boundary()
+    api = ProjectManagementFinancialsDesktopApi(finance_governance_commands=boundary)
+    command = FinancialGenerateForecastCommand(
+        project_id="project-1",
+        name="Invalid forecast",
+        as_of_date="2026-09-01",
+        manual_estimates=(
+            FinancialManualEtcCommand(
+                cost_code_id="cc-1",
+                description="Invalid amount",
+                amount=amount,
+            ),
+        ),
+    )
+
+    with pytest.raises(ValidationError) as exc:
+        api.generate_forecast(command)
+    assert exc.value.code == "PROJECT_FORECAST_AMOUNT_INVALID"
+
+
+def test_generate_forecast_requires_authenticated_actor() -> None:
+    boundary = _Boundary()
+    boundary._user_session.principal = None
+    api = ProjectManagementFinancialsDesktopApi(finance_governance_commands=boundary)
+
+    with pytest.raises(ValidationError) as exc:
+        api.generate_forecast(
+            FinancialGenerateForecastCommand(
+                project_id="project-1",
+                name="Unauthenticated forecast",
+                as_of_date="2026-09-01",
+            )
+        )
+    assert exc.value.code == "FORECAST_ACTOR_REQUIRED"

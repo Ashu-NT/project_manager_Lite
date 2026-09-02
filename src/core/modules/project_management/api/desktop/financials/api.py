@@ -686,13 +686,13 @@ class ProjectManagementFinancialsDesktopApi:
                 command.project_id,
                 name=command.name,
                 as_of_date=self._command_date(command.as_of_date, "Forecast as-of date"),
-                generated_by=self._actor_id(service),
+                generated_by=self._forecast_actor_id(service),
                 manual_estimates=tuple(
                     ManualEtcEstimate(
                         cost_code_id=item.cost_code_id,
                         task_id=item.task_id,
                         description=item.description,
-                        amount=self._decimal_command_amount(item.amount),
+                        amount=self._forecast_command_amount(item.amount),
                         period_start=self._optional_command_date(item.period_start),
                         period_end=self._optional_command_date(item.period_end),
                     )
@@ -704,7 +704,7 @@ class ProjectManagementFinancialsDesktopApi:
                         cost_code_id=item.cost_code_id,
                         task_id=item.task_id,
                         description=item.description,
-                        amount=self._decimal_command_amount(item.amount),
+                        amount=self._forecast_command_amount(item.amount),
                         period_start=self._optional_command_date(item.period_start),
                         period_end=self._optional_command_date(item.period_end),
                     )
@@ -722,7 +722,7 @@ class ProjectManagementFinancialsDesktopApi:
         forecast = self._require_finance_governance_commands().forecast_version(
             lambda service: service.submit_forecast(
                 command.forecast_id,
-                submitted_by=self._actor_id(service),
+                submitted_by=self._forecast_actor_id(service),
                 expected_version=command.expected_version,
                 notes=command.notes,
             )
@@ -1273,6 +1273,36 @@ class ProjectManagementFinancialsDesktopApi:
             raise ValidationError(
                 "Budget line amount must be finite.",
                 code="PROJECT_BUDGET_LINE_AMOUNT_INVALID",
+            )
+        return amount
+
+    @staticmethod
+    def _forecast_actor_id(service) -> str:
+        actor_id = getattr(
+            getattr(getattr(service, "_user_session", None), "principal", None),
+            "user_id",
+            None,
+        )
+        if not actor_id:
+            raise ValidationError(
+                "An authenticated actor is required for Forecast commands.",
+                code="FORECAST_ACTOR_REQUIRED",
+            )
+        return str(actor_id)
+
+    @staticmethod
+    def _forecast_command_amount(value: str) -> Decimal:
+        try:
+            amount = Decimal(str(value).strip())
+        except (InvalidOperation, ValueError) as exc:
+            raise ValidationError(
+                "Forecast amount must be a canonical decimal value.",
+                code="PROJECT_FORECAST_AMOUNT_INVALID",
+            ) from exc
+        if not amount.is_finite():
+            raise ValidationError(
+                "Forecast amount must be finite.",
+                code="PROJECT_FORECAST_AMOUNT_INVALID",
             )
         return amount
 

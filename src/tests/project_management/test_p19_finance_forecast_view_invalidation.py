@@ -474,6 +474,20 @@ def test_financials_controller_both_stale_signals_together_cover_the_full_destin
     }
 
 
+def test_financials_controller_reset_clears_forecast_capabilities_deny_safe(services):
+    catalog = _pm_catalog(services)
+    controller = catalog.financialsWorkspace
+    controller._set_forecast_capabilities(
+        show=True, enabled=True, disabled_reason="stale capability"
+    )
+
+    controller._reset_destination_state()
+
+    assert controller.showGenerateForecast is False
+    assert controller.canGenerateForecast is False
+    assert controller.generateForecastDisabledReason == ""
+
+
 # ---------------------------------------------------------------------------
 # forecasts_changed fully retired
 # ---------------------------------------------------------------------------

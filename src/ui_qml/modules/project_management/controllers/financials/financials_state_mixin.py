@@ -111,23 +111,12 @@ class FinancialsStateMixin:
             self.selectedForecastChanged.emit()
 
     def _set_forecast_query_state(self, state) -> None:
-        capabilities = (
-            bool(state.show_generate_forecast),
-            bool(state.can_generate_forecast),
-            str(state.generate_forecast_disabled_reason or ""),
+        self._set_forecast_capabilities(
+            show=state.show_generate_forecast,
+            enabled=state.can_generate_forecast,
+            disabled_reason=state.generate_forecast_disabled_reason,
         )
-        current_capabilities = (
-            self._show_generate_forecast,
-            self._can_generate_forecast,
-            self._generate_forecast_disabled_reason,
-        )
-        if capabilities != current_capabilities:
-            (
-                self._show_generate_forecast,
-                self._can_generate_forecast,
-                self._generate_forecast_disabled_reason,
-            ) = capabilities
-            self.forecastCapabilitiesChanged.emit()
+
         version_order = (
             Qt.DescendingOrder.value
             if state.forecast_version_sort_direction == "desc"
@@ -173,6 +162,23 @@ class FinancialsStateMixin:
                 self._forecast_line_source_type,
             ) = filters
             self.forecastFiltersChanged.emit()
+
+    def _set_forecast_capabilities(
+        self, *, show: bool, enabled: bool, disabled_reason: str
+    ) -> None:
+        capabilities = (bool(show), bool(enabled), str(disabled_reason or ""))
+        current_capabilities = (
+            self._show_generate_forecast,
+            self._can_generate_forecast,
+            self._generate_forecast_disabled_reason,
+        )
+        if capabilities != current_capabilities:
+            (
+                self._show_generate_forecast,
+                self._can_generate_forecast,
+                self._generate_forecast_disabled_reason,
+            ) = capabilities
+            self.forecastCapabilitiesChanged.emit()
 
     def _set_selected_change_id(self, value: str) -> None:
         if value != self._selected_change_id:
