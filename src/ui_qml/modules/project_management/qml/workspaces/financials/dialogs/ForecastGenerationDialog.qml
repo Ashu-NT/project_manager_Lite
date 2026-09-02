@@ -10,6 +10,7 @@ AppWidgets.EntityDialog {
     id: root
 
     property string projectId: ""
+    property string projectLabel: ""
     property var workspaceController: null
     signal submitted(var payload)
 
@@ -130,6 +131,15 @@ AppWidgets.EntityDialog {
         columns: width >= 520 ? 2 : 1
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
+
+        AppControls.Label {
+            Layout.fillWidth: true
+            Layout.columnSpan: formGrid.columns
+            text: "Project: " + (root.projectLabel || root.projectId)
+                + " | Currency: selected project financial currency (server authoritative)"
+            wrapMode: Text.WordWrap
+            color: Theme.AppTheme.textSecondary
+        }
 
         AppWidgets.FormField {
             Layout.fillWidth: true

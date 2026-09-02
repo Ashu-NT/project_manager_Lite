@@ -46,6 +46,10 @@ class FinancialsRefreshMixin:
             subsection,
         )
         self._set_is_loading(True)
+        if destination == "planning" and subsection == "forecast":
+            self._set_forecast_capabilities(
+                show=False, enabled=False, disabled_reason=""
+            )
         try:
             self._set_error_message("")
             self._set_feedback_message("")
@@ -515,6 +519,7 @@ class FinancialsRefreshMixin:
         self._set_selected_forecast(default_detail())
         self._set_forecast_versions(default_collection())
         self._set_forecast_lines(default_collection())
+        self._set_forecast_capabilities(show=False, enabled=False, disabled_reason="")
         self._set_selected_change_id("")
         self._set_selected_change(default_detail())
         self._set_financial_changes(default_collection())

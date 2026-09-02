@@ -197,6 +197,7 @@ AppLayouts.WorkspaceFrame {
         sourceComponent: Component {
             Dialogs.FinancialsDialogHost {
                 selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
+                selectedProjectLabel: root._selectedProjectLabel()
                 manualActualDefaults: root.workspaceController
                     ? (root.workspaceController.manualActualDefaults || {}) : ({})
                 workspaceController: root.workspaceController

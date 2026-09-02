@@ -472,15 +472,14 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         now = self._clock.now()
         previous = self._forecast_repo.get_approved_for_project(forecast.project_id)
         try:
-            with self._session.begin_nested():
-                if previous is not None:
-                    previous_version = previous.row_version
-                    previous.supersede(superseded_by=approved_by, superseded_at=now)
-                    self._forecast_repo.update(previous, expected_row_version=previous_version)
-                    self._forecast_repo.flush()
-                forecast.approve(approved_by=approved_by, approved_at=now, notes=notes)
-                self._forecast_repo.update(forecast, expected_row_version=expected_version)
+            if previous is not None:
+                previous_version = previous.row_version
+                previous.supersede(superseded_by=approved_by, superseded_at=now)
+                self._forecast_repo.update(previous, expected_row_version=previous_version)
                 self._forecast_repo.flush()
+            forecast.approve(approved_by=approved_by, approved_at=now, notes=notes)
+            self._forecast_repo.update(forecast, expected_row_version=expected_version)
+            self._forecast_repo.flush()
         except IntegrityError as exc:
             if self._is_approval_conflict(exc):
                 raise BusinessRuleError(

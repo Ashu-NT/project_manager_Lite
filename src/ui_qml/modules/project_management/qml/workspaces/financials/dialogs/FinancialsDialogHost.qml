@@ -5,6 +5,7 @@ Item {
 
     property var workspaceController: null
     property string selectedProjectId: ""
+    property string selectedProjectLabel: ""
     property var manualActualDefaults: ({ "currencyCode": "", "entryKinds": [] })
 
     function _handleResult(dialog, result) {
@@ -54,6 +55,7 @@ Item {
 
     function openForecastGenerationDialog() {
         forecastGenerationDialog.projectId = root.selectedProjectId
+        forecastGenerationDialog.projectLabel = root.selectedProjectLabel
         forecastGenerationDialog.errorMessage = ""
         forecastGenerationDialog.open()
     }
@@ -61,6 +63,7 @@ Item {
     function openForecastLifecycleDialog(action, forecast) {
         forecastLifecycleDialog.action = String(action || "submit")
         forecastLifecycleDialog.forecast = forecast || null
+        forecastLifecycleDialog.projectLabel = root.selectedProjectLabel
         forecastLifecycleDialog.errorMessage = ""
         forecastLifecycleDialog.open()
     }

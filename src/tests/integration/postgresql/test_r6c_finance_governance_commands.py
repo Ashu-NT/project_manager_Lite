@@ -21,9 +21,13 @@ from src.core.modules.project_management.application.financials.financial_change
 )
 from src.core.modules.project_management.application.financials.forecasts.generation_service import (
     ForecastGenerationService,
+    ManualEtcEstimate,
 )
 from src.core.modules.project_management.application.financials.forecasts.version_service import (
     ForecastVersionService,
+)
+from src.core.modules.project_management.application.financials.rate_cards.rate_card_service import (
+    ProjectRateCardService,
 )
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
@@ -37,9 +41,6 @@ from src.core.modules.project_management.infrastructure.persistence.uow.finance.
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.financials.sqlalchemy_finance_budget_reader import (
     SqlAlchemyFinanceBudgetReader,
-)
-from src.core.modules.project_management.domain.financials.forecast import (
-    ForecastGenerationMode,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
 from src.core.platform.domain.security.auth.session import (
@@ -57,6 +58,7 @@ pytestmark = pytest.mark.postgresql_integration
 TENANT_A = "r6c-command-tenant-a"
 TENANT_B = "r6c-command-tenant-b"
 ORG_A = "r6c-command-org-a"
+ORG_A2 = "r6c-command-org-a2"
 ORG_B = "r6c-command-org-b"
 PROJECT_A = "r6c-command-project-a"
 
@@ -115,6 +117,16 @@ def seeded_r6c_scopes(postgres_test_environment):
                 ),
                 {"org": org_id, "tenant": tenant_id, "code": f"R6C-ORG-{suffix}"},
             )
+        connection.execute(
+            text(
+                "INSERT INTO organizations "
+                "(id, tenant_id, organization_code, display_name, timezone_name, "
+                "base_currency, is_enabled, version) "
+                "VALUES (:org, :tenant, 'R6C-ORG-A2', 'R6C Org A2', "
+                "'UTC', 'USD', true, 1)"
+            ),
+            {"org": ORG_A2, "tenant": TENANT_A},
+        )
         connection.execute(
             text(
                 "INSERT INTO projects "
@@ -237,6 +249,15 @@ def _boundary(postgres_test_environment, *, scope: _TenantContext):
                 enterprise_audit_service=uow._enterprise_audit_service,
                 tenant_context_service=scope,
             ),
+            rate_cards=ProjectRateCardService(
+                session=uow._session,
+                rate_card_repo=uow.rate_cards,
+                project_repo=uow.projects,
+                user_session=user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                tenant_context_service=scope,
+                record_event=uow.record_event,
+            ),
         )
 
     return FinanceGovernanceCommandBoundary(
@@ -266,16 +287,23 @@ def test_r6c_commands_use_app_runtime_and_preserve_rls_scope(postgres_test_envir
             expected_budget_version=budget.row_version,
         )
     )
-    forecast = boundary.forecast_version(
-        lambda service: service.create_forecast(
+    forecast_result = boundary.forecast_generation(
+        lambda service: service.generate_draft(
             PROJECT_A,
             name="R6C Forecast",
             as_of_date=date(2026, 9, 1),
-            generation_mode=ForecastGenerationMode.MANUAL,
-            created_by="r6c-runtime-user",
+            generated_by="r6c-runtime-user",
+            manual_estimates=(
+                ManualEtcEstimate(
+                    cost_code_id=setup.id,
+                    description="R6C governed manual ETC",
+                    amount=Decimal("75.25"),
+                ),
+            ),
         ),
         project_id=PROJECT_A,
     )
+    forecast = forecast_result.forecast
     change = boundary.financial_change(
         lambda service: service.create_change(
             PROJECT_A,
@@ -319,6 +347,13 @@ def test_r6c_commands_use_app_runtime_and_preserve_rls_scope(postgres_test_envir
             {"id": forecast.id},
         ) == 1
         assert session.scalar(
+            text(
+                "SELECT count(*) FROM project_finance_forecast_lines "
+                "WHERE forecast_id=:id AND amount=75.25"
+            ),
+            {"id": forecast.id},
+        ) == 1
+        assert session.scalar(
             text("SELECT count(*) FROM project_finance_change_requests WHERE id=:id"),
             {"id": change.id},
         ) == 1
@@ -338,3 +373,84 @@ def test_r6c_command_foreign_scope_insert_is_denied(postgres_test_environment):
                 name="Must be denied",
             )
         )
+
+
+def test_r6c_command_same_tenant_foreign_organization_is_denied(
+    postgres_test_environment,
+) -> None:
+    boundary = _boundary(
+        postgres_test_environment,
+        scope=_TenantContext(TENANT_A, ORG_A2),
+    )
+    with pytest.raises(DBAPIError):
+        boundary.financial_setup(
+            lambda service: service.create_cost_code(
+                code="R6C-FOREIGN-ORG",
+                name="Must be denied",
+            )
+        )
+
+
+@pytest.mark.parametrize(
+    ("table", "insert_sql"),
+    (
+        (
+            "project_finance_forecast_lines",
+            "INSERT INTO project_finance_forecast_lines "
+            "(id, tenant_id, organization_id, forecast_id, project_id, cost_code_id, "
+            "description, amount, currency_code, source_kind, source_type, created_by, "
+            "version, created_at, updated_at) VALUES "
+            "(:id, :tenant, :organization, :forecast, :project, :cost_code, "
+            "'foreign child attack', 1.00, 'USD', 'manual', 'manual_estimate', "
+            "'attacker', 1, :now, :now)",
+        ),
+        (
+            "project_finance_forecast_source_decisions",
+            "INSERT INTO project_finance_forecast_source_decisions "
+            "(id, tenant_id, organization_id, forecast_id, project_id, cost_code_id, "
+            "source_type, source_reference_type, source_reference_id, action, reason, "
+            "source_amount, included_amount, excluded_amount, currency_code, "
+            "source_snapshot_at, created_at) VALUES "
+            "(:id, :tenant, :organization, :forecast, :project, :cost_code, "
+            "'manual_estimate', 'manual_estimate', 'attack', 'included', "
+            "'manual_override', 1.00, 1.00, 0.00, 'USD', :now, :now)",
+        ),
+    ),
+)
+def test_forecast_child_tables_deny_foreign_scope_inserts(
+    postgres_test_environment, table: str, insert_sql: str
+) -> None:
+    with postgres_test_environment.admin_engine.connect() as connection:
+        parent = connection.execute(
+            text(
+                "SELECT f.id AS forecast_id, l.cost_code_id "
+                "FROM project_finance_forecasts f "
+                "JOIN project_finance_forecast_lines l ON l.forecast_id=f.id "
+                "WHERE f.tenant_id=:tenant AND f.organization_id=:organization "
+                "AND f.project_id=:project LIMIT 1"
+            ),
+            {"tenant": TENANT_A, "organization": ORG_A, "project": PROJECT_A},
+        ).mappings().one()
+
+    session = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_B,
+        organization_id=ORG_B,
+    )
+    try:
+        with pytest.raises(DBAPIError):
+            session.execute(
+                text(insert_sql),
+                {
+                    "id": f"r6c-{table}-attack",
+                    "tenant": TENANT_A,
+                    "organization": ORG_A,
+                    "forecast": parent["forecast_id"],
+                    "project": PROJECT_A,
+                    "cost_code": parent["cost_code_id"],
+                    "now": datetime.now(timezone.utc),
+                },
+            )
+            session.commit()
+    finally:
+        session.rollback()
+        session.close()
