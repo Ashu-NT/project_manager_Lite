@@ -274,3 +274,252 @@ def test_dependencies_factory_never_opens_its_own_session(services, session):
     assert deps.purchasing_service._session is session, (
         "the factory must use the supplied Session, never a fresh one"
     )
+
+
+def _submitted_purchase_order_sourcing_two_lines_of_one_requisition(services):
+    """P28B-FIX SS8: one PO with two lines, both sourced from DIFFERENT lines of the SAME
+    Requisition -- the participant's batching must still return exactly one
+    `InventoryRequisitionSourcingAdvanced` for that Requisition, not two."""
+    auth = services["auth_service"]
+    auth.register_user("papr-buyer2", "StrongPass123", role_names=["inventory_manager"])
+    auth.register_user("papr-approver2", "StrongPass123", role_names=["approver"])
+    site, storeroom, item, supplier = _procurement_context2(services)
+    procurement = services["inventory_procurement_service"]
+    purchasing = services["inventory_purchasing_service"]
+    approvals = services["approval_service"]
+
+    login_as(services, "papr-buyer2", "StrongPass123")
+    requisition = procurement.create_requisition(
+        requesting_site_id=site.id,
+        requesting_storeroom_id=storeroom.id,
+        purpose="Source two lines of one requisition",
+        needed_by_date=date(2026, 4, 10),
+    )
+    line_a = procurement.add_requisition_line(
+        requisition.id,
+        stock_item_id=item.id,
+        quantity_requested=3,
+        suggested_supplier_party_id=supplier.id,
+        estimated_unit_cost=250.0,
+    )
+    line_b = procurement.add_requisition_line(
+        requisition.id,
+        stock_item_id=item.id,
+        quantity_requested=4,
+        suggested_supplier_party_id=supplier.id,
+        estimated_unit_cost=250.0,
+    )
+    requisition = procurement.submit_requisition(requisition.id)
+
+    login_as(services, "papr-approver2", "StrongPass123")
+    approvals.approve_and_apply(requisition.approval_request_id, note="Approved requisition")
+
+    login_as(services, "papr-buyer2", "StrongPass123")
+    purchase_order = purchasing.create_purchase_order(
+        site_id=site.id,
+        supplier_party_id=supplier.id,
+        currency_code="EUR",
+        source_requisition_id=requisition.id,
+        expected_delivery_date=date(2026, 4, 20),
+    )
+    purchasing.add_purchase_order_line(
+        purchase_order.id,
+        stock_item_id=item.id,
+        destination_storeroom_id=storeroom.id,
+        quantity_ordered=3,
+        unit_price=240.0,
+        source_requisition_line_id=line_a.id,
+    )
+    purchasing.add_purchase_order_line(
+        purchase_order.id,
+        stock_item_id=item.id,
+        destination_storeroom_id=storeroom.id,
+        quantity_ordered=4,
+        unit_price=240.0,
+        source_requisition_line_id=line_b.id,
+    )
+    purchase_order = purchasing.submit_purchase_order(purchase_order.id)
+    return requisition, purchase_order
+
+
+def _procurement_context2(services):
+    site = services["site_service"].create_site(
+        site_code="PAPR2",
+        name="Purchasing Approval Participant Site 2",
+        currency_code="EUR",
+    )
+    item = services["inventory_item_service"].create_item(
+        item_code="PAPR2-MOTOR-001",
+        name="Purchasing Approval Motor 2",
+        status="ACTIVE",
+        stock_uom="EA",
+        is_purchase_allowed=True,
+    )
+    storeroom = services["inventory_service"].create_storeroom(
+        storeroom_code="PAPR2-MAIN",
+        name="Purchasing Approval Participant Main 2",
+        site_id=site.id,
+        status="ACTIVE",
+    )
+    supplier = services["party_service"].create_party(
+        party_code="SUP-PAPR2",
+        party_name="Purchasing Approval Supplier 2",
+        party_type=PartyType.SUPPLIER,
+    )
+    return site, storeroom, item, supplier
+
+
+def test_participant_apply_batches_multiple_lines_of_same_requisition_into_one_sourcing_event(
+    services, session
+):
+    requisition, purchase_order = _submitted_purchase_order_sourcing_two_lines_of_one_requisition(
+        services
+    )
+    request = _pending_request(services, purchase_order)
+    deps = _deps(services, session)
+
+    result = PurchasingApprovalParticipant().apply(request, deps)
+
+    sourcing_events = [
+        e for e in result.domain_events if isinstance(e, InventoryRequisitionSourcingAdvanced)
+    ]
+    assert len(sourcing_events) == 1, (
+        "two PO lines sourcing two different lines of the SAME requisition must batch into "
+        "exactly one sourcing event, not one per line"
+    )
+    assert sourcing_events[0].requisition_id == requisition.id
+    assert sourcing_events[0].resulting_status == "FULLY_SOURCED"
+
+    refreshed_requisition = deps.purchasing_service._requisition_repo.get(requisition.id)
+    assert refreshed_requisition.status.value == "FULLY_SOURCED"
+
+
+def _submitted_purchase_order_sourcing_two_requisitions(services):
+    """P28B-FIX SS8: one PO with lines sourced from TWO DIFFERENT Requisitions -- the participant
+    must return one `InventoryRequisitionSourcingAdvanced` per touched Requisition."""
+    auth = services["auth_service"]
+    auth.register_user("papr-buyer3", "StrongPass123", role_names=["inventory_manager"])
+    auth.register_user("papr-approver3", "StrongPass123", role_names=["approver"])
+    site = services["site_service"].create_site(
+        site_code="PAPR3", name="Purchasing Approval Participant Site 3", currency_code="EUR"
+    )
+    item = services["inventory_item_service"].create_item(
+        item_code="PAPR3-MOTOR-001",
+        name="Purchasing Approval Motor 3",
+        status="ACTIVE",
+        stock_uom="EA",
+        is_purchase_allowed=True,
+    )
+    storeroom = services["inventory_service"].create_storeroom(
+        storeroom_code="PAPR3-MAIN", name="Purchasing Approval Participant Main 3", site_id=site.id, status="ACTIVE"
+    )
+    supplier = services["party_service"].create_party(
+        party_code="SUP-PAPR3", party_name="Purchasing Approval Supplier 3", party_type=PartyType.SUPPLIER
+    )
+    procurement = services["inventory_procurement_service"]
+    purchasing = services["inventory_purchasing_service"]
+    approvals = services["approval_service"]
+
+    login_as(services, "papr-buyer3", "StrongPass123")
+    requisition_a = procurement.create_requisition(
+        requesting_site_id=site.id,
+        requesting_storeroom_id=storeroom.id,
+        purpose="Requisition A",
+        needed_by_date=date(2026, 4, 10),
+    )
+    line_a = procurement.add_requisition_line(
+        requisition_a.id,
+        stock_item_id=item.id,
+        quantity_requested=2,
+        suggested_supplier_party_id=supplier.id,
+        estimated_unit_cost=250.0,
+    )
+    requisition_a = procurement.submit_requisition(requisition_a.id)
+
+    requisition_b = procurement.create_requisition(
+        requesting_site_id=site.id,
+        requesting_storeroom_id=storeroom.id,
+        purpose="Requisition B",
+        needed_by_date=date(2026, 4, 12),
+    )
+    line_b = procurement.add_requisition_line(
+        requisition_b.id,
+        stock_item_id=item.id,
+        quantity_requested=3,
+        suggested_supplier_party_id=supplier.id,
+        estimated_unit_cost=250.0,
+    )
+    requisition_b = procurement.submit_requisition(requisition_b.id)
+
+    login_as(services, "papr-approver3", "StrongPass123")
+    approvals.approve_and_apply(requisition_a.approval_request_id, note="Approved requisition A")
+    approvals.approve_and_apply(requisition_b.approval_request_id, note="Approved requisition B")
+
+    login_as(services, "papr-buyer3", "StrongPass123")
+    purchase_order = purchasing.create_purchase_order(
+        site_id=site.id, supplier_party_id=supplier.id, currency_code="EUR",
+    )
+    purchasing.add_purchase_order_line(
+        purchase_order.id,
+        stock_item_id=item.id,
+        destination_storeroom_id=storeroom.id,
+        quantity_ordered=2,
+        unit_price=240.0,
+        source_requisition_line_id=line_a.id,
+    )
+    purchasing.add_purchase_order_line(
+        purchase_order.id,
+        stock_item_id=item.id,
+        destination_storeroom_id=storeroom.id,
+        quantity_ordered=3,
+        unit_price=240.0,
+        source_requisition_line_id=line_b.id,
+    )
+    purchase_order = purchasing.submit_purchase_order(purchase_order.id)
+    return requisition_a, requisition_b, purchase_order
+
+
+def test_participant_apply_emits_one_sourcing_event_per_touched_requisition(services, session):
+    requisition_a, requisition_b, purchase_order = _submitted_purchase_order_sourcing_two_requisitions(
+        services
+    )
+    request = _pending_request(services, purchase_order)
+    deps = _deps(services, session)
+
+    result = PurchasingApprovalParticipant().apply(request, deps)
+
+    sourcing_events = [
+        e for e in result.domain_events if isinstance(e, InventoryRequisitionSourcingAdvanced)
+    ]
+    assert len(sourcing_events) == 2, (
+        "a PO sourcing two different requisitions must emit one sourcing event per requisition"
+    )
+    touched_ids = {e.requisition_id for e in sourcing_events}
+    assert touched_ids == {requisition_a.id, requisition_b.id}
+    for event in sourcing_events:
+        assert event.resulting_status == "FULLY_SOURCED"
+
+
+def test_failed_approval_never_reaches_the_view_invalidation_channel(services, session):
+    """P28B-FIX §7: a rejected/failed approval must never produce a Requisition sourcing fact --
+    `reject()` never sources anything, so `domain_events` must contain zero
+    `InventoryRequisitionSourcingAdvanced`."""
+    (
+        _site,
+        _storeroom,
+        _item,
+        _supplier,
+        _requisition,
+        _requisition_line,
+        purchase_order,
+        _purchase_order_line,
+    ) = _submitted_purchase_order_sourced_from_requisition(services)
+    request = _pending_request(services, purchase_order)
+    deps = _deps(services, session)
+
+    result = PurchasingApprovalParticipant().reject(request, deps)
+
+    sourcing_events = [
+        e for e in result.domain_events if isinstance(e, InventoryRequisitionSourcingAdvanced)
+    ]
+    assert sourcing_events == []

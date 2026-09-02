@@ -2681,6 +2681,66 @@ absent. The legacy Signal count is 18 as of this phase (19 minus the one deletio
 source-derived). The Purchase Order capability is fully modernized. This also unblocks Requisition
 (P29): the sole non-Requisition-owned producer of `inventory_requisitions_changed` is gone.
 
+**26.24 P28B-FIX: Requisition-sourcing ViewInvalidation had a real UI-consumer gap, now closed.**
+§26.23's "so P29 inherits a working target" claim was accurate for the domain-event handler and
+its `platform_post_commit_bus` wiring (both were already correct), but incomplete: no QML adapter
+anywhere consumed `requisition_list`/`requisition_detail` hints — `PurchaseOrderViewInvalidationAdapter`
+filters strictly on the two PO scope codes, so a Requisition-sourcing hint reached it and was
+silently dropped. This meant a PO approval that sourced a Requisition stopped emitting the legacy
+`inventory_requisitions_changed` (§26.23's intended change) but nothing typed replaced it in the
+UI — a real regression versus pre-P28B behavior. Fixed with a new `RequisitionViewInvalidationAdapter`
+(structurally identical to `PurchaseOrderViewInvalidationAdapter`), wired in `context.py` for
+Procurement only; Dashboard was deliberately not wired after re-confirming from source that its
+only Requisition filter (`{SUBMITTED, UNDER_REVIEW}`) is never touched by sourcing transitions.
+No backend/domain/transaction code changed. Legacy Signal count unchanged at 18.
+
+**26.25 Inventory Requisition: FULLY MODERNIZED (P29) — `inventory_requisitions_changed`
+DELETED.** Implemented P27A's audit exactly as recommended (Option A extension of the existing
+`RequisitionSubmissionUnitOfWork`; name kept, matching §26.23's own precedent for the identical
+"broaden but don't rename" decision — unlike PO's UoW, Requisition's already carried every
+accessor (`requisitions`/`requisition_lines`/`approvals`/`_enterprise_audit_service`) create/
+add-line/update/cancel needed, so no new named repositories were required at all). `create_
+requisition`/`add_requisition_line`/`update_requisition`/`cancel_requisition` moved off raw
+`self._session.commit()` onto this canonical UoW, gaining real compliance audit for the first time
+(previously activity-feed only); `update_requisition` gained a true no-op guard it never had.
+
+Typed events: `InventoryRequisitionCreated`, `LineAdded`, `ProfileUpdated`, `Submitted`,
+`Approved`, `Rejected`, `Cancelled` — 7 events for P27A's 7 confirmed facts, added to the existing
+`requisition_events.py` alongside the unmodified `InventoryRequisitionSourcingAdvanced` (§26.23).
+Approve/reject (`ProcurementApprovalMixin`) converted off the legacy `ApprovalPostCommitEvent`
+bridge onto `ApprovalHandlerResult.domain_events`, reusing the exact same
+`ApprovalService.approve_and_apply`/`reject` drain loop P28B already exercised for Purchase Order
+— no new plumbing, no participant exposure to `UnitOfWork`/`record_event`.
+
+ViewInvalidation: the handler that only ever covered the one PO-triggered sourcing event
+(`build_requisition_sourcing_view_invalidation_handler`) was generalized into `build_requisition_
+view_invalidation_handler`, its type union widened to all 8 Requisition event types — mirroring
+`build_purchase_order_view_invalidation_handler`'s own single-handler shape for 10 PO events, one
+dedupe-state pool per correlation_id rather than eight independent ones. Every event notifies both
+`requisition_list`/`requisition_detail` (P19-FIX/P22-FIX/P28B "notify both" precedent). Consumer
+cutover reuses §26.24's `RequisitionViewInvalidationAdapter` unchanged — no second adapter class.
+Procurement's existing wiring needed no change; Dashboard gained a **new** wiring, since Requisition's
+own Submitted/Approved/Rejected/Cancelled facts (unlike the sourcing-only event §26.24 evaluated)
+genuinely move a Requisition into or out of Dashboard's `{SUBMITTED, UNDER_REVIEW}` "Awaiting
+Approval" KPI filter — confirmed via source, not assumed from §26.24's opposite conclusion for a
+different event.
+
+A significant correction to three prior phases' own characterization: P27A/P28A/P28B all read
+`_ensure_business_supplier_scope` in isolation and concluded a Requisition line's suggested
+supplier was never checked for organization membership — a "real gap." Tracing its sole caller
+(`_validate_supplier_reference`) one line up shows `PartyService.get_party` already scopes its own
+lookup to the active organization, raising `NotFoundError` for a cross-org party before
+`_ensure_business_supplier_scope` ever runs — confirmed by a real regression test constructing a
+genuine cross-org Party row. No code was added for this (a second, unreachable check would be dead
+code); the finding is corrected here rather than carried forward again.
+
+`inventory_requisitions_changed` is now deleted from `DomainEvents` entirely — zero producers (all
+7 remaining sites converged), zero consumers (all 6 workspace binder subscriptions removed), field
+absent. The legacy Signal count is 17 as of this phase (18 minus the one deletion — confirmed
+source-derived). Both Purchase Order and Requisition are now fully modernized; no next
+Inventory/Procurement capability has been chosen (Reservation, Stock Balance/Ledger, Cycle Count,
+and Goods Receipt remain unaudited).
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

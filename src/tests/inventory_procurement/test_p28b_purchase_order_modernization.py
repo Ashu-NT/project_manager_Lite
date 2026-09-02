@@ -1,31 +1,64 @@
-"""P28B: Purchase Order full modernization -- typed events replace `inventory_purchase_orders_changed`
-for every producer, PO's canonical UoW covers create/add-line/update/submit/cancel/send/close/
-receiving, and `PurchaseRequisitionLine` gains real optimistic-concurrency protection for the
-PO-approval -> Requisition-sourcing mutation (P28A's identified cross-transaction race).
-
-`inventory_purchase_orders_changed` was DELETED from `DomainEvents` (not just left unemitted) --
-these tests assert `not hasattr(domain_events, "inventory_purchase_orders_changed")` rather than
-connecting a counter to it, since connecting to a deleted attribute is itself an `AttributeError`."""
-
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date
+from datetime import date, datetime, timezone
 from uuid import uuid4
 
 import pytest
 from sqlalchemy.orm import sessionmaker
 
+from src.core.modules.inventory_procurement.application.procurement.event_handlers.view_invalidation import (
+    PROCUREMENT_CATEGORY,
+    REQUISITION_DETAIL_SCOPE_CODE,
+    REQUISITION_LIST_SCOPE_CODE,
+    build_requisition_view_invalidation_handler,
+)
 from src.core.modules.inventory_procurement.domain.procurement.purchasing import (
     PurchaseRequisitionLineStatus,
+)
+from src.core.modules.inventory_procurement.domain.procurement.requisition_events import (
+    InventoryRequisitionSourcingAdvanced,
 )
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.procurement import (
     SqlAlchemyPurchaseRequisitionLineRepository,
 )
 from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.platform.domain.master_data.party import PartyType
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_events import domain_events
+from src.core.shared.events.view_invalidation import OrganizationScope, ResourceScope
 from src.tests.ui_runtime_helpers import login_as
+
+
+def _fake_channel():
+    class _FakeChannel:
+        def __init__(self) -> None:
+            self.notified: list = []
+
+        def notify(self, hint) -> None:
+            self.notified.append(hint)
+
+    return _FakeChannel()
+
+
+def _spy_hints(services):
+    hints = []
+
+    class _AnyOrgFilter:
+        def matches(self, scope) -> bool:
+            return True
+
+    services["platform_view_invalidation_channel"].subscribe(_AnyOrgFilter(), lambda hint: hints.append(hint))
+    return hints
+
+
+def _requisition_hints(hints):
+    return [
+        h
+        for h in hints
+        if h.category == PROCUREMENT_CATEGORY
+        and h.scope_code in (REQUISITION_LIST_SCOPE_CODE, REQUISITION_DETAIL_SCOPE_CODE)
+    ]
 
 
 def _procurement_context(services, suffix):
@@ -155,13 +188,6 @@ def test_update_purchase_order_true_no_op_writes_nothing(services):
 
 
 class _FakeDocumentIntegrationService:
-    """P28B discovered a genuine, PRE-EXISTING bug (confirmed via `git show HEAD` to predate this
-    phase): `PurchasingService.link_document`/`unlink_document` call `DocumentIntegrationService.
-    link_existing_document`/`unlink_existing_document` with a `module=...` kwarg neither method
-    accepts (`TypeError`) -- these two methods have never worked in production. Out of scope for
-    P28B (unrelated to event/signal modernization); reported, not fixed here. This fake isolates
-    the ONE thing this test actually verifies -- that PO's own legacy signal is gone -- from that
-    unrelated, pre-existing defect."""
 
     def __init__(self):
         self.link_calls: list[dict] = []
@@ -176,9 +202,6 @@ class _FakeDocumentIntegrationService:
 
 
 def test_document_link_unlink_do_not_touch_purchase_order(services):
-    """P28B SS2: linking/unlinking a document must not mutate PO's own persisted row and must
-    have no PO signal to emit any more (the field is deleted) -- P16D's typed
-    `DocumentReferenceLinked`/`Unlinked` remains the sole record of the fact."""
     suffix = uuid4().hex[:6].upper()
     auth = services["auth_service"]
     auth.register_user(f"p28b-doc-{suffix}", "StrongPass123", role_names=["inventory_manager"])
@@ -207,9 +230,6 @@ def test_document_link_unlink_do_not_touch_purchase_order(services):
 
 
 def test_purchase_order_lifecycle_reaches_cancelled(services):
-    """P28B SS30/SS33: create/add-line/update/cancel all converge onto typed events + the
-    canonical UoW -- no legacy signal exists any more to assert zero on, so this proves the
-    lifecycle itself still works end-to-end after the convergence."""
     suffix = uuid4().hex[:6].upper()
     auth = services["auth_service"]
     auth.register_user(f"p28b-life-{suffix}", "StrongPass123", role_names=["inventory_manager"])
@@ -279,3 +299,281 @@ def test_post_receipt_reaches_fully_received_with_receipt_signal_unchanged(servi
 
     resulting_po = purchasing.get_purchase_order(po.id)
     assert resulting_po.status.value == "FULLY_RECEIVED"
+
+
+# ---------------------------------------------------------------------------
+# P28B-FIX: InventoryRequisitionSourcingAdvanced -> requisition_list/requisition_detail
+# ViewInvalidation (handler-level mapping/dedupe, unit-level, no DB)
+# ---------------------------------------------------------------------------
+
+
+def _sourcing_event(requisition_id, purchase_order_id="po-1", resulting_status="PARTIALLY_SOURCED"):
+    return InventoryRequisitionSourcingAdvanced(
+        tenant_id="t1",
+        organization_id="o1",
+        requisition_id=requisition_id,
+        purchase_order_id=purchase_order_id,
+        resulting_status=resulting_status,
+        occurred_at=datetime.now(timezone.utc),
+    )
+
+
+def test_requisition_sourcing_event_maps_to_list_and_detail_targets():
+    channel = _fake_channel()
+    handler = build_requisition_view_invalidation_handler(channel)
+
+    handler(_sourcing_event("req-a"), DomainEventContext(correlation_id="tx"))
+
+    assert len(channel.notified) == 2
+    list_hint, detail_hint = channel.notified
+    assert list_hint.scope_code == REQUISITION_LIST_SCOPE_CODE
+    assert isinstance(list_hint.scope, OrganizationScope)
+    assert detail_hint.scope_code == REQUISITION_DETAIL_SCOPE_CODE
+    assert isinstance(detail_hint.scope, ResourceScope)
+    assert detail_hint.scope.entity_type == "purchase_requisition"
+    assert detail_hint.scope.entity_id == "req-a"
+    assert detail_hint.entity_id == "req-a"
+
+
+def test_requisition_sourcing_multiple_lines_of_same_requisition_dedupe_to_one_pair_of_hints():
+    channel = _fake_channel()
+    handler = build_requisition_view_invalidation_handler(channel)
+
+    handler(_sourcing_event("req-a", resulting_status="PARTIALLY_SOURCED"), DomainEventContext(correlation_id="tx"))
+    handler(_sourcing_event("req-a", resulting_status="FULLY_SOURCED"), DomainEventContext(correlation_id="tx"))
+
+    assert len(channel.notified) == 2, "same requisition, same transaction: one list hint + one detail hint"
+
+
+def test_requisition_sourcing_two_requisitions_one_list_hint_two_detail_hints():
+    """P28B-FIX §3: one PO approval touching Requisition A and Requisition B must produce ONE
+    organization-list hint (not per-requisition_id) plus one exact detail hint per requisition."""
+    channel = _fake_channel()
+    handler = build_requisition_view_invalidation_handler(channel)
+
+    handler(_sourcing_event("req-a"), DomainEventContext(correlation_id="tx"))
+    handler(_sourcing_event("req-b"), DomainEventContext(correlation_id="tx"))
+
+    list_hints = [h for h in channel.notified if h.scope_code == REQUISITION_LIST_SCOPE_CODE]
+    detail_hints = [h for h in channel.notified if h.scope_code == REQUISITION_DETAIL_SCOPE_CODE]
+    assert len(list_hints) == 1, "org-list dedupe key must not include requisition_id"
+    assert len(detail_hints) == 2
+    assert {h.scope.entity_id for h in detail_hints} == {"req-a", "req-b"}
+
+
+def test_requisition_sourcing_new_transaction_is_not_deduped_with_previous():
+    channel = _fake_channel()
+    handler = build_requisition_view_invalidation_handler(channel)
+
+    handler(_sourcing_event("req-a"), DomainEventContext(correlation_id="tx-1"))
+    handler(_sourcing_event("req-a"), DomainEventContext(correlation_id="tx-2"))
+
+    assert len(channel.notified) == 4, "a new correlation_id must never coalesce with a prior transaction"
+
+
+def test_requisition_sourcing_different_organization_is_a_separate_target():
+    channel = _fake_channel()
+    handler = build_requisition_view_invalidation_handler(channel)
+
+    handler(_sourcing_event("req-a"), DomainEventContext(correlation_id="tx"))
+    other_org_event = InventoryRequisitionSourcingAdvanced(
+        tenant_id="t1",
+        organization_id="o2",
+        requisition_id="req-a",
+        purchase_order_id="po-1",
+        resulting_status="PARTIALLY_SOURCED",
+        occurred_at=datetime.now(timezone.utc),
+    )
+    handler(other_org_event, DomainEventContext(correlation_id="tx"))
+
+    assert len(channel.notified) == 4, "a different organization is never coalesced away, even same requisition_id"
+
+
+# ---------------------------------------------------------------------------
+# P28B-FIX: production wiring -- PO approval -> real Requisition sourcing DomainEvent ->
+# real ViewInvalidation channel (not just the handler in isolation)
+# ---------------------------------------------------------------------------
+
+
+def test_po_approval_sourcing_requisition_produces_requisition_list_and_detail_hints_end_to_end(
+    services,
+):
+    suffix = uuid4().hex[:6].upper()
+    auth = services["auth_service"]
+    auth.register_user(f"p28bfix-buyer-{suffix}", "StrongPass123", role_names=["inventory_manager"])
+    auth.register_user(f"p28bfix-appr-{suffix}", "StrongPass123", role_names=["approver"])
+    site, storeroom, item, supplier = _procurement_context(services, suffix)
+    login_as(services, f"p28bfix-buyer-{suffix}", "StrongPass123")
+    procurement = services["inventory_procurement_service"]
+    purchasing = services["inventory_purchasing_service"]
+    approvals = services["approval_service"]
+
+    requisition = procurement.create_requisition(
+        requesting_site_id=site.id,
+        requesting_storeroom_id=storeroom.id,
+        purpose="P28B-FIX end-to-end",
+        needed_by_date=date(2026, 5, 1),
+    )
+    requisition_line = procurement.add_requisition_line(
+        requisition.id,
+        stock_item_id=item.id,
+        quantity_requested=5,
+        suggested_supplier_party_id=supplier.id,
+        estimated_unit_cost=100.0,
+    )
+    requisition = procurement.submit_requisition(requisition.id)
+
+    login_as(services, f"p28bfix-appr-{suffix}", "StrongPass123")
+    approvals.approve_and_apply(requisition.approval_request_id, note="Approved requisition")
+
+    login_as(services, f"p28bfix-buyer-{suffix}", "StrongPass123")
+    po = purchasing.create_purchase_order(
+        site_id=site.id,
+        supplier_party_id=supplier.id,
+        currency_code="EUR",
+        source_requisition_id=requisition.id,
+    )
+    purchasing.add_purchase_order_line(
+        po.id,
+        stock_item_id=item.id,
+        destination_storeroom_id=storeroom.id,
+        quantity_ordered=5,
+        unit_price=100.0,
+        source_requisition_line_id=requisition_line.id,
+    )
+    po = purchasing.submit_purchase_order(po.id)
+
+    hints = _spy_hints(services)
+
+    login_as(services, f"p28bfix-appr-{suffix}", "StrongPass123")
+    approvals.approve_and_apply(po.approval_request_id, note="Approved PO, sources requisition")
+
+    req_hints = _requisition_hints(hints)
+    assert len(req_hints) == 2
+    assert {h.scope_code for h in req_hints} == {REQUISITION_LIST_SCOPE_CODE, REQUISITION_DETAIL_SCOPE_CODE}
+    detail = next(h for h in req_hints if h.scope_code == REQUISITION_DETAIL_SCOPE_CODE)
+    assert detail.scope.entity_id == requisition.id
+
+    assert not hasattr(domain_events, "inventory_requisitions_changed"), (
+        "P29 deleted this field entirely once Requisition's own remaining 7 producers converged "
+        "too -- at P28B time it was still present (only the PO-triggered emission was removed); "
+        "this assertion was updated by P29, superseding P28B's own version of this test"
+    )
+
+
+def test_concurrency_losing_po_approval_produces_zero_requisition_invalidation(
+    services, monkeypatch
+):
+    """P28B-FIX §7 + P28B SS9/SS10: a PO approval that loses the optimistic-concurrency race on
+    `PurchaseRequisitionLine` must roll back entirely and reach the ViewInvalidation channel with
+    NOTHING -- not a partial hint, not a stale-state hint."""
+    suffix = uuid4().hex[:6].upper()
+    auth = services["auth_service"]
+    auth.register_user(f"p28bfix-race-buyer-{suffix}", "StrongPass123", role_names=["inventory_manager"])
+    auth.register_user(f"p28bfix-race-appr-{suffix}", "StrongPass123", role_names=["approver"])
+    site, storeroom, item, supplier = _procurement_context(services, suffix)
+    login_as(services, f"p28bfix-race-buyer-{suffix}", "StrongPass123")
+    procurement = services["inventory_procurement_service"]
+    purchasing = services["inventory_purchasing_service"]
+    approvals = services["approval_service"]
+
+    requisition = procurement.create_requisition(
+        requesting_site_id=site.id,
+        requesting_storeroom_id=storeroom.id,
+        purpose="P28B-FIX concurrency race",
+        needed_by_date=date(2026, 5, 1),
+    )
+    requisition_line = procurement.add_requisition_line(
+        requisition.id,
+        stock_item_id=item.id,
+        quantity_requested=10,
+        suggested_supplier_party_id=supplier.id,
+        estimated_unit_cost=100.0,
+    )
+    requisition = procurement.submit_requisition(requisition.id)
+
+    login_as(services, f"p28bfix-race-appr-{suffix}", "StrongPass123")
+    approvals.approve_and_apply(requisition.approval_request_id, note="Approved requisition")
+
+    login_as(services, f"p28bfix-race-buyer-{suffix}", "StrongPass123")
+    po = purchasing.create_purchase_order(
+        site_id=site.id, supplier_party_id=supplier.id, currency_code="EUR",
+        source_requisition_id=requisition.id,
+    )
+    purchasing.add_purchase_order_line(
+        po.id,
+        stock_item_id=item.id,
+        destination_storeroom_id=storeroom.id,
+        quantity_ordered=4,
+        unit_price=100.0,
+        source_requisition_line_id=requisition_line.id,
+    )
+    po = purchasing.submit_purchase_order(po.id)
+
+    # Simulate this approval racing against a concurrent writer that already advanced the row's
+    # version by the time this transaction tries to persist its own update -- the conditional
+    # UPDATE must affect zero rows and raise ConcurrencyError, exactly as it would for a genuine
+    # concurrent commit (test_requisition_line_sourcing_rejects_concurrent_stale_update proves the
+    # repository mechanism itself; this proves the ApprovalService-level consequence: rollback,
+    # zero postcommit events).
+    original_update = SqlAlchemyPurchaseRequisitionLineRepository.update
+
+    def _stale_update(self, line):
+        stale = replace(line, version=line.version + 99)  # force a version mismatch
+        return original_update(self, stale)
+
+    monkeypatch.setattr(SqlAlchemyPurchaseRequisitionLineRepository, "update", _stale_update)
+
+    hints = _spy_hints(services)
+
+    login_as(services, f"p28bfix-race-appr-{suffix}", "StrongPass123")
+    with pytest.raises(ConcurrencyError):
+        approvals.approve_and_apply(po.approval_request_id, note="Loses the concurrency race")
+
+    assert _requisition_hints(hints) == [], "a rolled-back approval must publish zero ViewInvalidation hints"
+
+    unchanged_line = purchasing._requisition_line_repo.get(requisition_line.id)
+    assert unchanged_line.quantity_sourced in (0, 0.0, None), "the losing transaction's mutation must not persist"
+
+    login_as(services, f"p28bfix-race-buyer-{suffix}", "StrongPass123")
+    unchanged_po = purchasing.get_purchase_order(po.id)
+    assert unchanged_po.status.value == "SUBMITTED", "the PO's own approval must roll back together with the sourcing mutation"
+
+
+# ---------------------------------------------------------------------------
+# P28B-FIX: UI consumer wiring -- Procurement reacts, Dashboard deliberately does not
+# ---------------------------------------------------------------------------
+
+
+def test_procurement_workspace_requisition_sourcing_stale_triggers_full_refresh(services):
+    from src.application.runtime import build_desktop_api_registry
+    from src.ui_qml.modules.inventory_procurement.context import InventoryProcurementWorkspaceCatalog
+
+    registry = build_desktop_api_registry(services)
+    catalog = InventoryProcurementWorkspaceCatalog(desktop_api_registry=registry)
+    controller = catalog.procurementWorkspace
+    refresh_calls = []
+    controller.refresh = lambda: refresh_calls.append("refresh")
+
+    catalog._procurement_requisition_view_invalidation_adapter.requisitionListStale.emit("req-1")
+    assert refresh_calls == ["refresh"]
+
+    catalog._procurement_requisition_view_invalidation_adapter.requisitionDetailStale.emit("req-1")
+    assert refresh_calls == ["refresh", "refresh"]
+
+
+def test_dashboard_workspace_requisition_stale_triggers_full_refresh(services):
+    from src.application.runtime import build_desktop_api_registry
+    from src.ui_qml.modules.inventory_procurement.context import InventoryProcurementWorkspaceCatalog
+
+    registry = build_desktop_api_registry(services)
+    catalog = InventoryProcurementWorkspaceCatalog(desktop_api_registry=registry)
+    controller = catalog.dashboardWorkspace
+    refresh_calls = []
+    controller.refresh = lambda: refresh_calls.append("refresh")
+
+    catalog._dashboard_requisition_view_invalidation_adapter.requisitionListStale.emit("req-1")
+    assert refresh_calls == ["refresh"]
+
+    catalog._dashboard_requisition_view_invalidation_adapter.requisitionDetailStale.emit("req-1")
+    assert refresh_calls == ["refresh", "refresh"]

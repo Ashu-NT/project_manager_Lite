@@ -13,7 +13,14 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing_events
     InventoryPurchaseOrderSubmitted,
 )
 from src.core.modules.inventory_procurement.domain.procurement.requisition_events import (
+    InventoryRequisitionApproved,
+    InventoryRequisitionCancelled,
+    InventoryRequisitionCreated,
+    InventoryRequisitionLineAdded,
+    InventoryRequisitionProfileUpdated,
+    InventoryRequisitionRejected,
     InventoryRequisitionSourcingAdvanced,
+    InventoryRequisitionSubmitted,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import (
@@ -116,14 +123,26 @@ def build_purchase_order_view_invalidation_handler(channel: ViewInvalidationChan
     return handle_purchase_order_event
 
 
-def build_requisition_sourcing_view_invalidation_handler(channel: ViewInvalidationChannel):
+_RequisitionEvent = (
+    InventoryRequisitionCreated
+    | InventoryRequisitionLineAdded
+    | InventoryRequisitionProfileUpdated
+    | InventoryRequisitionSubmitted
+    | InventoryRequisitionApproved
+    | InventoryRequisitionRejected
+    | InventoryRequisitionCancelled
+    | InventoryRequisitionSourcingAdvanced
+)
+
+
+def build_requisition_view_invalidation_handler(channel: ViewInvalidationChannel):
 
     current_correlation_id: list[str | None] = [None]
     notified_org_targets: set[_OrgTarget] = set()
     notified_detail_targets: set[_DetailTarget] = set()
 
-    def handle_requisition_sourcing_event(
-        event: InventoryRequisitionSourcingAdvanced,
+    def handle_requisition_event(
+        event: _RequisitionEvent,
         context: DomainEventContext,
     ) -> None:
         if context.correlation_id != current_correlation_id[0]:
@@ -165,12 +184,12 @@ def build_requisition_sourcing_view_invalidation_handler(channel: ViewInvalidati
                 )
             )
 
-    return handle_requisition_sourcing_event
+    return handle_requisition_event
 
 
 __all__ = [
     "build_purchase_order_view_invalidation_handler",
-    "build_requisition_sourcing_view_invalidation_handler",
+    "build_requisition_view_invalidation_handler",
     "PROCUREMENT_CATEGORY",
     "PURCHASE_ORDER_LIST_SCOPE_CODE",
     "PURCHASE_ORDER_DETAIL_SCOPE_CODE",

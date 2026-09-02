@@ -57,7 +57,7 @@ from src.core.modules.inventory_procurement.application.catalog.event_handlers.v
 )
 from src.core.modules.inventory_procurement.application.procurement.event_handlers.view_invalidation import (
     build_purchase_order_view_invalidation_handler,
-    build_requisition_sourcing_view_invalidation_handler,
+    build_requisition_view_invalidation_handler,
 )
 from src.core.modules.inventory_procurement.domain.inventory.foundation_events import (
     InventoryReorderPolicyConfigured,
@@ -87,7 +87,14 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing_events
     InventoryPurchaseOrderSubmitted,
 )
 from src.core.modules.inventory_procurement.domain.procurement.requisition_events import (
+    InventoryRequisitionApproved,
+    InventoryRequisitionCancelled,
+    InventoryRequisitionCreated,
+    InventoryRequisitionLineAdded,
+    InventoryRequisitionProfileUpdated,
+    InventoryRequisitionRejected,
     InventoryRequisitionSourcingAdvanced,
+    InventoryRequisitionSubmitted,
 )
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.catalog import (
     SqlAlchemyInventoryItemCategoryRepository,
@@ -437,14 +444,22 @@ def build_inventory_procurement_service_bundle(
         platform_services.platform_post_commit_bus.subscribe(
             _purchase_order_event_type, _purchase_order_view_invalidation_handler
         )
-    _requisition_sourcing_view_invalidation_handler = (
-        build_requisition_sourcing_view_invalidation_handler(
-            platform_services.platform_view_invalidation_channel
+    _requisition_view_invalidation_handler = build_requisition_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _requisition_event_type in (
+        InventoryRequisitionCreated,
+        InventoryRequisitionLineAdded,
+        InventoryRequisitionProfileUpdated,
+        InventoryRequisitionSubmitted,
+        InventoryRequisitionApproved,
+        InventoryRequisitionRejected,
+        InventoryRequisitionCancelled,
+        InventoryRequisitionSourcingAdvanced,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _requisition_event_type, _requisition_view_invalidation_handler
         )
-    )
-    platform_services.platform_post_commit_bus.subscribe(
-        InventoryRequisitionSourcingAdvanced, _requisition_sourcing_view_invalidation_handler
-    )
     inventory_reservation_service = ReservationService(
         platform_services.session,
         reservation_repo,

@@ -7,18 +7,13 @@ from sqlalchemy.exc import IntegrityError
 
 from src.core.modules.inventory_procurement.application.common.support import (
     REQUISITION_STATUS_TRANSITIONS,
-    normalize_nonnegative_quantity,
     normalize_optional_date,
     normalize_optional_text,
-    normalize_positive_quantity,
-    normalize_source_reference_type,
-    normalize_uom,
     resolve_item_uom_factor,
     validate_transition,
 )
 from src.core.modules.inventory_procurement.application.procurement.procurement_support import (
     build_requisition_number,
-    normalize_priority,
 )
 from src.core.modules.inventory_procurement.domain.procurement.purchasing import (
     PurchaseRequisition,
@@ -26,14 +21,21 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing import
     PurchaseRequisitionLineStatus,
     PurchaseRequisitionStatus,
 )
+from src.core.modules.inventory_procurement.domain.procurement.requisition_events import (
+    InventoryRequisitionCancelled,
+    InventoryRequisitionCreated,
+    InventoryRequisitionLineAdded,
+    InventoryRequisitionProfileUpdated,
+    InventoryRequisitionSubmitted,
+)
 from src.core.platform.application.approval.approval_mutation_participant import (
     request_approval_using,
 )
 from src.core.platform.common.ids import generate_id
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, ValidationError
+from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 
 
 class ProcurementLifecycleMixin:
@@ -93,32 +95,58 @@ class ProcurementLifecycleMixin:
             source_status_snapshot=source_status_snapshot,
             notes=notes,
         )
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="create purchase requisition"
+        )
+        occurred_at = datetime.now(timezone.utc)
         try:
-            self._requisition_repo.add(requisition)
-            self._session.commit()
+            with self._require_requisition_uow_factory().create(
+                context=DomainEventContext(correlation_id=generate_id())
+            ) as uow:
+                uow.requisitions.add(requisition)
+                record_activity(
+                    uow,
+                    action="inventory_requisition.create",
+                    entity_type="purchase_requisition",
+                    entity_id=requisition.id,
+                    module="inventory",
+                    details={
+                        "requisition_number": requisition.requisition_number,
+                        "site_id": requisition.requesting_site_id,
+                        "storeroom_id": requisition.requesting_storeroom_id,
+                        "priority": requisition.priority,
+                    },
+                    commit=False,
+                )
+                record_audit_entry(
+                    uow,
+                    operation="create",
+                    entity_type="purchase_requisition",
+                    entity_id=requisition.id,
+                    module="inventory",
+                    severity="low",
+                    metadata={
+                        "requisition_number": requisition.requisition_number,
+                        "site_id": requisition.requesting_site_id,
+                        "storeroom_id": requisition.requesting_storeroom_id,
+                    },
+                    commit=False,
+                    fail_closed=True,
+                )
+                uow.record_event(
+                    InventoryRequisitionCreated(
+                        tenant_id=tenant_id,
+                        organization_id=organization.id,
+                        requisition_id=requisition.id,
+                        occurred_at=occurred_at,
+                    )
+                )
+                uow.commit()
         except IntegrityError as exc:
-            self._session.rollback()
             raise ValidationError(
                 "Requisition number already exists.",
                 code="INVENTORY_REQUISITION_NUMBER_EXISTS",
             ) from exc
-        except Exception:
-            self._session.rollback()
-            raise
-        record_activity(
-            self,
-            action="inventory_requisition.create",
-            entity_type="purchase_requisition",
-            entity_id=requisition.id,
-            module="inventory",
-            details={
-                "requisition_number": requisition.requisition_number,
-                "site_id": requisition.requesting_site_id,
-                "storeroom_id": requisition.requesting_storeroom_id,
-                "priority": requisition.priority,
-            },
-        )
-        domain_events.inventory_requisitions_changed.emit(requisition.id)
         return requisition
 
     def add_requisition_line(
@@ -165,33 +193,60 @@ class ProcurementLifecycleMixin:
             notes=notes,
         )
         resolve_item_uom_factor(item, line.uom, label="Requisition line UOM")
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="add purchase requisition line"
+        )
+        occurred_at = datetime.now(timezone.utc)
         try:
-            self._requisition_line_repo.add(line)
-            self._session.commit()
+            with self._require_requisition_uow_factory().create(
+                context=DomainEventContext(correlation_id=generate_id())
+            ) as uow:
+                uow.requisition_lines.add(line)
+                record_activity(
+                    uow,
+                    action="inventory_requisition_line.create",
+                    entity_type="purchase_requisition_line",
+                    entity_id=line.id,
+                    module="inventory",
+                    details={
+                        "requisition_id": requisition.id,
+                        "line_number": str(line.line_number),
+                        "stock_item_id": line.stock_item_id,
+                        "quantity_requested": str(line.quantity_requested),
+                        "uom": line.uom,
+                    },
+                    commit=False,
+                )
+                record_audit_entry(
+                    uow,
+                    operation="create",
+                    entity_type="purchase_requisition_line",
+                    entity_id=line.id,
+                    module="inventory",
+                    severity="low",
+                    metadata={
+                        "requisition_id": requisition.id,
+                        "line_number": str(line.line_number),
+                        "stock_item_id": line.stock_item_id,
+                    },
+                    commit=False,
+                    fail_closed=True,
+                )
+                uow.record_event(
+                    InventoryRequisitionLineAdded(
+                        tenant_id=tenant_id,
+                        organization_id=requisition.organization_id,
+                        requisition_id=requisition.id,
+                        requisition_line_id=line.id,
+                        occurred_at=occurred_at,
+                    )
+                )
+                uow.commit()
         except IntegrityError as exc:
-            self._session.rollback()
             raise ValidationError(
                 "Requisition line already exists.",
                 code="INVENTORY_REQUISITION_LINE_EXISTS",
             ) from exc
-        except Exception:
-            self._session.rollback()
-            raise
-        record_activity(
-            self,
-            action="inventory_requisition_line.create",
-            entity_type="purchase_requisition_line",
-            entity_id=line.id,
-            module="inventory",
-            details={
-                "requisition_id": requisition.id,
-                "line_number": str(line.line_number),
-                "stock_item_id": line.stock_item_id,
-                "quantity_requested": str(line.quantity_requested),
-                "uom": line.uom,
-            },
-        )
-        domain_events.inventory_requisitions_changed.emit(requisition.id)
         return line
 
     def submit_requisition(self, requisition_id: str, *, note: str = "") -> PurchaseRequisition:
@@ -262,21 +317,30 @@ class ProcurementLifecycleMixin:
             for line in submitted_lines:
                 uow.requisition_lines.update(line)
             uow.requisitions.update(submitted_requisition)
+            record_activity(
+                uow,
+                action="inventory_requisition.submit",
+                entity_type="purchase_requisition",
+                entity_id=submitted_requisition.id,
+                module="inventory",
+                details={
+                    "requisition_number": submitted_requisition.requisition_number,
+                    "approval_request_id": request.id,
+                    "note": normalize_optional_text(note),
+                },
+                commit=False,
+            )
+            uow.record_event(
+                InventoryRequisitionSubmitted(
+                    tenant_id=tenant_id,
+                    organization_id=submitted_requisition.organization_id,
+                    requisition_id=submitted_requisition.id,
+                    approval_request_id=request.id,
+                    occurred_at=effective_at,
+                )
+            )
             uow.commit()
-        record_activity(
-            self,
-            action="inventory_requisition.submit",
-            entity_type="purchase_requisition",
-            entity_id=submitted_requisition.id,
-            module="inventory",
-            details={
-                "requisition_number": submitted_requisition.requisition_number,
-                "approval_request_id": request.id,
-                "note": normalize_optional_text(note),
-            },
-        )
         self._approval_service.publish_requested(request)
-        domain_events.inventory_requisitions_changed.emit(submitted_requisition.id)
         return submitted_requisition
 
     def update_requisition(
@@ -324,7 +388,7 @@ class ProcurementLifecycleMixin:
                 "Requesting storeroom must belong to the active organization.",
                 code="INVENTORY_REQUISITION_STOREROOM_SCOPE_INVALID",
             )
-        requisition = replace(
+        candidate = replace(
             requisition,
             requesting_site_id=next_site_id,
             requesting_storeroom_id=next_storeroom_id,
@@ -363,29 +427,57 @@ class ProcurementLifecycleMixin:
                 else source_status_snapshot
             ),
             notes=requisition.notes if notes is None else notes,
-            updated_at=datetime.now(timezone.utc),
         )
-        try:
-            self._requisition_repo.update(requisition)
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        record_activity(
-            self,
-            action="inventory_requisition.update",
-            entity_type="purchase_requisition",
-            entity_id=requisition.id,
-            module="inventory",
-            details={
-                "requisition_number": requisition.requisition_number,
-                "site_id": requisition.requesting_site_id,
-                "storeroom_id": requisition.requesting_storeroom_id,
-                "priority": requisition.priority,
-            },
+        if candidate == requisition:
+            return requisition
+        now = datetime.now(timezone.utc)
+        candidate = replace(candidate, updated_at=now)
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="update purchase requisition"
         )
-        domain_events.inventory_requisitions_changed.emit(requisition.id)
-        return requisition
+        with self._require_requisition_uow_factory().create(
+            context=DomainEventContext(correlation_id=generate_id())
+        ) as uow:
+            uow.requisitions.update(candidate)
+            record_activity(
+                uow,
+                action="inventory_requisition.update",
+                entity_type="purchase_requisition",
+                entity_id=candidate.id,
+                module="inventory",
+                details={
+                    "requisition_number": candidate.requisition_number,
+                    "site_id": candidate.requesting_site_id,
+                    "storeroom_id": candidate.requesting_storeroom_id,
+                    "priority": candidate.priority,
+                },
+                commit=False,
+            )
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="purchase_requisition",
+                entity_id=candidate.id,
+                module="inventory",
+                severity="low",
+                metadata={
+                    "requisition_number": candidate.requisition_number,
+                    "site_id": candidate.requesting_site_id,
+                    "storeroom_id": candidate.requesting_storeroom_id,
+                },
+                commit=False,
+                fail_closed=True,
+            )
+            uow.record_event(
+                InventoryRequisitionProfileUpdated(
+                    tenant_id=tenant_id,
+                    organization_id=candidate.organization_id,
+                    requisition_id=candidate.id,
+                    occurred_at=now,
+                )
+            )
+            uow.commit()
+        return candidate
 
     def cancel_requisition(
         self,
@@ -407,35 +499,60 @@ class ProcurementLifecycleMixin:
             transitions=REQUISITION_STATUS_TRANSITIONS,
         )
         effective_at = datetime.now(timezone.utc)
-        requisition = replace(
+        cancelled_requisition = replace(
             requisition,
             status=PurchaseRequisitionStatus.CANCELLED,
             cancelled_at=effective_at,
             updated_at=effective_at,
         )
         lines = self._requisition_line_repo.list_for_requisition(requisition.id)
-        for line in lines:
-            line = replace(line, status=PurchaseRequisitionLineStatus.CANCELLED)
-            self._requisition_line_repo.update(line)
-        try:
-            self._requisition_repo.update(requisition)
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        record_activity(
-            self,
-            action="inventory_requisition.cancel",
-            entity_type="purchase_requisition",
-            entity_id=requisition.id,
-            module="inventory",
-            details={
-                "requisition_number": requisition.requisition_number,
-                "note": normalize_optional_text(note),
-            },
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="cancel purchase requisition"
         )
-        domain_events.inventory_requisitions_changed.emit(requisition.id)
-        return requisition
+        with self._require_requisition_uow_factory().create(
+            context=DomainEventContext(correlation_id=generate_id())
+        ) as uow:
+            for line in lines:
+                line = replace(line, status=PurchaseRequisitionLineStatus.CANCELLED)
+                uow.requisition_lines.update(line)
+            uow.requisitions.update(cancelled_requisition)
+            record_activity(
+                uow,
+                action="inventory_requisition.cancel",
+                entity_type="purchase_requisition",
+                entity_id=cancelled_requisition.id,
+                module="inventory",
+                details={
+                    "requisition_number": cancelled_requisition.requisition_number,
+                    "note": normalize_optional_text(note),
+                },
+                commit=False,
+            )
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="purchase_requisition",
+                entity_id=cancelled_requisition.id,
+                module="inventory",
+                severity="medium",
+                metadata={
+                    "requisition_number": cancelled_requisition.requisition_number,
+                    "action": "cancel",
+                    "note": normalize_optional_text(note),
+                },
+                commit=False,
+                fail_closed=True,
+            )
+            uow.record_event(
+                InventoryRequisitionCancelled(
+                    tenant_id=tenant_id,
+                    organization_id=cancelled_requisition.organization_id,
+                    requisition_id=cancelled_requisition.id,
+                    occurred_at=effective_at,
+                )
+            )
+            uow.commit()
+        return cancelled_requisition
 
 
 __all__ = ["ProcurementLifecycleMixin"]

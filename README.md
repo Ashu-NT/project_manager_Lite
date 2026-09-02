@@ -162,15 +162,14 @@ Organization, Tenant Membership, Module Entitlements, Role Binding / Scoped Acce
 Employee, Department, Site, Party, Document, DocumentStructure, DocumentLink, Project Resource,
 Finance Forecast, Inventory Storeroom + Storage Location, Finance Financial Setup, Finance Rate
 Card, PM Baseline Approval, Inventory Item Catalog + Item Category, Inventory Reorder Policy,
-Purchase Order (P28B - also introduced Requisition's own first typed event,
-`InventoryRequisitionSourcingAdvanced`, for the PO-approval-triggered sourcing fact).
+Purchase Order (P28B/P28B-FIX), Inventory Requisition (P29).
 
-Current priority: Inventory Requisition (P29) - unblocked by P28B, its own 7 facts audited in
-P27A remain to implement.
+No next capability has been chosen yet - re-run prioritization from current source before
+committing to one.
 
 Remaining major areas still on legacy `Signal`s: Project Management (all but Resource/Baseline
 Approval), Finance (all but Forecast/Financial Setup/Rate Card), Inventory / Procurement
-(Requisition, Reservation, Stock Balance/Ledger, Cycle Count, Goods Receipt), Auth / Security.
+(Reservation, Stock Balance/Ledger, Cycle Count, Goods Receipt), Auth / Security.
 
 **References:** [`docs/architecture_decisions/ADR-005-domain-events.md`](docs/architecture_decisions/ADR-005-domain-events.md)
 (architectural decisions and rationale) and

@@ -11,11 +11,12 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing import
     PurchaseRequisitionLineStatus,
     PurchaseRequisitionStatus,
 )
-from src.core.platform.domain.approval import ApprovalRequest
-from src.core.platform.contract.models.approval.contracts import (
-    ApprovalHandlerResult,
-    ApprovalPostCommitEvent,
+from src.core.modules.inventory_procurement.domain.procurement.requisition_events import (
+    InventoryRequisitionApproved,
+    InventoryRequisitionRejected,
 )
+from src.core.platform.domain.approval import ApprovalRequest
+from src.core.platform.contract.models.approval.contracts import ApprovalHandlerResult
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 
@@ -71,10 +72,13 @@ class ProcurementApprovalMixin:
             commit=False,
         )
         return ApprovalHandlerResult(
-            post_commit_events=(
-                ApprovalPostCommitEvent(
-                    "inventory_requisitions_changed",
-                    requisition.id,
+            domain_events=(
+                InventoryRequisitionApproved(
+                    tenant_id=request.tenant_id,
+                    organization_id=requisition.organization_id,
+                    requisition_id=requisition.id,
+                    approval_request_id=request.id,
+                    occurred_at=effective_at,
                 ),
             )
         )
@@ -105,10 +109,11 @@ class ProcurementApprovalMixin:
             next_status=PurchaseRequisitionStatus.REJECTED.value,
             transitions=REQUISITION_STATUS_TRANSITIONS,
         )
+        effective_at = datetime.now(timezone.utc)
         requisition = replace(
             requisition,
             status=PurchaseRequisitionStatus.REJECTED,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=effective_at,
         )
         self._requisition_repo.update(requisition)
         for line in self._requisition_line_repo.list_for_requisition(requisition.id):
@@ -127,10 +132,13 @@ class ProcurementApprovalMixin:
             commit=False,
         )
         return ApprovalHandlerResult(
-            post_commit_events=(
-                ApprovalPostCommitEvent(
-                    "inventory_requisitions_changed",
-                    requisition.id,
+            domain_events=(
+                InventoryRequisitionRejected(
+                    tenant_id=request.tenant_id,
+                    organization_id=requisition.organization_id,
+                    requisition_id=requisition.id,
+                    approval_request_id=request.id,
+                    occurred_at=effective_at,
                 ),
             )
         )
