@@ -826,6 +826,8 @@ def test_searchable_selector_appends_server_pages_without_pagination_buttons(qap
     ).read_text(encoding="utf-8")
     assert 'text: "Prev"' not in source
     assert 'text: "Next"' not in source
+    assert ' + " of " +' not in source
+    assert '"0 results"' not in source
 
     engine = create_qml_engine()
     component = QQmlComponent(engine)

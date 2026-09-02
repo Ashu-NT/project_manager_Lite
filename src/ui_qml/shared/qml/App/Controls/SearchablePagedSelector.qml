@@ -263,24 +263,6 @@ QQC2.Control {
                 }
             }
 
-            RowLayout {
-                Layout.fillWidth: true
-
-                Label {
-                    Layout.fillWidth: true
-                    text: root.total > 0
-                        ? root.items.length + " of " + root.total + " results"
-                        : "0 results"
-                    color: Theme.AppTheme.textMuted
-                }
-
-                QQC2.BusyIndicator {
-                    visible: root.lookupBusy && root.currentPage > 1
-                    running: visible
-                    Layout.preferredWidth: Theme.AppTheme.toolbarIconSize
-                    Layout.preferredHeight: Theme.AppTheme.toolbarIconSize
-                }
-            }
         }
     }
 }

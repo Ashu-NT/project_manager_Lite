@@ -406,7 +406,8 @@ All finite Finance dropdowns use the same shared `AppControls.ComboBox` as
 Projects and Tasks. Large project/task/cost-code lookups retain the shared
 server-paged selector, but its UX is a continuous searchable result list:
 additional bounded pages load while scrolling and table-style Previous/Next
-pagination is not exposed inside the dropdown.
+pagination, page labels, and loaded/total result counts are not exposed inside
+the dropdown.
 
 ### R6C-B Migration And Runtime Repair
 
