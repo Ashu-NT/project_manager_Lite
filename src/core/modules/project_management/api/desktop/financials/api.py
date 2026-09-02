@@ -60,7 +60,14 @@ from src.core.modules.project_management.api.desktop.financials.models.commitmen
     FinancialCommitmentLinePageDto,
     FinancialCommitmentSummaryDto,
 )
-from src.core.modules.project_management.api.desktop.financials.models.forecasts import FinancialForecastWorkspaceDto
+from src.core.modules.project_management.api.desktop.financials.models.forecasts import (
+    FinancialForecastMutationDto,
+    FinancialForecastWorkspaceDto,
+)
+from src.core.modules.project_management.application.financials.forecasts.generation_models import (
+    ManualEtcEstimate,
+    RiskContingencyEstimate,
+)
 from src.core.modules.project_management.api.desktop.financials.models.options import (
     FinancialLookupOptionDto,
     FinancialLookupPageDto,
@@ -113,6 +120,10 @@ from src.core.modules.project_management.api.desktop.financials.commands.budgets
     FinancialUpdateBudgetCommand,
     FinancialUpdateBudgetLineCommand,
     FinancialVersionedBudgetCommand,
+)
+from src.core.modules.project_management.api.desktop.financials.commands.forecasts import (
+    FinancialGenerateForecastCommand,
+    FinancialVersionedForecastCommand,
 )
 from src.core.modules.project_management.api.desktop.financials.models.budgets import (
     FinancialBudgetLineMutationDto,
@@ -332,6 +343,47 @@ class ProjectManagementFinancialsDesktopApi:
         return _serialize_lookup_option(
             self._require_finance_workspace_query().resolve_budget_cost_code(
                 project_id, cost_code_id, effective_on=date.today()
+            )
+        )
+
+    def search_forecast_tasks(
+        self, project_id: str, *, search: str = "", page: int = 1, page_size: int = 25
+    ) -> FinancialLookupPageDto:
+        return _serialize_lookup_page(
+            self._require_finance_workspace_query().search_forecast_tasks(
+                project_id,
+                request=FinanceLookupQuery(search=search, page=page, page_size=page_size),
+            )
+        )
+
+    def search_forecast_cost_codes(
+        self,
+        project_id: str,
+        *,
+        search: str = "",
+        page: int = 1,
+        page_size: int = 25,
+        effective_on: date | None = None,
+    ) -> FinancialLookupPageDto:
+        return _serialize_lookup_page(
+            self._require_finance_workspace_query().search_forecast_cost_codes(
+                project_id,
+                request=ManualActualCostCodeQuery(
+                    search=search,
+                    page=page,
+                    page_size=page_size,
+                    effective_on=effective_on,
+                ),
+            )
+        )
+
+    def search_forecast_risks(
+        self, project_id: str, *, search: str = "", page: int = 1, page_size: int = 25
+    ) -> FinancialLookupPageDto:
+        return _serialize_lookup_page(
+            self._require_finance_workspace_query().search_forecast_risks(
+                project_id,
+                request=FinanceLookupQuery(search=search, page=page, page_size=page_size),
             )
         )
 
@@ -624,6 +676,75 @@ class ProjectManagementFinancialsDesktopApi:
             generation_mode=generation_mode,
             line_search=line_search,
             line_source_type=line_source_type,
+        )
+
+    def generate_forecast(
+        self, command: FinancialGenerateForecastCommand
+    ) -> FinancialForecastMutationDto:
+        result = self._require_finance_governance_commands().forecast_generation(
+            lambda service: service.generate_draft(
+                command.project_id,
+                name=command.name,
+                as_of_date=self._command_date(command.as_of_date, "Forecast as-of date"),
+                generated_by=self._actor_id(service),
+                manual_estimates=tuple(
+                    ManualEtcEstimate(
+                        cost_code_id=item.cost_code_id,
+                        task_id=item.task_id,
+                        description=item.description,
+                        amount=self._decimal_command_amount(item.amount),
+                        period_start=self._optional_command_date(item.period_start),
+                        period_end=self._optional_command_date(item.period_end),
+                    )
+                    for item in command.manual_estimates
+                ),
+                risk_contingencies=tuple(
+                    RiskContingencyEstimate(
+                        risk_id=item.risk_id,
+                        cost_code_id=item.cost_code_id,
+                        task_id=item.task_id,
+                        description=item.description,
+                        amount=self._decimal_command_amount(item.amount),
+                        period_start=self._optional_command_date(item.period_start),
+                        period_end=self._optional_command_date(item.period_end),
+                    )
+                    for item in command.risk_contingencies
+                ),
+                notes=command.notes,
+            ),
+            project_id=command.project_id,
+        )
+        return self._forecast_mutation_dto(result.forecast)
+
+    def submit_forecast(
+        self, command: FinancialVersionedForecastCommand
+    ) -> FinancialForecastMutationDto:
+        forecast = self._require_finance_governance_commands().forecast_version(
+            lambda service: service.submit_forecast(
+                command.forecast_id,
+                submitted_by=self._actor_id(service),
+                expected_version=command.expected_version,
+                notes=command.notes,
+            )
+        )
+        return self._forecast_mutation_dto(forecast)
+
+    def request_forecast_approval(
+        self, command: FinancialVersionedForecastCommand
+    ) -> FinancialForecastMutationDto:
+        result = self._require_finance_governance_commands().forecast_version(
+            lambda service: service.request_forecast_approval(
+                command.forecast_id,
+                expected_version=command.expected_version,
+                notes=command.notes,
+            )
+        )
+        return FinancialForecastMutationDto(
+            forecast_id=result.forecast_id,
+            project_id=result.project_id,
+            status=result.forecast_status.value,
+            row_version=result.row_version,
+            approval_request_id=result.approval_request_id,
         )
 
     def get_rate_workspace(
@@ -1154,6 +1275,29 @@ class ProjectManagementFinancialsDesktopApi:
                 code="PROJECT_BUDGET_LINE_AMOUNT_INVALID",
             )
         return amount
+
+    @staticmethod
+    def _command_date(value: str, label: str) -> date:
+        try:
+            return date.fromisoformat(str(value or "").strip())
+        except ValueError as exc:
+            raise ValidationError(
+                f"{label} must use YYYY-MM-DD.",
+                code="PROJECT_FORECAST_DATE_INVALID",
+            ) from exc
+
+    @classmethod
+    def _optional_command_date(cls, value: str) -> date | None:
+        return cls._command_date(value, "Forecast period date") if value else None
+
+    @staticmethod
+    def _forecast_mutation_dto(forecast) -> FinancialForecastMutationDto:
+        return FinancialForecastMutationDto(
+            forecast_id=forecast.id,
+            project_id=forecast.project_id,
+            status=forecast.status.value,
+            row_version=forecast.row_version,
+        )
 
     @staticmethod
     def _budget_mutation_dto(budget) -> FinancialBudgetMutationDto:

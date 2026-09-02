@@ -7,6 +7,7 @@ from .models.finance_forecast_facts import (
     ForecastLineFact,
     ForecastLineRequest,
     ForecastVersionFact,
+    ForecastVersionPageFacts,
     ForecastVersionRequest,
 )
 
@@ -19,7 +20,7 @@ class FinanceForecastReader(Protocol):
         organization_id: str,
         project_id: str,
         request: ForecastVersionRequest,
-    ) -> FinancePageFacts[ForecastVersionFact]: ...
+    ) -> ForecastVersionPageFacts: ...
 
     def get_version(
         self,

@@ -52,6 +52,19 @@ Item {
         budgetLifecycleDialog.open()
     }
 
+    function openForecastGenerationDialog() {
+        forecastGenerationDialog.projectId = root.selectedProjectId
+        forecastGenerationDialog.errorMessage = ""
+        forecastGenerationDialog.open()
+    }
+
+    function openForecastLifecycleDialog(action, forecast) {
+        forecastLifecycleDialog.action = String(action || "submit")
+        forecastLifecycleDialog.forecast = forecast || null
+        forecastLifecycleDialog.errorMessage = ""
+        forecastLifecycleDialog.open()
+    }
+
     // Opens the shared reject/post/reverse decision dialog for the given
     // canonical ProjectCostEntry. Submit and approve need no extra fields
     // and are dispatched directly by the caller without a dialog.
@@ -194,6 +207,40 @@ Item {
                 )
             }
             root._handleResult(budgetLifecycleDialog, result)
+        }
+    }
+
+    ForecastGenerationDialog {
+        id: forecastGenerationDialog
+        workspaceController: root.workspaceController
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onSubmitted: function(payload) {
+            if (!root.workspaceController) return
+            root._handleResult(
+                forecastGenerationDialog,
+                root.workspaceController.generateForecast(payload)
+            )
+        }
+    }
+
+    ForecastLifecycleDialog {
+        id: forecastLifecycleDialog
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onDecided: function(action, forecastId, version, requestId, notes) {
+            if (!root.workspaceController) return
+            let result
+            if (action === "submit") {
+                result = root.workspaceController.submitForecast(forecastId, version, notes)
+            } else if (action === "request_approval") {
+                result = root.workspaceController.requestForecastApproval(
+                    forecastId, version, notes
+                )
+            } else {
+                result = root.workspaceController.decideForecastApproval(
+                    requestId, action === "approve", notes
+                )
+            }
+            root._handleResult(forecastLifecycleDialog, result)
         }
     }
 }

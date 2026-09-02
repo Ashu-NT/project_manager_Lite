@@ -421,6 +421,9 @@ AppLayouts.WorkspaceFrame {
                     forecastGenerationMode: root.workspaceController ? root.workspaceController.forecastGenerationMode : ""
                     forecastLineSearch: root.workspaceController ? root.workspaceController.forecastLineSearch : ""
                     forecastLineSourceType: root.workspaceController ? root.workspaceController.forecastLineSourceType : ""
+                    showGenerateForecast: root.workspaceController ? root.workspaceController.showGenerateForecast : false
+                    canGenerateForecast: root.workspaceController ? root.workspaceController.canGenerateForecast : false
+                    generateForecastDisabledReason: root.workspaceController ? root.workspaceController.generateForecastDisabledReason : ""
                     financialChangesModel: root.workspaceController ? root.workspaceController.financialChanges : ({ "items": [] })
                     financialChangeImpactsModel: root.workspaceController ? root.workspaceController.financialChangeImpacts : ({ "items": [] })
                     selectedChangeModel: root.workspaceController ? root.workspaceController.selectedChange : ({ "id": "", "fields": [] })
@@ -561,6 +564,14 @@ AppLayouts.WorkspaceFrame {
                     }
                     onBudgetLineDeleteRequested: function(budget, line) {
                         dialogHostLoader.invoke("openBudgetLifecycleDialog", "delete_line", budget, line)
+                    }
+                    onForecastGenerateRequested: {
+                        dialogHostLoader.invoke("openForecastGenerationDialog")
+                    }
+                    onForecastLifecycleRequested: function(action, forecast) {
+                        dialogHostLoader.invoke(
+                            "openForecastLifecycleDialog", action, forecast
+                        )
                     }
                     onPlannedCostVersionSelected: function(versionId) {
                         if (root.workspaceController !== null) root.workspaceController.selectPlannedCostVersion(versionId)

@@ -244,6 +244,9 @@ Component {
     Property { name: "showCreateBudgetVersion"; type: "bool"; isReadonly: true }
     Property { name: "canCreateBudgetVersion"; type: "bool"; isReadonly: true }
     Property { name: "createBudgetVersionDisabledReason"; type: "QString"; isReadonly: true }
+    Property { name: "showGenerateForecast"; type: "bool"; isReadonly: true }
+    Property { name: "canGenerateForecast"; type: "bool"; isReadonly: true }
+    Property { name: "generateForecastDisabledReason"; type: "QString"; isReadonly: true }
     Property { name: "currencyOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "defaultCurrencyCode"; type: "QString"; isReadonly: true }
     Property { name: "budgetVersionSortKey"; type: "QString"; isReadonly: true }
@@ -351,6 +354,13 @@ Component {
     Method { name: "requestBudgetApproval"; type: "QVariantMap"; Parameter { name: "budgetId"; type: "QString" } Parameter { name: "version"; type: "int" } Parameter { name: "notes"; type: "QString" } }
     Method { name: "decideBudgetApproval"; type: "QVariantMap"; Parameter { name: "requestId"; type: "QString" } Parameter { name: "approve"; type: "bool" } Parameter { name: "notes"; type: "QString" } }
     Method { name: "closeBudget"; type: "QVariantMap"; Parameter { name: "budgetId"; type: "QString" } Parameter { name: "version"; type: "int" } Parameter { name: "notes"; type: "QString" } }
+    Method { name: "generateForecast"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "searchForecastTasks"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "search"; type: "QString" } Parameter { name: "page"; type: "int" } Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "searchForecastCostCodes"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "search"; type: "QString" } Parameter { name: "page"; type: "int" } Parameter { name: "pageSize"; type: "int" } Parameter { name: "effectiveOn"; type: "QString" } }
+    Method { name: "searchForecastRisks"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "search"; type: "QString" } Parameter { name: "page"; type: "int" } Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "submitForecast"; type: "QVariantMap"; Parameter { name: "forecastId"; type: "QString" } Parameter { name: "version"; type: "int" } Parameter { name: "notes"; type: "QString" } }
+    Method { name: "requestForecastApproval"; type: "QVariantMap"; Parameter { name: "forecastId"; type: "QString" } Parameter { name: "version"; type: "int" } Parameter { name: "notes"; type: "QString" } }
+    Method { name: "decideForecastApproval"; type: "QVariantMap"; Parameter { name: "requestId"; type: "QString" } Parameter { name: "approve"; type: "bool" } Parameter { name: "notes"; type: "QString" } }
     Method { name: "selectBillingPreparation"; Parameter { name: "preparationId"; type: "QString" } }
     Method { name: "setBillingSchedulePage"; Parameter { name: "page"; type: "int" } }
     Method { name: "setBillingPreparationPage"; Parameter { name: "page"; type: "int" } }

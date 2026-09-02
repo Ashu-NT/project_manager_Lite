@@ -25,6 +25,9 @@ Item {
     property string lineSearch: ""
     property string lineSourceType: ""
     property bool isBusy: false
+    property bool showGenerate: false
+    property bool canGenerate: false
+    property string generateDisabledReason: ""
 
     signal forecastSelected(string forecastId)
     signal versionPageRequested(int page)
@@ -33,6 +36,19 @@ Item {
     signal lineSortRequested(string key, int direction)
     signal versionFiltersRequested(string search, string status, string generationMode)
     signal lineFiltersRequested(string search, string sourceType)
+    signal generateRequested()
+    signal lifecycleRequested(string action, var forecast)
+
+    readonly property var selectedVersion: {
+        const items = root.forecastVersions.items || []
+        for (let index = 0; index < items.length; index += 1) {
+            if (String(items[index].id || "") === root.selectedForecastId)
+                return items[index]
+        }
+        return null
+    }
+    readonly property var selectedState: root.selectedVersion
+        ? (root.selectedVersion.state || {}) : ({})
 
     readonly property var _versionColumns: [
         { "key": "title", "label": "Forecast", "flex": 1.5, "sortable": true },
@@ -107,6 +123,53 @@ Item {
         AppWidgets.SectionHeading {
             Layout.fillWidth: true
             label: "Forecast Versions"
+        }
+
+        Flow {
+            Layout.fillWidth: true
+            spacing: Theme.AppTheme.spacingSm
+            leftPadding: Theme.AppTheme.spacingMd
+            rightPadding: Theme.AppTheme.spacingMd
+
+            AppControls.SecondaryButton {
+                visible: root.showGenerate
+                enabled: root.canGenerate && !root.isBusy
+                text: "Generate Forecast"
+                iconName: "add"
+                onClicked: root.generateRequested()
+            }
+            AppWidgets.InfoTip {
+                visible: root.showGenerate && !root.canGenerate
+                title: "Generate Forecast unavailable"
+                message: root.generateDisabledReason
+                    || "Complete the open Forecast workflow before generating another revision."
+                accessibleLabel: "Why Generate Forecast is unavailable"
+            }
+            AppControls.SecondaryButton {
+                visible: Boolean(root.selectedState.canSubmit)
+                text: "Submit"
+                iconName: "approve"
+                onClicked: root.lifecycleRequested("submit", root.selectedVersion)
+            }
+            AppControls.SecondaryButton {
+                visible: Boolean(root.selectedState.canRequestApproval)
+                text: "Request Approval"
+                iconName: "approve"
+                onClicked: root.lifecycleRequested("request_approval", root.selectedVersion)
+            }
+            AppControls.SecondaryButton {
+                visible: Boolean(root.selectedState.canApprove)
+                text: "Approve"
+                iconName: "approve"
+                onClicked: root.lifecycleRequested("approve", root.selectedVersion)
+            }
+            AppControls.SecondaryButton {
+                visible: Boolean(root.selectedState.canReject)
+                text: "Reject"
+                iconName: "reject"
+                danger: true
+                onClicked: root.lifecycleRequested("reject", root.selectedVersion)
+            }
         }
 
         AppWidgets.TableToolbar {

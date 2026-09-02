@@ -66,6 +66,9 @@ from src.core.modules.project_management.api.desktop.financials import (
     FinancialCreateManualActualCommand,
     FinancialDecideActualCommand,
     FinancialDeleteBudgetLineCommand,
+    FinancialGenerateForecastCommand,
+    FinancialManualEtcCommand,
+    FinancialRiskContingencyCommand,
     FinancialManualActualOptionsDto,
     FinancialMarkBillingScheduleLineReadyCommand,
     FinancialPostActualCommand,
@@ -79,6 +82,7 @@ from src.core.modules.project_management.api.desktop.financials import (
     FinancialVersionedActualCommand,
     FinancialVersionedBillingPreparationCommand,
     FinancialVersionedBudgetCommand,
+    FinancialVersionedForecastCommand,
     ProjectManagementFinancialsDesktopApi,
     build_project_management_financials_desktop_api,
 )

@@ -39,6 +39,9 @@ Item {
     property string forecastGenerationMode: ""
     property string forecastLineSearch: ""
     property string forecastLineSourceType: ""
+    property bool showGenerateForecast: false
+    property bool canGenerateForecast: false
+    property string generateForecastDisabledReason: ""
     property var financialChangesModel: ({ "items": [] })
     property var financialChangeImpactsModel: ({ "items": [] })
     property var selectedChangeModel: ({ "id": "", "fields": [] })
@@ -162,6 +165,8 @@ Item {
     signal forecastLineSortRequested(string key, int direction)
     signal forecastVersionFiltersRequested(string search, string status, string generationMode)
     signal forecastLineFiltersRequested(string search, string sourceType)
+    signal forecastGenerateRequested()
+    signal forecastLifecycleRequested(string action, var forecast)
     signal rateCardSelected(string rateCardId)
     signal rateCardPageRequested(int page)
     signal rateLinePageRequested(int page)
@@ -403,6 +408,13 @@ Item {
             generationMode: root.forecastGenerationMode
             lineSearch: root.forecastLineSearch
             lineSourceType: root.forecastLineSourceType
+            showGenerate: root.showGenerateForecast
+            canGenerate: root.canGenerateForecast
+            generateDisabledReason: root.generateForecastDisabledReason
+            onGenerateRequested: root.forecastGenerateRequested()
+            onLifecycleRequested: function(action, forecast) {
+                root.forecastLifecycleRequested(action, forecast)
+            }
             onForecastSelected: function(forecastId) {
                 root.forecastSelected(forecastId)
             }

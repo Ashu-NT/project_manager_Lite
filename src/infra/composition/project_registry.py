@@ -78,6 +78,9 @@ from src.core.modules.project_management.infrastructure.approval.billing_prepara
 from src.core.modules.project_management.infrastructure.approval.budget_apply_participant import (
     BudgetApprovalParticipant,
 )
+from src.core.modules.project_management.infrastructure.approval.forecast_apply_participant import (
+    ForecastApprovalParticipant,
+)
 from src.core.modules.project_management.infrastructure.approval.financial_change_apply_participant import (
     FinancialChangeApprovalParticipant,
 )
@@ -92,6 +95,9 @@ from src.infra.composition.approval_apply_dependencies.billing_preparation impor
     build_billing_preparation_approval_deps,
 )
 from src.infra.composition.approval_apply_dependencies.budget import build_budget_approval_deps
+from src.infra.composition.approval_apply_dependencies.forecast import (
+    build_forecast_approval_deps,
+)
 from src.infra.composition.approval_apply_dependencies.financial_change import (
     build_financial_change_approval_deps,
 )
@@ -732,6 +738,7 @@ def build_project_management_service_bundle(
             module_catalog_service=platform_services.module_catalog_service,
             tenant_context_service=platform_services.tenant_context_service,
             record_event=uow.record_event,
+            approval_service=platform_services.approval_service,
         )
         forecast_generation_operations = ForecastGenerationService(
             session=uow._session,
@@ -851,6 +858,7 @@ def build_project_management_service_bundle(
                 "update_line",
                 "delete_line",
                 "submit_forecast",
+                "request_forecast_approval",
                 "approve_forecast",
                 "reject_forecast",
                 "delete_forecast",
@@ -1177,6 +1185,24 @@ def _register_project_management_approval_handlers(
         "budget.approve",
         budget_participant.reject,
         dependencies_factory=budget_dependencies_factory,
+    )
+
+    forecast_participant = ForecastApprovalParticipant()
+    forecast_dependencies_factory = lambda uow_session: build_forecast_approval_deps(
+        uow_session,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+        module_catalog_service=module_catalog_service,
+    )
+    approval_service.register_apply_handler(
+        "forecast.approve",
+        forecast_participant.apply,
+        dependencies_factory=forecast_dependencies_factory,
+    )
+    approval_service.register_reject_handler(
+        "forecast.approve",
+        forecast_participant.reject,
+        dependencies_factory=forecast_dependencies_factory,
     )
 
     project_cost_participant = ProjectCostApprovalParticipant()

@@ -37,6 +37,9 @@ from src.core.modules.project_management.api.desktop.financials.models.options i
     FinancialLookupOptionDto,
     FinancialLookupPageDto,
 )
+from src.core.modules.project_management.api.desktop.financials.models.forecasts import (
+    FinancialForecastMutationDto,
+)
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
     FinancialOverviewDto,
     FinancialPeriodRowDto,
@@ -104,6 +107,7 @@ __all__ = [
     "FinancialPeriodRowDto",
     "FinancialLookupOptionDto",
     "FinancialLookupPageDto",
+    "FinancialForecastMutationDto",
     "FinancialProfileDto",
     "FinancialRateCardDetailDto",
     "FinancialRateTableRecordDto",

@@ -5,4 +5,6 @@ BudgetLineEditorDialog 1.0 BudgetLineEditorDialog.qml
 BudgetVersionEditorDialog 1.0 BudgetVersionEditorDialog.qml
 CostCodeEditorDialog 1.0 CostCodeEditorDialog.qml
 FinancialsDialogHost 1.0 FinancialsDialogHost.qml
+ForecastGenerationDialog 1.0 ForecastGenerationDialog.qml
+ForecastLifecycleDialog 1.0 ForecastLifecycleDialog.qml
 ManualActualEditorDialog 1.0 ManualActualEditorDialog.qml

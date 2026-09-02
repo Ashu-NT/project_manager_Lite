@@ -332,6 +332,11 @@ def build_destination_state(
             forecast_generation_mode=views["forecast_generation_mode"],
             forecast_line_search=views["forecast_line_search"],
             forecast_line_source_type=views["forecast_line_source_type"],
+            show_generate_forecast=views["show_generate_forecast"],
+            can_generate_forecast=views["can_generate_forecast"],
+            generate_forecast_disabled_reason=views[
+                "generate_forecast_disabled_reason"
+            ],
         )
 
     if destination == "costs":

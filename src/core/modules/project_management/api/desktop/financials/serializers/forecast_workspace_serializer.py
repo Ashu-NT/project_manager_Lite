@@ -54,6 +54,18 @@ def serialize_finance_forecast_workspace(
                 ("Approved", _datetime_label(selected.approved_at), selected.approved_by or ""),
                 ("Row version", str(selected.row_version), ""),
             ),
+            state={
+                "rowVersion": selected.row_version,
+                "status": selected.status,
+                "revision": selected.revision,
+                "currency": selected.currency_code,
+                "asOf": selected.as_of_date.isoformat(),
+                "approvalRequestId": selected.approval_request_id or "",
+                "canSubmit": selected.can_submit,
+                "canRequestApproval": selected.can_request_approval,
+                "canApprove": selected.can_approve,
+                "canReject": selected.can_reject,
+            },
         )
         if selected is not None
         else FinancialForecastDetailDto()
@@ -78,6 +90,9 @@ def serialize_finance_forecast_workspace(
         generation_mode=generation_mode,
         line_search=line_search,
         line_source_type=line_source_type,
+        show_generate=source.show_generate,
+        can_generate=source.can_generate,
+        generate_disabled_reason=source.generate_disabled_reason,
     )
 
 
@@ -104,6 +119,12 @@ def _version_record(item) -> FinancialForecastTableRecordDto:
             "asOf": item.as_of_date.isoformat(),
             "totalEtc": str(item.total_etc),
             "lineCount": item.line_count,
+            "rowVersion": item.row_version,
+            "approvalRequestId": item.approval_request_id or "",
+            "canSubmit": item.can_submit,
+            "canRequestApproval": item.can_request_approval,
+            "canApprove": item.can_approve,
+            "canReject": item.can_reject,
         },
     )
 

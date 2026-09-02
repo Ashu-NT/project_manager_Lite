@@ -19,6 +19,9 @@ from src.core.modules.project_management.application.financials.forecasts.foreca
     ForecastVersionChangeType,
     ForecastVersionChanged,
 )
+from src.core.modules.project_management.application.financials.forecasts.approval_result import (
+    ForecastApprovalRequestResult,
+)
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
@@ -74,6 +77,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         module_catalog_service=None,
         tenant_context_service: TenantContextService | None = None,
         record_event: Callable[[object], None] | None = None,
+        approval_service=None,
     ) -> None:
         self._session = session
         self._forecast_repo = forecast_repo
@@ -87,6 +91,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
         self._record_event = record_event
+        self._approval_service = approval_service
 
     def _emit_version_event(
         self, forecast: ProjectForecast, *, change_type: ForecastVersionChangeType, occurred_at: datetime
@@ -392,33 +397,50 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         )
         if forecast.row_version != expected_version:
             raise ConcurrencyError("Forecast changed since you opened it.", code="STALE_WRITE")
-        now = self._clock.now()
-        previous = self._forecast_repo.get_approved_for_project(forecast.project_id)
-        try:
-            with self._session.begin_nested():
-                if previous is not None:
-                    previous_version = previous.row_version
-                    previous.supersede(superseded_by=approved_by, superseded_at=now)
-                    self._forecast_repo.update(
-                        previous, expected_row_version=previous_version
-                    )
-                    self._forecast_repo.flush()
-                forecast.approve(approved_by=approved_by, approved_at=now, notes=notes)
-                self._forecast_repo.update(
-                    forecast, expected_row_version=expected_version
-                )
-                self._forecast_repo.flush()
-        except IntegrityError as exc:
-            if self._is_approval_conflict(exc):
-                raise BusinessRuleError(
-                    "Another forecast version was approved concurrently.",
-                    code="PROJECT_FORECAST_APPROVAL_CONFLICT",
-                ) from exc
-            raise
-        self._record_forecast_audit("approve", forecast)
-        self._session.flush()
-        self._emit_version_event(forecast, change_type=ForecastVersionChangeType.APPROVED, occurred_at=now)
-        return forecast
+        return self._apply_approval_decision(
+            forecast_id=forecast_id,
+            approved_by=approved_by,
+            expected_version=expected_version,
+            notes=notes,
+        )
+
+    def request_forecast_approval(
+        self, forecast_id: str, *, expected_version: int, notes: str = ""
+    ) -> ForecastApprovalRequestResult:
+        if self._approval_service is None:
+            raise BusinessRuleError(
+                "Platform Approval is not configured for Forecast decisions.",
+                code="PROJECT_FORECAST_APPROVAL_UNAVAILABLE",
+            )
+        forecast = self._require_forecast(forecast_id)
+        self._require_project_permission(
+            forecast.project_id, "approval.request", "request project forecast approval"
+        )
+        if forecast.row_version != expected_version:
+            raise ConcurrencyError("Forecast changed since you opened it.", code="STALE_WRITE")
+        if forecast.status != ForecastStatus.SUBMITTED:
+            raise BusinessRuleError(
+                "Only a submitted Forecast can be sent for approval.",
+                code="PROJECT_FORECAST_APPROVAL_STATUS_INVALID",
+            )
+        request = self._approval_service.request_change(
+            request_type="forecast.approve",
+            entity_type="project_forecast",
+            entity_id=forecast.id,
+            project_id=forecast.project_id,
+            payload={
+                "forecast_id": forecast.id,
+                "expected_version": expected_version,
+                "notes": notes,
+            },
+        )
+        return ForecastApprovalRequestResult(
+            forecast_id=forecast.id,
+            project_id=forecast.project_id,
+            forecast_status=forecast.status,
+            row_version=forecast.row_version,
+            approval_request_id=request.id,
+        )
 
     def reject_forecast(
         self,
@@ -434,16 +456,59 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         )
         if forecast.row_version != expected_version:
             raise ConcurrencyError("Forecast changed since you opened it.", code="STALE_WRITE")
-        now = self._clock.now()
-        forecast.reject(
+        return self._apply_rejection_decision(
+            forecast_id=forecast_id,
             rejected_by=rejected_by,
-            rejected_at=now,
+            expected_version=expected_version,
             notes=notes,
         )
+
+    def _apply_approval_decision(
+        self, *, forecast_id: str, approved_by: str, expected_version: int, notes: str
+    ) -> ProjectForecast:
+        forecast = self._require_forecast(forecast_id)
+        if forecast.row_version != expected_version:
+            raise ConcurrencyError("Forecast changed since you opened it.", code="STALE_WRITE")
+        now = self._clock.now()
+        previous = self._forecast_repo.get_approved_for_project(forecast.project_id)
+        try:
+            with self._session.begin_nested():
+                if previous is not None:
+                    previous_version = previous.row_version
+                    previous.supersede(superseded_by=approved_by, superseded_at=now)
+                    self._forecast_repo.update(previous, expected_row_version=previous_version)
+                    self._forecast_repo.flush()
+                forecast.approve(approved_by=approved_by, approved_at=now, notes=notes)
+                self._forecast_repo.update(forecast, expected_row_version=expected_version)
+                self._forecast_repo.flush()
+        except IntegrityError as exc:
+            if self._is_approval_conflict(exc):
+                raise BusinessRuleError(
+                    "Another forecast version was approved concurrently.",
+                    code="PROJECT_FORECAST_APPROVAL_CONFLICT",
+                ) from exc
+            raise
+        self._record_forecast_audit("approve", forecast)
+        self._session.flush()
+        self._emit_version_event(
+            forecast, change_type=ForecastVersionChangeType.APPROVED, occurred_at=now
+        )
+        return forecast
+
+    def _apply_rejection_decision(
+        self, *, forecast_id: str, rejected_by: str, expected_version: int, notes: str
+    ) -> ProjectForecast:
+        forecast = self._require_forecast(forecast_id)
+        if forecast.row_version != expected_version:
+            raise ConcurrencyError("Forecast changed since you opened it.", code="STALE_WRITE")
+        now = self._clock.now()
+        forecast.reject(rejected_by=rejected_by, rejected_at=now, notes=notes)
         self._forecast_repo.update(forecast, expected_row_version=expected_version)
         self._record_forecast_audit("reject", forecast)
         self._session.flush()
-        self._emit_version_event(forecast, change_type=ForecastVersionChangeType.REJECTED, occurred_at=now)
+        self._emit_version_event(
+            forecast, change_type=ForecastVersionChangeType.REJECTED, occurred_at=now
+        )
         return forecast
 
     def delete_forecast(self, forecast_id: str, *, expected_version: int) -> None:

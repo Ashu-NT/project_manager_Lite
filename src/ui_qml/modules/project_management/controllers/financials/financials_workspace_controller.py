@@ -87,6 +87,7 @@ class ProjectManagementFinancialsWorkspaceController(
     forecastLineSortKeyChanged = Signal()
     forecastLineSortDirectionChanged = Signal()
     forecastFiltersChanged = Signal()
+    forecastCapabilitiesChanged = Signal()
     selectedChangeIdChanged = Signal()
     selectedChangeChanged = Signal()
     financialChangesChanged = Signal()
@@ -200,6 +201,9 @@ class ProjectManagementFinancialsWorkspaceController(
         self._forecast_generation_mode = ""
         self._forecast_line_search = ""
         self._forecast_line_source_type = ""
+        self._show_generate_forecast = False
+        self._can_generate_forecast = False
+        self._generate_forecast_disabled_reason = ""
         self._selected_change_id = ""
         self._selected_change = default_detail()
         self._financial_changes = default_collection()
@@ -431,6 +435,16 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property(str, notify=forecastFiltersChanged)
     def forecastLineSourceType(self) -> str: return self._forecast_line_source_type
+
+    @Property(bool, notify=forecastCapabilitiesChanged)
+    def showGenerateForecast(self) -> bool: return self._show_generate_forecast
+
+    @Property(bool, notify=forecastCapabilitiesChanged)
+    def canGenerateForecast(self) -> bool: return self._can_generate_forecast
+
+    @Property(str, notify=forecastCapabilitiesChanged)
+    def generateForecastDisabledReason(self) -> str:
+        return self._generate_forecast_disabled_reason
 
     @Property(str, notify=selectedChangeIdChanged)
     def selectedChangeId(self) -> str: return self._selected_change_id
@@ -1011,6 +1025,31 @@ class ProjectManagementFinancialsWorkspaceController(
     ) -> FinancialsMap:
         return self._resolve_budget_cost_code(project_id, cost_code_id)
 
+    @Slot(str, str, int, int, result="QVariantMap")
+    def searchForecastTasks(
+        self, project_id: str, search: str, page: int, page_size: int
+    ) -> FinancialsMap:
+        return self._search_forecast_tasks(project_id, search, page, page_size)
+
+    @Slot(str, str, int, int, str, result="QVariantMap")
+    def searchForecastCostCodes(
+        self,
+        project_id: str,
+        search: str,
+        page: int,
+        page_size: int,
+        effective_on: str,
+    ) -> FinancialsMap:
+        return self._search_forecast_cost_codes(
+            project_id, search, page, page_size, effective_on
+        )
+
+    @Slot(str, str, int, int, result="QVariantMap")
+    def searchForecastRisks(
+        self, project_id: str, search: str, page: int, page_size: int
+    ) -> FinancialsMap:
+        return self._search_forecast_risks(project_id, search, page, page_size)
+
     @Slot(str, result="QVariantMap")
     def loadManualActualDefaults(self, project_id: str) -> FinancialsMap:
         return self._load_manual_actual_defaults(project_id)
@@ -1021,6 +1060,26 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str, str, str, result="QVariantMap")
     def createBudgetVersion(self, project_id: str, name: str, currency: str) -> FinancialsMap:
         return self._create_budget_version(project_id, name, currency)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def generateForecast(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._generate_forecast(payload)
+
+    @Slot(str, int, str, result="QVariantMap")
+    def submitForecast(self, forecast_id: str, version: int, notes: str) -> FinancialsMap:
+        return self._submit_forecast(forecast_id, version, notes)
+
+    @Slot(str, int, str, result="QVariantMap")
+    def requestForecastApproval(
+        self, forecast_id: str, version: int, notes: str
+    ) -> FinancialsMap:
+        return self._request_forecast_approval(forecast_id, version, notes)
+
+    @Slot(str, bool, str, result="QVariantMap")
+    def decideForecastApproval(
+        self, request_id: str, approve: bool, notes: str
+    ) -> FinancialsMap:
+        return self._decide_forecast_approval(request_id, approve, notes)
 
     @Slot(str, str, result="QVariantMap")
     def createBudgetSuccessor(self, predecessor_id: str, name: str) -> FinancialsMap:

@@ -19,6 +19,19 @@ from src.core.modules.project_management.infrastructure.persistence.orm.financia
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
 from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
+from src.core.modules.project_management.infrastructure.persistence.orm.register import (
+    RegisterEntryORM,
+)
+from src.core.modules.project_management.domain.risk.register import (
+    RegisterEntryStatus,
+    RegisterEntryType,
+)
+
+_ELIGIBLE_RISK_STATUSES = (
+    RegisterEntryStatus.OPEN,
+    RegisterEntryStatus.IN_PROGRESS,
+    RegisterEntryStatus.MITIGATED,
+)
 
 
 class SqlAlchemyFinanceLookupReader:
@@ -186,6 +199,98 @@ class SqlAlchemyFinanceLookupReader:
             FinanceLookupOptionFact(id=str(row.id), label=_task_label(row))
             if row is not None
             else None
+        )
+
+    def search_eligible_risks(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts:
+        base = self._eligible_risk_statement(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            project_id=project_id,
+        )
+        if request.search.strip():
+            pattern = f"%{request.search.strip()}%"
+            base = base.where(
+                or_(
+                    RegisterEntryORM.entry_code.ilike(pattern),
+                    RegisterEntryORM.title.ilike(pattern),
+                )
+            )
+        total = int(self._session.scalar(select(func.count()).select_from(base.subquery())) or 0)
+        page, page_size, offset = _window(
+            request.normalized_page, request.normalized_page_size, total
+        )
+        rows = self._session.execute(
+            base.order_by(
+                RegisterEntryORM.entry_code.asc(),
+                RegisterEntryORM.title.asc(),
+                RegisterEntryORM.id.asc(),
+            ).offset(offset).limit(page_size)
+        ).all()
+        return FinanceLookupPageFacts(
+            items=tuple(
+                FinanceLookupOptionFact(
+                    id=str(row.id),
+                    label=(
+                        f"{row.entry_code} - {row.title}"
+                        if row.entry_code else str(row.title)
+                    ),
+                )
+                for row in rows
+            ),
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
+
+    def get_eligible_risk_option(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        risk_id: str,
+    ) -> FinanceLookupOptionFact | None:
+        row = self._session.execute(
+            self._eligible_risk_statement(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+            ).where(RegisterEntryORM.id == risk_id)
+        ).one_or_none()
+        if row is None:
+            return None
+        return FinanceLookupOptionFact(
+            id=str(row.id),
+            label=f"{row.entry_code} - {row.title}" if row.entry_code else str(row.title),
+        )
+
+    @staticmethod
+    def _eligible_risk_statement(
+        *, tenant_id: str, organization_id: str, project_id: str
+    ):
+        return (
+            select(
+                RegisterEntryORM.id,
+                RegisterEntryORM.entry_code,
+                RegisterEntryORM.title,
+            )
+            .select_from(RegisterEntryORM)
+            .join(ProjectORM, ProjectORM.id == RegisterEntryORM.project_id)
+            .where(
+                ProjectORM.tenant_id == tenant_id,
+                ProjectORM.organization_id == organization_id,
+                ProjectORM.id == project_id,
+                RegisterEntryORM.project_id == project_id,
+                RegisterEntryORM.entry_type == RegisterEntryType.RISK,
+                RegisterEntryORM.status.in_(_ELIGIBLE_RISK_STATUSES),
+            )
         )
 
     def search_cost_codes(

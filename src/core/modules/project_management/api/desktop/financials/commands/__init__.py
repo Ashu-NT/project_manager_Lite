@@ -20,6 +20,12 @@ from src.core.modules.project_management.api.desktop.financials.commands.cost_en
     FinancialUpdateActualDraftCommand,
     FinancialVersionedActualCommand,
 )
+from src.core.modules.project_management.api.desktop.financials.commands.forecasts import (
+    FinancialGenerateForecastCommand,
+    FinancialManualEtcCommand,
+    FinancialRiskContingencyCommand,
+    FinancialVersionedForecastCommand,
+)
 from src.core.modules.project_management.api.desktop.financials.commands.billing import (
     FinancialActivateBillingProfileCommand,
     FinancialAddApprovedTimeBillingSourceCommand,
@@ -48,6 +54,9 @@ __all__ = [
     "FinancialDecideActualCommand",
     "FinancialDeleteBudgetLineCommand",
     "FinancialMarkBillingScheduleLineReadyCommand",
+    "FinancialGenerateForecastCommand",
+    "FinancialManualEtcCommand",
+    "FinancialRiskContingencyCommand",
     "FinancialPostActualCommand",
     "FinancialReverseActualCommand",
     "FinancialUpdateActualDraftCommand",
@@ -56,4 +65,5 @@ __all__ = [
     "FinancialVersionedActualCommand",
     "FinancialVersionedBillingPreparationCommand",
     "FinancialVersionedBudgetCommand",
+    "FinancialVersionedForecastCommand",
 ]

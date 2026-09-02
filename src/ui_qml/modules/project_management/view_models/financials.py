@@ -115,6 +115,9 @@ class FinancialsWorkspaceViewModel:
     forecast_generation_mode: str = ""
     forecast_line_search: str = ""
     forecast_line_source_type: str = ""
+    show_generate_forecast: bool = False
+    can_generate_forecast: bool = False
+    generate_forecast_disabled_reason: str = ""
     selected_change_id: str = ""
     selected_change: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     financial_changes: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))

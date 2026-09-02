@@ -111,6 +111,23 @@ class FinancialsStateMixin:
             self.selectedForecastChanged.emit()
 
     def _set_forecast_query_state(self, state) -> None:
+        capabilities = (
+            bool(state.show_generate_forecast),
+            bool(state.can_generate_forecast),
+            str(state.generate_forecast_disabled_reason or ""),
+        )
+        current_capabilities = (
+            self._show_generate_forecast,
+            self._can_generate_forecast,
+            self._generate_forecast_disabled_reason,
+        )
+        if capabilities != current_capabilities:
+            (
+                self._show_generate_forecast,
+                self._can_generate_forecast,
+                self._generate_forecast_disabled_reason,
+            ) = capabilities
+            self.forecastCapabilitiesChanged.emit()
         version_order = (
             Qt.DescendingOrder.value
             if state.forecast_version_sort_direction == "desc"

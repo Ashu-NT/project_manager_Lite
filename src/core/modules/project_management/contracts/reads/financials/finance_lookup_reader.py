@@ -50,6 +50,24 @@ class FinanceLookupReader(Protocol):
         task_id: str,
     ) -> FinanceLookupOptionFact | None: ...
 
+    def search_eligible_risks(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts: ...
+
+    def get_eligible_risk_option(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        risk_id: str,
+    ) -> FinanceLookupOptionFact | None: ...
+
     def search_cost_codes(
         self,
         *,

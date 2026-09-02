@@ -20,6 +20,7 @@ class FinancialForecastDetailDto:
     status_label: str = ""
     subtitle: str = ""
     fields: tuple[tuple[str, str, str], ...] = ()
+    state: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -45,10 +46,23 @@ class FinancialForecastWorkspaceDto:
     generation_mode: str = ""
     line_search: str = ""
     line_source_type: str = ""
+    show_generate: bool = False
+    can_generate: bool = False
+    generate_disabled_reason: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class FinancialForecastMutationDto:
+    forecast_id: str
+    project_id: str
+    status: str
+    row_version: int
+    approval_request_id: str = ""
 
 
 __all__ = [
     "FinancialForecastDetailDto",
     "FinancialForecastTableRecordDto",
+    "FinancialForecastMutationDto",
     "FinancialForecastWorkspaceDto",
 ]
