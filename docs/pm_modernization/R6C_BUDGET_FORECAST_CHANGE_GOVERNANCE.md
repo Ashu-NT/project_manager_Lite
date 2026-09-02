@@ -392,9 +392,10 @@ evidence, cost-code/task identities, and deny-safe action capabilities. Open-
 version eligibility is returned in the existing count round trip, preserving the
 bounded five-statement Budget master/detail read instead of adding another query.
 Authorized users always retain a visible `Create Version` action. While a Draft
-or Submitted version is open, the action is disabled with the server-projected
-reason instead of disappearing; users without Budget management permission do
-not receive the action. Approved history remains immutable and exposes
+or Submitted version is open, the shared button presents a dimmed disabled state
+and the adjacent reusable information control exposes the server-projected reason
+on hover or keyboard focus; users without Budget management permission do not
+receive the action. Approved history remains immutable and exposes
 `Create Successor` when lineage-preserving revision creation is eligible.
 Cost Code and optional Task use bounded server lookups. The three responsive
 dialogs use the shared centered, scrollable, pinned-footer shell; validation stays

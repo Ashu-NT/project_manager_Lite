@@ -16,6 +16,11 @@ Button {
 
     implicitHeight: Theme.AppTheme.toolbarHeight
     implicitWidth: Math.max(108, contentItem.implicitWidth + 28)
+    opacity: control.enabled ? 1.0 : 0.48
+
+    Behavior on opacity {
+        NumberAnimation { duration: 120 }
+    }
 
     contentItem: Item {
         implicitWidth: _row.implicitWidth
@@ -30,6 +35,7 @@ Button {
                 visible: control.iconName.length > 0
                 name: control.iconName.length > 0 ? control.iconName : "default"
                 size: Theme.AppTheme.buttonIconSize
+                disabled: !control.enabled
                 iconColor: control.danger
                     ? Theme.AppTheme.danger
                     : control._accentColor
@@ -40,7 +46,9 @@ Button {
                 id: _label
                 verticalAlignment: Text.AlignVCenter
                 text: control.text
-                color: control.danger
+                color: !control.enabled
+                    ? Theme.AppTheme.textMuted
+                    : control.danger
                     ? Theme.AppTheme.danger
                     : control._accentColor
                 font.family: Theme.AppTheme.fontFamily
@@ -52,12 +60,16 @@ Button {
 
     background: Rectangle {
         radius: Theme.AppTheme.radiusSm
-        color: control.down
+        color: !control.enabled
+            ? Theme.AppTheme.surfaceOverlay
+            : control.down
             ? Theme.AppTheme.hoverSurface
             : control.hovered
                 ? Theme.AppTheme.surfaceOverlay
                 : Theme.AppTheme.surfaceRaised
-        border.color: control.danger
+        border.color: !control.enabled
+            ? Theme.AppTheme.subtleBorder
+            : control.danger
             ? Theme.AppTheme.danger
             : control.activeFocus
                 ? Theme.AppTheme.focusBorder
