@@ -276,6 +276,62 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             effective_on=effective_on,
         )
 
+    def search_financial_change_target_lines(
+        self,
+        project_id: str,
+        change_id: str,
+        impact_type: str,
+        *,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts:
+        scope = self._require_financial_change_lookup(
+            project_id, "search Financial Change target lines"
+        )
+        return self._require_lookup_reader().search_change_target_lines(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            change_id=str(change_id or "").strip(),
+            impact_type=str(impact_type or "").strip().lower(),
+            request=request,
+        )
+
+    def resolve_financial_change_target_line(
+        self,
+        project_id: str,
+        change_id: str,
+        impact_type: str,
+        line_id: str,
+    ) -> FinanceLookupOptionFact | None:
+        scope = self._require_financial_change_lookup(
+            project_id, "resolve Financial Change target line"
+        )
+        return self._require_lookup_reader().get_change_target_line_option(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            change_id=str(change_id or "").strip(),
+            impact_type=str(impact_type or "").strip().lower(),
+            line_id=str(line_id or "").strip(),
+        )
+
+    def _require_financial_change_lookup(self, project_id: str, operation: str):
+        normalized_id = str(project_id or "").strip()
+        require_permission(
+            self._user_session, "financial_change.manage", operation_label=operation
+        )
+        require_project_permission(
+            self._user_session,
+            normalized_id,
+            "financial_change.manage",
+            operation_label=operation,
+        )
+        if self._tenant_context_service is None:
+            raise RuntimeError("Finance lookup scope is not configured.")
+        return self._tenant_context_service.require_active_scope_ids(
+            operation_label=operation
+        )
+
     def search_forecast_risks(
         self, project_id: str, *, request: FinanceLookupQuery
     ) -> FinanceLookupPageFacts:

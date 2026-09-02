@@ -87,6 +87,28 @@ class FinanceLookupReader(Protocol):
         effective_on,
     ) -> FinanceLookupOptionFact | None: ...
 
+    def search_change_target_lines(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        change_id: str,
+        impact_type: str,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts: ...
+
+    def get_change_target_line_option(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        change_id: str,
+        impact_type: str,
+        line_id: str,
+    ) -> FinanceLookupOptionFact | None: ...
+
     def get_manual_actual_defaults(
         self,
         *,

@@ -148,6 +148,35 @@ class FinancialsLookupMixin:
             )
         )
 
+    def _search_financial_change_target_lines(
+        self,
+        project_id: str,
+        change_id: str,
+        impact_type: str,
+        search: str,
+        page: int,
+        page_size: int,
+    ) -> dict[str, object]:
+        return self._lookup_page(
+            lambda: self._financials_workspace_presenter.search_financial_change_target_lines(
+                project_id,
+                change_id,
+                impact_type,
+                search=search,
+                page=page,
+                page_size=page_size,
+            )
+        )
+
+    def _resolve_financial_change_target_line(
+        self, project_id: str, change_id: str, impact_type: str, line_id: str
+    ) -> dict[str, object]:
+        return self._lookup_item(
+            lambda: self._financials_workspace_presenter.resolve_financial_change_target_line(
+                project_id, change_id, impact_type, line_id
+            )
+        )
+
     def _search_forecast_tasks(
         self, project_id: str, search: str, page: int, page_size: int
     ) -> dict[str, object]:

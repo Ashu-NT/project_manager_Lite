@@ -44,7 +44,6 @@ AppWidgets.EntityDialog {
     function populate() {
         descriptionField.text = root._editing ? String(root.impact.title || "") : ""
         amountField.text = root._editing ? String(root._impactState.amount || "0") : "0"
-        targetLineField.text = root._editing ? String(root._impactState.targetLineId || "") : ""
         scheduleStartField.text = root._editing ? String(root._impactState.scheduleStart || "") : ""
         scheduleFinishField.text = root._editing ? String(root._impactState.scheduleFinish || "") : ""
         impactTypeCombo.currentIndex = root._typeIndex(
@@ -52,6 +51,7 @@ AppWidgets.EntityDialog {
         )
         costCodeSelector.clearSelection()
         taskSelector.clearSelection()
+        targetLineSelector.clearSelection()
         if (root._editing && root._impactState.costCodeId && root.workspaceController) {
             const result = root.workspaceController.resolveBudgetCostCode(
                 root.projectId, String(root._impactState.costCodeId)
@@ -63,6 +63,15 @@ AppWidgets.EntityDialog {
                 root.projectId, String(root._impactState.taskId)
             )
             if (result && result.ok && result.item) taskSelector.setResolvedItem(result.item)
+        }
+        if (root._editing && root._impactState.targetLineId && root.workspaceController) {
+            const result = root.workspaceController.resolveFinancialChangeTargetLine(
+                root.projectId,
+                String(root.change ? root.change.id || "" : ""),
+                root._impactType,
+                String(root._impactState.targetLineId)
+            )
+            if (result && result.ok && result.item) targetLineSelector.setResolvedItem(result.item)
         }
         root.errorMessage = ""
         descriptionField.forceActiveFocus()
@@ -102,7 +111,7 @@ AppWidgets.EntityDialog {
             "currency": root._schedule ? "" : String(root._changeState.currency || ""),
             "costCodeId": root._schedule ? "" : costCodeSelector.selectedId,
             "taskId": taskSelector.selectedId,
-            "targetLineId": root._schedule ? "" : targetLineField.text.trim(),
+            "targetLineId": root._schedule ? "" : targetLineSelector.selectedId,
             "scheduleStart": root._schedule ? scheduleStartField.text.trim() : "",
             "scheduleFinish": root._schedule ? scheduleFinishField.text.trim() : ""
         })
@@ -188,11 +197,27 @@ AppWidgets.EntityDialog {
         AppWidgets.FormField {
             Layout.fillWidth: true
             visible: !root._schedule
-            label: "Existing line ID (optional)"
-            AppControls.TextField {
-                id: targetLineField
+            label: "Existing base line (optional)"
+            AppControls.SearchablePagedSelector {
+                id: targetLineSelector
                 Layout.fillWidth: true
-                placeholderText: "Leave blank to create a new line"
+                allowEmpty: true
+                emptyLabel: "Create a new line"
+                searchPlaceholder: "Search base-line description..."
+                contextKey: String(root.change ? root.change.id || "" : "")
+                    + "|" + root._impactType
+                onLookupRequested: function(query, page, pageSize, generation, lookupContext) {
+                    const result = root.workspaceController
+                        ? root.workspaceController.searchFinancialChangeTargetLines(
+                            root.projectId,
+                            String(root.change ? root.change.id || "" : ""),
+                            root._impactType,
+                            query,
+                            page,
+                            pageSize
+                        ) : ({ "ok": false, "message": "Finance controller is unavailable." })
+                    targetLineSelector.acceptResult(result, generation, lookupContext)
+                }
             }
         }
         AppWidgets.FormField {

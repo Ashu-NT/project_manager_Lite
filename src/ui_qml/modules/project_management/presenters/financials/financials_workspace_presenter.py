@@ -120,6 +120,20 @@ class ProjectFinancialsWorkspacePresenter:
     def resolve_budget_cost_code(self, project_id: str, cost_code_id: str):
         return self._desktop_api.resolve_budget_cost_code(project_id, cost_code_id)
 
+    def search_financial_change_target_lines(
+        self, project_id: str, change_id: str, impact_type: str, **query: Any
+    ):
+        return self._desktop_api.search_financial_change_target_lines(
+            project_id, change_id, impact_type, **query
+        )
+
+    def resolve_financial_change_target_line(
+        self, project_id: str, change_id: str, impact_type: str, line_id: str
+    ):
+        return self._desktop_api.resolve_financial_change_target_line(
+            project_id, change_id, impact_type, line_id
+        )
+
     def search_forecast_tasks(self, project_id: str, **query: Any):
         return self._desktop_api.search_forecast_tasks(project_id, **query)
 
