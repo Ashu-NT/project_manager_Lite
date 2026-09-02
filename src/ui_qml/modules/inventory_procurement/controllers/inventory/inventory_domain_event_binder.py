@@ -10,6 +10,5 @@ def bind_domain_events(ctrl) -> None:
 
     for signal in (
         domain_events.inventory_receipts_changed,
-        domain_events.inventory_cycle_counts_changed,
     ):
         ctrl._subscribe_domain_signal(signal, _on_domain_event)

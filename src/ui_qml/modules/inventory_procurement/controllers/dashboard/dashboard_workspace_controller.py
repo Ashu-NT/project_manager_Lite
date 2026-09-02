@@ -114,7 +114,6 @@ class InventoryProcurementDashboardWorkspaceController(
 
         for signal in (
             domain_events.inventory_receipts_changed,
-            domain_events.inventory_cycle_counts_changed,
         ):
             self._subscribe_domain_signal(signal, _on_domain_event)
 

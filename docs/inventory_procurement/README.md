@@ -688,6 +688,7 @@ Recommended first events (original phase-1 plan, kept for history):
 - ~~`inventory_reservations_changed`~~ — MODERNIZED: typed `InventoryReservation*` events replace it (deleted, see `docs/architecture/event-modernization-plan.md` P30B)
 - ~~`inventory_requisitions_changed`~~ — MODERNIZED: typed `InventoryRequisition*` events replace it (deleted)
 - ~~`inventory_purchase_orders_changed`~~ — MODERNIZED: typed `InventoryPurchaseOrder*` events replace it (deleted)
+- ~~`inventory_cycle_counts_changed`~~ — MODERNIZED: typed `InventoryCycleCountScheduled`/`InventoryCycleCountCompleted` events replace it (deleted, see `docs/architecture/event-modernization-plan.md` P32B)
 - `inventory_receipts_changed` — still legacy, Goods Receipt not yet modernized
 
 See `docs/architecture/event-modernization-plan.md` for the authoritative, currently-maintained

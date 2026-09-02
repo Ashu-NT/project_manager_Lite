@@ -26,7 +26,6 @@ class DomainEvents:
     collaboration_changed: Signal[str] = field(default_factory=Signal)
     portfolio_changed: Signal[str] = field(default_factory=Signal)
     inventory_receipts_changed: Signal[str] = field(default_factory=Signal)
-    inventory_cycle_counts_changed: Signal[str] = field(default_factory=Signal)
 
     def reset(self) -> None:
         for signal_field in fields(self):

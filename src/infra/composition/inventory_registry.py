@@ -51,6 +51,7 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.uow.catal
 )
 from src.core.modules.inventory_procurement.application.inventory.event_handlers.view_invalidation import (
     build_balance_view_invalidation_handler,
+    build_cycle_count_view_invalidation_handler,
     build_location_list_view_invalidation_handler,
     build_reorder_policy_list_view_invalidation_handler,
     build_reservation_view_invalidation_handler,
@@ -111,6 +112,10 @@ from src.core.modules.inventory_procurement.domain.inventory.balance_events impo
     StockOnHandQuantityChanged,
     StockOnOrderQuantityChanged,
     StockReservedQuantityChanged,
+)
+from src.core.modules.inventory_procurement.domain.inventory.cycle_count_events import (
+    InventoryCycleCountCompleted,
+    InventoryCycleCountScheduled,
 )
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.catalog import (
     SqlAlchemyInventoryItemCategoryRepository,
@@ -247,9 +252,6 @@ def build_inventory_procurement_service_bundle(
     )
     logger.debug("Inventory/Procurement repositories built")
     logger.debug("Inventory/Procurement core services build begin")
-    # P24: the canonical, capability-owned UoW for Item + Item Category commands -- shares the
-    # SAME composition-owned dispatcher/post-commit bus every Platform UnitOfWork factory
-    # already uses, never a second, module-local instance.
     inventory_catalog_uow_session_factory = sessionmaker(
         bind=platform_services.session.bind, future=True
     )
@@ -290,9 +292,7 @@ def build_inventory_procurement_service_bundle(
         activity_service=platform_services.activity_service,
         uow_factory=inventory_catalog_uow_factory,
     )
-    # P20: the canonical, capability-owned UoW for Storeroom + Storage Location commands --
-    # shares the SAME composition-owned dispatcher/post-commit bus every Platform UnitOfWork
-    # factory already uses, never a second, module-local instance.
+
     inventory_foundation_uow_session_factory = sessionmaker(
         bind=platform_services.session.bind, future=True
     )
@@ -346,9 +346,7 @@ def build_inventory_procurement_service_bundle(
         activity_service=platform_services.activity_service,
         uow_factory=inventory_catalog_uow_factory,
     )
-    # P31B: close the composition-order cycle noted on the factory's own docstring --
-    # `InventoryService`/`inventory_item_service` now exist, so the Foundation UoW's own
-    # `stock_service` (Cycle Count/Manual Movements) can be configured.
+
     inventory_foundation_uow_factory.configure_stock_dependencies(
         item_service=inventory_item_service,
         inventory_service=inventory_service,
@@ -518,6 +516,16 @@ def build_inventory_procurement_service_bundle(
     ):
         platform_services.platform_post_commit_bus.subscribe(
             _balance_event_type, _balance_view_invalidation_handler
+        )
+    _cycle_count_view_invalidation_handler = build_cycle_count_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _cycle_count_event_type in (
+        InventoryCycleCountScheduled,
+        InventoryCycleCountCompleted,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _cycle_count_event_type, _cycle_count_view_invalidation_handler
         )
     inventory_reservation_service = ReservationService(
         platform_services.session,

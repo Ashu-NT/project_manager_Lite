@@ -3010,6 +3010,57 @@ Signal count is 15 as of this phase (16 minus the one deletion — confirmed sou
 Balance is now fully modernized; no next Inventory/Procurement capability has been chosen (Goods
 Receipt and Cycle Count remain unaudited as their own capabilities).
 
+**26.29 P32B: Inventory Cycle Count full modernization — implements P32A's own comparative
+selection, `inventory_cycle_counts_changed` deleted, `schedule_cycle_count` gains atomic
+transaction ownership for the first time.** Two typed, field-oriented events
+(`domain/inventory/cycle_count_events.py`): `InventoryCycleCountScheduled` (`tenant_id`/
+`organization_id`/`cycle_count_id`/`storeroom_id`/`occurred_at`) and `InventoryCycleCountCompleted`
+(adds `variance_qty`) — chosen over a single generic `CycleCountChanged` (would recreate the
+imprecision this phase exists to fix) and over a third "variance recorded" event (P32A's own audit
+found no consumer reads variance independently of completion; folding it into
+`InventoryCycleCountCompleted` avoids inventing a fact no reader needs).
+
+**`schedule_cycle_count` converges onto the existing `InventoryFoundationUnitOfWork`** — the same
+class `complete_cycle_count` began using in P31B, requiring zero new UoW/repository plumbing (the
+`cycle_counts` accessor already existed). Previously raw `self._session.add()`/`self._session.
+commit()`, with only a best-effort, non-atomic activity-feed entry and, critically, **zero**
+enterprise audit of any kind — the same first-touched-raw-Session gap class P24/P30B/P31B each
+closed for their own capability's first-modernized operation. Now: `uow.cycle_counts.add(...)`,
+`record_activity(uow, ..., commit=False)`, a new atomic `record_audit_entry(uow, operation="create",
+..., commit=False, fail_closed=True)`, `uow.record_event(InventoryCycleCountScheduled(...))`, one
+`uow.commit()` — proven atomic by a monkeypatched audit-failure test rolling back the CycleCount
+creation itself, not merely a downstream Balance mutation (there is none to roll back here — this
+is scheduling, before any count is taken). `complete_cycle_count`'s own already-canonical shape
+(P31B) is unchanged; it gains only the new `InventoryCycleCountCompleted` event recorded alongside
+its pre-existing conditional `StockOnHandQuantityChanged` (still gated on `abs(variance) > 1e-9` —
+Stock Balance's own event semantics, untouched by this phase).
+
+**No lifecycle change.** `PLANNED → COMPLETED` (with `CANCELLED` as the only other terminal state)
+is exactly as P30A/P31A/P32A characterized it — no start/in-progress state was invented, no cancel
+operation was invented, matching this phase's own explicit scope boundary.
+
+**ViewInvalidation**: new `CycleCountViewInvalidationAdapter` (`cycleCountListStale`/
+`cycleCountDetailStale`), targets `cycle_count_list` (`OrganizationScope`) and `cycle_count_detail`
+(`ResourceScope`, `entity_type="inventory_cycle_count"`) — identical shape to every prior
+capability's own list/detail pair. `InventoryCycleCountScheduled` invalidates list only — mirroring
+§26.26's own reasoning for Requisition/Reservation Created events, a row that did not exist a
+moment ago cannot have a stale pre-existing detail view open anywhere; `InventoryCycleCountCompleted`
+invalidates both. P32A's audit found Cycle Count owned by exactly one workspace
+(Inventory(Foundation)) with **5 of 6** legacy subscribers confirmed incidental — the highest
+incidental ratio of any Inventory/Procurement signal audited to date. Catalog, Pricing, Procurement,
+Dashboard, and Reservations are removed with no replacement, proven by a dedicated zero-reaction
+regression test; Inventory(Foundation)'s own subscription is replaced by the new adapter, connected
+through `_request_domain_refresh`, matching the coalescing-safe pattern P30B-FIX established.
+
+`inventory_cycle_counts_changed` is now deleted from `DomainEvents` entirely — zero producers (both
+former `.emit()` sites, in `schedule_cycle_count` and `complete_cycle_count`, converted), zero
+consumers (all 6 legacy subscriptions removed — 5 incidental plus Inventory(Foundation)'s own,
+replaced by the typed adapter). `inventory_receipts_changed` is unmodified/retained — Goods Receipt
+remains a separate, still-legacy capability, explicitly out of this phase's scope, and is the
+expected next Inventory/Procurement phase per P32A's own comparison. The legacy Signal count is 14
+as of this phase (15 minus the one deletion — confirmed source-derived). Cycle Count is now fully
+modernized — the eighth Inventory/Procurement capability to reach that state.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

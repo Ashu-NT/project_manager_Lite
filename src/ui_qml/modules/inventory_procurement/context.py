@@ -12,6 +12,9 @@ from src.ui_qml.platform.adapters.party_view_invalidation_adapter import (
 from src.ui_qml.platform.adapters.document_view_invalidation_adapter import (
     DocumentViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.cycle_count_view_invalidation_adapter import (
+    CycleCountViewInvalidationAdapter,
+)
 from src.ui_qml.platform.adapters.document_links_view_invalidation_adapter import (
     DocumentLinksViewInvalidationAdapter,
 )
@@ -233,6 +236,18 @@ class InventoryProcurementWorkspaceCatalog(QObject):
             self._inventory_workspace._request_domain_refresh
         )
         self._inventory_balance_view_invalidation_adapter.stockBalanceDetailStale.connect(
+            self._inventory_workspace._request_domain_refresh
+        )
+        self._inventory_cycle_count_view_invalidation_adapter = CycleCountViewInvalidationAdapter(
+            channel=self._view_invalidation_channel,
+            tenant_id=self._active_tenant_id() or "",
+            organization_id=self._active_organization_id() or "",
+            parent=self,
+        )
+        self._inventory_cycle_count_view_invalidation_adapter.cycleCountListStale.connect(
+            self._inventory_workspace._request_domain_refresh
+        )
+        self._inventory_cycle_count_view_invalidation_adapter.cycleCountDetailStale.connect(
             self._inventory_workspace._request_domain_refresh
         )
         self._reservations_workspace = (

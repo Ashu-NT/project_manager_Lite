@@ -28,6 +28,10 @@ from src.core.modules.inventory_procurement.domain.inventory.balance_events impo
     StockOnHandQuantityChanged,
     StockReservedQuantityChanged,
 )
+from src.core.modules.inventory_procurement.domain.inventory.cycle_count_events import (
+    InventoryCycleCountCompleted,
+    InventoryCycleCountScheduled,
+)
 from src.core.modules.inventory_procurement.domain.inventory.foundation import (
     CycleCount,
     CycleCountStatus,
@@ -47,7 +51,6 @@ from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError,
 from src.core.platform.common.ids import generate_id
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.master_data.party.party_service import PartyService
@@ -621,33 +624,59 @@ class InventoryFoundationService:
             expected_qty=float(getattr(balance, "on_hand_qty", 0.0) or 0.0),
             notes=notes,
         )
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="schedule cycle count"
+        )
+        occurred_at = datetime.now(timezone.utc)
         try:
-            self._cycle_count_repo.add(cycle_count)
-            self._session.commit()
+            with self._require_uow_factory().create(context=self._new_context()) as uow:
+                uow.cycle_counts.add(cycle_count)
+                record_activity(
+                    uow,
+                    action="inventory_cycle_count.schedule",
+                    entity_type="inventory_cycle_count",
+                    entity_id=cycle_count.id,
+                    module="inventory",
+                    details={
+                        "cycle_count_number": cycle_count.cycle_count_number,
+                        "stock_item_id": cycle_count.stock_item_id,
+                        "storeroom_id": cycle_count.storeroom_id,
+                        "location_id": cycle_count.location_id or "",
+                        "expected_qty": str(cycle_count.expected_qty),
+                    },
+                    commit=False,
+                )
+                record_audit_entry(
+                    uow,
+                    operation="create",
+                    entity_type="inventory_cycle_count",
+                    entity_id=cycle_count.id,
+                    module="inventory",
+                    severity="low",
+                    metadata={
+                        "cycle_count_number": cycle_count.cycle_count_number,
+                        "stock_item_id": cycle_count.stock_item_id,
+                        "storeroom_id": cycle_count.storeroom_id,
+                        "expected_qty": str(cycle_count.expected_qty),
+                    },
+                    commit=False,
+                    fail_closed=True,
+                )
+                uow.record_event(
+                    InventoryCycleCountScheduled(
+                        tenant_id=tenant_id,
+                        organization_id=organization.id,
+                        cycle_count_id=cycle_count.id,
+                        storeroom_id=cycle_count.storeroom_id,
+                        occurred_at=occurred_at,
+                    )
+                )
+                uow.commit()
         except IntegrityError as exc:
-            self._session.rollback()
             raise ValidationError(
                 "Cycle count number already exists.",
                 code="INVENTORY_CYCLE_COUNT_EXISTS",
             ) from exc
-        except Exception:
-            self._session.rollback()
-            raise
-        record_activity(
-            self,
-            action="inventory_cycle_count.schedule",
-            entity_type="inventory_cycle_count",
-            entity_id=cycle_count.id,
-            module="inventory",
-            details={
-                "cycle_count_number": cycle_count.cycle_count_number,
-                "stock_item_id": cycle_count.stock_item_id,
-                "storeroom_id": cycle_count.storeroom_id,
-                "location_id": cycle_count.location_id or "",
-                "expected_qty": str(cycle_count.expected_qty),
-            },
-        )
-        domain_events.inventory_cycle_counts_changed.emit(cycle_count.id)
         return cycle_count
 
     def complete_cycle_count(
@@ -761,9 +790,7 @@ class InventoryFoundationService:
                 },
                 commit=False,
             )
-            # P31B §31: Cycle Count previously had zero atomic enterprise audit at all -- gains
-            # one here, atomic with the Balance/CycleCount write, matching the same governance
-            # upgrade P24/P30B each gave their own first-modernized capability.
+
             record_audit_entry(
                 uow,
                 operation="update",
@@ -780,18 +807,20 @@ class InventoryFoundationService:
                 commit=False,
                 fail_closed=True,
             )
+            uow.record_event(
+                InventoryCycleCountCompleted(
+                    tenant_id=tenant_id,
+                    organization_id=organization.id,
+                    cycle_count_id=completed_cycle_count.id,
+                    storeroom_id=completed_cycle_count.storeroom_id,
+                    variance_qty=variance,
+                    occurred_at=completed_cycle_count.completed_at,
+                )
+            )
             uow.commit()
         cycle_count = completed_cycle_count
-        domain_events.inventory_cycle_counts_changed.emit(cycle_count.id)
         return cycle_count
 
-    # -- Manual stock movements (P31B) --------------------------------------------------------
-    # Previously exposed directly off the raw-Session `StockControlService` instance
-    # (`stock_service` param, `commit=True` default -- its own self-owned mini-transaction).
-    # Converged onto this UoW so each operation can record its canonical Balance fact in the
-    # same transaction as the mutation, per P31B's "no postcommit fake facts" rule (§43).
-    # `uow.stock_service` is the exact same, unmodified `StockControlService` posting logic,
-    # only now bound to this UoW's own session/repos and always called with `commit=False`.
 
     def post_opening_balance(
         self,
