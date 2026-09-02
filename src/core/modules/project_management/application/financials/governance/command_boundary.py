@@ -62,9 +62,11 @@ class FinanceGovernanceCommandBoundary:
         operations_factory: Callable[
             [FinanceGovernanceUnitOfWork], FinanceGovernanceOperations
         ],
+        prepare_command: Callable[[], None] | None = None,
     ) -> None:
         self._uow_factory = uow_factory
         self._operations_factory = operations_factory
+        self._prepare_command = prepare_command
 
     def budget(
         self,
@@ -147,6 +149,8 @@ class FinanceGovernanceCommandBoundary:
         *,
         invalidation: Callable[[T], None] | None,
     ) -> T:
+        if self._prepare_command is not None:
+            self._prepare_command()
         context = DomainEventContext(correlation_id=generate_id())
         post_commit_actions: tuple[Callable[[], None], ...]
         with self._uow_factory.create(context=context) as uow:

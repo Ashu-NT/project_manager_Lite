@@ -80,7 +80,8 @@ Item {
     readonly property var _sourceStates: _options("Any source state", ["available", "reserved", "finalized", "released"])
 
     function _label(value) {
-        return String(value || "").replaceAll("_", " ").replace(/\b\w/g, function(c) { return c.toUpperCase() })
+        const normalized = value === undefined || value === null ? "" : "" + value
+        return normalized.replace(/_/g, " ").replace(/\b\w/g, function(c) { return c.toUpperCase() })
     }
     function _options(emptyLabel, values) {
         const result = [{ "value": "", "label": emptyLabel }]
@@ -89,6 +90,7 @@ Item {
         return result
     }
     function _indexOf(model, value) {
+        if (!model || model.length === undefined) return 0
         for (let index = 0; index < model.length; index += 1)
             if (String(model[index].value) === String(value || "")) return index
         return 0

@@ -184,3 +184,22 @@ def test_financials_uses_flat_scrollable_navigation_and_project_scope_selector()
     assert "GroupedNavigationRail" in navigation_rail
     assert "contentHeight: navColumn.implicitHeight" in grouped_rail
     assert "ScrollBar.vertical: ScrollBar" in grouped_rail
+
+
+def test_financials_uses_only_shared_selector_controls() -> None:
+    financials_root = Path("src/ui_qml/modules/project_management/qml/workspaces/financials")
+    sources = tuple(financials_root.rglob("*.qml"))
+
+    combo_count = 0
+    paged_selector_count = 0
+    for source in sources:
+        text = source.read_text(encoding="utf-8")
+        combo_count += text.count("AppControls.ComboBox {")
+        paged_selector_count += text.count("AppControls.SearchablePagedSelector {")
+        assert "\nComboBox {" not in text, source
+        assert "\nSearchablePagedSelector {" not in text, source
+
+    # Finite lists use the same shared ComboBox as Projects/Tasks. Large lookup
+    # datasets keep the shared server-paged selector rather than loading all rows.
+    assert combo_count > 0
+    assert paged_selector_count > 0

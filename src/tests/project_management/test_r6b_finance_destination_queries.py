@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from contextlib import contextmanager
+from pathlib import Path
 from unittest.mock import MagicMock, call
 
 import pytest
@@ -804,6 +805,62 @@ Window {
     qapp.processEvents()
     assert window.property("staleAccepted") is False
     assert window.property("acceptedItemCount") == 0
+    window.deleteLater()
+
+
+def test_searchable_selector_appends_server_pages_without_pagination_buttons(qapp) -> None:
+    source = Path(
+        "src/ui_qml/shared/qml/App/Controls/SearchablePagedSelector.qml"
+    ).read_text(encoding="utf-8")
+    assert 'text: "Prev"' not in source
+    assert 'text: "Next"' not in source
+
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    component.setData(
+        b"""
+import QtQuick
+import App.Controls 1.0
+Window {
+    property int acceptedItemCount: -1
+    property string secondItemLabel: ""
+    visible: true
+    width: 640
+    height: 480
+    SearchablePagedSelector {
+        id: selector
+        contextKey: "project-a"
+    }
+    Component.onCompleted: {
+        selector.requestLookup(1)
+        selector.acceptResult({
+            "ok": true,
+            "items": [{"value": "one", "label": "One"}],
+            "page": 1,
+            "total": 2,
+            "hasMore": true
+        }, selector._generation, "project-a")
+        selector.requestLookup(2)
+        selector.acceptResult({
+            "ok": true,
+            "items": [{"value": "two", "label": "Two"}],
+            "page": 2,
+            "total": 2,
+            "hasMore": false
+        }, selector._generation, "project-a")
+        acceptedItemCount = selector.items.length
+        secondItemLabel = selector.items[1].label
+    }
+}
+""",
+        QUrl(),
+    )
+    assert component.isReady(), [error.toString() for error in component.errors()]
+    window = component.create()
+    assert window is not None
+    qapp.processEvents()
+    assert window.property("acceptedItemCount") == 2
+    assert window.property("secondItemLabel") == "Two"
     window.deleteLater()
 
 

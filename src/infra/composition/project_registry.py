@@ -207,6 +207,15 @@ from src.infra.composition.repositories import RepositoryBundle
 logger = logging.getLogger(__name__)
 
 
+def _prepare_finance_command_session(session: Session) -> None:
+    """Release a retained SQLite transaction before opening a fresh Finance UoW."""
+    bind = session.get_bind()
+    if bind.dialect.name != "sqlite" or not session.in_transaction():
+        return
+    logger.debug("Releasing shared SQLite session transaction before Finance command")
+    session.rollback()
+
+
 @dataclass(frozen=True)
 class ProjectManagementServiceBundle:
     time_service: TimeService
@@ -791,6 +800,7 @@ def build_project_management_service_bundle(
     finance_governance_commands = FinanceGovernanceCommandBoundary(
         uow_factory=finance_governance_uow_factory,
         operations_factory=build_finance_governance_operations,
+        prepare_command=lambda: _prepare_finance_command_session(session),
     )
     financial_configuration_service = FinanceGovernedServicePort(
         read_service=financial_configuration_service,
