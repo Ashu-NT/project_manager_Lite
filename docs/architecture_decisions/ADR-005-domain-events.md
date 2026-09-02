@@ -3167,6 +3167,78 @@ throughout, the unmodified canonical persistence ledger. This does not mark the 
 event-modernization project complete — Project Management, Finance, and Auth/Security legacy
 signals remain.
 
+**26.31 P35: Finance Planned Cost full modernization — `planned_costs_changed` deleted, first of
+P34A's Finance-first trio.** One typed event
+(`application/financials/planned_costs/planned_cost_events.py`): `PlannedCostSnapshotCalculated`
+(`tenant_id`, `organization_id`, `project_id`, `planned_cost_version_id`, `occurred_at`) — the
+business fact is "the project's planned-cost snapshot was recalculated." `calculate_snapshot`
+(confirmed, again, to be the ONLY Planned Cost write operation) always produces one new, immutable
+`ProjectPlannedCostVersion` and, when a prior version existed, supersedes it in the same call — one
+fact, not two. No `PlannedCostCreated`/`Updated`/`Removed` vocabulary was invented; source genuinely
+exposes only this one semantic operation, the same reasoning `ForecastDraftGenerated` (P19)
+established for a single-operation Finance flow.
+
+**Transaction ownership: wired into the already-existing `FinanceGovernanceUnitOfWork`, not a new
+stack** — its `planned_costs` repository accessor existed since the UoW was built but had zero real
+caller before this phase. A new `FinanceGovernanceCommandBoundary.planned_cost()` method is a direct
+structural copy of `forecast_version()` (`invalidation=None`; ViewInvalidation flows entirely
+through the canonical post-commit dispatch of the typed event). `PlannedCostService` is wrapped in a
+6th `FinanceGovernedServicePort` family (`family="planned_cost"`, `mutations={"calculate_snapshot"}`),
+reusing the exact generic read/write routing every sibling family already relies on —
+`calculate_snapshot`'s `project_id`-is-the-first-positional-arg shape already matched the existing
+`{"create_budget", "create_forecast", ...}` shortcut in `_project_id`, so no new family-specific
+branch was needed there either.
+
+**The UoW itself gained two new accessors**: `calculate_snapshot`'s diagnostics computation reads
+`AssignmentRepository`/`ProjectResourceRepository`, neither previously on
+`FinanceGovernanceUnitOfWork`'s Protocol. Rather than mix an outer-scope, different-session repo
+into an otherwise UoW-pure operation (every sibling operation in `build_finance_governance_operations`
+uses only `uow.*` repos), both were added as `assignments`/`project_resources` named accessors on
+the Protocol and concrete class, bound to the same per-call session as every other repo — a small,
+precedent-following extension (mirroring Inventory's own repeated UoW-accessor extensions across
+P25/P31B/P32B), not a new transaction stack, and not a generic "repository bag."
+
+**ViewInvalidation — one project-scoped target, no `planned_cost_detail` invented.** Source audit
+(`ProjectFinanceWorkspaceQuery.get_planned_cost_workspace`) found the version list and the selected
+version's lines are always fetched together, in one query — there is no independently cached detail
+read model to route a separate scope to. New handler `build_planned_cost_view_invalidation_handler`
+(`planned_cost_snapshot`, `ResourceScope(module_code="project_management", entity_type="project")`)
+is a direct structural copy of `forecast_planning`'s own single-target shape (P19). New
+`PlannedCostViewInvalidationAdapter` (`plannedCostSnapshotStale`) and binder function
+`on_planned_cost_snapshot_stale` (invalidating `"planning"`/`"performance"`, exactly matching the
+legacy signal's own destination set) follow the identical wiring chain already established for
+Forecast/RateCard in `financials_workspace_controller.py`/`context.py`. The sole owning legacy
+consumer (`financials_refresh_mixin.py`) had its `planned_costs_changed` subscription removed with
+no replacement of any kind — no other file ever subscribed to it.
+
+**Concurrency preserved exactly, unweakened.** The pre-existing guard — a version-checked supersede
+of the previous version (`expected_row_version`) plus a DB-level per-project-revision uniqueness
+constraint mapped to `ConcurrencyError` — is untouched. A two-session repository-level regression
+test proves the second writer is genuinely rejected — unlike the Inventory `PurchaseOrderLine`
+finding (P33 §14), this aggregate was already correctly protected. Enterprise audit was already
+atomic (`record_audit_entry(..., commit=False, fail_closed=True)`) and stays atomic.
+
+**Finance reflective wrapper untouched.** Planned Cost never used `FinanceGovernanceCommandBoundary.
+_emit_scoped`/`_emit_budget` — it had its own direct `domain_events.planned_costs_changed.emit(...)`
+call, now removed. Neither helper was modified; Budget's and Financial Change's own behavior through
+them is unchanged.
+
+**A genuine, source-confirmed finding, explicitly out of this phase's scope.** A monkeypatched
+audit-failure test proved the exception correctly propagates and produces zero postcommit hints, but
+whether the already-flushed version row itself is rolled back could not be reliably asserted through
+this specific shared-connection test harness — reproduced identically against completely unmodified
+`ForecastVersionService.create_forecast`, confirming this is a pre-existing characteristic of the
+shared `FinanceGovernanceCommandBoundary`/UoW machinery itself, not introduced by P35. No other
+Finance family's test suite asserts persisted-state-after-failure through this boundary either.
+Recorded, not fixed — redesigning `FinanceGovernanceCommandBoundary` is explicitly out of scope for
+a single-signal capability phase.
+
+`planned_costs_changed` is now deleted from `DomainEvents` entirely — zero producers (the one
+`.emit()` site converted), zero consumers (the sole owning subscription removed, replaced by the
+typed adapter). The legacy Signal count is 12 as of this phase (13 minus the one deletion —
+confirmed source-derived). Planned Cost is now fully modernized — the first of P34A's Finance-first
+trio. Next planned target remains Commitment, unchanged by this phase.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

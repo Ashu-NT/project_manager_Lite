@@ -1712,9 +1712,84 @@ and well ahead of `Project`/`Portfolio` (both lower audit/transaction readiness)
 `Task` (both need dedicated architecture work — a presence-transport split and a Financial-Change-
 coupling resolution, respectively — before a clean single-phase deletion is realistic).
 
+### P35 — Finance Planned Cost Full Modernization (DIRECT FULL MODERNIZATION)
+
+`planned_costs_changed` is **DELETED**. `PlannedCostService.calculate_snapshot` — confirmed still
+the ONLY Planned Cost write operation, source-reconfirmed before implementation — converges onto
+the already-existing, already-wired-but-previously-unused `FinanceGovernanceUnitOfWork` (its
+`planned_costs` repository accessor existed since the UoW was built but had zero real caller until
+this phase), via a new `FinanceGovernanceCommandBoundary.planned_cost()` method that is a direct,
+mechanical copy of the exact `forecast_version()` shape P19 already proved (`invalidation=None` —
+ViewInvalidation flows entirely through the canonical post-commit dispatch of the typed event, not
+a boundary-level callback). `PlannedCostService` is wrapped in a 6th `FinanceGovernedServicePort`
+family (`family="planned_cost"`, `mutations={"calculate_snapshot"}`), reusing the exact generic
+read/write routing every sibling Finance family (`budget`, `forecast_version`,
+`forecast_generation`, `financial_change`, `rate_card`) already relies on — `calculate_snapshot`
+needed no new `_project_id` branch, since its `project_id`-is-the-first-positional-arg shape
+already matched the existing `{"create_budget", "create_forecast", ...}` shortcut set verbatim.
+
+**One typed event**: `PlannedCostSnapshotCalculated` (`tenant_id`, `organization_id`, `project_id`,
+`planned_cost_version_id`, `occurred_at`) — the business fact is "the project's planned-cost
+snapshot was recalculated." `calculate_snapshot` always produces one new, immutable
+`ProjectPlannedCostVersion` (plus lines) and, if a prior version existed, supersedes it in the same
+call — both effects are one business fact, not two, since a recalculation is never partial. No
+`PlannedCostCreated`/`PlannedCostUpdated`/`PlannedCostRemoved` vocabulary was invented — source
+genuinely exposes only the one semantic operation, matching the same reasoning `ForecastDraftGenerated`
+(P19) already established for a single-operation Finance flow.
+
+**Transaction ownership required extending the shared UoW itself, not just wiring into it**:
+`calculate_snapshot`'s diagnostics computation reads `AssignmentRepository`/`ProjectResourceRepository`
+— neither was on `FinanceGovernanceUnitOfWork`'s Protocol. Rather than mix an outer-scope,
+different-session repo into an otherwise UoW-pure operation (every sibling operation in
+`build_finance_governance_operations` uses only `uow.*` repos), both were added as two new named
+accessors (`assignments`, `project_resources`) on the Protocol and concrete UoW class, bound to the
+same per-call session as every other repo — a small, precedent-following extension (mirroring how
+Inventory's own UoW gained new accessors repeatedly across P25/P31B/P32B), not a new transaction
+stack.
+
+**ViewInvalidation — one project-scoped target, no `planned_cost_detail` invented**: source audit
+(`ProjectFinanceWorkspaceQuery.get_planned_cost_workspace`) found the version list and the selected
+version's lines are fetched together, in one query, always refetched as a unit — there is no
+independently cached detail read model to route a separate scope to. New handler
+`build_planned_cost_view_invalidation_handler` (`planned_cost_snapshot` scope code,
+`ResourceScope(module_code="project_management", entity_type="project")`) is a direct structural
+copy of `forecast_planning`'s own single-target shape (P19). New `PlannedCostViewInvalidationAdapter`
+(`plannedCostSnapshotStale`) and binder function `on_planned_cost_snapshot_stale` (invalidating
+`"planning"`/`"performance"`, exactly matching the legacy signal's own destination set) follow the
+identical wiring chain already established for Forecast/RateCard in `financials_workspace_controller.py`/
+`context.py`.
+
+**Concurrency preserved exactly, unweakened**: the pre-existing guard — a version-checked supersede
+of the previous version (`expected_row_version`) plus a DB-level per-project-revision uniqueness
+constraint mapped to `ConcurrencyError` — is untouched. A two-session repository-level regression
+test proves the second writer is genuinely rejected (not merely a lost update, unlike the Inventory
+`PurchaseOrderLine` finding from P33). Enterprise audit was already atomic (`record_audit_entry(...,
+commit=False, fail_closed=True)`) and stays atomic.
+
+**Finance reflective wrapper untouched**: Planned Cost never used `FinanceGovernanceCommandBoundary._emit_scoped`/
+`_emit_budget` (it had its own direct `domain_events.planned_costs_changed.emit(...)` call, now
+removed) — per this phase's own scope boundary, neither helper was modified, and Budget/Financial
+Change's own behavior through them is unchanged.
+
+**A genuine, source-confirmed finding, explicitly out of P35's scope**: a monkeypatched
+audit-failure test proved the exception correctly propagates and produces zero postcommit hints,
+but whether the already-flushed version row itself is rolled back could not be reliably asserted —
+reproduced identically against completely unmodified `ForecastVersionService.create_forecast`,
+confirming this is a pre-existing characteristic of the shared `FinanceGovernanceCommandBoundary`/
+UoW machinery itself (not introduced by P35, and not something any other Finance family's test
+suite asserts either). Recorded here, not fixed — `FinanceGovernanceCommandBoundary` redesign is
+explicitly out of scope for a single-signal capability phase.
+
+`planned_costs_changed` is now deleted from `DomainEvents` entirely — zero producers (the one
+`.emit()` site converted), zero consumers (the sole owning subscription in
+`financials_refresh_mixin.py` removed, replaced by the typed adapter). The legacy Signal count is
+12 as of this phase (13 minus the one deletion — confirmed source-derived). Planned Cost is now
+fully modernized. **Next planned target remains Commitment**, per P34A's own Finance-first trio
+sequencing — unchanged by this phase.
+
 ## 4. Current State
 
-**Legacy Signal count: 13 as of P33** (source-derived from
+**Legacy Signal count: 12 as of P35** (source-derived from
 `src/core/shared/events/domain_events.py`, re-verified against current source when this document
 was last updated — `dataclasses.fields(domain_events)`, not a manual field count).
 
@@ -1723,7 +1798,7 @@ was last updated — `dataclasses.fields(domain_events)`, not a manual field cou
 | Platform | 0 |
 | Auth/Security | 1 |
 | Project Management | 6 |
-| Finance | 6 |
+| Finance | 5 |
 | Inventory/Procurement | 0 |
 
 > **This is a snapshot, not a fact.** Recompute the count directly from
@@ -1745,19 +1820,20 @@ to the remaining modules — Project Management, Finance, Auth/Security — per 
 Session remains AUDITED / DEFERRED** (P26A, see §3) — still not recommended given no canonical UoW
 exists yet on that surface.
 
-**P34A's global re-audit (see §3) recommends FINANCE FIRST, specifically `planned_costs_changed` →
-`commitments_changed` → `cost_entries_changed`, all as DIRECT FULL MODERNIZATION (no dedicated
-audit-first phase needed)**: all three already have an unused, fully-wired canonical
-`FinanceGovernanceUnitOfWork` repo accessor, a single (or tight, already-atomic) producer, and the
-same proven precommit-conversion pattern P22's Rate Card already demonstrated on the exact same
-class. `commitments_changed` additionally closes a real, currently-live commit-without-rollback bug
-in `commitment_service.py`. `budgets_changed`/`financial_changes_changed` are also transaction-
-canonical but are deliberately sequenced after the trio — P34A found they are genuinely coupled to
-each other AND to PM's `tasks_changed` through one Approval participant
-(`financial_change_apply_participant.py::apply()`), which needs its own deliberate resolution rather
-than being forced by finishing either signal in isolation. Per this document's own repeated caution,
-re-run prioritization from current source before committing further — concurrent development
-elsewhere may have changed readiness since P34A.
+**Planned Cost is DONE (P35, see §3)** — `planned_costs_changed` is deleted, the first of P34A's
+Finance-first trio complete. **`commitments_changed` is next**, followed by `cost_entries_changed`,
+both as DIRECT FULL MODERNIZATION (no dedicated audit-first phase needed): both already have an
+unused, fully-wired canonical `FinanceGovernanceUnitOfWork` repo accessor, a single (or tight,
+already-atomic) producer, and the same proven precommit-conversion pattern P22's Rate Card and now
+P35's Planned Cost already demonstrated on the exact same class. `commitments_changed` additionally
+closes a real, currently-live commit-without-rollback bug in `commitment_service.py` — re-confirmed
+present as of P35 (`commitment_service.py`'s `_commit()` still has zero try/except/rollback).
+`budgets_changed`/`financial_changes_changed` are also transaction-canonical but are deliberately
+sequenced after the trio — P34A found they are genuinely coupled to each other AND to PM's
+`tasks_changed` through one Approval participant (`financial_change_apply_participant.py::apply()`),
+which needs its own deliberate resolution rather than being forced by finishing either signal in
+isolation. Per this document's own repeated caution, re-run prioritization from current source
+before committing further — concurrent development elsewhere may have changed readiness since P34A.
 
 **A pre-existing, explicitly-not-fixed note carried forward by P33**: `PurchaseOrderLineORM` has no
 `version` column and its repository performs a blind field overwrite on `update()` — confirmed real
@@ -1835,6 +1911,19 @@ document** - each is addressed when its owning capability's phase is implemented
   cannot be deleted in one phase (no UoW convergence yet; custom-role bulk-revocation and
   registration's Membership/RoleBinding conflation each need their own fix first).
 - `project_changed` - broadest PM fan-out signal; touches 11 consumer files.
+- ~~`planned_costs_changed`~~ **RESOLVED by P35 — first of P34A's Finance-first trio** - the one
+  producer (`calculate_snapshot`) now records a single typed `PlannedCostSnapshotCalculated` fact
+  ("the project's planned-cost snapshot was recalculated") on the previously-unused
+  `FinanceGovernanceUnitOfWork.planned_costs` accessor, via a new `FinanceGovernanceCommandBoundary.
+  planned_cost()` method mirroring P19's `forecast_version()` shape exactly, field deleted (ADR-005
+  §TBD). `AssignmentRepository`/`ProjectResourceRepository` accessors were added to the shared UoW
+  (a small, precedent-following extension, not a new transaction stack) since `calculate_snapshot`'s
+  diagnostics computation needed them and every sibling operation in that UoW is otherwise
+  UoW-pure. Only `planned_cost_snapshot` (`ResourceScope`, project-scoped) exists — no
+  `planned_cost_detail` was invented, since source confirmed the version list and selected-version
+  lines are always fetched together in one query. The pre-existing optimistic-concurrency guard
+  (version-checked supersede + revision-uniqueness constraint) is preserved, proven still-rejecting
+  by a two-session regression test. Next: `commitments_changed`.
 - ~~`inventory_receipts_changed`~~ **RESOLVED by P33 — Inventory/Procurement's LAST legacy Signal,
   module now COMPLETE** - the one producer (`post_receipt`) now records a single typed
   `InventoryReceiptPosted` fact ("a Receipt was posted") alongside the pre-existing
