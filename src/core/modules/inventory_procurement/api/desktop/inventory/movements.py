@@ -15,7 +15,7 @@ class InventoryDesktopMovementMixin:
         self,
         command: InventoryOpeningBalanceCommand,
     ) -> InventoryStockTransactionDesktopDto:
-        transaction = self._require_stock_service().post_opening_balance(
+        transaction = self._require_foundation_service().post_opening_balance(
             stock_item_id=command.stock_item_id,
             storeroom_id=command.storeroom_id,
             quantity=command.quantity,
@@ -30,7 +30,7 @@ class InventoryDesktopMovementMixin:
         self,
         command: InventoryAdjustmentCommand,
     ) -> InventoryStockTransactionDesktopDto:
-        transaction = self._require_stock_service().post_adjustment(
+        transaction = self._require_foundation_service().post_adjustment(
             stock_item_id=command.stock_item_id,
             storeroom_id=command.storeroom_id,
             quantity=command.quantity,
@@ -48,7 +48,7 @@ class InventoryDesktopMovementMixin:
         self,
         command: InventoryIssueCommand,
     ) -> InventoryStockTransactionDesktopDto:
-        transaction = self._require_stock_service().issue_stock(
+        transaction = self._require_foundation_service().issue_stock(
             stock_item_id=command.stock_item_id,
             storeroom_id=command.storeroom_id,
             quantity=command.quantity,
@@ -66,7 +66,7 @@ class InventoryDesktopMovementMixin:
         self,
         command: InventoryReturnCommand,
     ) -> InventoryStockTransactionDesktopDto:
-        transaction = self._require_stock_service().return_stock(
+        transaction = self._require_foundation_service().return_stock(
             stock_item_id=command.stock_item_id,
             storeroom_id=command.storeroom_id,
             quantity=command.quantity,
@@ -83,7 +83,7 @@ class InventoryDesktopMovementMixin:
         self,
         command: InventoryTransferCommand,
     ) -> tuple[InventoryStockTransactionDesktopDto, InventoryStockTransactionDesktopDto]:
-        outbound, inbound = self._require_stock_service().transfer_stock(
+        outbound, inbound = self._require_foundation_service().transfer_stock(
             stock_item_id=command.stock_item_id,
             source_storeroom_id=command.source_storeroom_id,
             destination_storeroom_id=command.destination_storeroom_id,

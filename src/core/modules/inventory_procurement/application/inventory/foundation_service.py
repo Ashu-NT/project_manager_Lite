@@ -24,6 +24,10 @@ from src.core.modules.inventory_procurement.contracts.repositories.inventory imp
     ReorderPolicyRepository,
     StorageLocationRepository,
 )
+from src.core.modules.inventory_procurement.domain.inventory.balance_events import (
+    StockOnHandQuantityChanged,
+    StockReservedQuantityChanged,
+)
 from src.core.modules.inventory_procurement.domain.inventory.foundation import (
     CycleCount,
     CycleCountStatus,
@@ -686,11 +690,19 @@ class InventoryFoundationService:
             notes=resolved_notes,
         )
         variance = float(completed_cycle_count.variance_qty or 0.0)
-        adjustment_transaction = None
-        touched_balance_id = ""
-        try:
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="complete cycle count"
+        )
+        with self._require_uow_factory().create(context=self._new_context()) as uow:
+            adjustment_transaction = None
             if abs(variance) > 1e-9:
-                adjustment_transaction = self._stock_service.post_adjustment(
+                previous_balance = uow.balances.get_for_stock_position(
+                    organization.id,
+                    completed_cycle_count.stock_item_id,
+                    completed_cycle_count.storeroom_id,
+                )
+                previous_on_hand = float(previous_balance.on_hand_qty) if previous_balance else 0.0
+                adjustment_transaction = uow.stock_service.post_adjustment(
                     stock_item_id=completed_cycle_count.stock_item_id,
                     storeroom_id=completed_cycle_count.storeroom_id,
                     quantity=abs(variance),
@@ -700,50 +712,441 @@ class InventoryFoundationService:
                     notes=completed_cycle_count.notes,
                     commit=False,
                 )
-                balance = self._stock_service.get_balance_for_stock_position(
-                    stock_item_id=completed_cycle_count.stock_item_id,
-                    storeroom_id=completed_cycle_count.storeroom_id,
+                balance = uow.balances.get_for_stock_position(
+                    organization.id,
+                    completed_cycle_count.stock_item_id,
+                    completed_cycle_count.storeroom_id,
                 )
                 if balance is not None:
-                    touched_balance_id = balance.id
-            self._cycle_count_repo.update(completed_cycle_count)
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        cycle_count = completed_cycle_count
-        if adjustment_transaction is not None:
+                    uow.record_event(
+                        StockOnHandQuantityChanged(
+                            tenant_id=tenant_id,
+                            organization_id=organization.id,
+                            balance_id=balance.id,
+                            stock_item_id=balance.stock_item_id,
+                            storeroom_id=balance.storeroom_id,
+                            quantity_delta=float(balance.on_hand_qty) - previous_on_hand,
+                            resulting_quantity=balance.on_hand_qty,
+                            occurred_at=completed_cycle_count.completed_at,
+                        )
+                    )
+            uow.cycle_counts.update(completed_cycle_count)
+            if adjustment_transaction is not None:
+                record_activity(
+                    uow,
+                    action="inventory_stock_transaction.post",
+                    entity_type="inventory_stock_transaction",
+                    entity_id=adjustment_transaction.id,
+                    module="inventory",
+                    details={
+                        "transaction_number": adjustment_transaction.transaction_number,
+                        "stock_item_id": adjustment_transaction.stock_item_id,
+                        "storeroom_id": adjustment_transaction.storeroom_id,
+                        "transaction_type": adjustment_transaction.transaction_type.value,
+                        "quantity": str(adjustment_transaction.quantity),
+                        "reference_id": adjustment_transaction.reference_id,
+                    },
+                    commit=False,
+                )
             record_activity(
-                self,
-                action="inventory_stock_transaction.post",
-                entity_type="inventory_stock_transaction",
-                entity_id=adjustment_transaction.id,
+                uow,
+                action="inventory_cycle_count.complete",
+                entity_type="inventory_cycle_count",
+                entity_id=completed_cycle_count.id,
                 module="inventory",
                 details={
-                    "transaction_number": adjustment_transaction.transaction_number,
-                    "stock_item_id": adjustment_transaction.stock_item_id,
-                    "storeroom_id": adjustment_transaction.storeroom_id,
-                    "transaction_type": adjustment_transaction.transaction_type.value,
-                    "quantity": str(adjustment_transaction.quantity),
-                    "reference_id": adjustment_transaction.reference_id,
+                    "cycle_count_number": completed_cycle_count.cycle_count_number,
+                    "counted_qty": str(completed_cycle_count.counted_qty),
+                    "variance_qty": str(completed_cycle_count.variance_qty),
                 },
+                commit=False,
             )
-        record_activity(
-            self,
-            action="inventory_cycle_count.complete",
-            entity_type="inventory_cycle_count",
-            entity_id=cycle_count.id,
-            module="inventory",
-            details={
-                "cycle_count_number": cycle_count.cycle_count_number,
-                "counted_qty": str(cycle_count.counted_qty),
-                "variance_qty": str(cycle_count.variance_qty),
-            },
-        )
-        if touched_balance_id:
-            domain_events.inventory_balances_changed.emit(touched_balance_id)
+            # P31B §31: Cycle Count previously had zero atomic enterprise audit at all -- gains
+            # one here, atomic with the Balance/CycleCount write, matching the same governance
+            # upgrade P24/P30B each gave their own first-modernized capability.
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="inventory_cycle_count",
+                entity_id=completed_cycle_count.id,
+                module="inventory",
+                severity="medium",
+                metadata={
+                    "cycle_count_number": completed_cycle_count.cycle_count_number,
+                    "action": "complete",
+                    "counted_qty": str(completed_cycle_count.counted_qty),
+                    "variance_qty": str(completed_cycle_count.variance_qty),
+                },
+                commit=False,
+                fail_closed=True,
+            )
+            uow.commit()
+        cycle_count = completed_cycle_count
         domain_events.inventory_cycle_counts_changed.emit(cycle_count.id)
         return cycle_count
+
+    # -- Manual stock movements (P31B) --------------------------------------------------------
+    # Previously exposed directly off the raw-Session `StockControlService` instance
+    # (`stock_service` param, `commit=True` default -- its own self-owned mini-transaction).
+    # Converged onto this UoW so each operation can record its canonical Balance fact in the
+    # same transaction as the mutation, per P31B's "no postcommit fake facts" rule (§43).
+    # `uow.stock_service` is the exact same, unmodified `StockControlService` posting logic,
+    # only now bound to this UoW's own session/repos and always called with `commit=False`.
+
+    def post_opening_balance(
+        self,
+        *,
+        stock_item_id: str,
+        storeroom_id: str,
+        quantity: float,
+        uom: str | None = None,
+        unit_cost: float = 0.0,
+        transaction_at: datetime | None = None,
+        notes: str = "",
+    ):
+        organization = self._active_organization()
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="post opening balance"
+        )
+        with self._require_uow_factory().create(context=self._new_context()) as uow:
+            previous_on_hand = self._previous_on_hand(uow, organization.id, stock_item_id, storeroom_id)
+            transaction = uow.stock_service.post_opening_balance(
+                stock_item_id=stock_item_id,
+                storeroom_id=storeroom_id,
+                quantity=quantity,
+                uom=uom,
+                unit_cost=unit_cost,
+                transaction_at=transaction_at,
+                notes=notes,
+                commit=False,
+            )
+            self._record_movement_transaction_activity(uow, transaction)
+            self._record_movement_audit(uow, action="opening_balance", transaction=transaction, notes=notes)
+            self._record_on_hand_event(
+                uow,
+                tenant_id=tenant_id,
+                organization_id=organization.id,
+                stock_item_id=stock_item_id,
+                storeroom_id=storeroom_id,
+                previous_on_hand=previous_on_hand,
+                occurred_at=transaction.transaction_at,
+            )
+            uow.commit()
+        return transaction
+
+    def post_adjustment(
+        self,
+        *,
+        stock_item_id: str,
+        storeroom_id: str,
+        quantity: float,
+        direction: str,
+        uom: str | None = None,
+        unit_cost: float = 0.0,
+        transaction_at: datetime | None = None,
+        reference_type: str = "adjustment",
+        reference_id: str = "",
+        notes: str = "",
+    ):
+        organization = self._active_organization()
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="post stock adjustment"
+        )
+        with self._require_uow_factory().create(context=self._new_context()) as uow:
+            previous_on_hand = self._previous_on_hand(uow, organization.id, stock_item_id, storeroom_id)
+            transaction = uow.stock_service.post_adjustment(
+                stock_item_id=stock_item_id,
+                storeroom_id=storeroom_id,
+                quantity=quantity,
+                direction=direction,
+                uom=uom,
+                unit_cost=unit_cost,
+                transaction_at=transaction_at,
+                reference_type=reference_type,
+                reference_id=reference_id,
+                notes=notes,
+                commit=False,
+            )
+            self._record_movement_transaction_activity(uow, transaction)
+            self._record_movement_audit(uow, action="adjustment", transaction=transaction, notes=notes)
+            self._record_on_hand_event(
+                uow,
+                tenant_id=tenant_id,
+                organization_id=organization.id,
+                stock_item_id=stock_item_id,
+                storeroom_id=storeroom_id,
+                previous_on_hand=previous_on_hand,
+                occurred_at=transaction.transaction_at,
+            )
+            uow.commit()
+        return transaction
+
+    def issue_stock(
+        self,
+        *,
+        stock_item_id: str,
+        storeroom_id: str,
+        quantity: float,
+        uom: str | None = None,
+        unit_cost: float | None = None,
+        transaction_at: datetime | None = None,
+        release_reserved_qty: float = 0.0,
+        reference_type: str = "issue",
+        reference_id: str = "",
+        notes: str = "",
+        lot_number: str = "",
+        serial_number: str = "",
+    ):
+        organization = self._active_organization()
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="issue stock"
+        )
+        with self._require_uow_factory().create(context=self._new_context()) as uow:
+            previous_balance = uow.balances.get_for_stock_position(organization.id, stock_item_id, storeroom_id)
+            previous_on_hand = float(previous_balance.on_hand_qty) if previous_balance else 0.0
+            previous_reserved = float(previous_balance.reserved_qty) if previous_balance else 0.0
+            transaction = uow.stock_service.issue_stock(
+                stock_item_id=stock_item_id,
+                storeroom_id=storeroom_id,
+                quantity=quantity,
+                uom=uom,
+                unit_cost=unit_cost,
+                transaction_at=transaction_at,
+                release_reserved_qty=release_reserved_qty,
+                reference_type=reference_type,
+                reference_id=reference_id,
+                notes=notes,
+                lot_number=lot_number,
+                serial_number=serial_number,
+                commit=False,
+            )
+            self._record_movement_transaction_activity(uow, transaction)
+            self._record_movement_audit(uow, action="issue", transaction=transaction, notes=notes)
+            balance = uow.balances.get_for_stock_position(organization.id, stock_item_id, storeroom_id)
+            if balance is not None:
+                self._record_balance_event(
+                    uow,
+                    event_type=StockOnHandQuantityChanged,
+                    tenant_id=tenant_id,
+                    organization_id=organization.id,
+                    balance=balance,
+                    quantity_delta=float(balance.on_hand_qty) - previous_on_hand,
+                    occurred_at=transaction.transaction_at,
+                )
+                self._record_balance_event(
+                    uow,
+                    event_type=StockReservedQuantityChanged,
+                    tenant_id=tenant_id,
+                    organization_id=organization.id,
+                    balance=balance,
+                    quantity_delta=float(balance.reserved_qty) - previous_reserved,
+                    occurred_at=transaction.transaction_at,
+                )
+            uow.commit()
+        return transaction
+
+    def return_stock(
+        self,
+        *,
+        stock_item_id: str,
+        storeroom_id: str,
+        quantity: float,
+        uom: str | None = None,
+        unit_cost: float | None = None,
+        transaction_at: datetime | None = None,
+        reference_type: str = "return",
+        reference_id: str = "",
+        notes: str = "",
+        lot_number: str = "",
+        serial_number: str = "",
+    ):
+        organization = self._active_organization()
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="return stock"
+        )
+        with self._require_uow_factory().create(context=self._new_context()) as uow:
+            previous_on_hand = self._previous_on_hand(uow, organization.id, stock_item_id, storeroom_id)
+            transaction = uow.stock_service.return_stock(
+                stock_item_id=stock_item_id,
+                storeroom_id=storeroom_id,
+                quantity=quantity,
+                uom=uom,
+                unit_cost=unit_cost,
+                transaction_at=transaction_at,
+                reference_type=reference_type,
+                reference_id=reference_id,
+                notes=notes,
+                lot_number=lot_number,
+                serial_number=serial_number,
+                commit=False,
+            )
+            self._record_movement_transaction_activity(uow, transaction)
+            self._record_movement_audit(uow, action="return", transaction=transaction, notes=notes)
+            self._record_on_hand_event(
+                uow,
+                tenant_id=tenant_id,
+                organization_id=organization.id,
+                stock_item_id=stock_item_id,
+                storeroom_id=storeroom_id,
+                previous_on_hand=previous_on_hand,
+                occurred_at=transaction.transaction_at,
+            )
+            uow.commit()
+        return transaction
+
+    def transfer_stock(
+        self,
+        *,
+        stock_item_id: str,
+        source_storeroom_id: str,
+        destination_storeroom_id: str,
+        quantity: float,
+        uom: str | None = None,
+        transaction_at: datetime | None = None,
+        notes: str = "",
+    ):
+        organization = self._active_organization()
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="transfer stock"
+        )
+        with self._require_uow_factory().create(context=self._new_context()) as uow:
+            previous_source_on_hand = self._previous_on_hand(
+                uow, organization.id, stock_item_id, source_storeroom_id
+            )
+            previous_destination_on_hand = self._previous_on_hand(
+                uow, organization.id, stock_item_id, destination_storeroom_id
+            )
+            outbound, inbound = uow.stock_service.transfer_stock(
+                stock_item_id=stock_item_id,
+                source_storeroom_id=source_storeroom_id,
+                destination_storeroom_id=destination_storeroom_id,
+                quantity=quantity,
+                uom=uom,
+                transaction_at=transaction_at,
+                commit=False,
+            )
+            self._record_movement_transaction_activity(uow, outbound)
+            self._record_movement_transaction_activity(uow, inbound)
+            self._record_movement_audit(uow, action="transfer_out", transaction=outbound, notes=notes)
+            self._record_movement_audit(uow, action="transfer_in", transaction=inbound, notes=notes)
+            self._record_on_hand_event(
+                uow,
+                tenant_id=tenant_id,
+                organization_id=organization.id,
+                stock_item_id=stock_item_id,
+                storeroom_id=source_storeroom_id,
+                previous_on_hand=previous_source_on_hand,
+                occurred_at=outbound.transaction_at,
+            )
+            self._record_on_hand_event(
+                uow,
+                tenant_id=tenant_id,
+                organization_id=organization.id,
+                stock_item_id=stock_item_id,
+                storeroom_id=destination_storeroom_id,
+                previous_on_hand=previous_destination_on_hand,
+                occurred_at=inbound.transaction_at,
+            )
+            uow.commit()
+        return outbound, inbound
+
+    def _previous_on_hand(self, uow, organization_id: str, stock_item_id: str, storeroom_id: str) -> float:
+        balance = uow.balances.get_for_stock_position(organization_id, stock_item_id, storeroom_id)
+        return float(balance.on_hand_qty) if balance is not None else 0.0
+
+    def _record_on_hand_event(
+        self,
+        uow,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        stock_item_id: str,
+        storeroom_id: str,
+        previous_on_hand: float,
+        occurred_at: datetime | None,
+    ) -> None:
+        balance = uow.balances.get_for_stock_position(organization_id, stock_item_id, storeroom_id)
+        if balance is None:
+            return
+        self._record_balance_event(
+            uow,
+            event_type=StockOnHandQuantityChanged,
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            balance=balance,
+            quantity_delta=float(balance.on_hand_qty) - previous_on_hand,
+            occurred_at=occurred_at,
+        )
+
+    @staticmethod
+    def _record_balance_event(
+        uow,
+        *,
+        event_type,
+        tenant_id: str,
+        organization_id: str,
+        balance,
+        quantity_delta: float,
+        occurred_at: datetime | None,
+    ) -> None:
+        if quantity_delta == 0:
+            return
+        resulting_quantity = (
+            balance.reserved_qty if event_type is StockReservedQuantityChanged else balance.on_hand_qty
+        )
+        uow.record_event(
+            event_type(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                balance_id=balance.id,
+                stock_item_id=balance.stock_item_id,
+                storeroom_id=balance.storeroom_id,
+                quantity_delta=quantity_delta,
+                resulting_quantity=resulting_quantity,
+                occurred_at=occurred_at or datetime.now(timezone.utc),
+            )
+        )
+
+    @staticmethod
+    def _record_movement_transaction_activity(uow, transaction) -> None:
+        record_activity(
+            uow,
+            action="inventory_stock_transaction.post",
+            entity_type="inventory_stock_transaction",
+            entity_id=transaction.id,
+            module="inventory",
+            details={
+                "transaction_number": transaction.transaction_number,
+                "stock_item_id": transaction.stock_item_id,
+                "storeroom_id": transaction.storeroom_id,
+                "transaction_type": transaction.transaction_type.value,
+                "quantity": str(transaction.quantity),
+                "uom": transaction.uom,
+                "resulting_on_hand_qty": str(transaction.resulting_on_hand_qty),
+                "resulting_available_qty": str(transaction.resulting_available_qty),
+            },
+            commit=False,
+        )
+
+    @staticmethod
+    def _record_movement_audit(uow, *, action: str, transaction, notes: str) -> None:
+        record_audit_entry(
+            uow,
+            operation=action,
+            entity_type="inventory_stock_transaction",
+            entity_id=transaction.id,
+            module="inventory",
+            severity="low",
+            metadata={
+                "transaction_number": transaction.transaction_number,
+                "stock_item_id": transaction.stock_item_id,
+                "storeroom_id": transaction.storeroom_id,
+                "quantity": str(transaction.quantity),
+                "notes": normalize_optional_text(notes),
+            },
+            commit=False,
+            fail_closed=True,
+        )
 
     def _active_organization(self) -> Organization:
         return self._tenant_context_service.require_context(

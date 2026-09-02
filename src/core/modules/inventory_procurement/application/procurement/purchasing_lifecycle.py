@@ -18,6 +18,9 @@ from src.core.modules.inventory_procurement.application.procurement.purchasing_s
     build_purchase_order_number,
     normalize_currency_code,
 )
+from src.core.modules.inventory_procurement.domain.inventory.balance_events import (
+    StockOnOrderQuantityChanged,
+)
 from src.core.modules.inventory_procurement.domain.procurement.purchasing import (
     PurchaseOrder,
     PurchaseOrderLine,
@@ -530,6 +533,14 @@ class PurchasingLifecycleMixin:
             for line in lines:
                 outstanding = self._line_outstanding_qty(line)
                 if outstanding > 0 and prior_status != PurchaseOrderStatus.DRAFT:
+                    # P31B: fixes the confirmed silent-mutation gap (P31A) -- this on-order
+                    # reversal previously emitted no Balance notification of any kind.
+                    previous_balance = uow.balances.get_for_stock_position(
+                        purchase_order.organization_id,
+                        line.stock_item_id,
+                        line.destination_storeroom_id,
+                    )
+                    previous_on_order = float(previous_balance.on_order_qty) if previous_balance else 0.0
                     self._adjust_on_order_balance(
                         organization_id=purchase_order.organization_id,
                         item=self._item_service.get_item_for_internal_use(line.stock_item_id),
@@ -539,6 +550,24 @@ class PurchasingLifecycleMixin:
                         effective_at=effective_at,
                         balance_repo=uow.balances,
                     )
+                    balance = uow.balances.get_for_stock_position(
+                        purchase_order.organization_id,
+                        line.stock_item_id,
+                        line.destination_storeroom_id,
+                    )
+                    if balance is not None:
+                        uow.record_event(
+                            StockOnOrderQuantityChanged(
+                                tenant_id=tenant_id,
+                                organization_id=purchase_order.organization_id,
+                                balance_id=balance.id,
+                                stock_item_id=balance.stock_item_id,
+                                storeroom_id=balance.storeroom_id,
+                                quantity_delta=float(balance.on_order_qty) - previous_on_order,
+                                resulting_quantity=balance.on_order_qty,
+                                occurred_at=effective_at,
+                            )
+                        )
                 line = replace(line, status=PurchaseOrderLineStatus.CANCELLED)
                 uow.purchase_order_lines.update(line)
             uow.purchase_orders.update(cancelled_purchase_order)

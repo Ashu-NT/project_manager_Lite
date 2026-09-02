@@ -26,7 +26,6 @@ from src.core.modules.inventory_procurement.domain.inventory.stock import (
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.master_data.org import Organization
-from src.core.shared.events.domain_events import domain_events
 
 
 class StockControlAdjustmentMixin:
@@ -311,7 +310,6 @@ class StockControlAdjustmentMixin:
                     "resulting_available_qty": str(transaction.resulting_available_qty),
                 },
             )
-            domain_events.inventory_balances_changed.emit(balance.id)
         return transaction
 
     def _post_reservation_transaction(
@@ -421,7 +419,6 @@ class StockControlAdjustmentMixin:
                     "resulting_available_qty": str(transaction.resulting_available_qty),
                 },
             )
-            domain_events.inventory_balances_changed.emit(balance.id)
         return transaction
 
 

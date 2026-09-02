@@ -113,7 +113,6 @@ class InventoryProcurementDashboardWorkspaceController(
             self._request_domain_refresh()
 
         for signal in (
-            domain_events.inventory_balances_changed,
             domain_events.inventory_receipts_changed,
             domain_events.inventory_cycle_counts_changed,
         ):

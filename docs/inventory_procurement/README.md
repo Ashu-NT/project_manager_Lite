@@ -684,7 +684,7 @@ Recommended first events (original phase-1 plan, kept for history):
 
 - `inventory_items_changed` — MODERNIZED: typed `InventoryItem*` events replace it (deleted)
 - `inventory_storerooms_changed` — MODERNIZED: typed Storeroom/Location events replace it (deleted)
-- `inventory_balances_changed` — still legacy, Stock Balance/Ledger not yet modernized
+- ~~`inventory_balances_changed`~~ — MODERNIZED: typed `StockOnHandQuantityChanged`/`StockReservedQuantityChanged`/`StockOnOrderQuantityChanged` events replace it (deleted, see `docs/architecture/event-modernization-plan.md` P31B)
 - ~~`inventory_reservations_changed`~~ — MODERNIZED: typed `InventoryReservation*` events replace it (deleted, see `docs/architecture/event-modernization-plan.md` P30B)
 - ~~`inventory_requisitions_changed`~~ — MODERNIZED: typed `InventoryRequisition*` events replace it (deleted)
 - ~~`inventory_purchase_orders_changed`~~ — MODERNIZED: typed `InventoryPurchaseOrder*` events replace it (deleted)

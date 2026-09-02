@@ -8,6 +8,11 @@ from src.core.modules.inventory_procurement.domain.inventory.foundation_events i
     StoreroomProfileUpdated,
     StoreroomStatusChanged,
 )
+from src.core.modules.inventory_procurement.domain.inventory.balance_events import (
+    StockOnHandQuantityChanged,
+    StockOnOrderQuantityChanged,
+    StockReservedQuantityChanged,
+)
 from src.core.modules.inventory_procurement.domain.inventory.reservation_events import (
     InventoryReservationCancelled,
     InventoryReservationConsumptionAdvanced,
@@ -34,9 +39,17 @@ RESERVATION_LIST_SCOPE_CODE = "reservation_list"
 RESERVATION_DETAIL_SCOPE_CODE = "reservation_detail"
 RESERVATION_OPEN_COUNT_SCOPE_CODE = "reservation_open_count"
 
+BALANCE_CATEGORY = "inventory_balance"
+BALANCE_MODULE_CODE = "inventory_procurement"
+BALANCE_ENTITY_TYPE = "stock_balance"
+BALANCE_LIST_SCOPE_CODE = "stock_balance_list"
+BALANCE_DETAIL_SCOPE_CODE = "stock_balance_detail"
+
 _OrgTarget = tuple[str, str]
 _ReservationOrgTarget = tuple[str, str, str]
 _ReservationDetailTarget = tuple[str, str, str, str, str, str]
+_BalanceOrgTarget = tuple[str, str, str]
+_BalanceDetailTarget = tuple[str, str, str, str, str, str]
 
 _FULLY_ISSUED_STATUS = "FULLY_ISSUED"
 
@@ -273,11 +286,92 @@ def build_reservation_view_invalidation_handler(channel: ViewInvalidationChannel
     return handle_reservation_event
 
 
+_BalanceEvent = StockOnHandQuantityChanged | StockReservedQuantityChanged | StockOnOrderQuantityChanged
+
+
+def build_balance_view_invalidation_handler(channel: ViewInvalidationChannel):
+    """`stock_balance_list` (org-wide) and `stock_balance_detail` (exact resource) are Balance's
+    own two projections. All 3 field-typed events (`StockOnHandQuantityChanged`/
+    `StockReservedQuantityChanged`/`StockOnOrderQuantityChanged`) notify both targets identically
+    -- not because field-sensitivity was skipped, but because it was checked per genuine consumer
+    (P31A/P31B field-level audit) and each of the 3 confirmed-genuine consumers
+    (Inventory(Foundation)'s own Balance table + detail panel, Pricing's `reorder_required`/
+    `on_order_qty`/`reserved_qty`/`available_qty`/`average_cost` report, Dashboard's "Stock
+    Positions"/"Low Stock"/"On Order Qty" KPIs) turns out to read fields spanning all three
+    dimensions, and none of the three workspaces has any refresh seam narrower than its own single
+    monolithic `refresh()` to route to. The field distinction still matters at the producer/event
+    level (a Reservation-only mutation genuinely does not touch `on_order_qty`, so no
+    `StockOnOrderQuantityChanged` is ever recorded for it) -- it simply doesn't currently produce a
+    narrower *consumer* target, unlike Requisition's `requisition_pending_approval` (P29-FIX) or
+    Reservation's `reservation_open_count` (P30B), where a genuinely narrower per-KPI seam existed.
+
+    Deduplicated per (transaction correlation_id, target identity), matching every other handler
+    (P18B-FIX)."""
+
+    current_correlation_id: list[str | None] = [None]
+    notified_list_targets: set[_BalanceOrgTarget] = set()
+    notified_detail_targets: set[_BalanceDetailTarget] = set()
+
+    def handle_balance_event(
+        event: _BalanceEvent,
+        context: DomainEventContext,
+    ) -> None:
+        if context.correlation_id != current_correlation_id[0]:
+            current_correlation_id[0] = context.correlation_id
+            notified_list_targets.clear()
+            notified_detail_targets.clear()
+
+        org_scope = OrganizationScope(event.tenant_id, event.organization_id)
+
+        list_target = (BALANCE_LIST_SCOPE_CODE, event.tenant_id, event.organization_id)
+        if list_target not in notified_list_targets:
+            notified_list_targets.add(list_target)
+            channel.notify(
+                ViewInvalidationHint(
+                    scope=org_scope,
+                    category=BALANCE_CATEGORY,
+                    scope_code=BALANCE_LIST_SCOPE_CODE,
+                    entity_type=BALANCE_ENTITY_TYPE,
+                    entity_id=event.balance_id,
+                )
+            )
+
+        detail_scope = ResourceScope(
+            tenant_id=event.tenant_id,
+            organization_id=event.organization_id,
+            module_code=BALANCE_MODULE_CODE,
+            entity_type=BALANCE_ENTITY_TYPE,
+            entity_id=event.balance_id,
+        )
+        detail_target = (
+            BALANCE_DETAIL_SCOPE_CODE,
+            event.tenant_id,
+            event.organization_id,
+            BALANCE_MODULE_CODE,
+            BALANCE_ENTITY_TYPE,
+            event.balance_id,
+        )
+        if detail_target not in notified_detail_targets:
+            notified_detail_targets.add(detail_target)
+            channel.notify(
+                ViewInvalidationHint(
+                    scope=detail_scope,
+                    category=BALANCE_CATEGORY,
+                    scope_code=BALANCE_DETAIL_SCOPE_CODE,
+                    entity_type=BALANCE_ENTITY_TYPE,
+                    entity_id=event.balance_id,
+                )
+            )
+
+    return handle_balance_event
+
+
 __all__ = [
     "build_storeroom_list_view_invalidation_handler",
     "build_location_list_view_invalidation_handler",
     "build_reorder_policy_list_view_invalidation_handler",
     "build_reservation_view_invalidation_handler",
+    "build_balance_view_invalidation_handler",
     "INVENTORY_CATEGORY",
     "STOREROOM_LIST_SCOPE_CODE",
     "LOCATION_LIST_SCOPE_CODE",
@@ -288,4 +382,9 @@ __all__ = [
     "RESERVATION_LIST_SCOPE_CODE",
     "RESERVATION_DETAIL_SCOPE_CODE",
     "RESERVATION_OPEN_COUNT_SCOPE_CODE",
+    "BALANCE_CATEGORY",
+    "BALANCE_MODULE_CODE",
+    "BALANCE_ENTITY_TYPE",
+    "BALANCE_LIST_SCOPE_CODE",
+    "BALANCE_DETAIL_SCOPE_CODE",
 ]
