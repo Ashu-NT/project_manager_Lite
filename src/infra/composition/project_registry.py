@@ -36,6 +36,12 @@ from src.core.modules.project_management.application.financials.forecasts.foreca
     ForecastLineChanged,
     ForecastVersionChanged,
 )
+from src.core.modules.project_management.application.financials.financial_changes.event_handlers.view_invalidation import (
+    build_financial_change_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
+    FinancialChangeChanged,
+)
 from src.core.modules.project_management.application.financials.planned_costs.event_handlers.view_invalidation import (
     build_planned_cost_view_invalidation_handler,
 )
@@ -674,6 +680,14 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus.subscribe(
             _forecast_event_type, _forecast_view_invalidation_handler
         )
+    _financial_change_view_invalidation_handler = (
+        build_financial_change_view_invalidation_handler(
+            platform_services.platform_view_invalidation_channel
+        )
+    )
+    platform_services.platform_post_commit_bus.subscribe(
+        FinancialChangeChanged, _financial_change_view_invalidation_handler
+    )
     _planned_cost_view_invalidation_handler = build_planned_cost_view_invalidation_handler(
         platform_services.platform_view_invalidation_channel
     )
@@ -906,7 +920,16 @@ def build_project_management_service_bundle(
         read_service=financial_change_service,
         boundary=finance_governance_commands,
         family="financial_change",
-        mutations=frozenset({"create_change", "add_impact", "submit_change"}),
+        mutations=frozenset(
+            {
+                "create_change",
+                "update_change",
+                "add_impact",
+                "update_impact",
+                "remove_impact",
+                "submit_change",
+            }
+        ),
     )
     rate_card_service = FinanceGovernedServicePort(
         read_service=rate_card_service,

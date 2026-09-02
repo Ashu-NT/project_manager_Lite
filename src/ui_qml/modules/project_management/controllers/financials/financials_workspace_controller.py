@@ -17,6 +17,12 @@ from src.ui_qml.modules.project_management.controllers.financials.forecast_domai
     on_forecast_approved_basis_stale,
     on_forecast_planning_stale,
 )
+from src.ui_qml.modules.project_management.controllers.financials.financial_change_domain_event_binder import (
+    on_financial_change_budget_stale,
+    on_financial_change_forecast_stale,
+    on_financial_change_schedule_stale,
+    on_financial_change_workspace_stale,
+)
 from src.ui_qml.modules.project_management.controllers.financials.financial_setup_domain_event_binder import (
     on_financial_profile_stale,
 )
@@ -758,6 +764,18 @@ class ProjectManagementFinancialsWorkspaceController(
 
     def onForecastApprovedBasisStale(self, project_id: str) -> None:
         on_forecast_approved_basis_stale(self, project_id)
+
+    def onFinancialChangeWorkspaceStale(self, project_id: str) -> None:
+        on_financial_change_workspace_stale(self, project_id)
+
+    def onFinancialChangeBudgetStale(self, project_id: str) -> None:
+        on_financial_change_budget_stale(self, project_id)
+
+    def onFinancialChangeForecastStale(self, project_id: str) -> None:
+        on_financial_change_forecast_stale(self, project_id)
+
+    def onFinancialChangeScheduleStale(self, project_id: str) -> None:
+        on_financial_change_schedule_stale(self, project_id)
 
     def onFinancialProfileStale(self, project_id: str) -> None:
         on_financial_profile_stale(self, project_id)
