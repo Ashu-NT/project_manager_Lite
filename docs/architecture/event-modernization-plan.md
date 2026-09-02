@@ -1787,18 +1787,84 @@ explicitly out of scope for a single-signal capability phase.
 fully modernized. **Next planned target remains Commitment**, per P34A's own Finance-first trio
 sequencing — unchanged by this phase.
 
+### P35-CLEANUP — Repair Legacy Architecture-Test Baseline Before Commitment (TEST/GUARD ONLY)
+
+No production code changed. **A material, source-verified discovery superseding P35's own closing
+count**: `financial_changes_changed` was independently retired (typed `FinancialChangeChanged`
+event, `FinancialChangeEventType.APPLIED`/`REJECTED`) by work outside this document's own tracked
+phase sequence — zero remaining production references confirmed — between P35 and this cleanup
+pass. The legacy Signal count is therefore **11, not 12**, as of this pass; §4 below reflects the
+corrected, source-derived figure.
+
+**P8 frozen-allowlist investigation (the core of this pass)**: P34A found `cost_entries_changed`/
+`commitments_changed`/`financial_changes_changed` live but absent from `FROZEN_LEGACY_SIGNAL_
+ALLOWLIST`, and simultaneously listed in `_DELETED_BRIDGE_NAMES` — flagged then as an unresolved
+contradiction. Repository history (`git log --follow` on both `domain_events.py` and the P8 test
+file) resolves it conclusively: at the exact moment `FROZEN_LEGACY_SIGNAL_ALLOWLIST` was frozen
+(commit `d5a4069c`, 2026-08-26 18:39), all three fields had *already* been deleted by an earlier
+zero-consumer cleanup roughly one hour prior (commit `72481db8`, 17:42, "P7C" per its own
+`domain_events.py` docstring). `cost_entries_changed`/`commitments_changed` were then
+**reintroduced three days later** (commit `cf939588`, 2026-08-29) by new Cost Entry/Commitment
+capability work that never updated the P8 bookkeeping — a genuine **post-freeze legacy-Signal
+introduction**, not a frozen-allowlist omission. Per this pass's own explicit instruction, **they
+were deliberately NOT added to the frozen allowlist** — doing so would silently launder a real
+violation into an accepted baseline. `financial_changes_changed` followed the identical
+reintroduce-then-redelete path but is genuinely dead again now, so its `_DELETED_BRIDGE_NAMES`
+membership is correct and was left alone.
+
+**`_DELETED_BRIDGE_NAMES` corrected**: `cost_entries_changed`/`commitments_changed` removed (both
+are live production fields with real producers and a real consumer — they must not simultaneously
+be classified as deleted). Both fields' true status is documented in a new comment block directly
+in the test file, citing the exact commits above, so `test_current_signals_are_a_subset_of_the_
+frozen_allowlist_not_equal`/`test_every_current_signal_is_in_the_frozen_allowlist_no_silent_field_
+addition`/`test_a_hypothetical_deletion_still_passes_the_subset_check`/`test_every_approval_post_
+commit_event_signal_name_is_allowlisted_and_has_a_ui_consumer` are EXPECTED to keep failing for
+exactly `cost_entries_changed`/`commitments_changed` until each is properly modernized (Commitment
+next, then Cost Entry) — this is the guard correctly detecting a real, pre-existing condition, not
+stale test debt to silence.
+
+**Two brittle hardcoded-count tests removed** (`test_p16d_document_link_typed_events.py::test_
+legacy_signal_count_decreased_by_exactly_one` — `== 29`; `test_p18b_resource_view_invalidation.py::
+test_legacy_signal_count_decreased_by_exactly_one_from_p18a_baseline` — `== 28`): both were fully
+redundant with an adjacent, still-valid field-absence test in the same file, and neither's own
+architectural intent required an exact historical count — removed rather than re-hardcoded to `11`,
+per this pass's own explicit "don't create another future-stale assertion" instruction.
+
+**`resources_changed` stale-liveness assertion fixed** in `test_p7_legacy_bridge_removal.py::test_
+all_still_unmodernized_signals_survive_with_real_direct_consumers`: Resource was fully modernized by
+P18A/P18B (`ResourceMasterChanged`/`ResourceCapabilityChanged`, canonical ViewInvalidation) and
+`resources_changed` was genuinely deleted — the test's own "still exists" assertion for that name
+was stale. Removed from the tuple, docstring updated to name P18A/P18B alongside the test file's
+own pre-existing precedent for the other five already-excluded, already-modernized names.
+
+**New finding for the P36 Commitment baseline** (reported, not acted on — out of this pass's
+scope): `commitments_changed` has **2** production producers, not 1 — `commitment_service.py`'s own
+direct emit, plus a second, cross-module producer in `ProcurementFinancialDispatcher._emit_refresh`
+(`src/infra/integration/procurement_financial_dispatcher.py`) that P34A's original audit did not
+find. `cost_entries_changed` has **3** — `cost_entry_service.py`'s own emit, the same
+`ProcurementFinancialDispatcher`, and a third in `ApprovedTimeFinancialDispatcher`
+(`src/infra/integration/approved_time_dispatcher.py`). Both remain single-consumer
+(`financials_refresh_mixin.py`, unchanged). No production code was touched to establish this —
+it is a corrected fact for whoever scopes the Commitment phase next.
+
+`current ∩ retired-name-set` is confirmed EMPTY (no field is simultaneously live and marked
+retired). `current − frozen` is confirmed to be exactly `{cost_entries_changed,
+commitments_changed}` — the one deliberately-unresolved, documented violation above, not an
+oversight.
+
 ## 4. Current State
 
-**Legacy Signal count: 12 as of P35** (source-derived from
+**Legacy Signal count: 11 as of P35-CLEANUP** (source-derived from
 `src/core/shared/events/domain_events.py`, re-verified against current source when this document
-was last updated — `dataclasses.fields(domain_events)`, not a manual field count).
+was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Corrected down
+from P35's own closing count of 12 — see the P35-CLEANUP entry above for why.
 
 | Area | Count |
 |---|---|
 | Platform | 0 |
 | Auth/Security | 1 |
 | Project Management | 6 |
-| Finance | 5 |
+| Finance | 4 |
 | Inventory/Procurement | 0 |
 
 > **This is a snapshot, not a fact.** Recompute the count directly from
@@ -1821,19 +1887,26 @@ Session remains AUDITED / DEFERRED** (P26A, see §3) — still not recommended g
 exists yet on that surface.
 
 **Planned Cost is DONE (P35, see §3)** — `planned_costs_changed` is deleted, the first of P34A's
-Finance-first trio complete. **`commitments_changed` is next**, followed by `cost_entries_changed`,
-both as DIRECT FULL MODERNIZATION (no dedicated audit-first phase needed): both already have an
-unused, fully-wired canonical `FinanceGovernanceUnitOfWork` repo accessor, a single (or tight,
-already-atomic) producer, and the same proven precommit-conversion pattern P22's Rate Card and now
-P35's Planned Cost already demonstrated on the exact same class. `commitments_changed` additionally
-closes a real, currently-live commit-without-rollback bug in `commitment_service.py` — re-confirmed
-present as of P35 (`commitment_service.py`'s `_commit()` still has zero try/except/rollback).
-`budgets_changed`/`financial_changes_changed` are also transaction-canonical but are deliberately
-sequenced after the trio — P34A found they are genuinely coupled to each other AND to PM's
-`tasks_changed` through one Approval participant (`financial_change_apply_participant.py::apply()`),
-which needs its own deliberate resolution rather than being forced by finishing either signal in
-isolation. Per this document's own repeated caution, re-run prioritization from current source
-before committing further — concurrent development elsewhere may have changed readiness since P34A.
+Finance-first trio complete. `financial_changes_changed` is ALSO now gone (retired independently,
+outside this document's tracked sequence — see the P35-CLEANUP entry). **`commitments_changed` is
+next**, followed by `cost_entries_changed`, both as DIRECT FULL MODERNIZATION (no dedicated
+audit-first phase needed): both already have an unused, fully-wired canonical
+`FinanceGovernanceUnitOfWork` repo accessor and the same proven precommit-conversion pattern P22's
+Rate Card and P35's Planned Cost already demonstrated on the exact same class. **Correction from
+P35-CLEANUP**: each has more than one producer — `commitments_changed` has 2
+(`commitment_service.py` direct, plus `ProcurementFinancialDispatcher`); `cost_entries_changed` has
+3 (`cost_entry_service.py` direct, plus `ProcurementFinancialDispatcher` and
+`ApprovedTimeFinancialDispatcher`) — re-scope the producer surface from current source before
+implementing, not from P34A's original "single producer" characterization. `commitments_changed`
+additionally closes a real, currently-live commit-without-rollback bug in `commitment_service.py` —
+re-confirmed present as of P35 (`commitment_service.py`'s `_commit()` still has zero
+try/except/rollback). `budgets_changed` remains transaction-canonical but is deliberately sequenced
+after the trio — P34A found it genuinely coupled to PM's `tasks_changed` through one Approval
+participant (`financial_change_apply_participant.py::apply()`, which still conditionally emits both
+legacy signals even though its own `financial_changes_changed` is now typed), which needs its own
+deliberate resolution rather than being forced by finishing Budget in isolation. Per this document's
+own repeated caution, re-run prioritization from current source before committing further —
+concurrent development elsewhere may have changed readiness since P34A.
 
 **A pre-existing, explicitly-not-fixed note carried forward by P33**: `PurchaseOrderLineORM` has no
 `version` column and its repository performs a blind field overwrite on `update()` — confirmed real

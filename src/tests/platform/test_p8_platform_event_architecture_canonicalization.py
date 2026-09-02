@@ -43,6 +43,21 @@ FROZEN_LEGACY_SIGNAL_ALLOWLIST = frozenset(
         "inventory_cycle_counts_changed",
     }
 )
+# P35-CLEANUP FINDING -- ARCHITECTURE VIOLATION, NOT A TEST BUG: `cost_entries_changed` and
+# `commitments_changed` are CURRENTLY LIVE production Signal fields (real producers in
+# `cost_entry_service.py`/`commitment_service.py`, a real consumer in
+# `financials_refresh_mixin.py`) that are deliberately NOT included above. Repository history
+# (see `_DELETED_BRIDGE_NAMES`'s own note) proves both were already deleted at the moment this
+# allowlist was frozen (commit d5a4069c, 2026-08-26) and were only REINTRODUCED three days later
+# (commit cf939588, 2026-08-29) by Cost Entry/Commitment capability work that never updated this
+# file. This is a genuine post-freeze new-legacy-Signal introduction -- exactly what
+# `test_current_signals_are_a_subset_of_the_frozen_allowlist_not_equal`/`test_every_current_
+# signal_is_in_the_frozen_allowlist_no_silent_field_addition` exist to catch -- not a frozen-list
+# omission to silently correct. Adding them here would defeat the guard's purpose. These two
+# tests are EXPECTED to keep failing for exactly these two names until Commitment (next, per
+# `docs/architecture/event-modernization-plan.md`) and Cost Entry are each properly modernized
+# (typed DomainEvent + canonical UoW + field deleted), at which point they leave the CURRENT set
+# entirely and no allowlist edit is needed either way.
 
 _DELETED_BRIDGE_NAMES = (
     "_BRIDGE_SPECS",
@@ -54,11 +69,23 @@ _DELETED_BRIDGE_NAMES = (
     "shared_master_changed",
     "costs_changed",
     "calendars_changed",
-    "cost_entries_changed",
-    "commitments_changed",
     "forecasts_changed",
     "financial_changes_changed",
 )
+# P35-CLEANUP: `cost_entries_changed`/`commitments_changed` were REMOVED from this list -- both
+# are genuinely live production Signal fields (real producers in `cost_entry_service.py`/
+# `commitment_service.py`, a real consumer in `financials_refresh_mixin.py`), not deleted names.
+# Repository history proves this is not a stale-test omission: at the P8 freeze baseline
+# (commit d5a4069c, 2026-08-26 18:39 UTC+2) both fields, along with `forecasts_changed`/
+# `financial_changes_changed`, had ALREADY been deleted by an earlier "P7C" zero-consumer cleanup
+# (commit 72481db8, 2026-08-26 17:42 UTC+2, ~1 hour before the freeze -- see that commit's own
+# `domain_events.py` docstring). `cost_entries_changed`/`commitments_changed` were then
+# REINTRODUCED on 2026-08-29 (commit cf939588, "update domain event") by Cost Entry/Commitment
+# capability work built AFTER the freeze, without ever updating this file. This is a genuine,
+# real POST-FREEZE legacy-Signal reintroduction, not a frozen-allowlist omission -- see
+# `FROZEN_LEGACY_SIGNAL_ALLOWLIST`'s own note below for why they are deliberately NOT added
+# there either. `financial_changes_changed` followed the identical reintroduction/re-deletion
+# path but IS now genuinely retired again (P35-CLEANUP era), so it correctly remains here.
 
 
 def _strip_strings_and_comments(source: str) -> str:

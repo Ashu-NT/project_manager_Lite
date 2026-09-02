@@ -109,11 +109,15 @@ def test_all_still_unmodernized_signals_survive_with_real_direct_consumers():
     P13B, P14B, P15B, P16D): all six capabilities are now fully modernized (create/profile events
     are typed), so their legacy signals were actually deleted, not merely left un-bridged like
     the ones below. `inventory_items_changed`/`inventory_item_categories_changed` are likewise
-    deliberately absent -- P24 fully modernized Item Catalog + Item Category."""
+    deliberately absent -- P24 fully modernized Item Catalog + Item Category. `resources_changed`
+    is ALSO deliberately absent (P35-CLEANUP correction) -- P18A/P18B fully modernized Project
+    Resource (`ResourceMasterChanged`/`ResourceCapabilityChanged`, canonical ViewInvalidation),
+    so it was actually deleted too; see `test_resources_changed_field_is_absent_from_domain_events`
+    in `test_p18b_resource_view_invalidation.py` for the dedicated retirement proof."""
 
     for signal_name in (
         "auth_changed",
-        "project_changed", "tasks_changed", "resources_changed",
+        "project_changed", "tasks_changed",
     ):
         assert hasattr(domain_events, signal_name), f"{signal_name} was deleted, not just un-bridged"
 
