@@ -190,6 +190,12 @@ class FinancialsStateMixin:
             self._selected_change = value
             self.selectedChangeChanged.emit()
 
+    def _set_can_create_financial_change(self, value: bool) -> None:
+        normalized = bool(value)
+        if normalized != self._can_create_financial_change:
+            self._can_create_financial_change = normalized
+            self.canCreateFinancialChangeChanged.emit()
+
     def _set_financial_changes(self, value: FinancialsMap) -> None:
         if value != self._financial_changes:
             self._financial_changes = value

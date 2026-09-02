@@ -319,6 +319,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         self,
         impact_id: str,
         *,
+        impact_type: FinancialChangeImpactType,
         description: str,
         expected_impact_version: int,
         expected_change_version: int,
@@ -331,6 +332,11 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         schedule_finish: date | None = None,
     ) -> FinancialChangeImpact:
         impact = self._require_impact(impact_id)
+        if impact.impact_type is not impact_type:
+            raise BusinessRuleError(
+                "Financial change impact type is immutable.",
+                code="FINANCIAL_CHANGE_IMPACT_TYPE_IMMUTABLE",
+            )
         change = self._require_mutable_change(
             impact.change_request_id,
             expected_change_version,

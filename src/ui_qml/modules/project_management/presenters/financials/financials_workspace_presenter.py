@@ -14,27 +14,34 @@ from src.ui_qml.modules.project_management.view_models.financials import Financi
 
 from .command_handler import (
     add_budget_line,
+    add_financial_change_impact,
     approve_actual,
     close_budget,
     create_budget_successor,
     create_budget_version,
     create_cost_code,
     create_manual_actual,
+    create_financial_change,
     decide_budget_approval,
     decide_forecast_approval,
+    decide_financial_change_approval,
     delete_budget,
     delete_budget_line,
     generate_forecast,
     post_actual,
+    remove_financial_change_impact,
     reject_actual,
     reverse_actual,
     submit_actual,
     submit_budget,
     submit_forecast,
+    submit_financial_change,
     request_budget_approval,
     request_forecast_approval,
     update_budget,
     update_budget_line,
+    update_financial_change,
+    update_financial_change_impact,
 )
 from .destination_builder import build_destination_state, build_shell_state
 
@@ -174,6 +181,31 @@ class ProjectFinancialsWorkspacePresenter:
         self, request_id: str, approve: bool, note: str
     ) -> None:
         decide_forecast_approval(
+            self._approval_api, request_id, approve=approve, note=note
+        )
+
+    def create_financial_change(self, payload: dict[str, Any]):
+        return create_financial_change(self._desktop_api, payload)
+
+    def update_financial_change(self, payload: dict[str, Any]):
+        return update_financial_change(self._desktop_api, payload)
+
+    def add_financial_change_impact(self, payload: dict[str, Any]):
+        return add_financial_change_impact(self._desktop_api, payload)
+
+    def update_financial_change_impact(self, payload: dict[str, Any]):
+        return update_financial_change_impact(self._desktop_api, payload)
+
+    def remove_financial_change_impact(self, payload: dict[str, Any]):
+        return remove_financial_change_impact(self._desktop_api, payload)
+
+    def submit_financial_change(self, payload: dict[str, Any]):
+        return submit_financial_change(self._desktop_api, payload)
+
+    def decide_financial_change_approval(
+        self, request_id: str, approve: bool, note: str
+    ) -> None:
+        decide_financial_change_approval(
             self._approval_api, request_id, approve=approve, note=note
         )
 

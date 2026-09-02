@@ -428,6 +428,8 @@ AppLayouts.WorkspaceFrame {
                     financialChangesModel: root.workspaceController ? root.workspaceController.financialChanges : ({ "items": [] })
                     financialChangeImpactsModel: root.workspaceController ? root.workspaceController.financialChangeImpacts : ({ "items": [] })
                     selectedChangeModel: root.workspaceController ? root.workspaceController.selectedChange : ({ "id": "", "fields": [] })
+                    canCreateFinancialChange: root.workspaceController
+                        ? root.workspaceController.canCreateFinancialChange : false
                     financialChangesTableModel: root.workspaceController ? root.workspaceController.financialChangesTableModel : null
                     financialChangeImpactsTableModel: root.workspaceController ? root.workspaceController.financialChangeImpactsTableModel : null
                     selectedChangeId: root.workspaceController ? root.workspaceController.selectedChangeId : ""
@@ -572,6 +574,31 @@ AppLayouts.WorkspaceFrame {
                     onForecastLifecycleRequested: function(action, forecast) {
                         dialogHostLoader.invoke(
                             "openForecastLifecycleDialog", action, forecast
+                        )
+                    }
+                    onFinancialChangeRequestCreateRequested: {
+                        dialogHostLoader.invoke(
+                            "openFinancialChangeRequestDialog", "create", null
+                        )
+                    }
+                    onFinancialChangeRequestEditRequested: function(change) {
+                        dialogHostLoader.invoke(
+                            "openFinancialChangeRequestDialog", "edit", change
+                        )
+                    }
+                    onFinancialChangeImpactCreateRequested: function(change) {
+                        dialogHostLoader.invoke(
+                            "openFinancialChangeImpactDialog", "create", change, null
+                        )
+                    }
+                    onFinancialChangeImpactEditRequested: function(change, impact) {
+                        dialogHostLoader.invoke(
+                            "openFinancialChangeImpactDialog", "edit", change, impact
+                        )
+                    }
+                    onFinancialChangeLifecycleRequested: function(action, change, impact) {
+                        dialogHostLoader.invoke(
+                            "openFinancialChangeLifecycleDialog", action, change, impact
                         )
                     }
                     onPlannedCostVersionSelected: function(versionId) {

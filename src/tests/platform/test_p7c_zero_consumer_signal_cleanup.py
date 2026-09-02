@@ -9,7 +9,6 @@ from src.core.shared.events.domain_events import domain_events
 _ACTIVE_FINANCE_SIGNALS = (
     "cost_entries_changed",
     "commitments_changed",
-    "financial_changes_changed",
 )
 
 
@@ -146,22 +145,22 @@ def test_project_cost_apply_participant_emits_scoped_post_commit_events():
         assert "invalidation_scope(entry)" in source
 
 
-def test_financial_change_apply_participant_emits_scoped_change_and_forecast_hints():
+def test_financial_change_apply_participant_emits_typed_change_and_forecast_events():
     from src.core.modules.project_management.infrastructure.approval.financial_change_apply_participant import (
         FinancialChangeApprovalParticipant,
     )
 
     apply_source = inspect.getsource(FinancialChangeApprovalParticipant.apply)
-    assert '"financial_changes_changed"' in apply_source
-    assert "invalidation_scope(change)" in apply_source
+    assert "FinancialChangeChanged(" in apply_source
+    assert "FinancialChangeEventType.APPLIED" in apply_source
     assert "ForecastVersionChanged(" in apply_source
     assert "ForecastVersionChangeType.APPROVED" in apply_source
     assert "budgets_changed" in apply_source
     assert "tasks_changed" in apply_source
 
     reject_source = inspect.getsource(FinancialChangeApprovalParticipant.reject)
-    assert '"financial_changes_changed"' in reject_source
-    assert "invalidation_scope(change)" in reject_source
+    assert "FinancialChangeChanged(" in reject_source
+    assert "FinancialChangeEventType.REJECTED" in reject_source
 
 
 def test_real_budget_approval_still_emits_its_own_real_signal(services):
@@ -257,7 +256,7 @@ def test_no_new_business_domain_event_or_replacement_signal_introduced():
 
     forbidden = (
         "CostEntryChanged", "CommitmentChanged", "ForecastChanged",
-        "FinancialChangeChanged", "FinanceChanged",
+        "FinanceChanged",
     )
     hits = []
     for path in _production_source_files():

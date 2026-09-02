@@ -119,6 +119,7 @@ class FinancialsWorkspaceViewModel:
     can_generate_forecast: bool = False
     generate_forecast_disabled_reason: str = ""
     selected_change_id: str = ""
+    can_create_change: bool = False
     selected_change: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     financial_changes: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     financial_change_impacts: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))

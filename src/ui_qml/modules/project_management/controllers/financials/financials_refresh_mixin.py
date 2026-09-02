@@ -482,6 +482,7 @@ class FinancialsRefreshMixin:
                 serialize_financials_detail_view_model(state.financial_profile)
             )
         elif subsection == "changes":
+            self._set_can_create_financial_change(state.can_create_change)
             self._set_selected_change_id(state.selected_change_id)
             self._set_selected_change(
                 serialize_financials_detail_view_model(state.selected_change)
@@ -522,6 +523,7 @@ class FinancialsRefreshMixin:
         self._set_forecast_capabilities(show=False, enabled=False, disabled_reason="")
         self._set_selected_change_id("")
         self._set_selected_change(default_detail())
+        self._set_can_create_financial_change(False)
         self._set_financial_changes(default_collection())
         self._set_financial_change_impacts(default_collection())
         self._set_commitment_summary(default_commitment_summary())
@@ -606,10 +608,6 @@ class FinancialsRefreshMixin:
                     "overview", "planning", "costs", "performance", "commercial"
                 )
 
-        def _financial_changes_changed(payload: object) -> None:
-            if self._finance_event_matches(payload):
-                self._invalidate_destinations("controls")
-
         subscriptions = (
             (domain_events.project_changed, _projects_changed),
             (domain_events.tasks_changed, _tasks_changed),
@@ -617,7 +615,6 @@ class FinancialsRefreshMixin:
             (domain_events.billing_preparations_changed, _billing_changed),
             (domain_events.cost_entries_changed, _cost_entries_changed),
             (domain_events.commitments_changed, _commitments_changed),
-            (domain_events.financial_changes_changed, _financial_changes_changed),
         )
         for signal, callback in subscriptions:
             self._subscribe_domain_signal(signal, callback)

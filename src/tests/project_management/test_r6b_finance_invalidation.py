@@ -27,7 +27,6 @@ def _controller(services):
     (
         ("cost_entries_changed", {"overview", "costs", "performance", "commercial"}),
         ("commitments_changed", {"overview", "planning", "costs", "performance", "commercial"}),
-        ("financial_changes_changed", {"controls"}),
     ),
 )
 def test_scoped_finance_events_invalidate_only_dependent_destinations(

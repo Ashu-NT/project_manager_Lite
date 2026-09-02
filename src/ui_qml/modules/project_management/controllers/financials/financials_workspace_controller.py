@@ -99,6 +99,7 @@ class ProjectManagementFinancialsWorkspaceController(
     forecastCapabilitiesChanged = Signal()
     selectedChangeIdChanged = Signal()
     selectedChangeChanged = Signal()
+    canCreateFinancialChangeChanged = Signal()
     financialChangesChanged = Signal()
     financialChangeImpactsChanged = Signal()
     changeSortKeyChanged = Signal()
@@ -215,6 +216,7 @@ class ProjectManagementFinancialsWorkspaceController(
         self._generate_forecast_disabled_reason = ""
         self._selected_change_id = ""
         self._selected_change = default_detail()
+        self._can_create_financial_change = False
         self._financial_changes = default_collection()
         self._financial_change_impacts = default_collection()
         self._financial_changes_table_model = DynamicTableModel(self)
@@ -466,6 +468,10 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property("QVariantMap", notify=financialChangeImpactsChanged)
     def financialChangeImpacts(self) -> FinancialsMap: return self._financial_change_impacts
+
+    @Property(bool, notify=canCreateFinancialChangeChanged)
+    def canCreateFinancialChange(self) -> bool:
+        return self._can_create_financial_change
 
     @Property(QObject, constant=True)
     def financialChangesTableModel(self) -> DynamicTableModel:
@@ -1104,6 +1110,36 @@ class ProjectManagementFinancialsWorkspaceController(
         self, request_id: str, approve: bool, notes: str
     ) -> FinancialsMap:
         return self._decide_forecast_approval(request_id, approve, notes)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def createFinancialChange(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._create_financial_change(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateFinancialChange(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._update_financial_change(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def addFinancialChangeImpact(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._add_financial_change_impact(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateFinancialChangeImpact(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._update_financial_change_impact(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def removeFinancialChangeImpact(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._remove_financial_change_impact(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def submitFinancialChange(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._submit_financial_change(payload)
+
+    @Slot(str, bool, str, result="QVariantMap")
+    def decideFinancialChange(
+        self, request_id: str, approve: bool, notes: str
+    ) -> FinancialsMap:
+        return self._decide_financial_change(request_id, approve, notes)
 
     @Slot(str, str, result="QVariantMap")
     def createBudgetSuccessor(self, predecessor_id: str, name: str) -> FinancialsMap:

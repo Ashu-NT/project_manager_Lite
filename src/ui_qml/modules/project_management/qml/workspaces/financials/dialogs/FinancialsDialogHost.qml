@@ -68,6 +68,31 @@ Item {
         forecastLifecycleDialog.open()
     }
 
+    function openFinancialChangeRequestDialog(mode, change) {
+        financialChangeRequestDialog.mode = String(mode || "create")
+        financialChangeRequestDialog.projectId = root.selectedProjectId
+        financialChangeRequestDialog.change = change || null
+        financialChangeRequestDialog.errorMessage = ""
+        financialChangeRequestDialog.open()
+    }
+
+    function openFinancialChangeImpactDialog(mode, change, impact) {
+        financialChangeImpactDialog.mode = String(mode || "create")
+        financialChangeImpactDialog.projectId = root.selectedProjectId
+        financialChangeImpactDialog.change = change || null
+        financialChangeImpactDialog.impact = impact || null
+        financialChangeImpactDialog.errorMessage = ""
+        financialChangeImpactDialog.open()
+    }
+
+    function openFinancialChangeLifecycleDialog(action, change, impact) {
+        financialChangeLifecycleDialog.action = String(action || "submit")
+        financialChangeLifecycleDialog.change = change || null
+        financialChangeLifecycleDialog.impact = impact || null
+        financialChangeLifecycleDialog.errorMessage = ""
+        financialChangeLifecycleDialog.open()
+    }
+
     // Opens the shared reject/post/reverse decision dialog for the given
     // canonical ProjectCostEntry. Submit and approve need no extra fields
     // and are dispatched directly by the caller without a dialog.
@@ -244,6 +269,52 @@ Item {
                 )
             }
             root._handleResult(forecastLifecycleDialog, result)
+        }
+    }
+
+    FinancialChangeRequestDialog {
+        id: financialChangeRequestDialog
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onSubmitted: function(payload) {
+            if (!root.workspaceController) return
+            const result = financialChangeRequestDialog.mode === "edit"
+                ? root.workspaceController.updateFinancialChange(payload)
+                : root.workspaceController.createFinancialChange(payload)
+            root._handleResult(financialChangeRequestDialog, result)
+        }
+    }
+
+    FinancialChangeImpactDialog {
+        id: financialChangeImpactDialog
+        workspaceController: root.workspaceController
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onSubmitted: function(payload) {
+            if (!root.workspaceController) return
+            const result = financialChangeImpactDialog.mode === "edit"
+                ? root.workspaceController.updateFinancialChangeImpact(payload)
+                : root.workspaceController.addFinancialChangeImpact(payload)
+            root._handleResult(financialChangeImpactDialog, result)
+        }
+    }
+
+    FinancialChangeLifecycleDialog {
+        id: financialChangeLifecycleDialog
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onDecided: function(action, payload) {
+            if (!root.workspaceController) return
+            let result
+            if (action === "submit") {
+                result = root.workspaceController.submitFinancialChange(payload)
+            } else if (action === "remove_impact") {
+                result = root.workspaceController.removeFinancialChangeImpact(payload)
+            } else {
+                result = root.workspaceController.decideFinancialChange(
+                    String(payload.approvalRequestId || ""),
+                    action === "approve",
+                    String(payload.notes || "")
+                )
+            }
+            root._handleResult(financialChangeLifecycleDialog, result)
         }
     }
 }
