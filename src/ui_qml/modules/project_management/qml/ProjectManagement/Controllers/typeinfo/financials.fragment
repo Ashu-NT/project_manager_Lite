@@ -5,8 +5,7 @@ Component {
     exports: ["ProjectManagement.Controllers/ProjectManagementFinancialsWorkspaceController 1.0"]
     Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
     Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
-    Property { name: "taskOptions"; type: "QVariantList"; isReadonly: true }
-    Property { name: "manualActualOptions"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "manualActualDefaults"; type: "QVariantMap"; isReadonly: true }
     Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
     Property { name: "activeDestination"; type: "QString"; isReadonly: true }
     Property { name: "activeSubsection"; type: "QString"; isReadonly: true }
@@ -174,6 +173,14 @@ Component {
     Method { name: "setBillingPreparationFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "status"; type: "QString" } Parameter { name: "method"; type: "QString" } Parameter { name: "approvalStatus"; type: "QString" } Parameter { name: "deliveryState"; type: "QString" } Parameter { name: "correctionState"; type: "QString" } }
     Method { name: "setBillingLineFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "sourceType"; type: "QString" } Parameter { name: "sourceState"; type: "QString" } }
     Method { name: "createManualActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "searchFinanceProjects"; type: "QVariantMap"; Parameter { name: "search"; type: "QString" } Parameter { name: "page"; type: "int" } Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "searchManualActualProjects"; type: "QVariantMap"; Parameter { name: "search"; type: "QString" } Parameter { name: "page"; type: "int" } Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "searchManualActualTasks"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "search"; type: "QString" } Parameter { name: "page"; type: "int" } Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "searchManualActualCostCodes"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "search"; type: "QString" } Parameter { name: "page"; type: "int" } Parameter { name: "pageSize"; type: "int" } Parameter { name: "effectiveOn"; type: "QString" } }
+    Method { name: "resolveManualActualProject"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } }
+    Method { name: "resolveManualActualTask"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "taskId"; type: "QString" } }
+    Method { name: "resolveManualActualCostCode"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "costCodeId"; type: "QString" } Parameter { name: "effectiveOn"; type: "QString" } }
+    Method { name: "loadManualActualDefaults"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } }
     Method { name: "createCostCode"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "submitActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "approveActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }

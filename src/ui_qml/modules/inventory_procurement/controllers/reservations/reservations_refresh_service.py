@@ -62,3 +62,13 @@ def refresh(ctrl) -> None:
         ctrl._set_error_message(str(exc))
     finally:
         ctrl._set_is_loading(False)
+
+
+def refresh_storeroom_options(ctrl) -> None:
+    storeroom_options = ctrl._reservations_workspace_presenter.build_storeroom_reference_options()
+    ctrl._set_storeroom_options(serialize_selector_options(storeroom_options))
+
+
+def refresh_item_options(ctrl) -> None:
+    item_options = ctrl._reservations_workspace_presenter.build_item_reference_options()
+    ctrl._set_item_options(serialize_selector_options(item_options))

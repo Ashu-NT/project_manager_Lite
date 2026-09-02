@@ -66,7 +66,6 @@ from src.core.modules.project_management.application.financials.procurement_cons
     ProcurementFinancialConsumer,
 )
 from src.core.modules.project_management.application.financials.workspace_query import (
-    ProjectFinanceSetupRead,
     ProjectFinanceWorkspaceQuery,
 )
 from src.core.modules.project_management.application.financials.performance_query import (
@@ -78,6 +77,8 @@ from src.core.modules.project_management.application.financials.invoicing import
 )
 
 __all__ = [
+    "FinanceInvalidationScope",
+    "invalidation_scope",
     "BudgetService",
     "ApprovedTimeLaborCostConsumer",
     "BudgetApprovalOutcome",
@@ -111,9 +112,9 @@ __all__ = [
     "ProjectBillingProfileService",
     "ProcurementFinancialConsumer",
     "ProjectFinanceWorkspaceQuery",
-    "ProjectFinanceSetupRead",
     "ProjectFinancePerformanceQuery",
     "RateCardResolver",
     "RateSelectionSnapshot",
     "RiskContingencyEstimate",
 ]
+from .invalidation import FinanceInvalidationScope, invalidation_scope

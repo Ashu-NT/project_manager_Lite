@@ -43,6 +43,17 @@ def test_an_object_missing_occurred_at_does_not_satisfy_domain_event() -> None:
 def test_domain_event_protocol_declares_no_business_or_scope_vocabulary() -> None:
     """DomainEvent is a typing contract only -- it must never grow tenant_id/organization_id
     or any business field of its own (ADR-005 §4). Those belong on each module's own
-    concrete event dataclasses."""
+    concrete event dataclasses.
+
+    `occurred_at` is declared as a read-only `@property` (not a plain class-level attribute
+    annotation), so it does not appear in `DomainEvent.__annotations__` -- Protocol member
+    presence is checked directly instead."""
     annotations = getattr(DomainEvent, "__annotations__", {})
-    assert set(annotations) == {"occurred_at"}
+    assert annotations == {}
+    public_members = {
+        name
+        for name in vars(DomainEvent)
+        if not name.startswith("_")
+    }
+    assert public_members == {"occurred_at"}
+    assert isinstance(vars(DomainEvent)["occurred_at"], property)

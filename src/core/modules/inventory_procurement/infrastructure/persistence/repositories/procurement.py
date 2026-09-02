@@ -224,26 +224,39 @@ class SqlAlchemyPurchaseRequisitionLineRepository(
         self.session.add(purchase_requisition_line_to_orm(line))
 
     def update(self, line) -> None:
-        obj = self._get_line_in_scope(
+        existing = self._get_line_in_scope(
             PurchaseRequisitionLineORM,
             PurchaseRequisitionORM,
             parent_field_name="purchase_requisition_id",
             line_id=line.id,
             operation_label="update purchase requisition line",
         )
-        if obj is None:
+        if existing is None:
             raise ValueError("Purchase requisition line not found.")
-        obj.line_number = line.line_number
-        obj.stock_item_id = line.stock_item_id
-        obj.description = line.description or None
-        obj.quantity_requested = line.quantity_requested
-        obj.uom = line.uom
-        obj.needed_by_date = line.needed_by_date
-        obj.estimated_unit_cost = line.estimated_unit_cost
-        obj.quantity_sourced = line.quantity_sourced
-        obj.suggested_supplier_party_id = line.suggested_supplier_party_id
-        obj.status = line.status
-        obj.notes = line.notes or None
+        line.version = update_with_version_check(
+            self.session,
+            PurchaseRequisitionLineORM,
+            line.id,
+            getattr(line, "version", 1),
+            {
+                "line_number": line.line_number,
+                "stock_item_id": line.stock_item_id,
+                "description": line.description or None,
+                "quantity_requested": line.quantity_requested,
+                "uom": line.uom,
+                "needed_by_date": line.needed_by_date,
+                "estimated_unit_cost": line.estimated_unit_cost,
+                "quantity_sourced": line.quantity_sourced,
+                "suggested_supplier_party_id": line.suggested_supplier_party_id,
+                "status": line.status,
+                "notes": line.notes or None,
+            },
+            not_found_message="Purchase requisition line not found.",
+            stale_message=(
+                "Purchase requisition line sourcing was updated by another purchase order in the"
+                " meantime. Refresh and try again."
+            ),
+        )
 
     def get(self, line_id: str):
         obj = self._get_line_in_scope(

@@ -29,7 +29,7 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing import
     PurchaseRequisitionStatus,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.domain.master_data.org import Organization
 
 
@@ -173,17 +173,17 @@ class PurchasingSupportMixin:
             return PurchaseRequisitionLineStatus.FULLY_SOURCED
         return PurchaseRequisitionLineStatus.PARTIALLY_SOURCED
 
-    def _refresh_requisition_status(self, requisition: PurchaseRequisition) -> None:
+    def _refresh_requisition_status(self, requisition: PurchaseRequisition) -> PurchaseRequisition:
         lines = self._requisition_line_repo.list_for_requisition(requisition.id)
         if not lines:
-            return
+            return requisition
         if all(line.status == PurchaseRequisitionLineStatus.FULLY_SOURCED for line in lines):
             next_status = PurchaseRequisitionStatus.FULLY_SOURCED
         else:
             any_sourced = any(float(line.quantity_sourced or 0.0) > 0 for line in lines)
             next_status = PurchaseRequisitionStatus.PARTIALLY_SOURCED if any_sourced else requisition.status
         if next_status == requisition.status:
-            return
+            return requisition
         validate_transition(
             current_status=requisition.status.value,
             next_status=next_status.value,
@@ -195,6 +195,7 @@ class PurchasingSupportMixin:
             updated_at=datetime.now(timezone.utc),
         )
         self._requisition_repo.update(requisition)
+        return requisition
 
     def _adjust_on_order_balance(
         self,
@@ -205,9 +206,11 @@ class PurchasingSupportMixin:
         uom: str,
         delta: float,
         effective_at: datetime,
+        balance_repo=None,
     ) -> None:
         if delta == 0:
             return
+        repo = balance_repo if balance_repo is not None else self._balance_repo
         delta_in_stock_uom = convert_item_quantity(
             item,
             float(delta),
@@ -215,7 +218,7 @@ class PurchasingSupportMixin:
             to_uom=item.stock_uom,
             label="Purchase-order line UOM",
         )
-        balance = self._balance_repo.get_for_stock_position(organization_id, item.id, storeroom_id)
+        balance = repo.get_for_stock_position(organization_id, item.id, storeroom_id)
         is_new_balance = balance is None
         if balance is None:
             balance = StockBalance.create(
@@ -234,15 +237,33 @@ class PurchasingSupportMixin:
             updated_at=effective_at,
         )
         if is_new_balance:
-            self._balance_repo.add(balance)
+            repo.add(balance)
         else:
-            self._balance_repo.update(balance)
+            repo.update(balance)
 
     def _require_manage(self, operation_label: str) -> None:
         require_permission(self._user_session, "inventory.manage", operation_label=operation_label)
 
     def _require_read(self, operation_label: str) -> None:
         require_permission(self._user_session, "inventory.read", operation_label=operation_label)
+
+    def _require_purchase_order_uow_factory(self):
+        """P28B: the canonical transaction boundary for every PO-owned command (create,
+        add-line, update, submit, cancel, send, close)."""
+        if self._purchase_order_submission_uow_factory is None:
+            raise BusinessRuleError(
+                "Purchase order commands require a configured transaction owner.",
+                code="INVENTORY_PURCHASE_ORDER_UOW_REQUIRED",
+            )
+        return self._purchase_order_submission_uow_factory
+
+    def _require_receiving_collaborators_factory(self):
+        if self._receiving_collaborators_factory is None:
+            raise BusinessRuleError(
+                "Receipt posting requires configured receiving collaborators.",
+                code="INVENTORY_RECEIVING_COLLABORATORS_REQUIRED",
+            )
+        return self._receiving_collaborators_factory
 
     def _active_organization(self) -> Organization:
         return self._tenant_context_service.require_context(

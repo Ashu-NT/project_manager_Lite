@@ -28,6 +28,9 @@ from src.core.modules.project_management.domain.financials.financial_change impo
     FinancialChangeImpactType,
     FinancialChangeStatus,
 )
+from src.core.modules.project_management.application.financials.invalidation import (
+    invalidation_scope,
+)
 from src.core.modules.project_management.infrastructure.approval.financial_change_apply_participant import (
     FinancialChangeApprovalParticipant,
 )
@@ -128,6 +131,7 @@ def test_participant_apply_applies_change_on_the_supplied_session_with_budget_on
     assert applied.applied_forecast_id is None
     assert not applied.applied_schedule_count
     assert result.post_commit_events == (
+        ApprovalPostCommitEvent("financial_changes_changed", invalidation_scope(applied)),
         ApprovalPostCommitEvent("budgets_changed", project.id),
     )
 
@@ -141,7 +145,9 @@ def test_participant_reject_rejects_change_on_the_supplied_session(services, ses
 
     rejected = deps.financial_change_service._change_repo.get(change.id)
     assert rejected.status is FinancialChangeStatus.REJECTED
-    assert result.post_commit_events == ()
+    assert result.post_commit_events == (
+        ApprovalPostCommitEvent("financial_changes_changed", invalidation_scope(rejected)),
+    )
 
 
 def test_participant_never_calls_commit_or_rollback(services, session, monkeypatch):

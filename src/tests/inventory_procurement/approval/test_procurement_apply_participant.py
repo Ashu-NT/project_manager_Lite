@@ -13,10 +13,13 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from src.core.modules.inventory_procurement.domain.procurement.requisition_events import (
+    InventoryRequisitionApproved,
+    InventoryRequisitionRejected,
+)
 from src.core.modules.inventory_procurement.infrastructure.approval.procurement_apply_participant import (
     ProcurementApprovalParticipant,
 )
-from src.core.platform.contract.models.approval.contracts import ApprovalPostCommitEvent
 from src.core.platform.domain.master_data.party import PartyType
 from src.infra.composition.approval_apply_dependencies.procurement import (
     build_procurement_approval_deps,
@@ -105,9 +108,14 @@ def test_participant_apply_approves_requisition_on_the_supplied_session(services
     assert approved.status.value == "APPROVED"
     assert approved.approved_at is not None
     assert [line.status.value for line in lines] == ["OPEN"]
-    assert result.post_commit_events == (
-        ApprovalPostCommitEvent("inventory_requisitions_changed", requisition.id),
-    )
+    assert result.post_commit_events == ()
+    assert len(result.domain_events) == 1
+    approved_event = result.domain_events[0]
+    assert isinstance(approved_event, InventoryRequisitionApproved)
+    assert approved_event.requisition_id == requisition.id
+    assert approved_event.approval_request_id == request.id
+    assert approved_event.organization_id == requisition.organization_id
+    assert approved_event.tenant_id == request.tenant_id
 
 
 def test_participant_reject_rejects_requisition_on_the_supplied_session(services, session):
@@ -121,9 +129,14 @@ def test_participant_reject_rejects_requisition_on_the_supplied_session(services
     lines = deps.procurement_service._requisition_line_repo.list_for_requisition(requisition.id)
     assert rejected.status.value == "REJECTED"
     assert [line.status.value for line in lines] == ["REJECTED"]
-    assert result.post_commit_events == (
-        ApprovalPostCommitEvent("inventory_requisitions_changed", requisition.id),
-    )
+    assert result.post_commit_events == ()
+    assert len(result.domain_events) == 1
+    rejected_event = result.domain_events[0]
+    assert isinstance(rejected_event, InventoryRequisitionRejected)
+    assert rejected_event.requisition_id == requisition.id
+    assert rejected_event.approval_request_id == request.id
+    assert rejected_event.organization_id == requisition.organization_id
+    assert rejected_event.tenant_id == request.tenant_id
 
 
 def test_participant_never_calls_commit_or_rollback(services, session, monkeypatch):

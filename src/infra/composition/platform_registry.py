@@ -92,6 +92,26 @@ from src.core.platform.domain.master_data.site.events import (
     SiteEnabled,
     SiteProfileUpdated,
 )
+from src.core.platform.application.master_data.party.event_handlers.view_invalidation import (
+    build_party_list_view_invalidation_handler,
+)
+from src.core.platform.domain.master_data.party.events import (
+    PartyCreated,
+    PartyProfileUpdated,
+)
+from src.core.platform.application.master_data.documents.event_handlers.view_invalidation import (
+    build_document_list_view_invalidation_handler,
+    build_document_structure_list_view_invalidation_handler,
+    build_document_links_view_invalidation_handler,
+)
+from src.core.platform.domain.master_data.documents.events import (
+    DocumentCreated,
+    DocumentProfileUpdated,
+    DocumentReferenceLinked,
+    DocumentReferenceUnlinked,
+    DocumentStructureCreated,
+    DocumentStructureProfileUpdated,
+)
 from src.core.platform.application.tenant.modules.event_handlers.view_invalidation import (
     build_module_entitlement_view_invalidation_handler,
 )
@@ -133,8 +153,14 @@ from src.core.platform.infrastructure.persistence.uow.employee_unit_of_work impo
 from src.core.platform.infrastructure.persistence.uow.party_unit_of_work import (
     SqlAlchemyPartyUnitOfWorkFactory,
 )
+from src.core.platform.infrastructure.persistence.uow.document_unit_of_work import (
+    SqlAlchemyDocumentUnitOfWorkFactory,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.resources.resource import (
     SqlAlchemyResourceRepository,
+)
+from src.core.modules.project_management.application.resources.resource_master_events import (
+    build_resource_master_changed_for_employee_sync,
 )
 from src.core.platform.infrastructure.persistence.uow.platform_provisioning_unit_of_work import (
     SqlAlchemyPlatformProvisioningUnitOfWorkFactory,
@@ -481,6 +507,38 @@ def build_platform_service_bundle(
             _site_event_type, _site_list_view_invalidation_handler
         )
 
+    _party_list_view_invalidation_handler = build_party_list_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _party_event_type in (PartyCreated, PartyProfileUpdated):
+        platform_post_commit_bus.subscribe(
+            _party_event_type, _party_list_view_invalidation_handler
+        )
+
+    _document_list_view_invalidation_handler = build_document_list_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _document_event_type in (DocumentCreated, DocumentProfileUpdated):
+        platform_post_commit_bus.subscribe(
+            _document_event_type, _document_list_view_invalidation_handler
+        )
+
+    _document_structure_list_view_invalidation_handler = build_document_structure_list_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _document_structure_event_type in (DocumentStructureCreated, DocumentStructureProfileUpdated):
+        platform_post_commit_bus.subscribe(
+            _document_structure_event_type, _document_structure_list_view_invalidation_handler
+        )
+
+    _document_links_view_invalidation_handler = build_document_links_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _document_link_event_type in (DocumentReferenceLinked, DocumentReferenceUnlinked):
+        platform_post_commit_bus.subscribe(
+            _document_link_event_type, _document_links_view_invalidation_handler
+        )
+
     approval_uow_session_factory = sessionmaker(bind=session.bind, future=True)
     approval_uow_factory = SqlAlchemyPlatformUnitOfWorkFactory(
         session_factory=approval_uow_session_factory,
@@ -602,6 +660,14 @@ def build_platform_service_bundle(
         user_session=user_session,
         platform_event_repo=repositories.platform_event_repo,
     )
+    document_uow_session_factory = sessionmaker(bind=session.bind, future=True)
+    document_uow_factory = SqlAlchemyDocumentUnitOfWorkFactory(
+        session_factory=document_uow_session_factory,
+        transactional_dispatcher=platform_transactional_dispatcher,
+        post_commit_bus=platform_post_commit_bus,
+        tenant_context_service=tenant_context_service,
+        user_session=user_session,
+    )
     document_service = DocumentService(
         session=session,
         document_repo=repositories.document_repo,
@@ -612,6 +678,8 @@ def build_platform_service_bundle(
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
         overview_rollup_reader=overview_rollup_reader,
+        uow_factory=document_uow_factory,
+        clock=SystemClock(),
     )
     document_integration_service = DocumentIntegrationService(
         session=session,
@@ -622,6 +690,8 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
+        uow_factory=document_uow_factory,
+        clock=SystemClock(),
     )
     party_uow_session_factory = sessionmaker(bind=session.bind, future=True)
     party_uow_factory = SqlAlchemyPartyUnitOfWorkFactory(
@@ -902,6 +972,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         headcount_reader=employee_headcount_reader,
+        resource_master_event_factory=build_resource_master_changed_for_employee_sync,
         uow_factory=employee_uow_factory,
         clock=SystemClock(),
     )

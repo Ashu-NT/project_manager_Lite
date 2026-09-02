@@ -4,6 +4,10 @@ from src.core.modules.project_management.api.desktop.financials.models.baseline_
     BaselineVarianceRecordDto,
     FinancialBaselineVersionDto,
 )
+from src.core.modules.project_management.api.desktop.financials.models.budgets import (
+    FinancialBudgetLineMutationDto,
+    FinancialBudgetMutationDto,
+)
 from src.core.modules.project_management.api.desktop.financials.models.billing import (
     FinancialBillingPreparationDto,
     FinancialBillingPreparationLineDto,
@@ -30,8 +34,11 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
     FinancialManualActualOptionsDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.options import (
-    FinancialProjectOptionDescriptor,
-    FinancialTaskOptionDescriptor,
+    FinancialLookupOptionDto,
+    FinancialLookupPageDto,
+)
+from src.core.modules.project_management.api.desktop.financials.models.forecasts import (
+    FinancialForecastMutationDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
     FinancialOverviewDto,
@@ -48,6 +55,7 @@ from src.core.modules.project_management.api.desktop.financials.models.changes i
     FinancialChangeWorkspaceDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
+    FinancialAccountingStatusPageDto,
     FinancialBillingDetailDto,
     FinancialBillingReadWorkspaceDto,
     FinancialBillingTableRecordDto,
@@ -63,6 +71,8 @@ from src.core.modules.project_management.api.desktop.financials.models.performan
 
 __all__ = [
     "BaselineVarianceRecordDto",
+    "FinancialBudgetLineMutationDto",
+    "FinancialBudgetMutationDto",
     "FinancialBillingPreparationDto",
     "FinancialBillingPreparationLineDto",
     "FinancialBillingProfileDto",
@@ -70,6 +80,7 @@ __all__ = [
     "FinancialBillingDetailDto",
     "FinancialBillingReadWorkspaceDto",
     "FinancialBillingTableRecordDto",
+    "FinancialAccountingStatusPageDto",
     "FinancialCostPhasingDto",
     "FinancialEvmDto",
     "FinancialPerformanceMetricDto",
@@ -94,10 +105,11 @@ __all__ = [
     "FinancialManualActualOptionsDto",
     "FinancialOverviewDto",
     "FinancialPeriodRowDto",
-    "FinancialProjectOptionDescriptor",
+    "FinancialLookupOptionDto",
+    "FinancialLookupPageDto",
+    "FinancialForecastMutationDto",
     "FinancialProfileDto",
     "FinancialRateCardDetailDto",
     "FinancialRateTableRecordDto",
     "FinancialRateWorkspaceDto",
-    "FinancialTaskOptionDescriptor",
 ]

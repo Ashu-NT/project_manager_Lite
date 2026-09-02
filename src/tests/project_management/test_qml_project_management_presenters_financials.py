@@ -88,8 +88,13 @@ def test_create_cost_code_desktop_api_preserves_project_availability_scope():
         code="LABOR.INTERNAL",
         name="Internal labor",
     )
+    governance_commands = MagicMock()
+    governance_commands.financial_setup.side_effect = (
+        lambda operation, **_kwargs: operation(configuration_service)
+    )
     api = ProjectManagementFinancialsDesktopApi(
-        financial_configuration_service=configuration_service
+        finance_governance_commands=governance_commands,
+        financial_configuration_service=configuration_service,
     )
 
     result = api.create_cost_code(
@@ -107,6 +112,9 @@ def test_create_cost_code_desktop_api_preserves_project_availability_scope():
         description="Employee delivery time",
         available_to_project_id="project-1",
     )
+    assert governance_commands.financial_setup.call_args.kwargs == {
+        "project_id": "project-1"
+    }
     assert result.value == "cost-code-1"
 
 
@@ -215,6 +223,9 @@ class _FakeFinancialsWorkspacePresenter:
     def build_workspace_state(self, **_kwargs):
         raise RuntimeError("workspace state is not faked in this test")
 
+    def active_scope_ids(self) -> tuple[str, str]:
+        return ("tenant-1", "organization-1")
+
     def create_manual_actual(self, payload):
         self._record("create_manual_actual", payload)
 
@@ -258,13 +269,8 @@ def controller(qapp):
 
 
 def test_submit_actual_slot_delegates_and_reports_success(controller):
-    # Note: the mutation's own result — {"ok", "message"} — is checked here,
-    # not controller.feedbackMessage. run_mutation()'s on_success callback
-    # (_request_domain_refresh) immediately triggers another refresh() call
-    # after every successful mutation, and that refresh clears/overwrites
-    # feedbackMessage/errorMessage with whatever that unrelated refresh
-    # produces — a pre-existing controller behavior, not something this
-    # slot-delegation test should depend on.
+    controller._invalidate_destinations = MagicMock()
+    # Keep command delegation and cache invalidation independently observable.
     result = controller.submitActual({"entryId": "entry-1", "rowVersion": 1})
 
     assert result["ok"] is True
@@ -272,10 +278,11 @@ def test_submit_actual_slot_delegates_and_reports_success(controller):
     assert controller._fake_presenter.calls == [
         ("submit_actual", {"entryId": "entry-1", "rowVersion": 1})
     ]
+    controller._invalidate_destinations.assert_called_once_with("costs", "controls")
 
 
-def test_create_cost_code_slot_delegates_and_requests_refresh(controller):
-    controller._request_domain_refresh = MagicMock()
+def test_create_cost_code_slot_delegates_and_invalidates_destinations(controller):
+    controller._invalidate_destinations = MagicMock()
     payload = {
         "projectId": "project-1",
         "code": "LABOR.INTERNAL",
@@ -289,7 +296,9 @@ def test_create_cost_code_slot_delegates_and_requests_refresh(controller):
         "message": "Cost code created and made available to the project.",
     }
     assert controller._fake_presenter.calls == [("create_cost_code", payload)]
-    controller._request_domain_refresh.assert_called_once_with()
+    controller._invalidate_destinations.assert_called_once_with(
+        "planning", "costs", "controls"
+    )
 
 
 def test_approve_actual_slot_reports_success_message(controller):
@@ -307,15 +316,20 @@ def test_reject_actual_slot_reports_success_message(controller):
 
 
 def test_post_actual_slot_reports_success_message(controller):
+    controller._invalidate_destinations = MagicMock()
     result = controller.postActual(
         {"entryId": "entry-1", "rowVersion": 1, "postingDate": "2026-01-13"}
     )
 
     assert result["ok"] is True
     assert result["message"] == "Actual posted to the ledger."
+    controller._invalidate_destinations.assert_called_once_with(
+        "overview", "costs", "performance", "controls"
+    )
 
 
 def test_reverse_actual_slot_reports_success_message(controller):
+    controller._invalidate_destinations = MagicMock()
     result = controller.reverseActual(
         {
             "entryId": "entry-1",
@@ -328,6 +342,9 @@ def test_reverse_actual_slot_reports_success_message(controller):
 
     assert result["ok"] is True
     assert result["message"] == "Reversal posted."
+    controller._invalidate_destinations.assert_called_once_with(
+        "overview", "costs", "performance", "controls"
+    )
 
 
 def test_approve_actual_slot_propagates_backend_denial_without_crashing(controller):

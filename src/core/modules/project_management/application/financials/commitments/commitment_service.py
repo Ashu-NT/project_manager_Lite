@@ -12,6 +12,10 @@ from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.financials.invalidation import (
+    FinanceInvalidationScope,
+)
+from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.contracts.financial_sources.procurement import (
     ProcurementCommitmentFinancialSource,
 )
@@ -873,7 +877,15 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         )
 
     def _commit(self, project_id: str) -> None:
+        context = self._require_full_context("publish commitment invalidation")
         self._session.commit()
+        domain_events.commitments_changed.emit(
+            FinanceInvalidationScope(
+                tenant_id=context.tenant.id,
+                organization_id=context.organization.id,
+                project_id=project_id,
+            )
+        )
 
 
 __all__ = ["ProjectCommitmentService"]

@@ -37,6 +37,7 @@ AppLayouts.WorkspaceFrame {
     readonly property var detailPage: detailPageLoader.item
     property int _pendingDetailSection: 0
     property string _selectedActualEntryId: ""
+    property string _selectedProjectLabelText: ""
 
     function _selectedActualEntry() {
         const items = (root.ledgerModel.items || [])
@@ -179,6 +180,8 @@ AppLayouts.WorkspaceFrame {
     }
 
     function _selectedProjectLabel() {
+        if (root._selectedProjectLabelText.length > 0)
+            return root._selectedProjectLabelText
         const selectedId = root.workspaceController ? root.workspaceController.selectedProjectId : ""
         const options = root.workspaceController ? (root.workspaceController.projectOptions || []) : []
         for (let index = 0; index < options.length; index++) {
@@ -189,25 +192,14 @@ AppLayouts.WorkspaceFrame {
         return ""
     }
 
-    function _projectOptionIndex() {
-        const selectedId = root.workspaceController ? root.workspaceController.selectedProjectId : ""
-        const options = root.workspaceController ? (root.workspaceController.projectOptions || []) : []
-        for (let index = 0; index < options.length; index += 1) {
-            if (String(options[index].value || "") === String(selectedId || "")) {
-                return index
-            }
-        }
-        return options.length > 0 ? 0 : -1
-    }
-
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
             Dialogs.FinancialsDialogHost {
                 selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
-                taskOptions: root.workspaceController ? (root.workspaceController.taskOptions || []) : []
-                manualActualOptions: root.workspaceController
-                    ? (root.workspaceController.manualActualOptions || {}) : ({})
+                selectedProjectLabel: root._selectedProjectLabel()
+                manualActualDefaults: root.workspaceController
+                    ? (root.workspaceController.manualActualDefaults || {}) : ({})
                 workspaceController: root.workspaceController
             }
         }
@@ -275,25 +267,49 @@ AppLayouts.WorkspaceFrame {
                             font.bold: true
                         }
 
-                        AppControls.ComboBox {
-                            id: projectScopeCombo
+                        AppControls.SearchablePagedSelector {
+                            id: projectScopeSelector
                             Layout.preferredWidth: 300
                             Layout.maximumWidth: 420
                             Layout.fillWidth: true
-                            model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
-                            textRole: "label"
-                            currentIndex: root._projectOptionIndex()
+                            placeholderText: "Select a project"
+                            searchPlaceholder: "Search project name or code..."
+                            contextKey: "finance-projects"
                             enabled: root.workspaceController !== null
                                 && !root.workspaceController.isBusy
-                                && (root.workspaceController.projectOptions || []).length > 0
-
-                            onActivated: function(index) {
+                            function syncSelection() {
+                                const selectedId = root.workspaceController
+                                    ? root.workspaceController.selectedProjectId : ""
                                 const options = root.workspaceController
                                     ? (root.workspaceController.projectOptions || []) : []
-                                if (root.workspaceController !== null && options[index]) {
-                                    root.workspaceController.selectProject(String(options[index].value || ""))
+                                for (let index = 0; index < options.length; index += 1) {
+                                    if (String(options[index].value || "") === String(selectedId || "")) {
+                                        projectScopeSelector.setResolvedItem(options[index])
+                                        root._selectedProjectLabelText = String(options[index].label || "")
+                                        return
+                                    }
                                 }
                             }
+
+                            Component.onCompleted: syncSelection()
+
+                            onLookupRequested: function(query, page, pageSize, generation, lookupContext) {
+                                const result = root.workspaceController
+                                    ? root.workspaceController.searchFinanceProjects(query, page, pageSize)
+                                    : ({ "ok": false, "message": "Finance controller is unavailable." })
+                                projectScopeSelector.acceptResult(result, generation, lookupContext)
+                            }
+                            onSelectionChanged: function(value, label) {
+                                root._selectedProjectLabelText = label
+                                if (root.workspaceController !== null)
+                                    root.workspaceController.selectProject(value)
+                            }
+                        }
+
+                        Connections {
+                            target: root.workspaceController
+                            function onProjectOptionsChanged() { projectScopeSelector.syncSelection() }
+                            function onSelectedProjectIdChanged() { projectScopeSelector.syncSelection() }
                         }
 
                         Item { Layout.fillWidth: true }
@@ -406,6 +422,9 @@ AppLayouts.WorkspaceFrame {
                     forecastGenerationMode: root.workspaceController ? root.workspaceController.forecastGenerationMode : ""
                     forecastLineSearch: root.workspaceController ? root.workspaceController.forecastLineSearch : ""
                     forecastLineSourceType: root.workspaceController ? root.workspaceController.forecastLineSourceType : ""
+                    showGenerateForecast: root.workspaceController ? root.workspaceController.showGenerateForecast : false
+                    canGenerateForecast: root.workspaceController ? root.workspaceController.canGenerateForecast : false
+                    generateForecastDisabledReason: root.workspaceController ? root.workspaceController.generateForecastDisabledReason : ""
                     financialChangesModel: root.workspaceController ? root.workspaceController.financialChanges : ({ "items": [] })
                     financialChangeImpactsModel: root.workspaceController ? root.workspaceController.financialChangeImpacts : ({ "items": [] })
                     selectedChangeModel: root.workspaceController ? root.workspaceController.selectedChange : ({ "id": "", "fields": [] })
@@ -439,6 +458,12 @@ AppLayouts.WorkspaceFrame {
                     budgetVersionsTableModel: root.workspaceController ? root.workspaceController.budgetVersionsTableModel : null
                     budgetLinesTableModel: root.workspaceController ? root.workspaceController.budgetLinesTableModel : null
                     selectedBudgetId: root.workspaceController ? root.workspaceController.selectedBudgetId : ""
+                    showCreateBudgetVersion: root.workspaceController
+                        ? root.workspaceController.showCreateBudgetVersion : false
+                    canCreateBudgetVersion: root.workspaceController
+                        ? root.workspaceController.canCreateBudgetVersion : false
+                    createBudgetVersionDisabledReason: root.workspaceController
+                        ? root.workspaceController.createBudgetVersionDisabledReason : ""
                     budgetVersionSortKey: root.workspaceController ? root.workspaceController.budgetVersionSortKey : "revision"
                     budgetVersionSortDirection: root.workspaceController ? root.workspaceController.budgetVersionSortDirection : Qt.DescendingOrder
                     budgetLineSortKey: root.workspaceController ? root.workspaceController.budgetLineSortKey : "metaText"
@@ -519,6 +544,35 @@ AppLayouts.WorkspaceFrame {
                     }
                     onBudgetLineSortRequested: function(key, direction) {
                         if (root.workspaceController !== null) root.workspaceController.setBudgetLineSort(key, direction)
+                    }
+                    onBudgetCreateRequested: {
+                        dialogHostLoader.invoke("openBudgetVersionDialog", "create", null)
+                    }
+                    onBudgetEditRequested: function(budget) {
+                        dialogHostLoader.invoke("openBudgetVersionDialog", "edit", budget)
+                    }
+                    onBudgetSuccessorRequested: function(budget) {
+                        dialogHostLoader.invoke("openBudgetVersionDialog", "successor", budget)
+                    }
+                    onBudgetLifecycleRequested: function(action, budget) {
+                        dialogHostLoader.invoke("openBudgetLifecycleDialog", action, budget, null)
+                    }
+                    onBudgetLineAddRequested: function(budget) {
+                        dialogHostLoader.invoke("openBudgetLineDialog", "create", budget, null)
+                    }
+                    onBudgetLineEditRequested: function(budget, line) {
+                        dialogHostLoader.invoke("openBudgetLineDialog", "edit", budget, line)
+                    }
+                    onBudgetLineDeleteRequested: function(budget, line) {
+                        dialogHostLoader.invoke("openBudgetLifecycleDialog", "delete_line", budget, line)
+                    }
+                    onForecastGenerateRequested: {
+                        dialogHostLoader.invoke("openForecastGenerationDialog")
+                    }
+                    onForecastLifecycleRequested: function(action, forecast) {
+                        dialogHostLoader.invoke(
+                            "openForecastLifecycleDialog", action, forecast
+                        )
                     }
                     onPlannedCostVersionSelected: function(versionId) {
                         if (root.workspaceController !== null) root.workspaceController.selectPlannedCostVersion(versionId)

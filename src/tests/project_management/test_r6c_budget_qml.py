@@ -1,0 +1,152 @@
+from __future__ import annotations
+
+import os
+from textwrap import dedent
+from pathlib import Path
+
+import pytest
+from PySide6.QtCore import QObject, Qt
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlComponent
+from PySide6.QtTest import QTest
+
+from src.ui_qml.shell.qml_engine import create_qml_engine
+
+
+VIEWPORTS = (
+    (1024, 640),
+    (1280, 720),
+    (1366, 768),
+    (1440, 900),
+    (1920, 1080),
+)
+DIALOGS = (
+    "BudgetVersionEditorDialog",
+    "BudgetLineEditorDialog",
+    "BudgetLifecycleDialog",
+)
+DIALOG_ROOT = Path(
+    "src/ui_qml/modules/project_management/qml/workspaces/financials/dialogs"
+).resolve()
+
+
+def _application() -> QGuiApplication:
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    return QGuiApplication.instance() or QGuiApplication(["r6c-budget-qml"])
+
+
+def test_shared_info_tip_and_disabled_secondary_button_load_at_runtime() -> None:
+    app = _application()
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    component.setData(
+        dedent(
+            """
+            import QtQuick
+            import QtQuick.Controls
+            import App.Controls 1.0 as AppControls
+            import App.Widgets 1.0 as AppWidgets
+
+            ApplicationWindow {
+                width: 640
+                height: 360
+                visible: true
+                Column {
+                    AppControls.SecondaryButton {
+                        objectName: "disabledButton"
+                        text: "Create Version"
+                        enabled: false
+                    }
+                    AppWidgets.InfoTip {
+                        objectName: "budgetInfoTip"
+                        message: "An open version exists."
+                    }
+                }
+            }
+            """
+        ).encode("utf-8"),
+        "r6c-shared-budget-controls.qml",
+    )
+
+    root = component.create()
+    assert root is not None, "\n".join(error.toString() for error in component.errors())
+    app.processEvents()
+
+    button = root.findChild(QObject, "disabledButton")
+    info_tip = root.findChild(QObject, "budgetInfoTip")
+    assert button is not None and button.property("enabled") is False
+    assert float(button.property("opacity")) == pytest.approx(0.48)
+    assert info_tip is not None and info_tip.property("visible") is True
+    assert info_tip.property("message") == "An open version exists."
+    assert float(info_tip.property("implicitWidth")) == pytest.approx(24.0)
+    assert int(info_tip.property("maximumToolTipWidth")) == 308
+
+    popup = info_tip.findChild(QObject, "infoTipPopup")
+    assert popup is not None
+    assert float(popup.property("implicitWidth")) <= 308.0
+
+    info_tip.setProperty("expanded", True)
+    QTest.qWait(400)
+    app.processEvents()
+    assert popup.property("visible") is True
+    assert 0 < float(popup.property("width")) <= 308.0
+    assert float(popup.property("height")) >= 54.0
+
+    root.deleteLater()
+    app.processEvents()
+
+
+@pytest.mark.parametrize(("width", "height"), VIEWPORTS)
+@pytest.mark.parametrize("dialog_type", DIALOGS)
+def test_budget_dialogs_fit_supported_viewports_and_keep_actions_reachable(
+    width: int, height: int, dialog_type: str
+) -> None:
+    app = _application()
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    dialog_url = (DIALOG_ROOT / f"{dialog_type}.qml").as_uri()
+    component.setData(
+        dedent(
+            f"""
+            import QtQuick
+            import QtQuick.Controls
+
+            ApplicationWindow {{
+                width: {width}
+                height: {height}
+                visible: true
+                readonly property var budgetDialog: dialogLoader.item
+
+                Loader {{
+                    id: dialogLoader
+                    source: "{dialog_url}"
+                    onLoaded: item.open()
+                }}
+            }}
+            """
+        ).encode("utf-8"),
+        f"r6c-{dialog_type}-{width}x{height}.qml",
+    )
+    root = component.create()
+    assert root is not None, "\n".join(error.toString() for error in component.errors())
+    app.processEvents()
+
+    dialog = root.property("budgetDialog")
+    assert dialog is not None
+    assert 0 < float(dialog.property("width")) <= width
+    assert 0 < float(dialog.property("height")) <= height
+    assert float(dialog.property("x")) >= 0
+    assert float(dialog.property("y")) >= 0
+
+    cancel = dialog.findChild(QObject, "dialogCancelButton")
+    submit = dialog.findChild(QObject, "dialogSubmitButton")
+    assert cancel is not None and bool(cancel.property("visible"))
+    assert submit is not None and bool(submit.property("visible"))
+    assert bool(dialog.property("focus"))
+
+    QTest.keyClick(root, Qt.Key_Escape)
+    app.processEvents()
+    assert not bool(dialog.property("visible"))
+
+    root.deleteLater()
+    app.processEvents()

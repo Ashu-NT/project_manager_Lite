@@ -41,6 +41,7 @@ def build_forecast_workspace_views(
                 FinancialsDetailFieldViewModel(label, value, supporting)
                 for label, value, supporting in detail.fields
             ),
+            state=dict(detail.state),
         ),
         "forecast_versions": FinancialsCollectionViewModel(
             title="Forecast Versions",
@@ -73,6 +74,9 @@ def build_forecast_workspace_views(
         "forecast_generation_mode": source.generation_mode,
         "forecast_line_search": source.line_search,
         "forecast_line_source_type": source.line_source_type,
+        "show_generate_forecast": source.show_generate,
+        "can_generate_forecast": source.can_generate,
+        "generate_forecast_disabled_reason": source.generate_disabled_reason,
     }
 
 

@@ -1,4 +1,4 @@
-"""P4-PRE Step 1 / P4 Step 2 (ADR-005 Section 24, Round 8): proves the 18 real approval
+"""Proves the 20 real approval
 apply/reject registrations survive the switch from long-lived-service closures (Step 1) to
 module-owned, session-parameterized transaction participants registered directly, alongside a
 `dependencies_factory` (Step 2) -- no registration missing, none duplicated, none pointed at the
@@ -25,6 +25,9 @@ from src.core.modules.project_management.infrastructure.approval.budget_apply_pa
 from src.core.modules.project_management.infrastructure.approval.financial_change_apply_participant import (
     FinancialChangeApprovalParticipant,
 )
+from src.core.modules.project_management.infrastructure.approval.forecast_apply_participant import (
+    ForecastApprovalParticipant,
+)
 from src.core.modules.project_management.infrastructure.approval.project_cost_apply_participant import (
     ProjectCostApprovalParticipant,
 )
@@ -41,6 +44,7 @@ EXPECTED_APPLY_REGISTRATIONS = {
     "task.constraint.update": TaskApprovalParticipant,
     "scheduling.leveling.apply": TaskApprovalParticipant,
     "budget.approve": BudgetApprovalParticipant,
+    "forecast.approve": ForecastApprovalParticipant,
     "project_cost.approve": ProjectCostApprovalParticipant,
     "financial_change.apply": FinancialChangeApprovalParticipant,
     "project_billing_preparation.approve": BillingPreparationApprovalParticipant,
@@ -50,6 +54,7 @@ EXPECTED_APPLY_REGISTRATIONS = {
 
 EXPECTED_REJECT_REGISTRATIONS = {
     "budget.approve": BudgetApprovalParticipant,
+    "forecast.approve": ForecastApprovalParticipant,
     "project_cost.approve": ProjectCostApprovalParticipant,
     "financial_change.apply": FinancialChangeApprovalParticipant,
     "project_billing_preparation.approve": BillingPreparationApprovalParticipant,
@@ -74,7 +79,7 @@ def _bound_participant_class(entry):
     return type(participant)
 
 
-def test_exactly_eighteen_registrations_exist(services):
+def test_exact_registration_count(services):
     approval_service = services["approval_service"]
     apply_handlers = approval_service._apply_handlers
     reject_handlers = approval_service._reject_handlers
@@ -88,7 +93,7 @@ def test_exactly_eighteen_registrations_exist(services):
         f"found {sorted(reject_handlers)}"
     )
     total = len(apply_handlers) + len(reject_handlers)
-    assert total == 18, f"expected 18 total approval registrations, found {total}"
+    assert total == 20, f"expected 20 total approval registrations, found {total}"
 
 
 def test_every_expected_apply_request_type_is_registered_to_the_right_participant(services):

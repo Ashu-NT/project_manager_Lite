@@ -21,17 +21,11 @@ class FinancialsStateMixin:
         self._project_options = project_options
         self.projectOptionsChanged.emit()
 
-    def _set_task_options(self, task_options: FinancialsObjectList) -> None:
-        if task_options == self._task_options:
+    def _set_manual_actual_defaults(self, defaults: FinancialsMap) -> None:
+        if defaults == self._manual_actual_defaults:
             return
-        self._task_options = task_options
-        self.taskOptionsChanged.emit()
-
-    def _set_manual_actual_options(self, options: FinancialsMap) -> None:
-        if options == self._manual_actual_options:
-            return
-        self._manual_actual_options = options
-        self.manualActualOptionsChanged.emit()
+        self._manual_actual_defaults = defaults
+        self.manualActualDefaultsChanged.emit()
 
     def _set_selected_project_id(self, selected_project_id: str) -> None:
         if selected_project_id == self._selected_project_id:
@@ -117,6 +111,12 @@ class FinancialsStateMixin:
             self.selectedForecastChanged.emit()
 
     def _set_forecast_query_state(self, state) -> None:
+        self._set_forecast_capabilities(
+            show=state.show_generate_forecast,
+            enabled=state.can_generate_forecast,
+            disabled_reason=state.generate_forecast_disabled_reason,
+        )
+
         version_order = (
             Qt.DescendingOrder.value
             if state.forecast_version_sort_direction == "desc"
@@ -162,6 +162,23 @@ class FinancialsStateMixin:
                 self._forecast_line_source_type,
             ) = filters
             self.forecastFiltersChanged.emit()
+
+    def _set_forecast_capabilities(
+        self, *, show: bool, enabled: bool, disabled_reason: str
+    ) -> None:
+        capabilities = (bool(show), bool(enabled), str(disabled_reason or ""))
+        current_capabilities = (
+            self._show_generate_forecast,
+            self._can_generate_forecast,
+            self._generate_forecast_disabled_reason,
+        )
+        if capabilities != current_capabilities:
+            (
+                self._show_generate_forecast,
+                self._can_generate_forecast,
+                self._generate_forecast_disabled_reason,
+            ) = capabilities
+            self.forecastCapabilitiesChanged.emit()
 
     def _set_selected_change_id(self, value: str) -> None:
         if value != self._selected_change_id:
@@ -309,6 +326,24 @@ class FinancialsStateMixin:
         if value != self._selected_budget_id:
             self._selected_budget_id = value
             self.selectedBudgetIdChanged.emit()
+
+    def _set_show_create_budget_version(self, value: bool) -> None:
+        normalized = bool(value)
+        if normalized != self._show_create_budget_version:
+            self._show_create_budget_version = normalized
+            self.showCreateBudgetVersionChanged.emit()
+
+    def _set_can_create_budget_version(self, value: bool) -> None:
+        normalized = bool(value)
+        if normalized != self._can_create_budget_version:
+            self._can_create_budget_version = normalized
+            self.canCreateBudgetVersionChanged.emit()
+
+    def _set_create_budget_version_disabled_reason(self, value: str) -> None:
+        normalized = str(value or "")
+        if normalized != self._create_budget_version_disabled_reason:
+            self._create_budget_version_disabled_reason = normalized
+            self.createBudgetVersionDisabledReasonChanged.emit()
 
     def _set_budget_sort_state(
         self,

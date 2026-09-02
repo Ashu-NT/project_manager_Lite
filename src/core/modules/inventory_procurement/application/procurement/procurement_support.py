@@ -14,7 +14,7 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing import
     PurchaseRequisitionStatus,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.party import Party
 
@@ -41,6 +41,14 @@ class ProcurementSupportMixin:
         normalized = normalize_optional_text(party_id)
         if not normalized:
             return None
+        # P29 §16: `PartyService.get_party` already scopes its own lookup to the active
+        # organization (raises `NotFoundError` for a party belonging to a different one) --
+        # confirmed by a real cross-org regression test
+        # (`test_add_requisition_line_rejects_cross_organization_supplier`) before touching
+        # anything here. P27A/P28A/P28B's "unverified"/"never validated" reading of
+        # `_ensure_business_supplier_scope` examined that method in isolation, not what its sole
+        # caller already guarantees one line above -- the flagged gap does not exist; no
+        # additional check was needed.
         party = self._party_service.get_party(normalized)
         self._ensure_business_supplier_scope(party)
         return party.id
@@ -54,6 +62,14 @@ class ProcurementSupportMixin:
                 "Suggested supplier must be a supplier, vendor, contractor, or service provider.",
                 code="INVENTORY_PARTY_SCOPE_INVALID",
             )
+
+    def _require_requisition_uow_factory(self):
+        if self._requisition_submission_uow_factory is None:
+            raise BusinessRuleError(
+                "Purchase requisition commands require a configured transaction owner.",
+                code="INVENTORY_REQUISITION_UOW_REQUIRED",
+            )
+        return self._requisition_submission_uow_factory
 
     def _active_organization(self) -> Organization:
         return self._tenant_context_service.require_context(

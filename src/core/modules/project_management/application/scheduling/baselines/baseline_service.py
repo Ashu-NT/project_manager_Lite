@@ -1,11 +1,19 @@
 # src/core/modules/project_management/application/scheduling/baseline_service.py
-from datetime import date
+from collections.abc import Callable
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.application.scheduling.baselines.baseline_events import (
+    ProjectBaselineApproved,
+    ProjectBaselineCreated,
+    ProjectBaselineDeleted,
+    ProjectBaselineRejected,
+    ProjectBaselineSubmitted,
+)
 from src.core.modules.project_management.domain.scheduling.baseline import (
     BaselineStatus,
     BaselineTask,
@@ -30,6 +38,7 @@ from src.core.shared.activity import record_activity
 from src.core.platform.application.security.authorization.enforcement.permission_checks import is_admin_session, require_permission
 from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.shared.persistence.unit_of_work import UnitOfWork
 
 
 class BaselineService(ProjectManagementModuleGuardMixin):
@@ -49,6 +58,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         approval_service=None,
         module_catalog_service=None,
         tenant_context_service: TenantContextService | None = None,
+        uow_factory: Callable[[], UnitOfWork] | None = None,
     ):
         self._session: Session = session
         self._projects: ProjectRepository = project_repo
@@ -62,6 +72,16 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         self._approval_service = approval_service
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
+        self._uow_factory = uow_factory
+
+    def _new_uow(self, operation_label: str) -> UnitOfWork:
+
+        if self._uow_factory is None:
+            raise BusinessRuleError(
+                f"No transaction boundary is configured to {operation_label}.",
+                code="BASELINE_UOW_NOT_CONFIGURED",
+            )
+        return self._uow_factory()
 
     def _require_context(self, operation_label: str) -> TenantContext:
         if self._tenant_context_service is None:
@@ -80,13 +100,6 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         *,
         rate_as_of: date,
     ) -> ProjectBaseline:
-        """``rate_as_of`` is the date the resource labor rates used for this
-        baseline's planned-cost valuation are resolved as of — required,
-        with no internal fallback to "today": if the baseline represents a
-        plan effective on a known date, pass that date; otherwise the
-        caller (desktop API / composition boundary) supplies its own
-        creation-time date explicitly. This service never calls
-        ``date.today()`` itself."""
         governed = (
             self._approval_service is not None
             and is_governance_required("baseline.create")
@@ -135,12 +148,26 @@ class BaselineService(ProjectManagementModuleGuardMixin):
                 f"Approval required for baseline creation. Request {req.id} created.",
                 code="APPROVAL_REQUIRED",
             )
-        return self._apply_baseline_creation_decision(
-            project_id=project_id, name=name, rate_as_of=rate_as_of, commit=True
-        )
+        uow = self._new_uow("create baseline")
+        with uow:
+            baseline = self._apply_baseline_creation_decision(
+                project_id=project_id, name=name, rate_as_of=rate_as_of
+            )
+            context = self._require_context("create baseline")
+            uow.record_event(
+                ProjectBaselineCreated(
+                    tenant_id=context.tenant_id,
+                    organization_id=context.organization_id,
+                    project_id=project_id,
+                    baseline_id=baseline.id,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
+        return baseline
 
     def _apply_baseline_creation_decision(
-        self, *, project_id: str, name: str, rate_as_of: date, commit: bool
+        self, *, project_id: str, name: str, rate_as_of: date
     ) -> ProjectBaseline:
         project = self._projects.get(project_id)
         if not project:
@@ -221,28 +248,20 @@ class BaselineService(ProjectManagementModuleGuardMixin):
                 )
             )
 
-        try:
-            self._baselines.add_baseline(baseline)
-            self._session.flush()
-            self._baselines.add_baseline_tasks(baseline_tasks)
-            record_activity(
-                self,
-                action="baseline.create",
-                entity_type="project_baseline",
-                entity_id=baseline.id,
-                module="project_management",
-                workspace_id=project_id,
-                details={"name": baseline.name},
-                commit=False,
-            )
-            if commit:
-                self._session.commit()
-            else:
-                self._session.flush()
-        except Exception:
-            if commit:
-                self._session.rollback()
-            raise
+        self._baselines.add_baseline(baseline)
+        self._session.flush()
+        self._baselines.add_baseline_tasks(baseline_tasks)
+        record_activity(
+            self,
+            action="baseline.create",
+            entity_type="project_baseline",
+            entity_id=baseline.id,
+            module="project_management",
+            workspace_id=project_id,
+            details={"name": baseline.name},
+            commit=False,
+        )
+        self._session.flush()
 
         return baseline
 
@@ -306,9 +325,11 @@ class BaselineService(ProjectManagementModuleGuardMixin):
             "baseline.manage",
             operation_label="delete baseline",
         )
-        try:
+        context = self._require_context("delete baseline")
+        uow = self._new_uow("delete baseline")
+        with uow:
             self._baselines.delete_baseline(baseline_id)
-            self._session.commit()
+            self._session.flush()
             record_activity(
                 self,
                 action="baseline.delete",
@@ -317,10 +338,18 @@ class BaselineService(ProjectManagementModuleGuardMixin):
                 module="project_management",
                 workspace_id=baseline.project_id,
                 details={"name": baseline.name},
+                commit=False,
             )
-        except Exception:
-            self._session.rollback()
-            raise
+            uow.record_event(
+                ProjectBaselineDeleted(
+                    tenant_id=context.tenant_id,
+                    organization_id=context.organization_id,
+                    project_id=baseline.project_id,
+                    baseline_id=baseline_id,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
 
     # ── lifecycle: submit / approve / reject ────────────────────────────────
 
@@ -344,9 +373,11 @@ class BaselineService(ProjectManagementModuleGuardMixin):
             operation_label="submit baseline",
         )
         baseline.submit(submitted_by=submitted_by, notes=notes)
-        try:
+        context = self._require_context("submit baseline")
+        uow = self._new_uow("submit baseline")
+        with uow:
             self._baselines.update_baseline(baseline)
-            self._session.commit()
+            self._session.flush()
             record_activity(
                 self,
                 action="baseline.submit",
@@ -355,10 +386,18 @@ class BaselineService(ProjectManagementModuleGuardMixin):
                 module="project_management",
                 workspace_id=baseline.project_id,
                 details={"name": baseline.name, "submitted_by": submitted_by},
+                commit=False,
             )
-        except Exception:
-            self._session.rollback()
-            raise
+            uow.record_event(
+                ProjectBaselineSubmitted(
+                    tenant_id=context.tenant_id,
+                    organization_id=context.organization_id,
+                    project_id=baseline.project_id,
+                    baseline_id=baseline.id,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
         return baseline
 
     def approve_baseline(
@@ -398,13 +437,15 @@ class BaselineService(ProjectManagementModuleGuardMixin):
             )
             previous_approved.supersede()
 
-        try:
+        context = self._require_context("approve baseline")
+        uow = self._new_uow("approve baseline")
+        with uow:
             if previous_approved is not None and previous_approved.id != baseline_id:
                 self._baselines.update_baseline(previous_approved)
             self._baselines.update_baseline(baseline)
             if variance_records:
                 self._baselines.add_variance_records(variance_records)
-            self._session.commit()
+            self._session.flush()
             record_activity(
                 self,
                 action="baseline.approve",
@@ -417,10 +458,23 @@ class BaselineService(ProjectManagementModuleGuardMixin):
                     "approved_by": approved_by,
                     "superseded_id": previous_approved.id if previous_approved else None,
                 },
+                commit=False,
             )
-        except Exception:
-            self._session.rollback()
-            raise
+            uow.record_event(
+                ProjectBaselineApproved(
+                    tenant_id=context.tenant_id,
+                    organization_id=context.organization_id,
+                    project_id=baseline.project_id,
+                    baseline_id=baseline.id,
+                    superseded_baseline_id=(
+                        previous_approved.id
+                        if previous_approved is not None and previous_approved.id != baseline_id
+                        else None
+                    ),
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
 
         return baseline
 
@@ -443,9 +497,11 @@ class BaselineService(ProjectManagementModuleGuardMixin):
             operation_label="reject baseline",
         )
         baseline.reject(notes=notes)
-        try:
+        context = self._require_context("reject baseline")
+        uow = self._new_uow("reject baseline")
+        with uow:
             self._baselines.update_baseline(baseline)
-            self._session.commit()
+            self._session.flush()
             record_activity(
                 self,
                 action="baseline.reject",
@@ -454,10 +510,18 @@ class BaselineService(ProjectManagementModuleGuardMixin):
                 module="project_management",
                 workspace_id=baseline.project_id,
                 details={"name": baseline.name},
+                commit=False,
             )
-        except Exception:
-            self._session.rollback()
-            raise
+            uow.record_event(
+                ProjectBaselineRejected(
+                    tenant_id=context.tenant_id,
+                    organization_id=context.organization_id,
+                    project_id=baseline.project_id,
+                    baseline_id=baseline.id,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
         return baseline
 
     def get_approved_baseline(self, project_id: str) -> ProjectBaseline | None:

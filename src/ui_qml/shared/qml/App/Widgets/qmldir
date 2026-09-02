@@ -16,6 +16,7 @@ FormField 1.0 FormField.qml
 GroupedNavigationRail 1.0 GroupedNavigationRail.qml
 InlineMessage 1.0 InlineMessage.qml
 InspectorPanel 1.0 InspectorPanel.qml
+InfoTip 1.0 InfoTip.qml
 SectionScopedInlineMessage 1.0 SectionScopedInlineMessage.qml
 KpiStrip 1.0 KpiStrip.qml
 LazySectionLoader 1.0 LazySectionLoader.qml

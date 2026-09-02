@@ -31,13 +31,18 @@ from src.core.modules.inventory_procurement.application.common.support import (
     resolve_status_from_active,
     validate_transition,
 )
+from src.core.modules.inventory_procurement.domain.catalog.catalog_events import (
+    InventoryItemCreated,
+    InventoryItemProfileUpdated,
+    InventoryItemStatusChanged,
+)
 from src.core.modules.inventory_procurement.domain.catalog.item import StockItem
 from src.core.platform.common.exceptions import (
     ConcurrencyError,
     NotFoundError,
     ValidationError,
 )
-from src.core.shared.events.domain_events import domain_events
+from src.core.shared.audit import record_audit_entry
 
 
 def create_item(
@@ -112,24 +117,47 @@ def create_item(
         preferred_party_id=_validate_party_reference(owner, preferred_party_id),
         notes=notes,
     )
-    try:
-        owner._item_repo.add(item)
-        owner._session.commit()
-    except IntegrityError as exc:
-        owner._session.rollback()
-        raise ValidationError(
-            "Item code already exists in the active organization.",
-            code="INVENTORY_ITEM_CODE_EXISTS",
-        ) from exc
-    except Exception:
-        owner._session.rollback()
-        raise
-    record_inventory_item_create_activity(
-        owner,
-        organization_id=organization.id,
-        item=item,
-    )
-    domain_events.inventory_items_changed.emit(item.id)
+    now = datetime.now(timezone.utc)
+    uow = owner._require_uow_factory().create(context=owner._new_context())
+    with uow:
+        try:
+            uow.items.add(item)
+        except IntegrityError as exc:
+            raise ValidationError(
+                "Item code already exists in the active organization.",
+                code="INVENTORY_ITEM_CODE_EXISTS",
+            ) from exc
+        record_inventory_item_create_activity(
+            uow,
+            organization_id=organization.id,
+            item=item,
+            commit=False,
+        )
+        record_audit_entry(
+            uow,
+            operation="create",
+            entity_type="inventory_item",
+            entity_id=item.id,
+            module="inventory_procurement",
+            organization_id=organization.id,
+            severity="low",
+            metadata={
+                "item_code": item.item_code,
+                "name": item.name,
+                "status": item.status,
+            },
+            commit=False,
+            fail_closed=True,
+        )
+        uow.record_event(
+            InventoryItemCreated(
+                tenant_id=organization.tenant_id,
+                organization_id=organization.id,
+                item_id=item.id,
+                occurred_at=now,
+            )
+        )
+        uow.commit()
     return item
 
 
@@ -238,7 +266,7 @@ def update_item(
             is_active=bool(is_active),
             transitions=ITEM_STATUS_TRANSITIONS,
         )
-    item = replace(
+    candidate = replace(
         item,
         item_code=next_item_code,
         name=item.name if name is None else name,
@@ -281,27 +309,92 @@ def update_item(
         ),
         preferred_party_id=next_preferred_party_id,
         notes=item.notes if notes is None else notes,
-        updated_at=datetime.now(timezone.utc),
     )
-    try:
-        owner._item_repo.update(item)
-        owner._session.commit()
-    except IntegrityError as exc:
-        owner._session.rollback()
-        raise ValidationError(
-            "Item code already exists in the active organization.",
-            code="INVENTORY_ITEM_CODE_EXISTS",
-        ) from exc
-    except Exception:
-        owner._session.rollback()
-        raise
-    record_inventory_item_update_activity(
-        owner,
-        organization_id=organization.id,
-        item=item,
+    if candidate == item:
+        # True no-op (P24 §7): zero repository write, zero audit, zero typed event, no
+        # synthetic version/updated_at bump.
+        return item
+    status_changed = candidate.status != item.status
+    profile_changed = (
+        candidate.item_code != item.item_code
+        or candidate.name != item.name
+        or candidate.description != item.description
+        or candidate.item_type != item.item_type
+        or candidate.stock_uom != item.stock_uom
+        or candidate.order_uom != item.order_uom
+        or candidate.issue_uom != item.issue_uom
+        or candidate.order_uom_ratio != item.order_uom_ratio
+        or candidate.issue_uom_ratio != item.issue_uom_ratio
+        or candidate.category_code != item.category_code
+        or candidate.commodity_code != item.commodity_code
+        or candidate.is_stocked != item.is_stocked
+        or candidate.is_purchase_allowed != item.is_purchase_allowed
+        or candidate.default_reorder_policy != item.default_reorder_policy
+        or candidate.min_qty != item.min_qty
+        or candidate.max_qty != item.max_qty
+        or candidate.reorder_point != item.reorder_point
+        or candidate.reorder_qty != item.reorder_qty
+        or candidate.lead_time_days != item.lead_time_days
+        or candidate.is_lot_tracked != item.is_lot_tracked
+        or candidate.is_serial_tracked != item.is_serial_tracked
+        or candidate.shelf_life_days != item.shelf_life_days
+        or candidate.preferred_party_id != item.preferred_party_id
+        or candidate.notes != item.notes
     )
-    domain_events.inventory_items_changed.emit(item.id)
-    return item
+    now = datetime.now(timezone.utc)
+    candidate = replace(candidate, updated_at=now)
+    uow = owner._require_uow_factory().create(context=owner._new_context())
+    with uow:
+        try:
+            uow.items.update(candidate)
+        except IntegrityError as exc:
+            raise ValidationError(
+                "Item code already exists in the active organization.",
+                code="INVENTORY_ITEM_CODE_EXISTS",
+            ) from exc
+        record_inventory_item_update_activity(
+            uow,
+            organization_id=organization.id,
+            item=candidate,
+            commit=False,
+        )
+        record_audit_entry(
+            uow,
+            operation="update",
+            entity_type="inventory_item",
+            entity_id=candidate.id,
+            module="inventory_procurement",
+            organization_id=organization.id,
+            severity="low",
+            metadata={
+                "item_code": candidate.item_code,
+                "name": candidate.name,
+                "status": candidate.status,
+            },
+            commit=False,
+            fail_closed=True,
+        )
+        if profile_changed:
+            uow.record_event(
+                InventoryItemProfileUpdated(
+                    tenant_id=organization.tenant_id,
+                    organization_id=organization.id,
+                    item_id=candidate.id,
+                    occurred_at=now,
+                )
+            )
+        if status_changed:
+            uow.record_event(
+                InventoryItemStatusChanged(
+                    tenant_id=organization.tenant_id,
+                    organization_id=organization.id,
+                    item_id=candidate.id,
+                    status=candidate.status,
+                    occurred_at=now,
+                )
+            )
+        uow.commit()
+    return candidate
 
 
 __all__ = ["create_item", "update_item"]

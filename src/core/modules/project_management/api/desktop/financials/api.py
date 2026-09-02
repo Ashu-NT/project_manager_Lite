@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from datetime import date
+from decimal import Decimal, InvalidOperation
 
 from src.core.modules.project_management.application.financials import (
     FinancialConfigurationService,
@@ -13,7 +14,9 @@ from src.core.modules.project_management.application.financials import (
     ProjectFinanceWorkspaceQuery,
     ProjectFinancePerformanceQuery,
 )
-from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.financials.governance import (
+    FinanceGovernanceCommandBoundary,
+)
 from src.core.modules.project_management.contracts.reads.financials.sorting import (
     normalize_cost_entry_sort,
     normalize_commitment_sort,
@@ -34,14 +37,19 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     FinancialChangeRequestQuery,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
+    AccountingStatusQuery,
     BillingPreparationLineQuery,
     BillingPreparationQuery,
     BillingScheduleQuery,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.finance_lookup_facts import (
+    FinanceLookupPageFacts,
+    FinanceLookupQuery,
+    ManualActualCostCodeQuery,
+)
 from src.core.modules.project_management.contracts.reads.pagination import (
     normalize_offset_for_total,
 )
-from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.infrastructure.reporting.api import (
     generate_excel_report,
@@ -52,10 +60,17 @@ from src.core.modules.project_management.api.desktop.financials.models.commitmen
     FinancialCommitmentLinePageDto,
     FinancialCommitmentSummaryDto,
 )
-from src.core.modules.project_management.api.desktop.financials.models.forecasts import FinancialForecastWorkspaceDto
+from src.core.modules.project_management.api.desktop.financials.models.forecasts import (
+    FinancialForecastMutationDto,
+    FinancialForecastWorkspaceDto,
+)
+from src.core.modules.project_management.application.financials.forecasts.generation_models import (
+    ManualEtcEstimate,
+    RiskContingencyEstimate,
+)
 from src.core.modules.project_management.api.desktop.financials.models.options import (
-    FinancialProjectOptionDescriptor,
-    FinancialTaskOptionDescriptor,
+    FinancialLookupOptionDto,
+    FinancialLookupPageDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
     FinancialOverviewDto,
@@ -70,6 +85,7 @@ from src.core.modules.project_management.api.desktop.financials.models.changes i
     FinancialChangeWorkspaceDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
+    FinancialAccountingStatusPageDto,
     FinancialBillingReadWorkspaceDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.billing import (
@@ -96,6 +112,24 @@ from src.core.modules.project_management.api.desktop.financials.commands.cost_en
 from src.core.modules.project_management.api.desktop.financials.commands.configuration import (
     FinancialCreateCostCodeCommand,
 )
+from src.core.modules.project_management.api.desktop.financials.commands.budgets import (
+    FinancialAddBudgetLineCommand,
+    FinancialCreateBudgetSuccessorCommand,
+    FinancialCreateBudgetVersionCommand,
+    FinancialDeleteBudgetLineCommand,
+    FinancialUpdateBudgetCommand,
+    FinancialUpdateBudgetLineCommand,
+    FinancialVersionedBudgetCommand,
+)
+from src.core.modules.project_management.api.desktop.financials.commands.forecasts import (
+    FinancialGenerateForecastCommand,
+    FinancialVersionedForecastCommand,
+)
+from src.core.modules.project_management.api.desktop.financials.models.budgets import (
+    FinancialBudgetLineMutationDto,
+    FinancialBudgetMutationDto,
+)
+from src.core.platform.common.exceptions import ValidationError
 from src.core.modules.project_management.api.desktop.financials.commands.billing import (
     FinancialActivateBillingProfileCommand,
     FinancialAddApprovedTimeBillingSourceCommand,
@@ -113,10 +147,6 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
     FinancialCostEntryDto,
     FinancialCostEntryPageDto,
     FinancialManualActualOptionsDto,
-)
-from src.core.modules.project_management.api.desktop.financials.builders.option_builder import (
-    build_project_options,
-    build_task_options,
 )
 from src.core.modules.project_management.api.desktop.financials.builders.commitment_builder import (
     build_commitment_line_dto,
@@ -146,6 +176,9 @@ from src.core.modules.project_management.api.desktop.financials.serializers.chan
 from src.core.modules.project_management.api.desktop.financials.serializers.billing_workspace_serializer import (
     serialize_finance_billing_workspace,
 )
+from src.core.modules.project_management.api.desktop.financials.serializers.accounting_status_serializer import (
+    serialize_accounting_status_page,
+)
 from src.core.modules.project_management.api.desktop.financials.serializers.billing_serializer import (
     serialize_billing_preparation,
     serialize_billing_preparation_line,
@@ -165,11 +198,10 @@ class ProjectManagementFinancialsDesktopApi:
     def __init__(
         self,
         *,
-        project_service: ProjectService | None = None,
-        task_service: TaskService | None = None,
         finance_service: FinanceService | None = None,
         finance_workspace_query: ProjectFinanceWorkspaceQuery | None = None,
         finance_performance_query: ProjectFinancePerformanceQuery | None = None,
+        finance_governance_commands: FinanceGovernanceCommandBoundary | None = None,
         financial_configuration_service: FinancialConfigurationService | None = None,
         cost_entry_service: ProjectCostEntryService | None = None,
         commitment_service: ProjectCommitmentService | None = None,
@@ -177,11 +209,10 @@ class ProjectManagementFinancialsDesktopApi:
         billing_preparation_service: ProjectBillingPreparationService | None = None,
         reporting_service: ReportingService | None = None,
     ) -> None:
-        self._project_service = project_service
-        self._task_service = task_service
         self._finance_service = finance_service
         self._finance_workspace_query = finance_workspace_query
         self._finance_performance_query = finance_performance_query
+        self._finance_governance_commands = finance_governance_commands
         self._financial_configuration_service = financial_configuration_service
         self._cost_entry_service = cost_entry_service
         self._commitment_service = commitment_service
@@ -189,46 +220,197 @@ class ProjectManagementFinancialsDesktopApi:
         self._billing_preparation_service = billing_preparation_service
         self._reporting_service = reporting_service
 
-    def list_projects(self) -> tuple[FinancialProjectOptionDescriptor, ...]:
-        return build_project_options(self._project_service)
+    def active_scope_ids(self) -> tuple[str, str]:
+        query = self._require_finance_workspace_query()
+        return query.active_scope_ids()
 
-    def list_tasks(self, project_id: str) -> tuple[FinancialTaskOptionDescriptor, ...]:
-        return build_task_options(project_id, self._task_service)
+    def search_finance_projects(
+        self, *, search: str = "", page: int = 1, page_size: int = 25
+    ) -> FinancialLookupPageDto:
+        facts = self._require_finance_workspace_query().search_finance_projects(
+            request=FinanceLookupQuery(search=search, page=page, page_size=page_size)
+        )
+        return _serialize_lookup_page(facts)
 
-    def get_manual_actual_options(
-        self, project_id: str, *, effective_on: date | None = None
+    def resolve_finance_project(self, project_id: str) -> FinancialLookupOptionDto | None:
+        fact = self._require_finance_workspace_query().resolve_finance_project(project_id)
+        return _serialize_lookup_option(fact)
+
+    def search_manual_actual_projects(
+        self, *, search: str = "", page: int = 1, page_size: int = 25
+    ) -> FinancialLookupPageDto:
+        facts = self._require_finance_workspace_query().search_manual_actual_projects(
+            request=FinanceLookupQuery(search=search, page=page, page_size=page_size)
+        )
+        return _serialize_lookup_page(facts)
+
+    def resolve_manual_actual_project(
+        self, project_id: str
+    ) -> FinancialLookupOptionDto | None:
+        fact = self._require_finance_workspace_query().resolve_manual_actual_project(
+            project_id
+        )
+        return _serialize_lookup_option(fact)
+
+    def search_manual_actual_tasks(
+        self,
+        project_id: str,
+        *,
+        search: str = "",
+        page: int = 1,
+        page_size: int = 25,
+    ) -> FinancialLookupPageDto:
+        facts = self._require_finance_workspace_query().search_manual_actual_tasks(
+            project_id,
+            request=FinanceLookupQuery(search=search, page=page, page_size=page_size),
+        )
+        return _serialize_lookup_page(facts)
+
+    def resolve_manual_actual_task(
+        self, project_id: str, task_id: str
+    ) -> FinancialLookupOptionDto | None:
+        fact = self._require_finance_workspace_query().resolve_manual_actual_task(
+            project_id, task_id
+        )
+        return _serialize_lookup_option(fact)
+
+    def search_manual_actual_cost_codes(
+        self,
+        project_id: str,
+        *,
+        search: str = "",
+        page: int = 1,
+        page_size: int = 25,
+        effective_on: date | None = None,
+    ) -> FinancialLookupPageDto:
+        facts = self._require_finance_workspace_query().search_manual_actual_cost_codes(
+            project_id,
+            request=ManualActualCostCodeQuery(
+                search=search,
+                page=page,
+                page_size=page_size,
+                effective_on=effective_on,
+            ),
+        )
+        return _serialize_lookup_page(facts)
+
+    def resolve_manual_actual_cost_code(
+        self,
+        project_id: str,
+        cost_code_id: str,
+        *,
+        effective_on: date | None = None,
+    ) -> FinancialLookupOptionDto | None:
+        fact = self._require_finance_workspace_query().resolve_manual_actual_cost_code(
+            project_id,
+            cost_code_id,
+            effective_on=effective_on,
+        )
+        return _serialize_lookup_option(fact)
+
+    def search_budget_tasks(
+        self, project_id: str, *, search: str = "", page: int = 1, page_size: int = 25
+    ) -> FinancialLookupPageDto:
+        facts = self._require_finance_workspace_query().search_budget_tasks(
+            project_id,
+            request=FinanceLookupQuery(search=search, page=page, page_size=page_size),
+        )
+        return _serialize_lookup_page(facts)
+
+    def resolve_budget_task(
+        self, project_id: str, task_id: str
+    ) -> FinancialLookupOptionDto | None:
+        return _serialize_lookup_option(
+            self._require_finance_workspace_query().resolve_budget_task(
+                project_id, task_id
+            )
+        )
+
+    def search_budget_cost_codes(
+        self, project_id: str, *, search: str = "", page: int = 1, page_size: int = 25
+    ) -> FinancialLookupPageDto:
+        facts = self._require_finance_workspace_query().search_budget_cost_codes(
+            project_id,
+            request=ManualActualCostCodeQuery(
+                search=search, page=page, page_size=page_size, effective_on=date.today()
+            ),
+        )
+        return _serialize_lookup_page(facts)
+
+    def resolve_budget_cost_code(
+        self, project_id: str, cost_code_id: str
+    ) -> FinancialLookupOptionDto | None:
+        return _serialize_lookup_option(
+            self._require_finance_workspace_query().resolve_budget_cost_code(
+                project_id, cost_code_id, effective_on=date.today()
+            )
+        )
+
+    def search_forecast_tasks(
+        self, project_id: str, *, search: str = "", page: int = 1, page_size: int = 25
+    ) -> FinancialLookupPageDto:
+        return _serialize_lookup_page(
+            self._require_finance_workspace_query().search_forecast_tasks(
+                project_id,
+                request=FinanceLookupQuery(search=search, page=page, page_size=page_size),
+            )
+        )
+
+    def search_forecast_cost_codes(
+        self,
+        project_id: str,
+        *,
+        search: str = "",
+        page: int = 1,
+        page_size: int = 25,
+        effective_on: date | None = None,
+    ) -> FinancialLookupPageDto:
+        return _serialize_lookup_page(
+            self._require_finance_workspace_query().search_forecast_cost_codes(
+                project_id,
+                request=ManualActualCostCodeQuery(
+                    search=search,
+                    page=page,
+                    page_size=page_size,
+                    effective_on=effective_on,
+                ),
+            )
+        )
+
+    def search_forecast_risks(
+        self, project_id: str, *, search: str = "", page: int = 1, page_size: int = 25
+    ) -> FinancialLookupPageDto:
+        return _serialize_lookup_page(
+            self._require_finance_workspace_query().search_forecast_risks(
+                project_id,
+                request=FinanceLookupQuery(search=search, page=page, page_size=page_size),
+            )
+        )
+
+    def get_manual_actual_defaults(
+        self, project_id: str
     ) -> FinancialManualActualOptionsDto:
         if not project_id:
             return FinancialManualActualOptionsDto()
-        if self._financial_configuration_service is None:
-            return FinancialManualActualOptionsDto(
-                currency_code=self._project_currency(project_id) or ""
-            )
-        service = self._financial_configuration_service
-        profile = service.get_profile(project_id)
-        codes = service.list_available_cost_codes(
-            project_id, effective_on=effective_on
+        defaults = self._require_finance_workspace_query().get_manual_actual_defaults(
+            project_id
         )
         return FinancialManualActualOptionsDto(
-            currency_code=profile.currency_code,
-            cost_codes=tuple(
-                FinancialCostCodeOptionDescriptor(
-                    value=code.id,
-                    label=f"{code.code} - {code.name}",
-                )
-                for code in codes
-            ),
+            currency_code=defaults.currency_code,
         )
 
     def create_cost_code(
         self, command: FinancialCreateCostCodeCommand
     ) -> FinancialCostCodeOptionDescriptor:
-        service = self._require_financial_configuration_service()
-        cost_code = service.create_cost_code(
-            code=command.code,
-            name=command.name,
-            description=command.description,
-            available_to_project_id=command.project_id,
+        commands = self._require_finance_governance_commands()
+        cost_code = commands.financial_setup(
+            lambda service: service.create_cost_code(
+                code=command.code,
+                name=command.name,
+                description=command.description,
+                available_to_project_id=command.project_id,
+            ),
+            project_id=command.project_id,
         )
         return FinancialCostCodeOptionDescriptor(
             value=cost_code.id,
@@ -496,6 +678,75 @@ class ProjectManagementFinancialsDesktopApi:
             line_source_type=line_source_type,
         )
 
+    def generate_forecast(
+        self, command: FinancialGenerateForecastCommand
+    ) -> FinancialForecastMutationDto:
+        result = self._require_finance_governance_commands().forecast_generation(
+            lambda service: service.generate_draft(
+                command.project_id,
+                name=command.name,
+                as_of_date=self._command_date(command.as_of_date, "Forecast as-of date"),
+                generated_by=self._forecast_actor_id(service),
+                manual_estimates=tuple(
+                    ManualEtcEstimate(
+                        cost_code_id=item.cost_code_id,
+                        task_id=item.task_id,
+                        description=item.description,
+                        amount=self._forecast_command_amount(item.amount),
+                        period_start=self._optional_command_date(item.period_start),
+                        period_end=self._optional_command_date(item.period_end),
+                    )
+                    for item in command.manual_estimates
+                ),
+                risk_contingencies=tuple(
+                    RiskContingencyEstimate(
+                        risk_id=item.risk_id,
+                        cost_code_id=item.cost_code_id,
+                        task_id=item.task_id,
+                        description=item.description,
+                        amount=self._forecast_command_amount(item.amount),
+                        period_start=self._optional_command_date(item.period_start),
+                        period_end=self._optional_command_date(item.period_end),
+                    )
+                    for item in command.risk_contingencies
+                ),
+                notes=command.notes,
+            ),
+            project_id=command.project_id,
+        )
+        return self._forecast_mutation_dto(result.forecast)
+
+    def submit_forecast(
+        self, command: FinancialVersionedForecastCommand
+    ) -> FinancialForecastMutationDto:
+        forecast = self._require_finance_governance_commands().forecast_version(
+            lambda service: service.submit_forecast(
+                command.forecast_id,
+                submitted_by=self._forecast_actor_id(service),
+                expected_version=command.expected_version,
+                notes=command.notes,
+            )
+        )
+        return self._forecast_mutation_dto(forecast)
+
+    def request_forecast_approval(
+        self, command: FinancialVersionedForecastCommand
+    ) -> FinancialForecastMutationDto:
+        result = self._require_finance_governance_commands().forecast_version(
+            lambda service: service.request_forecast_approval(
+                command.forecast_id,
+                expected_version=command.expected_version,
+                notes=command.notes,
+            )
+        )
+        return FinancialForecastMutationDto(
+            forecast_id=result.forecast_id,
+            project_id=result.project_id,
+            status=result.forecast_status.value,
+            row_version=result.row_version,
+            approval_request_id=result.approval_request_id,
+        )
+
     def get_rate_workspace(
         self,
         project_id: str,
@@ -554,6 +805,30 @@ class ProjectManagementFinancialsDesktopApi:
             line_effective_status=line_effective_status,
             as_of=as_of,
         )
+
+    def get_accounting_statuses(
+        self,
+        project_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 50,
+        sort_key: str = "metaText",
+        sort_direction: str = "desc",
+        search: str = "",
+    ) -> FinancialAccountingStatusPageDto:
+        if not project_id:
+            return FinancialAccountingStatusPageDto()
+        facts = self._require_finance_workspace_query().get_accounting_statuses(
+            project_id,
+            request=AccountingStatusQuery(
+                page=page,
+                page_size=page_size,
+                sort_key=sort_key,
+                sort_direction=sort_direction,
+                search=search,
+            ),
+        )
+        return serialize_accounting_status_page(facts)
 
     def get_billing_read_workspace(
         self,
@@ -841,6 +1116,236 @@ class ProjectManagementFinancialsDesktopApi:
             )
         )
 
+    def create_budget_version(
+        self, command: FinancialCreateBudgetVersionCommand
+    ) -> FinancialBudgetMutationDto:
+        budget = self._require_finance_governance_commands().budget(
+            lambda service: service.create_budget(
+                command.project_id,
+                command.name,
+                command.currency_code or None,
+            ),
+            project_id=command.project_id,
+        )
+        return self._budget_mutation_dto(budget)
+
+    def create_budget_successor(
+        self, command: FinancialCreateBudgetSuccessorCommand
+    ) -> FinancialBudgetMutationDto:
+        budget = self._require_finance_governance_commands().budget(
+            lambda service: service.create_successor(
+                command.predecessor_budget_id,
+                name=command.name,
+            )
+        )
+        return self._budget_mutation_dto(budget)
+
+    def update_budget(
+        self, command: FinancialUpdateBudgetCommand
+    ) -> FinancialBudgetMutationDto:
+        budget = self._require_finance_governance_commands().budget(
+            lambda service: service.update_budget_header(
+                command.budget_id,
+                name=command.name,
+                notes=command.notes,
+                expected_version=command.expected_version,
+            )
+        )
+        return self._budget_mutation_dto(budget)
+
+    def delete_budget(self, command: FinancialVersionedBudgetCommand) -> None:
+        self._require_finance_governance_commands().budget(
+            lambda service: service.delete_budget(
+                command.budget_id, expected_version=command.expected_version
+            )
+        )
+
+    def add_budget_line(
+        self, command: FinancialAddBudgetLineCommand
+    ) -> FinancialBudgetLineMutationDto:
+        line = self._require_finance_governance_commands().budget(
+            lambda service: service.add_line(
+                command.budget_id,
+                cost_code_id=command.cost_code_id,
+                task_id=command.task_id,
+                description=command.description,
+                amount=self._decimal_command_amount(command.amount),
+                currency_code=command.currency_code,
+                expected_budget_version=command.expected_parent_version,
+            )
+        )
+        return self._budget_line_mutation_dto(line)
+
+    def update_budget_line(
+        self, command: FinancialUpdateBudgetLineCommand
+    ) -> FinancialBudgetLineMutationDto:
+        line = self._require_finance_governance_commands().budget(
+            lambda service: service.update_line(
+                command.budget_line_id,
+                expected_line_version=command.expected_version,
+                expected_budget_version=command.expected_parent_version,
+                cost_code_id=command.cost_code_id,
+                task_id=command.task_id,
+                description=command.description,
+                amount=self._decimal_command_amount(command.amount),
+                currency_code=command.currency_code,
+            )
+        )
+        return self._budget_line_mutation_dto(line)
+
+    def delete_budget_line(self, command: FinancialDeleteBudgetLineCommand) -> None:
+        self._require_finance_governance_commands().budget(
+            lambda service: service.delete_line(
+                command.budget_line_id,
+                expected_line_version=command.expected_version,
+                expected_budget_version=command.expected_parent_version,
+            )
+        )
+
+    def submit_budget(
+        self, command: FinancialVersionedBudgetCommand
+    ) -> FinancialBudgetMutationDto:
+        budget = self._require_finance_governance_commands().budget(
+            lambda service: service.submit_budget(
+                command.budget_id,
+                self._actor_id(service),
+                command.notes,
+                expected_version=command.expected_version,
+            )
+        )
+        return self._budget_mutation_dto(budget)
+
+    def request_budget_approval(
+        self, command: FinancialVersionedBudgetCommand
+    ) -> FinancialBudgetMutationDto:
+        result = self._require_finance_governance_commands().budget(
+            lambda service: service.request_budget_approval(
+                command.budget_id,
+                notes=command.notes,
+                expected_version=command.expected_version,
+            )
+        )
+        return FinancialBudgetMutationDto(
+            budget_id=result.budget_id,
+            project_id=result.project_id,
+            status=result.budget_status.value,
+            row_version=result.row_version,
+            approval_request_id=result.approval_request_id or "",
+        )
+
+    def close_budget(
+        self, command: FinancialVersionedBudgetCommand
+    ) -> FinancialBudgetMutationDto:
+        budget = self._require_finance_governance_commands().budget(
+            lambda service: service.close_budget(
+                command.budget_id,
+                self._actor_id(service),
+                command.notes,
+                expected_version=command.expected_version,
+            )
+        )
+        return self._budget_mutation_dto(budget)
+
+    @staticmethod
+    def _actor_id(service) -> str:
+        actor_id = getattr(
+            getattr(getattr(service, "_user_session", None), "principal", None),
+            "user_id",
+            None,
+        )
+        if not actor_id:
+            raise ValidationError(
+                "An authenticated actor is required for Budget commands.",
+                code="BUDGET_ACTOR_REQUIRED",
+            )
+        return str(actor_id)
+
+    @staticmethod
+    def _decimal_command_amount(value: str) -> Decimal:
+        try:
+            amount = Decimal(str(value).strip())
+        except (InvalidOperation, ValueError) as exc:
+            raise ValidationError(
+                "Budget line amount must be a canonical decimal value.",
+                code="PROJECT_BUDGET_LINE_AMOUNT_INVALID",
+            ) from exc
+        if not amount.is_finite():
+            raise ValidationError(
+                "Budget line amount must be finite.",
+                code="PROJECT_BUDGET_LINE_AMOUNT_INVALID",
+            )
+        return amount
+
+    @staticmethod
+    def _forecast_actor_id(service) -> str:
+        actor_id = getattr(
+            getattr(getattr(service, "_user_session", None), "principal", None),
+            "user_id",
+            None,
+        )
+        if not actor_id:
+            raise ValidationError(
+                "An authenticated actor is required for Forecast commands.",
+                code="FORECAST_ACTOR_REQUIRED",
+            )
+        return str(actor_id)
+
+    @staticmethod
+    def _forecast_command_amount(value: str) -> Decimal:
+        try:
+            amount = Decimal(str(value).strip())
+        except (InvalidOperation, ValueError) as exc:
+            raise ValidationError(
+                "Forecast amount must be a canonical decimal value.",
+                code="PROJECT_FORECAST_AMOUNT_INVALID",
+            ) from exc
+        if not amount.is_finite():
+            raise ValidationError(
+                "Forecast amount must be finite.",
+                code="PROJECT_FORECAST_AMOUNT_INVALID",
+            )
+        return amount
+
+    @staticmethod
+    def _command_date(value: str, label: str) -> date:
+        try:
+            return date.fromisoformat(str(value or "").strip())
+        except ValueError as exc:
+            raise ValidationError(
+                f"{label} must use YYYY-MM-DD.",
+                code="PROJECT_FORECAST_DATE_INVALID",
+            ) from exc
+
+    @classmethod
+    def _optional_command_date(cls, value: str) -> date | None:
+        return cls._command_date(value, "Forecast period date") if value else None
+
+    @staticmethod
+    def _forecast_mutation_dto(forecast) -> FinancialForecastMutationDto:
+        return FinancialForecastMutationDto(
+            forecast_id=forecast.id,
+            project_id=forecast.project_id,
+            status=forecast.status.value,
+            row_version=forecast.row_version,
+        )
+
+    @staticmethod
+    def _budget_mutation_dto(budget) -> FinancialBudgetMutationDto:
+        return FinancialBudgetMutationDto(
+            budget_id=budget.id,
+            project_id=budget.project_id,
+            status=budget.status.value,
+            row_version=budget.row_version,
+        )
+
+    @staticmethod
+    def _budget_line_mutation_dto(line) -> FinancialBudgetLineMutationDto:
+        return FinancialBudgetLineMutationDto(
+            budget_line_id=line.id,
+            budget_id=line.budget_id,
+            row_version=line.row_version,
+        )
+
     def get_planned_cost_workspace(
         self,
         project_id: str,
@@ -1002,12 +1507,6 @@ class ProjectManagementFinancialsDesktopApi:
             self._reporting_service.get_project_commercial_projection(project_id)
         )
 
-    def _project_currency(self, project_id: str) -> str | None:
-        if not project_id or self._financial_configuration_service is None:
-            return None
-        profile = self._financial_configuration_service.get_profile(project_id)
-        return str(profile.currency_code or "").strip().upper() or None
-
     def _require_cost_entry_service(self) -> ProjectCostEntryService:
         if self._cost_entry_service is None:
             raise RuntimeError("Project cost-entry service is not connected.")
@@ -1030,10 +1529,41 @@ class ProjectManagementFinancialsDesktopApi:
             raise RuntimeError("Project financial configuration service is not connected.")
         return self._financial_configuration_service
 
+    def _require_finance_governance_commands(
+        self,
+    ) -> FinanceGovernanceCommandBoundary:
+        if self._finance_governance_commands is None:
+            raise RuntimeError("Project Finance governance command boundary is not connected.")
+        return self._finance_governance_commands
+
     def _require_finance_service(self) -> FinanceService:
         if self._finance_service is None:
             raise RuntimeError("Project management finance service is not connected.")
         return self._finance_service
+
+    def _require_finance_workspace_query(self) -> ProjectFinanceWorkspaceQuery:
+        if self._finance_workspace_query is None:
+            raise RuntimeError("Project Finance workspace query is not connected.")
+        return self._finance_workspace_query
+
+
+def _serialize_lookup_option(fact) -> FinancialLookupOptionDto | None:
+    if fact is None:
+        return None
+    return FinancialLookupOptionDto(value=fact.id, label=fact.label)
+
+
+def _serialize_lookup_page(facts: FinanceLookupPageFacts) -> FinancialLookupPageDto:
+    return FinancialLookupPageDto(
+        items=tuple(
+            FinancialLookupOptionDto(value=item.id, label=item.label)
+            for item in facts.items
+        ),
+        total=facts.total,
+        page=facts.page,
+        page_size=facts.page_size,
+        has_more=facts.has_more,
+    )
 
 
 __all__ = ["ProjectManagementFinancialsDesktopApi"]

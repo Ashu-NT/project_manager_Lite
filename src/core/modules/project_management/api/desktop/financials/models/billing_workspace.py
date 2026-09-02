@@ -62,8 +62,19 @@ class FinancialBillingReadWorkspaceDto:
     line_source_state: str = ""
 
 
+@dataclass(frozen=True)
+class FinancialAccountingStatusPageDto:
+    items: tuple[FinancialBillingTableRecordDto, ...] = ()
+    total: int = 0
+    page: int = 1
+    page_size: int = 50
+    sort_key: str = "metaText"
+    sort_direction: str = "desc"
+
+
 __all__ = [
     "FinancialBillingDetailDto",
+    "FinancialAccountingStatusPageDto",
     "FinancialBillingReadWorkspaceDto",
     "FinancialBillingTableRecordDto",
 ]

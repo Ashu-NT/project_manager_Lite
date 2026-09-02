@@ -7,6 +7,7 @@ from .resource_context_handler import (
     load_resource_projects,
 )
 from .resource_availability_handler import load_resource_availability
+from .resource_skills_handler import reload_skills_and_certs
 
 
 def _reload_if_loaded(controller, section: str) -> None:
@@ -32,19 +33,18 @@ def _reload_availability_if_loaded(controller) -> None:
         load_resource_availability(controller, start_date, end_date)
 
 
+def on_resource_list_stale(controller, resource_id: str) -> None:
+    controller.refresh()
+    if str(resource_id or "") == controller._selected_resource_id:
+        _reload_if_loaded(controller, "activity")
+
+
+def on_resource_capabilities_stale(controller, resource_id: str) -> None:
+    if str(resource_id or "") == controller._selected_resource_id:
+        reload_skills_and_certs(controller, resource_id)
+
+
 def bind_resource_domain_events(controller) -> None:
-    controller._subscribe_domain_signal(
-        domain_events.resources_changed,
-        lambda _payload: controller._request_domain_refresh(),
-    )
-    controller._subscribe_domain_signal(
-        domain_events.resources_changed,
-        lambda resource_id: (
-            _reload_if_loaded(controller, "activity")
-            if str(resource_id or "") == controller._selected_resource_id
-            else None
-        ),
-    )
     controller._subscribe_domain_signal(
         domain_events.project_changed,
         lambda _project_id: (
@@ -66,4 +66,4 @@ def bind_resource_domain_events(controller) -> None:
     )
 
 
-__all__ = ["bind_resource_domain_events"]
+__all__ = ["bind_resource_domain_events", "on_resource_list_stale", "on_resource_capabilities_stale"]

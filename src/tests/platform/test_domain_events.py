@@ -69,9 +69,9 @@ def test_domain_events_reset_clears_every_signal_without_any_bridge_rewiring():
     """`reset()` no longer calls `_wire_bridges()` (deleted) -- it only clears each Signal's own
     subscriber list. A signal connected before `reset()` must not still be connected after."""
     seen: list[str] = []
-    domain_events.documents_changed.connect(lambda doc_id: seen.append(doc_id))
+    domain_events.auth_changed.connect(lambda user_id: seen.append(user_id))
 
     domain_events.reset()
-    domain_events.documents_changed.emit("doc-1")
+    domain_events.auth_changed.emit("user-1")
 
     assert seen == []

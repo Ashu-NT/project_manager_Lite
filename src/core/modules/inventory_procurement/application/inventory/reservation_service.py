@@ -16,11 +16,21 @@ from src.core.modules.inventory_procurement.application.common.support import (
     validate_transition,
 )
 from src.core.modules.inventory_procurement.application.inventory.service import InventoryService
-from src.core.modules.inventory_procurement.application.inventory.stock_control_service import (
-    StockControlService,
+from src.core.modules.inventory_procurement.contracts.persistence.reservation_unit_of_work import (
+    InventoryReservationUnitOfWorkFactory,
 )
 from src.core.modules.inventory_procurement.contracts.repositories.inventory import (
     StockReservationRepository,
+)
+from src.core.modules.inventory_procurement.domain.inventory.balance_events import (
+    StockOnHandQuantityChanged,
+    StockReservedQuantityChanged,
+)
+from src.core.modules.inventory_procurement.domain.inventory.reservation_events import (
+    InventoryReservationCancelled,
+    InventoryReservationConsumptionAdvanced,
+    InventoryReservationCreated,
+    InventoryReservationReleased,
 )
 from src.core.modules.inventory_procurement.domain.inventory.stock import (
     StockReservation,
@@ -28,12 +38,14 @@ from src.core.modules.inventory_procurement.domain.inventory.stock import (
 )
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.master_data.documents import DocumentIntegrationService
 from src.core.platform.domain.master_data.documents import Document, DocumentLink
-from src.core.shared.events.domain_events import domain_events
+from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
     require_tenant_context_service,
@@ -53,7 +65,7 @@ class ReservationService:
         organization_repo: OrganizationRepository,
         item_service: ItemMasterService,
         inventory_service: InventoryService,
-        stock_service: StockControlService,
+        reservation_uow_factory: InventoryReservationUnitOfWorkFactory | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
         activity_service=None,
@@ -68,7 +80,7 @@ class ReservationService:
         )
         self._item_service = item_service
         self._inventory_service = inventory_service
-        self._stock_service = stock_service
+        self._reservation_uow_factory = reservation_uow_factory
         self._user_session = user_session
         self._activity_service = activity_service
         self._document_integration_service = document_integration_service
@@ -150,45 +162,79 @@ class ReservationService:
             notes=notes,
         )
         resolve_item_uom_factor(item, reservation.uom, label="Reservation UOM")
-        try:
-            self._reservation_repo.add(reservation)
-            transaction = self._stock_service.hold_reservation(
-                stock_item_id=item.id,
-                storeroom_id=storeroom.id,
-                quantity=reservation.reserved_qty,
-                uom=reservation.uom,
-                reference_type="inventory_reservation",
-                reference_id=reservation.id,
-                notes=reservation.notes,
-                commit=False,
-            )
-            self._session.commit()
-        except IntegrityError as exc:
-            self._session.rollback()
-            raise ValidationError("Reservation number already exists.", code="INVENTORY_RESERVATION_NUMBER_EXISTS") from exc
-        except Exception:
-            self._session.rollback()
-            raise
-        record_activity(
-            self,
-            action="inventory_reservation.create",
-            entity_type="stock_reservation",
-            entity_id=reservation.id,
-            module="inventory",
-            details={
-                "reservation_number": reservation.reservation_number,
-                "stock_item_id": reservation.stock_item_id,
-                "storeroom_id": reservation.storeroom_id,
-                "reserved_qty": str(reservation.reserved_qty),
-                "source_reference_type": reservation.source_reference_type,
-                "source_reference_id": reservation.source_reference_id,
-            },
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="create stock reservation"
         )
-        self._record_transaction_audit(transaction)
-        balance = self._stock_service.get_balance_for_stock_position(stock_item_id=item.id, storeroom_id=storeroom.id)
-        if balance is not None:
-            domain_events.inventory_balances_changed.emit(balance.id)
-        domain_events.inventory_reservations_changed.emit(reservation.id)
+        occurred_at = datetime.now(timezone.utc)
+        try:
+            with self._require_reservation_uow_factory().create(
+                context=DomainEventContext(correlation_id=generate_id())
+            ) as uow:
+                uow.reservations.add(reservation)
+                transaction = uow.stock_service.hold_reservation(
+                    stock_item_id=item.id,
+                    storeroom_id=storeroom.id,
+                    quantity=reservation.reserved_qty,
+                    uom=reservation.uom,
+                    reference_type="inventory_reservation",
+                    reference_id=reservation.id,
+                    notes=reservation.notes,
+                    commit=False,
+                )
+                record_activity(
+                    uow,
+                    action="inventory_reservation.create",
+                    entity_type="stock_reservation",
+                    entity_id=reservation.id,
+                    module="inventory",
+                    details={
+                        "reservation_number": reservation.reservation_number,
+                        "stock_item_id": reservation.stock_item_id,
+                        "storeroom_id": reservation.storeroom_id,
+                        "reserved_qty": str(reservation.reserved_qty),
+                        "source_reference_type": reservation.source_reference_type,
+                        "source_reference_id": reservation.source_reference_id,
+                    },
+                    commit=False,
+                )
+                record_audit_entry(
+                    uow,
+                    operation="create",
+                    entity_type="stock_reservation",
+                    entity_id=reservation.id,
+                    module="inventory",
+                    severity="low",
+                    metadata={
+                        "reservation_number": reservation.reservation_number,
+                        "stock_item_id": reservation.stock_item_id,
+                        "storeroom_id": reservation.storeroom_id,
+                        "reserved_qty": str(reservation.reserved_qty),
+                    },
+                    commit=False,
+                    fail_closed=True,
+                )
+                self._record_transaction_audit(uow, transaction)
+                uow.record_event(
+                    InventoryReservationCreated(
+                        tenant_id=tenant_id,
+                        organization_id=organization.id,
+                        reservation_id=reservation.id,
+                        occurred_at=occurred_at,
+                    )
+                )
+                balance = uow.balances.get_for_stock_position(organization.id, item.id, storeroom.id)
+                self._record_balance_event(
+                    uow,
+                    event_type=StockReservedQuantityChanged,
+                    tenant_id=tenant_id,
+                    organization_id=organization.id,
+                    balance=balance,
+                    quantity_delta=reservation.reserved_qty,
+                    occurred_at=occurred_at,
+                )
+                uow.commit()
+        except IntegrityError as exc:
+            raise ValidationError("Reservation number already exists.", code="INVENTORY_RESERVATION_NUMBER_EXISTS") from exc
         return reservation
 
     def release_reservation(self, reservation_id: str, *, note: str = "") -> StockReservation:
@@ -233,8 +279,13 @@ class ReservationService:
             next_status=next_status.value,
             transitions=RESERVATION_STATUS_TRANSITIONS,
         )
-        try:
-            transaction = self._stock_service.issue_stock(
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="issue reserved stock"
+        )
+        with self._require_reservation_uow_factory().create(
+            context=DomainEventContext(correlation_id=generate_id())
+        ) as uow:
+            transaction = uow.stock_service.issue_stock(
                 stock_item_id=reservation.stock_item_id,
                 storeroom_id=reservation.storeroom_id,
                 quantity=issue_qty,
@@ -253,31 +304,70 @@ class ReservationService:
                 status=next_status,
                 notes=normalize_optional_text(note) or reservation.notes,
             )
-            self._reservation_repo.update(reservation)
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        record_activity(
-            self,
-            action="inventory_reservation.issue",
-            entity_type="stock_reservation",
-            entity_id=reservation.id,
-            module="inventory",
-            details={
-                "reservation_number": reservation.reservation_number,
-                "issued_qty": str(issue_qty),
-                "remaining_qty": str(reservation.remaining_qty),
-            },
-        )
-        self._record_transaction_audit(transaction)
-        balance = self._stock_service.get_balance_for_stock_position(
-            stock_item_id=reservation.stock_item_id,
-            storeroom_id=reservation.storeroom_id,
-        )
-        if balance is not None:
-            domain_events.inventory_balances_changed.emit(balance.id)
-        domain_events.inventory_reservations_changed.emit(reservation.id)
+            uow.reservations.update(reservation)
+            record_activity(
+                uow,
+                action="inventory_reservation.issue",
+                entity_type="stock_reservation",
+                entity_id=reservation.id,
+                module="inventory",
+                details={
+                    "reservation_number": reservation.reservation_number,
+                    "issued_qty": str(issue_qty),
+                    "remaining_qty": str(reservation.remaining_qty),
+                },
+                commit=False,
+            )
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="stock_reservation",
+                entity_id=reservation.id,
+                module="inventory",
+                severity="low",
+                metadata={
+                    "reservation_number": reservation.reservation_number,
+                    "issued_qty": str(issue_qty),
+                    "resulting_status": next_status.value,
+                },
+                commit=False,
+                fail_closed=True,
+            )
+            self._record_transaction_audit(uow, transaction)
+            uow.record_event(
+                InventoryReservationConsumptionAdvanced(
+                    tenant_id=tenant_id,
+                    organization_id=reservation.organization_id,
+                    reservation_id=reservation.id,
+                    resulting_status=next_status.value,
+                    occurred_at=effective_at,
+                )
+            )
+            # `issue_stock` mutates both `on_hand_qty` and `reserved_qty` (via
+            # `release_reserved_qty`) in the same call -- two genuine Balance facts from one
+            # operation, not merged into a catch-all (P31B §7/§13).
+            balance = uow.balances.get_for_stock_position(
+                reservation.organization_id, reservation.stock_item_id, reservation.storeroom_id
+            )
+            self._record_balance_event(
+                uow,
+                event_type=StockOnHandQuantityChanged,
+                tenant_id=tenant_id,
+                organization_id=reservation.organization_id,
+                balance=balance,
+                quantity_delta=-issue_qty,
+                occurred_at=effective_at,
+            )
+            self._record_balance_event(
+                uow,
+                event_type=StockReservedQuantityChanged,
+                tenant_id=tenant_id,
+                organization_id=reservation.organization_id,
+                balance=balance,
+                quantity_delta=-issue_qty,
+                occurred_at=effective_at,
+            )
+            uow.commit()
         return reservation
 
     def list_reservation_documents(
@@ -312,6 +402,11 @@ class ReservationService:
                 code="DOCUMENT_INTEGRATION_UNAVAILABLE",
             )
         reservation = self.get_reservation(reservation_id)
+        # Document link/unlink mutates only `DocumentLink`, never the Reservation row itself --
+        # P30A/P30B: no Reservation DomainEvent, no legacy `inventory_reservations_changed`.
+        # `link_existing_document` is already P16D-typed and already drives the canonical
+        # `document_links` ViewInvalidation target on its own, atomically -- the identical
+        # precedent P24 already established for Item's own link_document/unlink_document.
         link = self._document_integration_service.link_existing_document(
             required_permission="inventory.manage",
             operation_label="link reservation document",
@@ -333,7 +428,6 @@ class ReservationService:
                 "link_role": normalize_optional_text(link_role) or "reference",
             },
         )
-        domain_events.inventory_reservations_changed.emit(reservation.id)
         return link
 
     def unlink_document(
@@ -349,6 +443,7 @@ class ReservationService:
                 code="DOCUMENT_INTEGRATION_UNAVAILABLE",
             )
         reservation = self.get_reservation(reservation_id)
+        # See `link_document` -- same P16D-owned, already-atomic path, no Reservation event.
         self._document_integration_service.unlink_existing_document(
             required_permission="inventory.manage",
             operation_label="unlink reservation document",
@@ -370,7 +465,6 @@ class ReservationService:
                 "link_role": normalize_optional_text(link_role) or "reference",
             },
         )
-        domain_events.inventory_reservations_changed.emit(reservation.id)
 
     def _close_reservation(
         self,
@@ -396,8 +490,13 @@ class ReservationService:
             next_status=status.value,
             transitions=RESERVATION_STATUS_TRANSITIONS,
         )
-        try:
-            transaction = self._stock_service.release_reservation(
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="close stock reservation"
+        )
+        with self._require_reservation_uow_factory().create(
+            context=DomainEventContext(correlation_id=generate_id())
+        ) as uow:
+            transaction = uow.stock_service.release_reservation(
                 stock_item_id=reservation.stock_item_id,
                 storeroom_id=reservation.storeroom_id,
                 quantity=quantity_to_release,
@@ -424,35 +523,74 @@ class ReservationService:
                 status=status,
                 notes=normalize_optional_text(note) or reservation.notes,
             )
-            self._reservation_repo.update(reservation)
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        record_activity(
-            self,
-            action=f"inventory_reservation.{status.value.lower()}",
-            entity_type="stock_reservation",
-            entity_id=reservation.id,
-            module="inventory",
-            details={
-                "reservation_number": reservation.reservation_number,
-                "released_qty": str(quantity_to_release),
-            },
-        )
-        self._record_transaction_audit(transaction)
-        balance = self._stock_service.get_balance_for_stock_position(
-            stock_item_id=reservation.stock_item_id,
-            storeroom_id=reservation.storeroom_id,
-        )
-        if balance is not None:
-            domain_events.inventory_balances_changed.emit(balance.id)
-        domain_events.inventory_reservations_changed.emit(reservation.id)
+            uow.reservations.update(reservation)
+            record_activity(
+                uow,
+                action=f"inventory_reservation.{status.value.lower()}",
+                entity_type="stock_reservation",
+                entity_id=reservation.id,
+                module="inventory",
+                details={
+                    "reservation_number": reservation.reservation_number,
+                    "released_qty": str(quantity_to_release),
+                },
+                commit=False,
+            )
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="stock_reservation",
+                entity_id=reservation.id,
+                module="inventory",
+                severity="low",
+                metadata={
+                    "reservation_number": reservation.reservation_number,
+                    "resulting_status": status.value,
+                    "released_qty": str(quantity_to_release),
+                },
+                commit=False,
+                fail_closed=True,
+            )
+            self._record_transaction_audit(uow, transaction)
+            # Released vs Cancelled are kept as distinct DomainEvent types even though they
+            # share this one implementation helper -- P30B §4: different terminal business
+            # decisions, not an implementation detail to collapse into one `ReservationClosed`.
+            if status == StockReservationStatus.RELEASED:
+                uow.record_event(
+                    InventoryReservationReleased(
+                        tenant_id=tenant_id,
+                        organization_id=reservation.organization_id,
+                        reservation_id=reservation.id,
+                        occurred_at=effective_at,
+                    )
+                )
+            else:
+                uow.record_event(
+                    InventoryReservationCancelled(
+                        tenant_id=tenant_id,
+                        organization_id=reservation.organization_id,
+                        reservation_id=reservation.id,
+                        occurred_at=effective_at,
+                    )
+                )
+            balance = uow.balances.get_for_stock_position(
+                reservation.organization_id, reservation.stock_item_id, reservation.storeroom_id
+            )
+            self._record_balance_event(
+                uow,
+                event_type=StockReservedQuantityChanged,
+                tenant_id=tenant_id,
+                organization_id=reservation.organization_id,
+                balance=balance,
+                quantity_delta=-quantity_to_release,
+                occurred_at=effective_at,
+            )
+            uow.commit()
         return reservation
 
-    def _record_transaction_audit(self, transaction) -> None:
+    def _record_transaction_audit(self, uow, transaction) -> None:
         record_activity(
-            self,
+            uow,
             action="inventory_stock_transaction.post",
             entity_type="inventory_stock_transaction",
             entity_id=transaction.id,
@@ -466,7 +604,52 @@ class ReservationService:
                 "uom": transaction.uom,
                 "reference_id": transaction.reference_id,
             },
+            commit=False,
         )
+
+    @staticmethod
+    def _record_balance_event(
+        uow,
+        *,
+        event_type,
+        tenant_id: str,
+        organization_id: str,
+        balance,
+        quantity_delta: float,
+        occurred_at: datetime,
+    ) -> None:
+        # P31B: Reservation genuinely mutates persisted Balance state in the same transaction as
+        # its own aggregate write -- record the canonical Balance fact here, in the same UoW,
+        # before commit (never a postcommit substitute for the business fact itself). `balance`
+        # is always non-None here: Reservation's own Balance mutation requires an existing
+        # balance row (`hold_reservation`/`release_reservation`/`issue_stock` all raise if none
+        # exists), so the row this method re-reads was already guaranteed present by the mutation
+        # that just ran in the same transaction.
+        if quantity_delta == 0:
+            return
+        resulting_quantity = (
+            balance.reserved_qty if event_type is StockReservedQuantityChanged else balance.on_hand_qty
+        )
+        uow.record_event(
+            event_type(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                balance_id=balance.id,
+                stock_item_id=balance.stock_item_id,
+                storeroom_id=balance.storeroom_id,
+                quantity_delta=quantity_delta,
+                resulting_quantity=resulting_quantity,
+                occurred_at=occurred_at,
+            )
+        )
+
+    def _require_reservation_uow_factory(self) -> InventoryReservationUnitOfWorkFactory:
+        if self._reservation_uow_factory is None:
+            raise BusinessRuleError(
+                "Stock reservation commands require a configured transaction owner.",
+                code="INVENTORY_RESERVATION_UOW_REQUIRED",
+            )
+        return self._reservation_uow_factory
 
     @staticmethod
     def _ensure_same_scope(item_org_id: str, storeroom_org_id: str, organization_id: str) -> None:

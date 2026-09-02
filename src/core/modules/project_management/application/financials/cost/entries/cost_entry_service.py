@@ -12,6 +12,10 @@ from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.financials.invalidation import (
+    FinanceInvalidationScope,
+)
+from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.application.financials.cost.entries.approval_result import (
     CostEntryApprovalOutcome,
     CostEntryApprovalResult,
@@ -1060,11 +1064,19 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             raise
 
     def _commit(self, project_id: str) -> None:
+        context = self._require_scope("publish project cost invalidation")
         try:
             self._session.commit()
         except Exception:
             self._session.rollback()
             raise
+        domain_events.cost_entries_changed.emit(
+            FinanceInvalidationScope(
+                tenant_id=context.tenant_id,
+                organization_id=context.organization_id,
+                project_id=project_id,
+            )
+        )
 
 
 __all__ = ["ProjectCostEntryService"]

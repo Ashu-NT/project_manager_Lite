@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -8,15 +7,20 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.core.shared.audit import record_audit_entry
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from src.core.shared.events.domain_events import domain_events
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.contract.repositories.master_data.documents.contracts import (
     DocumentLinkRepository,
     DocumentRepository,
     DocumentStructureRepository,
 )
-from src.core.platform.domain.master_data.documents import Document, DocumentLink, DocumentStructure, DocumentType
+from src.core.platform.contract.uow.document_unit_of_work import DocumentUnitOfWorkFactory
+from src.core.platform.domain.master_data.documents import Document, DocumentLink, DocumentType
+from src.core.platform.domain.master_data.documents.events import (
+    DocumentCreated,
+    DocumentReferenceLinked,
+    DocumentReferenceUnlinked,
+)
 from src.core.platform.domain.master_data.documents.document_link import (
     normalize_document_entity_id,
     normalize_document_entity_type,
@@ -34,6 +38,11 @@ from src.core.platform.domain.master_data.documents.support import (
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.tenant.tenancy import TenantContextService
+from src.core.platform.common.ids import generate_id
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.time.clock import Clock
+
+from .document_context import active_organization, resolve_structure_for_context
 
 
 def _build_document_code(*, module_code: str, entity_type: str) -> str:
@@ -55,6 +64,8 @@ class DocumentIntegrationService:
         user_session: Any = None,
         enterprise_audit_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
+        uow_factory: DocumentUnitOfWorkFactory,
+        clock: Clock,
     ) -> None:
         self._session = session
         self._document_repo = document_repo
@@ -64,6 +75,11 @@ class DocumentIntegrationService:
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
+        self._uow_factory = uow_factory
+        self._clock = clock
+
+    def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
 
     def register_entity_attachments(
         self,
@@ -91,14 +107,17 @@ class DocumentIntegrationService:
         normalized_module = normalize_document_module_code(module_code)
         normalized_entity_type = normalize_document_entity_type(entity_type)
         normalized_entity_id = normalize_document_entity_id(entity_id)
-        structure = self._resolve_structure_for_context(document_structure_id, organization=organization)
         normalized_role = normalize_document_link_role(link_role)
         resolved_type = coerce_document_type(document_type)
         principal = self._user_session.principal if self._user_session is not None else None
         uploader = uploaded_by_user_id or getattr(principal, "user_id", None)
         created: list[Document] = []
-        try:
+        with self._uow_factory.create(context=self._new_context()) as uow:
+            structure = resolve_structure_for_context(
+                document_structure_id, organization=organization, structure_repo=uow.structures
+            )
             for token in tokens:
+                now = self._clock.now()
                 document = Document.create(
                     organization_id=organization.id,
                     document_code=_build_document_code(
@@ -113,13 +132,13 @@ class DocumentIntegrationService:
                     file_name=infer_file_name(token),
                     mime_type=infer_mime_type(token),
                     source_system=normalize_optional_text(source_system) or normalized_module,
-                    uploaded_at=datetime.now(timezone.utc),
+                    uploaded_at=now,
                     uploaded_by_user_id=uploader,
                     business_version_label=normalize_optional_text(business_version_label or revision),
                     notes=normalize_optional_text(notes),
                 )
-                self._document_repo.add(document)
-                self._session.flush()
+                uow.documents.add(document)
+                uow._session.flush()
                 link = DocumentLink.create(
                     organization_id=organization.id,
                     document_id=document.id,
@@ -128,13 +147,10 @@ class DocumentIntegrationService:
                     entity_id=normalized_entity_id,
                     link_role=normalized_role,
                 )
-                self._link_repo.add(link)
+                uow.links.add(link)
                 created.append(document)
-                # Audit is staged in the same transaction as the business write
-                # (ADR-003: "the business mutation and successful security audit
-                # intent commit atomically") — never a second, separate commit.
                 record_audit_entry(
-                    self,
+                    uow,
                     operation="create",
                     entity_type="document",
                     entity_id=document.id,
@@ -153,15 +169,27 @@ class DocumentIntegrationService:
                     commit=False,
                     fail_closed=True,
                 )
-            self._session.commit()
-        except IntegrityError:
-            self._session.rollback()
-            raise
-        except Exception:
-            self._session.rollback()
-            raise
-        for document in created:
-            domain_events.documents_changed.emit(document.id)
+                uow.record_event(
+                    DocumentCreated(
+                        tenant_id=organization.tenant_id,
+                        organization_id=organization.id,
+                        document_id=document.id,
+                        occurred_at=now,
+                    )
+                )
+                uow.record_event(
+                    DocumentReferenceLinked(
+                        tenant_id=organization.tenant_id,
+                        organization_id=organization.id,
+                        document_id=document.id,
+                        module_code=normalized_module,
+                        entity_type=normalized_entity_type,
+                        entity_id=normalized_entity_id,
+                        link_role=normalized_role,
+                        occurred_at=now,
+                    )
+                )
+            uow.commit()
         return created
 
     def list_documents_for_entity(
@@ -216,58 +244,63 @@ class DocumentIntegrationService:
     ) -> DocumentLink:
         require_permission(self._user_session, required_permission, operation_label=operation_label)
         organization = self._active_organization()
-        document = self._document_repo.get(document_id)
-        if document is None or document.organization_id != organization.id:
-            raise NotFoundError("Document not found in the active organization.", code="DOCUMENT_NOT_FOUND")
-        if not document.is_active:
-            raise ValidationError("Document must be active before it can be linked.", code="DOCUMENT_INACTIVE")
-        link = DocumentLink.create(
-            organization_id=organization.id,
-            document_id=document.id,
-            module_code=module_code,
-            entity_type=entity_type,
-            entity_id=entity_id,
-            link_role=link_role,
-        )
-        existing = self._link_repo.find_existing(
-            document_id=link.document_id,
-            module_code=link.module_code,
-            entity_type=link.entity_type,
-            entity_id=link.entity_id,
-            link_role=link.link_role,
-        )
-        if existing is not None:
-            raise ValidationError("Document link already exists.", code="DOCUMENT_LINK_EXISTS")
-        try:
-            self._link_repo.add(link)
-            # Audit is staged in the same transaction as the business write (ADR-003:
-            # "the business mutation and successful security audit intent commit
-            # atomically") — never a second, separate commit.
-            record_audit_entry(
-                self,
-                operation="update",
-                entity_type="document",
-                entity_id=document.id,
-                module="platform",
-                severity="low",
-                metadata={
-                    "action": "document.link_existing",
-                    "module_code": link.module_code,
-                    "entity_type": link.entity_type,
-                    "entity_id": link.entity_id,
-                    "link_role": link.link_role,
-                },
-                commit=False,
-                fail_closed=True,
+        with self._uow_factory.create(context=self._new_context()) as uow:
+            document = uow.documents.get(document_id)
+            if document is None or document.organization_id != organization.id:
+                raise NotFoundError("Document not found in the active organization.", code="DOCUMENT_NOT_FOUND")
+            if not document.is_active:
+                raise ValidationError("Document must be active before it can be linked.", code="DOCUMENT_INACTIVE")
+            link = DocumentLink.create(
+                organization_id=organization.id,
+                document_id=document.id,
+                module_code=module_code,
+                entity_type=entity_type,
+                entity_id=entity_id,
+                link_role=link_role,
             )
-            self._session.commit()
-        except IntegrityError as exc:
-            self._session.rollback()
-            raise ValidationError("Document link already exists.", code="DOCUMENT_LINK_EXISTS") from exc
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.documents_changed.emit(document.id)
+            existing = uow.links.find_existing(
+                document_id=link.document_id,
+                module_code=link.module_code,
+                entity_type=link.entity_type,
+                entity_id=link.entity_id,
+                link_role=link.link_role,
+            )
+            if existing is not None:
+                raise ValidationError("Document link already exists.", code="DOCUMENT_LINK_EXISTS")
+            try:
+                uow.links.add(link)
+                record_audit_entry(
+                    uow,
+                    operation="update",
+                    entity_type="document",
+                    entity_id=document.id,
+                    module="platform",
+                    severity="low",
+                    metadata={
+                        "action": "document.link_existing",
+                        "module_code": link.module_code,
+                        "entity_type": link.entity_type,
+                        "entity_id": link.entity_id,
+                        "link_role": link.link_role,
+                    },
+                    commit=False,
+                    fail_closed=True,
+                )
+                uow.record_event(
+                    DocumentReferenceLinked(
+                        tenant_id=organization.tenant_id,
+                        organization_id=organization.id,
+                        document_id=document.id,
+                        module_code=link.module_code,
+                        entity_type=link.entity_type,
+                        entity_id=link.entity_id,
+                        link_role=link.link_role,
+                        occurred_at=self._clock.now(),
+                    )
+                )
+                uow.commit()
+            except IntegrityError as exc:
+                raise ValidationError("Document link already exists.", code="DOCUMENT_LINK_EXISTS") from exc
         return link
 
     def unlink_existing_document(
@@ -283,29 +316,26 @@ class DocumentIntegrationService:
     ) -> None:
         require_permission(self._user_session, required_permission, operation_label=operation_label)
         organization = self._active_organization()
-        document = self._document_repo.get(document_id)
-        if document is None or document.organization_id != organization.id:
-            raise NotFoundError("Document not found in the active organization.", code="DOCUMENT_NOT_FOUND")
-        normalized_module = normalize_document_module_code(module_code)
-        normalized_entity_type = normalize_document_entity_type(entity_type)
-        normalized_entity_id = normalize_document_entity_id(entity_id)
-        normalized_role = normalize_document_link_role(link_role)
-        existing = self._link_repo.find_existing(
-            document_id=document.id,
-            module_code=normalized_module,
-            entity_type=normalized_entity_type,
-            entity_id=normalized_entity_id,
-            link_role=normalized_role,
-        )
-        if existing is None:
-            raise NotFoundError("Document link not found.", code="DOCUMENT_LINK_NOT_FOUND")
-        try:
-            self._link_repo.delete(existing.id)
-            # Audit is staged in the same transaction as the business write (ADR-003:
-            # "the business mutation and successful security audit intent commit
-            # atomically") — never a second, separate commit.
+        with self._uow_factory.create(context=self._new_context()) as uow:
+            document = uow.documents.get(document_id)
+            if document is None or document.organization_id != organization.id:
+                raise NotFoundError("Document not found in the active organization.", code="DOCUMENT_NOT_FOUND")
+            normalized_module = normalize_document_module_code(module_code)
+            normalized_entity_type = normalize_document_entity_type(entity_type)
+            normalized_entity_id = normalize_document_entity_id(entity_id)
+            normalized_role = normalize_document_link_role(link_role)
+            existing = uow.links.find_existing(
+                document_id=document.id,
+                module_code=normalized_module,
+                entity_type=normalized_entity_type,
+                entity_id=normalized_entity_id,
+                link_role=normalized_role,
+            )
+            if existing is None:
+                raise NotFoundError("Document link not found.", code="DOCUMENT_LINK_NOT_FOUND")
+            uow.links.delete(existing.id)
             record_audit_entry(
-                self,
+                uow,
                 operation="delete",
                 entity_type="document",
                 entity_id=document.id,
@@ -321,39 +351,32 @@ class DocumentIntegrationService:
                 commit=False,
                 fail_closed=True,
             )
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.documents_changed.emit(document.id)
+            uow.record_event(
+                DocumentReferenceUnlinked(
+                    tenant_id=organization.tenant_id,
+                    organization_id=organization.id,
+                    document_id=document.id,
+                    module_code=normalized_module,
+                    entity_type=normalized_entity_type,
+                    entity_id=normalized_entity_id,
+                    link_role=normalized_role,
+                    occurred_at=self._clock.now(),
+                )
+            )
+            uow.commit()
 
     def _resolve_structure_for_context(
         self,
         structure_id: str | None,
         *,
         organization: Organization,
-    ) -> DocumentStructure | None:
-        normalized_id = normalize_optional_text(structure_id)
-        if not normalized_id:
-            return None
-        structure = self._structure_repo.get(normalized_id)
-        if structure is None or structure.organization_id != organization.id:
-            raise NotFoundError("Document structure not found in the active organization.", code="DOCUMENT_STRUCTURE_NOT_FOUND")
-        return structure
+    ) -> Any:
+        return resolve_structure_for_context(
+            structure_id, organization=organization, structure_repo=self._structure_repo
+        )
 
     def _active_organization(self) -> Organization:
-        if self._tenant_context_service is None:
-            raise BusinessRuleError(
-                "Active organization context is required.",
-                code="TENANT_CONTEXT_REQUIRED",
-            )
-        organization = self._tenant_context_service.get_active_organization()
-        if organization is None:
-            raise BusinessRuleError(
-                "Active organization context is required.",
-                code="TENANT_CONTEXT_REQUIRED",
-            )
-        return organization
+        return active_organization(self)
 
 
 __all__ = ["DocumentIntegrationService"]

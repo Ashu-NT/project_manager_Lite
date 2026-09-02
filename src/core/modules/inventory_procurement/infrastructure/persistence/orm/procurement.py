@@ -120,6 +120,7 @@ class PurchaseRequisitionLineORM(Base):
         server_default=PurchaseRequisitionLineStatus.DRAFT.value,
     )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
 class PurchaseOrderORM(Base):

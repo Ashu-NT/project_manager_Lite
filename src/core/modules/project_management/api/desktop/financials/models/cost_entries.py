@@ -12,7 +12,6 @@ class FinancialCostCodeOptionDescriptor:
 @dataclass(frozen=True, slots=True)
 class FinancialManualActualOptionsDto:
     currency_code: str = ""
-    cost_codes: tuple[FinancialCostCodeOptionDescriptor, ...] = ()
     entry_kinds: tuple[FinancialCostCodeOptionDescriptor, ...] = field(
         default_factory=lambda: (
             FinancialCostCodeOptionDescriptor("actual", "Actual"),

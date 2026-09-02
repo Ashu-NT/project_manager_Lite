@@ -7,14 +7,22 @@ from sqlalchemy.orm import Session
 from src.core.modules.inventory_procurement.contracts.persistence.purchase_order_submission_unit_of_work import (
     PurchaseOrderSubmissionUnitOfWork,
 )
+from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.inventory import (
+    SqlAlchemyStockBalanceRepository,
+)
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.procurement import (
+    SqlAlchemyPurchaseOrderLineRepository,
     SqlAlchemyPurchaseOrderRepository,
 )
+from src.core.platform.application.history.activity.activity_service import ActivityService
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
 )
 from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
     SqlAlchemyApprovalRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.history.activity.activity import (
+    SqlAlchemyActivityRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
@@ -52,6 +60,12 @@ class SqlAlchemyPurchaseOrderSubmissionUnitOfWork(
         self.purchase_orders = SqlAlchemyPurchaseOrderRepository(
             session, tenant_context_service=tenant_context_service
         )
+        self.purchase_order_lines = SqlAlchemyPurchaseOrderLineRepository(
+            session, tenant_context_service=tenant_context_service
+        )
+        self.balances = SqlAlchemyStockBalanceRepository(
+            session, tenant_context_service=tenant_context_service
+        )
         approvals = SqlAlchemyApprovalRepository(session)
         approvals._tenant_context_service = tenant_context_service
         self.approvals = approvals
@@ -61,6 +75,14 @@ class SqlAlchemyPurchaseOrderSubmissionUnitOfWork(
         self._enterprise_audit_service = EnterpriseAuditService(
             session=session,
             audit_repo=audit_repo,
+            user_session=user_session,
+            tenant_context_service=tenant_context_service,
+        )
+        activity_repo = SqlAlchemyActivityRepository(session)
+        activity_repo._tenant_context_service = tenant_context_service
+        self._activity_service = ActivityService(
+            session=session,
+            activity_repo=activity_repo,
             user_session=user_session,
             tenant_context_service=tenant_context_service,
         )

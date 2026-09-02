@@ -221,12 +221,119 @@ def _approve_directly(services, budget: ProjectBudget) -> ProjectBudget:
     return budget_service.get_budget(result.budget_id)
 
 
+def test_successor_clones_approved_lines_and_preserves_predecessor(services) -> None:
+    _login(services, "admin", "ChangeMe123!")
+    project = _make_project(services, name="Budget successor lineage")
+    budget_service = services["budget_service"]
+    cost_code = _make_cost_code(services, "SUCCESSOR")
+
+    predecessor = budget_service.create_budget(project.id, "Approved baseline")
+    source_line = budget_service.add_line(
+        predecessor.id,
+        cost_code_id=cost_code.id,
+        description="Approved amount",
+        amount=Decimal("125.50"),
+        expected_budget_version=predecessor.row_version,
+    )
+    predecessor = budget_service.get_budget(predecessor.id)
+    predecessor = budget_service.submit_budget(
+        predecessor.id,
+        "admin",
+        expected_version=predecessor.row_version,
+    )
+    predecessor = _approve_directly(services, predecessor)
+    predecessor_version = predecessor.row_version
+
+    successor = budget_service.create_successor(
+        predecessor.id, name="Working successor"
+    )
+    successor_lines = budget_service._budget_repo.list_lines(successor.id)
+    unchanged = budget_service.get_budget(predecessor.id)
+    predecessor_lines = budget_service._budget_repo.list_lines(predecessor.id)
+
+    assert successor.status is BudgetStatus.DRAFT
+    assert successor.predecessor_budget_id == predecessor.id
+    assert successor.revision == predecessor.revision + 1
+    assert successor.currency_code == predecessor.currency_code
+    assert unchanged.status is BudgetStatus.APPROVED
+    assert unchanged.row_version == predecessor_version
+    assert predecessor_lines[0].id == source_line.id
+    assert successor_lines[0].id != source_line.id
+    assert successor_lines[0].cost_code_id == source_line.cost_code_id
+    assert successor_lines[0].description == source_line.description
+    assert successor_lines[0].amount == Decimal("125.50")
+
+    with pytest.raises(BusinessRuleError) as exc:
+        budget_service.create_successor(predecessor.id, name="Second open successor")
+    assert exc.value.code == "PROJECT_BUDGET_OPEN_VERSION_EXISTS"
+
+
+def test_explicit_budget_approval_request_always_uses_platform_approval(
+    services, monkeypatch
+) -> None:
+    monkeypatch.setenv("PM_GOVERNANCE_MODE", "off")
+    _login(services, "admin", "ChangeMe123!")
+    project = _make_project(services, name="Explicit Platform approval")
+    budget_service = services["budget_service"]
+    budget = budget_service.create_budget(project.id, "Approval candidate")
+    budget = _submit_with_line(services, budget)
+
+    result = budget_service.request_budget_approval(
+        budget.id,
+        notes="Review independently",
+        expected_version=budget.row_version,
+    )
+
+    assert result.outcome is BudgetApprovalOutcome.PENDING_APPROVAL
+    assert result.budget_status is BudgetStatus.SUBMITTED
+    assert result.approval_request_id
+    assert budget_service.get_budget(budget.id).status is BudgetStatus.SUBMITTED
+
+    requester_view = services["finance_workspace_query"].get_budget_workspace(
+        project.id, selected_budget_id=budget.id
+    )
+    requester_row = requester_view.versions.items[0]
+    assert requester_row.approval_request_id == result.approval_request_id
+    assert requester_row.can_approve is False
+    assert requester_row.can_reject is False
+
+    services["auth_service"].register_user(
+        "budget-reviewer", "StrongPass123", role_names=["approver"]
+    )
+    _login(services, "budget-reviewer", "StrongPass123")
+    reviewer_view = services["finance_workspace_query"].get_budget_workspace(
+        project.id, selected_budget_id=budget.id
+    )
+    reviewer_row = reviewer_view.versions.items[0]
+    assert reviewer_row.can_approve is True
+    assert reviewer_row.can_reject is True
+    assert reviewer_view.show_create_version is False
+    assert reviewer_view.can_create_version is False
+    assert reviewer_view.create_version_disabled_reason == ""
+
+    services["approval_service"].approve_and_apply(
+        result.approval_request_id, note="Approved by another principal"
+    )
+    approved = budget_service.get_budget(budget.id)
+    assert approved.status is BudgetStatus.APPROVED
+    assert sum(
+        (line.amount for line in budget_service._budget_repo.list_lines(approved.id)),
+        Decimal("0"),
+    ) == Decimal("10")
+
+
 def test_create_budget_requires_financial_profile(services, monkeypatch) -> None:
+    from src.core.modules.project_management.infrastructure.persistence.repositories.finance.configuration.financial_configuration import (
+        SqlAlchemyProjectFinancialProfileRepository,
+    )
+
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
     budget_service = services["budget_service"]
     monkeypatch.setattr(
-        budget_service._financial_profile_repo, "get_by_project", lambda project_id: None
+        SqlAlchemyProjectFinancialProfileRepository,
+        "get_by_project",
+        lambda self, project_id: None,
     )
     with pytest.raises(NotFoundError, match="financial profile"):
         budget_service.create_budget(project.id, "No profile")
@@ -265,13 +372,21 @@ def test_new_draft_allowed_after_rejection_but_not_while_another_is_approved(ser
 
 
 def test_create_budget_open_version_race_translates_named_error(services, monkeypatch) -> None:
+    from src.core.modules.project_management.infrastructure.persistence.repositories.finance.budgets.budget import (
+        SqlAlchemyProjectBudgetRepository,
+    )
+
     # Simulate two concurrent create_budget calls both observing "no open
     # budget" before either commits — the service pre-check is bypassed here
     # so the DB-level partial unique index is what actually fires.
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
     budget_service = services["budget_service"]
-    monkeypatch.setattr(budget_service._budget_repo, "has_open_for_project", lambda project_id: False)
+    monkeypatch.setattr(
+        SqlAlchemyProjectBudgetRepository,
+        "has_open_for_project",
+        lambda self, project_id: False,
+    )
 
     budget_service.create_budget(project.id, "race-1")
     with pytest.raises(BusinessRuleError) as exc:
@@ -280,6 +395,10 @@ def test_create_budget_open_version_race_translates_named_error(services, monkey
 
 
 def test_create_budget_revision_race_translates_to_concurrency_error(services, monkeypatch) -> None:
+    from src.core.modules.project_management.infrastructure.persistence.repositories.finance.budgets.budget import (
+        SqlAlchemyProjectBudgetRepository,
+    )
+
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
     budget_service = services["budget_service"]
@@ -291,7 +410,11 @@ def test_create_budget_revision_race_translates_to_concurrency_error(services, m
     # Nothing open now, so has_open_for_project is truthfully False; force
     # get_latest_for_project to return a stale (already-used) revision so
     # the insert collides only on the revision uniqueness constraint.
-    monkeypatch.setattr(budget_service._budget_repo, "get_latest_for_project", lambda project_id: None)
+    monkeypatch.setattr(
+        SqlAlchemyProjectBudgetRepository,
+        "get_latest_for_project",
+        lambda self, project_id: None,
+    )
     with pytest.raises(ConcurrencyError) as exc:
         budget_service.create_budget(project.id, "collides-with-v1")
     assert exc.value.code == "PROJECT_BUDGET_REVISION_CONFLICT"
@@ -729,6 +852,10 @@ def test_ordered_approve_supersedes_prior_approved_budget(services) -> None:
 
 
 def test_approve_conflict_translates_to_named_business_error(services, monkeypatch) -> None:
+    from src.core.modules.project_management.infrastructure.persistence.repositories.finance.budgets.budget import (
+        SqlAlchemyProjectBudgetRepository,
+    )
+
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
     budget_service = services["budget_service"]
@@ -743,7 +870,11 @@ def test_approve_conflict_translates_to_named_business_error(services, monkeypat
     # Simulate a concurrent read that missed v1 being approved — the DB's
     # partial "one approved" index is what must catch this, not the
     # in-memory `previous` lookup.
-    monkeypatch.setattr(budget_service._budget_repo, "get_approved_for_project", lambda project_id: None)
+    monkeypatch.setattr(
+        SqlAlchemyProjectBudgetRepository,
+        "get_approved_for_project",
+        lambda self, project_id: None,
+    )
     with pytest.raises(BusinessRuleError) as exc:
         budget_service.approve_budget(v2.id, approved_by="admin", expected_version=v2.row_version)
     assert exc.value.code == "PROJECT_BUDGET_APPROVAL_CONFLICT"
@@ -918,7 +1049,6 @@ def test_internal_apply_methods_bypass_budget_approve_permission(services) -> No
             approved_by="approver-x",
             expected_version=budget.row_version,
             notes="",
-            commit=True,
         )
     finally:
         budget_service._user_session = real_user_session
@@ -1243,3 +1373,39 @@ def test_fresh_baseline_creates_budget_tables_and_cascades_line_delete(tmp_path)
         }
         assert tables == set()
     engine.dispose()
+
+
+def test_existing_squashed_baseline_upgrades_budget_lineage_in_place(tmp_path) -> None:
+    database_path = tmp_path / "budget-lineage-upgrade.db"
+    config = _alembic_config(database_path)
+    command.upgrade(config, "f3c89cac079d")
+
+    engine = sa.create_engine(f"sqlite:///{database_path}")
+    try:
+        before = {
+            column["name"]
+            for column in sa.inspect(engine).get_columns("project_finance_budgets")
+        }
+        assert "predecessor_budget_id" not in before
+    finally:
+        engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = sa.create_engine(f"sqlite:///{database_path}")
+    try:
+        inspector = sa.inspect(engine)
+        after = {
+            column["name"]
+            for column in inspector.get_columns("project_finance_budgets")
+        }
+        foreign_keys = {
+            foreign_key["name"]
+            for foreign_key in inspector.get_foreign_keys(
+                "project_finance_budgets"
+            )
+        }
+        assert "predecessor_budget_id" in after
+        assert "fk_pf_budgets_scoped_predecessor" in foreign_keys
+    finally:
+        engine.dispose()
+

@@ -4,8 +4,8 @@ reject handler).
 
 Design note (verified during Step 1 implementation, following the pattern already validated for
 `budget.approve`): `BaselineService`'s own `create_baseline()` calls
-`_apply_baseline_creation_decision` directly for the *non-governed, direct-apply* case (see
-`baseline_service.py:138`) -- this method is not exclusively reachable from the approval-composed
+`_apply_baseline_creation_decision` directly for the *non-governed, direct-apply* case -- this
+method is not exclusively reachable from the approval-composed
 path, so it cannot be deleted or duplicated (a real, non-approval consumer would break, and a
 duplicate copy would drift from the original over time). Per the "if shared logic is reused,
 extract a lower-level operation rather than duplicate it" rule, this participant instead reuses
@@ -15,20 +15,27 @@ never given `approval_service=` -- rather than reaching for the long-lived, perm
 shared-Session instance `project_registry.py` builds at startup. This is what makes the
 approval-facing call genuinely session-parameterizable: given Session A it acts against A; given
 Session B, against B; it never touches the startup Session by construction.
+
+P23 update: `_apply_baseline_creation_decision` dropped its `commit: bool` parameter entirely --
+it now only ever flushes, never commits (every caller, approval-mediated or direct, owns its own
+commit externally). `apply()` returns a typed `ProjectBaselineCreated` through
+`ApprovalHandlerResult.domain_events` (the P19 seam) instead of the legacy
+`ApprovalPostCommitEvent("baseline_changed", ...)`; the participant still never receives a
+`UnitOfWork` or `record_event` callback.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timezone
 
+from src.core.modules.project_management.application.scheduling.baselines.baseline_events import (
+    ProjectBaselineCreated,
+)
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
 )
-from src.core.platform.contract.models.approval.contracts import (
-    ApprovalHandlerResult,
-    ApprovalPostCommitEvent,
-)
+from src.core.platform.contract.models.approval.contracts import ApprovalHandlerResult
 from src.core.platform.domain.approval import ApprovalRequest
 
 
@@ -47,14 +54,22 @@ class BaselineApprovalParticipant:
         self, request: ApprovalRequest, deps: BaselineApprovalDeps
     ) -> ApprovalHandlerResult:
         project_id = request.payload["project_id"]
-        deps.baseline_service._apply_baseline_creation_decision(
+        baseline = deps.baseline_service._apply_baseline_creation_decision(
             project_id=project_id,
             name=request.payload.get("name") or "Baseline",
             rate_as_of=date.today(),
-            commit=False,
         )
+        context = deps.baseline_service._require_context("create baseline")
         return ApprovalHandlerResult(
-            post_commit_events=(ApprovalPostCommitEvent("baseline_changed", project_id),)
+            domain_events=(
+                ProjectBaselineCreated(
+                    tenant_id=context.tenant_id,
+                    organization_id=context.organization_id,
+                    project_id=project_id,
+                    baseline_id=baseline.id,
+                    occurred_at=datetime.now(timezone.utc),
+                ),
+            )
         )
 
 

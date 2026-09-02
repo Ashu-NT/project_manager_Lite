@@ -761,6 +761,14 @@ class ViewInvalidationHint:
     entity_id: str | None = None
 ```
 
+**Revised again in P16D-FIX (§26.14):** `EventScope` gained a fourth kind, `ResourceScope`
+(`tenant_id`/`organization_id`/`module_code`/`entity_type`/`entity_id` — exactly one
+resource/entity within one organization), after an earlier attempt to solve the same problem by
+adding `module_code: str | None = None` directly to `ViewInvalidationHint` was judged to violate
+this hint's own shape (target + typed scope, never an accumulating capability-specific field). See
+§26.14 for the full correction and rationale; `ViewInvalidationHint` itself keeps the five fields
+shown below, unchanged from this revision.
+
 **Why this resolves the `organization_id=None` ambiguity structurally, not by convention:** under
 the flat shape, `organization_id=None` had to carry the entire weight of meaning "intentionally
 tenant-wide" versus every other, forbidden reading (§3's invariant table) — a discipline enforced
@@ -1407,6 +1415,12 @@ This ADR does **not**:
 
 ### 26. Implementation Status: P8 Closeout
 
+> For live, capability-by-capability migration status, the current legacy `Signal` count, and
+> the provisional roadmap for what's next, see
+> [`docs/architecture/event-modernization-plan.md`](../architecture/event-modernization-plan.md)
+> - this section records the design decisions and their rationale; that document tracks
+> sequencing and is expected to change between ADR revisions.
+
 This section is the authoritative record of what the Platform-scoped implementation (P0-P8 of
 `platform_domain_event_implementation_plan.md`) actually built, as distinct from what earlier
 sections of this ADR proposed. Nothing in §1-§25 was reversed; this section records completion,
@@ -1656,6 +1670,1345 @@ identically before and after both P14A's and P14B's own changes — and Inventor
 events, which remain fully legacy; this phase modernized only Site's producer side and its
 consumers' Site-specific reaction, never Inventory/Pricing/Procurement/Reservations' own domain
 events.
+
+**26.13 Party: FULLY MODERNIZED (P15A/P15B).** P15A converged `create_party`/`update_party` off
+the shared, process-lifetime `Session` onto a canonical fresh-session `PartyUnitOfWork`/
+`PartyUnitOfWorkFactory` pair, mirroring Employee/Department/Site's own UoW shape exactly. P15B
+then recorded `PartyCreated` on create and `PartyProfileUpdated` on update, pre-commit, via
+`uow.record_event(...)` — Party has no genuine lifecycle-availability split the way
+Organization/Employee/Department/Site do; its `is_active` flag is treated as an ordinary profile
+field, folded into the same `profile_changed` check as every other field, never a separate
+`PartyEnabled`/`PartyDisabled` pair. `update_party` has the same no-op discipline as its
+predecessors: a call identical to the persisted state on every relevant field records zero events,
+zero audit entry, zero write, and does not bump `updated_at`. Both events map onto one new
+`party_list` ViewInvalidation target (`OrganizationScope`).
+
+This phase found the typed-event producer side (P15A's UoW convergence, and the
+`PartyCreated`/`PartyProfileUpdated` recording plus the `party_list` ViewInvalidation handler
+function) already committed from a prior, incomplete session — but the handler was never
+subscribed to the post-commit bus in `platform_registry.py`, the `PartyViewInvalidationAdapter` Qt
+adapter existed but was wired into no `context.py`, and three of four real Inventory-Procurement-
+side narrow-refresh pairs (`refresh_party_options()`/`build_party_reference_options()` for
+Inventory/Pricing/Procurement) existed but were likewise never wired to an adapter — while
+Catalog's own `business_party_options` dependency had no narrow-refresh pair built for it at all,
+and the legacy `parties_changed` signal was still live with two real, unconverted consumers (Admin
+Console's composite binder, and Catalog's own binder) despite `party_service.py` no longer ever
+emitting it (a real, silent regression: any party mutation stopped refreshing Admin Console's
+Party page and Catalog's supplier options in production, since the swap to `uow.record_event(...)`
+had removed the legacy emission without wiring its typed replacement). P15B closed all of this: the
+`party_list` handler is now subscribed in `platform_registry.py` (mirroring Department/Site's own
+registration exactly); `PartyViewInvalidationAdapter` is wired in `ui_qml/platform/context.py` to a
+new narrow `AdminConsoleController.refresh_parties()` (delegating to the Party sub-controller's own
+`refresh()`); Catalog gained its own additive `build_party_reference_options()`/
+`refresh_party_options()` pair (extracted from its previously-inline `business_party_options`
+construction, mirroring Inventory/Pricing/Procurement's existing shape) and its own
+`PartyViewInvalidationAdapter` instance in `inventory_procurement/context.py`; Inventory, Pricing,
+and Procurement's three pre-existing but unwired adapters were wired the same way. `parties_changed`
+was removed from both remaining legacy consumers (Admin Console's and Catalog's own binders) and is
+now deleted from `DomainEvents` entirely (zero producers, zero consumers) — the legacy Signal count
+is 30 as of this phase (six Finance-family signals were added to `DomainEvents` between P14B and
+this phase, outside this migration's scope, per `FROZEN_LEGACY_SIGNAL_ALLOWLIST`'s own
+subset-only invariant — not touched here).
+
+**26.14 Document + DocumentStructure + DocumentLink: FULLY MODERNIZED (P16A/P16B/P16C/P16D) —
+`documents_changed` DELETED.** Document is a genuinely three-sub-capability slice, discovered by P16A's
+audit rather than assumed: Document metadata, DocumentStructure (a separate repo/aggregate,
+cross-referenced by `document_structure_id`, with its own Admin sub-controller), and DocumentLink
+(a third, even smaller aggregate — create/delete only, never updated — shared by **two** producer
+services, `DocumentService` and `DocumentIntegrationService`, and referencing a business entity in
+a *different* module via an opaque `(module_code, entity_type, entity_id)` tuple rather than a
+typed foreign key). P16A found this shape and 9 real `documents_changed` producers (matching P11's
+original count exactly, confirmed by re-audit rather than trusted); P16B converged all 9 onto one
+canonical `DocumentUnitOfWork` (`.documents`/`.structures`/`.links` accessors, shared by both
+services — the first capability where two application services genuinely need the same UoW
+factory instance, not two separate ones) and added the no-op guards `update_document`/
+`update_document_structure` had never had at all (a real pre-release behavior correction, not
+preserved legacy behavior — both previously wrote/audited/emitted unconditionally on an
+identical-to-persisted request).
+
+P16C then split its own scope deliberately narrower than "all of Document": only the two
+mutation categories with a genuinely simple Created/ProfileUpdated shape (Document,
+DocumentStructure) were given typed events (`DocumentCreated`/`DocumentProfileUpdated`/
+`DocumentStructureCreated`/`DocumentStructureProfileUpdated`, `is_active`/`is_current` folded
+into `ProfileUpdated` exactly like Party — neither carries a derived-state side effect the way
+Site's `opened_at`/`closed_at` did, so no `DocumentArchived`/`DocumentRestored` pair was
+justified) and two new ViewInvalidation targets (`document_list`, `document_structure_list`,
+`OrganizationScope`, correlation-id deduped exactly like `site_list`/`party_list`). DocumentLink's
+five producers (`add_link`, `remove_link`, `register_entity_attachments`,
+`link_existing_document`, `unlink_existing_document`) were deliberately left on `documents_changed`
+— not a compatibility bridge, an explicitly unmodernized capability slice still using its own
+pre-existing legacy signal, exactly as P16A's phase plan called for. `documents_changed` is
+therefore **partially retired**: 4 of 9 original emission call sites are gone (the two `create_`/
+`update_document`/`_document_structure` fact categories); the field itself stays in `DomainEvents`
+(deletion is P16D's, once DocumentLink has its own typed replacement) and both of its consumers
+(Admin Console's and Catalog's composite binders) are unchanged and still correctly fire for the
+five remaining Link-related emissions — confirmed by re-proving both consumers still react, using
+`add_link` instead of `create_document` as the trigger.
+
+`register_entity_attachments` is the one path that straddles both slices in a single commit: for N
+attachments it records N typed `DocumentCreated` events (coalesced by the shared correlation-id
+dedup mechanism to exactly one `document_list` hint, since all N share the one
+`DomainEventContext` from the method's single `uow_factory.create()` call) **and** still emits the
+legacy `documents_changed` N times unchanged, because the same commit also creates N
+unmodernized `DocumentLink` facts — deliberately not suppressed, since the Link side has no typed
+replacement yet. This means Admin/Catalog currently receive one narrow `document_list` reaction
+plus N legacy full-refresh reactions for one batch import — a real, visible duplicate-refresh
+gap, left in place on purpose (fixing it would require the Link-scoped ViewInvalidation design
+P16D owns) and explicitly not hidden or pretended away by this phase.
+
+Admin Console gained two new narrow reactions — `refresh_documents()`/
+`refresh_document_structures()`, delegating to the existing `_document_controller`/
+`_document_structure_controller` sub-controllers' own `refresh()`, mirroring every prior
+capability's narrow-refresh shape — wired via two new adapters
+(`DocumentViewInvalidationAdapter`, `DocumentStructureViewInvalidationAdapter`). Catalog's
+`available_documents` dropdown (previously inline in `build_workspace_state`, now extracted into
+`build_document_reference_options()`/`refresh_document_options()`, mirroring the Party/Site
+extraction shape exactly) is wired to `document_list` only — confirmed by source that Catalog's
+available-documents list carries no structure metadata, so `document_structure_list` correctly
+does not reach Catalog at all. Catalog's per-item `linked_documents` panel and Reservations/
+Procurement's own document-link dependency remain entirely on the legacy path, explicitly deferred
+to P16D along with the cross-org trust-boundary characteristic P16A found in `DocumentLink.entity_id`
+(never independently organization-validated by the Document layer itself, relying on the calling
+module having already done so) — neither fixed nor newly introduced here.
+
+P16D closed the last slice: `DocumentReferenceLinked`/`DocumentReferenceUnlinked` (minimal
+identity — `tenant_id`/`organization_id`/`document_id`/`module_code`/`entity_type`/`entity_id`/
+`link_role`/`occurred_at`), recorded via `uow.record_event(...)` in all five DocumentLink
+producers (`add_link`, `remove_link`, `register_entity_attachments`, `link_existing_document`,
+`unlink_existing_document`), inside the same canonical `DocumentUnitOfWork` P16B built — no new
+transaction machinery needed. The genuinely new design work was the ViewInvalidation target
+itself: `document_links` needs to identify one specific cross-module business entity
+(`module_code`/`entity_type`/`entity_id`), which the existing three-kind `EventScope` union
+cannot express (that union is about *organizational* breadth, not entity identity) and which
+`ViewInvalidationHint`'s existing `entity_type`/`entity_id` fields almost cover — Approval and
+TenantMembership already use them for one-row identity — except `entity_id` here is a
+cross-module *opaque* identifier, unlike every other capability's own-namespace id. Resolved by
+adding one new optional field, `module_code: str | None = None`, to the shared
+`ViewInvalidationHint` itself (a minimal, backward-compatible extension — every other
+capability's hints simply never set it) rather than adding a fourth `EventScope` kind or
+inventing a stringly-typed compound identity (`"inventory:item:123"`) or a dict payload. Each
+`document_links` event produces **two** typed hints, not one: the forward shape
+(`entity_type`/`entity_id`/`module_code` = the linked business entity) for
+Catalog/Reservations/Procurement's own linked-document projections, and the reverse shape
+(`entity_type="document"`, `entity_id` = the document's own id, `module_code=None`) for Admin's
+per-document link panel — the same DocumentLink row genuinely has two independent consumers
+asking two different questions ("what changed for entity X" vs. "what changed for document Y"),
+so one hint shape could not serve both. Both shapes dedupe independently, keyed by
+`(transaction correlation_id, target identity)` rather than correlation_id alone like every
+prior single-target capability — `register_entity_attachments` can legitimately touch one shared
+entity across N distinct documents in one commit, so a Site/Party-style single-slot dedup would
+have wrongly collapsed N genuinely-different document-shape facts into one. Both dedup sets are
+transaction-scoped (cleared on every new correlation_id), never a global/unbounded registry.
+
+Entity-level filtering happens client-side in each consumer's own slot, comparing the hint against
+whatever it currently has selected — never a per-entity re-scoping adapter. The single new
+`DocumentLinksViewInvalidationAdapter` stays org-scoped only at the channel level (identical to
+every other adapter) and forwards every `document_links` hint to its consumer via a
+`(module_code, entity_type, entity_id)`-carrying Qt signal; Admin Console's
+`AdminConsoleController.on_document_links_stale()` and Catalog's
+`InventoryProcurementCatalogWorkspaceController.on_document_links_stale()` each independently
+decide whether the hint matches what they currently have open before calling their own existing
+narrow refresh path (`PlatformDocumentController.refreshFocus()`, and a new
+`refresh_selected_item_linked_documents()` built on a new `build_selected_item_detail()` seam that
+rebuilds only the selected item's own detail, not the whole catalog). This mirrors how "currently
+selected" state already lives in the consuming controller, not the adapter, so no dynamic
+re-scoping plumbing was needed as a user's selection changes.
+
+Reservations' and Procurement's own `list_reservation_documents`/`list_purchase_order_documents`/
+`link_document`/`unlink_document` exist at the application-service layer but were found, by source
+absence (zero references anywhere under `src/ui_qml` or the desktop-API layer), to have no UI
+consumer at all today — proven, not assumed, and left unwired rather than adding a refresh for
+symmetry. Both already self-cover their own mutations via their own existing legacy signals
+(`inventory_reservations_changed`/`inventory_purchase_orders_changed`), untouched by this
+migration. Catalog's own link/unlink wrapper (`item_document_service.py`) still emits
+`inventory_items_changed` unmodernized (out of scope, explicitly not touched) — the real fix this
+phase made was removing `documents_changed` from Catalog's binder entirely, so a link/unlink no
+longer causes two full refreshes (`inventory_items_changed` + `documents_changed`) for one action;
+the new narrow `document_links` reaction is additive coverage for cross-consumer staleness
+(e.g. a document linked via Admin while Catalog has the same item open), not a replacement for
+Catalog's own still-legacy self-refresh path.
+
+`register_entity_attachments` now produces, per commit of N attachments: N typed `DocumentCreated`
++ N typed `DocumentReferenceLinked` events, coalesced to exactly one `document_list` hint and
+exactly one `document_links` forward-shape hint (all N share one entity target) plus N distinct
+`document_links` reverse-shape hints (N genuinely distinct documents) — and zero legacy signal
+emissions, `documents_changed` having been deleted entirely.
+
+P16A's `DocumentLink.entity_id` trust-boundary finding was re-audited rather than fixed: no clean,
+generic, typed cross-module entity-resolution seam exists in this codebase, and building one would
+be exactly the generic entity resolver/service locator this ADR has repeatedly rejected (§9/§24).
+All four real business-workflow callers (`item_document_service.link_document`/`unlink_document`,
+`ReservationService.link_document`/`unlink_document`, `PurchasingService.link_document`/
+`unlink_document`, `CollaborationCommentCommandMixin.post_comment`) were confirmed by source
+inspection to resolve their entity through their own organization-scoped lookup
+(`get_item`/`get_reservation`/`get_purchase_order`/`_require_task`) before ever calling into
+`DocumentIntegrationService` — kept as caller-owned validation, now with an explicit architecture
+guard proving it holds. Admin Console's manual `add_link` desktop-API path is a deliberately
+different, `settings.manage`-gated free-text tool (an admin operator types `module_code`/
+`entity_type`/`entity_id` directly) and is documented as exempt from this invariant rather than
+silently held to a standard it was never designed to meet — a mistyped or cross-org entity_id
+there produces an orphaned link row scoped to the admin's own active organization, never a
+cross-tenant/cross-org data leak, since every read path re-scopes by the reader's own active
+organization independently.
+
+`documents_changed` is now deleted from `DomainEvents` entirely — zero producers, zero consumers,
+field absent — the legacy Signal count is 29 as of this phase (30 minus the one deletion; no
+alias, no wrapper, no deleted-signal bookkeeping, matching every prior deletion in this ledger).
+The Document capability — Document, DocumentStructure, and DocumentLink — is fully modernized:
+this is the last Shared Master Data slice.
+
+**P16D-FIX correction: `module_code` moved off `ViewInvalidationHint` into a new `ResourceScope`
+`EventScope` kind.** P16D's original design (previous three paragraphs, left as written for
+history) resolved `document_links`' cross-module opaque-entity-identity problem by adding one new
+optional field, `module_code: str | None = None`, directly to the shared `ViewInvalidationHint`
+dataclass. On review this was judged to violate the hint's own canonical shape — target + typed
+scope, never accumulating capability-specific optional fields — since the very next capability
+needing similar cross-module resource identity would have had nowhere to put it except more
+one-off optional fields on the same shared dataclass. The corrected design instead extends
+`EventScope` itself to a fourth, still-generic kind: `ResourceScope(tenant_id, organization_id,
+module_code, entity_type, entity_id)` — exactly one resource/entity within one organization,
+identified the same generic way `OrganizationScope` identifies an organization. `module_code` here
+names the *resource's own* owning module (the linked business entity's module for the forward
+shape; the literal `"platform"` — the same convention `record_audit_entry(..., module="platform",
+...)` already uses — for the reverse, Document-owns-itself shape), not a property of the hint's
+transport. `ViewInvalidationHint` is restored to its original five fields (`scope`, `category`,
+`scope_code`, `entity_type`, `entity_id`); `document_links`' `build_document_links_view_invalidation_handler`
+now constructs `scope=ResourceScope(...)` for both shapes instead of `scope=OrganizationScope(...)`
+plus a `module_code=` hint kwarg. Because a `ResourceScope` is a strict refinement of
+`OrganizationScope` (always carries a real `organization_id`), `ExactOrganization`/
+`AnyOrganizationInTenant`/`AllTenants` were each extended to match it exactly as they already
+matched `OrganizationScope` — preserving `DocumentLinksViewInvalidationAdapter`'s existing
+org-scoped-only channel subscription and every observable P16D behavior (both hint shapes, both
+dedup sets, Catalog/Admin narrow refresh, Reservations/Procurement disposition, the caller-owned
+entity-org-validation invariant, and `documents_changed`'s deletion) unchanged; `TenantWide`/
+`PlatformWide` deliberately do not match `ResourceScope`, since both exist specifically to exclude
+organization-scoped facts. A new `ExactResource` `ScopeFilter` was added alongside it — the
+narrowest possible single-resource channel-level subscription — for any future consumer that wants
+it, though no current adapter needs it (client-side entity-identity comparison in the consuming
+controller remains the chosen filtering point for `document_links`, per §12's existing guidance
+that presentation-state comparison belongs in the controller, not the shared contract). `EventScope`
+is accordingly now a closed union of four kinds, not three; ADR-005 §12 should be read with that
+correction in mind wherever it still says "three."
+
+**26.15 Project Resource: FULLY MODERNIZED (P18A/P18B) — `resources_changed` DELETED.** P17's audit found `ResourceMasterChanged`/
+`ResourceCapabilityChanged` already existed as real, well-designed typed vocabulary (explicit
+`tenant_id`/`organization_id`, meaningful `change_type` enums), but transported through their own
+module-level `Signal[T]` objects rather than the canonical pipeline, with three structurally
+different, non-canonical producers: two hand-rolled `ResourceMasterUnitOfWork`/
+`ResourceCapabilityUnitOfWork` classes that borrowed `ResourceService`'s own process-lifetime
+shared `Session` (never creating a fresh one) and had no audit call at all, plus a third path in
+`employee_service.py` that emitted only the legacy `resources_changed` Signal with no typed event
+at all. P18A closed all three gaps without inventing new business vocabulary: a new
+`ResourceUnitOfWork`/`ResourceUnitOfWorkFactory` pair (`src/core/modules/project_management/
+{contracts,infrastructure/persistence}/uow/resources/resource_unit_of_work.py`, mirroring
+`DocumentUnitOfWork`/`SqlAlchemyFinanceGovernanceUnitOfWork`'s exact shape — fresh `Session` per
+operation, `resources`/`skills`/`certifications` named accessors, no repository-map/service-locator)
+now owns every Resource Master and Capability mutation; the existing `ResourceMasterChanged`/
+`ResourceCapabilityChanged` dataclasses were retained unchanged and are now recorded via
+`uow.record_event(...)` before `uow.commit()`, dispatched through the shared transactional
+(FAIL_FAST) and post-commit (ISOLATE_AND_CONTINUE) pipeline; the bespoke `Signal[T]` publishers
+were deleted outright after re-confirming zero production consumers (no compatibility bridge, no
+forwarding). `record_audit_entry(uow, ..., commit=False, fail_closed=True)` now runs inside the
+same transaction as every mutation, closing the "no audit at all" gap P17 found — an audit
+failure or a commit failure both roll back the mutation and produce zero typed event and zero
+legacy signal, proven by dedicated regression tests. Update-style operations
+(`update_resource`/`update_resource_skill`/`update_resource_certification`) gained true no-op
+detection (build the candidate, compare to the existing record, write/audit/event/legacy-signal
+only on an actual change) — a real pre-release behavior correction, since the prior code wrote
+unconditionally even for an identical-to-persisted request, exactly the class of gap this ADR has
+corrected in every prior phase (P16B's Document no-op guards, etc.).
+
+The `employee_service.py` producer required its own semantic audit before any code changed:
+`sync_linked_employee_resources` (`employee_support.py`) writes real `name`/`role`/`contact`
+columns on the linked Resource row via `resource_repo.update(resource)` — inside Employee's own
+already-canonical `EmployeeUnitOfWork` transaction (which already carries a `resources` repository
+participant) — so this is a genuine Resource business-fact mutation, not merely Resource display
+data going stale. The correct fix was NOT to have `employee_service.py` construct
+`ResourceMasterChanged` directly: `Resource` is business-module (`project_management`) vocabulary,
+and `src/core/platform/` importing it would be an uncited addition to the `GOVERNED_EXCEPTIONS`
+allowlist §21/§22 established as closed (`test_platform_does_not_import_business_modules.py`'s own
+`test_governed_exceptions_are_exactly_the_two_known_violations` guard would fail). Instead, Platform
+defines a new `ResourceMasterEventFactory` `Protocol` (`src/core/platform/contract/interface/
+master_data/employee/contracts.py`, alongside the existing `LinkedEmployeeResource` Protocol this
+sync path already used) — `Callable[[LinkedEmployeeResource, tenant_id, organization_id],
+DomainEvent]` — that `EmployeeService` calls if configured, never importing the concrete return
+type. The concrete builder, `build_resource_master_changed_for_employee_sync`, lives in PM's own
+`resource_master_events.py` and is wired into `EmployeeService` only at the composition root
+(`platform_registry.py`, which — like every composition root — is outside the guarded
+`src/core/platform/` scope and already imports PM's concrete `SqlAlchemyResourceRepository` for
+this exact same sync path). This is the same dependency-inversion shape the `resource_repo_factory:
+Callable[[Session], LinkedEmployeeResourceRepository]` collaborator already used for the read/write
+side of this sync — extended, not newly invented, to cover event construction too. Employee's own
+`EmployeeProfileUpdated` event and canonical UoW/audit path are unchanged.
+
+`resources_changed` was deliberately NOT deleted by P18A — its 8 existing consumers were left
+unchanged, and every one of the three producers emitted it, post-commit, alongside the new typed
+event, exactly the same temporary dual-emission pattern P16C used for Document/DocumentStructure
+while DocumentLink was still unmodernized.
+
+**P18B closed the loop.** Two `ViewInvalidation` targets, both source-justified rather than
+mapped mechanically: `resource_list` (`OrganizationScope`, `src/core/modules/project_management/
+application/resources/event_handlers/view_invalidation.py`) for every `ResourceMasterChanged`
+change type, and `resource_capabilities` (`ResourceScope` — `tenant_id`/`organization_id`/
+`module_code="project_management"`/`entity_type="resource"`/`entity_id`) for every
+`ResourceCapabilityChanged`. The two-target split, not one coarse `resource_changed` target, was
+proven from source, not assumed: the Resources workspace's own list-row builder never reads
+skill/certification data, so a capability change correctly never needs to invalidate the list.
+
+**Dedupe identity is derived from each target's own scope identity, not raw event fields
+(P18B-FIX)** — the first pass wrongly keyed `resource_list`'s dedupe by `(correlation_id,
+resource_id)`, the same shape as `resource_capabilities`, which would have let two different
+resources changing within one transaction produce two `resource_list` hints for what is
+structurally the *same* org-wide target. Corrected: `resource_list` dedupes by
+`(correlation_id, scope_code, tenant_id, organization_id)` — `OrganizationScope` carries no
+per-resource identity, so two resources in one transaction correctly collapse to one hint;
+`resource_capabilities` dedupes by `(correlation_id, scope_code, tenant_id, organization_id,
+module_code, entity_type, entity_id)` — `ResourceScope` *does* carry exact-resource identity, so
+two different resources' capability changes in one transaction correctly stay two hints. Both
+built via small local helper functions deriving the dedupe key from the constructed `EventScope`
+object itself, per this ADR's general rule: dedupe identity is (transaction correlation_id) +
+(ViewInvalidation target/scope identity), never a capability-specific bag of raw event fields. A
+new `ResourceViewInvalidationAdapter` (`src/ui_qml/platform/adapters/`, the established shared
+adapters home regardless of which capability's handler backs it —
+`DocumentLinksViewInvalidationAdapter` already set this precedent) exposes
+`resourceListStale`/`resourceCapabilitiesStale`, org-scoped at the channel level exactly like
+every other adapter.
+
+All 8 original consumers were re-audited from current source (a dedicated fork per consumer
+group), not assumed unchanged from P17: the main Resources workspace controller (`resource_list`
+→ `refresh()`; `resource_capabilities` → `reload_skills_and_certs()`, entity-id-gated to the
+selected resource — resolving P17's own finding of two redundant, unconditional
+`resources_changed` subscriptions firing together on every event regardless of relevance);
+Dashboard, Portfolio, Scheduling, Tasks, `ResourceTimesheetsController`, and the timesheets
+review-queue workspace (`TimesheetsWorkspaceController`) all subscribe to `resource_list` only,
+each via its own `ResourceViewInvalidationAdapter` instance (the established per-consumer
+pattern, not a shared fan-out) connected to that controller's own existing `refresh()` — none had
+a genuine `resource_capabilities` dependency, confirmed from their own presenter/query source
+(resource name/capacity/options only, never skill/certification fields); Platform's Control
+workspace subscription was removed entirely with no replacement, since no real Resource
+dependency existed there at all (an "incidental" P17 classification, confirmed). None of the 6
+non-Resources-workspace consumers gained a narrower-than-`refresh()` reaction — no existing seam
+was found, and building one would mean redesigning each of those *other* capabilities' own
+presenter/query shape, explicitly out of P18B's scope. This is still a real, provable reduction
+from pre-P18B behavior: none of the 6 react to `ResourceCapabilityChanged` at all any more (a
+skill/certification edit previously triggered every one of their full refreshes too, since the
+old blanket `resources_changed` signal never distinguished master from capability).
+
+A real regression was found and fixed mid-implementation, not merely mid-P18A: once Resource
+Master/Capability mutations moved off the process-lifetime shared `Session` P18A's own hand-rolled
+predecessor UoWs had accidentally relied on, activity-feed staging (a separate, lighter-weight
+UX trail from the governance `AuditEntry`) silently stopped persisting, since it was still bound to
+that old shared session. Fixed by giving `SqlAlchemyResourceUnitOfWork` its own `_activity_service`
+bound to the same fresh transaction — activity-feed atomicity is now structurally guaranteed
+rather than an accident of a shared session, a genuine correctness improvement over the pre-P18A
+state, not merely a preserved behavior.
+
+`resources_changed` is now deleted from `DomainEvents` entirely — zero producers (Resource
+Master, Resource Capability, and the Employee sync path all removed their legacy emission), zero
+consumers (all 8 re-wired to the typed targets above), field absent. The legacy Signal count is
+28 as of this phase (29 minus the one deletion — confirmed source-derived, not assumed
+arithmetic). The Project Resource capability — Resource Master and Resource Capability — is
+fully modernized.
+
+**26.16 Finance Forecast: FULLY MODERNIZED (P19) — `forecasts_changed` DELETED, plus a new
+generic Approval seam.** P19's re-audit found `forecasts_changed` had *two* structurally
+different producers, not one: `ForecastVersionService`/`ForecastGenerationService` (behind
+`FinanceGovernanceCommandBoundary.forecast_version`/`.forecast_generation`, already on the
+canonical `FinanceGovernanceUnitOfWork`), and a second, hidden one inside
+`FinancialChangeService._apply_forecast_successor` — when an approved Financial Change with a
+FORECAST impact atomically creates, submits, and approves a successor forecast, the
+`financial_change.apply` participant fired `ApprovalPostCommitEvent("forecasts_changed", ...)`
+through `ApprovalService`'s generic post-commit Signal-name bridge.
+
+Three typed events, in `application/financials/forecasts/forecast_events.py`: `ForecastVersionChanged`
+(`change_type` enum CREATED/SUBMITTED/APPROVED/REJECTED/DELETED, mirroring the
+`ResourceMasterChanged` enum-per-family shape from §26.15), `ForecastLineChanged` (ADDED/UPDATED/
+REMOVED), and `ForecastDraftGenerated` (a genuinely distinct fact — `generate_draft` atomically
+snapshots planned cost/commitments/actuals/manual estimates/risk into one new forecast plus its
+`ForecastSourceDecision` audit trail — but the same read-model impact as `ForecastVersionChanged
+(CREATED)`). `ForecastVersionService`/`ForecastGenerationService` gained a `record_event: Callable[
+[object], None] | None` constructor parameter, wired to `uow.record_event` at the composition root
+(`build_finance_governance_operations` in `project_registry.py`) — the same shape already used by
+`FinancialChangeService._record_event` for its own `submit_change` path. `update_line` gained true
+no-op detection (P19 §12): the line's mutable fields are snapshotted before conditional
+assignment and compared after; if none actually changed, zero repository write, zero audit, zero
+event, no synthetic version bump — `update_resource`'s `replace()`-and-compare idiom (§26.15)
+adapted to `ForecastLine`'s mutable (non-frozen) dataclass shape via before/after tuple
+comparison instead. `command_boundary.py`'s `forecast_version`/`forecast_generation` methods no
+longer call `_emit_scoped("forecasts_changed", ...)` at all; `_execute`'s `invalidation` parameter
+became `Callable[[T], None] | None` so a Forecast-cutover command can pass `invalidation=None`
+without inventing a no-op lambda.
+
+Exactly two ViewInvalidation targets, both project-scoped (`application/financials/forecasts/
+event_handlers/view_invalidation.py`), proven from source, not assumed: `forecast_planning`
+(category="forecast" — the forecast_versions list + selected_forecast detail + forecast_lines
+that back the "planning" destination's "forecasts" subsection, per
+`FinancialsRefreshMixin._apply_destination_state`; the list carries each version's own `status`
+field) and `forecast_approved_basis` (the downstream consumers of "whichever forecast is
+currently approved" — `ReportingProfitabilityMixin.get_project_commercial_projection` →
+`CostPolicyEngine` → `facts.approved_forecast`, and `performance_query.py`'s EVM/variance
+basis, both of which read only the *approved* forecast, never a draft/submitted one).
+`ForecastVersionChanged(change_type=APPROVED)` is the one fact that stales BOTH — it notifies
+both targets as two distinct hints, never coalesced together (P19-FIX §1-2, corrected from an
+initial P19 design that mapped APPROVED to `forecast_approved_basis` only, missing that the
+approved version's own status transition, and the previously-approved version's transition to
+SUPERSEDED, are both visible in the `forecast_planning` list too). Every other Forecast fact
+(version create/submit/reject/delete, line add/update/remove, draft generation) can only ever
+touch a mutable, non-approved forecast (`_require_mutable_forecast` forbids editing an approved
+one), so it can only ever affect `forecast_planning` alone — that part of the split was already
+correct and P19-FIX left it unchanged. This is a real, source-proven correction to pre-P19 UI
+behavior, not merely a preservation of it: the legacy `_forecasts_changed` handler in
+`financials_refresh_mixin.py` invalidated `{overview, planning, performance}` for *every* Forecast
+event and never invalidated `commercial` at all — meaning the commercial/profitability projection
+was silently stale after every forecast approval, pre-P19. The current mapping (post P19-FIX)
+recomposes an equivalent destination set on approval — `forecast_planning` invalidates
+`{planning}`, `forecast_approved_basis` invalidates `{overview, performance, commercial}`, a union
+of `{overview, planning, performance, commercial}` — while *narrowing* every non-approval
+Forecast fact down to `planning` alone, both corrections falling directly out of tracing the real
+read-model dependency rather than assuming the legacy destination set was correct. The
+`financial_change.apply` successor path (below) needs no second event type for this either: it
+already reports the same canonical `ForecastVersionChanged(APPROVED)`, so the successor's
+appearance in the `forecast_planning` list is covered by the same dual notification. Both targets
+use `ResourceScope(module_code="project_management", entity_type="project",
+entity_id=project_id)` — `ResourceScope` proven generic beyond Resource itself, per its
+`entity_type` already being used for arbitrary business entities in `DocumentLink`'s own
+ViewInvalidation handler (§26.14). Dedupe follows the P18B-FIX-corrected rule from day one: a
+`(scope_code, tenant_id, organization_id, module_code, entity_type, entity_id)` target derived
+from the constructed scope, cleared per transaction correlation_id — so one APPROVED event's two
+targets are always two separate hints, while a repeat of the same target within one transaction
+still coalesces to one.
+
+The `financial_change.apply` producer required an architecture decision, not a mechanical port:
+`ApprovalService.approve_approval_request`/`.reject` already own a real `UnitOfWork` (with
+`uow.record_event`), but that `UnitOfWork` is deliberately never handed to a participant or its
+`dependencies_factory` (P4 Step 2, ADR-005 §24 — "Neither ever receives the `UnitOfWork` itself").
+Widening `DependenciesFactory`'s call signature to thread `record_event` through would have
+touched every registered apply/reject handler across both Platform business modules that use
+`ApprovalService` (PM's own five families plus Inventory/Procurement's), for the sake of one
+participant — out of P19's scope and a violation of "never modify unrelated capabilities." The
+chosen fix instead extends `ApprovalHandlerResult` with a second, coexisting reporting channel:
+`domain_events: tuple[DomainEvent, ...] = ()`, alongside the existing `post_commit_events` legacy
+Signal-name tuple. A participant that has migrated a given fact returns it here instead;
+`ApprovalService` — the sole owner of the decision's `UnitOfWork` — records each one via
+`uow.record_event(...)` *before* its own `uow.commit()`, so it dispatches through the same
+transactional/post-commit pipeline as any other canonical event, with the same
+FAIL_FAST/ISOLATE_AND_CONTINUE/rollback semantics: a participant that raises never reaches event
+recording; a transactional handler failure or a commit failure yields zero published event.
+`FinancialChangeApprovalParticipant.apply()` now builds `ForecastVersionChanged(
+change_type=APPROVED, ...)` directly when `change.applied_forecast_id` is set — the same
+canonical vocabulary the direct `ForecastVersionService.approve_forecast` path uses, not a second,
+approval-specific event type, because the business semantics genuinely overlap: both are "this
+forecast is now the project's approved ETC basis." `dependencies_factory`'s call signature is
+completely unchanged; Inventory/Procurement's approval dependency factories were not touched. The
+two Approval reporting mechanisms coexist, capability-by-capability, with no bridge between them —
+every other Approval participant (Budget, Task, Baseline, Billing Preparation, Project Cost, and
+Financial Change's own non-Forecast branches) still reports exclusively through
+`post_commit_events`, unchanged.
+
+`forecasts_changed` is now deleted from `DomainEvents` entirely — zero producers (both the direct
+Forecast path and the financial-change-apply successor path emit only typed events now), zero
+consumers (`financials_refresh_mixin.py`'s legacy subscription removed; the real UI consumer is
+now a single `ForecastViewInvalidationAdapter` instance wired into
+`ProjectManagementFinancialsWorkspaceController`, connected to two narrow methods —
+`onForecastPlanningStale`/`onForecastApprovedBasisStale` — that each filter by the hint's project
+id against the workspace's currently-selected project before invalidating their proven, narrower
+destination set), field absent. `FinanceInvalidationScope` remains untouched and still carries the
+other, still-legacy Finance signals (`budgets_changed`, `cost_entries_changed`,
+`commitments_changed`, `rates_changed`, `financial_changes_changed`, `financial_setup_changed`,
+`planned_costs_changed`, `billing_preparations_changed`) — P19 retired it from the Forecast path
+only, per its own scope. The legacy Signal count is 27 as of this phase (28 minus the one
+deletion — confirmed source-derived). The Finance Forecast capability is fully modernized.
+
+**26.17 Inventory Storeroom + Storage Location: FULLY MODERNIZED (P20) —
+`inventory_storerooms_changed`/`inventory_locations_changed` DELETED.** The first
+Inventory/Procurement capability modernized. Both entities were on raw, hand-rolled
+`self._session.commit()` mutation (`InventoryService.create_storeroom`/`update_storeroom`,
+`InventoryFoundationService.create_storage_location`/`update_storage_location`), with the legacy
+signal emitted manually after commit — not through any canonical pipeline. P20 also found two
+real, pre-existing, unrelated-to-events bugs in the same code paths: `record_activity(self, ...)`
+was silently dead code (`InventoryService`/`InventoryFoundationService` were never constructed
+with an `_activity_service` at the composition root), and `update_storeroom`/
+`update_storage_location` had no no-op detection at all — every update wrote, audited (well,
+attempted to — see above), and emitted regardless of whether any field actually changed.
+
+One new canonical `InventoryFoundationUnitOfWork`/`InventoryFoundationUnitOfWorkFactory`
+(`.storerooms`/`.locations` accessors, `src/core/modules/inventory_procurement/{contracts,
+infrastructure/persistence}/uow/inventory/inventory_foundation_unit_of_work.py`, matching this
+module's own established `PurchaseOrderSubmissionUnitOfWork`/`RequisitionSubmissionUnitOfWork`
+shape) now owns both. It also carries a fresh, transaction-bound `EnterpriseAuditService` —
+`record_audit_entry(uow, ...)` is a new addition for these two capabilities, not merely a
+convergence, since Inventory's older CRUD paths never had governance audit trail coverage — and
+a fresh `ActivityService`, finally making `record_activity` genuinely fire (and atomically, unlike
+its previously-dead, previously-non-atomic state).
+
+Domain semantics were audited, not assumed: Storeroom carries a genuine four-state lifecycle
+(`STOREROOM_STATUS_TRANSITIONS`: DRAFT→ACTIVE→{INACTIVE,CLOSED}, INACTIVE→ACTIVE, CLOSED
+terminal), enforced by `validate_transition` — a real lifecycle operation, not merely a mutable
+profile field — so it gets its own `StoreroomStatusChanged(status: str, ...)` event, an
+enum-payload shape (mirroring `ResourceMasterChanged`'s `change_type` from §26.15) rather than
+one dataclass per transition. Storage Location's `is_active` boolean, by contrast, has no derived
+consequences at all (no `opened_at`/`closed_at` side effects the way Site's does — §26.12), so
+it stays folded into `LocationProfileUpdated`, per this ADR's own rule: model a lifecycle event
+only when a flag has a real lifecycle operation or derived consequences, not merely because it
+exists. Five typed events total: `StoreroomCreated`, `StoreroomProfileUpdated`,
+`StoreroomStatusChanged`, `LocationCreated`, `LocationProfileUpdated` — no
+`StoreroomChanged`/`LocationChanged`/`InventoryFoundationChanged` blanket type. Neither entity
+carries a `tenant_id` column (Inventory/Procurement is organization-scoped only, with tenant
+resolved via RLS at the ORM layer); events derive `tenant_id` from the active
+`Organization.tenant_id`, matching `update_site`'s own established convention.
+
+Storeroom ↔ Location integrity was audited from source, not assumed, per this phase's own
+mandate: a Location's `storeroom_id` is immutable after creation (no "move between storerooms"
+operation exists in `update_storage_location`'s signature at all); a Storeroom must belong to the
+active organization to be referenced (`InventoryService.get_storeroom` already raises
+`NotFoundError` otherwise — confirmed pre-existing and correct, no cross-org bug found); parent
+Location cycles were already rejected (`_validate_parent_location`'s walk-to-root check). A
+Storeroom's status transition does not cascade to its child Locations — not a cross-org integrity
+bug, a business-rule completeness question outside this phase's mandate, left exactly as found.
+
+Exactly two ViewInvalidation targets, both `OrganizationScope`
+(`application/inventory/event_handlers/view_invalidation.py`): `storeroom_list` and
+`location_list`. `storeroom_list` is deliberately one target covering two visually different
+projections — the Inventory workspace's own Storeroom master list AND the `storeroom_options`
+reference selector embedded in Pricing/Procurement/Reservations — proven from source that both
+are populated from the same underlying storeroom rows and always go stale together (this ADR's
+own "no target duplication for the same projection" rule, §12). `location_list` has exactly one
+real consumer (the Inventory workspace) — proven from source that no other Inventory/Procurement
+workspace presenter references Storage Location data at all, unlike Storeroom.
+
+All 6 Inventory/Procurement workspaces were re-audited from source, not assumed from their
+(pre-P20, byte-for-byte identical across 5 of them) blanket 11-signal subscriptions: Inventory
+(the owner — full `refresh()` on either target; its own `build_workspace_state` is one monolithic
+query bundling storerooms/balances/transactions/foundation together, so no narrower existing seam
+could be extracted without a deeper presenter refactor outside this phase's mandate), Dashboard
+(KPI rollup — full `refresh()` on either target, the same "genuinely reacts to any inventory
+mutation by design, no narrower seam" justification already established for Resource's Dashboard
+consumer in §26.15), Pricing and Procurement (storeroom_options selector only — both already had
+an existing narrow `refresh_site_options` seam that also refreshes `storeroom_options`, reused
+directly, zero new code), Reservations (storeroom_options selector only — no existing narrow seam,
+so P20 additively extracted one, `refresh_storeroom_options`, mirroring Pricing/Procurement's
+exact shape), and Catalog (zero real dependency — proven no Catalog presenter references
+Storeroom or Location at all — the subscription was removed entirely with no replacement, the
+same "classification E, no adapter" treatment §26.15 gave Platform's Control workspace for
+Resource).
+
+`inventory_storerooms_changed` and `inventory_locations_changed` are now both deleted from
+`DomainEvents` entirely — zero producers, zero consumers, fields absent. The legacy Signal count
+is 25 as of this phase (27 minus the two deletions — confirmed source-derived). The Inventory
+Storeroom and Storage Location capabilities are fully modernized.
+
+**26.18 Finance Financial Setup: FULLY MODERNIZED (P21) —
+`financial_setup_changed` DELETED.** Transaction ownership and audit were already canonical
+(the existing `FinanceGovernanceUnitOfWork`/`FinancialConfigurationService`, using
+`record_audit_entry` already), matching P17's finding — no new UoW was created, per this phase's
+explicit mandate. `FinancialConfigurationService` gained the same `record_event: Callable[
+[object], None] | None` constructor parameter already established for `ForecastVersionService`/
+`ForecastGenerationService` (§26.16) and `FinancialChangeService` (its own `submit_change` path),
+wired to `uow.record_event` at the composition root.
+
+The re-audit decomposed "Financial Setup" into three genuinely distinct sub-capabilities, not
+one: `ProjectFinancialProfile` (project-owned — `configure_profile`/`transition_profile`),
+`ProjectCostCode` (organization-owned, NOT project-owned — a global cost-code catalog with its
+own parent/child hierarchy, referenced by projects rather than belonging to one —
+`create_cost_code`/`update_cost_code`/`activate_cost_code`/`deactivate_cost_code`), and
+`ProjectCostCodeRestriction` (a project-scoped join table recording which cost codes are
+allow-listed for a RESTRICTED-policy project — `add_project_cost_code`/`remove_project_cost_code`).
+Eight typed events for eight audited operations: `ProjectFinancialProfileUpdated`,
+`ProjectFinancialProfileTransitioned` (a real status lifecycle,
+`FinancialProfileStatus`-governed); `CostCodeCreated`, `CostCodeProfileUpdated`,
+`CostCodeActivated`, `CostCodeDeactivated` (the last two mirroring Site's own
+Enabled/Disabled-as-two-dataclasses shape, §26.12, since Cost Code's `is_active` is a genuine
+binary lifecycle rather than Storeroom's richer 4-state one, §26.17); `ProjectCostCodeRestrictionAdded`,
+`ProjectCostCodeRestrictionRemoved`. No `FinancialSetupChanged`/`FinanceChanged` catch-all.
+`configure_profile` and `update_cost_code` had no no-op detection at all pre-P21 (always
+wrote/audited/emitted on identical input) — both fixed with the same before/after
+field-comparison idiom used throughout this migration (P18A §10 onward); `transition_profile`/
+`activate_cost_code`/`deactivate_cost_code`/`add_project_cost_code`/`remove_project_cost_code`
+already had correct existence/state guards and needed no correction.
+
+A significant re-audit finding shaped the whole ViewInvalidation design: only `create_cost_code`
+has a live production caller today, reached via a direct `commands.financial_setup(...)` call in
+the Financials desktop API (`api.py`'s `create_cost_code` endpoint) — bypassing
+`FinancialConfigurationService`'s own governed port entirely for that one call site. The other
+seven operations (`configure_profile`, `transition_profile`, `update_cost_code`,
+`deactivate_cost_code`, `activate_cost_code`, `add_project_cost_code`, `remove_project_cost_code`)
+are registered in `FinanceGovernedServicePort`'s `financial_setup` mutations set (so they are real,
+reachable, complete governed operations, not dead code) but have zero current UI/API callers.
+`FinancialConfigurationService.get_profile`/`list_cost_codes`/`list_available_cost_codes` (the
+read side) are equally uncalled from the UI today — `state.financial_profile`, the one Financial
+Setup fact actually rendered (in `financials_refresh_mixin.py`'s "controls" destination, "setup"
+subsection), is populated by a separate reader, not this service. All 8 operations still received
+complete typed-event coverage regardless of current UI reachability — matching how every other
+migrated capability's typed events describe the real business model, not merely what today's UI
+happens to exercise.
+
+Exactly one ViewInvalidation target, `financial_profile` (project-scoped `ResourceScope`,
+`module_code="project_management"`, matching Forecast's own convention, §26.16), fed only by the
+two Profile events. Cost Code and Restriction events are recorded as canonical typed
+`DomainEvent`s — real, useful business facts for audit/history/future consumers — but
+*deliberately* have zero ViewInvalidation subscription: proven from source
+(`destination_builder.py` and `workspace_query.py`) that no Financials-workspace destination ever
+caches a cost-code list; `search_manual_actual_cost_codes`/`search_budget_cost_codes`/
+`resolve_*_cost_code` are all live, on-demand `FinanceLookupReader` queries, never a cached
+projection, so a Cost Code fact has nothing to make stale. This directly corrects the legacy
+signal's own over-breadth: `financial_setup_changed → {planning, costs, controls}` invalidated
+three destinations for *every* Financial Setup event, including Cost Code changes, even though
+none of them ever needed it — a second real, source-proven narrowing this phase found (the first
+being P19-FIX's dual-target correction for Forecast approval, §26.16). Because the sole live
+producer (`create_cost_code`) turns out to need zero ViewInvalidation hints, and the one
+destination that Profile events *do* need (`controls`) has no live producer yet, P21's cutover is
+architecturally complete but changes essentially nothing about today's actually-visible behavior
+— which is itself the correct, narrow outcome once the true dependencies are traced, not a
+shortfall of the migration.
+
+`financial_setup_changed` is now deleted from `DomainEvents` entirely — zero producers (the one
+real producer, `create_cost_code`, now records `CostCodeCreated` with no legacy emission; the
+other seven operations never had a reachable legacy emission to retire either, since they had no
+caller), zero consumers (`financials_refresh_mixin.py`'s legacy subscription removed; the real UI
+consumer is a `FinancialProfileViewInvalidationAdapter` instance wired into
+`ProjectManagementFinancialsWorkspaceController`, connected to `onFinancialProfileStale`, which
+filters by the hint's project id and invalidates `{controls}` only — narrower than the legacy
+`{planning, costs, controls}`), field absent. `FinanceInvalidationScope` remains untouched and
+still carries the other, still-legacy Finance signals (`budgets_changed`, `cost_entries_changed`,
+`commitments_changed`, `rates_changed`, `financial_changes_changed`, `planned_costs_changed`,
+`billing_preparations_changed`) — P21 retired it from the Financial Setup path only, per its own
+scope. The legacy Signal count is 24 as of this phase (25 minus the one deletion — confirmed
+source-derived). The Finance Financial Setup capability is fully modernized.
+
+**26.19 Finance Rate Card: FULLY MODERNIZED (P22) — `rates_changed`
+DELETED.** The narrowest Finance capability found so far — exactly one producer file
+(`rate_card_service.py`), one legacy field, one UI consumer, confirming P17's own
+characterization. Unlike every other capability migrated in this ADR, Rate Card was not merely
+on raw `Signal` transport; its *transaction ownership itself* was raw `Session` (P17's finding),
+never routed through `FinanceGovernanceCommandBoundary`/`FinanceGovernedServicePort` at all —
+confirmed from source: `project_registry.py` constructed `rate_card_service` directly, with no
+`FinanceGovernedServicePort` wrap anywhere, unlike Budget/Forecast/Setup which already had one.
+
+P22 chose Option A (§3): add a `rate_cards` named repository accessor to the existing
+`FinanceGovernanceUnitOfWork`, rather than a dedicated `RateCardUnitOfWork`. Rationale: Rate Card
+uses the identical `finance.manage`/`finance.read` permission model and identical audit
+conventions (`record_audit_entry(..., compliance_tag="financial", commit=False)`) as every other
+governance-boundary capability, and its own repository (`ProjectRateCardRepository`) already
+bundles both `ProjectRateCard` and `RateCardLine` operations on one interface — the same shape
+`ProjectForecastRepository` already has for `ProjectForecast`/`ForecastLine` (§26.16) — so no
+"unnatural repository bag" concern applied. `ProjectRateCardService` moved off
+`self._session.commit()`/`rollback()` entirely; the outer `FinanceGovernanceCommandBoundary`'s
+existing `with self._uow_factory.create(...) as uow: ... uow.commit()` machinery now owns the
+whole transaction, exactly like Budget/Forecast/Setup already do. A previously dead code path was
+removed in the process: `_commit`'s `duplicate_message`/`IntegrityError`→`ValidationError`
+conversion was never actually invoked at any of its four call sites, and `ProjectRateCardORM`
+carries no unique constraint on `name` — confirmed there was never a real "duplicate rate card"
+business rule being enforced; removing the dead machinery is a simplification, not a regression
+(P22 §4's "preserve existing error semantics" was satisfied because there was no real semantic to
+preserve).
+
+Domain boundary audited (§2): `ProjectRateCard` (aggregate root, dual-owned — `project_id: str |
+None` makes a card either organization-wide or project-specific, both persisted under the SAME
+`organization_id` RLS scope) and `RateCardLine` (child entity, no separate `project_id` of its
+own — resolved transitively via its parent card). Rate Card's lifecycle is asymmetric and
+one-way: `create_rate_card`/`deactivate_rate_card` exist, but no rename/profile-update method and
+no reactivate method exist at all — confirmed from source, not assumed — so exactly two typed
+Card events: `RateCardCreated`, `RateCardDeactivated` (no `RateCardProfileUpdated`, since no such
+operation exists). Lines have three: `RateCardLineAdded`, `RateCardLineUpdated` (no-op detection
+added — `update_line` previously always wrote/audited/emitted on identical input, matching the
+same gap found in every prior no-op-audited phase), `RateCardLineDeactivated` (already had a
+correct existence guard). No vague `RatesChanged`/`RateCardChanged` catch-all.
+
+Exactly two ViewInvalidation targets (`application/financials/rate_cards/event_handlers/
+view_invalidation.py`), proven from source: `rate_card_list` (`OrganizationScope`) — the "costs"
+destination's rate-card-subsection collection (`state.rate_cards`) — and `rate_card_detail`
+(exact-card `ResourceScope`, `module_code="project_management"`, `entity_type="rate_card"`) — the
+SAME query's `state.selected_rate_card` (detail) + `state.rate_lines` (its lines), proven to be
+one combined projection, not two. `RateCardCreated` notifies only `rate_card_list` (a brand-new
+card cannot be the currently-selected one). `RateCardDeactivated` notifies BOTH — the list's own
+row changes AND, if that card happens to be selected, its detail's `is_active` field goes stale
+too — the same dual-notification correction P19-FIX established for Forecast approval (§26.16),
+applied here from day one rather than needing a follow-up fix. Line facts notify only
+`rate_card_detail`, proven from source that the list query never embeds a line count or any
+line-derived value.
+
+**P22-FIX correction**: the original `OrganizationScope`-only design above was a deliberate
+precision trade-off, documented as such — but it was rejected as insufficient. The corrected
+design is a dual-shape scope, chosen per event from the event's own persisted `project_id`
+(never inferred from UI selection state), mirroring the read model's own dual-ownership query
+(`SqlAlchemyFinanceRateReader._card_conditions`: `project_id IS NULL OR project_id ==
+:project_id`): an organization-wide card (`project_id is None`) still invalidates
+`OrganizationScope(tenant_id, organization_id)` — every project in the organization may
+refresh; a project-specific card (`project_id is not None`) invalidates a project-keyed
+`ResourceScope(tenant_id, organization_id, module_code="project_management",
+entity_type="project", entity_id=project_id)` instead — only that project refreshes, and a
+different project's list is never touched. Project identity travels only through the hint's own
+`scope`/`entity_id`, never a second field on `ViewInvalidationHint` (still no capability-specific
+field, per P16D-FIX). Dedupe for the project-scoped shape reuses the same generic
+`ResourceScope`-keyed dedupe helper as `rate_card_detail`, distinguished by `entity_type`
+("project" vs "rate_card") within one set — both an organization-wide and a Project A-specific
+change in the same transaction produce two separate hints, never collapsed.
+
+`rates_changed` is now deleted from `DomainEvents` entirely — zero producers (the one producer,
+`_commit`'s post-commit `domain_events.rates_changed.emit(...)`, is gone along with the raw
+Session commit it rode on), zero consumers (`financials_refresh_mixin.py`'s legacy subscription
+removed; the real UI consumer is a `RateCardViewInvalidationAdapter` instance wired into
+`ProjectManagementFinancialsWorkspaceController`, connected to `onRateCardListStale`
+(unconditional `{costs}`, for the organization-wide shape), `onRateCardListStaleForProject`
+(P22-FIX; `{costs}` only if the hint's project is the currently selected one, mirroring
+`on_forecast_planning_stale`), and `onRateCardDetailStale` (`{costs}` only if the hint's card is
+the currently selected one)), field absent. `FinanceInvalidationScope` remains untouched and still carries the
+other, still-legacy Finance signals (`budgets_changed`, `cost_entries_changed`,
+`commitments_changed`, `financial_changes_changed`, `planned_costs_changed`,
+`billing_preparations_changed`) — P22 retired it from the Rate Card path only, per its own scope.
+The legacy Signal count is 23 as of this phase (24 minus the one deletion — confirmed
+source-derived). The Finance Rate Card capability is fully modernized.
+
+**26.20 PM Baseline Approval: FULLY MODERNIZED (P23) — `baseline_changed`
+DELETED.** Re-audited from CURRENT source, not P17's own characterization — P17 saw only the
+approval-gated create producer (`ApprovalPostCommitEvent("baseline_changed", project_id)` in
+`baseline_apply_participant.py`) and described the business fact as narrowly as "approved
+request created/applied a baseline." Source shows a materially richer capability: `BaselineService`
+owns a full DRAFT — SUBMITTED — APPROVED/REJECTED status lifecycle
+(`submit_baseline`/`approve_baseline`/`reject_baseline`, permission-gated on `baseline.manage`/
+`baseline.approve`) plus `delete_baseline`, all real, UI-reachable desktop-API operations
+(`ProjectManagementSchedulingDesktopApi.submit_baseline`/`approve_baseline`/`reject_baseline`/
+`delete_baseline`) that emitted NOTHING at all before this phase — not `baseline_changed`,
+not any other Signal — a previously silent gap distinct from `rates_changed`'s single-producer
+case (P22, ADR-005 §26.19). `create_baseline` itself is dual-path: governed (via
+`ApprovalService.request_change("baseline.create", ...)`, when `is_governance_required` and the
+session is non-admin) or direct — both funnel through the SAME `_apply_baseline_creation_decision`,
+unchanged in shape by this phase (still flush-only, still never commits its own Session).
+
+Five typed events, one per real lifecycle transition, matching source semantics exactly:
+`ProjectBaselineCreated`, `ProjectBaselineSubmitted`, `ProjectBaselineApproved`,
+`ProjectBaselineRejected`, `ProjectBaselineDeleted`. `approve_baseline`'s richest fact — it
+supersedes the project's previous approved baseline (if any, and if distinct from the one being
+approved) and builds per-task `BaselineVarianceRecord`s in the same transaction — is represented
+as ONE `ProjectBaselineApproved` event carrying a `superseded_baseline_id: str | None` field,
+not two events (no `ProjectBaselineSuperseded`): no source path ever supersedes a baseline
+independently of approving another one, so a separate event would describe a fact that can never
+occur on its own (the "no vague catch-all, but do not multiply for technical field changes"
+balance, per this phase's own §3 instruction). No `ProjectBaselineActivated` either — "approved"
+and "the project's current baseline" are the same persisted fact
+(`BaselineRepository.get_approved_baseline`), with no separate activation step in source.
+
+Transaction ownership — the genuinely novel finding of this phase: `BaselineService`'s Session is
+the SAME long-lived, process-shared Session most other PM services share (constructed once in
+`project_registry.py`, still in use by many other services after any one Baseline operation
+completes) — never a fresh per-request Session the way every Finance/Resource capability's own
+canonical UoW works. `SqlAlchemyUnitOfWorkBase.commit()` unconditionally closes its Session at the
+end — calling it as-is on this shared Session would silently break every other PM service still
+relying on it after the very first Baseline mutation. A full convergence onto a fresh-per-request
+UoW (`SchedulingEngine` and this service's four repositories all rebuilt fresh, bound to a new
+Session, per call — the shape every other capability's UoW uses) was evaluated and rejected as
+out of this phase's scope: `SchedulingEngine` is itself a heavy, session-bound collaborator shared
+by Task/Portfolio/other Scheduling-dependent services at startup, and rebuilding it per-transaction
+for Baseline's sake alone would ripple into capabilities this phase explicitly excludes ("do not
+modernize Tasks," "do not redesign all PM baseline functionality"). Instead, `SqlAlchemyBaselineUnitOfWork`
+(a `SqlAlchemyUnitOfWorkBase` subclass) reuses the SAME transactional-dispatch/postcommit-publish
+machinery verbatim, but overrides `commit()` and `_rollback_and_close()` to skip closing the
+Session — the shared Session survives every commit and rollback, proven by a real multi-operation
+lifecycle test (create, then submit, then approve, all on the same long-lived `baseline_service`
+instance) passing without modification. This precedent (`build_baseline_approval_deps` already
+constructs a fresh `SchedulingEngine` bound to a fresh Session for the APPROVAL path specifically,
+proven safe since P4-PRE) is what de-risked adding the SAME per-call construction discipline to
+the DIRECT path's own small `SqlAlchemyBaselineUnitOfWorkFactory` (which wraps the existing shared
+Session, not a fresh one — `BaselineService`'s own four repositories and `SchedulingEngine` did
+not need to move). The approval-mediated create path itself needed zero new transaction plumbing:
+already fully session-parameterized since P4-PRE (Round 8), it reuses `ApprovalHandlerResult.
+domain_events` directly — the participant now returns `ProjectBaselineCreated` (built from the
+created baseline's own `id` plus `TenantContext` resolved via `_require_context`) instead of the
+legacy `ApprovalPostCommitEvent`; the participant still never receives a `UnitOfWork` or
+`record_event` callback, matching the invariant this ADR has held since P19.
+
+Exactly one ViewInvalidation target (`application/scheduling/baselines/event_handlers/
+view_invalidation.py`): `project_baseline` (project-scoped `ResourceScope`,
+`module_code="project_management"`, `entity_type="project"`). Every current consumer re-audited
+from source — Scheduling workspace (baseline register/compare/variance rows, the owning
+capability) and Dashboard workspace (baseline selector + KPIs scoped to the selected baseline) —
+rebuilds from the same project-scoped baseline projection via a single coarse workspace refresh
+(`_request_domain_refresh()`), not independently-cached sub-projections; source does not justify
+splitting `baseline_schedule`/`baseline_variance` out as separate targets. All five events map to
+this one target uniformly — ViewInvalidation is not a second business-event vocabulary.
+The Control workspace's `baseline_changed` subscription is removed with no replacement (the same
+class of finding as P18B's `resources_changed` removal): its overview/queue presenters (an
+approval-request queue + an audit feed) never referenced Baseline business data at all — proven
+from source, not assumed. Both narrow-workspace consumers gate on the controller's own
+`_selected_project_id`, mirroring `on_forecast_planning_stale`'s established pattern (the hint's
+`entity_id` matches the scope's own `entity_id`); the Qt adapter
+(`BaselineViewInvalidationAdapter.projectBaselineStale`) carries the project id, never a
+capability-specific field.
+
+`baseline_changed` is now deleted from `DomainEvents` entirely — zero producers (the sole prior
+producer, the approval participant's legacy `ApprovalPostCommitEvent`, is gone), zero consumers
+(Scheduling workspace, Dashboard workspace, and Control workspace's subscriptions all removed or
+replaced), field absent. The legacy Signal count is 22 as of this phase (23 minus the one
+deletion — confirmed source-derived). The PM Baseline Approval capability is fully modernized.
+
+**26.21 Inventory Item Catalog + Item Category: FULLY MODERNIZED (P24) —
+`inventory_items_changed`/`inventory_item_categories_changed` BOTH DELETED.** Re-audited from
+CURRENT source, confirming P17's own producer findings exactly: `item_commands.py`
+(`create_item`/`update_item`), `category_commands.py` (`create_category`/`update_category`), and
+a redundant third producer in `item_document_service.py` (`link_document`/`unlink_document`,
+emitting `inventory_items_changed` on every call despite never mutating the Item row — see
+below). Both capabilities used raw `Session` transaction ownership before this phase (`ItemMasterService`/
+`ItemCategoryService` calling `owner._session.commit()`/`rollback()` directly), with zero
+compliance audit entries ever recorded for either — only an activity-feed entry (`record_activity`,
+never `record_audit_entry`), confirmed absent from source, not merely un-wired.
+
+P24 chose Option A (§4): one coherent `InventoryCatalogUnitOfWork`/`Factory` for both `items` and
+`categories`, mirroring `InventoryFoundationUnitOfWork`'s own `storerooms`/`locations` pairing
+(P20, §3) exactly — Items reference Categories by code within the same organization boundary,
+and both share the identical `inventory.manage`/`inventory.read` permission model, so no
+"unnatural repository bag" concern applied. `ItemMasterService`/`ItemCategoryService` each
+gained a `uow_factory` constructor parameter (optional, matching `InventoryService`'s own P20
+shape) and a `_new_uow()`/`_require_uow_factory()` pair; their own repositories
+(`_item_repo`/`_category_repo`, bound to the service's original shared Session) remain
+read-only lookups, exactly like every other governed capability's pre-UoW-convergence repos —
+only the fresh, per-operation `uow.items`/`uow.categories` repositories are ever written to.
+Real `record_audit_entry(uow, ..., commit=False, fail_closed=True)` calls were added for the
+first time in this phase, atomic with the same transaction as the mutation and its typed event.
+
+Domain boundary audited (§2/§3): `StockItem` has a genuine DRAFT/ACTIVE/INACTIVE/OBSOLETE
+status-transition lifecycle (`ITEM_STATUS_TRANSITIONS`), structurally identical in shape to
+Storeroom's own (P20) — so Item's typed events mirror Storeroom's exact split:
+`InventoryItemCreated`, `InventoryItemProfileUpdated`, `InventoryItemStatusChanged` (carries
+`status: str`). `is_active` on `StockItem` is fully derived from `status` by a model validator
+(`object.__setattr__(self, "is_active", self.status == "ACTIVE")`) — never an independent
+field a caller sets, so it needed no separate handling in the profile/status split.
+`InventoryItemCategory` has no such lifecycle at all: no parent/hierarchy field exists, and
+`is_active` is a plain profile flag with no transition validation of its own — confirmed from
+source, not assumed — so exactly two Category events: `InventoryItemCategoryCreated`,
+`InventoryItemCategoryProfileUpdated` (covering every field including `is_active`). No vague
+`ItemChanged`/`CategoryChanged` catch-all. True no-op detection added to both `update_item` and
+`update_category` (candidate-vs-current comparison before any timestamp bump — previously
+always wrote/audited/emitted on identical input, the same gap found in every prior
+no-op-audited phase).
+
+Category reference integrity (§5) audited, no bug found: `_resolve_category_reference`'s
+lookup (`_category_repo.get_by_code(organization.id, category_code)`) is itself
+organization-scoped, so a category code from a different organization is indistinguishable from
+"not found" — a cross-organization assignment is already structurally impossible, not merely
+validated after the fact. An item keeps its OWN current category across an update even if that
+category later became inactive (`allow_existing_code`), but assigning a DIFFERENT category
+requires it to be active — a genuine, pre-existing, deliberate business rule, left unchanged.
+
+Exactly two ViewInvalidation targets (`application/catalog/event_handlers/view_invalidation.py`):
+`item_list` (`OrganizationScope`) and `item_category_list` (`OrganizationScope`). Proven from
+source that Catalog's `search_items`/`search_categories` are the SAME single query as their
+respective `list_*` calls (`search_items` is an in-memory filter over `list_items`'s own rows;
+`search_categories` likewise over `list_categories`) — no separately cached Item or Category
+detail projection exists at all (`build_selected_item_detail` re-derives from the same full item
+list on every call, never a second query), so no `ResourceScope` detail target was needed for
+either capability, unlike Forecast/RateCard/Baseline's genuinely separate detail caches. Category
+facts never invalidate `item_list`: `search_items`'s category label/equipment/project-usage
+flags (`_category_label`, `_is_equipment_item`) are computed live, at read time, from a freshly
+queried category lookup on every call — nothing is cached on the Item row that a Category change
+could make stale.
+
+Item document link/unlink duplicate publication (§12, the phase's critical finding): `item_document_service.
+link_document`/`unlink_document` never mutate the Item row at all — both call ONLY
+`document_integration_service.link_existing_document`/`unlink_existing_document` (P16D), which
+already records typed `DocumentReferenceLinked`/`DocumentReferenceUnlinked` via `uow.record_event`
+and drives the canonical `document_links` ViewInvalidation target. The `inventory_items_changed.
+emit(item.id)` call previously fired on every link/unlink was pure redundant coarse publication —
+confirmed, not assumed, since no Item field, version, or `updated_at` is ever touched by either
+method. Removed entirely, with no replacement `InventoryItemProfileUpdated` fabricated in its
+place: document linkage is a DocumentLink business fact, not an Item profile mutation. Proven
+that no Item list/options/detail projection needs a second invalidation for this action: P16D's
+own `document_links` target already drives Catalog's `refresh_selected_item_linked_documents()`
+narrow seam, unchanged by this phase.
+
+Six Inventory workspace binders re-audited from CURRENT source (not P17's own six-workspace
+characterization, which predates P20's own incidental-subscription removals): Catalog (owner —
+full `refresh()` on either target, since no narrower seam exists in its own monolithic
+`build_workspace_state`, the exact same acceptance P20 already established for Storeroom/
+Location — `item_list` and `item_category_list` are BOTH wired to `refresh()`, not a narrower
+split, because the state builder computes items/categories/overview/filter-options together in
+one call); Dashboard (`item_list` only, full `refresh()` — its low-stock rows' item labels
+(`item_lookup`) are a real, source-proven Item dependency; zero Category dependency found);
+Inventory/Procurement/Reservations (`item_list` only, each wired to a NEWLY EXTRACTED narrow
+`refresh_item_options()` seam — mirroring the `refresh_site_options`/`refresh_storeroom_options`
+pattern P20 already established for the identical class of dependency; zero Category dependency
+found in any of the three); Pricing (ZERO dependency on Item or Category anywhere in its own
+presenter/state builders — site/storeroom/supplier options only — subscription removed with no
+replacement, the same class of finding as P18B's Control-workspace `resources_changed` removal).
+
+`inventory_items_changed`/`inventory_item_categories_changed` are now BOTH deleted from
+`DomainEvents` entirely — zero producers (all three prior producers gone: `create_item`/
+`update_item`, `create_category`/`update_category`, and the redundant `item_document_service`
+emission), zero consumers (all six workspace binders' legacy subscriptions removed or replaced),
+both fields absent. The legacy Signal count is 20 as of this phase (22 minus the two deletions —
+confirmed source-derived). The Inventory Item Catalog and Item Category capabilities are fully
+modernized.
+
+**26.22 Inventory Reorder Policy: FULLY MODERNIZED (P25) —
+`inventory_reorder_policies_changed` DELETED.** Re-audited from CURRENT source: exactly one
+producer method, `InventoryFoundationService.upsert_reorder_policy` (`foundation_service.py`),
+confirming P17's own one-producer finding. Resolved P17's own explicitly-left-open semantic
+uncertainty ("create/update may be combined into one service operation"): this IS a genuine
+upsert, not two business actions disguised as one — the desktop API command itself is literally
+named `InventoryReorderPolicyUpsertCommand`, and the service method looks up an existing policy
+either by explicit `policy_id` (editing a known row) or by natural-key scope lookup
+(`get_for_scope(organization_id, stock_item_id, storeroom_id, location_id)`, when `policy_id` is
+omitted), then either creates or updates depending on whether one is found. The caller never
+distinguishes the two cases. Per this phase's own §2 instruction ("do not mechanically split a
+true business command merely because persistence sometimes INSERTs and sometimes UPDATEs"), one
+semantic event was chosen: `InventoryReorderPolicyConfigured` — not `Created`/`Updated`.
+
+Domain boundary audited (§3/§4): `ReorderPolicy`'s natural business identity is the composite
+(organization, Item, Storeroom, optional Location) key, not `policy_id` alone — confirmed from
+the repository's own `get_for_scope` signature and the IntegrityError message ("A reorder policy
+already exists for the selected stock scope"), proving a real DB uniqueness constraint on this
+exact tuple. `is_active` is a plain profile flag with no transition validation of its own (no
+`REORDER_POLICY_STATUS_TRANSITIONS`-equivalent map exists in source) — folded into the single
+Configured event, matching Category's own precedent (P24) rather than Item/Storeroom's separate
+status-change event.
+
+Transaction ownership (§5): Option A convergence — added a `reorder_policies` named repository
+accessor to the EXISTING `InventoryFoundationUnitOfWork` (P20's own Storeroom + Storage Location
+UoW), rather than building a new `InventoryReorderPolicyUnitOfWork` or reusing the Item-centric
+`InventoryCatalogUnitOfWork` (P24). Chosen because `ReorderPolicy` is owned by the SAME
+`InventoryFoundationService` class that already holds Storeroom/Location's own commands (not a
+separate service), is validated against those SAME repositories
+(`self._inventory_service.get_storeroom`/`self._get_location`), and uses the identical
+`storeroom`-scoped `require_scope_permission` authorization model — the same transactional
+cohesion criteria P20/P21/P22/P24 each applied for their own Option A choices. `upsert_reorder_policy`
+moved off raw `self._session.commit()`/`rollback()` onto `self._require_uow_factory().create(...)`,
+the SAME factory instance `InventoryFoundationService` was already constructed with (it had
+`uow_factory`/`_require_uow_factory()`/`_new_context()` wired in already, from Location's own
+prior convergence — only `upsert_reorder_policy` itself had not yet been migrated). True no-op
+detection added to the update-via-scope-lookup path (candidate-vs-current comparison before any
+timestamp bump — previously always wrote/audited/emitted on identical input, the same gap found
+in every prior no-op-audited phase). A real compliance audit entry (`record_audit_entry(uow, ...,
+commit=False, fail_closed=True)`) was added for the first time — confirmed absent from source
+before this phase, only an activity-feed entry existed.
+
+Reference integrity (§6) audited, no bug found: Item/Storeroom/Location/supplier references are
+all validated through the SAME already-org-scoped lookups Storeroom/Location/Item Catalog
+themselves use (`ItemMasterService.get_item`, `InventoryService.get_storeroom`,
+`_validate_optional_location` — which also confirms a supplied Location genuinely belongs to the
+selected Storeroom, not just the same organization). No cross-org bug existed to fix.
+
+Exactly one ViewInvalidation target (`application/inventory/event_handlers/view_invalidation.py`,
+joining Storeroom/Location's own handlers): `reorder_policy_list` (`OrganizationScope`). Re-audit
+of all six Inventory workspace binders (not P17's own outdated six-workspace assumption) found
+only ONE real consumer: the owning Inventory workspace's own "Foundation" panel
+(`build_foundation_snapshot`, the SAME monolithic state builder that already justifies
+Storeroom/Location's own full `refresh()` — P20). The other five (Catalog, Dashboard, Pricing,
+Procurement, Reservations) have ZERO dependency on the `ReorderPolicy` entity at all — confirmed
+a genuinely separate mechanism drives the Dashboard/Pricing "reorder required" low-stock signal:
+it is computed entirely from `StockItem`'s OWN embedded `reorder_point`/`min_qty` fields at
+stock-movement time (`stock_control_movements.py`), never consulting the `ReorderPolicy` table —
+a genuine, pre-existing architectural gap (the deeper per-storeroom policy is not yet wired into
+the live reorder decision), noted here for visibility but out of this phase's scope to fix. All
+five incidental subscriptions removed with no replacement, the same class of finding as P18B's
+Control-workspace `resources_changed` removal and P24's Pricing removal.
+
+`inventory_reorder_policies_changed` is now deleted from `DomainEvents` entirely — zero
+producers, zero consumers (all six workspace binders' legacy subscriptions removed, one replaced
+by the typed `InventoryFoundationViewInvalidationAdapter.reorderPolicyListStale` signal wired to
+the Inventory workspace's full `refresh()`), field absent. The legacy Signal count is 19 as of
+this phase (20 minus the one deletion — confirmed source-derived). The Inventory Reorder
+Policy capability is fully modernized.
+
+**26.23 Purchase Order: FULLY MODERNIZED (P28B) — `inventory_purchase_orders_changed` DELETED.**
+Implemented P28A's audit exactly as recommended, no deviation. `PurchaseOrderSubmissionUnitOfWork`
+broadened from submit-only to ALL of create/add-line/update/submit/cancel/send/close (name kept —
+same precedent as `InventoryFoundationUnitOfWork` keeping its name across P20→P25's widened
+scope), gaining `purchase_order_lines`/`balances`/`_activity_service` accessors; approve/reject
+stay `ApprovalService`-owned. 10 PO-owned typed events
+(`InventoryPurchaseOrderCreated`/`LineAdded`/`ProfileUpdated`/`Submitted`/`Approved`/`Rejected`/
+`Cancelled`/`Sent`/`Closed`/`ReceivingAdvanced`) for the 10 confirmed PO-owned facts —
+document link/unlink get zero PO event (P28A/P28B §2: the PO row is never mutated by that path,
+P16D's typed `DocumentReferenceLinked`/`Unlinked` was already the canonical record).
+
+**Cross-capability event return (the core design question P28A posed):** the PO approval
+participant returns BOTH `InventoryPurchaseOrderApproved` and one `InventoryRequisitionSourcingAdvanced`
+(new `requisition_events.py` — Requisition's own vocabulary, not PO's) per touched Requisition, in
+the SAME `ApprovalHandlerResult.domain_events` tuple (Option A). This is not a bridge: it is one
+transaction — the participant already mutates `PurchaseRequisitionLine`/`PurchaseRequisition` in
+the identical `ApprovalService`-owned `PlatformUnitOfWork` Session as the PO's own status change —
+producing two capabilities' worth of legitimate business facts. `ApprovalService.approve_and_apply`'s
+pre-existing `for domain_event in handler_result.domain_events: uow.record_event(domain_event)`
+loop (already present, previously always draining an empty tuple for this family) required zero
+new plumbing. Batched per touched Requisition, never per PO line — multiple PO lines sourcing the
+same Requisition in one approval still produce exactly one `InventoryRequisitionSourcingAdvanced`,
+mirroring the pre-existing `touched_requisition_ids` dedup the approval participant already had.
+`resulting_status` is the Requisition's header status after the sourcing pass whether or not it
+changed (one event, not separate PartiallySourced/FullySourced lifecycle events — "prefer minimal
+vocabulary"). Balance's `on_order_qty` mutation (confirmed a real, not merely notificational,
+mutation — P28A) stays on the legacy `ApprovalPostCommitEvent("inventory_balances_changed", ...)`
+bridge, since Balance's own modernization is out of this phase's scope.
+
+**Concurrency fix:** `PurchaseRequisitionLine` had no `version` column at all (domain nor ORM) —
+migration `c3f6a1b8d9e0` adds one; the repository's `update()` now uses the same atomic
+conditional `UPDATE ... WHERE version = :expected` (rowcount-verified, `update_with_version_check`)
+already used by `PurchaseOrder`/`PurchaseRequisition`. A losing concurrent transaction raises
+`ConcurrencyError`, and since the whole mutation runs inside `ApprovalService`'s own `with uow:`
+block, the loss rolls back everything (PO status change included) and publishes zero postcommit
+events — proven by a genuine two-Session regression test, not merely a sequential
+`expected_version` retry.
+
+**`post_receipt`** converges onto the same PO UoW; its Receipt/Balance/`StockControlService`
+collaborators are constructed fresh per-transaction via a composition-owned factory
+(`receiving_collaborators_factory`, injected into `PurchasingService`) rather than named UoW
+accessors, avoiding both an ownership claim over Receipt/Balance and (the reason this seam exists
+at all) a real circular import discovered mid-implementation: `application.procurement` importing
+SQLAlchemy repositories directly pulled in `infrastructure.importers.service`, which imports back
+`application.procurement`. The factory pattern mirrors `ApprovalService.dependencies_factory`
+exactly.
+
+Cross-org integrity (§24): PO approval now explicitly verifies the sourced `PurchaseRequisitionLine`'s
+parent Requisition belongs to the PO's own organization — P27A/P28A both flagged this as
+previously relying only on the requisition-line repository's ambient tenant-scoped query, never an
+explicit assertion.
+
+ViewInvalidation: `purchase_order_list`/`purchase_order_detail` (`OrganizationScope`/`ResourceScope`,
+every PO fact notifies both — P19-FIX/P22-FIX "notify both" precedent, since Procurement's cached
+detail read is field-richer than its list row and both go stale together on most facts); the
+Requisition-sourcing fact reuses the exact `requisition_list`/`requisition_detail` scope shapes
+P27A already proposed, so P29 inherits a working target. Consumer cutover: a new
+`PurchaseOrderViewInvalidationAdapter` (mirrors `InventoryCatalogViewInvalidationAdapter`'s exact
+shape) wired into Procurement (owner) and Dashboard (real KPI dependency, P28A §8); the 4
+incidental legacy subscriptions (Reservations/Pricing/Inventory/Catalog) removed with no
+replacement — the same class of finding P18B/P24/P25 already established for those workspaces.
+
+A real, pre-existing bug (predates this phase — confirmed via `git show HEAD`) was found and
+reported but NOT fixed (out of scope): `PurchasingService.link_document`/`unlink_document` call
+`DocumentIntegrationService.link_existing_document`/`unlink_existing_document` with a `module=...`
+keyword neither method accepts — these two methods have never worked in production.
+
+`inventory_purchase_orders_changed` is now deleted from `DomainEvents` entirely — zero producers
+(all 12 sites converged), zero consumers (all 6 workspace binder subscriptions removed), field
+absent. The legacy Signal count is 18 as of this phase (19 minus the one deletion — confirmed
+source-derived). The Purchase Order capability is fully modernized. This also unblocks Requisition
+(P29): the sole non-Requisition-owned producer of `inventory_requisitions_changed` is gone.
+
+**26.24 P28B-FIX: Requisition-sourcing ViewInvalidation had a real UI-consumer gap, now closed.**
+§26.23's "so P29 inherits a working target" claim was accurate for the domain-event handler and
+its `platform_post_commit_bus` wiring (both were already correct), but incomplete: no QML adapter
+anywhere consumed `requisition_list`/`requisition_detail` hints — `PurchaseOrderViewInvalidationAdapter`
+filters strictly on the two PO scope codes, so a Requisition-sourcing hint reached it and was
+silently dropped. This meant a PO approval that sourced a Requisition stopped emitting the legacy
+`inventory_requisitions_changed` (§26.23's intended change) but nothing typed replaced it in the
+UI — a real regression versus pre-P28B behavior. Fixed with a new `RequisitionViewInvalidationAdapter`
+(structurally identical to `PurchaseOrderViewInvalidationAdapter`), wired in `context.py` for
+Procurement only; Dashboard was deliberately not wired after re-confirming from source that its
+only Requisition filter (`{SUBMITTED, UNDER_REVIEW}`) is never touched by sourcing transitions.
+No backend/domain/transaction code changed. Legacy Signal count unchanged at 18.
+
+**26.25 Inventory Requisition: FULLY MODERNIZED (P29) — `inventory_requisitions_changed`
+DELETED.** Implemented P27A's audit exactly as recommended (Option A extension of the existing
+`RequisitionSubmissionUnitOfWork`; name kept, matching §26.23's own precedent for the identical
+"broaden but don't rename" decision — unlike PO's UoW, Requisition's already carried every
+accessor (`requisitions`/`requisition_lines`/`approvals`/`_enterprise_audit_service`) create/
+add-line/update/cancel needed, so no new named repositories were required at all). `create_
+requisition`/`add_requisition_line`/`update_requisition`/`cancel_requisition` moved off raw
+`self._session.commit()` onto this canonical UoW, gaining real compliance audit for the first time
+(previously activity-feed only); `update_requisition` gained a true no-op guard it never had.
+
+Typed events: `InventoryRequisitionCreated`, `LineAdded`, `ProfileUpdated`, `Submitted`,
+`Approved`, `Rejected`, `Cancelled` — 7 events for P27A's 7 confirmed facts, added to the existing
+`requisition_events.py` alongside the unmodified `InventoryRequisitionSourcingAdvanced` (§26.23).
+Approve/reject (`ProcurementApprovalMixin`) converted off the legacy `ApprovalPostCommitEvent`
+bridge onto `ApprovalHandlerResult.domain_events`, reusing the exact same
+`ApprovalService.approve_and_apply`/`reject` drain loop P28B already exercised for Purchase Order
+— no new plumbing, no participant exposure to `UnitOfWork`/`record_event`.
+
+ViewInvalidation: the handler that only ever covered the one PO-triggered sourcing event
+(`build_requisition_sourcing_view_invalidation_handler`) was generalized into `build_requisition_
+view_invalidation_handler`, its type union widened to all 8 Requisition event types — mirroring
+`build_purchase_order_view_invalidation_handler`'s own single-handler shape for 10 PO events, one
+dedupe-state pool per correlation_id rather than eight independent ones. Every event notifies both
+`requisition_list`/`requisition_detail` (P19-FIX/P22-FIX/P28B "notify both" precedent). Consumer
+cutover reuses §26.24's `RequisitionViewInvalidationAdapter` unchanged — no second adapter class.
+Procurement's existing wiring needed no change; Dashboard gained a **new** wiring, since Requisition's
+own Submitted/Approved/Rejected/Cancelled facts (unlike the sourcing-only event §26.24 evaluated)
+genuinely move a Requisition into or out of Dashboard's `{SUBMITTED, UNDER_REVIEW}` "Awaiting
+Approval" KPI filter — confirmed via source, not assumed from §26.24's opposite conclusion for a
+different event.
+
+A significant correction to three prior phases' own characterization: P27A/P28A/P28B all read
+`_ensure_business_supplier_scope` in isolation and concluded a Requisition line's suggested
+supplier was never checked for organization membership — a "real gap." Tracing its sole caller
+(`_validate_supplier_reference`) one line up shows `PartyService.get_party` already scopes its own
+lookup to the active organization, raising `NotFoundError` for a cross-org party before
+`_ensure_business_supplier_scope` ever runs — confirmed by a real regression test constructing a
+genuine cross-org Party row. No code was added for this (a second, unreachable check would be dead
+code); the finding is corrected here rather than carried forward again.
+
+`inventory_requisitions_changed` is now deleted from `DomainEvents` entirely — zero producers (all
+7 remaining sites converged), zero consumers (all 6 workspace binder subscriptions removed), field
+absent. The legacy Signal count is 17 as of this phase (18 minus the one deletion — confirmed
+source-derived). Both Purchase Order and Requisition are now fully modernized; no next
+Inventory/Procurement capability has been chosen (Reservation, Stock Balance/Ledger, Cycle Count,
+and Goods Receipt remain unaudited).
+
+**26.26 P29-FIX: Requisition invalidation precision + UI refresh coalescing — two real gaps
+found and closed, no backend change.** §26.25's "every event notifies both targets" and "Dashboard
+wired to `requisitionListStale`/`requisitionDetailStale`" were both real but imprecise. Re-reading
+the actual read models (`to_requisition_record_view_model` for `requisition_list`,
+`build_requisition_detail` for `requisition_detail`) showed `Created` can never stale an
+already-open detail projection for an id that didn't exist before the transaction (corrected to
+`requisition_list` only) and `LineAdded` touches no field the list row shows (corrected to
+`requisition_detail` only); the remaining six event types genuinely touch both, now for a proven
+reason. Re-reading `dashboard.py::build_snapshot` confirmed Dashboard's sole Requisition dependency
+is the `{SUBMITTED, UNDER_REVIEW}`-filtered "Awaiting Approval" KPI — a new dedicated org-scoped
+target, `requisition_pending_approval`, is notified only for Submitted/Approved/Rejected/Cancelled,
+mirroring §26.16's `forecast_approved_basis` precedent (a distinct approval-summary projection,
+not a screen-specific target); `RequisitionViewInvalidationAdapter` gained a third signal,
+`requisitionPendingApprovalStale`, on the same adapter class (no second adapter). `Cancelled`
+still notifies unconditionally since the event carries no prior-status field to filter the
+"was it actually pending" case precisely — a documented, narrow exception, not a return to
+blanket over-inclusion.
+
+A third, previously-undocumented gap was found while investigating the first two:
+`_request_domain_refresh()` executed `refresh()` synchronously on every call with no cross-call
+coalescing, so any transaction producing 2+ Procurement-relevant hints (Requisition's own
+list+detail pair from this phase, or PO's pre-existing list+detail pair from §26.23) rebuilt the
+entire monolithic Procurement workspace twice. Fixed by porting `project_management`'s own
+already-established `QTimer(0)`-coalesced scheduling mechanism
+(`_schedule_domain_refresh`/`_execute_scheduled_domain_refresh`, gated on the app-wide
+`pmEventLoopRunning` property already set in `src/ui_qml/shell/app.py`) into
+`InventoryProcurementWorkspaceControllerBase` verbatim — reusing an existing generic UI scheduling
+primitive, not inventing a new debounce service. `requisition_detail`'s scope stayed the exact
+`ResourceScope` throughout; Procurement's own consumption remains one full monolithic refresh per
+transaction (unchanged breadth, now guaranteed to fire once, not twice). No typed event, UoW,
+audit, concurrency, or approval-architecture behavior changed. Legacy Signal count unchanged: 17.
+
+**26.27 P30B: Inventory Reservation full modernization — implements P30A's audit exactly,
+`inventory_reservations_changed` deleted.** New canonical `InventoryReservationUnitOfWork`/
+`SqlAlchemyInventoryReservationUnitOfWorkFactory` (fresh Session per call, matching
+`InventoryFoundationUnitOfWork`'s own shape) replaces the raw shared `platform_services.session`
+ReservationService previously wrote through — no existing Inventory UoW naturally owned this
+transaction (unlike Requisition, which had an extendable `RequisitionSubmissionUnitOfWork`), so
+this is a genuinely new UoW, not an Option-A extension. Named accessors: `reservations`,
+`balances`, `stock_transactions` (repos), `stock_service` (the existing, unmodified
+`StockControlService` posting logic — UOM conversion, average cost, reorder threshold,
+negative-quantity guards — rebound to this UoW's own session/repos rather than re-implemented, per
+P30A's explicit "do not modernize Balance/Ledger" boundary), `_enterprise_audit_service` and
+`_activity_service` (both newly wired — Reservation gains real compliance audit entries for the
+first time, the same P24-class governance upgrade, atomic in the same commit as the Reservation/
+Balance/StockTransaction writes; a monkeypatched audit-backend failure is proven, by test, to roll
+back all three together and publish zero postcommit events).
+
+Four typed events, matching P30A's semantic decomposition exactly (3 real business facts plus a
+lifecycle split kept for terminal-decision clarity): `InventoryReservationCreated`,
+`InventoryReservationConsumptionAdvanced` (covers both partial and full issue — `resulting_status`
+distinguishes them, not a fact split; `issue_reserved_stock`'s existing quantity/transition logic
+is otherwise untouched), `InventoryReservationReleased`, `InventoryReservationCancelled` (kept
+distinct from Released even though both still share the `_close_reservation` implementation
+helper — implementation sharing does not imply semantic-event sharing). No
+`InventoryReservationProfileUpdated`/`InventoryReservationChanged` exists, matching P30A's finding
+that no profile-update operation exists on this aggregate at all.
+
+Document link/unlink: confirmed, by re-reading `link_document`/`unlink_document`, to mutate only
+`DocumentLink`, never the Reservation row, Balance, or a StockTransaction — the legacy
+`inventory_reservations_changed.emit(...)` call in both is deleted with no replacement Reservation
+event, mirroring PO's own `link_document`/`unlink_document` (§26.23) and P24's identical Item
+finding exactly. `document_integration_service.link_existing_document`/`unlink_existing_document`
+already reports through P16D's own typed `document_links` ViewInvalidation target, unmodified. A
+regression test proves zero Reservation DomainEvent, zero `reservation_list`/`reservation_detail`/
+`reservation_open_count` hints, and an unchanged `version`/`status` from either operation.
+
+ViewInvalidation: `reservation_list` (`OrganizationScope`) and `reservation_detail`
+(`ResourceScope`, `entity_type="stock_reservation"`) — the identical shape §26.23 established for
+Requisition — plus a third, narrower target, `reservation_open_count` (`OrganizationScope`),
+reserved for Dashboard's "Open Reservations" KPI, mirroring §26.26's `requisition_pending_approval`
+precedent (a distinct capability-summary target, not a screen-specific one). `Created` notifies
+`reservation_list` + `reservation_open_count` only, never `reservation_detail` (no pre-existing
+detail view can be stale for an id that didn't exist a moment ago, same reasoning §26.26 applied to
+Requisition's own `Created`). `reservation_open_count` is computed precisely from the same
+open-membership predicate the KPI's own query uses (`{ACTIVE, PARTIALLY_ISSUED}`): Created,
+Released, and Cancelled always change membership; `ConsumptionAdvanced` only when
+`resulting_status == FULLY_ISSUED` (a partial issue keeps the reservation in the counted set and
+must NOT stale the KPI) — proven by two dedicated regression tests, one per issue outcome.
+
+**Exact, source-derived event → target mapping (P30B-FIX confirms no ambiguity remains)**:
+
+| Event | `reservation_list` | `reservation_detail` | `reservation_open_count` |
+|---|---|---|---|
+| `InventoryReservationCreated` | yes | no | yes |
+| `InventoryReservationConsumptionAdvanced(PARTIALLY_ISSUED)` | yes | yes | no |
+| `InventoryReservationConsumptionAdvanced(FULLY_ISSUED)` | yes | yes | yes |
+| `InventoryReservationReleased` | yes | yes | yes |
+| `InventoryReservationCancelled` | yes | yes | yes |
+| document link/unlink | no (no event at all) | no | no |
+
+Consumer cutover: Reservations workspace (owner) subscribed to `reservationListStale`/
+`reservationDetailStale` via a new `ReservationViewInvalidationAdapter` (mirrors
+`RequisitionViewInvalidationAdapter` exactly), full `_request_domain_refresh()` on either — same
+class of acceptance already established for every other Inventory workspace's own monolithic
+`build_workspace_state`. Dashboard subscribed only to `reservationOpenCountStale`. The legacy
+`inventory_reservations_changed` subscription was removed outright (no replacement) from Catalog,
+Pricing, Procurement, and Inventory(Foundation)'s binders — P30A proved all four had zero real
+Reservation dependency; Inventory(Foundation)'s own `Stock Balances` table dependency is on
+Balance, already covered by its unchanged, untouched `inventory_balances_changed` subscription.
+Reservations workspace's own binder was re-audited for a Balance dependency (P30B §24's own
+question, not raised in P30A): none exists — its "available stock" references are UI copy text,
+not a data dependency. **P30B-FIX corrects P30B's own initial disposition here**: P30B left the
+`inventory_balances_changed` subscription in place, reasoning that narrowing a Balance-signal
+consumer was Balance-capability wiring and out of scope. On review this reasoning does not hold —
+removing a *proven-incidental* consumer of a legacy signal is not Balance modernization (Balance's
+producers, business semantics, and every other genuine consumer are untouched); it is simply
+finishing the same class of cleanup already applied to Catalog/Pricing/Procurement in the same
+phase. The subscription is removed, no replacement — Reservations workspace's `inventory_
+balances_changed` consumer count is now 0, and its Reservation/availability UI behavior is
+unchanged (it never read Balance data to begin with).
+
+**P30B-FIX also found and fixed a genuine, previously-unverified duplicate-refresh risk unique to
+Reservation**: Dashboard's `reservationOpenCountStale` was originally wired with a direct
+`.connect(self._dashboard_workspace.refresh)` — the same pattern PO's/Requisition's own Dashboard
+signals use. Unlike PO/Requisition, Reservation is the only capability whose typed events
+co-occur, in the same transaction, with a legacy signal Dashboard *already* independently reacts
+to (`inventory_balances_changed`, since Reservation genuinely mutates Balance) — so Created,
+full-issue, Released, and Cancelled each risked triggering Dashboard's `refresh()` twice: once via
+the direct typed-signal connection, once via the legacy binder's `_request_domain_refresh()`. Fixed
+by connecting `reservationOpenCountStale` to `self._dashboard_workspace._request_domain_refresh`
+instead of `.refresh` directly — the same coalescing entrypoint the legacy binder already uses,
+collapsing both triggers into one rebuild per transaction under a live Qt event loop (P29-FIX's own
+established remedy for this exact class of problem). PO's and Requisition's own direct-`.refresh`
+Dashboard connections are untouched — P30A/P28A found neither co-emits a legacy signal alongside
+its typed events, so this risk class does not apply to them.
+
+Concurrency: P30A's audited mechanism (`update_with_version_check`, an atomic
+`UPDATE ... WHERE id=? AND version=?`) is unchanged, now exercised through the canonical UoW's own
+`balances` repo instead of the raw session. A genuine two-Session regression test (mirroring
+§26.23's own `PurchaseRequisitionLine` race template) proves it directly: available stock 10, two
+transactions each attempt to reserve 8 against the same stale read; the first commits, the second's
+version-guarded write raises `ConcurrencyError` and the final persisted `reserved_qty` is 8, never
+16 — no lost update, no oversubscription, not merely asserted from sequential test order.
+
+`inventory_reservations_changed` is now deleted from `DomainEvents` entirely — zero producers (all
+5 former sites converged: 3 onto typed events, 2 onto no event at all), zero consumers (all 6
+workspace binder subscriptions removed), field absent. `inventory_balances_changed` is
+unmodified/retained — Reservation genuinely mutates persisted Balance state and continues to emit
+it exactly as before; Balance itself remains a separate, still-legacy capability, explicitly out of
+this phase's scope. The legacy Signal count is 16 as of this phase (17 minus the one deletion —
+confirmed source-derived). Reservation is now fully modernized; no next Inventory/Procurement
+capability has been chosen (Stock Balance/Ledger, Cycle Count, and Goods Receipt remain unaudited).
+
+**26.28 P31B: Stock Balance full modernization — implements P31A's audit exactly,
+`inventory_balances_changed` deleted, distributed transaction ownership preserved.** Three typed,
+field-oriented events (`domain/inventory/balance_events.py`): `StockOnHandQuantityChanged`,
+`StockReservedQuantityChanged`, `StockOnOrderQuantityChanged` — chosen over a 9-event
+movement-type-mirroring vocabulary (would recreate the legacy signal's own overload) and over a
+single generic `StockBalanceChanged`/`InventoryStockBalanceUpdated` (would recreate the exact
+imprecision this phase exists to fix). Each carries `tenant_id`/`organization_id`/`balance_id`/
+`stock_item_id`/`storeroom_id`/`quantity_delta`/`resulting_quantity`/`occurred_at`;
+`quantity_delta` is always computed as `resulting − previous` (a before/after `StockBalance` read,
+not re-derived from a caller's line-UOM quantity) — avoids duplicating `StockControlService`'s own
+UOM-to-stock-UOM conversion math at every one of the ~10 call sites that now record an event.
+
+**No centralized Balance UoW was created — P31A's own explicit warning against one was followed.**
+Each capability keeps recording its own Balance fact inside its own, already-atomic transaction:
+Reservation's own `InventoryReservationUnitOfWork` (P30B, unchanged) for create/issue/release/
+cancel; `ApprovalService`'s own fresh `PlatformUnitOfWork` for PO approval; the shared
+`PurchaseOrderSubmissionUnitOfWork` for PO cancel and Receipt (P31A's own critical finding —
+Receipt was *already* canonical, contradicting the pre-P28B characterization ADR-005 §26.23 had
+carried forward; zero transaction-boundary work was needed there). Cycle Count and Inventory
+(Foundation)'s manual stock movements (opening balance/adjustment/issue/return/transfer) were the
+only two genuinely raw-Session paths P31A found — both converged onto the *existing*
+`InventoryFoundationUnitOfWork` (P20/P25's own canonical UoW for Storeroom/Location/ReorderPolicy),
+extended with `cycle_counts`/`balances`/`stock_transactions` repository accessors and a
+`stock_service` accessor (the same, unmodified `StockControlService` posting logic rebound to this
+UoW's own session — the identical "capability-UoW-session → fresh `StockControlService`" pattern
+P30B and Receipt's own `_build_purchase_order_receiving_collaborators` factory already proved
+twice). This closed a genuine composition-root circular dependency (`InventoryService` needs this
+UoW factory for its own Storeroom commands per P20, while the extended factory's own
+`stock_service` needs a constructed `InventoryService`) via a `configure_stock_dependencies()`
+late-binding call — the factory is built first with `item_service`/`inventory_service` unset, then
+configured moments later in the same composition function once both exist; every real `.create()`
+call happens well after composition completes. A second, smaller circular *import* (the contracts
+Protocol importing the concrete `StockControlService` class, which itself imports `InventoryService`,
+which imports the contracts module) was closed with a `TYPE_CHECKING` guard — the annotation-only
+reference never needed to be a runtime import.
+
+**`StockControlService` itself is unmodified in shape** — still the dual-mode domain/invariant
+service P31A characterized it as, self-committing by default, a clean `commit=False` participant
+otherwise, reused verbatim by every writer. The one narrow addition: `transfer_stock` gained the
+same `commit: bool = True` parameter every sibling posting method already had (previously it
+unconditionally called `self._session.commit()`, which would have prematurely committed a caller's
+UoW out from under it the moment a capability tried to reuse it with `commit=False`) — a one-line
+signature extension matching an existing convention, not a broader refactor.
+
+**Reservation → Balance**: unchanged mutation behavior (P30B); now records
+`StockReservedQuantityChanged` (create/release/cancel) and, for `issue_reserved_stock` (which
+mutates both `on_hand_qty` and `reserved_qty` in one call), both `StockOnHandQuantityChanged` and
+`StockReservedQuantityChanged` — two genuine facts from one operation, not merged, mirroring PO
+approval's own precedent of returning multiple `domain_events` from one participant call.
+
+**Purchase Order → Balance**: approval records `StockOnOrderQuantityChanged` via
+`ApprovalHandlerResult.domain_events` — the reflective `ApprovalPostCommitEvent("inventory_
+balances_changed", balance_id)` bridge is deleted outright, not left coexisting with the typed
+event. **Cancel fixes P31A's confirmed silent-mutation gap**: `cancel_purchase_order`'s on-order
+reversal (only reached when cancelling a PO that was ever approved, `prior_status != DRAFT`) now
+records `StockOnOrderQuantityChanged` in the same `PurchaseOrderSubmissionUnitOfWork` transaction
+as its own `InventoryPurchaseOrderCancelled` event — previously this path emitted no Balance
+notification of any kind, confirmed both by the P31A audit and by a dedicated regression test here
+proving a real `stock_balance_list`/`stock_balance_detail` hint now fires. Rejection is confirmed,
+again, to touch no Balance state (on-order was never incremented for a PO that was never
+approved) — zero Balance event, not a defensive no-op event.
+
+**Goods Receipt → Balance**: `post_receipt` records both `StockOnHandQuantityChanged` (from the
+existing `StockControlService.post_adjustment` path) and `StockOnOrderQuantityChanged` (from the
+existing direct-repo `_adjust_on_order_balance` path) per line, in the same already-canonical UoW;
+`inventory_receipts_changed` is unmodified/retained — Receipt itself is explicitly not modernized
+as a capability in this phase, per its own scope boundary.
+
+**Cycle Count → Balance**: `complete_cycle_count` moved from raw `self._session`/the shared
+`self._stock_service` instance onto the extended `InventoryFoundationUnitOfWork`; records
+`StockOnHandQuantityChanged` only `if abs(variance) > 1e-9` — a zero-variance completion mutates
+nothing and records nothing, preserving "counting stock ≠ changing stock" exactly as P31A required.
+Gains real atomic `record_audit_entry` for the first time (previously zero enterprise audit at
+all, only a best-effort, non-atomic activity-feed entry) — proven atomic by a monkeypatched
+audit-failure test rolling back the Balance mutation together with it. `inventory_cycle_counts_
+changed` is unmodified/retained — Cycle Count itself is not modernized as a capability.
+
+**Manual stock movements**: `post_opening_balance`/`post_adjustment`/`issue_stock`/`return_stock`/
+`transfer_stock` moved from the `movements.py` desktop API calling the raw, process-shared
+`StockControlService` instance directly (self-committing, no Balance event, no atomic audit) to
+calling 5 new `InventoryFoundationService` methods that open the same extended UoW, delegate to
+`uow.stock_service.*(commit=False)`, record the resulting Balance fact(s), stage atomic enterprise
+audit, and commit. `transfer_stock` records two independent `StockOnHandQuantityChanged` facts —
+source and destination are two distinct `StockBalance` aggregate identities, not one
+organization-wide "stock changed" event.
+
+**Concurrency**: unchanged mechanism (`update_with_version_check`, atomic `UPDATE ... WHERE id=?
+AND version=?`), now exercised uniformly by every writer regardless of which capability's UoW
+originates the call. A genuine cross-capability two-Session regression test (mirroring §26.23's
+own template) proves the P31A-flagged whole-row-versioning trade-off directly: a manual on-hand
+adjustment and a reservation hold, concurrently reading the *same* balance row before either
+writes (different fields, `on_hand_qty` vs. `reserved_qty`), still conflict at the version level —
+the second writer's `ConcurrencyError` is raised and its change never persists, confirming the
+existing safety property (never a lost update) at the cost of contention Balance's own future
+design could reduce but that this phase does not attempt to.
+
+**ViewInvalidation**: new `StockBalanceViewInvalidationAdapter` (`stockBalanceListStale`/
+`stockBalanceDetailStale`), targets `stock_balance_list` (`OrganizationScope`) and
+`stock_balance_detail` (`ResourceScope`, `entity_type="stock_balance"`) — identical shape to every
+prior capability's own list/detail pair. All 3 event types route to *both* targets identically;
+this is not a missed field-sensitivity opportunity — P31A/P31B's own field-level re-audit of every
+consumer found each of the 3 confirmed-genuine ones (Inventory(Foundation)'s own Balance table +
+detail panel; Pricing's stock-status report, which reads `reorder_required`/`on_order_qty`/
+`reserved_qty`/`available_qty`/`average_cost` — broader than the audit's own working hypothesis;
+Dashboard's "Stock Positions"/"Low Stock"/"On Order Qty" KPIs, spanning all three quantity
+dimensions between them) genuinely depends on all three dimensions for *some* part of its own
+single monolithic refresh. **Consumer re-audit corrects P30B's carried-forward "5 genuine
+consumers" label to 3**: Catalog and Procurement are confirmed incidental — zero real Balance-field
+reference anywhere in either's desktop-API or presenter layers — their legacy subscriptions are
+removed outright, no replacement, proven by a dedicated zero-reaction regression test. All three
+genuine consumers connect through `_request_domain_refresh`, not a direct `.refresh` connect,
+matching the coalescing-safe pattern P30B-FIX established for Dashboard's own Reservation KPI.
+
+`inventory_balances_changed` is now deleted from `DomainEvents` entirely — zero producers (all 9
+former mechanisms converged: 8 direct `.emit()` sites across `stock_control_adjustments.py`/
+`stock_control_movements.py`/`reservation_service.py`/`purchasing_receiving.py`/
+`foundation_service.py`, plus the 1 reflective `ApprovalPostCommitEvent` bridge — including the
+one confirmed-dead `_post_reservation_transaction` branch, deleted rather than converted since it
+had no reachable caller), zero consumers (all 5 legacy subscriptions removed). `inventory_
+receipts_changed`/`inventory_cycle_counts_changed` are unmodified/retained — Receipt and Cycle
+Count remain separate, still-legacy capabilities, explicitly out of this phase's scope. The legacy
+Signal count is 15 as of this phase (16 minus the one deletion — confirmed source-derived). Stock
+Balance is now fully modernized; no next Inventory/Procurement capability has been chosen (Goods
+Receipt and Cycle Count remain unaudited as their own capabilities).
 
 ## Alternatives Rejected
 

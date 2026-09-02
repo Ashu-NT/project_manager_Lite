@@ -17,6 +17,18 @@ from src.ui_qml.platform.adapters.department_view_invalidation_adapter import (
 from src.ui_qml.platform.adapters.site_view_invalidation_adapter import (
     SiteViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.party_view_invalidation_adapter import (
+    PartyViewInvalidationAdapter,
+)
+from src.ui_qml.platform.adapters.document_view_invalidation_adapter import (
+    DocumentViewInvalidationAdapter,
+)
+from src.ui_qml.platform.adapters.document_structure_view_invalidation_adapter import (
+    DocumentStructureViewInvalidationAdapter,
+)
+from src.ui_qml.platform.adapters.document_links_view_invalidation_adapter import (
+    DocumentLinksViewInvalidationAdapter,
+)
 from src.ui_qml.platform.adapters.module_entitlement_view_invalidation_adapter import (
     ModuleEntitlementViewInvalidationAdapter,
 )
@@ -274,6 +286,46 @@ class PlatformWorkspaceCatalog(QObject):
             self._admin_workspace.refresh_sites
         )
 
+        self._party_view_invalidation_adapter = PartyViewInvalidationAdapter(
+            channel=view_invalidation_channel,
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+            parent=self,
+        )
+        self._party_view_invalidation_adapter.partyCollectionStale.connect(
+            self._admin_workspace.refresh_parties
+        )
+
+        self._document_view_invalidation_adapter = DocumentViewInvalidationAdapter(
+            channel=view_invalidation_channel,
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+            parent=self,
+        )
+        self._document_view_invalidation_adapter.documentCollectionStale.connect(
+            self._admin_workspace.refresh_documents
+        )
+
+        self._document_structure_view_invalidation_adapter = DocumentStructureViewInvalidationAdapter(
+            channel=view_invalidation_channel,
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+            parent=self,
+        )
+        self._document_structure_view_invalidation_adapter.documentStructureCollectionStale.connect(
+            self._admin_workspace.refresh_document_structures
+        )
+
+        self._document_links_view_invalidation_adapter = DocumentLinksViewInvalidationAdapter(
+            channel=view_invalidation_channel,
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+            parent=self,
+        )
+        self._document_links_view_invalidation_adapter.documentLinksStale.connect(
+            self._admin_workspace.on_document_links_stale
+        )
+
     def _on_tenant_switched(self) -> None:
         self._organization_view_invalidation_adapter.set_active_tenant(
             self._tenant_switcher.activeTenantId
@@ -467,6 +519,22 @@ class PlatformWorkspaceCatalog(QObject):
             organization_id=self._active_organization_id(),
         )
         self._site_view_invalidation_adapter.set_active_scope(
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+        )
+        self._party_view_invalidation_adapter.set_active_scope(
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+        )
+        self._document_view_invalidation_adapter.set_active_scope(
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+        )
+        self._document_structure_view_invalidation_adapter.set_active_scope(
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+        )
+        self._document_links_view_invalidation_adapter.set_active_scope(
             tenant_id=self._tenant_switcher.activeTenantId,
             organization_id=self._active_organization_id(),
         )

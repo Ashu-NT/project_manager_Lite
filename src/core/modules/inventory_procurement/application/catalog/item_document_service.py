@@ -10,7 +10,6 @@ from src.core.modules.inventory_procurement.application.catalog.item_queries imp
     get_item,
 )
 from src.core.platform.domain.master_data.documents import Document, DocumentLink
-from src.core.shared.events.domain_events import domain_events
 
 
 def list_linked_documents(
@@ -65,7 +64,6 @@ def link_document(
         document_id=document_id,
         link_role=link_role,
     )
-    domain_events.inventory_items_changed.emit(item.id)
     return link
 
 
@@ -92,7 +90,6 @@ def unlink_document(
         document_id=document_id,
         link_role=link_role,
     )
-    domain_events.inventory_items_changed.emit(item.id)
 
 
 __all__ = [

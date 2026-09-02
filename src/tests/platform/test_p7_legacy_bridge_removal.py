@@ -104,16 +104,16 @@ def test_subscribe_domain_change_no_longer_exists_on_any_controller_base():
 
 
 def test_all_still_unmodernized_signals_survive_with_real_direct_consumers():
-    """`organizations_changed`/`employees_changed`/`departments_changed`/`sites_changed` are
-    deliberately absent from this list (P10D, P12B, P13B, P14B): all four capabilities are now
-    fully modernized (create/profile events are typed), so their legacy signals were actually
-    deleted, not merely left un-bridged like the ones below."""
+    """`organizations_changed`/`employees_changed`/`departments_changed`/`sites_changed`/
+    `parties_changed`/`documents_changed` are deliberately absent from this list (P10D, P12B,
+    P13B, P14B, P15B, P16D): all six capabilities are now fully modernized (create/profile events
+    are typed), so their legacy signals were actually deleted, not merely left un-bridged like
+    the ones below. `inventory_items_changed`/`inventory_item_categories_changed` are likewise
+    deliberately absent -- P24 fully modernized Item Catalog + Item Category."""
 
     for signal_name in (
         "auth_changed",
         "project_changed", "tasks_changed", "resources_changed",
-        "documents_changed", "parties_changed",
-        "inventory_items_changed", "inventory_storerooms_changed",
     ):
         assert hasattr(domain_events, signal_name), f"{signal_name} was deleted, not just un-bridged"
 
@@ -224,21 +224,30 @@ def test_pm_register_workspace_does_not_react_to_an_unrelated_inventory_signal(s
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.inventory_items_changed.emit(_unique("p7a-unrelated-inventory"))
+    domain_events.inventory_balances_changed.emit(_unique("p7a-unrelated-inventory"))
 
     assert refresh_calls == []
 
 
 def test_inventory_dashboard_direct_wired_to_every_inventory_signal(services):
-    """Inventory's dashboard binder now connects directly to all 10 inventory-module signals --
-    no generic `scope_code="inventory_procurement"` bridge filter involved."""
+    """Inventory's dashboard binder now connects directly to every still-legacy inventory-module
+    signal -- no generic `scope_code="inventory_procurement"` bridge filter involved.
+    `inventory_items_changed` is gone (P24): Dashboard's real Item dependency (low-stock row
+    labels) now reaches it through `InventoryCatalogViewInvalidationAdapter.itemListStale`,
+    proven separately alongside the remaining direct-wired legacy signal. `inventory_purchase_
+    orders_changed` is gone too (P28B): Dashboard's real PO/Requisition/Balance KPI dependency
+    now reaches it through `PurchaseOrderViewInvalidationAdapter.purchaseOrderListStale`."""
     inventory_catalog = _inventory_catalog(services)
     controller = inventory_catalog.dashboardWorkspace
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.inventory_items_changed.emit(_unique("p7a-inv-item"))
-    domain_events.inventory_purchase_orders_changed.emit(_unique("p7a-inv-po"))
+    inventory_catalog._dashboard_catalog_view_invalidation_adapter.itemListStale.emit(
+        _unique("p7a-inv-item")
+    )
+    inventory_catalog._dashboard_purchase_order_view_invalidation_adapter.purchaseOrderListStale.emit(
+        _unique("p7a-inv-po")
+    )
 
     assert refresh_calls == ["refresh", "refresh"]
 
@@ -254,19 +263,11 @@ def test_inventory_dashboard_does_not_react_to_an_unrelated_pm_signal(services):
     assert refresh_calls == []
 
 
-def test_inventory_catalog_workspace_direct_wired_to_shared_master_document_and_party(services):
-    """Inventory's catalog binder now connects directly to `documents_changed`/`parties_changed`
-    (its own cross-module shared-master dependency) -- no generic `scope_code="platform"` bridge
-    filter involved."""
-    inventory_catalog = _inventory_catalog(services)
-    controller = inventory_catalog.catalogWorkspace
-    refresh_calls = []
-    controller.refresh = lambda: refresh_calls.append("refresh")
-
-    domain_events.documents_changed.emit(_unique("p7a-doc"))
-    domain_events.parties_changed.emit(_unique("p7a-party"))
-
-    assert refresh_calls == ["refresh", "refresh"]
+# P16D removed `test_inventory_catalog_workspace_direct_wired_to_shared_master_document`:
+# Catalog's binder no longer subscribes to `documents_changed` at all -- Document changes now
+# reach this workspace only through the narrow `refresh_document_options()`/
+# `refresh_selected_item_linked_documents()` typed-event paths, not this composite signal. See
+# test_p16d_document_link_typed_events.py.
 
 
 def test_inventory_catalog_workspace_does_not_react_to_an_unrelated_shared_master_signal(services):
@@ -281,21 +282,6 @@ def test_inventory_catalog_workspace_does_not_react_to_an_unrelated_shared_maste
     domain_events.auth_changed.emit(_unique("p7a-unrelated-auth"))
 
     assert refresh_calls == []
-
-
-def test_inventory_workspace_direct_wired_to_shared_master_party(services):
-    """Inventory's `inventory` binder still connects directly to `parties_changed` (its own
-    cross-module shared-master dependency) -- no generic `category="shared_master"` bridge filter
-    involved. `sites_changed` was removed by P14B: Site changes now reach this workspace only
-    through the narrow `refresh_site_options()` typed-event path, not this composite signal."""
-    inventory_catalog = _inventory_catalog(services)
-    controller = inventory_catalog.inventoryWorkspace
-    refresh_calls = []
-    controller.refresh = lambda: refresh_calls.append("refresh")
-
-    domain_events.parties_changed.emit(_unique("p7a-inv-party"))
-
-    assert refresh_calls == ["refresh"]
 
 
 # ---------------------------------------------------------------------------
@@ -382,9 +368,9 @@ def test_admin_console_domain_event_binder_never_touches_the_generic_bridge():
 def test_admin_console_still_composite_refreshes_on_the_one_genuinely_unmodernized_signal(
     services,
 ):
-    """Organization, Employee, and Department are no longer in this list (P10D, P12B, P13B): all
-    three are fully modernized and route through their own typed ViewInvalidation targets
-    instead."""
+    """Organization, Employee, Department, Site, and Party are no longer in this list (P10D, P12B,
+    P13B, P14B, P15B): all five are fully modernized and route through their own typed
+    ViewInvalidation targets instead."""
     catalog = _catalog(services)
     admin = catalog.adminWorkspace
     refresh_calls = []
@@ -406,7 +392,6 @@ def test_pm_dashboard_still_does_not_react_to_unrelated_capability_events(servic
     refresh_calls = []
     dashboard.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.documents_changed.emit(_unique("p7-dashboard-doc"))
     domain_events.auth_changed.emit(_unique("p7-dashboard-auth"))
 
     assert refresh_calls == []

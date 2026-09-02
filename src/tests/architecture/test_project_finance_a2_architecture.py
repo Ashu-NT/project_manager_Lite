@@ -96,9 +96,8 @@ def test_canonical_finance_snapshot_replaces_transient_forecast_formulas() -> No
         / "financials"
         / "builders"
     )
-    desktop_builders = "\n".join(
-        (builder_root / name).read_text(encoding="utf-8")
-        for name in ("forecast_builder.py", "commitment_builder.py")
+    commitment_builder = (builder_root / "commitment_builder.py").read_text(
+        encoding="utf-8"
     )
 
     assert "ForecastCostService" not in project_registry
@@ -115,6 +114,7 @@ def test_canonical_finance_snapshot_replaces_transient_forecast_formulas() -> No
     )
     assert "finance_workspace_query" not in dashboard_keywords
     assert "finance_workspace_query" in financials_keywords
-    assert "list_cost_items_for_project" not in desktop_builders
-    assert "_compute_etc_eac" not in desktop_builders
-    assert "result.bac *" not in desktop_builders
+    assert not (builder_root / "forecast_builder.py").exists()
+    assert "list_cost_items_for_project" not in commitment_builder
+    assert "_compute_etc_eac" not in commitment_builder
+    assert "result.bac *" not in commitment_builder

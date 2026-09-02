@@ -1,9 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from src.core.modules.project_management.application.financials.financial_changes.service import (
     FinancialChangeService,
+)
+from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
+    ForecastVersionChangeType,
+    ForecastVersionChanged,
+)
+from src.core.modules.project_management.application.financials.invalidation import (
+    invalidation_scope,
 )
 from src.core.modules.project_management.infrastructure.approval._financial_decision_actor import (
     require_financial_decision_actor,
@@ -38,14 +46,31 @@ class FinancialChangeApprovalParticipant:
             change_id=request.payload["change_id"],
             approval_request_id=request.id,
             applied_by=applied_by,
-            commit=False,
         )
-        events = []
+        events = [
+            ApprovalPostCommitEvent(
+                "financial_changes_changed", invalidation_scope(change)
+            )
+        ]
         if change.applied_budget_id:
             events.append(ApprovalPostCommitEvent("budgets_changed", change.project_id))
         if change.applied_schedule_count:
             events.append(ApprovalPostCommitEvent("tasks_changed", change.project_id))
-        return ApprovalHandlerResult(post_commit_events=tuple(events))
+        domain_events: tuple[ForecastVersionChanged, ...] = ()
+        if change.applied_forecast_id:
+            domain_events = (
+                ForecastVersionChanged(
+                    tenant_id=change.tenant_id,
+                    organization_id=change.organization_id,
+                    project_id=change.project_id,
+                    forecast_id=change.applied_forecast_id,
+                    change_type=ForecastVersionChangeType.APPROVED,
+                    occurred_at=change.applied_at or datetime.now(timezone.utc),
+                ),
+            )
+        return ApprovalHandlerResult(
+            post_commit_events=tuple(events), domain_events=domain_events
+        )
 
     def reject(
         self, request: ApprovalRequest, deps: FinancialChangeApprovalDeps
@@ -53,14 +78,19 @@ class FinancialChangeApprovalParticipant:
         rejected_by = require_financial_decision_actor(
             deps.financial_change_service._user_session
         )
-        deps.financial_change_service._apply_rejection_decision(
+        change = deps.financial_change_service._apply_rejection_decision(
             change_id=request.payload["change_id"],
             approval_request_id=request.id,
             rejected_by=rejected_by,
             notes=request.decision_note or "",
-            commit=False,
         )
-        return ApprovalHandlerResult()
+        return ApprovalHandlerResult(
+            post_commit_events=(
+                ApprovalPostCommitEvent(
+                    "financial_changes_changed", invalidation_scope(change)
+                ),
+            )
+        )
 
 
 __all__ = ["FinancialChangeApprovalDeps", "FinancialChangeApprovalParticipant"]

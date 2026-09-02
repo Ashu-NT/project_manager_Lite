@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from contextlib import contextmanager
+from pathlib import Path
 from unittest.mock import MagicMock, call
 
 import pytest
@@ -23,8 +24,12 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
 from src.core.modules.project_management.api.desktop.financials.models.changes import (
     FinancialChangeWorkspaceDto,
 )
+from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
+    FinancialAccountingStatusPageDto,
+)
 from src.core.modules.project_management.api.desktop.financials.models.options import (
-    FinancialProjectOptionDescriptor,
+    FinancialLookupOptionDto,
+    FinancialLookupPageDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
     FinancialOverviewDto,
@@ -92,15 +97,16 @@ def _overview() -> FinancialOverviewDto:
 
 def test_shell_loads_only_project_selector_options() -> None:
     api = MagicMock()
-    api.list_projects.return_value = (
-        FinancialProjectOptionDescriptor("project-1", "Project One"),
+    api.search_finance_projects.return_value = FinancialLookupPageDto(
+        items=(FinancialLookupOptionDto("project-1", "Project One"),),
+        total=1,
     )
 
     state = build_shell_state(api)
 
     assert state.selected_project_id == "project-1"
-    api.list_projects.assert_called_once_with()
-    assert api.method_calls == [call.list_projects()]
+    api.search_finance_projects.assert_called_once_with(page=1, page_size=25)
+    assert api.method_calls == [call.search_finance_projects(page=1, page_size=25)]
 
 
 def test_overview_uses_bounded_overview_contract_only() -> None:
@@ -122,15 +128,22 @@ def test_overview_uses_bounded_overview_contract_only() -> None:
 
 def test_planning_budget_tab_does_not_query_cost_or_performance_reads() -> None:
     api = MagicMock()
-    api.get_budget_workspace.return_value = FinancialConfigurationWorkspaceDto()
+    api.get_budget_workspace.return_value = FinancialConfigurationWorkspaceDto(
+        show_create_budget_version=True,
+        can_create_budget_version=False,
+        create_budget_version_disabled_reason="An open version exists.",
+    )
 
-    build_destination_state(
+    state = build_destination_state(
         api,
         destination="planning",
         subsection="budgets",
         selected_project_id="project-1",
     )
 
+    assert state.show_create_budget_version is True
+    assert state.can_create_budget_version is False
+    assert state.create_budget_version_disabled_reason == "An open version exists."
     api.get_budget_workspace.assert_called_once()
     kwargs = api.get_budget_workspace.call_args.kwargs
     assert kwargs["selected_budget_id"] == ""
@@ -281,6 +294,11 @@ def test_budget_reader_pages_versions_and_selected_lines_authoritatively(service
     assert first_page.lines.total == 1
     assert first_page.lines.items[0].budget_id == first.id
     assert first_page.lines.items[0].amount == Decimal("125")
+    assert first_page.show_create_version is True
+    assert first_page.can_create_version is False
+    assert "Draft or Submitted budget is already open" in (
+        first_page.create_version_disabled_reason
+    )
 
     second_page = query.get_budget_workspace(
         project.id,
@@ -714,11 +732,23 @@ Window {
         id: host
         objectName: "financialsDialogHost"
         selectedProjectId: "project-1"
-        manualActualOptions: ({
+        workspaceController: controller
+        manualActualDefaults: ({
             "currencyCode": "XAF",
-            "costCodes": [],
             "entryKinds": [{"label": "Actual", "value": "actual"}]
         })
+    }
+    QtObject {
+        id: controller
+        function resolveManualActualProject(projectId) {
+            return {"ok": true, "item": {"value": projectId, "label": "Project One"}}
+        }
+        function loadManualActualDefaults(projectId) {
+            return {"ok": true, "currencyCode": "XAF", "entryKinds": [{"label": "Actual", "value": "actual"}]}
+        }
+        function resolveManualActualTask(projectId, taskId) { return {"ok": true, "item": null} }
+        function resolveManualActualCostCode(projectId, codeId, effectiveOn) { return {"ok": true, "item": null} }
+        function newFinancialCommandId() { return "command-1" }
     }
     Timer {
         interval: 0
@@ -741,7 +771,196 @@ Window {
     assert dialog is not None
     assert dialog.property("opened") is True
     assert dialog.property("primaryEnabled") is False
-    assert "No active cost code" in str(dialog.property("infoMessage"))
+    assert "active cost code" in str(dialog.property("infoMessage"))
+    window.deleteLater()
+
+
+def test_searchable_selector_rejects_stale_context_result(qapp) -> None:
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    component.setData(
+        b"""
+import QtQuick
+import App.Controls 1.0
+Window {
+    property bool staleAccepted: true
+    property int acceptedItemCount: -1
+    visible: true
+    width: 640
+    height: 480
+    SearchablePagedSelector {
+        id: selector
+        objectName: "staleSelector"
+        contextKey: "project-a"
+    }
+    Component.onCompleted: {
+        selector.requestLookup(1)
+        const oldGeneration = selector._generation
+        selector.contextKey = "project-b"
+        selector.clearSelection()
+        staleAccepted = selector.acceptResult({
+            "ok": true,
+            "items": [{"value": "task-a", "label": "Old project task"}],
+            "page": 1,
+            "total": 1,
+            "hasMore": false
+        }, oldGeneration, "project-a")
+        acceptedItemCount = selector.items.length
+    }
+}
+""",
+        QUrl(),
+    )
+    assert component.isReady(), [error.toString() for error in component.errors()]
+    window = component.create()
+    assert window is not None
+    qapp.processEvents()
+    assert window.property("staleAccepted") is False
+    assert window.property("acceptedItemCount") == 0
+    window.deleteLater()
+
+
+def test_searchable_selector_appends_server_pages_without_pagination_buttons(qapp) -> None:
+    source = Path(
+        "src/ui_qml/shared/qml/App/Controls/SearchablePagedSelector.qml"
+    ).read_text(encoding="utf-8")
+    assert 'text: "Prev"' not in source
+    assert 'text: "Next"' not in source
+    assert ' + " of " +' not in source
+    assert '"0 results"' not in source
+
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    component.setData(
+        b"""
+import QtQuick
+import App.Controls 1.0
+Window {
+    property int acceptedItemCount: -1
+    property string secondItemLabel: ""
+    visible: true
+    width: 640
+    height: 480
+    SearchablePagedSelector {
+        id: selector
+        contextKey: "project-a"
+    }
+    Component.onCompleted: {
+        selector.requestLookup(1)
+        selector.acceptResult({
+            "ok": true,
+            "items": [{"value": "one", "label": "One"}],
+            "page": 1,
+            "total": 2,
+            "hasMore": true
+        }, selector._generation, "project-a")
+        selector.requestLookup(2)
+        selector.acceptResult({
+            "ok": true,
+            "items": [{"value": "two", "label": "Two"}],
+            "page": 2,
+            "total": 2,
+            "hasMore": false
+        }, selector._generation, "project-a")
+        acceptedItemCount = selector.items.length
+        secondItemLabel = selector.items[1].label
+    }
+}
+""",
+        QUrl(),
+    )
+    assert component.isReady(), [error.toString() for error in component.errors()]
+    window = component.create()
+    assert window is not None
+    qapp.processEvents()
+    assert window.property("acceptedItemCount") == 2
+    assert window.property("secondItemLabel") == "Two"
+    window.deleteLater()
+
+
+@pytest.mark.parametrize(
+    ("width", "height"),
+    ((1024, 640), (1280, 720), (1366, 768), (1440, 900), (1920, 1080)),
+)
+def test_manual_actual_and_accounting_fit_supported_viewports(
+    qapp, width: int, height: int
+) -> None:
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    component.setData(
+        b"""
+import QtQuick
+import workspaces.financials.dialogs 1.0
+import workspaces.financials.panels 1.0
+Window {
+    visible: true
+    FinancialsDetailPanel {
+        id: panel
+        objectName: "financialsPanel"
+        anchors.fill: parent
+        activeDestination: "commercial"
+        activeSubsection: "accounting"
+        billingPreparationsModel: ({
+            "title": "Accounting Outcomes",
+            "items": [{"id": "prep-1", "title": "BP-0001"}],
+            "page": 1, "pageSize": 25, "total": 1
+        })
+    }
+    ManualActualEditorDialog {
+        id: dialog
+        workspaceController: controller
+        initialProjectId: "project-1"
+        initialDefaults: ({
+            "currencyCode": "XAF",
+            "entryKinds": [{"label": "Actual", "value": "actual"}]
+        })
+    }
+    QtObject {
+        id: controller
+        function resolveManualActualProject(projectId) {
+            return {"ok": true, "item": {"value": projectId, "label": "Project One"}}
+        }
+        function loadManualActualDefaults(projectId) {
+            return {"ok": true, "currencyCode": "XAF", "entryKinds": [{"label": "Actual", "value": "actual"}]}
+        }
+        function resolveManualActualTask(projectId, taskId) { return {"ok": true, "item": null} }
+        function resolveManualActualCostCode(projectId, codeId, effectiveOn) { return {"ok": true, "item": null} }
+        function newFinancialCommandId() { return "command-1" }
+    }
+    Timer {
+        interval: 0
+        running: true
+        repeat: false
+        onTriggered: dialog.open()
+    }
+}
+""",
+        QUrl(),
+    )
+    assert component.isReady(), [error.toString() for error in component.errors()]
+    window = component.create()
+    assert window is not None
+    window.setProperty("width", width)
+    window.setProperty("height", height)
+    window.show()
+    for _ in range(8):
+        qapp.processEvents()
+
+    panel = window.findChild(QObject, "financialsPanel")
+    accounting = window.findChild(QObject, "financialsAccountingSection")
+    dialog = window.findChild(QObject, "manualActualEditorDialog")
+    selectors = (
+        window.findChild(QObject, "manualActualProjectSelector"),
+        window.findChild(QObject, "manualActualTaskSelector"),
+        window.findChild(QObject, "manualActualCostCodeSelector"),
+    )
+    assert panel is not None and accounting is not None and dialog is not None
+    assert float(panel.property("width")) == width
+    assert 0 < float(accounting.property("width")) <= width
+    assert dialog.property("opened") is True
+    assert float(dialog.property("width")) <= width
+    assert all(selector is not None for selector in selectors)
+    assert all(0 < float(selector.property("width")) <= float(dialog.property("width")) for selector in selectors)
     window.deleteLater()
 
 
@@ -787,8 +1006,7 @@ Window {
 def test_cost_actuals_tab_loads_only_paged_actual_dependencies() -> None:
     api = MagicMock()
     api.list_cost_entries.return_value = FinancialCostEntryPageDto()
-    api.get_manual_actual_options.return_value = FinancialManualActualOptionsDto()
-    api.list_tasks.return_value = ()
+    api.get_manual_actual_defaults.return_value = FinancialManualActualOptionsDto()
 
     build_destination_state(
         api,
@@ -806,8 +1024,47 @@ def test_cost_actuals_tab_loads_only_paged_actual_dependencies() -> None:
         sort_key="metaText",
         sort_direction="desc",
     )
-    api.get_manual_actual_options.assert_called_once_with("project-1")
-    api.list_tasks.assert_called_once_with("project-1")
+    api.get_manual_actual_defaults.assert_called_once_with("project-1")
+    assert not hasattr(api, "list_tasks") or api.list_tasks.call_count == 0
+
+
+def test_commercial_accounting_uses_only_isolated_status_page() -> None:
+    api = MagicMock()
+    api.get_accounting_statuses.return_value = FinancialAccountingStatusPageDto(
+        page=2,
+        page_size=25,
+        total=30,
+    )
+
+    state = build_destination_state(
+        api,
+        destination="commercial",
+        subsection="accounting",
+        selected_project_id="project-1",
+        billing_preparation_page=2,
+        configuration_page_size=25,
+        billing_preparation_search="acknowledged",
+    )
+
+    assert state.billing_preparations.page == 2
+    api.get_accounting_statuses.assert_called_once_with(
+        "project-1",
+        page=2,
+        page_size=25,
+        sort_key="metaText",
+        sort_direction="desc",
+        search="acknowledged",
+    )
+    assert api.method_calls == [
+        call.get_accounting_statuses(
+            "project-1",
+            page=2,
+            page_size=25,
+            sort_key="metaText",
+            sort_direction="desc",
+            search="acknowledged",
+        )
+    ]
 
 
 def test_controls_activity_uses_project_scoped_enterprise_audit_only() -> None:

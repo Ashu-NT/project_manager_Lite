@@ -4,6 +4,8 @@ from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
+    AccountingStatusFact,
+    AccountingStatusQuery,
     BillingPreparationDetailFact,
     BillingPreparationLineFact,
     BillingPreparationLineQuery,
@@ -45,6 +47,119 @@ class SqlAlchemyFinanceBillingReader:
 
     def __init__(self, *, session: Session) -> None:
         self._session = session
+
+    def list_accounting_statuses(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        request: AccountingStatusQuery,
+    ) -> FinancePageFacts[AccountingStatusFact]:
+        correction = aliased(ProjectBillingPreparationORM)
+        latest = _latest_event_subquery(tenant_id, organization_id, project_id)
+        conditions = [
+            ProjectBillingPreparationORM.tenant_id == tenant_id,
+            ProjectBillingPreparationORM.organization_id == organization_id,
+            ProjectBillingPreparationORM.project_id == project_id,
+        ]
+        if request.search.strip():
+            pattern = f"%{request.search.strip()}%"
+            conditions.append(
+                or_(
+                    ProjectBillingPreparationORM.preparation_number.ilike(pattern),
+                    correction.preparation_number.ilike(pattern),
+                    latest.c.external_system.ilike(pattern),
+                    latest.c.external_status.ilike(pattern),
+                    latest.c.external_invoice_reference.ilike(pattern),
+                    latest.c.reconciliation_reference.ilike(pattern),
+                )
+            )
+        base = (
+            select(
+                ProjectBillingPreparationORM.id,
+                ProjectBillingPreparationORM.preparation_number,
+                ProjectBillingPreparationORM.status,
+                ProjectBillingPreparationORM.correction_of_preparation_id,
+                correction.preparation_number.label("correction_number"),
+                ProjectBillingPreparationORM.delivery_requested_at,
+                latest.c.event_type.label("external_event_type"),
+                latest.c.external_system,
+                latest.c.external_status,
+                latest.c.external_invoice_reference,
+                latest.c.reconciliation_reference,
+                latest.c.message.label("external_message"),
+                latest.c.occurred_at.label("external_occurred_at"),
+                ProjectBillingPreparationORM.updated_at,
+            )
+            .select_from(ProjectBillingPreparationORM)
+            .outerjoin(
+                correction,
+                and_(
+                    correction.id
+                    == ProjectBillingPreparationORM.correction_of_preparation_id,
+                    correction.tenant_id == ProjectBillingPreparationORM.tenant_id,
+                    correction.organization_id
+                    == ProjectBillingPreparationORM.organization_id,
+                    correction.project_id == ProjectBillingPreparationORM.project_id,
+                ),
+            )
+            .outerjoin(latest, _latest_event_join(latest))
+            .where(*conditions)
+        )
+        total = int(self._session.scalar(select(func.count()).select_from(base.subquery())) or 0)
+        page, page_size, offset = _window(
+            request.normalized_page, request.normalized_page_size, total
+        )
+        status_expression = func.coalesce(
+            latest.c.external_status,
+            ProjectBillingPreparationORM.status,
+        )
+        sorts = {
+            "title": ProjectBillingPreparationORM.preparation_number,
+            "statusLabel": status_expression,
+            "metaText": func.coalesce(
+                latest.c.occurred_at, ProjectBillingPreparationORM.updated_at
+            ),
+        }
+        direction = "asc" if request.sort_direction == "asc" else "desc"
+        expression = sorts[request.normalized_sort_key]
+        order = expression.asc() if direction == "asc" else expression.desc()
+        rows = self._session.execute(
+            base.order_by(order, ProjectBillingPreparationORM.id.asc())
+            .offset(offset)
+            .limit(page_size)
+        ).all()
+        return FinancePageFacts(
+            items=tuple(
+                AccountingStatusFact(
+                    id=str(row.id),
+                    preparation_number=str(row.preparation_number),
+                    preparation_status=str(row.status),
+                    correction_of_preparation_id=row.correction_of_preparation_id,
+                    correction_of_preparation_number=row.correction_number or "",
+                    delivery_requested_at=row.delivery_requested_at,
+                    latest_external_event_type=row.external_event_type or "",
+                    latest_external_system=row.external_system or "",
+                    latest_external_status=row.external_status or "",
+                    latest_external_invoice_reference=(
+                        row.external_invoice_reference or ""
+                    ),
+                    latest_reconciliation_reference=(
+                        row.reconciliation_reference or ""
+                    ),
+                    latest_external_message=row.external_message or "",
+                    latest_external_occurred_at=row.external_occurred_at,
+                    updated_at=row.updated_at,
+                )
+                for row in rows
+            ),
+            total=total,
+            page=page,
+            page_size=page_size,
+            sort_key=request.normalized_sort_key,
+            sort_direction=direction,
+        )
 
     def get_profile(self, *, tenant_id: str, organization_id: str, project_id: str) -> BillingProfileFact | None:
         row = self._session.execute(

@@ -30,15 +30,10 @@ def build_employee_audit_details(employee: Employee) -> dict[str, str]:
 def sync_linked_employee_resources(
     employee: Employee,
     resource_repo: LinkedEmployeeResourceRepository | None,
-) -> tuple[str, ...]:
-    """Stages the linked-resource mutations only — does not emit events or
-    commit. Returns the IDs of every touched resource so the caller can emit
-    `resources_changed` for each one only after its own commit succeeds;
-    emitting here, before the caller's commit, would fire events for rows
-    that could still be rolled back."""
+) -> tuple[LinkedEmployeeResource, ...]:
     if resource_repo is None:
         return ()
-    touched_resource_ids: list[str] = []
+    touched_resources: list[LinkedEmployeeResource] = []
     for resource in resource_repo.list_by_employee(employee.id):
         if _worker_type_code(resource) != "employee":
             continue
@@ -47,8 +42,8 @@ def sync_linked_employee_resources(
             resource.role = employee.title
         resource.contact = employee_contact(employee)
         resource_repo.update(resource)
-        touched_resource_ids.append(resource.id)
-    return tuple(touched_resource_ids)
+        touched_resources.append(resource)
+    return tuple(touched_resources)
 
 
 def _worker_type_code(resource: LinkedEmployeeResource) -> str:

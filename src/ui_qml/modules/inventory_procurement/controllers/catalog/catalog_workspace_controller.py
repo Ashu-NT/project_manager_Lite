@@ -43,6 +43,11 @@ from .catalog_mutation_handler import (
     update_item,
 )
 from .catalog_refresh_service import refresh as _do_refresh
+from .catalog_refresh_service import refresh_document_options as _do_refresh_document_options
+from .catalog_refresh_service import refresh_party_options as _do_refresh_party_options
+from .catalog_refresh_service import (
+    refresh_selected_item_linked_documents as _do_refresh_selected_item_linked_documents,
+)
 from .catalog_selection_handler import (
     select_category,
     select_item,
@@ -316,6 +321,27 @@ class InventoryProcurementCatalogWorkspaceController(
     @Slot()
     def refresh(self) -> None:
         _do_refresh(self)
+
+    def refresh_party_options(self) -> None:
+        _do_refresh_party_options(self)
+
+    def refresh_document_options(self) -> None:
+        _do_refresh_document_options(self)
+
+    def refresh_selected_item_linked_documents(self) -> None:
+        _do_refresh_selected_item_linked_documents(self)
+
+    def on_document_links_stale(self, module_code: str, entity_type: str, entity_id: str) -> None:
+        """Narrow reaction to the forward (module_code/entity_type/entity_id) shape of the
+        `document_links` ViewInvalidation target -- refreshes the selected item's own
+        linked_documents projection only when it's the item that actually changed, never a
+        full catalog refresh (P16D)."""
+        if (
+            module_code == "inventory_procurement"
+            and entity_type == "stock_item"
+            and entity_id == self._selected_item_id
+        ):
+            self.refresh_selected_item_linked_documents()
 
     @Slot(str)
     def setSearchText(self, search_text: str) -> None:

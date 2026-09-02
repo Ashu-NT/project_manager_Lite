@@ -87,6 +87,7 @@ class ProjectBudget:
     project_id: str
     name: str
     currency_code: str
+    predecessor_budget_id: str | None = None
     status: BudgetStatus = BudgetStatus.DRAFT
     revision: int = 1
     row_version: int = 1
@@ -134,7 +135,7 @@ class ProjectBudget:
         return currency.code
 
     @field_validator(
-        "submitted_by", "approved_by", "rejected_by", "superseded_by", "closed_by",
+        "predecessor_budget_id", "submitted_by", "approved_by", "rejected_by", "superseded_by", "closed_by",
         mode="before",
     )
     @classmethod
@@ -270,6 +271,7 @@ class ProjectBudget:
         project_id: str,
         name: str,
         currency_code: str,
+        predecessor_budget_id: str | None = None,
         revision: int = 1,
         created_at: datetime | None = None,
         **values,
@@ -280,6 +282,7 @@ class ProjectBudget:
             tenant_id=tenant_id,
             organization_id=organization_id,
             project_id=project_id,
+            predecessor_budget_id=predecessor_budget_id,
             name=name,
             currency_code=currency_code,
             revision=revision,

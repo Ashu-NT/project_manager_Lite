@@ -20,6 +20,9 @@ from src.core.platform.contract.repositories.master_data.employee.contracts impo
     EmployeeRepository,
     LinkedEmployeeResourceRepository,
 )
+from src.core.platform.contract.interface.master_data.employee.contracts import (
+    ResourceMasterEventFactory,
+)
 from src.core.platform.contract.read.master_data.employee.employee_headcount_reader import (
     EmployeeDepartmentBreakdownRow,
     EmployeeHeadcountReader,
@@ -37,7 +40,6 @@ from src.core.platform.contract.repositories.master_data.site.contracts import S
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.time.clock import Clock
 
 if TYPE_CHECKING:
@@ -59,6 +61,7 @@ class EmployeeService:
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
         headcount_reader: EmployeeHeadcountReader | None = None,
+        resource_master_event_factory: ResourceMasterEventFactory | None = None,
         uow_factory: EmployeeUnitOfWorkFactory,
         clock: Clock,
     ):
@@ -69,16 +72,10 @@ class EmployeeService:
         self._department_repo = department_repo
         self._organization_repo = organization_repo
         self._headcount_reader = headcount_reader
+        self._resource_master_event_factory = resource_master_event_factory
         self._uow_factory = uow_factory
         self._clock = clock
-        self._tenant_context_service = tenant_context_service or (
-            TenantContextService(
-                organization_repo=organization_repo,
-                user_session=user_session,
-            )
-            if organization_repo is not None
-            else None
-        )
+        self._tenant_context_service = tenant_context_service
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
 
@@ -260,7 +257,7 @@ class EmployeeService:
 
             try:
                 uow.employees.update(candidate)
-                touched_resource_ids = sync_linked_employee_resources(candidate, uow.resources)
+                touched_resources = sync_linked_employee_resources(candidate, uow.resources)
                 record_audit_entry(
                     uow,
                     operation="update",
@@ -280,11 +277,16 @@ class EmployeeService:
                         occurred_at=self._clock.now(),
                     )
                 )
+                if self._resource_master_event_factory is not None:
+                    for resource in touched_resources:
+                        uow.record_event(
+                            self._resource_master_event_factory(
+                                resource, tenant_id=tenant_id, organization_id=organization_id
+                            )
+                        )
                 uow.commit()
             except IntegrityError as exc:
                 raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS") from exc
-        for resource_id in touched_resource_ids:
-            domain_events.resources_changed.emit(resource_id)
         return candidate
 
     def list_employees(

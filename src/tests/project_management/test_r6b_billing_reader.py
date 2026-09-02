@@ -11,6 +11,7 @@ from sqlalchemy import event
 
 from src.core.modules.project_management.api.desktop.financials import ProjectManagementFinancialsDesktopApi
 from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
+    AccountingStatusQuery,
     BillingPreparationLineQuery,
     BillingPreparationQuery,
     BillingScheduleQuery,
@@ -185,6 +186,41 @@ def test_billing_readers_are_bounded_sorted_filtered_and_selection_is_explicit(s
     assert workspace.lines.items == ()
 
 
+def test_accounting_status_reader_is_bounded_isolated_and_scope_safe(services):
+    project, scope = _seed_billing(services)
+    reader = services["finance_workspace_query"]._billing_reader
+
+    with _statement_count(services["session"]) as statements:
+        page = reader.list_accounting_statuses(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project.id,
+            request=AccountingStatusQuery(page_size=1, search="ACCOUNTING"),
+        )
+
+    assert len(statements) == 2
+    normalized_sql = " ".join(statements).lower()
+    assert "project_billing_profiles" not in normalized_sql
+    assert "project_billing_schedule_lines" not in normalized_sql
+    assert "project_billing_preparation_lines" not in normalized_sql
+    assert page.total == 1
+    assert page.items[0].preparation_number == "BP-0001"
+    assert page.items[0].latest_external_status == "accepted"
+    assert page.items[0].latest_external_invoice_reference == "INV-EXT-7"
+    assert reader.list_accounting_statuses(
+        tenant_id="foreign-tenant",
+        organization_id=scope.organization_id,
+        project_id=project.id,
+        request=AccountingStatusQuery(),
+    ).total == 0
+    assert reader.list_accounting_statuses(
+        tenant_id=scope.tenant_id,
+        organization_id="foreign-organization",
+        project_id=project.id,
+        request=AccountingStatusQuery(),
+    ).total == 0
+
+
 def test_selected_billing_detail_and_lines_are_bounded_and_truthful(services):
     project, scope = _seed_billing(services)
     reader = services["finance_workspace_query"]._billing_reader
@@ -307,3 +343,10 @@ def test_billing_qml_contract_is_server_read_only():
     assert "Local handoff" not in text
     for forbidden in ('text: "Create Preparation"', 'text: "Approve Preparation"', 'text: "Deliver"', 'text: "Edit Profile"'):
         assert forbidden not in text
+
+
+def test_billing_filter_helpers_are_safe_during_qml_initialization():
+    source = "src/ui_qml/modules/project_management/qml/workspaces/financials/sections/FinancialsBillingPreparationSection.qml"
+    text = open(source, encoding="utf-8").read()
+    assert "replaceAll" not in text
+    assert "if (!model || model.length === undefined) return 0" in text

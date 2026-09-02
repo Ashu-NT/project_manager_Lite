@@ -19,6 +19,10 @@ def run_mutation(
     set_error_message,
     set_feedback_message,
     safe_errors: bool = False,
+    safe_validation_message: str = "Review the highlighted resource fields and try again.",
+    safe_validation_code: str = "RESOURCE_INPUT_INVALID",
+    safe_failure_message: str = "The resource change could not be completed. Try again or reload the record.",
+    safe_failure_code: str = "RESOURCE_MUTATION_FAILED",
 ) -> dict[str, object]:
     payload: dict[str, object] = {
         "ok": False,
@@ -47,14 +51,15 @@ def run_mutation(
                     location = item.get("loc") or ()
                     field = str(location[-1]) if location else "form"
                     field_errors[field] = str(item.get("msg") or "Invalid value.")
-                message = "Review the highlighted resource fields and try again."
-                code = "RESOURCE_INPUT_INVALID"
+                message = safe_validation_message
+                code = safe_validation_code
             elif safe_errors and isinstance(exc, (TypeError, ValueError)):
                 category = "validation"
-                code = "RESOURCE_INPUT_INVALID"
+                message = safe_validation_message
+                code = safe_validation_code
             elif safe_errors:
-                message = "The resource change could not be completed. Try again or reload the record."
-                code = "RESOURCE_MUTATION_FAILED"
+                message = safe_failure_message
+                code = safe_failure_code
             set_feedback_message("")
             set_error_message(message)
             payload = {

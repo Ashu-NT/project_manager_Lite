@@ -7,6 +7,8 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, call
 
 import pytest
+from PySide6.QtCore import QObject, QUrl
+from PySide6.QtQml import QQmlComponent
 from sqlalchemy import event
 
 from src.core.modules.project_management.api.desktop.financials.models.performance import (
@@ -21,10 +23,14 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     CostPhasingPeriodFact,
     CostPhasingQuery,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.financials.sqlalchemy_finance_performance_reader import (
+    SqlAlchemyFinancePerformanceReader,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.ui_qml.modules.project_management.presenters.financials.destination_builder import (
     build_destination_state,
 )
+from src.ui_qml.shell.qml_engine import create_qml_engine
 
 
 @contextmanager
@@ -186,6 +192,17 @@ def test_variance_metrics_keep_vac_and_budget_pressure_distinct(monkeypatch) -> 
     assert metrics["period_actual_vs_planned"].availability == "period_required"
 
 
+def test_cost_phasing_quarter_boundaries_are_calendar_quarters() -> None:
+    key, starts_on, ends_on = SqlAlchemyFinancePerformanceReader._period_bounds(
+        date(2026, 8, 15),
+        "quarter",
+    )
+
+    assert key == "2026-Q3"
+    assert starts_on == date(2026, 7, 1)
+    assert ends_on == date(2026, 9, 30)
+
+
 def test_sql_cost_phasing_reader_is_bounded_and_rejects_wrong_scope(services, session) -> None:
     project = services["project_service"].create_project(
         "R6B Performance reader", financial_currency_code="XAF"
@@ -215,3 +232,54 @@ def test_sql_cost_phasing_reader_is_bounded_and_rejects_wrong_scope(services, se
             date_to=date(2026, 12, 31),
         ),
     ) is None
+
+
+@pytest.mark.parametrize(
+    "section_type",
+    (
+        "FinancialsEvmSection",
+        "FinancialsVarianceSection",
+        "FinancialsCostPhasingSection",
+        "FinancialsReportsSection",
+    ),
+)
+@pytest.mark.parametrize(
+    ("width", "height"),
+    ((1024, 640), (1280, 720), (1366, 768), (1440, 900), (1920, 1080)),
+)
+def test_performance_sections_load_at_supported_viewports(
+    qapp,
+    section_type: str,
+    width: int,
+    height: int,
+) -> None:
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    component.setData(
+        f"""
+import QtQuick
+import workspaces.financials.sections 1.0
+Window {{
+    visible: true
+    {section_type} {{
+        objectName: "performanceSection"
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+    }}
+}}
+""".encode(),
+        QUrl(),
+    )
+    assert component.isReady(), [error.toString() for error in component.errors()]
+    window = component.create()
+    assert window is not None
+    window.setProperty("width", width)
+    window.setProperty("height", height)
+    window.show()
+    qapp.processEvents()
+    section = window.findChild(QObject, "performanceSection")
+    assert section is not None
+    assert float(section.property("width")) >= width - 2
+    assert float(section.property("implicitHeight")) > 0
+    window.deleteLater()

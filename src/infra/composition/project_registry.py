@@ -9,11 +9,62 @@ from time import perf_counter
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.platform.access import ScopedRolePolicy
-from src.core.modules.project_management.infrastructure.persistence.billing_preparation_submission_unit_of_work import (
+from src.core.modules.project_management.infrastructure.persistence.uow.finance.billing_preparation_submission_unit_of_work import (
     SqlAlchemyBillingPreparationSubmissionUnitOfWorkFactory,
 )
-from src.core.modules.project_management.infrastructure.persistence.financial_change_submission_unit_of_work import (
-    SqlAlchemyFinancialChangeSubmissionUnitOfWorkFactory,
+from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
+    SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.resources.resource_unit_of_work import (
+    SqlAlchemyResourceUnitOfWorkFactory,
+)
+from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
+    build_resource_capabilities_view_invalidation_handler,
+    build_resource_list_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.resources.resource_capability_events import (
+    ResourceCapabilityChanged,
+)
+from src.core.modules.project_management.application.resources.resource_master_events import (
+    ResourceMasterChanged,
+)
+from src.core.modules.project_management.application.financials.forecasts.event_handlers.view_invalidation import (
+    build_forecast_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
+    ForecastDraftGenerated,
+    ForecastLineChanged,
+    ForecastVersionChanged,
+)
+from src.core.modules.project_management.application.financials.event_handlers.view_invalidation import (
+    build_financial_profile_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.configuration_events import (
+    ProjectFinancialProfileTransitioned,
+    ProjectFinancialProfileUpdated,
+)
+from src.core.modules.project_management.application.financials.rate_cards.event_handlers.view_invalidation import (
+    build_rate_card_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.rate_cards.rate_card_events import (
+    RateCardCreated,
+    RateCardDeactivated,
+    RateCardLineAdded,
+    RateCardLineDeactivated,
+    RateCardLineUpdated,
+)
+from src.core.modules.project_management.application.scheduling.baselines.event_handlers.view_invalidation import (
+    build_baseline_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.scheduling.baselines.baseline_events import (
+    ProjectBaselineApproved,
+    ProjectBaselineCreated,
+    ProjectBaselineDeleted,
+    ProjectBaselineRejected,
+    ProjectBaselineSubmitted,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.scheduling.baseline_unit_of_work import (
+    SqlAlchemyBaselineUnitOfWorkFactory,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
     SqlAlchemyProjectRepository,
@@ -26,6 +77,9 @@ from src.core.modules.project_management.infrastructure.approval.billing_prepara
 )
 from src.core.modules.project_management.infrastructure.approval.budget_apply_participant import (
     BudgetApprovalParticipant,
+)
+from src.core.modules.project_management.infrastructure.approval.forecast_apply_participant import (
+    ForecastApprovalParticipant,
 )
 from src.core.modules.project_management.infrastructure.approval.financial_change_apply_participant import (
     FinancialChangeApprovalParticipant,
@@ -41,6 +95,9 @@ from src.infra.composition.approval_apply_dependencies.billing_preparation impor
     build_billing_preparation_approval_deps,
 )
 from src.infra.composition.approval_apply_dependencies.budget import build_budget_approval_deps
+from src.infra.composition.approval_apply_dependencies.forecast import (
+    build_forecast_approval_deps,
+)
 from src.infra.composition.approval_apply_dependencies.financial_change import (
     build_financial_change_approval_deps,
 )
@@ -91,7 +148,14 @@ from src.core.modules.project_management.infrastructure.persistence.reads.financ
     SqlAlchemyFinanceChangeReader,
     SqlAlchemyFinanceBillingReader,
     SqlAlchemyFinancePerformanceReader,
+    SqlAlchemyFinanceSetupReader,
+    SqlAlchemyFinanceLookupReader,
     SqlAlchemyFinanceSnapshotReader,
+)
+from src.core.modules.project_management.application.financials.governance import (
+    FinanceGovernanceCommandBoundary,
+    FinanceGovernanceOperations,
+    FinanceGovernedServicePort,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
@@ -149,6 +213,15 @@ from src.infra.composition.repositories import RepositoryBundle
 logger = logging.getLogger(__name__)
 
 
+def _prepare_finance_command_session(session: Session) -> None:
+    """Release a retained SQLite transaction before opening a fresh Finance UoW."""
+    bind = session.get_bind()
+    if bind.dialect.name != "sqlite" or not session.in_transaction():
+        return
+    logger.debug("Releasing shared SQLite session transaction before Finance command")
+    session.rollback()
+
+
 @dataclass(frozen=True)
 class ProjectManagementServiceBundle:
     time_service: TimeService
@@ -157,6 +230,7 @@ class ProjectManagementServiceBundle:
     task_service: TaskService
     timesheet_service: TimesheetService
     resource_service: ResourceService
+    finance_governance_commands: FinanceGovernanceCommandBoundary
     financial_configuration_service: FinancialConfigurationService
     forecast_generation_service: ForecastGenerationService
     forecast_version_service: ForecastVersionService
@@ -335,9 +409,6 @@ def build_project_management_service_bundle(
         cert_repo=repositories.resource_cert_repo,
         requirement_repo=repositories.task_skill_req_repo,
     )
-    # Constructed here (ahead of its other use sites further below) so
-    # TaskService's authoritative capacity check (docs §44) can share the
-    # same calendar-resolution instance -- no reason to build two.
     enterprise_resource_availability = EnterpriseResourceAvailabilityService(
         resolver=platform_services.enterprise_calendar_resolver,
         resource_repo=repositories.resource_repo,
@@ -370,6 +441,26 @@ def build_project_management_service_bundle(
     system_clock = SystemClock()
     resource_read_reader = SqlAlchemyResourceCatalogReader(session=session)
     resource_context_reader = SqlAlchemyResourceContextReader(session=session)
+    resource_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
+    resource_uow_factory = SqlAlchemyResourceUnitOfWorkFactory(
+        session_factory=resource_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
+    platform_services.platform_post_commit_bus.subscribe(
+        ResourceMasterChanged,
+        build_resource_list_view_invalidation_handler(
+            platform_services.platform_view_invalidation_channel
+        ),
+    )
+    platform_services.platform_post_commit_bus.subscribe(
+        ResourceCapabilityChanged,
+        build_resource_capabilities_view_invalidation_handler(
+            platform_services.platform_view_invalidation_channel
+        ),
+    )
     resource_service = ResourceService(
         session,
         repositories.resource_repo,
@@ -392,6 +483,8 @@ def build_project_management_service_bundle(
         resource_capability_reader=resource_context_reader,
         department_service=platform_services.department_service,
         site_service=platform_services.site_service,
+        uow_factory=resource_uow_factory,
+        clock=system_clock,
     )
     financial_configuration_service = FinancialConfigurationService(
         session=session,
@@ -489,8 +582,8 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
     )
     finance_workspace_query = ProjectFinanceWorkspaceQuery(
-        profile_repo=repositories.project_financial_profile_repo,
-        cost_code_repo=repositories.project_cost_code_repo,
+        setup_reader=SqlAlchemyFinanceSetupReader(session=session),
+        lookup_reader=SqlAlchemyFinanceLookupReader(session=session),
         budget_reader=SqlAlchemyFinanceBudgetReader(session=session),
         planned_cost_reader=SqlAlchemyFinancePlannedCostReader(session=session),
         forecast_reader=SqlAlchemyFinanceForecastReader(session=session),
@@ -558,16 +651,46 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
     )
 
-    financial_change_submission_uow_session_factory = sessionmaker(
+    finance_governance_uow_session_factory = sessionmaker(
         bind=platform_services.session.bind, future=True
     )
-    financial_change_submission_uow_factory = SqlAlchemyFinancialChangeSubmissionUnitOfWorkFactory(
-        session_factory=financial_change_submission_uow_session_factory,
+    finance_governance_uow_factory = SqlAlchemyFinanceGovernanceUnitOfWorkFactory(
+        session_factory=finance_governance_uow_session_factory,
         transactional_dispatcher=platform_services.platform_transactional_dispatcher,
         post_commit_bus=platform_services.platform_post_commit_bus,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
+    _forecast_view_invalidation_handler = build_forecast_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _forecast_event_type in (ForecastVersionChanged, ForecastLineChanged, ForecastDraftGenerated):
+        platform_services.platform_post_commit_bus.subscribe(
+            _forecast_event_type, _forecast_view_invalidation_handler
+        )
+    _financial_profile_view_invalidation_handler = build_financial_profile_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _financial_profile_event_type in (
+        ProjectFinancialProfileUpdated,
+        ProjectFinancialProfileTransitioned,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _financial_profile_event_type, _financial_profile_view_invalidation_handler
+        )
+    _rate_card_view_invalidation_handler = build_rate_card_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _rate_card_event_type in (
+        RateCardCreated,
+        RateCardDeactivated,
+        RateCardLineAdded,
+        RateCardLineUpdated,
+        RateCardLineDeactivated,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _rate_card_event_type, _rate_card_view_invalidation_handler
+        )
     financial_change_service = FinancialChangeService(
         session=session,
         change_repo=repositories.financial_change_repo,
@@ -580,11 +703,193 @@ def build_project_management_service_bundle(
         task_service=task_service,
         approval_service=platform_services.approval_service,
         clock=system_clock,
-        submission_uow_factory=financial_change_submission_uow_factory,
         user_session=platform_services.user_session,
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
+    )
+
+    def build_finance_governance_operations(uow):
+        post_commit_actions = []
+        budget_operations = BudgetService(
+            session=uow._session,
+            budget_repo=uow.budgets,
+            project_repo=uow.projects,
+            financial_profile_repo=uow.profiles,
+            cost_code_repo=uow.cost_codes,
+            task_repo=uow.tasks,
+            clock=system_clock,
+            user_session=platform_services.user_session,
+            enterprise_audit_service=uow._enterprise_audit_service,
+            module_catalog_service=platform_services.module_catalog_service,
+            tenant_context_service=platform_services.tenant_context_service,
+            approval_service=platform_services.approval_service,
+        )
+        forecast_version_operations = ForecastVersionService(
+            session=uow._session,
+            forecast_repo=uow.forecasts,
+            project_repo=uow.projects,
+            financial_profile_repo=uow.profiles,
+            cost_code_repo=uow.cost_codes,
+            task_repo=uow.tasks,
+            clock=system_clock,
+            user_session=platform_services.user_session,
+            enterprise_audit_service=uow._enterprise_audit_service,
+            module_catalog_service=platform_services.module_catalog_service,
+            tenant_context_service=platform_services.tenant_context_service,
+            record_event=uow.record_event,
+            approval_service=platform_services.approval_service,
+        )
+        forecast_generation_operations = ForecastGenerationService(
+            session=uow._session,
+            forecast_repo=uow.forecasts,
+            project_repo=uow.projects,
+            financial_profile_repo=uow.profiles,
+            cost_code_repo=uow.cost_codes,
+            task_repo=uow.tasks,
+            planned_cost_repo=uow.planned_costs,
+            commitment_repo=uow.commitments,
+            cost_entry_repo=uow.cost_entries,
+            register_repo=uow.register_entries,
+            clock=system_clock,
+            user_session=platform_services.user_session,
+            enterprise_audit_service=uow._enterprise_audit_service,
+            module_catalog_service=platform_services.module_catalog_service,
+            tenant_context_service=platform_services.tenant_context_service,
+            record_event=uow.record_event,
+        )
+        change_deps = build_financial_change_approval_deps(
+            uow._session,
+            user_session=platform_services.user_session,
+            tenant_context_service=platform_services.tenant_context_service,
+            work_calendar_engine=work_calendar_engine,
+            module_catalog_service=platform_services.module_catalog_service,
+        )
+        change_operations = change_deps.financial_change_service
+        change_operations._approval_repo = uow.approvals
+        change_operations._record_event = uow.record_event
+        change_operations._approval_requested_staged = lambda approval: (
+            post_commit_actions.append(
+                lambda: platform_services.approval_service.publish_requested(approval)
+            )
+        )
+        setup_operations = FinancialConfigurationService(
+            session=uow._session,
+            profile_repo=uow.profiles,
+            cost_code_repo=uow.cost_codes,
+            project_repo=uow.projects,
+            user_session=platform_services.user_session,
+            enterprise_audit_service=uow._enterprise_audit_service,
+            module_catalog_service=platform_services.module_catalog_service,
+            tenant_context_service=platform_services.tenant_context_service,
+            record_event=uow.record_event,
+        )
+        rate_card_operations = ProjectRateCardService(
+            session=uow._session,
+            rate_card_repo=uow.rate_cards,
+            project_repo=uow.projects,
+            user_session=platform_services.user_session,
+            enterprise_audit_service=uow._enterprise_audit_service,
+            module_catalog_service=platform_services.module_catalog_service,
+            tenant_context_service=platform_services.tenant_context_service,
+            record_event=uow.record_event,
+        )
+        return FinanceGovernanceOperations(
+            budgets=budget_operations,
+            forecast_versions=forecast_version_operations,
+            forecast_generation=forecast_generation_operations,
+            financial_changes=change_operations,
+            financial_setup=setup_operations,
+            rate_cards=rate_card_operations,
+            post_commit_actions=post_commit_actions,
+        )
+
+    finance_governance_commands = FinanceGovernanceCommandBoundary(
+        uow_factory=finance_governance_uow_factory,
+        operations_factory=build_finance_governance_operations,
+        prepare_command=lambda: _prepare_finance_command_session(session),
+    )
+    financial_configuration_service = FinanceGovernedServicePort(
+        read_service=financial_configuration_service,
+        boundary=finance_governance_commands,
+        family="financial_setup",
+        mutations=frozenset(
+            {
+                "configure_profile",
+                "transition_profile",
+                "create_cost_code",
+                "update_cost_code",
+                "deactivate_cost_code",
+                "activate_cost_code",
+                "add_project_cost_code",
+                "remove_project_cost_code",
+            }
+        ),
+    )
+    budget_service = FinanceGovernedServicePort(
+        read_service=budget_service,
+        boundary=finance_governance_commands,
+        family="budget",
+        mutations=frozenset(
+            {
+                "create_budget",
+                "create_successor",
+                "request_budget_approval",
+                "submit_budget",
+                "approve_budget",
+                "reject_budget",
+                "close_budget",
+                "update_budget_header",
+                "delete_budget",
+                "add_line",
+                "update_line",
+                "delete_line",
+            }
+        ),
+    )
+    forecast_version_service = FinanceGovernedServicePort(
+        read_service=forecast_version_service,
+        boundary=finance_governance_commands,
+        family="forecast_version",
+        mutations=frozenset(
+            {
+                "create_forecast",
+                "add_line",
+                "update_line",
+                "delete_line",
+                "submit_forecast",
+                "request_forecast_approval",
+                "approve_forecast",
+                "reject_forecast",
+                "delete_forecast",
+            }
+        ),
+    )
+    forecast_generation_service = FinanceGovernedServicePort(
+        read_service=forecast_generation_service,
+        boundary=finance_governance_commands,
+        family="forecast_generation",
+        mutations=frozenset({"generate_draft"}),
+    )
+    financial_change_service = FinanceGovernedServicePort(
+        read_service=financial_change_service,
+        boundary=finance_governance_commands,
+        family="financial_change",
+        mutations=frozenset({"create_change", "add_impact", "submit_change"}),
+    )
+    rate_card_service = FinanceGovernedServicePort(
+        read_service=rate_card_service,
+        boundary=finance_governance_commands,
+        family="rate_card",
+        mutations=frozenset(
+            {
+                "create_rate_card",
+                "deactivate_rate_card",
+                "create_line",
+                "update_line",
+                "deactivate_line",
+            }
+        ),
     )
     billing_profile_service = ProjectBillingProfileService(
         session=session,
@@ -657,6 +962,24 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         project_catalog_reader=SqlAlchemyProjectCatalogReader(session=session),
     )
+    baseline_uow_factory = SqlAlchemyBaselineUnitOfWorkFactory(
+        session=session,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+    )
+    _baseline_view_invalidation_handler = build_baseline_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _baseline_event_type in (
+        ProjectBaselineCreated,
+        ProjectBaselineSubmitted,
+        ProjectBaselineApproved,
+        ProjectBaselineRejected,
+        ProjectBaselineDeleted,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _baseline_event_type, _baseline_view_invalidation_handler
+        )
     baseline_service = BaselineService(
         session=session,
         project_repo=repositories.project_repo,
@@ -670,6 +993,7 @@ def build_project_management_service_bundle(
         approval_service=platform_services.approval_service,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
+        uow_factory=baseline_uow_factory.create,
     )
     finance_performance_query = ProjectFinancePerformanceQuery(
         performance_reader=SqlAlchemyFinancePerformanceReader(session=session),
@@ -739,6 +1063,7 @@ def build_project_management_service_bundle(
         task_service=task_service,
         timesheet_service=timesheet_service,
         resource_service=resource_service,
+        finance_governance_commands=finance_governance_commands,
         financial_configuration_service=financial_configuration_service,
         forecast_generation_service=forecast_generation_service,
         forecast_version_service=forecast_version_service,
@@ -860,6 +1185,24 @@ def _register_project_management_approval_handlers(
         "budget.approve",
         budget_participant.reject,
         dependencies_factory=budget_dependencies_factory,
+    )
+
+    forecast_participant = ForecastApprovalParticipant()
+    forecast_dependencies_factory = lambda uow_session: build_forecast_approval_deps(
+        uow_session,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+        module_catalog_service=module_catalog_service,
+    )
+    approval_service.register_apply_handler(
+        "forecast.approve",
+        forecast_participant.apply,
+        dependencies_factory=forecast_dependencies_factory,
+    )
+    approval_service.register_reject_handler(
+        "forecast.approve",
+        forecast_participant.reject,
+        dependencies_factory=forecast_dependencies_factory,
     )
 
     project_cost_participant = ProjectCostApprovalParticipant()

@@ -33,9 +33,15 @@ from src.core.modules.project_management.contracts.repositories.resources.skills
     ResourceSkillRepository,
 )
 from src.core.modules.project_management.contracts.repositories.tasks.task import AssignmentRepository
+from src.core.modules.project_management.contracts.uow.resources.resource_unit_of_work import (
+    ResourceUnitOfWorkFactory,
+)
 from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository
 from src.core.platform.contract.repositories.master_data.employee.contracts import EmployeeRepository
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.platform.common.ids import generate_id
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.time.clock import Clock
 
 
 class ResourceService(
@@ -71,6 +77,8 @@ class ResourceService(
         resource_capability_reader: ResourceCapabilityReader | None = None,
         department_service=None,
         site_service=None,
+        uow_factory: ResourceUnitOfWorkFactory | None = None,
+        clock: Clock | None = None,
     ):
         self._session: Session = session
         self._resource_repo: ResourceRepository = resource_repo
@@ -93,6 +101,16 @@ class ResourceService(
         self._resource_capability_reader = resource_capability_reader
         self._department_service = department_service
         self._site_service = site_service
+        self._uow_factory: ResourceUnitOfWorkFactory | None = uow_factory
+        self._clock: Clock | None = clock
+
+    def _require_uow_factory(self) -> ResourceUnitOfWorkFactory:
+        if self._uow_factory is None:
+            raise RuntimeError("Resource unit of work is not configured.")
+        return self._uow_factory
+
+    def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
 
 
 __all__ = ["ResourceService"]

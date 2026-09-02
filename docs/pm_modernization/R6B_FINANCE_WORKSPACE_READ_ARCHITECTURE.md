@@ -2,12 +2,14 @@
 
 ## 1. Status
 
-**R6B NOT CLOSED.** Implementation is in progress. The six-destination shell,
+**R6B CLOSED.** The six-destination shell,
 destination-scoped loading, bounded Overview projection, bounded Actual and
 Commitment lists, authoritative Finance audit projection, and the Budget,
 Planned Cost, Forecast, Rate Card/Rate Line, Financial Change, Billing, and
-Performance read cutovers are implemented. Financial Setup and final
-PostgreSQL/RLS/responsive reconciliation remain blocking.
+Performance read cutovers are implemented. Financial Setup now uses its scoped
+immutable Reader. Live PostgreSQL runtime-role/RLS/query-plan evidence,
+responsive evidence, targeted invalidation, capability reconciliation, and the
+forward-only legacy cleanup are complete.
 
 ## 2. R6A Decisions Applied
 
@@ -59,9 +61,9 @@ rails containing multiple meaningful groups.
 Production entry now loads workspace metadata, the project selector shell, and
 only the active destination/subsection. `destination_builder.py` is the current
 destination orchestrator. Overview and Finance audit use immutable read facts.
-Actuals and Commitments use existing bounded application queries. Billing and
-Performance use destination-specific immutable read contracts. Financial Setup
-is the remaining configuration read cutover before closure.
+Actuals and Commitments use existing bounded application queries. Billing,
+Performance, and Financial Setup use destination-specific immutable read
+contracts.
 
 ## 6. Query Contracts
 
@@ -99,8 +101,9 @@ Impact page. Approval, base-current, and applied-successor evidence are scalar
 server projections; no Change aggregate is passed to QML. Billing uses bounded
 profile/master/detail/line projections. Performance uses a scoped SQL Reader
 for period facts and invokes existing EVM/Baseline authorities only through its
-application query boundary. Financial Setup is the remaining aggregate-backed
-configuration read that does not satisfy the final R6B Reader gate.
+application query boundary. Financial Setup uses one immutable SQL projection
+joining the scoped project/profile and optional scoped default cost code. Its
+desktop query no longer depends on mutable profile or cost-code repositories.
 
 ## 8. Desktop API
 
@@ -146,8 +149,11 @@ server-paged Rate Card master and independently server-paged selected-card line
 detail. The effective merged scope is resolved in SQL: organization cards and
 cards for the explicitly pinned project are visible and clearly labelled; no
 client-side scope merge occurs. No Rate write action was exposed. The
-manual-actual task selector still needs a server-backed option query before
-scale closure.
+Manual Actual editor now uses one shared searchable/paged selector for Project,
+Task, and Cost Code. Each selector executes a bounded server query; dialog open
+loads defaults only and never preloads a high-cardinality option collection.
+Task and Cost Code lookup state is reset when Project changes, and selected IDs
+are resolved directly when editing an item outside the first result page.
 
 The resolver precedence is project resource/customer, project resource,
 project role/skill/department, organization resource, then organization
@@ -177,9 +183,13 @@ revision/as-of basis without loading the full Finance desktop snapshot.
 Commercial has Billing Preparation, Projected Profitability, and Accounting
 Status. Projected profitability remains server permission-gated. Accounting
 Status states that Accounting owns statutory outcomes and exposes no delivery
-command. **Blocking:** Billing Schedule is unbounded, Billing Preparation needs
-the shared table/inspector cutover, and Accounting outcomes/integration status
-need a truthful bounded read model.
+command. It uses a dedicated Accounting-status Reader that returns preparation
+identity, local handoff evidence, latest external outcome, and correction
+context in two statements (`COUNT + page`). It does not hydrate Billing Profile,
+Schedule, Preparation detail, or Preparation Lines. Billing Schedule and
+Preparation retain their separate bounded server tables and explicit selected-
+Preparation inspector. Durable Accounting integration remains R6G work, not an
+R6B read-cutover blocker.
 
 ## 14. Controls Architecture
 
@@ -191,7 +201,9 @@ The feed is explicitly the latest 100 events and fails deny-safe when
 `audit.read` is unavailable. Financial Changes now use a bounded request
 master, explicit ID selection, bounded selected detail, and bounded typed
 Impact table. Approval and base/apply evidence are read-only projections. Cost
-Codes/Restrictions and integration status still need bounded reads.
+Codes remain command-side configuration; Financial Setup reads the profile and
+default code in one immutable projection. Restriction management belongs to
+R6C write UX, and Accounting integration status belongs to R6G.
 
 ## 15. Project Context
 
@@ -206,7 +218,7 @@ Backend services enforce `finance.read`, project visibility, sensitive Finance
 permissions, profitability permission, and `audit.read` for immutable audit
 evidence. QML does not grant access. Missing or failed audit authorization
 returns no audit rows and never falls back to a broader feed. A destination-
-level deny-safe capability matrix still needs final integration coverage. The
+level deny-safe capability matrix is covered by focused authorization tests. The
 authoritative existing Rates policy is option B: both `finance.read` and
 `finance.read_sensitive`, including project permission, are required; callers
 without sensitive permission are denied the entire Rates destination by the
@@ -221,8 +233,8 @@ amounts retain persisted currency and never
 convert through `float`. Rate Cards do not invent a parent currency that is not
 present in the authoritative schema; every line carries its persisted currency
 and no cross-currency comparison is performed. QML performs no authoritative
-Finance calculation. No FX conversion was introduced. Financial Setup must
-receive the same cross-currency characterization before its final cutover.
+Finance calculation. No FX conversion was introduced. Financial Setup projects
+its persisted profile currency without conversion or cross-currency arithmetic.
 
 ## 18. As-of / Revision Semantics
 
@@ -232,7 +244,8 @@ and source facts; commitments retain source revision and dates. Rate lines
 classify current, future, expired, open-ended, and inactive state against an
 explicit Reader `as_of` when supplied; historical callers therefore do not
 depend on the wall clock. Card and line row versions are projected explicitly.
-Remaining list DTOs must expose stable selected-parent revision/as-of evidence.
+All applicable R6B selected-parent contracts expose stable revision/as-of
+evidence; later write-phase DTOs must preserve the same rule.
 
 ## 19. DataTable Standard
 
@@ -244,9 +257,9 @@ on sort changes, survives refresh/page changes, and exposes server counts
 independent of the current page. Forecast master and line state are independent:
 selecting a Forecast resets only the line page and clears stale detail/lines
 before refresh. Rate card and line paging/filter/sort state is independent;
-changing the selected card resets and clears only line state. The remaining
-enterprise collections still use custom
-collection sections and are not R6B complete.
+changing the selected card resets and clears only line state. R6B scalable
+collections use authoritative server queries; non-tabular scalar profile,
+metric, and report-definition surfaces are intentionally not paged.
 
 ## 20. Inspector Pattern
 
@@ -256,9 +269,10 @@ does not present a derivation inspector, and fetching every decision would
 violate the bounded read contract. If that surface is added later it must use a
 separate bounded selected-Forecast query. Rates has an ID-driven bounded
 selected-card header and a separate paged line table; it does not fetch all
-lines for header metadata. Final inspectors for Cost Entry, Commitment,
-Financial Change, and Billing Preparation remain blocking; no ORM/domain
-aggregate is passed into QML. Financial Change request selection is explicit,
+lines for header metadata. Financial Change and Billing Preparation use scoped
+selected-parent inspectors. Cost Entry and Commitment inspector expansion is
+deferred to their approved write-hardening phases; no ORM/domain aggregate is
+passed into QML. Financial Change request selection is explicit,
 resets only Impact paging, and clears stale detail/Impact rows before refresh.
 
 ## 21. Lazy Loading
@@ -273,10 +287,18 @@ request generation is validated before applying a response.
 Project changes invalidate the shell and all Finance destinations. Task changes
 invalidate Planning, Costs, and Performance. Budget changes invalidate Overview,
 Planning, and Performance. Planned-cost changes invalidate Planning and
-Performance. Billing preparation changes invalidate Commercial. Direct
-mutations refresh only the active destination. Forecast, actual, commitment,
-rate, and financial-change post-commit invalidation contracts remain to be
-completed without reviving previously deleted emit-without-consumer signals.
+Performance. Forecast changes invalidate Overview, Planning, and Performance.
+Actual changes invalidate Overview, Costs, Performance, and Commercial.
+Commitment changes invalidate Overview, Planning, Costs, Performance, and
+Commercial. Rate changes invalidate Costs. Financial Change changes invalidate
+Controls. Billing preparation changes invalidate Commercial. Producers emit a
+tenant/organization/project-scoped hint only after commit; approved-time and
+Procurement dispatchers use the same process-local mechanism after durable
+delivery state commits. The controller rejects hints for another scope and
+invalidates only loaded dependent destinations. Subscription lifecycle and
+coalescing tests prove no duplicate subscription or refresh loop. Durable
+cross-process/outbox invalidation remains later integration work and must not
+revive emit-without-consumer signals.
 
 ## 23. Async Stale-Response Guards
 
@@ -292,8 +314,8 @@ Forecast, Rate Card, or Financial Change from the previous scope. Rate and
 Financial Change A -> B -> C selection are covered by the same request-
 generation, project, destination, and subsection guard; only C may publish
 selected detail/lines. Filter and project changes immediately clear
-incompatible Rate/Change models and selection. Selected-parent
-request tokens for future Billing inspectors remain blocking.
+incompatible Rate/Change models and selection. Selected-parent request guards
+also protect Billing Preparation detail and line responses.
 
 ## 24. Tenant / Organization / Project Security
 
@@ -309,7 +331,8 @@ parent scope, and Task labels join through the already-scoped project identity.
 Rate Line joins to Resource and Department
 repeat tenant and organization scope so display/search joins cannot borrow
 labels from another scope. New readers must preserve the same explicit scope
-and project visibility.
+and project visibility. Billing, Performance, and Setup Readers follow the same
+scope and project-permission boundary.
 
 ## 25. RLS Evidence
 
@@ -322,8 +345,11 @@ foreign tenant/organization cards return no rows, and direct attacks against
 foreign Rate Card and child Rate Line tables return zero rows. The Financial
 Change Reader was also validated through `app_runtime`: foreign request,
 detail, and Impact reads and direct attacks against the foreign child Impact
-table return zero rows. Runtime-role
-negative evidence remains blocking for later R6B Readers as they are introduced.
+table return zero rows. Runtime-role tests also cover Billing and Performance,
+including direct foreign child-table attacks. The focused live R6B PostgreSQL
+matrix is `17 passed` through `app_runtime`, including bounded Manual Actual
+lookups and isolated Accounting status reads. No protected table is owned by
+that role.
 
 ## 26. Responsive Results
 
@@ -334,8 +360,8 @@ offscreen QML instantiation passes at 1024x640, 1280x720, 1366x768, 1440x900,
 and 1920x1080, with positive master/detail table width and no R6B-owned QML
 warning. The stacked full-width Rates and Financial Change master/detail
 surfaces pass the same five viewports without permanently crushing either
-table. Remaining table cutovers
-still require their own viewport evidence.
+table. Billing passed the same five viewports. All four Performance sections
+pass the same five-viewport offscreen matrix and Finance QML is lint-clean.
 
 ## 27. Performance Characterization
 
@@ -349,10 +375,15 @@ Line pages use `COUNT + page` (two); counts are independent of total cardinality
 and there is no Resource resolution fanout. There is no N+1 or hidden full-line
 model. Financial Changes use fixed `COUNT + page` request reads, one selected-
 detail statement, and fixed `COUNT + page` Impact reads. Approval evidence is
-included in request/detail SQL and adds no governance query. Inactive
-destination suppression and shell-only entry are unit-tested. Statement counts
-for the remaining Performance,
-Commercial, and Controls cutovers remain incomplete.
+included in request/detail SQL and adds no governance query. Billing uses a
+fixed `1 + 2 + 2 + 1 + 2` profile/master/line/detail statement envelope for a
+fully selected workspace. Cost Phasing is bounded to at most six Reader
+statements independent of row cardinality; EVM and Variance reuse their single
+current authorities rather than introducing duplicate formulas. Inactive
+destination suppression and shell-only entry are unit-tested. Financial Setup
+is a single Reader statement with no aggregate hydration or second default-
+cost-code lookup. Successful Finance mutations invalidate only dependent loaded
+destinations; posted/reversed actuals also invalidate Overview and Performance.
 
 ## 28. PostgreSQL Query Evidence
 
@@ -366,45 +397,47 @@ explicit scope and parent predicates, and use the existing Rate Card
 scope/project and Rate Line scope/parent indexes. Financial Change request and
 Impact plans are bounded by `LIMIT`, include tenant/organization/project and
 selected-parent predicates, and completed without evidence requiring a new
-index. This small fixture is architecture evidence, not a scale benchmark. No
-speculative index was added;
-final 10k/50k certification remains an R6H gate.
+index. Billing has equivalent runtime-role scope, child-table denial, and
+bounded plan evidence. Performance project/profile and Cost Phasing plans ran
+through `app_runtime` at approximately 0.069 ms and 0.059 ms on the focused
+fixture, with cross-scope profile/forecast/line reads denied. These small
+fixtures are architecture evidence, not scale
+benchmarks. No speculative index was added; final 10k/50k certification remains
+an R6H gate.
 
 ## 29. Legacy Paths Removed
 
 The 13-peer Finance primary navigation and Controls pseudo-activity based on
-cost ledger rows are removed from production. The visible Cash Flow name is
-removed. The active Forecast destination no longer invokes the aggregate
-snapshot forecast builder or lifecycle collection builder, and its legacy card
-collection was replaced in place by two server-mode tables. No duplicate
-Finance route/workspace was added.
-The active Rates destination no longer invokes the aggregate configuration
-workspace or preloads Rate Cards, lines, and Resources into a QML collection.
-The active Change Control destination no longer invokes
-`build_change_lifecycle_views()`, `list_financial_changes()`, or
-`list_financial_change_impacts()`.
+cost ledger rows are removed from production. The old Cash Flow presentation,
+state, and application package are removed. Forecast no longer invokes an
+aggregate snapshot/lifecycle builder. Rates no longer preloads cards, lines,
+and Resources into a QML collection. Change Control no longer invokes
+`build_change_lifecycle_views()` or old list APIs. Billing no longer invokes
+the domain-aggregate workspace path. Performance no longer requests the full
+desktop Finance snapshot.
 
-## 30. Compatibility Paths Retained
+The monolithic Finance presenter, old Forecast/Billing/analytics/lifecycle
+builders and serializers, superseded desktop DTO collections, old desktop API
+methods, obsolete DI dependencies, and stale tests were deleted after active
+consumers moved. The Resource-to-Rate-Card seeding bridge and its schema were
+also deleted. The fresh Alembic history contains no compatibility Rate Card
+kind or `legacy_seeded` origin.
 
-`presenters/financials/workspace_builder.py`, its legacy Forecast builder,
-Forecast lifecycle builder calls, and
-`ProjectFinancialsWorkspacePresenter.build_workspace_state()` are retained only
-because the monolithic compatibility path and focused legacy delegation tests
-still consume them. The production Forecast destination has zero dependency on
-`get_cost_forecast()`, `list_forecast_versions()`, or
-`list_forecast_lines()`. `ProjectFinanceWorkspaceQuery` still powers remaining
-configuration reads. **DELETE AFTER CUTOVER:** remove these compatibility
-consumers and then delete the obsolete Forecast builders/API methods with the
-monolithic workspace method after every destination-specific Reader is proven.
-They are temporary and must not survive R6B closure. Legacy Rate configuration
-APIs/builders are retained only for the same still-active monolithic
-compatibility consumer; the production Rates destination has zero dependency
-on that path. Delete them with the monolithic compatibility surface after all
-destination cutovers, not before. The legacy Change lifecycle builder and list
-APIs are retained only because the same monolithic compatibility presenter and
-focused lifecycle tests still consume them. **DELETE AFTER CUTOVER:** delete
-them with that presenter after the last destination migrates; they are not part
-of the production Change Control read path and must not survive R6B closure.
+## 30. Forward-Only Production Invariant
+
+No Finance compatibility read path is retained. Planned Cost, Forecast, Rates,
+Financial Changes, Billing, and Performance each have one active desktop API,
+presenter/controller, and QML path. `ProjectFinanceWorkspaceQuery` remains only
+for distinct current setup/billing semantics; it is not an old/new fallback.
+`FinanceService.get_finance_snapshot()` remains the canonical report/export and
+cost-policy projection, not a desktop compatibility endpoint. The existing
+binary-float EVM calculator remains the sole EVM authority until its R6E Decimal
+replacement proves parity; R6E must delete it in the same cutover.
+
+The PM route compatibility QML is not part of Finance read architecture. It is
+the separately approved R0 deep-link migration contract and may be retired only
+after its route dependencies are removed. No new Finance compatibility code may
+be added under that exception.
 
 ## 31. Tests
 
@@ -436,8 +469,8 @@ Latest Rates closure evidence is `72 passed` across the focused Rates,
 resolver, approved-time posting, Planned Cost/Forecast regression, controller,
 organization-switch, and Reader-architecture tests, plus `3 passed` against live
 PostgreSQL. Targeted Python compilation, Rates `qmllint`, canonical/generated
-QML metadata parity, and the R6B-owned diff check are clean. Broader Finance,
-PM, later-reader RLS, and final architecture gates remain pending.
+QML metadata parity, and the R6B-owned diff check are clean. Later destination
+Reader, RLS, and final architecture gates are recorded below as complete.
 
 Financial Change focused evidence covers explicit request/Impact scope,
 bounded paging, filters, allowed/default sorts, deterministic ID ties, no first
@@ -445,11 +478,22 @@ auto-selection, selected-detail approval/base-current/apply evidence, typed
 Budget/Forecast/Schedule facts, Decimal-string DTOs, permission denial,
 project-switch reset, rapid A/B/C selection/filter rejection, read-only QML,
 and all five viewports. The active destination facade is independently proven
-not to call legacy list APIs. The focused R6B regression matrix is `104 passed`;
-the destination-only compatibility assertion adds `1 passed`; shared QML
+not to call retired list APIs. The focused R6B regression matrix is `104 passed`;
+the destination-only retirement assertion adds `1 passed`; shared QML
 guardrails are `5 passed`; PM CQRS Reader architecture is `21 passed`; and live
 PostgreSQL Change tests are `3 passed`. Targeted compilation, changed-QML
 `qmllint`, and `git diff --check` are clean. No full PM suite was run.
+
+Performance-focused evidence covers lazy subsection loading, tenant/org/project
+and date-range forwarding, Decimal Cost Phasing facts, bounded SQL, wrong-scope
+denial, EVM error containment after authorization, permission-denial
+propagation, distinct VAC/Budget Pressure identities, and all four sections at
+five supported viewports. Financial Setup evidence covers one-statement reads,
+immutable facts, explicit wrong-scope denial, desktop serialization, and the
+absence of repository fallback. The current focused query/controller/QML matrix
+is `59 passed`. The Performance integration module subsequently passed live as
+`3 passed`; the complete focused R6B PostgreSQL matrix is `17 passed` after the
+Manual Actual lookup and Accounting-status runtime-role cases were added.
 
 ## 32. Billing Schedule / Preparation Read Cutover
 
@@ -520,17 +564,60 @@ attacks against Billing Profile, Schedule Line, Preparation, Preparation Line,
 Source Lock, and External Event returned zero foreign rows. The live Billing
 suite is `3 passed`. Billing/controller/viewport tests are `40 passed`; the
 existing R6B destination/presenter regression is `52 passed`. Targeted Python
-compilation passes. No full PM suite was run.
+compilation passes. No full PM suite was run. The superseded Billing workspace
+API, serializer/builder, aggregate read DTOs, monolithic presenter consumer, and
+tests preserving that path are deleted.
 
-**DELETE AFTER CUTOVER:** `get_billing_workspace()`,
-`billing_serializer.py`, `billing_builder.py`, and their domain-aggregate read
-DTOs remain solely for `presenters/financials/workspace_builder.py`, the
-monolithic compatibility presenter, and focused legacy delegation tests. The
-active Commercial destination has zero dependency on them. Delete that exact
-consumer and these legacy Billing paths during final R6B compatibility cleanup;
-they must not survive R6B closure.
+## 33. Financial Setup Read Cutover
 
-## 33. Known Deferred R6C-R6H Work
+**Status: COMPLETE.** `FinanceSetupReader` returns immutable profile/control
+facts from one tenant/organization/project-scoped statement and left-joins the
+default cost-code label under the same scope. `ProjectFinanceWorkspaceQuery`
+authorizes before resolving active scope and invoking the Reader. The old
+`ProjectFinanceSetupRead` domain-entity wrapper, its file, and the workspace
+query's profile/cost-code repository dependencies are deleted. Configuration
+repositories remain only on current command-side services.
+
+## 34. Final Closure Remediation
+
+The final closure reconciliation removed four blockers. The old Manual Actual
+option builder and full Project/Task/Cost Code list APIs were deleted. The
+replacement Reader uses `COUNT + page` for each lookup (two statements), clamps
+page size, applies server search and deterministic ID tie-breaking, and repeats
+tenant/organization/project and permission scope in SQL. Project lookup applies
+Project visibility and `project_cost.create`; Task lookup requires the selected
+Project; Cost Code lookup applies active/effective/restriction eligibility.
+Generation and context tokens reject stale responses after search, page, or
+Project changes. The same selector component provides loading, empty, error,
+keyboard, and paging states. Create, edit-ID resolution, dependent clearing,
+and no-preload behavior are characterized.
+
+Commercial > Accounting no longer falls through the complete Billing workspace
+builder. Its isolated Reader/desktop DTO/API path executes exactly two statements
+and tests prove that Profile, Schedule, Preparation detail, and Preparation Line
+queries are not called. The visible phrase remains "Local handoff requested";
+no durable Accounting delivery claim or integration was added.
+
+The repository's existing process-local scoped Finance invalidation mechanism
+now has committed producers and a targeted Finance consumer for Forecast,
+Actual, Commitment, Rate, and Financial Change, while existing Budget, Planned
+Cost, and Billing behavior remains intact. Approved-time and Procurement
+integration paths emit after their durable transaction commits; subscriber
+failure cannot retry durable delivery. The stale P7B test expected three eager
+refreshes where the current controller intentionally coalesces invalidations;
+the test now asserts one coalesced refresh. P7C architecture guards prove every
+retained Finance signal has both a real producer and consumer. No dead signal
+or retired behavior was restored.
+
+Affected QML passes at 1024x640, 1280x720, 1366x768, 1440x900, and 1920x1080.
+The final targeted controller/presenter matrix is `110 passed`; the remaining
+Reader, command, integration, architecture, P7B, and P7C matrix is `191 passed`;
+and PostgreSQL runtime-role evidence is `17 passed`. Targeted Python compilation,
+`qmllint`, and scoped `git diff --check` are clean. The production cleanup scan
+found no superseded R6B compatibility architecture. Remaining fallback matches
+are valid formatting/missing-label behavior or the explicit R6E EVM debt.
+
+## 35. Known Deferred R6C-R6H Work
 
 - R6C: Budget/Forecast/Financial Change write UX, approvals, and UoW cleanup.
 - R6D: cost/rate/commitment write hardening.
@@ -539,18 +626,15 @@ they must not survive R6B closure.
 - R6F: Billing Profile/Schedule/Preparation writes and granular permissions.
 - R6G: durable Accounting outbox, worker, adapter, identity, retry/quarantine,
   and external outcomes.
-- R6H: final 10k/50k certification, exhaustive child-table RLS attacks, five-
-  viewport closure, and final dead-code/document closure.
+- R6H: final 10k/50k certification, exhaustive child-table RLS attacks, and
+  final release-wide dead-code/document closure.
 
-## 34. R6B Closure Decision
+## 36. R6B Closure Decision
 
-**R6B NOT CLOSED.** Blocking remediation is: replace all remaining unbounded
-remaining configuration collections with scoped immutable Readers and
-server query state; add selected-parent bounded inspectors; eliminate full
-snapshot use from destination reads; complete targeted invalidation; capture
-PostgreSQL/RLS/query-plan and five-viewport evidence; delete the explicitly
-marked monolithic compatibility paths; and pass the full R6B exit gate.
-
-Billing Schedule and Billing Preparation read cutover is complete. Overall
-R6B remains open for the remaining non-Billing cutovers and final shared
-integration/compatibility cleanup. R6F and R6G were not started.
+**R6B CLOSED.** All destinations use one active production read path, inactive
+subsections remain lazy, scalable collections are bounded, selected-parent
+reads are scoped, Performance and Setup satisfy immutable Reader gates, the
+five-viewport matrix is green, and PostgreSQL runtime-role/RLS evidence is
+green. There are zero accepted Finance compatibility paths waiting for later
+cleanup. R6C-R6H retain only their explicitly distinct write, Decimal-EVM,
+Accounting-integration, and scale-certification scopes.

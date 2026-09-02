@@ -39,6 +39,9 @@ Item {
     property string forecastGenerationMode: ""
     property string forecastLineSearch: ""
     property string forecastLineSourceType: ""
+    property bool showGenerateForecast: false
+    property bool canGenerateForecast: false
+    property string generateForecastDisabledReason: ""
     property var financialChangesModel: ({ "items": [] })
     property var financialChangeImpactsModel: ({ "items": [] })
     property var selectedChangeModel: ({ "id": "", "fields": [] })
@@ -70,6 +73,9 @@ Item {
     property var budgetVersionsTableModel: null
     property var budgetLinesTableModel: null
     property string selectedBudgetId: ""
+    property bool showCreateBudgetVersion: false
+    property bool canCreateBudgetVersion: false
+    property string createBudgetVersionDisabledReason: ""
     property string budgetVersionSortKey: "revision"
     property int budgetVersionSortDirection: Qt.DescendingOrder
     property string budgetLineSortKey: "metaText"
@@ -141,6 +147,13 @@ Item {
     signal budgetVersionPageRequested(int page)
     signal budgetVersionSortRequested(string key, int direction)
     signal budgetLineSortRequested(string key, int direction)
+    signal budgetCreateRequested()
+    signal budgetEditRequested(var budget)
+    signal budgetSuccessorRequested(var budget)
+    signal budgetLifecycleRequested(string action, var budget)
+    signal budgetLineAddRequested(var budget)
+    signal budgetLineEditRequested(var budget, var line)
+    signal budgetLineDeleteRequested(var budget, var line)
     signal plannedCostVersionSelected(string versionId)
     signal plannedCostVersionPageRequested(int page)
     signal plannedCostVersionSortRequested(string key, int direction)
@@ -152,6 +165,8 @@ Item {
     signal forecastLineSortRequested(string key, int direction)
     signal forecastVersionFiltersRequested(string search, string status, string generationMode)
     signal forecastLineFiltersRequested(string search, string sourceType)
+    signal forecastGenerateRequested()
+    signal forecastLifecycleRequested(string action, var forecast)
     signal rateCardSelected(string rateCardId)
     signal rateCardPageRequested(int page)
     signal rateLinePageRequested(int page)
@@ -297,9 +312,18 @@ Item {
                 selectedBudgetId: root.selectedBudgetId
                 sortKey: root.budgetVersionSortKey
                 sortDirection: root.budgetVersionSortDirection
+                showCreateVersion: root.showCreateBudgetVersion
+                canCreateVersion: root.canCreateBudgetVersion
+                createVersionDisabledReason: root.createBudgetVersionDisabledReason
                 onBudgetSelected: function(budgetId) { root.budgetVersionSelected(budgetId) }
                 onPageRequested: function(page) { root.budgetVersionPageRequested(page) }
                 onSortRequested: function(key, direction) { root.budgetVersionSortRequested(key, direction) }
+                onCreateVersionRequested: root.budgetCreateRequested()
+                onEditRequested: function(budget) { root.budgetEditRequested(budget) }
+                onSuccessorRequested: function(budget) { root.budgetSuccessorRequested(budget) }
+                onLifecycleRequested: function(action, budget) {
+                    root.budgetLifecycleRequested(action, budget)
+                }
             }
             FinancialsBudgetLinesSection {
                 width: parent.width
@@ -307,12 +331,27 @@ Item {
                 tableModel: root.budgetLinesTableModel
                 busy: root.isBusy
                 selectedBudgetId: root.selectedBudgetId
+                selectedBudget: {
+                    const items = root.budgetVersionsModel.items || []
+                    for (let index = 0; index < items.length; index += 1) {
+                        if (String(items[index].id || "") === root.selectedBudgetId)
+                            return items[index]
+                    }
+                    return null
+                }
                 sortKey: root.budgetLineSortKey
                 sortDirection: root.budgetLineSortDirection
                 onPageRequested: function(page) {
                     root.configurationPageRequested("budget_lines", page)
                 }
                 onSortRequested: function(key, direction) { root.budgetLineSortRequested(key, direction) }
+                onAddRequested: function(budget) { root.budgetLineAddRequested(budget) }
+                onEditRequested: function(budget, line) {
+                    root.budgetLineEditRequested(budget, line)
+                }
+                onDeleteRequested: function(budget, line) {
+                    root.budgetLineDeleteRequested(budget, line)
+                }
             }
         }
     }
@@ -369,6 +408,13 @@ Item {
             generationMode: root.forecastGenerationMode
             lineSearch: root.forecastLineSearch
             lineSourceType: root.forecastLineSourceType
+            showGenerate: root.showGenerateForecast
+            canGenerate: root.canGenerateForecast
+            generateDisabledReason: root.generateForecastDisabledReason
+            onGenerateRequested: root.forecastGenerateRequested()
+            onLifecycleRequested: function(action, forecast) {
+                root.forecastLifecycleRequested(action, forecast)
+            }
             onForecastSelected: function(forecastId) {
                 root.forecastSelected(forecastId)
             }
@@ -562,6 +608,7 @@ Item {
     Component {
         id: accountingComponent
         Column {
+            objectName: "financialsAccountingSection"
             width: parent ? parent.width : 0
             spacing: Theme.AppTheme.spacingMd
             AppWidgets.SectionHeading {

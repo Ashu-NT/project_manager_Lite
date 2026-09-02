@@ -8,6 +8,7 @@ from time import perf_counter
 from urllib.parse import urlparse
 
 from sqlalchemy import create_engine, event
+from sqlalchemy.engine import Engine, make_url
 
 from src.infra.platform.env_loader import load_env_file
 from src.infra.platform.path import default_db_path
@@ -20,6 +21,9 @@ load_env_file()
 
 _SLOW_QUERY_MS = float(os.getenv("PM_SLOW_QUERY_MS", "250") or 250)
 _TRACE_SQL = (os.getenv("PM_SQL_TRACE", "0") or "").strip().lower() in {"1", "true", "yes"}
+_SQLITE_BUSY_TIMEOUT_MS = max(
+    0, int(os.getenv("PM_SQLITE_BUSY_TIMEOUT_MS", "15000") or 15000)
+)
 _LOGGED_DB_URLS: set[str] = set()
 
 
@@ -47,12 +51,38 @@ def get_db_url() -> str:
     return url
 
 
+def create_database_engine(url: str) -> Engine:
+    """Build the process engine with the supported desktop database policy."""
+    parsed = make_url(url)
+    connect_args: dict[str, object] = {}
+    if parsed.get_backend_name() == "sqlite":
+        connect_args["timeout"] = _SQLITE_BUSY_TIMEOUT_MS / 1000
+
+    database_engine = create_engine(
+        url,
+        echo=False,
+        future=True,
+        connect_args=connect_args,
+    )
+    if parsed.get_backend_name() == "sqlite":
+        event.listen(database_engine, "connect", _configure_sqlite_connection)
+    return database_engine
+
+
+def _configure_sqlite_connection(dbapi_connection, _connection_record) -> None:
+    # WAL permits the operation-scoped command UoWs to commit while the desktop
+    # read session is active. The timeout remains a bounded fallback for brief
+    # writer contention; it is not an application-level retry policy.
+    cursor = dbapi_connection.cursor()
+    try:
+        cursor.execute(f"PRAGMA busy_timeout={_SQLITE_BUSY_TIMEOUT_MS}")
+        cursor.execute("PRAGMA journal_mode=WAL")
+    finally:
+        cursor.close()
+
+
 db_url = get_db_url()
-engine = create_engine(
-    db_url,
-    echo=False,
-    future=True,
-)
+engine = create_database_engine(db_url)
 
 
 @event.listens_for(engine, "before_cursor_execute")
@@ -85,4 +115,4 @@ def _log_after_cursor_execute(conn, cursor, statement, parameters, context, exec
             statement_summary,
         )
 
-__all__ = ["db_url", "engine", "get_db_url"]
+__all__ = ["create_database_engine", "db_url", "engine", "get_db_url"]

@@ -331,6 +331,7 @@ class PurchaseRequisitionLine:
     suggested_supplier_party_id: str | None = None
     status: PurchaseRequisitionLineStatus = PurchaseRequisitionLineStatus.DRAFT
     notes: str = ""
+    version: int = 1
 
     @field_validator("id", "purchase_requisition_id", "stock_item_id", mode="before")
     @classmethod
@@ -401,6 +402,15 @@ class PurchaseRequisitionLine:
             default=PurchaseRequisitionLineStatus.DRAFT,
             message="Purchase requisition line status is invalid.",
             code="INVENTORY_REQUISITION_LINE_STATUS_INVALID",
+        )
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def _validate_version(cls, value: object) -> int:
+        return normalize_positive_int(
+            value,
+            message="Purchase requisition line version must be positive.",
+            code="INVENTORY_REQUISITION_LINE_VERSION_INVALID",
         )
 
     @model_validator(mode="after")

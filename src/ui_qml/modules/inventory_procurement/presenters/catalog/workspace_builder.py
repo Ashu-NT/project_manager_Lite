@@ -25,6 +25,42 @@ from .overview_builder import build_overview
 from .selection import resolve_selected_id
 
 
+def build_party_reference_options(desktop_api):
+    return (
+        InventorySelectorOptionViewModel(value="", label="No preferred party"),
+        *(
+            InventorySelectorOptionViewModel(value=option.value, label=option.label)
+            for option in desktop_api.list_business_parties(active_only=None)
+        ),
+    )
+
+
+def build_document_reference_options(desktop_api):
+    return tuple(
+        InventoryDocumentOptionViewModel(
+            value=option.value,
+            label=option.label,
+            document_type=option.document_type,
+            storage_kind=option.storage_kind,
+            effective_date_label=option.effective_date_label,
+            is_active=option.is_active,
+        )
+        for option in desktop_api.list_available_documents(active_only=True)
+    )
+
+
+def build_selected_item_detail(desktop_api, item_id: str | None):
+    """The narrowest existing seam for "just the selected item's own detail (incl. its
+    linked_documents)" -- reused by both the full workspace refresh (via build_workspace_state)
+    and the new document_links-driven narrow refresh, which needs to rebuild only this,
+    never the whole catalog."""
+    if not item_id:
+        return build_item_detail(None, desktop_api)
+    all_items = desktop_api.list_items(active_only=None)
+    item = next((row for row in all_items if row.id == item_id), None)
+    return build_item_detail(item, desktop_api)
+
+
 def build_workspace_state(
     desktop_api,
     *,
@@ -69,24 +105,8 @@ def build_workspace_state(
         InventorySelectorOptionViewModel(value=option.value, label=option.label)
         for option in desktop_api.list_item_statuses()
     )
-    business_party_options = (
-        InventorySelectorOptionViewModel(value="", label="No preferred party"),
-        *(
-            InventorySelectorOptionViewModel(value=option.value, label=option.label)
-            for option in desktop_api.list_business_parties(active_only=None)
-        ),
-    )
-    available_documents = tuple(
-        InventoryDocumentOptionViewModel(
-            value=option.value,
-            label=option.label,
-            document_type=option.document_type,
-            storage_kind=option.storage_kind,
-            effective_date_label=option.effective_date_label,
-            is_active=option.is_active,
-        )
-        for option in desktop_api.list_available_documents(active_only=True)
-    )
+    business_party_options = build_party_reference_options(desktop_api)
+    available_documents = build_document_reference_options(desktop_api)
     normalized_search = (search_text or "").strip()
     normalized_active_filter = normalize_active_filter(active_filter)
     normalized_usage_filter = normalize_usage_filter(usage_filter)

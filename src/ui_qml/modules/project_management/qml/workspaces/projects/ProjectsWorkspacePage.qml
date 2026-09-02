@@ -157,16 +157,6 @@ AppLayouts.WorkspaceFrame {
     Item {
         anchors.fill: parent
 
-        // Clicking blank workspace background (KPI strip padding, toolbar
-        // gaps, pagination-bar margins, etc. -- anywhere that isn't an
-        // actual control or the inspector panel itself) closes the
-        // inspector, mirroring DataTable's own empty-space-click behavior
-        // but covering the whole list/detail region. Declared first so it
-        // sits behind `_listPage` in paint/hit order: real controls and
-        // popups (which reparent into Overlay.overlay, above everything)
-        // claim their own clicks before they ever reach this catcher, and
-        // InspectorPanel now swallows clicks on its own blank background
-        // too, so this never fires for clicks meant for the panel.
         MouseArea {
             anchors.fill: parent
             visible: !root._detailOpen

@@ -27,6 +27,7 @@ from .storeroom_command_handler import (
     update_storeroom,
 )
 from .workspace_builder import (
+    build_item_reference_options,
     build_party_reference_options,
     build_site_reference_options,
     build_workspace_state,
@@ -69,6 +70,9 @@ class InventoryInventoryWorkspacePresenter:
 
     def build_party_reference_options(self):
         return build_party_reference_options(self._desktop_api)
+
+    def build_item_reference_options(self):
+        return build_item_reference_options(self._desktop_api)
 
     def suggest_storeroom_code(self, payload: dict[str, Any]) -> str:
         return suggest_storeroom_code(self._desktop_api, payload)

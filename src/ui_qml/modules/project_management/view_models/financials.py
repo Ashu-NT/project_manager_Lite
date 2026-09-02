@@ -22,9 +22,8 @@ class FinancialsSelectorOptionViewModel:
 
 
 @dataclass(frozen=True)
-class FinancialsManualActualOptionsViewModel:
+class FinancialsManualActualDefaultsViewModel:
     currency_code: str = ""
-    cost_codes: tuple[FinancialsSelectorOptionViewModel, ...] = field(default_factory=tuple)
     entry_kinds: tuple[FinancialsSelectorOptionViewModel, ...] = field(default_factory=tuple)
 
 @dataclass(frozen=True)
@@ -89,9 +88,8 @@ class BaselineVarianceRowViewModel:
 class FinancialsWorkspaceViewModel:
     overview: FinancialsOverviewViewModel
     project_options: tuple[FinancialsSelectorOptionViewModel, ...] = field(default_factory=tuple)
-    task_options: tuple[FinancialsSelectorOptionViewModel, ...] = field(default_factory=tuple)
-    manual_actual_options: FinancialsManualActualOptionsViewModel = field(
-        default_factory=FinancialsManualActualOptionsViewModel
+    manual_actual_defaults: FinancialsManualActualDefaultsViewModel = field(
+        default_factory=FinancialsManualActualDefaultsViewModel
     )
     selected_project_id: str = ""
     cost_phasing: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
@@ -117,6 +115,9 @@ class FinancialsWorkspaceViewModel:
     forecast_generation_mode: str = ""
     forecast_line_search: str = ""
     forecast_line_source_type: str = ""
+    show_generate_forecast: bool = False
+    can_generate_forecast: bool = False
+    generate_forecast_disabled_reason: str = ""
     selected_change_id: str = ""
     selected_change: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     financial_changes: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
@@ -143,6 +144,9 @@ class FinancialsWorkspaceViewModel:
     report_basis: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     financial_profile: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     selected_budget_id: str = ""
+    show_create_budget_version: bool = False
+    can_create_budget_version: bool = False
+    create_budget_version_disabled_reason: str = ""
     budget_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     budget_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     budget_version_sort_key: str = "revision"
@@ -207,7 +211,7 @@ __all__ = [
     "FinancialsDetailFieldViewModel",
     "FinancialsDetailViewModel",
     "FinancialsMetricViewModel",
-    "FinancialsManualActualOptionsViewModel",
+    "FinancialsManualActualDefaultsViewModel",
     "FinancialsOverviewViewModel",
     "FinancialsRecordViewModel",
     "FinancialsSelectorOptionViewModel",

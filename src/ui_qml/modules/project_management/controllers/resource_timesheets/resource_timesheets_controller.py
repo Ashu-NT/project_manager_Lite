@@ -106,12 +106,9 @@ class ProjectManagementResourceTimesheetsController(ProjectManagementWorkspaceCo
         self._resource_page = 1
         self._resource_page_size = 20
         self._resource_total = 0
-        # P7A: direct-wired to the specific legacy signals this workspace actually reads -- no
-        # generic `domain_changed` bridge.
         for signal in (
             domain_events.timesheet_periods_changed,
             domain_events.tasks_changed,
-            domain_events.resources_changed,
         ):
             self._subscribe_domain_signal(signal, lambda _payload: self._request_domain_refresh())
         self.refresh()

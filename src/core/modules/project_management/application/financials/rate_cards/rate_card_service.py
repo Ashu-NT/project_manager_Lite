@@ -1,15 +1,22 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.application.financials.rate_cards.rate_card_events import (
+    RateCardCreated,
+    RateCardDeactivated,
+    RateCardLineAdded,
+    RateCardLineDeactivated,
+    RateCardLineUpdated,
 )
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_cards import (
     ProjectRateCardRepository,
@@ -30,7 +37,6 @@ from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,
-    ValidationError,
 )
 from src.core.shared.audit import record_audit_entry
 
@@ -52,6 +58,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         enterprise_audit_service=None,
         module_catalog_service=None,
         tenant_context_service: TenantContextService | None = None,
+        record_event: Callable[[object], None] | None = None,
     ) -> None:
         self._session = session
         self._rate_card_repo = rate_card_repo
@@ -60,6 +67,11 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
+        self._record_event = record_event
+
+    def _emit(self, event: object) -> None:
+        if self._record_event is not None:
+            self._record_event(event)
 
     # -- Rate cards ---------------------------------------------------
 
@@ -86,7 +98,16 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         )
         self._rate_card_repo.add(rate_card)
         self._record_card_audit("create", rate_card)
-        self._commit()
+        self._session.flush()
+        self._emit(
+            RateCardCreated(
+                tenant_id=rate_card.tenant_id,
+                organization_id=rate_card.organization_id,
+                rate_card_id=rate_card.id,
+                project_id=rate_card.project_id,
+                occurred_at=datetime.now(timezone.utc),
+            )
+        )
         return rate_card
 
     def list_rate_cards(
@@ -112,10 +133,20 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         self._require_expected_version(current.version, expected_version, "Rate card")
         if not current.is_active:
             return current
-        candidate = replace(current, is_active=False, updated_at=datetime.now(timezone.utc))
+        now = datetime.now(timezone.utc)
+        candidate = replace(current, is_active=False, updated_at=now)
         self._rate_card_repo.update(candidate)
         self._record_card_audit("deactivate", candidate, old=current)
-        self._commit()
+        self._session.flush()
+        self._emit(
+            RateCardDeactivated(
+                tenant_id=candidate.tenant_id,
+                organization_id=candidate.organization_id,
+                rate_card_id=candidate.id,
+                project_id=candidate.project_id,
+                occurred_at=now,
+            )
+        )
         return candidate
 
     # -- Rate card lines ------------------------------------------------
@@ -172,7 +203,17 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         self._reject_overlap(card.id, line)
         self._rate_card_repo.add_line(line)
         self._record_line_audit("create", line)
-        self._commit()
+        self._session.flush()
+        self._emit(
+            RateCardLineAdded(
+                tenant_id=line.tenant_id,
+                organization_id=line.organization_id,
+                rate_card_id=line.rate_card_id,
+                rate_line_id=line.id,
+                project_id=card.project_id,
+                occurred_at=datetime.now(timezone.utc),
+            )
+        )
         return line
 
     def update_line(
@@ -193,6 +234,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
             operation_label="update rate card line",
         )
         current = self._require_line(line_id)
+        card = self._require_rate_card(current.rate_card_id)
         self._require_expected_version(current.version, expected_version, "Rate card line")
         candidate = replace(
             current,
@@ -216,12 +258,27 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
                 if holiday_multiplier is _UNSET
                 else holiday_multiplier
             ),
-            updated_at=datetime.now(timezone.utc),
         )
+        if candidate == current:
+            # True no-op (P22 §6): zero repository write, zero audit, zero typed event, no
+            # synthetic version/updated_at bump.
+            return current
+        now = datetime.now(timezone.utc)
+        candidate = replace(candidate, updated_at=now)
         self._reject_overlap(candidate.rate_card_id, candidate, excluding_line_id=candidate.id)
         self._rate_card_repo.update_line(candidate)
         self._record_line_audit("update", candidate, old=current)
-        self._commit()
+        self._session.flush()
+        self._emit(
+            RateCardLineUpdated(
+                tenant_id=candidate.tenant_id,
+                organization_id=candidate.organization_id,
+                rate_card_id=candidate.rate_card_id,
+                rate_line_id=candidate.id,
+                project_id=card.project_id,
+                occurred_at=now,
+            )
+        )
         return candidate
 
     def deactivate_line(self, line_id: str, *, expected_version: int) -> RateCardLine:
@@ -231,13 +288,25 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
             operation_label="deactivate rate card line",
         )
         current = self._require_line(line_id)
+        card = self._require_rate_card(current.rate_card_id)
         self._require_expected_version(current.version, expected_version, "Rate card line")
         if not current.is_active:
             return current
-        candidate = replace(current, is_active=False, updated_at=datetime.now(timezone.utc))
+        now = datetime.now(timezone.utc)
+        candidate = replace(current, is_active=False, updated_at=now)
         self._rate_card_repo.update_line(candidate)
         self._record_line_audit("deactivate", candidate, old=current)
-        self._commit()
+        self._session.flush()
+        self._emit(
+            RateCardLineDeactivated(
+                tenant_id=candidate.tenant_id,
+                organization_id=candidate.organization_id,
+                rate_card_id=candidate.rate_card_id,
+                rate_line_id=candidate.id,
+                project_id=card.project_id,
+                occurred_at=now,
+            )
+        )
         return candidate
 
     def list_lines(
@@ -449,20 +518,6 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
             sort_keys=True,
         )
 
-    def _commit(self, *, duplicate_message: str | None = None) -> None:
-        try:
-            self._session.commit()
-        except IntegrityError as exc:
-            self._session.rollback()
-            if duplicate_message:
-                raise ValidationError(
-                    duplicate_message,
-                    code="RATE_CARD_DUPLICATE",
-                ) from exc
-            raise
-        except Exception:
-            self._session.rollback()
-            raise
 
 
 __all__ = ["ProjectRateCardService"]

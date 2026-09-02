@@ -98,17 +98,21 @@ def test_pm_dashboard_no_longer_reacts_to_costs_changed_because_it_no_longer_exi
     # absence assertion above, plus the source-reference-count guard, is the complete proof.
 
 
-def test_pm_financials_workspace_still_reacts_to_its_remaining_real_signals(services):
+def test_pm_financials_workspace_coalesces_scoped_finance_invalidations(services, qapp):
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.financialsWorkspace
+    project_id = _unique("p7b-finance-project")
+    controller._set_selected_project_id(project_id)
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.budgets_changed.emit(_unique("p7b-budget"))
-    domain_events.planned_costs_changed.emit(_unique("p7b-planned-cost"))
-    domain_events.billing_preparations_changed.emit(_unique("p7b-billing-prep"))
+    domain_events.budgets_changed.emit(project_id)
+    domain_events.planned_costs_changed.emit(project_id)
+    domain_events.billing_preparations_changed.emit(project_id)
 
-    assert refresh_calls == ["refresh", "refresh", "refresh"]
+    qapp.processEvents()
+
+    assert refresh_calls == ["refresh"]
 
 
 def test_pm_portfolio_workspace_still_reacts_to_its_remaining_real_signals(services, qapp):
@@ -137,37 +141,39 @@ def test_control_workspace_still_reacts_to_its_remaining_real_signals(services):
     assert refresh_calls == ["refresh"]
 
 
-def test_admin_console_still_reacts_to_its_remaining_three_real_signals(services):
-    """P10D/P12B/P13B/P14B: `organizations_changed`/`employees_changed`/`departments_changed`/
-    `sites_changed` are all gone (all four now flow through their own typed ViewInvalidation
-    targets, wired directly in `context.py`, not through this composite Signal list) -- three
-    legacy signals remain here."""
+def test_admin_console_still_reacts_to_its_remaining_signal(services):
+    """P10D/P12B/P13B/P14B/P15B/P16D: `organizations_changed`/`employees_changed`/
+    `departments_changed`/`sites_changed`/`parties_changed`/`documents_changed` are all gone (all
+    six now flow through their own typed ViewInvalidation targets, wired directly in
+    `context.py`, not through this composite Signal list) -- one legacy signal remains here."""
     catalog = _catalog(services)
     admin = catalog.adminWorkspace
     refresh_calls = []
     admin.refresh = lambda: refresh_calls.append("refresh") or None
 
     domain_events.auth_changed.emit(_unique("p7b-auth"))
-    domain_events.parties_changed.emit(_unique("p7b-party"))
-    domain_events.documents_changed.emit(_unique("p7b-doc"))
 
-    assert refresh_calls == ["refresh"] * 3
+    assert refresh_calls == ["refresh"]
 
 
 def test_pm_resources_workspace_still_reacts_to_resources(services):
     """Confirms the resources binder's `calendars_changed`/`employees_changed` removals did not
-    accidentally also remove its other, still-real subscriptions."""
+    accidentally also remove its other, still-real subscriptions. `resources_changed` itself is
+    deleted as of P18B -- the Resources workspace now reacts via
+    `ResourceViewInvalidationAdapter.resourceListStale`, driven by a real Resource mutation
+    flowing through the canonical typed-event pipeline."""
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.resourcesWorkspace
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.resources_changed.emit(_unique("p7b-resource"))
+    services["resource_service"].create_resource(name=_unique("p7b-resource"))
 
     assert refresh_calls == ["refresh"]
 
 
 def test_pm_scheduling_workspace_still_reacts_to_its_remaining_real_signals(services):
+
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.schedulingWorkspace
     refresh_calls = []
@@ -175,10 +181,9 @@ def test_pm_scheduling_workspace_still_reacts_to_its_remaining_real_signals(serv
 
     domain_events.project_changed.emit(_unique("p7b-sched-project"))
     domain_events.tasks_changed.emit(_unique("p7b-sched-tasks"))
-    domain_events.baseline_changed.emit(_unique("p7b-sched-baseline"))
-    domain_events.resources_changed.emit(_unique("p7b-sched-resources"))
+    services["resource_service"].create_resource(name=_unique("p7b-sched-resource"))
 
-    assert refresh_calls == ["refresh"] * 4
+    assert refresh_calls == ["refresh"] * 3
 
 
 # ---------------------------------------------------------------------------
@@ -222,29 +227,30 @@ def test_final_signal_invariant_every_remaining_signal_has_a_source_reference_be
                 reference_counts[name] += 1
 
     orphaned = [name for name, count in reference_counts.items() if count == 0]
-    # P7C deleted cost_entries_changed/commitments_changed/forecasts_changed/
-    # financial_changes_changed entirely (the one documented producer-only/zero-consumer
-    # exception P7B left in place) -- every remaining signal now has both a producer and a
-    # consumer, so this list is expected to be empty with no exceptions.
+    # R6B restored the Finance family hints only after adding both committed mutation
+    # producers and a targeted Finance destination-cache consumer. Every remaining signal
+    # therefore has an active production path in both directions.
     assert orphaned == [], orphaned
 
 
 def test_domain_event_binder_still_kept_unchanged_in_responsibility():
     """§10: still not deleted -- still real, direct, non-compatibility composite-refresh
-    coordination, now for 3 signals instead of 8 (`calendars_changed` removed by P7B,
+    coordination, now for 1 signal instead of 8 (`calendars_changed` removed by P7B,
     `organizations_changed` removed by P10D, `employees_changed` removed by P12B,
-    `departments_changed` removed by P13B, `sites_changed` removed by P14B -- all five route
-    through their own typed ViewInvalidation targets instead)."""
+    `departments_changed` removed by P13B, `sites_changed` removed by P14B, `parties_changed`
+    removed by P15B, `documents_changed` removed by P16D -- all seven route through their own
+    typed ViewInvalidation targets instead)."""
     import src.ui_qml.platform.controllers.admin_console.domain_event_binder as binder_module
 
     source = _strip_strings_and_comments(inspect.getsource(binder_module))
     for forbidden in (
         "_subscribe_domain_change", "domain_changed", "_BRIDGE_SPECS", "calendars_changed",
         "organizations_changed", "employees_changed", "departments_changed", "sites_changed",
+        "parties_changed", "documents_changed",
     ):
         assert forbidden not in source
     for still_present in (
-        "auth_changed", "parties_changed", "documents_changed",
+        "auth_changed",
     ):
         assert still_present in source
 

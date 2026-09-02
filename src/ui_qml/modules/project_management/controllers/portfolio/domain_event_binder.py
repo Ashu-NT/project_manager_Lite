@@ -19,7 +19,6 @@ def bind_portfolio_domain_events(controller: object) -> None:
         domain_events.portfolio_changed,
         domain_events.project_changed,
         domain_events.tasks_changed,
-        domain_events.resources_changed,
     ):
         controller._subscribe_domain_signal(signal, _on_domain_event)
 

@@ -28,6 +28,7 @@ from .requisition_command_handler import (
     update_requisition,
 )
 from .workspace_builder import (
+    build_item_reference_options,
     build_party_reference_options,
     build_site_reference_options,
     build_workspace_state,
@@ -72,6 +73,9 @@ class InventoryProcurementProcurementWorkspacePresenter:
 
     def build_party_reference_options(self):
         return build_party_reference_options(self._desktop_api)
+
+    def build_item_reference_options(self):
+        return build_item_reference_options(self._desktop_api)
 
     def create_requisition(self, payload: dict[str, Any]) -> None:
         create_requisition(self._desktop_api, payload)

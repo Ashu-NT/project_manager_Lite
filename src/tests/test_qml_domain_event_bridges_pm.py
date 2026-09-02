@@ -25,15 +25,14 @@ def test_pm_tasks_workspace_queues_domain_refresh_while_busy(monkeypatch) -> Non
     assert refresh_calls == ["refresh"]
 
 
-def test_pm_resources_workspace_refreshes_on_resource_events(monkeypatch) -> None:
-    catalog = ProjectManagementWorkspaceCatalog()
-    controller = catalog.resourcesWorkspace
-    refresh_calls: list[str] = []
-    monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
-
-    domain_events.resources_changed.emit("res-1")
-
-    assert refresh_calls == ["refresh"]
+# P18B retired test_pm_resources_workspace_refreshes_on_resource_events: `resources_changed`
+# is deleted -- the Resources workspace now reacts via
+# `ResourceViewInvalidationAdapter.resourceListStale`, which needs the real
+# ViewInvalidationChannel wiring this lightweight no-registry harness cannot construct (see the
+# `test_platform_settings_workspace_refreshes_on_runtime_events` retirement comment below for the
+# same constraint). Proved instead, end to end with real services, by
+# test_p7b_dead_signal_cleanup.py::test_pm_resources_workspace_still_reacts_to_resources and
+# test_p18b_resource_view_invalidation.py.
 
 
 def test_pm_collaboration_workspace_refreshes_on_collaboration_workflow_events(monkeypatch) -> None:
@@ -70,15 +69,17 @@ def test_pm_portfolio_workspace_refreshes_on_portfolio_workflow_events(
 
 
 def test_pm_timesheets_workspace_refreshes_on_timesheet_workflow_events(monkeypatch) -> None:
+    """`resources_changed` removed from this binder's subscriptions (P18B) -- the review-queue's
+    resource picker now reacts via `ResourceViewInvalidationAdapter.resourceListStale`, proved
+    with real services in test_p18b_resource_view_invalidation.py."""
     catalog = ProjectManagementWorkspaceCatalog()
     controller = catalog.timesheetsWorkspace
     refresh_calls: list[str] = []
     monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
 
     domain_events.timesheet_periods_changed.emit("period-1")
-    domain_events.resources_changed.emit("res-1")
 
-    assert refresh_calls == ["refresh", "refresh"]
+    assert refresh_calls == ["refresh"]
 
 
 def test_platform_control_workspace_refreshes_on_control_events(monkeypatch) -> None:
@@ -124,16 +125,11 @@ def test_platform_admin_access_workspace_reacts_to_auth_changed_narrowly(monkeyp
     assert not hasattr(domain_events, "access_changed")
 
 
-def test_platform_admin_workspace_refreshes_on_master_data_events(monkeypatch) -> None:
-    """`organizations_changed` removed from this proof (P10D): admin console organization
-    refresh now flows through the typed `organization_list` ViewInvalidation target instead of
-    this composite Signal list -- see `test_organization_view_invalidation_qt_cutover.py`."""
-    catalog = PlatformWorkspaceCatalog()
-    controller = catalog.adminWorkspace
-    refresh_calls: list[str] = []
-    monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
-
-    domain_events.parties_changed.emit("party-1")
-    domain_events.documents_changed.emit("doc-1")
-
-    assert refresh_calls == ["refresh", "refresh"]
+# P16D superseded `test_platform_admin_workspace_refreshes_on_master_data_events`:
+# `organizations_changed` removed (P10D), `employees_changed`/`departments_changed`/
+# `sites_changed` removed (P12B/P13B/P14B), `parties_changed` removed (P15B),
+# `documents_changed` removed (P16D) -- admin console's composite domain-event binder now
+# subscribes to `auth_changed` only, and every master-data capability's refresh flows through
+# its own typed ViewInvalidation target instead of this composite Signal list. See
+# test_p7b_dead_signal_cleanup.py's `test_admin_console_still_reacts_to_its_remaining_signal`
+# for the current proof.

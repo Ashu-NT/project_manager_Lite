@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import date, datetime, timezone
 
@@ -9,6 +10,16 @@ from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.application.financials.configuration_events import (
+    CostCodeActivated,
+    CostCodeCreated,
+    CostCodeDeactivated,
+    CostCodeProfileUpdated,
+    ProjectCostCodeRestrictionAdded,
+    ProjectCostCodeRestrictionRemoved,
+    ProjectFinancialProfileTransitioned,
+    ProjectFinancialProfileUpdated,
 )
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
@@ -53,6 +64,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         enterprise_audit_service=None,
         module_catalog_service=None,
         tenant_context_service: TenantContextService | None = None,
+        record_event: Callable[[object], None] | None = None,
     ) -> None:
         self._session = session
         self._profile_repo = profile_repo
@@ -62,6 +74,11 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
+        self._record_event = record_event
+
+    def _emit(self, event: object) -> None:
+        if self._record_event is not None:
+            self._record_event(event)
 
     def get_profile(self, project_id: str) -> ProjectFinancialProfile:
         self._require_project(project_id, "finance.read", "view financial profile")
@@ -92,7 +109,6 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         current = self._require_profile(project_id)
         self._require_expected_version(current.version, expected_version, "Financial profile")
         values = {
-            "updated_at": datetime.now(timezone.utc),
             "currency_code": current.currency_code if currency_code is _UNSET else currency_code,
             "billing_method": current.billing_method if billing_method is _UNSET else billing_method,
             "budget_control_mode": (
@@ -135,9 +151,23 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
                 "The default cost code must be in the project's restricted allow-list.",
                 code="PROJECT_DEFAULT_COST_CODE_NOT_ALLOWED",
             )
+        if candidate == current:
+            # True no-op (P21 §11): zero repository write, zero audit, zero typed event, no
+            # synthetic version/updated_at bump.
+            return current
+        now = datetime.now(timezone.utc)
+        candidate = replace(candidate, updated_at=now)
         self._profile_repo.update(candidate)
         self._record_profile_audit("update", candidate, old=current)
-        self._commit()
+        self._flush()
+        self._emit(
+            ProjectFinancialProfileUpdated(
+                tenant_id=candidate.tenant_id,
+                organization_id=candidate.organization_id,
+                project_id=candidate.project_id,
+                occurred_at=now,
+            )
+        )
         return candidate
 
     def transition_profile(
@@ -157,7 +187,16 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         candidate.transition_to(resolved_target)
         self._profile_repo.update(candidate)
         self._record_profile_audit("transition", candidate, old=current)
-        self._commit()
+        self._flush()
+        self._emit(
+            ProjectFinancialProfileTransitioned(
+                tenant_id=candidate.tenant_id,
+                organization_id=candidate.organization_id,
+                project_id=candidate.project_id,
+                status=candidate.status.value,
+                occurred_at=datetime.now(timezone.utc),
+            )
+        )
         return candidate
 
     def list_cost_codes(self, *, include_inactive: bool = False) -> list[ProjectCostCode]:
@@ -230,6 +269,15 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         if available_to_project_id and project_profile:
             self._flush(duplicate_message=duplicate_message)
         self._record_cost_code_audit("create", cost_code)
+        now = datetime.now(timezone.utc)
+        self._emit(
+            CostCodeCreated(
+                tenant_id=cost_code.tenant_id,
+                organization_id=cost_code.organization_id,
+                cost_code_id=cost_code.id,
+                occurred_at=now,
+            )
+        )
         if (
             available_to_project_id
             and project_profile
@@ -243,7 +291,16 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
             )
             self._cost_code_repo.add_restriction(restriction)
             self._record_restriction_audit("create", restriction)
-        self._commit(duplicate_message=duplicate_message)
+            self._emit(
+                ProjectCostCodeRestrictionAdded(
+                    tenant_id=restriction.tenant_id,
+                    organization_id=restriction.organization_id,
+                    project_id=restriction.project_id,
+                    cost_code_id=restriction.cost_code_id,
+                    occurred_at=now,
+                )
+            )
+        self._flush(duplicate_message=duplicate_message)
         return cost_code
 
     def update_cost_code(
@@ -285,16 +342,29 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
                 current.effective_from if effective_from is _UNSET else effective_from
             ),
             effective_to=current.effective_to if effective_to is _UNSET else effective_to,
-            updated_at=datetime.now(timezone.utc),
         )
+        if candidate == current:
+            # True no-op (P21 §11): zero repository write, zero audit, zero typed event, no
+            # synthetic version/updated_at bump.
+            return current
         self._ensure_parent_is_acyclic(
             candidate.id,
             candidate.parent_id,
             require_active_ancestors=candidate.is_active,
         )
+        now = datetime.now(timezone.utc)
+        candidate = replace(candidate, updated_at=now)
         self._cost_code_repo.update(candidate)
         self._record_cost_code_audit("update", candidate, old=current)
-        self._commit(duplicate_message=f"Cost code '{candidate.code}' already exists.")
+        self._flush(duplicate_message=f"Cost code '{candidate.code}' already exists.")
+        self._emit(
+            CostCodeProfileUpdated(
+                tenant_id=candidate.tenant_id,
+                organization_id=candidate.organization_id,
+                cost_code_id=candidate.id,
+                occurred_at=now,
+            )
+        )
         return candidate
 
     def deactivate_cost_code(
@@ -325,14 +395,23 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
                 "Cost code is a project default and cannot be deactivated.",
                 code="PROJECT_COST_CODE_IS_DEFAULT",
             )
+        now = datetime.now(timezone.utc)
         candidate = replace(
             current,
             is_active=False,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=now,
         )
         self._cost_code_repo.update(candidate)
         self._record_cost_code_audit("deactivate", candidate, old=current)
-        self._commit()
+        self._flush()
+        self._emit(
+            CostCodeDeactivated(
+                tenant_id=candidate.tenant_id,
+                organization_id=candidate.organization_id,
+                cost_code_id=candidate.id,
+                occurred_at=now,
+            )
+        )
         return candidate
 
     def activate_cost_code(
@@ -351,14 +430,23 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         if current.is_active:
             return current
         self._ensure_parent_is_acyclic(current.id, current.parent_id)
+        now = datetime.now(timezone.utc)
         candidate = replace(
             current,
             is_active=True,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=now,
         )
         self._cost_code_repo.update(candidate)
         self._record_cost_code_audit("activate", candidate, old=current)
-        self._commit()
+        self._flush()
+        self._emit(
+            CostCodeActivated(
+                tenant_id=candidate.tenant_id,
+                organization_id=candidate.organization_id,
+                cost_code_id=candidate.id,
+                occurred_at=now,
+            )
+        )
         return candidate
 
     def add_project_cost_code(
@@ -383,7 +471,16 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         )
         self._cost_code_repo.add_restriction(restriction)
         self._record_restriction_audit("create", restriction)
-        self._commit(duplicate_message="Cost code is already assigned to this project.")
+        self._flush(duplicate_message="Cost code is already assigned to this project.")
+        self._emit(
+            ProjectCostCodeRestrictionAdded(
+                tenant_id=restriction.tenant_id,
+                organization_id=restriction.organization_id,
+                project_id=restriction.project_id,
+                cost_code_id=restriction.cost_code_id,
+                occurred_at=datetime.now(timezone.utc),
+            )
+        )
         return restriction
 
     def remove_project_cost_code(self, *, project_id: str, cost_code_id: str) -> bool:
@@ -407,7 +504,16 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
             cost_code_id=cost_code_id,
         )
         self._record_restriction_audit("delete", current)
-        self._commit()
+        self._flush()
+        self._emit(
+            ProjectCostCodeRestrictionRemoved(
+                tenant_id=current.tenant_id,
+                organization_id=current.organization_id,
+                project_id=current.project_id,
+                cost_code_id=current.cost_code_id,
+                occurred_at=datetime.now(timezone.utc),
+            )
+        )
         return True
 
     def _require_project(self, project_id: str, permission: str, operation: str):
@@ -612,34 +718,15 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
             sort_keys=True,
         )
 
-    def _commit(self, *, duplicate_message: str | None = None) -> None:
-        try:
-            self._session.commit()
-        except IntegrityError as exc:
-            self._session.rollback()
-            if duplicate_message:
-                raise ValidationError(
-                    duplicate_message,
-                    code="PROJECT_FINANCE_CONFIGURATION_DUPLICATE",
-                ) from exc
-            raise
-        except Exception:
-            self._session.rollback()
-            raise
-
     def _flush(self, *, duplicate_message: str | None = None) -> None:
         try:
             self._session.flush()
         except IntegrityError as exc:
-            self._session.rollback()
             if duplicate_message:
                 raise ValidationError(
                     duplicate_message,
                     code="PROJECT_FINANCE_CONFIGURATION_DUPLICATE",
                 ) from exc
-            raise
-        except Exception:
-            self._session.rollback()
             raise
 
 

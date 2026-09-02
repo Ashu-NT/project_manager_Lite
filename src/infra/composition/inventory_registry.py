@@ -40,6 +40,78 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.purchase_
 from src.core.modules.inventory_procurement.infrastructure.persistence.requisition_submission_unit_of_work import (
     SqlAlchemyRequisitionSubmissionUnitOfWorkFactory,
 )
+from src.core.modules.inventory_procurement.infrastructure.persistence.reservation_unit_of_work import (
+    SqlAlchemyInventoryReservationUnitOfWorkFactory,
+)
+from src.core.modules.inventory_procurement.infrastructure.persistence.uow.inventory.inventory_foundation_unit_of_work import (
+    SqlAlchemyInventoryFoundationUnitOfWorkFactory,
+)
+from src.core.modules.inventory_procurement.infrastructure.persistence.uow.catalog.inventory_catalog_unit_of_work import (
+    SqlAlchemyInventoryCatalogUnitOfWorkFactory,
+)
+from src.core.modules.inventory_procurement.application.inventory.event_handlers.view_invalidation import (
+    build_balance_view_invalidation_handler,
+    build_location_list_view_invalidation_handler,
+    build_reorder_policy_list_view_invalidation_handler,
+    build_reservation_view_invalidation_handler,
+    build_storeroom_list_view_invalidation_handler,
+)
+from src.core.modules.inventory_procurement.application.catalog.event_handlers.view_invalidation import (
+    build_item_category_list_view_invalidation_handler,
+    build_item_list_view_invalidation_handler,
+)
+from src.core.modules.inventory_procurement.application.procurement.event_handlers.view_invalidation import (
+    build_purchase_order_view_invalidation_handler,
+    build_requisition_view_invalidation_handler,
+)
+from src.core.modules.inventory_procurement.domain.inventory.foundation_events import (
+    InventoryReorderPolicyConfigured,
+    LocationCreated,
+    LocationProfileUpdated,
+    StoreroomCreated,
+    StoreroomProfileUpdated,
+    StoreroomStatusChanged,
+)
+from src.core.modules.inventory_procurement.domain.catalog.catalog_events import (
+    InventoryItemCategoryCreated,
+    InventoryItemCategoryProfileUpdated,
+    InventoryItemCreated,
+    InventoryItemProfileUpdated,
+    InventoryItemStatusChanged,
+)
+from src.core.modules.inventory_procurement.domain.procurement.purchasing_events import (
+    InventoryPurchaseOrderApproved,
+    InventoryPurchaseOrderCancelled,
+    InventoryPurchaseOrderClosed,
+    InventoryPurchaseOrderCreated,
+    InventoryPurchaseOrderLineAdded,
+    InventoryPurchaseOrderProfileUpdated,
+    InventoryPurchaseOrderReceivingAdvanced,
+    InventoryPurchaseOrderRejected,
+    InventoryPurchaseOrderSent,
+    InventoryPurchaseOrderSubmitted,
+)
+from src.core.modules.inventory_procurement.domain.procurement.requisition_events import (
+    InventoryRequisitionApproved,
+    InventoryRequisitionCancelled,
+    InventoryRequisitionCreated,
+    InventoryRequisitionLineAdded,
+    InventoryRequisitionProfileUpdated,
+    InventoryRequisitionRejected,
+    InventoryRequisitionSourcingAdvanced,
+    InventoryRequisitionSubmitted,
+)
+from src.core.modules.inventory_procurement.domain.inventory.reservation_events import (
+    InventoryReservationCancelled,
+    InventoryReservationConsumptionAdvanced,
+    InventoryReservationCreated,
+    InventoryReservationReleased,
+)
+from src.core.modules.inventory_procurement.domain.inventory.balance_events import (
+    StockOnHandQuantityChanged,
+    StockOnOrderQuantityChanged,
+    StockReservedQuantityChanged,
+)
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.catalog import (
     SqlAlchemyInventoryItemCategoryRepository,
     SqlAlchemyStockItemRepository,
@@ -175,6 +247,40 @@ def build_inventory_procurement_service_bundle(
     )
     logger.debug("Inventory/Procurement repositories built")
     logger.debug("Inventory/Procurement core services build begin")
+    # P24: the canonical, capability-owned UoW for Item + Item Category commands -- shares the
+    # SAME composition-owned dispatcher/post-commit bus every Platform UnitOfWork factory
+    # already uses, never a second, module-local instance.
+    inventory_catalog_uow_session_factory = sessionmaker(
+        bind=platform_services.session.bind, future=True
+    )
+    inventory_catalog_uow_factory = SqlAlchemyInventoryCatalogUnitOfWorkFactory(
+        session_factory=inventory_catalog_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
+    _item_list_view_invalidation_handler = build_item_list_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _item_event_type in (
+        InventoryItemCreated,
+        InventoryItemProfileUpdated,
+        InventoryItemStatusChanged,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _item_event_type, _item_list_view_invalidation_handler
+        )
+    _item_category_list_view_invalidation_handler = build_item_category_list_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _item_category_event_type in (
+        InventoryItemCategoryCreated,
+        InventoryItemCategoryProfileUpdated,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _item_category_event_type, _item_category_list_view_invalidation_handler
+        )
     inventory_item_category_service = ItemCategoryService(
         platform_services.session,
         category_repo,
@@ -182,6 +288,41 @@ def build_inventory_procurement_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
+        uow_factory=inventory_catalog_uow_factory,
+    )
+    # P20: the canonical, capability-owned UoW for Storeroom + Storage Location commands --
+    # shares the SAME composition-owned dispatcher/post-commit bus every Platform UnitOfWork
+    # factory already uses, never a second, module-local instance.
+    inventory_foundation_uow_session_factory = sessionmaker(
+        bind=platform_services.session.bind, future=True
+    )
+    inventory_foundation_uow_factory = SqlAlchemyInventoryFoundationUnitOfWorkFactory(
+        session_factory=inventory_foundation_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        organization_repo=platform_services.organization_repo,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
+    _storeroom_list_view_invalidation_handler = build_storeroom_list_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _storeroom_event_type in (StoreroomCreated, StoreroomProfileUpdated, StoreroomStatusChanged):
+        platform_services.platform_post_commit_bus.subscribe(
+            _storeroom_event_type, _storeroom_list_view_invalidation_handler
+        )
+    _location_list_view_invalidation_handler = build_location_list_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _location_event_type in (LocationCreated, LocationProfileUpdated):
+        platform_services.platform_post_commit_bus.subscribe(
+            _location_event_type, _location_list_view_invalidation_handler
+        )
+    _reorder_policy_list_view_invalidation_handler = build_reorder_policy_list_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    platform_services.platform_post_commit_bus.subscribe(
+        InventoryReorderPolicyConfigured, _reorder_policy_list_view_invalidation_handler
     )
     inventory_service = InventoryService(
         platform_services.session,
@@ -191,6 +332,7 @@ def build_inventory_procurement_service_bundle(
         party_service=platform_services.party_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
+        uow_factory=inventory_foundation_uow_factory,
     )
     inventory_item_service = ItemMasterService(
         platform_services.session,
@@ -202,10 +344,16 @@ def build_inventory_procurement_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
+        uow_factory=inventory_catalog_uow_factory,
     )
-    # Approval-P1: the narrow, capability-specific canonical UoW for `submit_requisition` --
-    # shares the SAME composition-owned dispatcher/post-commit bus every Platform UnitOfWork
-    # factory already uses, never a second, module-local instance.
+    # P31B: close the composition-order cycle noted on the factory's own docstring --
+    # `InventoryService`/`inventory_item_service` now exist, so the Foundation UoW's own
+    # `stock_service` (Cycle Count/Manual Movements) can be configured.
+    inventory_foundation_uow_factory.configure_stock_dependencies(
+        item_service=inventory_item_service,
+        inventory_service=inventory_service,
+    )
+
     requisition_submission_uow_session_factory = sessionmaker(
         bind=platform_services.session.bind, future=True
     )
@@ -250,6 +398,29 @@ def build_inventory_procurement_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
+    def _build_purchase_order_receiving_collaborators(session: Session):
+        receipt_header_repo = SqlAlchemyReceiptHeaderRepository(
+            session, tenant_context_service=platform_services.tenant_context_service
+        )
+        receipt_line_repo = SqlAlchemyReceiptLineRepository(
+            session, tenant_context_service=platform_services.tenant_context_service
+        )
+        stock_service = StockControlService(
+            session,
+            SqlAlchemyStockBalanceRepository(
+                session, tenant_context_service=platform_services.tenant_context_service
+            ),
+            SqlAlchemyStockTransactionRepository(
+                session, tenant_context_service=platform_services.tenant_context_service
+            ),
+            organization_repo=platform_services.organization_repo,
+            item_service=inventory_item_service,
+            inventory_service=inventory_service,
+            tenant_context_service=platform_services.tenant_context_service,
+            user_session=platform_services.user_session,
+        )
+        return receipt_header_repo, receipt_line_repo, stock_service
+
     inventory_purchasing_service = PurchasingService(
         platform_services.session,
         purchase_order_repo,
@@ -275,14 +446,86 @@ def build_inventory_procurement_service_bundle(
         user_session=platform_services.user_session,
         document_integration_service=platform_services.document_integration_service,
         procurement_financial_outbox_service=procurement_financial_outbox_service,
+        receiving_collaborators_factory=_build_purchase_order_receiving_collaborators,
     )
+    _purchase_order_view_invalidation_handler = build_purchase_order_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _purchase_order_event_type in (
+        InventoryPurchaseOrderCreated,
+        InventoryPurchaseOrderLineAdded,
+        InventoryPurchaseOrderProfileUpdated,
+        InventoryPurchaseOrderSubmitted,
+        InventoryPurchaseOrderApproved,
+        InventoryPurchaseOrderRejected,
+        InventoryPurchaseOrderCancelled,
+        InventoryPurchaseOrderSent,
+        InventoryPurchaseOrderClosed,
+        InventoryPurchaseOrderReceivingAdvanced,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _purchase_order_event_type, _purchase_order_view_invalidation_handler
+        )
+    _requisition_view_invalidation_handler = build_requisition_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _requisition_event_type in (
+        InventoryRequisitionCreated,
+        InventoryRequisitionLineAdded,
+        InventoryRequisitionProfileUpdated,
+        InventoryRequisitionSubmitted,
+        InventoryRequisitionApproved,
+        InventoryRequisitionRejected,
+        InventoryRequisitionCancelled,
+        InventoryRequisitionSourcingAdvanced,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _requisition_event_type, _requisition_view_invalidation_handler
+        )
+
+    inventory_reservation_uow_session_factory = sessionmaker(
+        bind=platform_services.session.bind, future=True
+    )
+    inventory_reservation_uow_factory = SqlAlchemyInventoryReservationUnitOfWorkFactory(
+        session_factory=inventory_reservation_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        organization_repo=platform_services.organization_repo,
+        item_service=inventory_item_service,
+        inventory_service=inventory_service,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
+    _reservation_view_invalidation_handler = build_reservation_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _reservation_event_type in (
+        InventoryReservationCreated,
+        InventoryReservationConsumptionAdvanced,
+        InventoryReservationReleased,
+        InventoryReservationCancelled,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _reservation_event_type, _reservation_view_invalidation_handler
+        )
+    _balance_view_invalidation_handler = build_balance_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _balance_event_type in (
+        StockOnHandQuantityChanged,
+        StockReservedQuantityChanged,
+        StockOnOrderQuantityChanged,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _balance_event_type, _balance_view_invalidation_handler
+        )
     inventory_reservation_service = ReservationService(
         platform_services.session,
         reservation_repo,
         organization_repo=platform_services.organization_repo,
         item_service=inventory_item_service,
         inventory_service=inventory_service,
-        stock_service=inventory_stock_service,
+        reservation_uow_factory=inventory_reservation_uow_factory,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         document_integration_service=platform_services.document_integration_service,
@@ -300,12 +543,8 @@ def build_inventory_procurement_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
+        uow_factory=inventory_foundation_uow_factory,
     )
-    # P4 Step 2 (ADR-005 Section 24, Round 7/8): backed by module-owned, session-parameterized
-    # approval transaction participants, whose bound apply/reject method is registered directly,
-    # alongside a dependencies_factory(session) closure over this call site's ambient
-    # collaborators -- ApprovalService itself now calls dependencies_factory(uow_session) once
-    # per approve_and_apply/reject call, against its own fresh PlatformUnitOfWork Session.
     procurement_approval_participant = ProcurementApprovalParticipant()
     procurement_dependencies_factory = lambda uow_session: build_procurement_approval_deps(
         uow_session,
@@ -390,10 +629,6 @@ def build_inventory_procurement_service_bundle(
     def _storeroom_exists_for_role_governance(
         session: Session, tenant_id: str, storeroom_id: str
     ) -> bool:
-        # P5C-1 (reopened storeroom finding): a FRESH repository bound to the calling
-        # RoleGovernanceUnitOfWork's own Session, never the legacy shared one -- the existence
-        # check must read within the same transaction as the binding mutation and audit it
-        # gates. See `ScopeExistsResolver` in `role_governance_service.py`.
         storeroom = SqlAlchemyStoreroomRepository(
             session, tenant_context_service=platform_services.tenant_context_service
         ).get_for_tenant(storeroom_id, tenant_id)

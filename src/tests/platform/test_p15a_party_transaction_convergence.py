@@ -6,10 +6,10 @@ from src.core.platform.application.history.audit.enterprise_audit_service import
     EnterpriseAuditService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.domain.master_data.party.events import PartyCreated, PartyProfileUpdated
 from src.core.platform.infrastructure.persistence.uow.party_unit_of_work import (
     SqlAlchemyPartyUnitOfWork,
 )
-from src.core.shared.events.domain_events import domain_events
 
 _COUNTER = {"n": 0}
 
@@ -19,9 +19,11 @@ def _unique_code(prefix: str) -> str:
     return f"{prefix}-{_COUNTER['n']}"
 
 
-def _spy_signal(signal):
+def _spy_event(services, event_type):
     calls = []
-    signal.connect(lambda payload: calls.append(payload))
+    services["party_service"]._uow_factory._post_commit_bus.subscribe(
+        event_type, lambda event, context: calls.append(event)
+    )
     return calls
 
 
@@ -67,13 +69,13 @@ def test_create_party_repository_and_audit_share_the_uow_session(services, monke
 
 def test_create_party_success_commits_and_emits_only_after_commit(services):
     party_service = services["party_service"]
-    calls = _spy_signal(domain_events.parties_changed)
+    calls = _spy_event(services, PartyCreated)
 
     code = _unique_code("CREATE-OK")
     party = party_service.create_party(party_code=code, party_name="Create Ok")
 
     assert party.party_code == code
-    assert calls == [party.id]
+    assert [e.party_id for e in calls] == [party.id]
     reloaded = party_service._party_repo.get(party.id)
     assert reloaded is not None
     assert reloaded.party_code == code
@@ -82,12 +84,12 @@ def test_create_party_success_commits_and_emits_only_after_commit(services):
 def test_update_party_success_commits_and_emits_only_after_commit(services):
     party_service = services["party_service"]
     party = party_service.create_party(party_code=_unique_code("UPDATE-OK"), party_name="Before Update")
-    calls = _spy_signal(domain_events.parties_changed)
+    calls = _spy_event(services, PartyProfileUpdated)
 
     updated = party_service.update_party(party.id, party_name="After Update", expected_version=party.version)
 
     assert updated.party_name == "After Update"
-    assert calls == [updated.id]
+    assert [e.party_id for e in calls] == [updated.id]
     reloaded = party_service._party_repo.get(party.id)
     assert reloaded.party_name == "After Update"
 
@@ -106,7 +108,7 @@ def test_create_party_duplicate_code_validation_failure_rolls_back_and_emits_not
         return uow
 
     monkeypatch.setattr(type(party_service._uow_factory), "create", _spy_create)
-    calls = _spy_signal(domain_events.parties_changed)
+    calls = _spy_event(services, PartyCreated)
 
     with pytest.raises(ValidationError, match="Party code already exists"):
         party_service.create_party(party_code=code, party_name="Second")
@@ -122,7 +124,7 @@ def test_update_party_duplicate_code_validation_failure_rolls_back_and_emits_not
     existing_code = _unique_code("DUPE-UPDATE-EXISTING")
     party_service.create_party(party_code=existing_code, party_name="Existing")
     party = party_service.create_party(party_code=_unique_code("DUPE-UPDATE-TARGET"), party_name="Target")
-    calls = _spy_signal(domain_events.parties_changed)
+    calls = _spy_event(services, PartyProfileUpdated)
 
     with pytest.raises(ValidationError, match="Party code already exists"):
         party_service.update_party(party.id, party_code=existing_code, expected_version=party.version)
@@ -147,7 +149,7 @@ def test_update_party_cross_organization_denied_as_not_found_and_emits_nothing(s
         base_currency="USD",
     )
     tenant_context_service.set_active_organization(other_organization.id)
-    calls = _spy_signal(domain_events.parties_changed)
+    calls = _spy_event(services, PartyProfileUpdated)
     try:
         with pytest.raises(NotFoundError):
             party_service.update_party(party.id, party_name="Hijacked")
@@ -230,7 +232,7 @@ def test_create_party_audit_failure_rolls_back_and_emits_nothing(services, monke
 
     monkeypatch.setattr(EnterpriseAuditService, "record", _fail_record)
     party_service = services["party_service"]
-    calls = _spy_signal(domain_events.parties_changed)
+    calls = _spy_event(services, PartyCreated)
     code = _unique_code("AUDITFAIL-CREATE")
 
     with pytest.raises(RuntimeError, match="simulated create_party audit failure"):
@@ -250,7 +252,7 @@ def test_update_party_audit_failure_rolls_back_and_emits_nothing(services, monke
         raise RuntimeError("simulated update_party audit failure")
 
     monkeypatch.setattr(EnterpriseAuditService, "record", _fail_record)
-    calls = _spy_signal(domain_events.parties_changed)
+    calls = _spy_event(services, PartyProfileUpdated)
 
     with pytest.raises(RuntimeError, match="simulated update_party audit failure"):
         party_service.update_party(party.id, party_name="Should Not Apply", expected_version=party.version)
@@ -278,7 +280,7 @@ def test_create_party_commit_failure_leaves_no_partial_state_and_emits_nothing(s
         raise RuntimeError("simulated database commit failure")
 
     monkeypatch.setattr(SqlAlchemyPartyUnitOfWork, "commit", _fail_commit)
-    calls = _spy_signal(domain_events.parties_changed)
+    calls = _spy_event(services, PartyCreated)
 
     code = _unique_code("COMMITFAIL")
     with pytest.raises(RuntimeError, match="simulated database commit failure"):
@@ -298,7 +300,7 @@ def test_update_party_commit_failure_leaves_no_partial_state_and_emits_nothing(s
         raise RuntimeError("simulated database commit failure")
 
     monkeypatch.setattr(SqlAlchemyPartyUnitOfWork, "commit", _fail_commit)
-    calls = _spy_signal(domain_events.parties_changed)
+    calls = _spy_event(services, PartyProfileUpdated)
 
     with pytest.raises(RuntimeError, match="simulated database commit failure"):
         party_service.update_party(party.id, party_name="Should Not Apply", expected_version=party.version)
@@ -339,72 +341,13 @@ def test_update_party_uses_a_fresh_uow_distinct_from_the_legacy_session(services
     assert seen["uow_session"] is not party_service._session
 
 
-def test_admin_console_still_reacts_to_parties_changed_unchanged(services):
-    from src.ui_qml.platform.controllers.admin_console.domain_event_binder import bind_domain_events
-
-    refresh_calls = []
-
-    class _FakeController:
-        def __init__(self):
-            self._domain_event_subscriptions = []
-
-        def _subscribe_domain_signal(self, signal, callback):
-            signal.connect(callback)
-            self._domain_event_subscriptions.append((signal, callback))
-
-        def _request_domain_refresh(self):
-            refresh_calls.append("refresh")
-
-    bind_domain_events(_FakeController())
-
-    services["party_service"].create_party(party_code=_unique_code("ADMIN-REFRESH"), party_name="Admin Refresh Party")
-
-    assert refresh_calls == ["refresh"]
-
-
-def test_inventory_procurement_representative_consumer_still_reacts_to_parties_changed_unchanged(services):
-    from src.ui_qml.modules.inventory_procurement.controllers.inventory.inventory_domain_event_binder import (
-        bind_domain_events as bind_inventory_domain_events,
-    )
-
-    refresh_calls = []
-
-    class _FakeController:
-        def __init__(self):
-            self._domain_event_subscriptions = []
-
-        def _subscribe_domain_signal(self, signal, callback):
-            signal.connect(callback)
-            self._domain_event_subscriptions.append((signal, callback))
-
-        def _request_domain_refresh(self):
-            refresh_calls.append("refresh")
-
-    bind_inventory_domain_events(_FakeController())
-
-    services["party_service"].create_party(party_code=_unique_code("INV-REFRESH"), party_name="Inventory Refresh Party")
-
-    assert refresh_calls == ["refresh"]
-
-
-def test_no_new_party_domain_event_introduced():
-    import glob
-    import re
-
-    hits = []
-    for path in glob.glob("src/**/*.py", recursive=True):
-        normalized = path.replace("\\", "/")
-        if "__pycache__" in normalized or "/tests/" in normalized:
-            continue
-        with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-            source = fh.read()
-        if re.search(r"\bPartyCreated\b", source) or re.search(r"\bPartyProfileUpdated\b", source) or re.search(r"\bPartyChanged\b", source):
-            hits.append(normalized)
-    assert hits == [], hits
-
-
-def test_parties_changed_field_still_present():
-    assert hasattr(domain_events, "parties_changed")
+# P15B superseded the four tests that used to live here (`test_admin_console_still_reacts_to_
+# parties_changed_unchanged`, `test_inventory_procurement_representative_consumer_still_reacts_to_
+# parties_changed_unchanged`, `test_no_new_party_domain_event_introduced`,
+# `test_parties_changed_field_still_present`): they proved the *pre*-P15B state (legacy signal
+# still present and still the only reaction path). Party is now fully modernized -- see
+# test_p15b_party_event_modernization.py for the typed-event/ViewInvalidation/consumer-cutover
+# proofs, and its `test_parties_changed_field_and_producers_are_fully_gone` for the deletion proof.
 
 
 def test_canonical_party_uow_retained_no_raw_session_commit():

@@ -29,11 +29,6 @@ from src.core.shared.time.clock import Clock
 
 logger = logging.getLogger(__name__)
 
-# P4 Step 2 (ADR-005 §24, Round 7/8): a registered apply/reject handler is now the participant's
-# own bound method -- `(request, deps) -> ApprovalHandlerResult` -- called by ApprovalService's
-# own dispatch logic with `deps` freshly built, per call, by the handler's own registered
-# `dependencies_factory`. Neither ever receives the `UnitOfWork` itself (a participant never
-# commits/rolls back/registers touched aggregates -- see each Step 1 participant's own docstring).
 ApplyHandler = Callable[[ApprovalRequest, Any], ApprovalHandlerResult | None]
 DependenciesFactory = Callable[[Session], Any]
 
@@ -108,15 +103,6 @@ class ApprovalService:
         module: str | None = None,
         payload: dict | None = None,
     ) -> ApprovalRequest:
-        """Approval-P1: the standalone (non-nested) request path -- fresh `PlatformUnitOfWork`,
-        the SAME canonical transaction/tenant-ownership mechanics
-        (`approval_mutation_participant.request_approval_using`) every caller-owned host
-        workflow now also uses inside its own outer transaction. `commit=False` no longer
-        exists: the three former caller-owned-transaction callers
-        (`ProcurementLifecycleMixin.submit_requisition`, `FinancialChangeService.submit_change`,
-        `ProjectBillingPreparationService.submit_preparation`) call
-        `request_approval_using(...)` directly, inside their own canonical UoW, instead of this
-        method."""
         require_permission(
             self._user_session,
             "approval.request",
@@ -250,6 +236,8 @@ class ApprovalService:
                 commit=False,
                 fail_closed=True,
             )
+            for domain_event in handler_result.domain_events:
+                uow.record_event(domain_event)
             uow.commit()
         self._emit_handler_events(handler_result)
 
@@ -275,10 +263,6 @@ class ApprovalService:
                     code="APPROVAL_HANDLER_MISSING",
                 )
             deps = dependencies_factory(uow._session)
-            # Approval-P2 (§2/§18): the apply participant MUST finish successfully before any
-            # `ApprovalApproved` recording -- if `handler(...)` raises, execution never reaches
-            # the status transition, `uow.record_event(...)`, or `uow.commit()` below; the whole
-            # transaction rolls back and the request remains PENDING.
             handler_result = self._normalize_handler_result(handler(request, deps))
             principal = self._user_session.principal if self._user_session else None
             request.status = ApprovalStatus.APPROVED
@@ -310,6 +294,8 @@ class ApprovalService:
                 commit=False,
                 fail_closed=True,
             )
+            for domain_event in handler_result.domain_events:
+                uow.record_event(domain_event)
             uow.commit()
         self._emit_handler_events(handler_result)
         self._notify_approval_decided(request, decided="approved")
@@ -360,7 +346,7 @@ class ApprovalService:
             cls._emit_signal_safely(event.signal_name, event.payload)
 
     @staticmethod
-    def _emit_signal_safely(signal_name: str, payload: str) -> None:
+    def _emit_signal_safely(signal_name: str, payload: object) -> None:
         signal = getattr(domain_events, signal_name, None)
         if signal is None:
             logger.error("Approval post-commit signal is not registered: %s", signal_name)

@@ -54,6 +54,13 @@ def build_party_reference_options(desktop_api):
     )
 
 
+def build_item_reference_options(desktop_api):
+    return tuple(
+        InventorySelectorOptionViewModel(value=option.value, label=option.label)
+        for option in desktop_api.list_item_options(active_only=None)
+    )
+
+
 def build_workspace_state(
     desktop_api,
     *,
@@ -82,10 +89,7 @@ def build_workspace_state(
             for option in desktop_api.list_purchase_order_statuses()
         ),
     )
-    item_options = tuple(
-        InventorySelectorOptionViewModel(value=option.value, label=option.label)
-        for option in desktop_api.list_item_options(active_only=None)
-    )
+    item_options = build_item_reference_options(desktop_api)
 
     normalized_search = (search_text or "").strip()
     normalized_site_filter = normalize_filter(site_filter, site_options)

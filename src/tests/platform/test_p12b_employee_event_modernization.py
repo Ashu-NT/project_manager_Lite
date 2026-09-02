@@ -204,7 +204,10 @@ def test_employees_changed_field_and_producers_are_fully_gone():
 
     source = inspect.getsource(employee_service_module)
     assert "employees_changed" not in source
-    assert "domain_events.resources_changed" in source
+    # P18B: employee_service.py's own remaining `domain_events.resources_changed` reference was
+    # deleted too -- Employee is fully modernized and no longer touches any legacy Signal at
+    # all, direct or cross-capability. See test_p18b_resource_view_invalidation.py for the
+    # typed-event replacement (ResourceMasterEventFactory + ResourceMasterChanged).
 
 
 def test_no_forbidden_employee_changed_event_name_exists():
@@ -243,11 +246,13 @@ def test_no_platform_to_pm_concrete_infrastructure_import():
     assert "SqlAlchemyResourceRepository" not in source
 
 
-def test_resources_changed_unchanged_and_still_the_only_pm_resource_row_signal(services):
-    assert hasattr(domain_events, "resources_changed")
-
-    import src.ui_qml.modules.project_management.controllers.resources.resource_domain_event_binder as binder_module
-
-    source = inspect.getsource(binder_module)
-    assert "resources_changed" in source
-    assert "employees_changed" not in source
+# P18B superseded test_resources_changed_unchanged_and_still_the_only_pm_resource_row_signal:
+# `resources_changed` itself is now deleted -- Resource Master/Capability mutations (and the
+# Employee-driven sync path this P12B test cared about) emit typed ResourceMasterChanged/
+# ResourceCapabilityChanged through the canonical postcommit bus, routed to the Resources
+# workspace via ResourceViewInvalidationAdapter. See test_p18b_resource_view_invalidation.py
+# for the current characterization, including the employee-driven-sync-produces-exactly-one-
+# resource-invalidation proof this test's own docstring was gesturing at. The import-boundary
+# half of the old test is unchanged and still covered by test_no_platform_to_pm_concrete_
+# infrastructure_import above (re-confirmed: P18B's new ResourceMasterEventFactory wiring lives
+# in employee_service.py, not this UoW infra module).

@@ -76,6 +76,12 @@ class ForecastVersionFact:
     approved_by: str | None
     approved_at: datetime | None
     notes: str
+    approval_request_id: str | None = None
+    approval_requested_by_user_id: str | None = None
+    can_submit: bool = False
+    can_request_approval: bool = False
+    can_approve: bool = False
+    can_reject: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,11 +106,19 @@ class ForecastLineFact:
 
 
 @dataclass(frozen=True, slots=True)
+class ForecastVersionPageFacts(FinancePageFacts[ForecastVersionFact]):
+    has_open_version: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class FinanceForecastWorkspaceFacts:
     selected_forecast_id: str
     selected_forecast: ForecastVersionFact | None
     versions: FinancePageFacts[ForecastVersionFact]
     lines: FinancePageFacts[ForecastLineFact]
+    show_generate: bool = False
+    can_generate: bool = False
+    generate_disabled_reason: str = ""
 
 
 __all__ = [
@@ -112,5 +126,6 @@ __all__ = [
     "ForecastLineFact",
     "ForecastLineRequest",
     "ForecastVersionFact",
+    "ForecastVersionPageFacts",
     "ForecastVersionRequest",
 ]

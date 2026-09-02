@@ -2,6 +2,11 @@ from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import select
+
+from src.core.modules.project_management.application.financials.invalidation import (
+    FinanceInvalidationScope,
+)
+from src.core.shared.events.domain_events import domain_events
 from alembic import command
 from alembic.config import Config
 import pytest
@@ -244,18 +249,14 @@ def test_closed_financial_period_keeps_approved_time_retryable_without_posting(s
     assert inbox.last_error_code == "FINANCIAL_PERIOD_POSTING_BLOCKED"
 
 
-# P7C: `test_post_commit_ui_refresh_failure_does_not_retry_financial_delivery` retired --
-# `cost_entries_changed` was deleted (zero production UI consumers, confirmed dead) and
-# `ApprovedTimeFinancialDispatcher`'s own try/except isolating a local-refresh emission failure
-# from the outbox/inbox commit was removed along with it (there is no local refresh left to
-# isolate). See test_p7c_zero_consumer_signal_cleanup.py for the retirement guards.
-
-
-def test_post_commit_delivery_succeeds_without_any_legacy_ui_refresh_signal(services) -> None:
-    """Replaces the retired isolation test above: proves outbox/inbox delivery still completes
-    correctly now that the dead local-refresh emission is gone entirely -- not merely isolated
-    from a failure that could no longer occur."""
+def test_post_commit_delivery_emits_scoped_refresh_after_durable_processing(services) -> None:
     _, project, resource, _, assignment = _setup(services)
+    scopes: list[FinanceInvalidationScope] = []
+
+    def capture(scope: FinanceInvalidationScope) -> None:
+        scopes.append(scope)
+
+    domain_events.cost_entries_changed.connect(capture)
     services["task_service"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 8), hours=Decimal("1")
     )
@@ -263,9 +264,12 @@ def test_post_commit_delivery_succeeds_without_any_legacy_ui_refresh_signal(serv
         resource.id, period_start=date(2026, 5, 1)
     )
 
-    services["timesheet_service"].approve_timesheet_period(
-        submitted.period_id, expected_version=submitted.version
-    )
+    try:
+        services["timesheet_service"].approve_timesheet_period(
+            submitted.period_id, expected_version=submitted.version
+        )
+    finally:
+        domain_events.cost_entries_changed.disconnect(capture)
 
     _, total = services["cost_entry_service"].list_for_project(project.id)
     assert total == 1
@@ -273,6 +277,39 @@ def test_post_commit_delivery_succeeds_without_any_legacy_ui_refresh_signal(serv
     inbox = services["session"].execute(select(ProjectFinanceInboxORM)).scalar_one()
     assert outbox.status == OutboxDeliveryStatus.PUBLISHED.value
     assert outbox.last_error_code is None
+    assert inbox.status == InboxProcessingStatus.PROCESSED.value
+    assert len(scopes) == 1
+    assert scopes[0].project_id == project.id
+    assert scopes[0].tenant_id == inbox.tenant_id
+    assert scopes[0].organization_id == inbox.organization_id
+
+
+def test_refresh_subscriber_failure_does_not_retry_approved_time_delivery(services) -> None:
+    _, project, resource, _, assignment = _setup(services)
+
+    def fail_refresh(_scope: FinanceInvalidationScope) -> None:
+        raise RuntimeError("presentation refresh unavailable")
+
+    domain_events.cost_entries_changed.connect(fail_refresh)
+    services["task_service"].add_time_entry(
+        assignment.id, entry_date=date(2026, 5, 9), hours=Decimal("1")
+    )
+    submitted = services["timesheet_service"].submit_timesheet_period(
+        resource.id, period_start=date(2026, 5, 1)
+    )
+    try:
+        approved = services["timesheet_service"].approve_timesheet_period(
+            submitted.period_id, expected_version=submitted.version
+        )
+    finally:
+        domain_events.cost_entries_changed.disconnect(fail_refresh)
+
+    assert approved.status is TimesheetPeriodStatus.APPROVED
+    _, total = services["cost_entry_service"].list_for_project(project.id)
+    assert total == 1
+    outbox = services["session"].execute(select(TimeFinancialOutboxORM)).scalar_one()
+    inbox = services["session"].execute(select(ProjectFinanceInboxORM)).scalar_one()
+    assert outbox.status == OutboxDeliveryStatus.PUBLISHED.value
     assert inbox.status == InboxProcessingStatus.PROCESSED.value
 
 

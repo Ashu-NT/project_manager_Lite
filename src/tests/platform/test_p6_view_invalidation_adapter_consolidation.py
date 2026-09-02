@@ -318,11 +318,14 @@ def test_view_invalidation_hint_contract_unchanged_by_p6():
     from src.core.shared.events import view_invalidation as contract_module
 
     hint_fields = {f for f in ViewInvalidationHint.__dataclass_fields__}
+    # P16D briefly added `module_code` here; P16D-FIX reverted that in favor of a typed
+    # `ResourceScope` -- see test_p8_platform_event_architecture_canonicalization.py's own copy
+    # of this same contract check for the full rationale.
     assert hint_fields == {"scope", "category", "scope_code", "entity_type", "entity_id"}
     assert set(contract_module.__all__) == {
-        "EventScope", "PlatformScope", "TenantScope", "OrganizationScope",
+        "EventScope", "PlatformScope", "TenantScope", "OrganizationScope", "ResourceScope",
         "ViewInvalidationHint", "ViewInvalidationHandler", "ScopeFilter",
-        "ExactOrganization", "TenantWide", "AnyOrganizationInTenant", "AllTenants",
+        "ExactOrganization", "ExactResource", "TenantWide", "AnyOrganizationInTenant", "AllTenants",
         "PlatformWide", "ViewInvalidationChannel",
     }
 

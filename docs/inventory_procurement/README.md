@@ -680,15 +680,18 @@ This is especially important because `inventory_procurement` is the first true t
 
 Inventory should emit a small but explicit event surface from the start.
 
-Recommended first events:
+Recommended first events (original phase-1 plan, kept for history):
 
-- `inventory_items_changed`
-- `inventory_storerooms_changed`
-- `inventory_balances_changed`
-- `inventory_reservations_changed`
-- `inventory_requisitions_changed`
-- `inventory_purchase_orders_changed`
-- `inventory_receipts_changed`
+- `inventory_items_changed` — MODERNIZED: typed `InventoryItem*` events replace it (deleted)
+- `inventory_storerooms_changed` — MODERNIZED: typed Storeroom/Location events replace it (deleted)
+- ~~`inventory_balances_changed`~~ — MODERNIZED: typed `StockOnHandQuantityChanged`/`StockReservedQuantityChanged`/`StockOnOrderQuantityChanged` events replace it (deleted, see `docs/architecture/event-modernization-plan.md` P31B)
+- ~~`inventory_reservations_changed`~~ — MODERNIZED: typed `InventoryReservation*` events replace it (deleted, see `docs/architecture/event-modernization-plan.md` P30B)
+- ~~`inventory_requisitions_changed`~~ — MODERNIZED: typed `InventoryRequisition*` events replace it (deleted)
+- ~~`inventory_purchase_orders_changed`~~ — MODERNIZED: typed `InventoryPurchaseOrder*` events replace it (deleted)
+- `inventory_receipts_changed` — still legacy, Goods Receipt not yet modernized
+
+See `docs/architecture/event-modernization-plan.md` for the authoritative, currently-maintained
+event-modernization ledger — this list is historical planning context only.
 
 Recommended event payload direction:
 

@@ -15,18 +15,28 @@ from src.core.modules.inventory_procurement.application.common.support import (
     resolve_status_from_active,
     validate_transition,
 )
+from src.core.modules.inventory_procurement.contracts.uow.inventory.inventory_foundation_unit_of_work import (
+    InventoryFoundationUnitOfWorkFactory,
+)
 from src.core.modules.inventory_procurement.contracts.repositories.inventory import (
     StoreroomRepository,
+)
+from src.core.modules.inventory_procurement.domain.inventory.foundation_events import (
+    StoreroomCreated,
+    StoreroomProfileUpdated,
+    StoreroomStatusChanged,
 )
 from src.core.modules.inventory_procurement.domain.inventory.stock import Storeroom
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.site import Site
-from src.core.shared.events.domain_events import domain_events
+from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.platform.application.tenant.tenancy.tenant_context import (
@@ -47,6 +57,7 @@ class InventoryService:
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
         activity_service=None,
+        uow_factory: InventoryFoundationUnitOfWorkFactory | None = None,
     ) -> None:
         self._session: Session = session
         self._storeroom_repo: StoreroomRepository = storeroom_repo
@@ -59,6 +70,15 @@ class InventoryService:
         self._party_service: PartyService = party_service
         self._user_session = user_session
         self._activity_service = activity_service
+        self._uow_factory: InventoryFoundationUnitOfWorkFactory | None = uow_factory
+
+    def _require_uow_factory(self) -> InventoryFoundationUnitOfWorkFactory:
+        if self._uow_factory is None:
+            raise RuntimeError("Inventory foundation unit of work is not configured.")
+        return self._uow_factory
+
+    def _new_context(self) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id())
 
     def list_storerooms(
         self,
@@ -171,11 +191,6 @@ class InventoryService:
         self._require_manage("create storeroom")
         organization = self._active_organization()
         normalized_code = normalize_inventory_code(storeroom_code, label="Storeroom code")
-        if self._storeroom_repo.get_by_code(organization.id, normalized_code) is not None:
-            raise ValidationError(
-                "Storeroom code already exists in the active organization.",
-                code="INVENTORY_STOREROOM_CODE_EXISTS",
-            )
         site = self._validate_site_reference(site_id)
         resolved_status = normalize_status(
             status,
@@ -183,6 +198,7 @@ class InventoryService:
             allowed_statuses=set(STOREROOM_STATUS_TRANSITIONS.keys()),
             label="Storeroom status",
         )
+        manager_party_id = self._validate_party_reference(manager_party_id)
         storeroom = Storeroom.create(
             organization_id=organization.id,
             storeroom_code=normalized_code,
@@ -198,36 +214,64 @@ class InventoryService:
             requires_reservation_for_issue=bool(requires_reservation_for_issue),
             requires_supplier_reference_for_receipt=bool(requires_supplier_reference_for_receipt),
             default_currency_code=default_currency_code or site.currency_code or "",
-            manager_party_id=self._validate_party_reference(manager_party_id),
+            manager_party_id=manager_party_id,
             notes=notes,
         )
-        try:
-            self._storeroom_repo.add(storeroom)
-            self._session.commit()
-        except IntegrityError as exc:
-            self._session.rollback()
-            raise ValidationError(
-                "Storeroom code already exists in the active organization.",
-                code="INVENTORY_STOREROOM_CODE_EXISTS",
-            ) from exc
-        except Exception:
-            self._session.rollback()
-            raise
-        record_activity(
-            self,
-            action="inventory_storeroom.create",
-            entity_type="inventory_storeroom",
-            entity_id=storeroom.id,
-            module="inventory",
-            details={
-                "organization_id": organization.id,
-                "storeroom_code": storeroom.storeroom_code,
-                "name": storeroom.name,
-                "site_id": storeroom.site_id,
-                "status": storeroom.status,
-            },
-        )
-        domain_events.inventory_storerooms_changed.emit(storeroom.id)
+        with self._require_uow_factory().create(context=self._new_context()) as uow:
+            if uow.storerooms.get_by_code(organization.id, normalized_code) is not None:
+                raise ValidationError(
+                    "Storeroom code already exists in the active organization.",
+                    code="INVENTORY_STOREROOM_CODE_EXISTS",
+                )
+            try:
+                uow.storerooms.add(storeroom)
+            except IntegrityError as exc:
+                raise ValidationError(
+                    "Storeroom code already exists in the active organization.",
+                    code="INVENTORY_STOREROOM_CODE_EXISTS",
+                ) from exc
+            record_activity(
+                uow,
+                action="inventory_storeroom.create",
+                entity_type="inventory_storeroom",
+                entity_id=storeroom.id,
+                module="inventory",
+                details={
+                    "organization_id": organization.id,
+                    "storeroom_code": storeroom.storeroom_code,
+                    "name": storeroom.name,
+                    "site_id": storeroom.site_id,
+                    "status": storeroom.status,
+                },
+                commit=False,
+            )
+            record_audit_entry(
+                uow,
+                operation="create",
+                entity_type="inventory_storeroom",
+                entity_id=storeroom.id,
+                module="inventory",
+                severity="low",
+                metadata={
+                    "organization_id": organization.id,
+                    "storeroom_code": storeroom.storeroom_code,
+                    "name": storeroom.name,
+                    "site_id": storeroom.site_id,
+                    "status": storeroom.status,
+                },
+                commit=False,
+                fail_closed=True,
+            )
+            occurred_at = datetime.now(timezone.utc)
+            uow.record_event(
+                StoreroomCreated(
+                    tenant_id=organization.tenant_id,
+                    organization_id=organization.id,
+                    storeroom_id=storeroom.id,
+                    occurred_at=occurred_at,
+                )
+            )
+            uow.commit()
         return storeroom
 
     def update_storeroom(
@@ -303,7 +347,7 @@ class InventoryService:
                 is_active=bool(is_active),
                 transitions=STOREROOM_STATUS_TRANSITIONS,
             )
-        storeroom = replace(
+        candidate = replace(
             storeroom,
             storeroom_code=next_storeroom_code,
             name=storeroom.name if name is None else name,
@@ -344,36 +388,92 @@ class InventoryService:
             ),
             manager_party_id=next_manager_party_id,
             notes=storeroom.notes if notes is None else notes,
-            updated_at=datetime.now(timezone.utc),
         )
-        try:
-            self._storeroom_repo.update(storeroom)
-            self._session.commit()
-        except IntegrityError as exc:
-            self._session.rollback()
-            raise ValidationError(
-                "Storeroom code already exists in the active organization.",
-                code="INVENTORY_STOREROOM_CODE_EXISTS",
-            ) from exc
-        except Exception:
-            self._session.rollback()
-            raise
-        record_activity(
-            self,
-            action="inventory_storeroom.update",
-            entity_type="inventory_storeroom",
-            entity_id=storeroom.id,
-            module="inventory",
-            details={
-                "organization_id": organization.id,
-                "storeroom_code": storeroom.storeroom_code,
-                "name": storeroom.name,
-                "site_id": storeroom.site_id,
-                "status": storeroom.status,
-            },
+        if candidate == storeroom:
+            # True no-op (P20 §6): zero repository write, zero audit, zero typed event, no
+            # synthetic version/updated_at bump.
+            return storeroom
+        status_changed = candidate.status != storeroom.status
+        profile_changed = (
+            candidate.storeroom_code != storeroom.storeroom_code
+            or candidate.name != storeroom.name
+            or candidate.site_id != storeroom.site_id
+            or candidate.description != storeroom.description
+            or candidate.storeroom_type != storeroom.storeroom_type
+            or candidate.is_internal_supplier != storeroom.is_internal_supplier
+            or candidate.allows_issue != storeroom.allows_issue
+            or candidate.allows_transfer != storeroom.allows_transfer
+            or candidate.allows_receiving != storeroom.allows_receiving
+            or candidate.requires_reservation_for_issue != storeroom.requires_reservation_for_issue
+            or candidate.requires_supplier_reference_for_receipt
+            != storeroom.requires_supplier_reference_for_receipt
+            or candidate.default_currency_code != storeroom.default_currency_code
+            or candidate.manager_party_id != storeroom.manager_party_id
+            or candidate.notes != storeroom.notes
         )
-        domain_events.inventory_storerooms_changed.emit(storeroom.id)
-        return storeroom
+        now = datetime.now(timezone.utc)
+        candidate = replace(candidate, updated_at=now)
+        with self._require_uow_factory().create(context=self._new_context()) as uow:
+            try:
+                uow.storerooms.update(candidate)
+            except IntegrityError as exc:
+                raise ValidationError(
+                    "Storeroom code already exists in the active organization.",
+                    code="INVENTORY_STOREROOM_CODE_EXISTS",
+                ) from exc
+            record_activity(
+                uow,
+                action="inventory_storeroom.update",
+                entity_type="inventory_storeroom",
+                entity_id=candidate.id,
+                module="inventory",
+                details={
+                    "organization_id": organization.id,
+                    "storeroom_code": candidate.storeroom_code,
+                    "name": candidate.name,
+                    "site_id": candidate.site_id,
+                    "status": candidate.status,
+                },
+                commit=False,
+            )
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="inventory_storeroom",
+                entity_id=candidate.id,
+                module="inventory",
+                severity="low",
+                metadata={
+                    "organization_id": organization.id,
+                    "storeroom_code": candidate.storeroom_code,
+                    "name": candidate.name,
+                    "site_id": candidate.site_id,
+                    "status": candidate.status,
+                },
+                commit=False,
+                fail_closed=True,
+            )
+            if profile_changed:
+                uow.record_event(
+                    StoreroomProfileUpdated(
+                        tenant_id=organization.tenant_id,
+                        organization_id=organization.id,
+                        storeroom_id=candidate.id,
+                        occurred_at=now,
+                    )
+                )
+            if status_changed:
+                uow.record_event(
+                    StoreroomStatusChanged(
+                        tenant_id=organization.tenant_id,
+                        organization_id=organization.id,
+                        storeroom_id=candidate.id,
+                        status=candidate.status,
+                        occurred_at=now,
+                    )
+                )
+            uow.commit()
+        return candidate
 
     def _validate_site_reference(self, site_id: str) -> Site:
         normalized = normalize_optional_text(site_id)

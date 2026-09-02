@@ -176,6 +176,38 @@ def _wire_generation_sources(
     monkeypatch.setattr(service._cost_entry_repo, "list_for_project", list_actuals)
 
 
+def _generate_through_boundary(
+    services,
+    monkeypatch,
+    *,
+    project,
+    cost_code,
+    source_options: dict,
+    command_options: dict,
+    configure=None,
+):
+    def operation(service):
+        _wire_generation_sources(
+            monkeypatch,
+            service,
+            project=project,
+            cost_code=cost_code,
+            **source_options,
+        )
+        if configure is not None:
+            configure(service)
+        return service.generate_draft(
+            project.id,
+            as_of_date=service._clock.today(),
+            generated_by="admin",
+            **command_options,
+        )
+
+    return services["finance_governance_commands"].forecast_generation(
+        operation, project_id=project.id
+    )
+
+
 def test_forecast_domain_lifecycle_is_explicit_and_immutable_after_submit() -> None:
     forecast = _forecast()
     now = datetime.now(timezone.utc)
@@ -353,23 +385,18 @@ def test_generator_nets_actual_adjustments_and_does_not_double_count_commitments
 ) -> None:
     project = _project(services, "Automatic ETC")
     code = _cost_code(services, "FC-GEN")
-    service = services["forecast_generation_service"]
-    _wire_generation_sources(
+    result = _generate_through_boundary(
+        services,
         monkeypatch,
-        service,
         project=project,
         cost_code=code,
-        planned_amount="100",
-        actual_amounts=("20", "-5"),
-        commitment_amount="50",
-        matched_amount="20",
-    )
-
-    result = service.generate_draft(
-        project.id,
-        name="Generated ETC",
-        as_of_date=service._clock.today(),
-        generated_by="admin",
+        source_options={
+            "planned_amount": "100",
+            "actual_amounts": ("20", "-5"),
+            "commitment_amount": "50",
+            "matched_amount": "20",
+        },
+        command_options={"name": "Generated ETC"},
     )
 
     assert result.posted_actual_offset == Decimal("15")
@@ -395,29 +422,26 @@ def test_manual_etc_replaces_remaining_plan_but_keeps_open_commitments(
 ) -> None:
     project = _project(services, "Hybrid ETC")
     code = _cost_code(services, "FC-HYBRID")
-    service = services["forecast_generation_service"]
-    _wire_generation_sources(
+    result = _generate_through_boundary(
+        services,
         monkeypatch,
-        service,
         project=project,
         cost_code=code,
-        planned_amount="100",
-        actual_amounts=("20",),
-        commitment_amount="30",
-    )
-
-    result = service.generate_draft(
-        project.id,
-        name="Hybrid ETC",
-        as_of_date=service._clock.today(),
-        generated_by="admin",
-        manual_estimates=(
-            ManualEtcEstimate(
-                cost_code_id=code.id,
-                amount=Decimal("40"),
-                description="Delivery team ETC",
+        source_options={
+            "planned_amount": "100",
+            "actual_amounts": ("20",),
+            "commitment_amount": "30",
+        },
+        command_options={
+            "name": "Hybrid ETC",
+            "manual_estimates": (
+                ManualEtcEstimate(
+                    cost_code_id=code.id,
+                    amount=Decimal("40"),
+                    description="Delivery team ETC",
+                ),
             ),
-        ),
+        },
     )
 
     assert result.remaining_plan_total == Decimal("0")
@@ -432,21 +456,13 @@ def test_generator_persists_evidence_backed_zero_etc_forecast(
 ) -> None:
     project = _project(services, "Complete ETC")
     code = _cost_code(services, "FC-ZERO")
-    service = services["forecast_generation_service"]
-    _wire_generation_sources(
+    result = _generate_through_boundary(
+        services,
         monkeypatch,
-        service,
         project=project,
         cost_code=code,
-        planned_amount="25",
-        actual_amounts=("25",),
-    )
-
-    result = service.generate_draft(
-        project.id,
-        name="Complete ETC",
-        as_of_date=service._clock.today(),
-        generated_by="admin",
+        source_options={"planned_amount": "25", "actual_amounts": ("25",)},
+        command_options={"name": "Complete ETC"},
     )
 
     assert result.etc_total == Decimal("0")
@@ -463,37 +479,35 @@ def test_generator_persists_evidence_backed_zero_etc_forecast(
 def test_explicit_active_risk_contingency_is_additive(services, monkeypatch) -> None:
     project = _project(services, "Risk ETC")
     code = _cost_code(services, "FC-RISK")
-    service = services["forecast_generation_service"]
-    _wire_generation_sources(
-        monkeypatch,
-        service,
-        project=project,
-        cost_code=code,
-        planned_amount=None,
-    )
     risk = RegisterEntry.create(
         project.id,
         entry_type=RegisterEntryType.RISK,
         title="Supplier delay",
     )
-    monkeypatch.setattr(
-        service._register_repo,
-        "get",
-        lambda risk_id: risk if risk_id == risk.id else None,
-    )
+    def configure(service):
+        monkeypatch.setattr(
+            service._register_repo,
+            "get",
+            lambda risk_id: risk if risk_id == risk.id else None,
+        )
 
-    result = service.generate_draft(
-        project.id,
-        name="Risk ETC",
-        as_of_date=service._clock.today(),
-        generated_by="admin",
-        risk_contingencies=(
-            RiskContingencyEstimate(
-                risk_id=risk.id,
-                cost_code_id=code.id,
-                amount=Decimal("15"),
+    result = _generate_through_boundary(
+        services,
+        monkeypatch,
+        project=project,
+        cost_code=code,
+        source_options={"planned_amount": None},
+        command_options={
+            "name": "Risk ETC",
+            "risk_contingencies": (
+                RiskContingencyEstimate(
+                    risk_id=risk.id,
+                    cost_code_id=code.id,
+                    amount=Decimal("15"),
+                ),
             ),
-        ),
+        },
+        configure=configure,
     )
 
     assert result.risk_contingency_total == Decimal("15")
@@ -507,26 +521,24 @@ def test_generator_rolls_back_root_lines_and_decisions_when_audit_fails(
 ) -> None:
     project = _project(services, "Atomic ETC")
     code = _cost_code(services, "FC-ATOMIC")
-    service = services["forecast_generation_service"]
-    _wire_generation_sources(
-        monkeypatch,
-        service,
-        project=project,
-        cost_code=code,
-        planned_amount="25",
-    )
-    monkeypatch.setattr(
-        service,
-        "_record_audit",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("audit unavailable")),
-    )
+    def configure(service):
+        monkeypatch.setattr(
+            service,
+            "_record_audit",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                RuntimeError("audit unavailable")
+            ),
+        )
 
     with pytest.raises(RuntimeError, match="audit unavailable"):
-        service.generate_draft(
-            project.id,
-            name="Atomic ETC",
-            as_of_date=service._clock.today(),
-            generated_by="admin",
+        _generate_through_boundary(
+            services,
+            monkeypatch,
+            project=project,
+            cost_code=code,
+            source_options={"planned_amount": "25"},
+            command_options={"name": "Atomic ETC"},
+            configure=configure,
         )
 
     assert services["forecast_version_service"].list_forecasts(project.id) == []

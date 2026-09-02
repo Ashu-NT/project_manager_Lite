@@ -12,6 +12,7 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     ForecastLineFact,
     ForecastLineRequest,
     ForecastVersionFact,
+    ForecastVersionPageFacts,
     ForecastVersionRequest,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.financial_configuration import (
@@ -22,6 +23,9 @@ from src.core.modules.project_management.infrastructure.persistence.orm.forecast
     ProjectForecastORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
+from src.core.platform.infrastructure.persistence.orm.approval.approval import (
+    ApprovalRequestORM,
+)
 
 
 _VERSION_SORTS = {
@@ -66,7 +70,7 @@ class SqlAlchemyFinanceForecastReader:
         organization_id: str,
         project_id: str,
         request: ForecastVersionRequest,
-    ) -> FinancePageFacts[ForecastVersionFact]:
+    ) -> ForecastVersionPageFacts:
         conditions = self._version_conditions(
             tenant_id=tenant_id,
             organization_id=organization_id,
@@ -88,12 +92,23 @@ class SqlAlchemyFinanceForecastReader:
                 )
             )
 
-        total = int(
-            self._session.scalar(
-                select(func.count(ProjectForecastORM.id)).where(*conditions)
+        open_version_count = (
+            select(func.count(ProjectForecastORM.id))
+            .where(
+                ProjectForecastORM.tenant_id == tenant_id,
+                ProjectForecastORM.organization_id == organization_id,
+                ProjectForecastORM.project_id == project_id,
+                ProjectForecastORM.status.in_(("draft", "submitted")),
             )
-            or 0
+            .scalar_subquery()
         )
+        count_row = self._session.execute(
+            select(
+                func.count(ProjectForecastORM.id).label("total"),
+                open_version_count.label("open_version_count"),
+            ).where(*conditions)
+        ).one()
+        total = int(count_row.total or 0)
         page, page_size, offset = _normalized_window(
             request.normalized_page,
             request.normalized_page_size,
@@ -114,13 +129,14 @@ class SqlAlchemyFinanceForecastReader:
             .offset(offset)
             .limit(page_size)
         ).all()
-        return FinancePageFacts(
+        return ForecastVersionPageFacts(
             items=tuple(self._version_fact(row) for row in rows),
             total=total,
             page=page,
             page_size=page_size,
             sort_key=sort_key,
             sort_direction=direction,
+            has_open_version=bool(count_row.open_version_count),
         )
 
     def get_version(
@@ -295,6 +311,38 @@ class SqlAlchemyFinanceForecastReader:
             & (ForecastLineORM.project_id == project_id)
             & (ForecastLineORM.forecast_id == ProjectForecastORM.id)
         )
+        pending_approval_id = (
+            select(ApprovalRequestORM.id)
+            .where(
+                ApprovalRequestORM.tenant_id == tenant_id,
+                ApprovalRequestORM.organization_id == organization_id,
+                ApprovalRequestORM.project_id == project_id,
+                ApprovalRequestORM.request_type == "forecast.approve",
+                ApprovalRequestORM.entity_type == "project_forecast",
+                ApprovalRequestORM.entity_id == ProjectForecastORM.id,
+                ApprovalRequestORM.status == "PENDING",
+            )
+            .order_by(ApprovalRequestORM.requested_at.desc(), ApprovalRequestORM.id.desc())
+            .limit(1)
+            .correlate(ProjectForecastORM)
+            .scalar_subquery()
+        )
+        pending_requester_id = (
+            select(ApprovalRequestORM.requested_by_user_id)
+            .where(
+                ApprovalRequestORM.tenant_id == tenant_id,
+                ApprovalRequestORM.organization_id == organization_id,
+                ApprovalRequestORM.project_id == project_id,
+                ApprovalRequestORM.request_type == "forecast.approve",
+                ApprovalRequestORM.entity_type == "project_forecast",
+                ApprovalRequestORM.entity_id == ProjectForecastORM.id,
+                ApprovalRequestORM.status == "PENDING",
+            )
+            .order_by(ApprovalRequestORM.requested_at.desc(), ApprovalRequestORM.id.desc())
+            .limit(1)
+            .correlate(ProjectForecastORM)
+            .scalar_subquery()
+        )
         return (
             select(
                 ProjectForecastORM.id,
@@ -310,6 +358,8 @@ class SqlAlchemyFinanceForecastReader:
                 ProjectForecastORM.approved_by,
                 ProjectForecastORM.approved_at,
                 ProjectForecastORM.notes,
+                pending_approval_id.label("approval_request_id"),
+                pending_requester_id.label("approval_requested_by_user_id"),
                 func.count(ForecastLineORM.id).label("line_count"),
                 func.coalesce(func.sum(ForecastLineORM.amount), 0).label("total_etc"),
             )
@@ -350,6 +400,8 @@ class SqlAlchemyFinanceForecastReader:
             approved_by=row.approved_by,
             approved_at=row.approved_at,
             notes=row.notes,
+            approval_request_id=row.approval_request_id,
+            approval_requested_by_user_id=row.approval_requested_by_user_id,
         )
 
 
