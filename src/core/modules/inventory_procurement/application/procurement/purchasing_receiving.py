@@ -32,6 +32,9 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing_events
 from src.core.modules.inventory_procurement.domain.procurement.requisition_events import (
     InventoryRequisitionSourcingAdvanced,
 )
+from src.core.modules.inventory_procurement.domain.procurement.receipt_events import (
+    InventoryReceiptPosted,
+)
 from src.core.platform.domain.approval import ApprovalRequest
 from src.core.platform.contract.models.approval.contracts import (
     ApprovalHandlerResult,
@@ -41,7 +44,6 @@ from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 
 
 class PurchasingReceivingMixin:
@@ -317,8 +319,16 @@ class PurchasingReceivingMixin:
                     occurred_at=effective_receipt_date,
                 )
             )
+            uow.record_event(
+                InventoryReceiptPosted(
+                    tenant_id=tenant_id,
+                    organization_id=purchase_order.organization_id,
+                    receipt_id=receipt.id,
+                    purchase_order_id=purchase_order.id,
+                    occurred_at=effective_receipt_date,
+                )
+            )
             uow.commit()
-        domain_events.inventory_receipts_changed.emit(receipt.id)
         self._dispatch_procurement_financial_events()
         return receipt
 

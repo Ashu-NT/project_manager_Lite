@@ -63,6 +63,7 @@ from src.core.modules.inventory_procurement.application.catalog.event_handlers.v
 )
 from src.core.modules.inventory_procurement.application.procurement.event_handlers.view_invalidation import (
     build_purchase_order_view_invalidation_handler,
+    build_receipt_view_invalidation_handler,
     build_requisition_view_invalidation_handler,
 )
 from src.core.modules.inventory_procurement.domain.inventory.foundation_events import (
@@ -91,6 +92,9 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing_events
     InventoryPurchaseOrderRejected,
     InventoryPurchaseOrderSent,
     InventoryPurchaseOrderSubmitted,
+)
+from src.core.modules.inventory_procurement.domain.procurement.receipt_events import (
+    InventoryReceiptPosted,
 )
 from src.core.modules.inventory_procurement.domain.procurement.requisition_events import (
     InventoryRequisitionApproved,
@@ -480,6 +484,12 @@ def build_inventory_procurement_service_bundle(
         platform_services.platform_post_commit_bus.subscribe(
             _requisition_event_type, _requisition_view_invalidation_handler
         )
+    _receipt_view_invalidation_handler = build_receipt_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    platform_services.platform_post_commit_bus.subscribe(
+        InventoryReceiptPosted, _receipt_view_invalidation_handler
+    )
 
     inventory_reservation_uow_session_factory = sessionmaker(
         bind=platform_services.session.bind, future=True

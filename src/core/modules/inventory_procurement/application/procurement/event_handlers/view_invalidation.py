@@ -22,6 +22,9 @@ from src.core.modules.inventory_procurement.domain.procurement.requisition_event
     InventoryRequisitionSourcingAdvanced,
     InventoryRequisitionSubmitted,
 )
+from src.core.modules.inventory_procurement.domain.procurement.receipt_events import (
+    InventoryReceiptPosted,
+)
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import (
     OrganizationScope,
@@ -39,6 +42,8 @@ REQUISITION_PENDING_APPROVAL_SCOPE_CODE = "requisition_pending_approval"
 PROCUREMENT_MODULE_CODE = "inventory_procurement"
 PURCHASE_ORDER_ENTITY_TYPE = "purchase_order"
 REQUISITION_ENTITY_TYPE = "purchase_requisition"
+RECEIPT_LIST_SCOPE_CODE = "receipt_list"
+RECEIPT_ENTITY_TYPE = "inventory_receipt"
 
 _PurchaseOrderEvent = (
     InventoryPurchaseOrderCreated
@@ -227,16 +232,52 @@ def build_requisition_view_invalidation_handler(channel: ViewInvalidationChannel
     return handle_requisition_event
 
 
+_ReceiptEvent = InventoryReceiptPosted
+
+
+def build_receipt_view_invalidation_handler(channel: ViewInvalidationChannel):
+
+    current_correlation_id: list[str | None] = [None]
+    notified_targets: set[_OrgTarget] = set()
+
+    def handle_receipt_event(
+        event: _ReceiptEvent,
+        context: DomainEventContext,
+    ) -> None:
+        if context.correlation_id != current_correlation_id[0]:
+            current_correlation_id[0] = context.correlation_id
+            notified_targets.clear()
+
+        org_scope = OrganizationScope(event.tenant_id, event.organization_id)
+        org_target = _org_scope_target(RECEIPT_LIST_SCOPE_CODE, org_scope)
+        if org_target not in notified_targets:
+            notified_targets.add(org_target)
+            channel.notify(
+                ViewInvalidationHint(
+                    scope=org_scope,
+                    category=PROCUREMENT_CATEGORY,
+                    scope_code=RECEIPT_LIST_SCOPE_CODE,
+                    entity_type=RECEIPT_ENTITY_TYPE,
+                    entity_id=event.receipt_id,
+                )
+            )
+
+    return handle_receipt_event
+
+
 __all__ = [
     "build_purchase_order_view_invalidation_handler",
     "build_requisition_view_invalidation_handler",
+    "build_receipt_view_invalidation_handler",
     "PROCUREMENT_CATEGORY",
     "PURCHASE_ORDER_LIST_SCOPE_CODE",
     "PURCHASE_ORDER_DETAIL_SCOPE_CODE",
     "REQUISITION_LIST_SCOPE_CODE",
     "REQUISITION_DETAIL_SCOPE_CODE",
     "REQUISITION_PENDING_APPROVAL_SCOPE_CODE",
+    "RECEIPT_LIST_SCOPE_CODE",
     "PROCUREMENT_MODULE_CODE",
     "PURCHASE_ORDER_ENTITY_TYPE",
     "REQUISITION_ENTITY_TYPE",
+    "RECEIPT_ENTITY_TYPE",
 ]

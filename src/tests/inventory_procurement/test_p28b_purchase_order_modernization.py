@@ -253,10 +253,7 @@ def test_purchase_order_lifecycle_reaches_cancelled(services):
     assert po.status.value == "CANCELLED"
 
 
-def test_post_receipt_reaches_fully_received_with_receipt_signal_unchanged(services):
-    """P28B SS11/SS12/SS28: `post_receipt` converges its PO-side consequence onto a typed
-    `InventoryPurchaseOrderReceivingAdvanced`, while Receipt/Balance stay on their existing
-    legacy Signals unchanged."""
+def test_post_receipt_reaches_fully_received(services):
     suffix = uuid4().hex[:6].upper()
     auth = services["auth_service"]
     auth.register_user(f"p28b-rcv-{suffix}", "StrongPass123", role_names=["inventory_manager"])
@@ -282,20 +279,12 @@ def test_post_receipt_reaches_fully_received_with_receipt_signal_unchanged(servi
     approvals.approve_and_apply(po.approval_request_id, note="Approved for P28B receipt test")
     login_as(services, f"p28b-rcv-{suffix}", "StrongPass123")
 
-    receipt_signal_calls: list[str] = []
-    receipt_handler = lambda payload: receipt_signal_calls.append(payload)  # noqa: E731
-    domain_events.inventory_receipts_changed.connect(receipt_handler)
-    try:
-        receipt = purchasing.post_receipt(
-            po.id,
-            receipt_lines=[
-                {"purchase_order_line_id": line.id, "quantity_accepted": 5, "quantity_rejected": 0}
-            ],
-        )
-    finally:
-        domain_events.inventory_receipts_changed.disconnect(receipt_handler)
-
-    assert receipt_signal_calls == [receipt.id], "Receipt's own legacy signal is untouched"
+    purchasing.post_receipt(
+        po.id,
+        receipt_lines=[
+            {"purchase_order_line_id": line.id, "quantity_accepted": 5, "quantity_rejected": 0}
+        ],
+    )
 
     resulting_po = purchasing.get_purchase_order(po.id)
     assert resulting_po.status.value == "FULLY_RECEIVED"

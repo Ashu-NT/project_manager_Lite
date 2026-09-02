@@ -1,14 +1,6 @@
 from __future__ import annotations
 
-from src.core.shared.events.domain_events import domain_events
-
 
 def bind_domain_events(ctrl) -> None:
-
-    def _on_domain_event(_payload: object) -> None:
-        ctrl._request_domain_refresh()
-
-    for signal in (
-        domain_events.inventory_receipts_changed,
-    ):
-        ctrl._subscribe_domain_signal(signal, _on_domain_event)
+    """P33: `inventory_receipts_changed` deleted -- Catalog has zero remaining legacy Inventory
+    signals to subscribe to (confirmed incidental to Receipt since P32A/P33's own audit)."""

@@ -27,6 +27,9 @@ from src.ui_qml.platform.adapters.inventory_catalog_view_invalidation_adapter im
 from src.ui_qml.platform.adapters.purchase_order_view_invalidation_adapter import (
     PurchaseOrderViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.receipt_view_invalidation_adapter import (
+    ReceiptViewInvalidationAdapter,
+)
 from src.ui_qml.platform.adapters.requisition_view_invalidation_adapter import (
     RequisitionViewInvalidationAdapter,
 )
@@ -250,6 +253,15 @@ class InventoryProcurementWorkspaceCatalog(QObject):
         self._inventory_cycle_count_view_invalidation_adapter.cycleCountDetailStale.connect(
             self._inventory_workspace._request_domain_refresh
         )
+        self._inventory_receipt_view_invalidation_adapter = ReceiptViewInvalidationAdapter(
+            channel=self._view_invalidation_channel,
+            tenant_id=self._active_tenant_id() or "",
+            organization_id=self._active_organization_id() or "",
+            parent=self,
+        )
+        self._inventory_receipt_view_invalidation_adapter.receiptListStale.connect(
+            self._inventory_workspace._request_domain_refresh
+        )
         self._reservations_workspace = (
             InventoryProcurementReservationsWorkspaceController(
                 workspace_presenter=InventoryProcurementWorkspacePresenter(
@@ -364,6 +376,15 @@ class InventoryProcurementWorkspaceCatalog(QObject):
         self._procurement_requisition_view_invalidation_adapter.requisitionDetailStale.connect(
             self._procurement_workspace._request_domain_refresh
         )
+        self._procurement_receipt_view_invalidation_adapter = ReceiptViewInvalidationAdapter(
+            channel=self._view_invalidation_channel,
+            tenant_id=self._active_tenant_id() or "",
+            organization_id=self._active_organization_id() or "",
+            parent=self,
+        )
+        self._procurement_receipt_view_invalidation_adapter.receiptListStale.connect(
+            self._procurement_workspace._request_domain_refresh
+        )
         self._pricing_workspace = InventoryProcurementPricingWorkspaceController(
             workspace_presenter=InventoryProcurementWorkspacePresenter(
                 "inventory_procurement.pricing"
@@ -411,6 +432,15 @@ class InventoryProcurementWorkspaceCatalog(QObject):
             self._pricing_workspace._request_domain_refresh
         )
         self._pricing_balance_view_invalidation_adapter.stockBalanceDetailStale.connect(
+            self._pricing_workspace._request_domain_refresh
+        )
+        self._pricing_receipt_view_invalidation_adapter = ReceiptViewInvalidationAdapter(
+            channel=self._view_invalidation_channel,
+            tenant_id=self._active_tenant_id() or "",
+            organization_id=self._active_organization_id() or "",
+            parent=self,
+        )
+        self._pricing_receipt_view_invalidation_adapter.receiptListStale.connect(
             self._pricing_workspace._request_domain_refresh
         )
         self._dashboard_workspace = InventoryProcurementDashboardWorkspaceController(
@@ -484,6 +514,15 @@ class InventoryProcurementWorkspaceCatalog(QObject):
             self._dashboard_workspace._request_domain_refresh
         )
         self._dashboard_balance_view_invalidation_adapter.stockBalanceDetailStale.connect(
+            self._dashboard_workspace._request_domain_refresh
+        )
+        self._dashboard_receipt_view_invalidation_adapter = ReceiptViewInvalidationAdapter(
+            channel=self._view_invalidation_channel,
+            tenant_id=self._active_tenant_id() or "",
+            organization_id=self._active_organization_id() or "",
+            parent=self,
+        )
+        self._dashboard_receipt_view_invalidation_adapter.receiptListStale.connect(
             self._dashboard_workspace._request_domain_refresh
         )
 

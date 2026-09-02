@@ -5,7 +5,6 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.inventory_procurement.controllers.common import (
     InventoryProcurementWorkspaceControllerBase,
     serialize_dashboard_overview_view_model,
@@ -108,14 +107,9 @@ class InventoryProcurementDashboardWorkspaceController(
             self._set_is_loading(False)
 
     def _bind_domain_events(self) -> None:
-
-        def _on_domain_event(_payload: object) -> None:
-            self._request_domain_refresh()
-
-        for signal in (
-            domain_events.inventory_receipts_changed,
-        ):
-            self._subscribe_domain_signal(signal, _on_domain_event)
+        """P33: `inventory_receipts_changed` deleted -- Dashboard's genuine Receipt dependency
+        (per-PO "Receipts N" count) is now covered by the typed `ReceiptViewInvalidationAdapter`
+        wired in `context.py`, not this legacy binder."""
 
     def _set_overview(self, overview: dict[str, object]) -> None:
         if overview == self._overview:

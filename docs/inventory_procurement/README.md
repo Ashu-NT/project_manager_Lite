@@ -689,7 +689,12 @@ Recommended first events (original phase-1 plan, kept for history):
 - ~~`inventory_requisitions_changed`~~ — MODERNIZED: typed `InventoryRequisition*` events replace it (deleted)
 - ~~`inventory_purchase_orders_changed`~~ — MODERNIZED: typed `InventoryPurchaseOrder*` events replace it (deleted)
 - ~~`inventory_cycle_counts_changed`~~ — MODERNIZED: typed `InventoryCycleCountScheduled`/`InventoryCycleCountCompleted` events replace it (deleted, see `docs/architecture/event-modernization-plan.md` P32B)
-- `inventory_receipts_changed` — still legacy, Goods Receipt not yet modernized
+- ~~`inventory_receipts_changed`~~ — MODERNIZED: typed `InventoryReceiptPosted` event replaces it (deleted, see `docs/architecture/event-modernization-plan.md` P33)
+
+**Inventory/Procurement event modernization is COMPLETE as of P33** — all nine capabilities
+(Item/Category, Storeroom/Location, Reorder Policy, Purchase Order, Requisition, Reservation,
+Stock Balance, Cycle Count, Goods Receipt) are fully modernized; `DomainEvents` carries zero
+`inventory_`-prefixed legacy Signal fields.
 
 See `docs/architecture/event-modernization-plan.md` for the authoritative, currently-maintained
 event-modernization ledger — this list is historical planning context only.
