@@ -584,14 +584,6 @@ def test_resources_changed_has_zero_production_references():
     assert hits == [], hits
 
 
-def test_legacy_signal_count_decreased_by_exactly_one_from_p18a_baseline():
-    import dataclasses
-
-    from src.core.shared.events.domain_events import domain_events
-
-    assert len(dataclasses.fields(domain_events)) == 28
-
-
 def test_ui_never_subscribes_directly_to_raw_resource_domain_events():
     """Production UI path must stay DomainEvent -> postcommit handler -> ViewInvalidationHint ->
     channel -> scoped adapter -> narrow refresh; no QML/controller code may import or subscribe

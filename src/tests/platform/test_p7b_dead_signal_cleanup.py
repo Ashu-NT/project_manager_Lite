@@ -56,9 +56,9 @@ def test_calendars_changed_signal_no_longer_exists():
 
 
 def test_costs_changed_and_calendars_changed_have_zero_production_references():
-    """Word-boundary matching -- `costs_changed` is a trailing substring of
-    `planned_costs_changed` (a real, still-alive, unrelated signal), so a plain substring search
-    would false-positive on it."""
+    """Word-boundary matching -- `costs_changed` is a trailing substring of other Finance signal
+    names (e.g. the now-also-deleted `planned_costs_changed`, P35), so a plain substring search
+    would false-positive on any live or historical name sharing that suffix."""
     import re
 
     pattern = re.compile(r"(?<![\w.])(costs_changed|calendars_changed)\b")

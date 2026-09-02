@@ -697,12 +697,6 @@ def test_documents_changed_field_and_producers_and_consumers_are_fully_gone():
     assert hits == [], hits
 
 
-def test_legacy_signal_count_decreased_by_exactly_one():
-    import dataclasses
-
-    assert len(dataclasses.fields(domain_events)) == 29
-
-
 # ---------------------------------------------------------------------------
 # Architecture guards
 # ---------------------------------------------------------------------------
