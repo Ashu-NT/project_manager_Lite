@@ -68,6 +68,20 @@ Item {
     property string selectedBaselineId: ""
     property var reportBasisModel: ({ "fields": [] })
     property var financialProfileModel: ({ "id": "", "fields": [] })
+    property var setupCostCodesModel: ({ "items": [] })
+    property var setupRestrictionsModel: ({ "items": [] })
+    property var setupCostCodesTableModel: null
+    property var setupRestrictionsTableModel: null
+    property bool canCreateCostCode: false
+    property bool canManageCostCodeRestrictions: false
+    property string setupCostCodeSortKey: "code"
+    property int setupCostCodeSortDirection: Qt.AscendingOrder
+    property string setupRestrictionSortKey: "code"
+    property int setupRestrictionSortDirection: Qt.AscendingOrder
+    property string setupCostCodeSearch: ""
+    property string setupCostCodeStatus: ""
+    property string setupCostCodeAssignment: ""
+    property string setupRestrictionSearch: ""
     property var budgetVersionsModel: ({ "items": [] })
     property var budgetLinesModel: ({ "items": [] })
     property var budgetVersionsTableModel: null
@@ -144,6 +158,19 @@ Item {
 
     signal subsectionRequested(string subsection)
     signal configurationPageRequested(string collection, int page)
+    signal setupProfileEditRequested(var profile)
+    signal setupProfileTransitionRequested(string action, var profile)
+    signal setupCostCodeCreateRequested()
+    signal setupCostCodeEditRequested(var costCode)
+    signal setupCostCodeStatusRequested(string action, var costCode)
+    signal setupRestrictionAddRequested()
+    signal setupRestrictionRemoveRequested(var restriction)
+    signal setupCostCodePageRequested(int page)
+    signal setupRestrictionPageRequested(int page)
+    signal setupCostCodeSortRequested(string key, int direction)
+    signal setupRestrictionSortRequested(string key, int direction)
+    signal setupCostCodeFiltersRequested(string search, string status, string assignment)
+    signal setupRestrictionFilterRequested(string search)
     signal budgetVersionSelected(string budgetId)
     signal budgetVersionPageRequested(int page)
     signal budgetVersionSortRequested(string key, int direction)
@@ -642,6 +669,34 @@ Item {
         FinancialsProfileSection {
             width: parent ? parent.width : 0
             profile: root.financialProfileModel
+            costCodes: root.setupCostCodesModel
+            restrictions: root.setupRestrictionsModel
+            costCodesTableModel: root.setupCostCodesTableModel
+            restrictionsTableModel: root.setupRestrictionsTableModel
+            canCreateCostCode: root.canCreateCostCode
+            canManageRestrictions: root.canManageCostCodeRestrictions
+            busy: root.isBusy
+            costCodeSortKey: root.setupCostCodeSortKey
+            costCodeSortDirection: root.setupCostCodeSortDirection
+            restrictionSortKey: root.setupRestrictionSortKey
+            restrictionSortDirection: root.setupRestrictionSortDirection
+            costCodeSearch: root.setupCostCodeSearch
+            costCodeStatus: root.setupCostCodeStatus
+            costCodeAssignment: root.setupCostCodeAssignment
+            restrictionSearch: root.setupRestrictionSearch
+            onProfileEditRequested: function(profile) { root.setupProfileEditRequested(profile) }
+            onProfileTransitionRequested: function(action, profile) { root.setupProfileTransitionRequested(action, profile) }
+            onCostCodeCreateRequested: root.setupCostCodeCreateRequested()
+            onCostCodeEditRequested: function(costCode) { root.setupCostCodeEditRequested(costCode) }
+            onCostCodeStatusRequested: function(action, costCode) { root.setupCostCodeStatusRequested(action, costCode) }
+            onRestrictionAddRequested: root.setupRestrictionAddRequested()
+            onRestrictionRemoveRequested: function(restriction) { root.setupRestrictionRemoveRequested(restriction) }
+            onCostCodePageRequested: function(page) { root.setupCostCodePageRequested(page) }
+            onRestrictionPageRequested: function(page) { root.setupRestrictionPageRequested(page) }
+            onCostCodeSortRequested: function(key, direction) { root.setupCostCodeSortRequested(key, direction) }
+            onRestrictionSortRequested: function(key, direction) { root.setupRestrictionSortRequested(key, direction) }
+            onCostCodeFiltersRequested: function(search, status, assignment) { root.setupCostCodeFiltersRequested(search, status, assignment) }
+            onRestrictionFilterRequested: function(search) { root.setupRestrictionFilterRequested(search) }
         }
     }
 

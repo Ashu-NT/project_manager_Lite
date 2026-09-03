@@ -133,6 +133,16 @@ def build_destination_state(
     planned_cost_line_page: int = 1,
     billing_preparation_page: int = 1,
     configuration_page_size: int = 50,
+    setup_cost_code_page: int = 1,
+    setup_restriction_page: int = 1,
+    setup_cost_code_sort_key: str = "code",
+    setup_cost_code_sort_direction: str = "asc",
+    setup_restriction_sort_key: str = "code",
+    setup_restriction_sort_direction: str = "asc",
+    setup_cost_code_search: str = "",
+    setup_cost_code_status: str = "",
+    setup_cost_code_assignment: str = "",
+    setup_restriction_search: str = "",
     actual_page: int = 1,
     commitment_page: int = 1,
     transaction_page_size: int = 50,
@@ -615,12 +625,37 @@ def build_destination_state(
         )
 
     if subsection == "setup":
-        configuration = desktop_api.get_financial_setup_workspace(project_id)
+        configuration = desktop_api.get_financial_setup_workspace(
+            project_id,
+            cost_code_page=setup_cost_code_page,
+            restriction_page=setup_restriction_page,
+            page_size=configuration_page_size,
+            cost_code_search=setup_cost_code_search,
+            cost_code_status=setup_cost_code_status,
+            cost_code_assignment=setup_cost_code_assignment,
+            restriction_search=setup_restriction_search,
+            cost_code_sort_key=setup_cost_code_sort_key,
+            cost_code_sort_direction=setup_cost_code_sort_direction,
+            restriction_sort_key=setup_restriction_sort_key,
+            restriction_sort_direction=setup_restriction_sort_direction,
+        )
         views = build_finance_configuration_views(configuration)
         return FinancialsWorkspaceViewModel(
             overview=state.overview,
             selected_project_id=project_id,
             financial_profile=views["profile"],
+            can_create_cost_code=views["can_create_cost_code"],
+            can_manage_restrictions=views["can_manage_restrictions"],
+            setup_cost_codes=views["cost_codes"],
+            setup_restrictions=views["restrictions"],
+            setup_cost_code_sort_key=views["cost_code_sort_key"],
+            setup_cost_code_sort_direction=views["cost_code_sort_direction"],
+            setup_restriction_sort_key=views["restriction_sort_key"],
+            setup_restriction_sort_direction=views["restriction_sort_direction"],
+            setup_cost_code_search=setup_cost_code_search,
+            setup_cost_code_status=setup_cost_code_status,
+            setup_cost_code_assignment=setup_cost_code_assignment,
+            setup_restriction_search=setup_restriction_search,
         )
     if subsection == "changes":
         changes = build_change_workspace_views(

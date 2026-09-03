@@ -39,6 +39,8 @@ from src.core.modules.project_management.api.desktop.dashboard import (
     build_project_management_dashboard_desktop_api,
 )
 from src.core.modules.project_management.api.desktop.financials import (
+    FinancialChangeCostCodeStatusCommand,
+    FinancialCostCodeRestrictionCommand,
     FinancialAddBudgetLineCommand,
     BaselineVarianceRecordDto,
     FinancialActivateBillingProfileCommand,
@@ -66,6 +68,9 @@ from src.core.modules.project_management.api.desktop.financials import (
     FinancialCreateBudgetVersionCommand,
     FinancialCreateChangeCommand,
     FinancialCreateCostCodeCommand,
+    FinancialTransitionProfileCommand,
+    FinancialUpdateCostCodeCommand,
+    FinancialUpdateProfileCommand,
     FinancialCreateManualActualCommand,
     FinancialDecideActualCommand,
     FinancialDeleteBudgetLineCommand,
@@ -271,6 +276,8 @@ from src.core.modules.project_management.api.desktop.workspaces import (
 )
 
 __all__ = [
+    "FinancialChangeCostCodeStatusCommand",
+    "FinancialCostCodeRestrictionCommand",
     "FinancialAddBudgetLineCommand",
     "ResourceTimesheetEntryDesktopDto",
     "ResourceTimesheetEntryPageDesktopDto",
@@ -333,6 +340,9 @@ __all__ = [
     "FinancialCreateBudgetVersionCommand",
     "FinancialCreateChangeCommand",
     "FinancialCreateCostCodeCommand",
+    "FinancialTransitionProfileCommand",
+    "FinancialUpdateCostCodeCommand",
+    "FinancialUpdateProfileCommand",
     "FinancialCreateManualActualCommand",
     "FinancialDecideActualCommand",
     "FinancialDeleteBudgetLineCommand",

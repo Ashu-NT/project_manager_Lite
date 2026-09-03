@@ -14,7 +14,7 @@ from src.core.modules.project_management.api.desktop.financials.models.configura
     FinancialProfileDto,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_setup_facts import (
-    FinanceSetupFacts,
+    FinanceSetupWorkspaceFacts,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
     FinanceBudgetWorkspaceFacts,
@@ -39,28 +39,113 @@ def _datetime_label(value: datetime | None) -> str:
 
 
 def serialize_finance_setup_workspace(
-    source: FinanceSetupFacts,
+    source: FinanceSetupWorkspaceFacts,
 ) -> FinancialConfigurationWorkspaceDto:
+    profile = source.profile
     return FinancialConfigurationWorkspaceDto(
         profile=FinancialProfileDto(
-            project_id=source.project_id,
-            status_label=_label(source.status),
+            project_id=profile.project_id,
+            status_label=_label(profile.status),
             subtitle="Canonical project finance configuration and control policy.",
             fields=(
-                FinancialConfigurationFieldDto("Currency", source.currency_code),
-                FinancialConfigurationFieldDto("Billing method", _label(source.billing_method)),
-                FinancialConfigurationFieldDto("Budget control", _label(source.budget_control_mode)),
-                FinancialConfigurationFieldDto("Cost-code policy", _label(source.cost_code_policy)),
+                FinancialConfigurationFieldDto("Currency", profile.currency_code),
+                FinancialConfigurationFieldDto("Billing method", _label(profile.billing_method)),
+                FinancialConfigurationFieldDto("Budget control", _label(profile.budget_control_mode)),
+                FinancialConfigurationFieldDto("Cost-code policy", _label(profile.cost_code_policy)),
                 FinancialConfigurationFieldDto(
                     "Financial period",
-                    f"{_date_label(source.financial_start_date)} to {_date_label(source.financial_end_date)}",
+                    f"{_date_label(profile.financial_start_date)} to {_date_label(profile.financial_end_date)}",
                 ),
-                FinancialConfigurationFieldDto("Funding", "Funded" if source.is_funded else "Not funded"),
-                FinancialConfigurationFieldDto("Billing", "Billable" if source.is_billable else "Non-billable"),
-                FinancialConfigurationFieldDto("Default cost code", source.default_cost_code or "Not set"),
-                FinancialConfigurationFieldDto("Version", str(source.version)),
+                FinancialConfigurationFieldDto("Funding", "Funded" if profile.is_funded else "Not funded"),
+                FinancialConfigurationFieldDto("Billing", "Billable" if profile.is_billable else "Non-billable"),
+                FinancialConfigurationFieldDto("Default cost code", profile.default_cost_code or "Not set"),
+                FinancialConfigurationFieldDto("Version", str(profile.version)),
             ),
-        )
+            state={
+                "version": profile.version,
+                "status": profile.status,
+                "currency": profile.currency_code,
+                "billingMethod": profile.billing_method,
+                "budgetControlMode": profile.budget_control_mode,
+                "costCodePolicy": profile.cost_code_policy,
+                "financialStartDate": profile.financial_start_date.isoformat() if profile.financial_start_date else "",
+                "financialEndDate": profile.financial_end_date.isoformat() if profile.financial_end_date else "",
+                "isFunded": profile.is_funded,
+                "isBillable": profile.is_billable,
+                "defaultCostCodeId": profile.default_cost_code_id or "",
+                "defaultCostCodeLabel": profile.default_cost_code,
+                "canEdit": source.can_edit_profile,
+                "canTransition": source.can_transition_profile,
+            },
+        ),
+        can_create_cost_code=source.can_create_cost_code,
+        can_manage_restrictions=source.can_manage_restrictions,
+        cost_codes=tuple(_setup_cost_code_dto(item) for item in source.cost_codes.items),
+        cost_code_page=source.cost_codes.page,
+        cost_code_page_size=source.cost_codes.page_size,
+        cost_code_total=source.cost_codes.total,
+        cost_code_sort_key=source.cost_codes.sort_key,
+        cost_code_sort_direction=source.cost_codes.sort_direction,
+        restrictions=tuple(_setup_restriction_dto(item) for item in source.restrictions.items),
+        restriction_page=source.restrictions.page,
+        restriction_page_size=source.restrictions.page_size,
+        restriction_total=source.restrictions.total,
+        restriction_sort_key=source.restrictions.sort_key,
+        restriction_sort_direction=source.restrictions.sort_direction,
+    )
+
+
+def _setup_cost_code_dto(item) -> FinancialConfigurationRecordDto:
+    effective = f"{_date_label(item.effective_from)} to {_date_label(item.effective_to)}"
+    external = (
+        f"{item.external_system}: {item.external_reference}"
+        if item.external_system and item.external_reference
+        else "No external mapping"
+    )
+    return FinancialConfigurationRecordDto(
+        id=item.id,
+        title=item.code,
+        status_label="Active" if item.is_active else "Inactive",
+        subtitle=item.name,
+        supporting_text=item.parent_code or "Root code",
+        meta_text=effective,
+        state={
+            "code": item.code,
+            "name": item.name,
+            "description": item.description,
+            "parentId": item.parent_id or "",
+            "parentCode": item.parent_code,
+            "externalSystem": item.external_system or "",
+            "externalReference": item.external_reference or "",
+            "effectiveFrom": item.effective_from.isoformat() if item.effective_from else "",
+            "effectiveTo": item.effective_to.isoformat() if item.effective_to else "",
+            "isActive": item.is_active,
+            "isAssigned": item.is_assigned,
+            "isDefault": item.is_default,
+            "version": item.version,
+            "externalLabel": external,
+            "canEdit": item.can_edit,
+            "canChangeStatus": item.can_change_status,
+            "canAddRestriction": item.can_add_restriction,
+            "canRemoveRestriction": item.can_remove_restriction,
+        },
+    )
+
+
+def _setup_restriction_dto(item) -> FinancialConfigurationRecordDto:
+    return FinancialConfigurationRecordDto(
+        id=item.id,
+        title=item.code,
+        status_label="Active" if item.is_active else "Inactive",
+        subtitle=item.name,
+        supporting_text="Project default" if item.is_default else "Allowed for project",
+        meta_text=_datetime_label(item.created_at),
+        state={
+            "costCodeId": item.cost_code_id,
+            "isActive": item.is_active,
+            "isDefault": item.is_default,
+            "canRemove": item.can_remove,
+        },
     )
 
 

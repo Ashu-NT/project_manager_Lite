@@ -236,6 +236,20 @@ Component {
     Property { name: "varianceBasis"; type: "QVariantMap"; isReadonly: true }
     Property { name: "reportBasis"; type: "QVariantMap"; isReadonly: true }
     Property { name: "financialProfile"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "canCreateCostCode"; type: "bool"; isReadonly: true }
+    Property { name: "canManageCostCodeRestrictions"; type: "bool"; isReadonly: true }
+    Property { name: "setupCostCodes"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "setupRestrictions"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "setupCostCodesTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "setupRestrictionsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "setupCostCodeSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "setupCostCodeSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "setupRestrictionSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "setupRestrictionSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "setupCostCodeSearch"; type: "QString"; isReadonly: true }
+    Property { name: "setupCostCodeStatus"; type: "QString"; isReadonly: true }
+    Property { name: "setupCostCodeAssignment"; type: "QString"; isReadonly: true }
+    Property { name: "setupRestrictionSearch"; type: "QString"; isReadonly: true }
     Property { name: "budgetVersions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "budgetLines"; type: "QVariantMap"; isReadonly: true }
     Property { name: "budgetVersionsTableModel"; type: "QObject"; isReadonly: true }
@@ -381,6 +395,19 @@ Component {
     Method { name: "resolveManualActualCostCode"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "costCodeId"; type: "QString" } Parameter { name: "effectiveOn"; type: "QString" } }
     Method { name: "loadManualActualDefaults"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } }
     Method { name: "createCostCode"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "searchSetupCostCodes"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "search"; type: "QString" } Parameter { name: "page"; type: "int" } Parameter { name: "pageSize"; type: "int" } Parameter { name: "assignmentState"; type: "QString" } Parameter { name: "activeOnly"; type: "bool" } }
+    Method { name: "updateFinancialProfile"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "transitionFinancialProfile"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateCostCode"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "changeCostCodeStatus"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "addCostCodeRestriction"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "removeCostCodeRestriction"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "setSetupCostCodePage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setSetupRestrictionPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setSetupCostCodeSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setSetupRestrictionSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setSetupCostCodeFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "status"; type: "QString" } Parameter { name: "assignment"; type: "QString" } }
+    Method { name: "setSetupRestrictionFilter"; Parameter { name: "search"; type: "QString" } }
     Method { name: "submitActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "approveActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "rejectActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }

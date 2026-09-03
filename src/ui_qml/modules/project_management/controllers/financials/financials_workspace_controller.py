@@ -120,6 +120,7 @@ class ProjectManagementFinancialsWorkspaceController(
     varianceBasisChanged = Signal()
     reportBasisChanged = Signal()
     financialProfileChanged = Signal()
+    setupChanged = Signal()
     budgetVersionsChanged = Signal()
     budgetLinesChanged = Signal()
     selectedBudgetIdChanged = Signal()
@@ -250,6 +251,22 @@ class ProjectManagementFinancialsWorkspaceController(
         self._variance_basis = default_detail()
         self._report_basis = default_detail()
         self._financial_profile = default_detail()
+        self._can_create_cost_code = False
+        self._can_manage_restrictions = False
+        self._setup_cost_codes = default_collection()
+        self._setup_restrictions = default_collection()
+        self._setup_cost_codes_table_model = DynamicTableModel(self)
+        self._setup_restrictions_table_model = DynamicTableModel(self)
+        self._setup_cost_code_page = 1
+        self._setup_restriction_page = 1
+        self._setup_cost_code_sort_key = "code"
+        self._setup_cost_code_sort_direction = Qt.AscendingOrder.value
+        self._setup_restriction_sort_key = "code"
+        self._setup_restriction_sort_direction = Qt.AscendingOrder.value
+        self._setup_cost_code_search = ""
+        self._setup_cost_code_status = ""
+        self._setup_cost_code_assignment = ""
+        self._setup_restriction_search = ""
         self._budget_versions = default_collection()
         self._budget_lines = default_collection()
         self._budget_versions_table_model = DynamicTableModel(self)
@@ -549,6 +566,48 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property("QVariantMap", notify=financialProfileChanged)
     def financialProfile(self) -> FinancialsMap: return self._financial_profile
+
+    @Property(bool, notify=setupChanged)
+    def canCreateCostCode(self) -> bool: return self._can_create_cost_code
+
+    @Property(bool, notify=setupChanged)
+    def canManageCostCodeRestrictions(self) -> bool: return self._can_manage_restrictions
+
+    @Property("QVariantMap", notify=setupChanged)
+    def setupCostCodes(self) -> FinancialsMap: return self._setup_cost_codes
+
+    @Property("QVariantMap", notify=setupChanged)
+    def setupRestrictions(self) -> FinancialsMap: return self._setup_restrictions
+
+    @Property(QObject, constant=True)
+    def setupCostCodesTableModel(self) -> DynamicTableModel: return self._setup_cost_codes_table_model
+
+    @Property(QObject, constant=True)
+    def setupRestrictionsTableModel(self) -> DynamicTableModel: return self._setup_restrictions_table_model
+
+    @Property(str, notify=setupChanged)
+    def setupCostCodeSortKey(self) -> str: return self._setup_cost_code_sort_key
+
+    @Property(int, notify=setupChanged)
+    def setupCostCodeSortDirection(self) -> int: return self._setup_cost_code_sort_direction
+
+    @Property(str, notify=setupChanged)
+    def setupRestrictionSortKey(self) -> str: return self._setup_restriction_sort_key
+
+    @Property(int, notify=setupChanged)
+    def setupRestrictionSortDirection(self) -> int: return self._setup_restriction_sort_direction
+
+    @Property(str, notify=setupChanged)
+    def setupCostCodeSearch(self) -> str: return self._setup_cost_code_search
+
+    @Property(str, notify=setupChanged)
+    def setupCostCodeStatus(self) -> str: return self._setup_cost_code_status
+
+    @Property(str, notify=setupChanged)
+    def setupCostCodeAssignment(self) -> str: return self._setup_cost_code_assignment
+
+    @Property(str, notify=setupChanged)
+    def setupRestrictionSearch(self) -> str: return self._setup_restriction_search
 
     @Property("QVariantMap", notify=budgetVersionsChanged)
     def budgetVersions(self) -> FinancialsMap: return self._budget_versions
@@ -1108,12 +1167,62 @@ class ProjectManagementFinancialsWorkspaceController(
     ) -> FinancialsMap:
         return self._search_forecast_risks(project_id, search, page, page_size)
 
+    @Slot(str, str, int, int, str, bool, result="QVariantMap")
+    def searchSetupCostCodes(
+        self,
+        project_id: str,
+        search: str,
+        page: int,
+        page_size: int,
+        assignment_state: str,
+        active_only: bool,
+    ) -> FinancialsMap:
+        return self._search_setup_cost_codes(
+            project_id, search, page, page_size, assignment_state, active_only
+        )
+
     @Slot(str, result="QVariantMap")
     def loadManualActualDefaults(self, project_id: str) -> FinancialsMap:
         return self._load_manual_actual_defaults(project_id)
 
     @Slot("QVariantMap", result="QVariantMap")
     def createCostCode(self, payload: FinancialsMap) -> FinancialsMap: return self._create_cost_code(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateFinancialProfile(self, payload: FinancialsMap) -> FinancialsMap: return self._update_financial_profile(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def transitionFinancialProfile(self, payload: FinancialsMap) -> FinancialsMap: return self._transition_financial_profile(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateCostCode(self, payload: FinancialsMap) -> FinancialsMap: return self._update_cost_code(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def changeCostCodeStatus(self, payload: FinancialsMap) -> FinancialsMap: return self._change_cost_code_status(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def addCostCodeRestriction(self, payload: FinancialsMap) -> FinancialsMap: return self._add_cost_code_restriction(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def removeCostCodeRestriction(self, payload: FinancialsMap) -> FinancialsMap: return self._remove_cost_code_restriction(payload)
+
+    @Slot(int)
+    def setSetupCostCodePage(self, page: int) -> None: self._set_setup_cost_code_page(page)
+
+    @Slot(int)
+    def setSetupRestrictionPage(self, page: int) -> None: self._set_setup_restriction_page(page)
+
+    @Slot(str, int)
+    def setSetupCostCodeSort(self, key: str, direction: int) -> None: self._set_setup_cost_code_sort(key, direction)
+
+    @Slot(str, int)
+    def setSetupRestrictionSort(self, key: str, direction: int) -> None: self._set_setup_restriction_sort(key, direction)
+
+    @Slot(str, str, str)
+    def setSetupCostCodeFilters(self, search: str, status: str, assignment: str) -> None: self._set_setup_cost_code_filters(search, status, assignment)
+
+    @Slot(str)
+    def setSetupRestrictionFilter(self, search: str) -> None: self._set_setup_restriction_filter(search)
 
     @Slot(str, str, str, result="QVariantMap")
     def createBudgetVersion(self, project_id: str, name: str, currency: str) -> FinancialsMap:

@@ -3,6 +3,8 @@ from __future__ import annotations
 from PySide6.QtCore import QObject, Signal
 
 from src.core.modules.project_management.application.financials.event_handlers.view_invalidation import (
+    FINANCIAL_COST_CODE_CATALOG_SCOPE_CODE,
+    FINANCIAL_COST_CODE_RESTRICTION_SCOPE_CODE,
     FINANCIAL_PROFILE_SCOPE_CODE,
     FINANCIAL_SETUP_CATEGORY,
 )
@@ -39,8 +41,13 @@ class FinancialProfileViewInvalidationAdapter(QObject):
     def _on_hint(self, hint: ViewInvalidationHint) -> None:
         if hint.category != FINANCIAL_SETUP_CATEGORY:
             return
-        if hint.scope_code == FINANCIAL_PROFILE_SCOPE_CODE:
+        if hint.scope_code in (
+            FINANCIAL_PROFILE_SCOPE_CODE,
+            FINANCIAL_COST_CODE_RESTRICTION_SCOPE_CODE,
+        ):
             self.financialProfileStale.emit(hint.entity_id or "")
+        elif hint.scope_code == FINANCIAL_COST_CODE_CATALOG_SCOPE_CODE:
+            self.financialProfileStale.emit("")
 
     def dispose(self) -> None:
         self._subscription.dispose()

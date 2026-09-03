@@ -1,7 +1,12 @@
 """Financial desktop commands."""
 
 from src.core.modules.project_management.api.desktop.financials.commands.configuration import (
+    FinancialChangeCostCodeStatusCommand,
+    FinancialCostCodeRestrictionCommand,
     FinancialCreateCostCodeCommand,
+    FinancialTransitionProfileCommand,
+    FinancialUpdateCostCodeCommand,
+    FinancialUpdateProfileCommand,
 )
 from src.core.modules.project_management.api.desktop.financials.commands.budgets import (
     FinancialAddBudgetLineCommand,
@@ -47,6 +52,8 @@ from src.core.modules.project_management.api.desktop.financials.commands.changes
 )
 
 __all__ = [
+    "FinancialChangeCostCodeStatusCommand",
+    "FinancialCostCodeRestrictionCommand",
     "FinancialChangeImpactCommand",
     "FinancialCreateChangeCommand",
     "FinancialRemoveChangeImpactCommand",
@@ -62,6 +69,9 @@ __all__ = [
     "FinancialCreateBillingPreparationCommand",
     "FinancialCreateBillingProfileCommand",
     "FinancialCreateCostCodeCommand",
+    "FinancialTransitionProfileCommand",
+    "FinancialUpdateCostCodeCommand",
+    "FinancialUpdateProfileCommand",
     "FinancialCreateBudgetSuccessorCommand",
     "FinancialCreateBudgetVersionCommand",
     "FinancialCreateManualActualCommand",

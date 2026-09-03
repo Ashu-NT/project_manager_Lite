@@ -72,7 +72,7 @@ AppLayouts.WorkspaceFrame {
     readonly property var _detailActions: {
         if (root.workspaceController
                 && root.workspaceController.activeDestination === "controls"
-                && root.workspaceController.activeSubsection === "setup") return [
+                && root.workspaceController.activeSubsection === "setup") return root.workspaceController.canCreateCostCode ? [
             {
                 "id": "add_cost_code",
                 "label": "New Cost Code",
@@ -80,7 +80,7 @@ AppLayouts.WorkspaceFrame {
                 "enabled": !root.workspaceController.isBusy,
                 "danger": false
             }
-        ]
+        ] : []
         if (root.workspaceController
                 && root.workspaceController.activeDestination === "costs"
                 && root.workspaceController.activeSubsection === "actuals") {
@@ -333,7 +333,7 @@ AppLayouts.WorkspaceFrame {
                     actions: root._detailActions
                     onActionTriggered: function(actionId) {
                         if (actionId === "add_cost_code") {
-                            dialogHostLoader.invoke("openCreateCostCodeDialog")
+                            dialogHostLoader.invoke("openCostCodeDialog", "create", null)
                             return
                         }
                         if (actionId === "add_manual_actual") {
@@ -455,6 +455,20 @@ AppLayouts.WorkspaceFrame {
                     selectedBaselineId: root.workspaceController ? root.workspaceController.selectedBaselineId : ""
                     reportBasisModel: root.workspaceController ? root.workspaceController.reportBasis : ({ "fields": [] })
                     financialProfileModel: root.workspaceController ? root.workspaceController.financialProfile : ({})
+                    setupCostCodesModel: root.workspaceController ? root.workspaceController.setupCostCodes : ({"items":[]})
+                    setupRestrictionsModel: root.workspaceController ? root.workspaceController.setupRestrictions : ({"items":[]})
+                    setupCostCodesTableModel: root.workspaceController ? root.workspaceController.setupCostCodesTableModel : null
+                    setupRestrictionsTableModel: root.workspaceController ? root.workspaceController.setupRestrictionsTableModel : null
+                    canCreateCostCode: root.workspaceController ? root.workspaceController.canCreateCostCode : false
+                    canManageCostCodeRestrictions: root.workspaceController ? root.workspaceController.canManageCostCodeRestrictions : false
+                    setupCostCodeSortKey: root.workspaceController ? root.workspaceController.setupCostCodeSortKey : "code"
+                    setupCostCodeSortDirection: root.workspaceController ? root.workspaceController.setupCostCodeSortDirection : Qt.AscendingOrder
+                    setupRestrictionSortKey: root.workspaceController ? root.workspaceController.setupRestrictionSortKey : "code"
+                    setupRestrictionSortDirection: root.workspaceController ? root.workspaceController.setupRestrictionSortDirection : Qt.AscendingOrder
+                    setupCostCodeSearch: root.workspaceController ? root.workspaceController.setupCostCodeSearch : ""
+                    setupCostCodeStatus: root.workspaceController ? root.workspaceController.setupCostCodeStatus : ""
+                    setupCostCodeAssignment: root.workspaceController ? root.workspaceController.setupCostCodeAssignment : ""
+                    setupRestrictionSearch: root.workspaceController ? root.workspaceController.setupRestrictionSearch : ""
                     budgetVersionsModel: root.workspaceController ? root.workspaceController.budgetVersions : ({ "items": [] })
                     budgetLinesModel: root.workspaceController ? root.workspaceController.budgetLines : ({ "items": [] })
                     budgetVersionsTableModel: root.workspaceController ? root.workspaceController.budgetVersionsTableModel : null
@@ -535,6 +549,19 @@ AppLayouts.WorkspaceFrame {
                             root.workspaceController.setConfigurationPage(collection, page)
                         }
                     }
+                    onSetupProfileEditRequested: function(profile) { dialogHostLoader.invoke("openFinancialProfileDialog", profile) }
+                    onSetupProfileTransitionRequested: function(action, profile) { dialogHostLoader.invoke("openFinancialSetupLifecycleDialog", action, profile, null, null) }
+                    onSetupCostCodeCreateRequested: dialogHostLoader.invoke("openCostCodeDialog", "create", null)
+                    onSetupCostCodeEditRequested: function(costCode) { dialogHostLoader.invoke("openCostCodeDialog", "edit", costCode) }
+                    onSetupCostCodeStatusRequested: function(action, costCode) { dialogHostLoader.invoke("openFinancialSetupLifecycleDialog", action, null, costCode, null) }
+                    onSetupRestrictionAddRequested: dialogHostLoader.invoke("openCostCodeRestrictionDialog")
+                    onSetupRestrictionRemoveRequested: function(restriction) { dialogHostLoader.invoke("openFinancialSetupLifecycleDialog", "remove_restriction", null, null, restriction) }
+                    onSetupCostCodePageRequested: function(page) { if (root.workspaceController) root.workspaceController.setSetupCostCodePage(page) }
+                    onSetupRestrictionPageRequested: function(page) { if (root.workspaceController) root.workspaceController.setSetupRestrictionPage(page) }
+                    onSetupCostCodeSortRequested: function(key, direction) { if (root.workspaceController) root.workspaceController.setSetupCostCodeSort(key, direction) }
+                    onSetupRestrictionSortRequested: function(key, direction) { if (root.workspaceController) root.workspaceController.setSetupRestrictionSort(key, direction) }
+                    onSetupCostCodeFiltersRequested: function(search, status, assignment) { if (root.workspaceController) root.workspaceController.setSetupCostCodeFilters(search, status, assignment) }
+                    onSetupRestrictionFilterRequested: function(search) { if (root.workspaceController) root.workspaceController.setSetupRestrictionFilter(search) }
                     onBudgetVersionSelected: function(budgetId) {
                         if (root.workspaceController !== null) root.workspaceController.selectBudgetVersion(budgetId)
                     }

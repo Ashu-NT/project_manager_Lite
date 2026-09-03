@@ -59,6 +59,8 @@ class FinancialsSelectionMixin:
         self._set_selected_change(default_detail())
         self._change_page = 1
         self._impact_page = 1
+        self._setup_cost_code_page = 1
+        self._setup_restriction_page = 1
         self._set_selected_baseline_id("")
         self._reset_destination_state()
         self.refresh()
@@ -516,6 +518,51 @@ class FinancialsSelectionMixin:
             return
         setattr(self, attribute, normalized_page)
         self.refresh()
+
+    def _set_setup_cost_code_page(self, page: int) -> None:
+        page = max(1, int(page))
+        if page != self._setup_cost_code_page:
+            self._setup_cost_code_page = page
+            self.refresh()
+
+    def _set_setup_restriction_page(self, page: int) -> None:
+        page = max(1, int(page))
+        if page != self._setup_restriction_page:
+            self._setup_restriction_page = page
+            self.refresh()
+
+    def _set_setup_cost_code_sort(self, key: str, direction: int) -> None:
+        values = (str(key or "").strip(), int(direction))
+        if values != (self._setup_cost_code_sort_key, self._setup_cost_code_sort_direction):
+            self._setup_cost_code_sort_key, self._setup_cost_code_sort_direction = values
+            self._setup_cost_code_page = 1
+            self.setupChanged.emit()
+            self.refresh()
+
+    def _set_setup_restriction_sort(self, key: str, direction: int) -> None:
+        values = (str(key or "").strip(), int(direction))
+        if values != (self._setup_restriction_sort_key, self._setup_restriction_sort_direction):
+            self._setup_restriction_sort_key, self._setup_restriction_sort_direction = values
+            self._setup_restriction_page = 1
+            self.setupChanged.emit()
+            self.refresh()
+
+    def _set_setup_cost_code_filters(self, search: str, status: str, assignment: str) -> None:
+        values = (str(search or "").strip(), str(status or "").strip().lower(), str(assignment or "").strip().lower())
+        current = (self._setup_cost_code_search, self._setup_cost_code_status, self._setup_cost_code_assignment)
+        if values != current:
+            self._setup_cost_code_search, self._setup_cost_code_status, self._setup_cost_code_assignment = values
+            self._setup_cost_code_page = 1
+            self.setupChanged.emit()
+            self.refresh()
+
+    def _set_setup_restriction_filter(self, search: str) -> None:
+        value = str(search or "").strip()
+        if value != self._setup_restriction_search:
+            self._setup_restriction_search = value
+            self._setup_restriction_page = 1
+            self.setupChanged.emit()
+            self.refresh()
 
     def _set_actual_page(self, page: int) -> None:
         normalized_page = max(1, int(page))

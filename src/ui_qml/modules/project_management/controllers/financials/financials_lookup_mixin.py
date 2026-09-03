@@ -213,6 +213,26 @@ class FinancialsLookupMixin:
             )
         )
 
+    def _search_setup_cost_codes(
+        self,
+        project_id: str,
+        search: str,
+        page: int,
+        page_size: int,
+        assignment_state: str,
+        active_only: bool,
+    ) -> dict[str, object]:
+        return self._lookup_page(
+            lambda: self._financials_workspace_presenter.search_setup_cost_codes(
+                project_id,
+                search=search,
+                page=page,
+                page_size=page_size,
+                assignment_state=assignment_state,
+                active_only=active_only,
+            )
+        )
+
     @staticmethod
     def _lookup_page(operation) -> dict[str, object]:
         try:

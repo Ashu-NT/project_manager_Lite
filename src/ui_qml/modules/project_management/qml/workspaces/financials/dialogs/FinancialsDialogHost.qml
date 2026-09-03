@@ -23,9 +23,35 @@ Item {
         editorDialog.open()
     }
 
-    function openCreateCostCodeDialog() {
+    function openCostCodeDialog(mode, costCode) {
+        costCodeEditorDialog.mode = String(mode || "create")
+        costCodeEditorDialog.costCode = costCode || null
         costCodeEditorDialog.errorMessage = ""
         costCodeEditorDialog.open()
+    }
+
+    function openCreateCostCodeDialog() {
+        root.openCostCodeDialog("create", null)
+    }
+
+    function openFinancialProfileDialog(profile) {
+        financialProfileEditorDialog.profile = profile || null
+        financialProfileEditorDialog.errorMessage = ""
+        financialProfileEditorDialog.open()
+    }
+
+    function openFinancialSetupLifecycleDialog(action, profile, costCode, restriction) {
+        financialSetupLifecycleDialog.action = String(action || "")
+        financialSetupLifecycleDialog.profile = profile || null
+        financialSetupLifecycleDialog.costCode = costCode || null
+        financialSetupLifecycleDialog.restriction = restriction || null
+        financialSetupLifecycleDialog.errorMessage = ""
+        financialSetupLifecycleDialog.open()
+    }
+
+    function openCostCodeRestrictionDialog() {
+        costCodeRestrictionDialog.errorMessage = ""
+        costCodeRestrictionDialog.open()
     }
 
     function openBudgetVersionDialog(mode, budget) {
@@ -125,12 +151,60 @@ Item {
         id: costCodeEditorDialog
 
         selectedProjectId: root.selectedProjectId
+        workspaceController: root.workspaceController
         busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
             if (!root.workspaceController) return
-            const result = root.workspaceController.createCostCode(payload)
+            const result = costCodeEditorDialog.mode === "edit"
+                ? root.workspaceController.updateCostCode(payload)
+                : root.workspaceController.createCostCode(payload)
             root._handleResult(costCodeEditorDialog, result)
+        }
+    }
+
+    FinancialProfileEditorDialog {
+        id: financialProfileEditorDialog
+        projectId: root.selectedProjectId
+        workspaceController: root.workspaceController
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onSubmitted: function(payload) {
+            if (!root.workspaceController) return
+            root._handleResult(
+                financialProfileEditorDialog,
+                root.workspaceController.updateFinancialProfile(payload)
+            )
+        }
+    }
+
+    CostCodeRestrictionDialog {
+        id: costCodeRestrictionDialog
+        projectId: root.selectedProjectId
+        workspaceController: root.workspaceController
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onSubmitted: function(payload) {
+            if (!root.workspaceController) return
+            root._handleResult(
+                costCodeRestrictionDialog,
+                root.workspaceController.addCostCodeRestriction(payload)
+            )
+        }
+    }
+
+    FinancialSetupLifecycleDialog {
+        id: financialSetupLifecycleDialog
+        projectId: root.selectedProjectId
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onDecided: function(payload) {
+            if (!root.workspaceController) return
+            let result
+            if (financialSetupLifecycleDialog.action.indexOf("profile_") === 0)
+                result = root.workspaceController.transitionFinancialProfile(payload)
+            else if (financialSetupLifecycleDialog.action === "remove_restriction")
+                result = root.workspaceController.removeCostCodeRestriction(payload)
+            else
+                result = root.workspaceController.changeCostCodeStatus(payload)
+            root._handleResult(financialSetupLifecycleDialog, result)
         }
     }
 
