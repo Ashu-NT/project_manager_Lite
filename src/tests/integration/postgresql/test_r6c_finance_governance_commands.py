@@ -264,6 +264,7 @@ def _boundary(postgres_test_environment, *, scope: _TenantContext):
                 record_event=uow.record_event,
             ),
             planned_costs=SimpleNamespace(),
+            commitments=SimpleNamespace(),
         )
 
     return FinanceGovernanceCommandBoundary(
@@ -381,6 +382,169 @@ def test_r6c_commands_use_app_runtime_and_preserve_rls_scope(postgres_test_envir
         ) == 1
     finally:
         session.close()
+
+
+def test_r6c_e_setup_commands_and_child_rows_are_rls_scoped(postgres_test_environment):
+    boundary = _boundary(
+        postgres_test_environment,
+        scope=_TenantContext(TENANT_A, ORG_A),
+    )
+    profile = boundary.financial_setup(
+        lambda service: service.get_profile(PROJECT_A),
+        project_id=PROJECT_A,
+    )
+    updated = boundary.financial_setup(
+        lambda service: service.configure_profile(
+            PROJECT_A,
+            expected_version=profile.version,
+            budget_control_mode="block",
+            cost_code_policy="restricted",
+        ),
+        project_id=PROJECT_A,
+    )
+    cost_code = boundary.financial_setup(
+        lambda service: service.create_cost_code(
+            code="R6CE-RUNTIME",
+            name="R6C-E runtime code",
+        )
+    )
+    restriction = boundary.financial_setup(
+        lambda service: service.add_project_cost_code(
+            project_id=PROJECT_A,
+            cost_code_id=cost_code.id,
+        ),
+        project_id=PROJECT_A,
+    )
+
+    same_scope = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_A,
+        organization_id=ORG_A,
+    )
+    try:
+        validate_postgresql_execution_role(same_scope)
+        assert updated.version == profile.version + 1
+        assert same_scope.scalar(
+            text("SELECT count(*) FROM project_finance_profiles WHERE project_id=:id"),
+            {"id": PROJECT_A},
+        ) == 1
+        assert same_scope.scalar(
+            text("SELECT count(*) FROM project_finance_cost_codes WHERE id=:id"),
+            {"id": cost_code.id},
+        ) == 1
+        assert same_scope.scalar(
+            text("SELECT count(*) FROM project_finance_cost_code_restrictions WHERE id=:id"),
+            {"id": restriction.id},
+        ) == 1
+    finally:
+        same_scope.close()
+
+    foreign = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_B,
+        organization_id=ORG_B,
+    )
+    try:
+        assert foreign.scalar(
+            text("SELECT count(*) FROM project_finance_profiles WHERE project_id=:id"),
+            {"id": PROJECT_A},
+        ) == 0
+        profile_update = foreign.execute(
+            text(
+                "UPDATE project_finance_profiles SET budget_control_mode='none' "
+                "WHERE project_id=:id"
+            ),
+            {"id": PROJECT_A},
+        )
+        assert profile_update.rowcount == 0
+        cost_code_update = foreign.execute(
+            text("UPDATE project_finance_cost_codes SET name='attack' WHERE id=:id"),
+            {"id": cost_code.id},
+        )
+        assert cost_code_update.rowcount == 0
+        cost_code_delete = foreign.execute(
+            text("DELETE FROM project_finance_cost_codes WHERE id=:id"),
+            {"id": cost_code.id},
+        )
+        assert cost_code_delete.rowcount == 0
+        restriction_update = foreign.execute(
+            text(
+                "UPDATE project_finance_cost_code_restrictions "
+                "SET created_at=:now WHERE id=:id"
+            ),
+            {"id": restriction.id, "now": datetime.now(timezone.utc)},
+        )
+        assert restriction_update.rowcount == 0
+        restriction_delete = foreign.execute(
+            text("DELETE FROM project_finance_cost_code_restrictions WHERE id=:id"),
+            {"id": restriction.id},
+        )
+        assert restriction_delete.rowcount == 0
+        foreign.commit()
+
+        with pytest.raises(DBAPIError):
+            foreign.execute(
+                text(
+                    "INSERT INTO project_finance_cost_codes "
+                    "(id, tenant_id, organization_id, code, name, is_active, version, created_at, updated_at) "
+                    "VALUES ('r6ce-cost-code-attack', :tenant, :organization, "
+                    "'ATTACK', 'Attack', true, 1, :now, :now)"
+                ),
+                {
+                    "tenant": TENANT_A,
+                    "organization": ORG_A,
+                    "now": datetime.now(timezone.utc),
+                },
+            )
+            foreign.commit()
+        foreign.rollback()
+
+        with pytest.raises(DBAPIError):
+            foreign.execute(
+                text(
+                    "INSERT INTO project_finance_cost_code_restrictions "
+                    "(id, tenant_id, organization_id, project_id, cost_code_id, created_at) "
+                    "VALUES ('r6ce-restriction-attack', :tenant, :organization, "
+                    ":project, :cost_code, :now)"
+                ),
+                {
+                    "tenant": TENANT_A,
+                    "organization": ORG_A,
+                    "project": PROJECT_A,
+                    "cost_code": cost_code.id,
+                    "now": datetime.now(timezone.utc),
+                },
+            )
+            foreign.commit()
+        foreign.rollback()
+    finally:
+        foreign.rollback()
+        foreign.close()
+
+    foreign_org = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_A,
+        organization_id=ORG_A2,
+    )
+    try:
+        assert foreign_org.scalar(
+            text("SELECT count(*) FROM project_finance_profiles WHERE project_id=:id"),
+            {"id": PROJECT_A},
+        ) == 0
+        assert foreign_org.execute(
+            text("UPDATE project_finance_cost_codes SET name='org attack' WHERE id=:id"),
+            {"id": cost_code.id},
+        ).rowcount == 0
+        foreign_org.commit()
+    finally:
+        foreign_org.rollback()
+        foreign_org.close()
+
+    boundary.financial_setup(
+        lambda service: service.configure_profile(
+            PROJECT_A,
+            expected_version=updated.version,
+            cost_code_policy="all_active",
+        ),
+        project_id=PROJECT_A,
+    )
 
 
 def test_r6c_command_foreign_scope_insert_is_denied(postgres_test_environment):

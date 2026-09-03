@@ -94,7 +94,6 @@ def test_create_cost_code_desktop_api_preserves_project_availability_scope():
     )
     api = ProjectManagementFinancialsDesktopApi(
         finance_governance_commands=governance_commands,
-        financial_configuration_service=configuration_service,
     )
 
     result = api.create_cost_code(

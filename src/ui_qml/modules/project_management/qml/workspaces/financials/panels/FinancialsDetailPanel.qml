@@ -72,7 +72,6 @@ Item {
     property var setupRestrictionsModel: ({ "items": [] })
     property var setupCostCodesTableModel: null
     property var setupRestrictionsTableModel: null
-    property bool canCreateCostCode: false
     property bool canManageCostCodeRestrictions: false
     property string setupCostCodeSortKey: "code"
     property int setupCostCodeSortDirection: Qt.AscendingOrder
@@ -160,7 +159,6 @@ Item {
     signal configurationPageRequested(string collection, int page)
     signal setupProfileEditRequested(var profile)
     signal setupProfileTransitionRequested(string action, var profile)
-    signal setupCostCodeCreateRequested()
     signal setupCostCodeEditRequested(var costCode)
     signal setupCostCodeStatusRequested(string action, var costCode)
     signal setupRestrictionAddRequested()
@@ -673,7 +671,6 @@ Item {
             restrictions: root.setupRestrictionsModel
             costCodesTableModel: root.setupCostCodesTableModel
             restrictionsTableModel: root.setupRestrictionsTableModel
-            canCreateCostCode: root.canCreateCostCode
             canManageRestrictions: root.canManageCostCodeRestrictions
             busy: root.isBusy
             costCodeSortKey: root.setupCostCodeSortKey
@@ -686,7 +683,6 @@ Item {
             restrictionSearch: root.setupRestrictionSearch
             onProfileEditRequested: function(profile) { root.setupProfileEditRequested(profile) }
             onProfileTransitionRequested: function(action, profile) { root.setupProfileTransitionRequested(action, profile) }
-            onCostCodeCreateRequested: root.setupCostCodeCreateRequested()
             onCostCodeEditRequested: function(costCode) { root.setupCostCodeEditRequested(costCode) }
             onCostCodeStatusRequested: function(action, costCode) { root.setupCostCodeStatusRequested(action, costCode) }
             onRestrictionAddRequested: root.setupRestrictionAddRequested()

@@ -12,6 +12,13 @@ class FinancialsMutationMixin:
     def _run_finance_mutation(
         self, operation, success_message: str, on_success
     ) -> dict[str, object]:
+        if self._is_busy:
+            return {
+                "ok": False,
+                "message": "A financial command is already in progress.",
+                "code": "FINANCE_COMMAND_BUSY",
+                "category": "busy",
+            }
         return run_mutation(
             operation=operation,
             success_message=success_message,

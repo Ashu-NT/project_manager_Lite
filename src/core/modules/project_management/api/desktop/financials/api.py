@@ -5,7 +5,6 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from src.core.modules.project_management.application.financials import (
-    FinancialConfigurationService,
     FinanceService,
     ProjectCommitmentService,
     ProjectBillingPreparationService,
@@ -223,7 +222,6 @@ class ProjectManagementFinancialsDesktopApi:
         finance_workspace_query: ProjectFinanceWorkspaceQuery | None = None,
         finance_performance_query: ProjectFinancePerformanceQuery | None = None,
         finance_governance_commands: FinanceGovernanceCommandBoundary | None = None,
-        financial_configuration_service: FinancialConfigurationService | None = None,
         cost_entry_service: ProjectCostEntryService | None = None,
         commitment_service: ProjectCommitmentService | None = None,
         billing_profile_service: ProjectBillingProfileService | None = None,
@@ -234,7 +232,6 @@ class ProjectManagementFinancialsDesktopApi:
         self._finance_workspace_query = finance_workspace_query
         self._finance_performance_query = finance_performance_query
         self._finance_governance_commands = finance_governance_commands
-        self._financial_configuration_service = financial_configuration_service
         self._cost_entry_service = cost_entry_service
         self._commitment_service = commitment_service
         self._billing_profile_service = billing_profile_service
@@ -1861,13 +1858,6 @@ class ProjectManagementFinancialsDesktopApi:
         if self._billing_preparation_service is None:
             raise RuntimeError("Project billing preparation service is not connected.")
         return self._billing_preparation_service
-
-    def _require_financial_configuration_service(
-        self,
-    ) -> FinancialConfigurationService:
-        if self._financial_configuration_service is None:
-            raise RuntimeError("Project financial configuration service is not connected.")
-        return self._financial_configuration_service
 
     def _require_finance_governance_commands(
         self,

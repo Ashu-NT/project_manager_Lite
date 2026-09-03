@@ -21,7 +21,6 @@ from src.core.platform.common.exceptions import BusinessRuleError
 def _build_api(services) -> ProjectManagementFinancialsDesktopApi:
     return ProjectManagementFinancialsDesktopApi(
         finance_workspace_query=services["finance_workspace_query"],
-        financial_configuration_service=services["financial_configuration_service"],
         cost_entry_service=services["cost_entry_service"],
     )
 
