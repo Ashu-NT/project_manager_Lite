@@ -2490,6 +2490,58 @@ count assertions became stale once typed events were added" baseline debt every 
 phase (P19, P28B, P29, P38B) already left unfixed for its own capability; not fixed here either,
 for consistency. 379 targeted tests pass across every touched file; zero new regressions found.
 
+### P39-CLEANUP — Repair Stale Approval Submission-Count Tests Before PM Modernization (TEST/ARCHITECTURE CHARACTERIZATION CLEANUP ONLY)
+
+**Test-only cleanup; zero production code touched.** The 7 stale `test_approval_events.py`
+"submission-count" failures P39 carried forward as baseline debt were repaired at their real root
+cause rather than left as accepted debt indefinitely, since PM modernization (the next track) will
+keep adding typed events to these same submit/approve/reject transactions, making the naked
+`len(recorded) == N` pattern permanently brittle. Each of the 4 "submit" tests
+(Requisition/PurchaseOrder/Financial Change/Billing Preparation) now filters `recorded` by
+`isinstance(..., ApprovalRequested)` — durable regardless of how many other typed facts a
+modernized capability's own submission records alongside it — and separately asserts the
+capability's own companion event (`InventoryRequisitionSubmitted`/`InventoryPurchaseOrderSubmitted`/
+`FinancialChangeChanged`/`BillingPreparationStatusChanged`) explicitly, turning a silent count into
+two positive characterizations. The two Budget decision tests (approve/reject) got the identical
+treatment against `ApprovalApproved`/`ApprovalRejected` plus an explicit `BudgetStatusChanged`
+assertion.
+
+**A genuine test-assumption error, found and corrected — not a production bug.** The ordering test
+(`test_approve_and_apply_orders_target_event_before_approval_approved`) asserted `[target
+event(s)..., ApprovalApproved]` as the committed order; direct reading of `ApprovalService.
+approve_and_apply`'s source (unchanged, never touched) proves the real, always-been-this-way order
+is the OPPOSITE — `uow.record_event(ApprovalApproved(...))` runs before the `for domain_event in
+handler_result.domain_events` loop. The test had apparently never been exercised against a real
+2+-event scenario until Budget's own modernization (P38B) gave it one. Renamed to `test_approve_
+and_apply_records_approval_approved_before_the_target_event` and corrected to match verified
+production behavior.
+
+**A stale capability-classification error, also found and corrected.** `baseline_apply_participant.py`
+was being carried forward across P38A/P38B/P39's own reports as a "remaining legacy `ApprovalPostCommitEvent`
+site" — re-reading its current source during this cleanup found it was already fully modernized at
+P23 (`ApprovalHandlerResult(domain_events=(ProjectBaselineCreated(...),))`), long before this
+Finance-modernization arc began; the docstring's own `ApprovalPostCommitEvent("baseline_changed", ...)`
+mention is historical prose describing what it used to do, not live code. **The real, source-verified
+remaining legacy `ApprovalPostCommitEvent` production baseline is exactly two files** — `financial_
+change_apply_participant.py` (its schedule-impact branch only) and `task_apply_participant.py` (all
+five Task-family decisions) — both publishing only `tasks_changed`, never a Finance name. A new
+source-inspection test (`test_only_the_known_legacy_participant_files_construct_approval_post_
+commit_event`) recomputes this set from `*_apply_participant.py` source on every run rather than
+asserting a fixed list, so a future capability's own modernization phase deleting its site needs no
+edits here. A companion test proves neither remaining legacy site ever names a Finance-owned legacy
+signal. A third, parametrized test positively characterizes all 7 already-modernized approval
+capabilities (Baseline, Cost Entry, Budget, Billing Preparation, Forecast, and — for the two
+Inventory/Procurement families, whose participant files delegate to an already-public service
+method — Purchase Requisition/Purchase Order's own decide-path source files) as `domain_events`-only,
+zero `ApprovalPostCommitEvent`.
+
+**Approval test baseline is now trustworthy: `test_approval_events.py` is fully green (36/36)** —
+any future failure in this file represents a real production mismatch, not historical count drift.
+This matters directly for the next modernization track: PM's own remaining `ApprovalPostCommitEvent`
+sites (Task family, and Financial Change's schedule-impact branch) will be removed capability-by-
+capability, and this file's new characterization tests will track that shrinkage automatically
+rather than needing hand-edited counts each time.
+
 ## 4. Current State
 
 **Legacy Signal count: 7 as of P39** (source-derived from

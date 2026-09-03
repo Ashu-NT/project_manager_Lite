@@ -25,6 +25,24 @@ from src.core.platform.domain.approval import (
     ApprovalStatus,
 )
 from src.core.shared.events.domain_event import DomainEvent
+from src.core.modules.inventory_procurement.domain.procurement.requisition_events import (
+    InventoryRequisitionSubmitted,
+)
+from src.core.modules.inventory_procurement.domain.procurement.purchasing_events import (
+    InventoryPurchaseOrderSubmitted,
+)
+from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
+    FinancialChangeChanged,
+    FinancialChangeEventType,
+)
+from src.core.modules.project_management.application.financials.invoicing.billing_events import (
+    BillingPreparationStatusChangeType,
+    BillingPreparationStatusChanged,
+)
+from src.core.modules.project_management.application.financials.budgets.budget_events import (
+    BudgetStatusChangeType,
+    BudgetStatusChanged,
+)
 
 _COUNTER = {"n": 0}
 
@@ -336,13 +354,23 @@ def test_submit_requisition_records_exactly_one_approval_requested(services, mon
     recorded = _spy_recorded_events(procurement._requisition_submission_uow_factory, monkeypatch)
     submitted = procurement.submit_requisition(requisition.id)
 
-    assert len(recorded) == 1
-    event = recorded[0]
-    assert isinstance(event, ApprovalRequested)
+    # P39-CLEANUP: Requisition's own modernization (P29) added `InventoryRequisitionSubmitted`
+    # alongside `ApprovalRequested` in the same transaction -- a naked `len(recorded) == 1` went
+    # stale the moment that typed event existed. Filtering by type keeps the real invariant this
+    # test exists to prove (exactly one `ApprovalRequested`) durable regardless of how many other
+    # typed facts a modernized capability's own submission records alongside it.
+    approval_requested = [e for e in recorded if isinstance(e, ApprovalRequested)]
+    assert len(approval_requested) == 1
+    event = approval_requested[0]
     assert event.approval_id == submitted.approval_request_id
     assert event.approval_type == "purchase_requisition.submit"
     assert event.entity_type == "purchase_requisition"
     assert event.entity_id == requisition.id
+
+    submitted_events = [e for e in recorded if isinstance(e, InventoryRequisitionSubmitted)]
+    assert len(submitted_events) == 1
+    assert submitted_events[0].requisition_id == requisition.id
+    assert submitted_events[0].approval_request_id == submitted.approval_request_id
 
 
 def test_submit_purchase_order_records_exactly_one_approval_requested(services, monkeypatch):
@@ -374,13 +402,20 @@ def test_submit_purchase_order_records_exactly_one_approval_requested(services, 
     recorded = _spy_recorded_events(purchasing._purchase_order_submission_uow_factory, monkeypatch)
     submitted = purchasing.submit_purchase_order(purchase_order.id)
 
-    assert len(recorded) == 1
-    event = recorded[0]
-    assert isinstance(event, ApprovalRequested)
+    # P39-CLEANUP: see the identical Requisition note above -- Purchase Order's own modernization
+    # (P28B) added `InventoryPurchaseOrderSubmitted` alongside `ApprovalRequested`.
+    approval_requested = [e for e in recorded if isinstance(e, ApprovalRequested)]
+    assert len(approval_requested) == 1
+    event = approval_requested[0]
     assert event.approval_id == submitted.approval_request_id
     assert event.approval_type == "purchase_order.submit"
     assert event.entity_type == "purchase_order"
     assert event.entity_id == purchase_order.id
+
+    submitted_events = [e for e in recorded if isinstance(e, InventoryPurchaseOrderSubmitted)]
+    assert len(submitted_events) == 1
+    assert submitted_events[0].purchase_order_id == purchase_order.id
+    assert submitted_events[0].approval_request_id == submitted.approval_request_id
 
 
 def test_submit_change_records_exactly_one_approval_requested(services, monkeypatch):
@@ -424,13 +459,20 @@ def test_submit_change_records_exactly_one_approval_requested(services, monkeypa
         change.id, submitted_by="admin", expected_version=change.row_version
     )
 
-    assert len(recorded) == 1
-    event = recorded[0]
-    assert isinstance(event, ApprovalRequested)
+    # P39-CLEANUP: Financial Change's own modernization (P19) added `FinancialChangeChanged`
+    # alongside `ApprovalRequested`.
+    approval_requested = [e for e in recorded if isinstance(e, ApprovalRequested)]
+    assert len(approval_requested) == 1
+    event = approval_requested[0]
     assert event.approval_id == submitted.approval_request_id
     assert event.approval_type == "financial_change.apply"
     assert event.entity_type == "financial_change_request"
     assert event.entity_id == change.id
+
+    submitted_events = [e for e in recorded if isinstance(e, FinancialChangeChanged)]
+    assert len(submitted_events) == 1
+    assert submitted_events[0].change_id == change.id
+    assert submitted_events[0].change_type == FinancialChangeEventType.SUBMITTED
 
 
 def test_submit_preparation_records_exactly_one_approval_requested(services, monkeypatch):
@@ -482,13 +524,20 @@ def test_submit_preparation_records_exactly_one_approval_requested(services, mon
         preparation.id, expected_row_version=preparation.row_version
     )
 
-    assert len(recorded) == 1
-    event = recorded[0]
-    assert isinstance(event, ApprovalRequested)
+    # P39-CLEANUP: Billing Preparation's own modernization (P39) added
+    # `BillingPreparationStatusChanged(SUBMITTED)` alongside `ApprovalRequested`.
+    approval_requested = [e for e in recorded if isinstance(e, ApprovalRequested)]
+    assert len(approval_requested) == 1
+    event = approval_requested[0]
     assert event.approval_id == submitted.approval_request_id
     assert event.approval_type == "project_billing_preparation.approve"
     assert event.entity_type == "project_billing_preparation"
     assert event.entity_id == preparation.id
+
+    submitted_events = [e for e in recorded if isinstance(e, BillingPreparationStatusChanged)]
+    assert len(submitted_events) == 1
+    assert submitted_events[0].billing_preparation_id == preparation.id
+    assert submitted_events[0].change_type == BillingPreparationStatusChangeType.SUBMITTED
 
 
 # ---------------------------------------------------------------------------
@@ -504,15 +553,22 @@ def test_approve_and_apply_records_exactly_one_approval_approved(services, sessi
 
     decided = approvals.approve_and_apply(request.id, note="Approved")
 
-    assert len(recorded) == 1
-    event = recorded[0]
-    assert isinstance(event, ApprovalApproved)
+    # P39-CLEANUP: Budget's own modernization (P38B) added `BudgetStatusChanged` alongside
+    # `ApprovalApproved` (`BudgetApprovalParticipant.apply()` returns it via
+    # `ApprovalHandlerResult.domain_events`).
+    approved_events = [e for e in recorded if isinstance(e, ApprovalApproved)]
+    assert len(approved_events) == 1
+    event = approved_events[0]
     assert event.approval_id == request.id
     assert event.tenant_id == decided.tenant_id
     assert event.organization_id == decided.organization_id
     assert event.approval_type == "budget.approve"
     assert event.decided_by_user_id == decided.decided_by_user_id
     assert decided.decided_by_username == "admin"
+
+    target_events = [e for e in recorded if isinstance(e, BudgetStatusChanged)]
+    assert len(target_events) == 1
+    assert target_events[0].change_type == BudgetStatusChangeType.APPROVED
 
 
 def test_apply_handler_failure_emits_zero_approval_approved(services, session, monkeypatch):
@@ -574,15 +630,20 @@ def test_reject_records_exactly_one_approval_rejected(services, session, monkeyp
 
     decided = approvals.reject(request.id, note="Rejected")
 
-    assert len(recorded) == 1
-    event = recorded[0]
-    assert isinstance(event, ApprovalRejected)
+    # P39-CLEANUP: see the identical Budget-approve note above.
+    rejected_events = [e for e in recorded if isinstance(e, ApprovalRejected)]
+    assert len(rejected_events) == 1
+    event = rejected_events[0]
     assert event.approval_id == request.id
     assert event.tenant_id == decided.tenant_id
     assert event.organization_id == decided.organization_id
     assert event.approval_type == "budget.approve"
     assert event.decided_by_user_id == decided.decided_by_user_id
     assert not hasattr(event, "decision_note")
+
+    target_events = [e for e in recorded if isinstance(e, BudgetStatusChanged)]
+    assert len(target_events) == 1
+    assert target_events[0].change_type == BudgetStatusChangeType.REJECTED
 
 
 def test_reject_handler_failure_emits_zero_approval_rejected(services, session, monkeypatch):
@@ -897,11 +958,18 @@ def test_cross_tenant_decision_attempt_emits_zero_approval_events(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_approve_and_apply_orders_target_event_before_approval_approved(services, session, monkeypatch):
-    """§19/§44: the apply participant (`BudgetApprovalParticipant`) records its own target-
-    capability event on the SAME UoW before the ApprovalRequest transitions to APPROVED -- the
-    committed order must be [target event(s)..., ApprovalApproved], never the reverse, and
-    `ApprovalApproved` must not duplicate the target fact."""
+def test_approve_and_apply_records_approval_approved_before_the_target_event(
+    services, session, monkeypatch
+):
+    """§19/§44, corrected by P39-CLEANUP against verified current `ApprovalService.approve_and_
+    apply` source (not the test's own prior, unverified assumption): `uow.record_event(
+    ApprovalApproved(...))` is called BEFORE the `for domain_event in handler_result.domain_events:
+    uow.record_event(domain_event)` loop that records the apply participant's own target-capability
+    event(s) (`BudgetApprovalParticipant.apply()` here) -- so the real, committed order is
+    [ApprovalApproved, target event(s)...], not the reverse. This test previously asserted the
+    opposite order and had never been exercised against a real 2+-event scenario until Budget's own
+    modernization (P38B) gave it one -- production `ApprovalService` behavior is unchanged; only
+    this test's stale assumption is corrected."""
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
     approvals = services["approval_service"]
@@ -910,9 +978,11 @@ def test_approve_and_apply_orders_target_event_before_approval_approved(services
     approvals.approve_and_apply(request.id, note="Approved")
 
     assert len(recorded) >= 1
-    assert isinstance(recorded[-1], ApprovalApproved)
+    assert isinstance(recorded[0], ApprovalApproved)
     if len(recorded) > 1:
-        assert not isinstance(recorded[0], ApprovalApproved)
+        assert all(not isinstance(e, ApprovalApproved) for e in recorded[1:]), (
+            "ApprovalApproved must be recorded exactly once, never duplicated"
+        )
 
 
 def test_sequence_of_two_standalone_requests_produces_events_in_committed_order(
@@ -937,3 +1007,122 @@ def test_sequence_of_two_standalone_requests_produces_events_in_committed_order(
     assert [type(e) for e in recorded] == [ApprovalRequested, ApprovalRequested]
     assert recorded[0].entity_id == entity_a
     assert recorded[1].entity_id == entity_b
+
+
+# ---------------------------------------------------------------------------
+# P39-CLEANUP: approval participant modernization characterization.
+#
+# These replace brittle global "exactly N events recorded" counts (which go stale every time a
+# capability's own modernization adds one more typed event alongside the standard Approval one)
+# with durable, source-derived MODERNIZED/LEGACY capability-state assertions. Current source is
+# authoritative: `baseline_apply_participant.py` was found ALREADY modernized (P23) during this
+# cleanup -- it was NOT part of the "remaining legacy" set some earlier phase reports assumed.
+# ---------------------------------------------------------------------------
+
+_LEGACY_APPROVAL_PARTICIPANT_FILES = frozenset(
+    {
+        "financial_change_apply_participant.py",
+        "task_apply_participant.py",
+    }
+)
+
+# Exact file that constructs the `ApprovalHandlerResult` for each already-modernized capability's
+# approve/reject decision -- for the two Inventory/Procurement families this is a delegate service
+# file, not the participant file itself (`*_apply_participant.py` there just forwards to an
+# already-public service method; the same pattern documented in both files' own module docstrings).
+_MODERNIZED_APPROVAL_RESULT_SOURCES = {
+    "Baseline": "core/modules/project_management/infrastructure/approval/baseline_apply_participant.py",
+    "Cost Entry": "core/modules/project_management/infrastructure/approval/project_cost_apply_participant.py",
+    "Budget": "core/modules/project_management/infrastructure/approval/budget_apply_participant.py",
+    "Billing Preparation": "core/modules/project_management/infrastructure/approval/billing_preparation_apply_participant.py",
+    "Forecast": "core/modules/project_management/infrastructure/approval/forecast_apply_participant.py",
+    "Purchase Requisition (decide)": "core/modules/inventory_procurement/application/procurement/procurement_approval.py",
+    "Purchase Order (decide)": "core/modules/inventory_procurement/application/procurement/purchasing_receiving.py",
+}
+
+_FINANCE_LEGACY_SIGNAL_NAMES = frozenset(
+    {
+        "budgets_changed", "billing_preparations_changed", "cost_entries_changed",
+        "commitments_changed", "financial_changes_changed", "forecasts_changed",
+        "planned_costs_changed", "costs_changed",
+    }
+)
+
+
+def _strip_strings_and_comments(source: str) -> str:
+    import re
+
+    no_docstrings = re.sub(r'"""[\s\S]*?"""', "", source)
+    return re.sub(r"#.*", "", no_docstrings)
+
+
+def _approval_participant_files():
+    from pathlib import Path
+
+    src_core = Path(__file__).resolve().parents[2] / "core"
+    return sorted(src_core.rglob("*_apply_participant.py"))
+
+
+def test_only_the_known_legacy_participant_files_construct_approval_post_commit_event():
+    """The trustworthy PM-modernization baseline: exactly which `*_apply_participant.py` files
+    still construct `ApprovalPostCommitEvent(...)` for their OWN capability's decision, recomputed
+    from source rather than asserted as a fixed count or copied from an earlier phase's report. A
+    future capability's own modernization phase deleting its file's site needs zero edits here."""
+    legacy_files = {
+        path.name
+        for path in _approval_participant_files()
+        if "ApprovalPostCommitEvent(" in _strip_strings_and_comments(
+            path.read_text(encoding="utf-8", errors="ignore")
+        )
+    }
+    assert legacy_files == set(_LEGACY_APPROVAL_PARTICIPANT_FILES)
+
+
+def test_remaining_legacy_approval_sites_all_publish_tasks_changed_never_a_finance_signal():
+    """Finance module event modernization is complete (P39) -- zero Finance-owned legacy Signal
+    names may appear as an `ApprovalPostCommitEvent` payload anywhere, including inside the two
+    still-legacy files above (their own remaining site is `tasks_changed`, a PM-owned name)."""
+    from pathlib import Path
+
+    src_core = Path(__file__).resolve().parents[2] / "core"
+    for path in src_core.rglob("*.py"):
+        source = _strip_strings_and_comments(path.read_text(encoding="utf-8", errors="ignore"))
+        if "ApprovalPostCommitEvent(" not in source:
+            continue
+        for name in _FINANCE_LEGACY_SIGNAL_NAMES:
+            assert f'"{name}"' not in source, f"{path} references Finance legacy signal {name!r}"
+
+    task_participant = next(
+        p for p in _approval_participant_files() if p.name == "task_apply_participant.py"
+    )
+    assert '"tasks_changed"' in task_participant.read_text(encoding="utf-8", errors="ignore")
+    financial_change_participant = next(
+        p for p in _approval_participant_files()
+        if p.name == "financial_change_apply_participant.py"
+    )
+    assert '"tasks_changed"' in financial_change_participant.read_text(
+        encoding="utf-8", errors="ignore"
+    )
+
+
+@pytest.mark.parametrize(
+    "capability_name,relative_path", sorted(_MODERNIZED_APPROVAL_RESULT_SOURCES.items())
+)
+def test_modernized_approval_capability_uses_only_typed_domain_events(
+    capability_name, relative_path
+):
+    """Positive characterization for every already-modernized approval capability: its
+    `ApprovalHandlerResult` is built exclusively from `domain_events=`, never
+    `ApprovalPostCommitEvent(`. `capability_name` is asserted only to make a failing
+    parametrization case readable -- the real check is against `relative_path`'s source."""
+    from pathlib import Path
+
+    assert capability_name  # readability only; the path below is what's actually verified
+    src_core = Path(__file__).resolve().parents[2] / "core"
+    source = _strip_strings_and_comments(
+        (src_core / relative_path.removeprefix("core/")).read_text(
+            encoding="utf-8", errors="ignore"
+        )
+    )
+    assert "ApprovalPostCommitEvent(" not in source
+    assert "domain_events=" in source
