@@ -18,6 +18,7 @@ class ApprovedFinancialLineAdjustment:
 class ApprovedFinancialSuccessorResult:
     version_id: str
     line_references: tuple[tuple[str, str], ...]
+    domain_events: tuple[object, ...] = ()
 
 
 __all__ = ["ApprovedFinancialLineAdjustment", "ApprovedFinancialSuccessorResult"]

@@ -22,6 +22,7 @@ from src.ui_qml.modules.project_management.controllers.common.workspace_controll
 )
 from src.ui_qml.modules.project_management.controllers.projects.project_domain_event_binder import (
     bind_project_domain_events,
+    on_budget_project_summary_stale,
 )
 from src.ui_qml.modules.project_management.presenters.projects.projects_workspace_presenter import (
     ProjectProjectsWorkspacePresenter,
@@ -303,7 +304,7 @@ class _RefreshProbe(ProjectManagementWorkspaceControllerBase):
     def __init__(self) -> None:
         super().__init__()
         self.refresh_count = 0
-        self.selected_project_id = "project-kept"
+        self._selected_project_id = "project-kept"
         bind_project_domain_events(self)
 
     def refresh(self) -> None:
@@ -311,20 +312,33 @@ class _RefreshProbe(ProjectManagementWorkspaceControllerBase):
 
 
 def test_project_budget_event_uses_existing_queued_refresh_behavior() -> None:
+    """P38B: `budgets_changed` (a blanket, unscoped legacy Signal) is retired -- the Projects
+    workspace's Budget reaction is now `on_budget_project_summary_stale`, wired from
+    `BudgetViewInvalidationAdapter.budgetProjectSummaryStale` in `context.py`, and is genuinely
+    project-scoped (see `test_project_budget_event_for_another_project_is_ignored` below) rather
+    than blanket -- a real behavior improvement, not just a mechanism swap. The existing queued-
+    while-busy behavior is preserved."""
     controller = _RefreshProbe()
     controller._set_is_busy(True)
 
-    domain_events.budgets_changed.emit("project-kept")
+    on_budget_project_summary_stale(controller, "project-kept")
 
     assert controller.refresh_count == 0
     assert controller._pending_domain_refresh is True
-    assert controller.selected_project_id == "project-kept"
+    assert controller._selected_project_id == "project-kept"
 
     controller._set_is_busy(False)
 
     assert controller.refresh_count == 1
+
+
+def test_project_budget_event_for_another_project_is_ignored() -> None:
+    controller = _RefreshProbe()
+
+    on_budget_project_summary_stale(controller, "some-other-project")
+
+    assert controller.refresh_count == 0
     assert controller._pending_domain_refresh is False
-    assert controller.selected_project_id == "project-kept"
 
 
 def test_qml_budget_surfaces_are_deny_safe_and_sortable() -> None:

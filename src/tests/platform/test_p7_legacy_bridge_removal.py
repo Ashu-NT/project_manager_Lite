@@ -231,14 +231,16 @@ def test_pm_register_workspace_does_not_react_to_an_unrelated_signal(services):
 
     P36: was `commitments_changed` (deleted at P36 -- Commitment fully modernized onto typed
     DomainEvents). P37: was `cost_entries_changed` (deleted at P37 -- Cost Entry fully modernized
-    onto typed DomainEvents, restoring the P8 architecture budget). `budgets_changed` is the
-    remaining still-legacy Finance signal, so it now stands in as the "unrelated" example."""
+    onto typed DomainEvents, restoring the P8 architecture budget). P38B: was `budgets_changed`
+    (deleted at P38B -- Budget fully modernized onto typed DomainEvents).
+    `billing_preparations_changed` is the last remaining legacy Finance signal, so it now stands
+    in as the "unrelated" example."""
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.registerWorkspace
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.budgets_changed.emit(_unique("p7a-unrelated-finance"))
+    domain_events.billing_preparations_changed.emit(_unique("p7a-unrelated-finance"))
 
     assert refresh_calls == []
 

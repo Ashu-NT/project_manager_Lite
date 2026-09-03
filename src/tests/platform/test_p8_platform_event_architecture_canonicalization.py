@@ -58,6 +58,7 @@ _DELETED_BRIDGE_NAMES = (
     "financial_changes_changed",
     "commitments_changed",
     "cost_entries_changed",
+    "budgets_changed",
 )
 # P35-CLEANUP: `cost_entries_changed`/`commitments_changed` were REMOVED from this list -- both
 # were genuinely live production Signal fields (real producers in `cost_entry_service.py`/
@@ -78,7 +79,13 @@ _DELETED_BRIDGE_NAMES = (
 # `FinanceGovernanceUnitOfWork` convergence + `ApprovalHandlerResult.domain_events` for the
 # approval path, field deleted from `domain_events.py`) -- so it now correctly rejoins this list
 # too. This was the LAST post-freeze violation: `current ⊆ frozen` is restored with zero
-# exceptions.
+# exceptions. P38B: `budgets_changed` -- the only Finance capability found ALREADY transaction-
+# canonical at its own audit phase (P38A) -- has now also followed the same path: typed
+# `BudgetVersionCreated`/`BudgetProfileUpdated`/`BudgetLineChanged`/`BudgetStatusChanged`/
+# `BudgetRemoved` DomainEvents, the `command_boundary.py::_emit_budget` legacy publication and
+# every `ApprovalPostCommitEvent("budgets_changed", ...)` site removed, field deleted from
+# `domain_events.py` -- so it rejoins this list too. `billing_preparations_changed` is now the
+# sole remaining Finance legacy signal.
 
 
 def _strip_strings_and_comments(source: str) -> str:

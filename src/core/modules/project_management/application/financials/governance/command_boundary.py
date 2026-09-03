@@ -38,7 +38,6 @@ from src.core.modules.project_management.contracts.uow.finance.finance_governanc
 )
 from src.core.platform.common.ids import generate_id
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 
 
 logger = logging.getLogger(__name__)
@@ -83,10 +82,7 @@ class FinanceGovernanceCommandBoundary:
         *,
         project_id: str | None = None,
     ) -> T:
-        return self._execute(
-            lambda operations: command(operations.budgets),
-            invalidation=lambda result: self._emit_budget(result, project_id),
-        )
+        return self._execute(lambda operations: command(operations.budgets))
 
     def forecast_version(
         self,
@@ -96,7 +92,6 @@ class FinanceGovernanceCommandBoundary:
     ) -> T:
         return self._execute(
             lambda operations: command(operations.forecast_versions),
-            invalidation=None,
         )
 
     def forecast_generation(
@@ -107,7 +102,6 @@ class FinanceGovernanceCommandBoundary:
     ) -> T:
         return self._execute(
             lambda operations: command(operations.forecast_generation),
-            invalidation=None,
         )
 
     def financial_change(
@@ -118,7 +112,6 @@ class FinanceGovernanceCommandBoundary:
     ) -> T:
         return self._execute(
             lambda operations: command(operations.financial_changes),
-            invalidation=None,
         )
 
     def planned_cost(
@@ -129,7 +122,6 @@ class FinanceGovernanceCommandBoundary:
     ) -> T:
         return self._execute(
             lambda operations: command(operations.planned_costs),
-            invalidation=None,
         )
 
     def commitment(
@@ -140,7 +132,6 @@ class FinanceGovernanceCommandBoundary:
     ) -> T:
         return self._execute(
             lambda operations: command(operations.commitments),
-            invalidation=None,
         )
 
     def cost_entry(
@@ -151,7 +142,6 @@ class FinanceGovernanceCommandBoundary:
     ) -> T:
         return self._execute(
             lambda operations: command(operations.cost_entries),
-            invalidation=None,
         )
 
     def financial_setup(
@@ -162,7 +152,6 @@ class FinanceGovernanceCommandBoundary:
     ) -> T:
         return self._execute(
             lambda operations: command(operations.financial_setup),
-            invalidation=None,
         )
 
     def rate_card(
@@ -173,15 +162,9 @@ class FinanceGovernanceCommandBoundary:
     ) -> T:
         return self._execute(
             lambda operations: command(operations.rate_cards),
-            invalidation=None,
         )
 
-    def _execute(
-        self,
-        command: Callable[[FinanceGovernanceOperations], T],
-        *,
-        invalidation: Callable[[T], None] | None,
-    ) -> T:
+    def _execute(self, command: Callable[[FinanceGovernanceOperations], T]) -> T:
         if self._prepare_command is not None:
             self._prepare_command()
         context = DomainEventContext(correlation_id=generate_id())
@@ -192,8 +175,6 @@ class FinanceGovernanceCommandBoundary:
             post_commit_actions = tuple(operations.post_commit_actions)
             uow.commit()
 
-        if invalidation is not None:
-            self._run_post_commit(invalidation, result)
         for action in post_commit_actions:
             self._run_post_commit(action)
         return result
@@ -204,12 +185,6 @@ class FinanceGovernanceCommandBoundary:
             callback(*args)
         except Exception:
             logger.exception("Finance governance post-commit reaction failed")
-
-    @staticmethod
-    def _emit_budget(result: object, fallback_project_id: str | None) -> None:
-        project_id = getattr(result, "project_id", None) or fallback_project_id
-        if project_id:
-            domain_events.budgets_changed.emit(str(project_id))
 
 class FinanceGovernedServicePort:
     """Read delegation plus canonical command routing for one Finance service family."""
@@ -250,12 +225,16 @@ class FinanceGovernedServicePort:
             return str(args[0]) if args else ""
         try:
             if self._family == "budget":
+                # Deliberately `_require_budget` (unchecked) rather than the permission-checked
+                # `get_budget` -- resolving project_id here must not silently require
+                # "finance.read" before the actual command's own permission check runs (the
+                # P37-FIX regression, same bug pattern, fixed here for Budget at P38B).
                 if name in {"add_line"}:
-                    return str(self._read_service.get_budget(args[0]).project_id)
+                    return str(self._read_service._require_budget(args[0]).project_id)
                 if name in {"update_line", "delete_line"}:
                     line = self._read_service._require_line(args[0])
-                    return str(self._read_service.get_budget(line.budget_id).project_id)
-                return str(self._read_service.get_budget(args[0]).project_id)
+                    return str(self._read_service._require_budget(line.budget_id).project_id)
+                return str(self._read_service._require_budget(args[0]).project_id)
             if self._family == "forecast_version":
                 if name == "add_line":
                     return str(self._read_service.get_forecast(args[0]).project_id)

@@ -30,7 +30,7 @@ from .project_state import (
 )
 from .project_table_models import ProjectTableModels, create_project_table_models
 from .project_state_setters import ProjectStateSettersMixin
-from .project_domain_event_binder import bind_project_domain_events
+from .project_domain_event_binder import bind_project_domain_events, on_budget_project_summary_stale
 from .project_selection_handler import (
     activate_project,
     clear_filters,
@@ -368,6 +368,9 @@ class ProjectManagementProjectsWorkspaceController(
         return self._selected_project_resource_id
 
     # ── Core ─────────────────────────────────────────────────────────────
+
+    def onBudgetProjectSummaryStale(self, project_id: str) -> None:
+        on_budget_project_summary_stale(self, project_id)
 
     @Slot()
     def refresh(self) -> None:

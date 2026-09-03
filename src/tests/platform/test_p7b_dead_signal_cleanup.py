@@ -99,6 +99,11 @@ def test_pm_dashboard_no_longer_reacts_to_costs_changed_because_it_no_longer_exi
 
 
 def test_pm_financials_workspace_coalesces_scoped_finance_invalidations(services, qapp):
+    """P38B: `budgets_changed` is retired -- `project_changed` (whose handler invalidates every
+    finance destination, including the default "overview" active destination) stands in as the
+    matching signal, alongside `billing_preparations_changed` (whose "commercial"-only
+    invalidation does not match "overview" and so triggers no refresh of its own) as the
+    non-matching one -- reproducing the original two-signals-one-turn shape exactly."""
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.financialsWorkspace
     project_id = _unique("p7b-finance-project")
@@ -106,7 +111,7 @@ def test_pm_financials_workspace_coalesces_scoped_finance_invalidations(services
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.budgets_changed.emit(project_id)
+    domain_events.project_changed.emit(project_id)
     domain_events.billing_preparations_changed.emit(project_id)
 
     qapp.processEvents()

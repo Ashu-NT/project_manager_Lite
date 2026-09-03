@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from datetime import datetime
 from decimal import Decimal
 
@@ -15,6 +16,15 @@ from src.core.modules.project_management.application.common.module_guard import 
 from src.core.modules.project_management.application.financials.budgets.approval_result import (
     BudgetApprovalOutcome,
     BudgetApprovalResult,
+)
+from src.core.modules.project_management.application.financials.budgets.budget_events import (
+    BudgetLineChangeType,
+    BudgetLineChanged,
+    BudgetProfileUpdated,
+    BudgetRemoved,
+    BudgetStatusChangeType,
+    BudgetStatusChanged,
+    BudgetVersionCreated,
 )
 from src.core.modules.project_management.application.financials.successor_models import (
     ApprovedFinancialLineAdjustment,
@@ -83,6 +93,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         module_catalog_service=None,
         tenant_context_service: TenantContextService | None = None,
         approval_service=None,
+        record_event: Callable[[object], None] | None = None,
     ) -> None:
         self._session = session
         self._budget_repo = budget_repo
@@ -96,6 +107,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
         self._approval_service = approval_service
+        self._record_event = record_event
 
     # -- Reads ------------------------------------------------------------
 
@@ -198,6 +210,17 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         except IntegrityError as exc:
             self._translate_create_conflict(exc)
         self._record_budget_audit(operation="create", budget=budget)
+        event = BudgetVersionCreated(
+            tenant_id=budget.tenant_id,
+            organization_id=budget.organization_id,
+            project_id=budget.project_id,
+            budget_id=budget.id,
+            status=budget.status,
+            predecessor_budget_id=None,
+            occurred_at=now,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
         self._session.flush()
         return budget
 
@@ -265,6 +288,17 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         except IntegrityError as exc:
             self._translate_create_conflict(exc)
         self._record_budget_audit(operation="create_successor", budget=successor)
+        event = BudgetVersionCreated(
+            tenant_id=successor.tenant_id,
+            organization_id=successor.organization_id,
+            project_id=successor.project_id,
+            budget_id=successor.id,
+            status=successor.status,
+            predecessor_budget_id=successor.predecessor_budget_id,
+            occurred_at=now,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
         self._session.flush()
         return successor
 
@@ -285,6 +319,16 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         budget.submit(submitted_by=submitted_by, submitted_at=now, notes=notes)
         self._budget_repo.update(budget, expected_row_version=expected_version)
         self._record_budget_audit(operation="submit", budget=budget)
+        event = BudgetStatusChanged(
+            tenant_id=budget.tenant_id,
+            organization_id=budget.organization_id,
+            project_id=budget.project_id,
+            budget_id=budget.id,
+            change_type=BudgetStatusChangeType.SUBMITTED,
+            occurred_at=budget.updated_at,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
         self._session.flush()
         return budget
 
@@ -338,7 +382,7 @@ class BudgetService(ProjectManagementModuleGuardMixin):
                 row_version=budget.row_version,
                 approval_request_id=req.id,
             )
-        approved = self._apply_approval_decision(
+        approved, _events = self._apply_approval_decision(
             budget_id=budget_id,
             approved_by=approved_by,
             expected_version=expected_version,
@@ -421,12 +465,13 @@ class BudgetService(ProjectManagementModuleGuardMixin):
             "budget.approve",
             operation_label="reject project budget",
         )
-        return self._apply_rejection_decision(
+        rejected, _event = self._apply_rejection_decision(
             budget_id=budget_id,
             rejected_by=rejected_by,
             expected_version=expected_version,
             notes=notes,
         )
+        return rejected
 
     def close_budget(
         self, budget_id: str, closed_by: str, notes: str = "", *, expected_version: int
@@ -442,6 +487,16 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         budget.close(closed_by=closed_by, closed_at=now, notes=notes)
         self._budget_repo.update(budget, expected_row_version=expected_version)
         self._record_budget_audit(operation="close", budget=budget)
+        event = BudgetStatusChanged(
+            tenant_id=budget.tenant_id,
+            organization_id=budget.organization_id,
+            project_id=budget.project_id,
+            budget_id=budget.id,
+            change_type=BudgetStatusChangeType.CLOSED,
+            occurred_at=budget.updated_at,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
         self._session.flush()
         return budget
 
@@ -465,6 +520,15 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         budget.touch(updated_at=self._clock.now())
         self._budget_repo.update(budget, expected_row_version=expected_version)
         self._record_budget_audit(operation="update_header", budget=budget)
+        event = BudgetProfileUpdated(
+            tenant_id=budget.tenant_id,
+            organization_id=budget.organization_id,
+            project_id=budget.project_id,
+            budget_id=budget.id,
+            occurred_at=budget.updated_at,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
         self._session.flush()
         return budget
 
@@ -484,6 +548,15 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         # itself (not a redundant manual check here) surfaces STALE_WRITE.
         self._budget_repo.delete(budget_id, expected_row_version=expected_version)
         self._record_budget_audit(operation="delete", budget=budget)
+        event = BudgetRemoved(
+            tenant_id=budget.tenant_id,
+            organization_id=budget.organization_id,
+            project_id=budget.project_id,
+            budget_id=budget.id,
+            occurred_at=self._clock.now(),
+        )
+        if self._record_event is not None:
+            self._record_event(event)
         self._session.flush()
         return budget
 
@@ -537,6 +610,17 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         budget.touch(updated_at=now)
         self._budget_repo.update(budget, expected_row_version=expected_budget_version)
         self._record_line_audit(operation="add_line", line=line, budget=budget)
+        event = BudgetLineChanged(
+            tenant_id=budget.tenant_id,
+            organization_id=budget.organization_id,
+            project_id=budget.project_id,
+            budget_id=budget.id,
+            budget_line_id=line.id,
+            change_type=BudgetLineChangeType.ADDED,
+            occurred_at=now,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
         self._session.flush()
         return line
 
@@ -597,6 +681,17 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         budget.touch(updated_at=now)
         self._budget_repo.update(budget, expected_row_version=expected_budget_version)
         self._record_line_audit(operation="update_line", line=line, budget=budget)
+        event = BudgetLineChanged(
+            tenant_id=budget.tenant_id,
+            organization_id=budget.organization_id,
+            project_id=budget.project_id,
+            budget_id=budget.id,
+            budget_line_id=line.id,
+            change_type=BudgetLineChangeType.UPDATED,
+            occurred_at=now,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
         self._session.flush()
         return line
 
@@ -623,6 +718,17 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         budget.touch(updated_at=now)
         self._budget_repo.update(budget, expected_row_version=expected_budget_version)
         self._record_line_audit(operation="delete_line", line=line, budget=budget)
+        event = BudgetLineChanged(
+            tenant_id=budget.tenant_id,
+            organization_id=budget.organization_id,
+            project_id=budget.project_id,
+            budget_id=budget.id,
+            budget_line_id=line.id,
+            change_type=BudgetLineChangeType.REMOVED,
+            occurred_at=now,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
         self._session.flush()
         return budget
 
@@ -637,10 +743,11 @@ class BudgetService(ProjectManagementModuleGuardMixin):
 
     def _apply_approval_decision(
         self, *, budget_id: str, approved_by: str, expected_version: int, notes: str
-    ) -> ProjectBudget:
+    ) -> tuple[ProjectBudget, tuple[object, ...]]:
         budget = self._require_budget(budget_id)
         now = self._clock.now()
         previous = self._budget_repo.get_approved_for_project(budget.project_id)
+        events: list[object] = []
         try:
             with self._session.begin_nested():
                 if previous is not None:
@@ -648,6 +755,16 @@ class BudgetService(ProjectManagementModuleGuardMixin):
                     previous.supersede(superseded_by=approved_by, superseded_at=now)
                     self._budget_repo.update(previous, expected_row_version=previous_expected_version)
                     self._budget_repo.flush()
+                    events.append(
+                        BudgetStatusChanged(
+                            tenant_id=previous.tenant_id,
+                            organization_id=previous.organization_id,
+                            project_id=previous.project_id,
+                            budget_id=previous.id,
+                            change_type=BudgetStatusChangeType.SUPERSEDED,
+                            occurred_at=now,
+                        )
+                    )
                 budget_expected_version = expected_version
                 budget.approve(approved_by=approved_by, approved_at=now, notes=notes)
                 self._budget_repo.update(budget, expected_row_version=budget_expected_version)
@@ -660,8 +777,22 @@ class BudgetService(ProjectManagementModuleGuardMixin):
                 ) from exc
             raise
         self._record_budget_audit(operation="approve", budget=budget)
+        events.append(
+            BudgetStatusChanged(
+                tenant_id=budget.tenant_id,
+                organization_id=budget.organization_id,
+                project_id=budget.project_id,
+                budget_id=budget.id,
+                change_type=BudgetStatusChangeType.APPROVED,
+                occurred_at=now,
+            )
+        )
+        event_tuple = tuple(events)
+        if self._record_event is not None:
+            for event in event_tuple:
+                self._record_event(event)
         self._session.flush()
-        return budget
+        return budget, event_tuple
 
     def _apply_approved_financial_change(
         self,
@@ -761,13 +892,35 @@ class BudgetService(ProjectManagementModuleGuardMixin):
             references.append((adjustment.impact_id, line.id))
         self._budget_repo.flush()
         self._record_budget_audit(operation="apply_financial_change", budget=successor)
+        events: tuple[object, ...] = (
+            BudgetVersionCreated(
+                tenant_id=successor.tenant_id,
+                organization_id=successor.organization_id,
+                project_id=successor.project_id,
+                budget_id=successor.id,
+                status=successor.status,
+                predecessor_budget_id=successor.predecessor_budget_id,
+                occurred_at=occurred_at,
+            ),
+            BudgetStatusChanged(
+                tenant_id=base.tenant_id,
+                organization_id=base.organization_id,
+                project_id=base.project_id,
+                budget_id=base.id,
+                change_type=BudgetStatusChangeType.SUPERSEDED,
+                occurred_at=occurred_at,
+            ),
+        )
+        if self._record_event is not None:
+            for event in events:
+                self._record_event(event)
         return ApprovedFinancialSuccessorResult(
-            version_id=successor.id, line_references=tuple(references)
+            version_id=successor.id, line_references=tuple(references), domain_events=events
         )
 
     def _apply_rejection_decision(
         self, *, budget_id: str, rejected_by: str, expected_version: int, notes: str
-    ) -> ProjectBudget:
+    ) -> tuple[ProjectBudget, object]:
         budget = self._require_budget(budget_id)
         if budget.row_version != expected_version:
             raise ConcurrencyError("Budget changed since you opened it.", code="STALE_WRITE")
@@ -775,8 +928,18 @@ class BudgetService(ProjectManagementModuleGuardMixin):
         budget.reject(rejected_by=rejected_by, rejected_at=now, notes=notes)
         self._budget_repo.update(budget, expected_row_version=expected_version)
         self._record_budget_audit(operation="reject", budget=budget)
+        event = BudgetStatusChanged(
+            tenant_id=budget.tenant_id,
+            organization_id=budget.organization_id,
+            project_id=budget.project_id,
+            budget_id=budget.id,
+            change_type=BudgetStatusChangeType.REJECTED,
+            occurred_at=now,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
         self._session.flush()
-        return budget
+        return budget, event
 
     def _is_approval_governed(self) -> bool:
         return self._approval_service is not None and is_governance_required("budget.approve")

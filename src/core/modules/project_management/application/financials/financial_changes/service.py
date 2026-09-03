@@ -552,7 +552,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         change_id: str,
         approval_request_id: str,
         applied_by: str,
-    ) -> FinancialChangeRequest:
+    ) -> tuple[FinancialChangeRequest, tuple[object, ...]]:
         change = self._require_change(change_id)
         if (
             change.status is not FinancialChangeStatus.PENDING_APPROVAL
@@ -566,7 +566,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         self._validate_application_bases(change, impacts)
         now = self._clock.now()
         expected_version = change.row_version
-        budget_id = self._apply_budget_successor(change, impacts, applied_by, now)
+        budget_id, budget_events = self._apply_budget_successor(change, impacts, applied_by, now)
         forecast_id = self._apply_forecast_successor(change, impacts, applied_by, now)
         schedule_count = self._apply_schedule_changes(change, impacts, applied_by)
         change.apply(
@@ -579,7 +579,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         self._change_repo.update(change, expected_row_version=expected_version)
         self._audit_change("apply", change)
         self._session.flush()
-        return change
+        return change, budget_events
 
     def _apply_rejection_decision(
         self,
@@ -612,12 +612,12 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         impacts: list[FinancialChangeImpact],
         actor: str,
         now: datetime,
-    ) -> str | None:
+    ) -> tuple[str | None, tuple[object, ...]]:
         relevant = [
             row for row in impacts if row.impact_type is FinancialChangeImpactType.BUDGET
         ]
         if not relevant:
-            return None
+            return None, ()
         if self._budget_authority is None:
             raise BusinessRuleError(
                 "Budget authority is unavailable for financial change application.",
@@ -640,7 +640,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
                 applied_reference_id=line_id,
             )
         self._audit_version("project_budget", result.version_id, change, now)
-        return result.version_id
+        return result.version_id, result.domain_events
 
     def _apply_forecast_successor(
         self,

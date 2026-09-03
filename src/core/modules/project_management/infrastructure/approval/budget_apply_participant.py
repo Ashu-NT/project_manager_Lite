@@ -25,10 +25,7 @@ from src.core.modules.project_management.application.financials.budgets.budget_s
 from src.core.modules.project_management.infrastructure.approval._financial_decision_actor import (
     require_financial_decision_actor,
 )
-from src.core.platform.contract.models.approval.contracts import (
-    ApprovalHandlerResult,
-    ApprovalPostCommitEvent,
-)
+from src.core.platform.contract.models.approval.contracts import ApprovalHandlerResult
 from src.core.platform.domain.approval import ApprovalRequest
 
 
@@ -46,27 +43,23 @@ class BudgetApprovalDeps:
 class BudgetApprovalParticipant:
     def apply(self, request: ApprovalRequest, deps: BudgetApprovalDeps) -> ApprovalHandlerResult:
         approved_by = require_financial_decision_actor(deps.budget_service._user_session)
-        budget = deps.budget_service._apply_approval_decision(
+        _budget, events = deps.budget_service._apply_approval_decision(
             budget_id=request.payload["budget_id"],
             approved_by=approved_by,
             expected_version=request.payload["expected_version"],
             notes=request.payload.get("notes", ""),
         )
-        return ApprovalHandlerResult(
-            post_commit_events=(ApprovalPostCommitEvent("budgets_changed", budget.project_id),)
-        )
+        return ApprovalHandlerResult(domain_events=events)
 
     def reject(self, request: ApprovalRequest, deps: BudgetApprovalDeps) -> ApprovalHandlerResult:
         rejected_by = require_financial_decision_actor(deps.budget_service._user_session)
-        budget = deps.budget_service._apply_rejection_decision(
+        _budget, event = deps.budget_service._apply_rejection_decision(
             budget_id=request.payload["budget_id"],
             rejected_by=rejected_by,
             expected_version=request.payload["expected_version"],
             notes=request.payload.get("notes", ""),
         )
-        return ApprovalHandlerResult(
-            post_commit_events=(ApprovalPostCommitEvent("budgets_changed", budget.project_id),)
-        )
+        return ApprovalHandlerResult(domain_events=(event,))
 
 
 __all__ = ["BudgetApprovalDeps", "BudgetApprovalParticipant"]

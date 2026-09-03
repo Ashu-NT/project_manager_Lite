@@ -24,6 +24,9 @@ from src.ui_qml.modules.project_management.controllers.financials.cost_entry_dom
     on_cost_entry_actuals_stale,
     on_cost_entry_list_stale,
 )
+from src.ui_qml.modules.project_management.controllers.financials.budget_domain_event_binder import (
+    on_budget_planning_stale,
+)
 from src.ui_qml.modules.project_management.controllers.financials.financial_change_domain_event_binder import (
     on_financial_change_budget_stale,
     on_financial_change_forecast_stale,
@@ -863,6 +866,9 @@ class ProjectManagementFinancialsWorkspaceController(
 
     def onCostEntryActualsStale(self, project_id: str) -> None:
         on_cost_entry_actuals_stale(self, project_id)
+
+    def onBudgetPlanningStale(self, project_id: str) -> None:
+        on_budget_planning_stale(self, project_id)
 
     def onRateCardListStale(self, rate_card_id: str) -> None:
         on_rate_card_list_stale(self, rate_card_id)

@@ -7,7 +7,6 @@ import inspect
 from src.core.shared.events.domain_events import domain_events
 
 _ACTIVE_FINANCE_SIGNALS = (
-    "budgets_changed",
     "billing_preparations_changed",
 )
 
@@ -168,19 +167,26 @@ def test_financial_change_apply_participant_emits_typed_change_and_forecast_even
     assert "FinancialChangeEventType.APPLIED" in apply_source
     assert "ForecastVersionChanged(" in apply_source
     assert "ForecastVersionChangeType.APPROVED" in apply_source
-    assert "budgets_changed" in apply_source
+    assert "budget_events" in apply_source
     assert "tasks_changed" in apply_source
+    assert "budgets_changed" not in apply_source
 
     reject_source = inspect.getsource(FinancialChangeApprovalParticipant.reject)
     assert "FinancialChangeChanged(" in reject_source
     assert "FinancialChangeEventType.REJECTED" in reject_source
 
 
-def test_real_budget_approval_still_emits_its_own_real_signal(services):
-    """Approval regression: a real budget approval still produces the legitimate
-    `budgets_changed` post-commit output -- proves the apply-participant edits did not disturb
-    the signals that DO have real consumers."""
+def test_real_budget_approval_still_emits_its_own_real_view_invalidation(services):
+    """Approval regression (P38B): a real budget approval no longer emits any legacy Signal --
+    `budgets_changed` is deleted -- but still produces the legitimate typed
+    `BudgetStatusChanged(APPROVED)` post-commit ViewInvalidation output, proving the
+    apply-participant edits did not disturb the real consumer, only its mechanism."""
     from decimal import Decimal
+
+    from src.core.modules.project_management.application.financials.budgets.event_handlers.view_invalidation import (
+        BUDGET_CATEGORY,
+        BUDGET_PLANNING_SCOPE_CODE,
+    )
 
     _login(services, "admin", "ChangeMe123!")
     project = services["project_service"].create_project(
@@ -198,12 +204,22 @@ def test_real_budget_approval_still_emits_its_own_real_signal(services):
     budget = budgets.get_budget(budget.id)
     budget = budgets.submit_budget(budget.id, "admin", expected_version=budget.row_version)
 
-    budgets_calls = []
-    domain_events.budgets_changed.connect(lambda project_id: budgets_calls.append(project_id))
+    hints = []
+
+    class _AnyOrgFilter:
+        def matches(self, scope) -> bool:
+            return True
+
+    services["platform_view_invalidation_channel"].subscribe(
+        _AnyOrgFilter(), lambda hint: hints.append(hint)
+    )
 
     budgets.approve_budget(budget.id, approved_by="admin", expected_version=budget.row_version)
 
-    assert budgets_calls == [project.id]
+    budget_hints = [
+        h for h in hints if h.category == BUDGET_CATEGORY and h.scope_code == BUDGET_PLANNING_SCOPE_CODE
+    ]
+    assert [h.entity_id for h in budget_hints] == [project.id]
 
 
 # ---------------------------------------------------------------------------

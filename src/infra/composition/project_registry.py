@@ -65,6 +65,16 @@ from src.core.modules.project_management.application.financials.cost.entries.cos
     CostEntryStatusChanged,
     CostEntryUpdated,
 )
+from src.core.modules.project_management.application.financials.budgets.event_handlers.view_invalidation import (
+    build_budget_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.budgets.budget_events import (
+    BudgetLineChanged,
+    BudgetProfileUpdated,
+    BudgetRemoved,
+    BudgetStatusChanged,
+    BudgetVersionCreated,
+)
 from src.core.modules.project_management.application.financials.event_handlers.view_invalidation import (
     build_financial_profile_view_invalidation_handler,
 )
@@ -737,6 +747,19 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus.subscribe(
             _cost_entry_event_type, _cost_entry_view_invalidation_handler
         )
+    _budget_view_invalidation_handler = build_budget_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _budget_event_type in (
+        BudgetVersionCreated,
+        BudgetProfileUpdated,
+        BudgetLineChanged,
+        BudgetStatusChanged,
+        BudgetRemoved,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _budget_event_type, _budget_view_invalidation_handler
+        )
     _financial_profile_view_invalidation_handler = build_financial_profile_view_invalidation_handler(
         platform_services.platform_view_invalidation_channel
     )
@@ -799,6 +822,7 @@ def build_project_management_service_bundle(
             module_catalog_service=platform_services.module_catalog_service,
             tenant_context_service=platform_services.tenant_context_service,
             approval_service=platform_services.approval_service,
+            record_event=uow.record_event,
         )
         forecast_version_operations = ForecastVersionService(
             session=uow._session,

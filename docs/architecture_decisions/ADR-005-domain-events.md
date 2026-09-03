@@ -3537,6 +3537,42 @@ third and last of P34A's Finance-first trio. No Finance capability has an open p
 violation; Budget and Billing Preparation remain on their own, separately-scheduled track (both
 pre-freeze, frozen-allowlisted, not violations).
 
+**26.35 P38A/P38B: Finance Budget full modernization — `budgets_changed` deleted, only
+`billing_preparations_changed` remains.** P38A (audit-only) found Budget's direct-command
+transaction layer already 100% converged onto `FinanceGovernanceUnitOfWork` before its own
+event-modernization phase began — the only Finance capability found in that state. P38B added five
+typed events (`application/financials/budgets/budget_events.py`): `BudgetVersionCreated`
+(`create_budget`/`create_successor`, plus the Financial-Change-driven successor, `status`
+distinguishing a plain DRAFT from an already-APPROVED one), `BudgetProfileUpdated`
+(`update_budget_header` — a genuine fourth fact, not folded into `BudgetStatusChanged`),
+`BudgetLineChanged` (`add_line`/`update_line`/`delete_line`, one class + `change_type`),
+`BudgetStatusChanged` (`SUBMITTED`/`APPROVED`/`REJECTED`/`SUPERSEDED`/`CLOSED`), `BudgetRemoved`
+(`delete_budget`). `BudgetService` gained the standard `record_event` constructor param; the shared
+`_apply_approval_decision`/`_apply_rejection_decision` helpers construct-and-return
+`(budget, events)`/`(budget, event)`, following the exact P36/P37 dual-use-service shape (recorded
+via `record_event` on the governed direct path, forwarded via
+`ApprovalHandlerResult(domain_events=...)` on the participant path). `command_boundary.py`'s
+`_emit_budget` and `budget()`'s `invalidation=` callback are deleted outright — Budget was the last
+family still passing a non-None `invalidation`, so the whole parameter was removed from `_execute`
+rather than left as permanent dead code. The cross-capability Financial-Change→Budget edge P38A
+found already transaction-safe is now typed on both sides: `ApprovedFinancialSuccessorResult`
+gained a `domain_events` field (default `()`, Forecast's identical call site unaffected);
+`financial_change_apply_participant.apply()` appends the returned Budget events onto its own
+`FinancialChangeChanged` tuple instead of building `ApprovalPostCommitEvent("budgets_changed",
+...)`. The P37-FIX permission-order bug pattern (`_project_id()` resolving via a
+permission-checked public accessor before the command's own check runs) was fixed for Budget's
+`add_line`/`update_line`/`delete_line` branches (switched to the private `_require_budget`) —
+Commitment's `match_cost_entry` branch, flagged with the same pattern in P38A, remains untouched,
+out of scope. ViewInvalidation uses two uniformly-mapped targets (`budget_planning` for the
+Financials workspace, reproducing the legacy signal's exact 3-destination fan-out;
+`budget_project_summary` for the Projects workspace) — every fact stales both, matching the legacy
+signal's own undifferentiated behavior for both consumers; the Projects-workspace consumer is a
+genuine precision improvement over the old blanket, unscoped `_request_domain_refresh()`. `budgets_
+changed` is deleted from `DomainEvents`, added to `_DELETED_BRIDGE_NAMES`; `billing_preparations_
+changed` is now the sole remaining Finance legacy signal. Legacy Signal count: 8 (9 minus the one
+deletion). Budget is now fully modernized; Billing Preparation (both aggregates together) remains
+the only capability on Finance's track.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

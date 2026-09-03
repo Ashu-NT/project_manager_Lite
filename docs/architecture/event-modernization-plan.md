@@ -2027,20 +2027,367 @@ same pre-existing, unrelated `test_financials_mutation_error_boundary.py` harnes
 confirmed untouched by this diff). **P8 guard suite: all 29 tests green** — the milestone this
 phase exists to reach.
 
+**P37-FIX (verification, no new phase number).** A full-platform-suite re-run surfaced one real
+regression `test_phase_b_session_permissions.py::test_governance_permissions_are_split_between_
+request_and_decide` caught: routing Cost Entry's `approve()` through the newly-governed
+`FinanceGovernedServicePort` meant `_project_id()` resolved the project id via the
+permission-checked public `get_entry()` (requires `finance.read`) *before* `approve()`'s own
+correct permission check (`approval.request`/`project_cost.approve`) ever ran — silently
+demanding an extra permission the command never required. Fixed by resolving via the unchecked
+private `_require_entry()` instead (the `cost_entry` family's `_project_id()` branch), matching
+the more careful precedent Commitment's own `reverse_match` branch already used (raw repo access,
+not a permission-checked accessor) rather than the less-careful one `match_cost_entry`'s branch
+and every Budget line-mutation branch still use — flagged as latent, pre-existing architectural
+debt in those other families (not touched; out of P37's scope) in the P38A audit below. Full
+platform suite before/after this fix: identical 19-failed/1602-1603-passed/12-error totals (the
+19 pre-existing baseline, now that P8's own 4 are green) — confirmed zero other regressions.
+
+### P38A — Finance Remaining Re-Evaluation: Budget vs Billing Preparation (AUDIT + SEQUENCING ONLY)
+
+No production code changed. Confirmed the two remaining Finance legacy signals from source:
+`budgets_changed`, `billing_preparations_changed` — matches expectation exactly, no stale-roadmap
+surprise.
+
+**Budget.** Producers (3): `command_boundary.py`'s `_emit_budget` (the `budget()` governance
+boundary's post-commit `invalidation` callback — the direct/governed-command producer, OWNER);
+`budget_apply_participant.py`'s `apply`/`reject` (`ApprovalPostCommitEvent`, OWNER); and, critically,
+`financial_change_apply_participant.py`'s `apply()` (`if change.applied_budget_id:
+ApprovalPostCommitEvent("budgets_changed", ...)`, CROSS-CAPABILITY — a REAL, already
+transaction-safe cross-capability edge, not incidental). Consumers (2, both genuine):
+`financials_refresh_mixin.py`'s `_budgets_changed` (`overview`/`planning`/`performance`, OWNER) and
+`project_domain_event_binder.py` (Projects workspace, blanket `_request_domain_refresh()`,
+CROSS-CAPABILITY/REAL SUMMARY). Twelve real operations, ALL twelve already routed through
+`FinanceGovernedServicePort(family="budget")` → `FinanceGovernanceCommandBoundary.budget()` →
+`FinanceGovernanceUnitOfWork` — **Budget's direct-command transaction convergence is already
+100% complete**, the only Finance capability found in this state before its own typed-event work
+began. Lifecycle: explicit `_ALLOWED_TRANSITIONS` state machine on `ProjectBudget`
+(`DRAFT→SUBMITTED→{APPROVED,REJECTED}`, `APPROVED→{SUPERSEDED,CLOSED}`), plus child `BudgetLine`
+rows; both carry `row_version` (optimistic concurrency, `expected_version`/
+`expected_budget_version`/`expected_line_version` checked on every mutation) and `ProjectBudget`
+additionally carries an immutable `revision` (version lineage). Audit: atomic
+(`record_audit_entry(..., commit=False, fail_closed=True)`) on every mutation, same established
+pattern as every already-modernized family. Concurrency: SAFE — optimistic version checks plus two
+DB-level partial-unique constraints (`uq_pf_budgets_one_open_per_project`,
+`uq_pf_budgets_one_approved_per_project`) translated to named `ConcurrencyError`/`BusinessRuleError`
+codes, not raw `IntegrityError` leaks.
+
+**The Financial Change coupling, rechecked (P38A's central question).** `financial_change_service.
+_apply_budget_successor` calls `self._budget_authority._apply_approved_financial_change(...)` — a
+purpose-built `BudgetService` method (not ad-hoc repo poking) that creates a new approved
+`ProjectBudget` successor version and supersedes the prior one. `build_financial_change_approval_
+deps` constructs `budget_authority = BudgetService(session=session, ...)` bound to the *same*
+session as `financial_change_service` — i.e., this is a category **C** edge (real persisted
+cross-capability mutation) that is **already running inside the correct, single, canonical
+transaction** (`ApprovalService`'s own UoW for the `financial_change.apply` decision). Financial
+Change's own facts are already typed (`FinancialChangeChanged`); what remains untyped is the
+**Budget-side** fact this call produces. This directly answers P38A's key question: **Financial
+Change modernization did not remove Budget's complexity by shrinking the coupling — it removed the
+coupling's *ambiguity*.** The edge is clean, well-defined, and already transaction-safe; the
+remaining work is entirely on Budget's own side (give Budget a typed vocabulary; have
+`financial_change_apply_participant.apply()` gain one more `if change.applied_budget_id:` branch
+constructing that event, exactly mirroring the `ForecastVersionChanged` branch already there for
+`applied_forecast_id` — no `BudgetService` changes needed for this specific edge, since the caller
+already has everything it needs from `ApprovedFinancialSuccessorResult`).
+
+**Approval readiness: READY.** `BudgetApprovalParticipant.apply`/`reject` are the exact
+pre-modernization shape every other participant had before its own phase (fresh session-bound
+`BudgetService`, `approval_service=None`, calls the already-existing `_apply_approval_decision`/
+`_apply_rejection_decision`) — trivially convertible to `ApprovalHandlerResult(domain_events=(...))`
+with zero `ApprovalService` changes, the identical P19 seam every prior phase reused.
+
+**Transaction readiness: effort LOW (essentially zero)** — already fully governed. **Audit
+readiness: ATOMIC**, no gap. **Proposed facts** (source-supported, not mechanical CRUD):
+`BudgetVersionCreated` (`create_budget`/`create_successor`, and the Financial-Change-driven
+successor — one shape, three producers, mirroring Commitment's `CommitmentLineChanged(CREATED)`
+precedent), `BudgetLineChanged` (`add_line`/`update_line`/`delete_line` — one class + operation
+enum, mirroring `CostEntryStatusChanged`'s "same kind of fact" reasoning), `BudgetStatusChanged`
+(`change_type: SUBMITTED|APPROVED|REJECTED|SUPERSEDED|CLOSED` — one class, five near-identical
+status transitions, same reasoning as Cost Entry's own status-transition event).
+**ViewInvalidation**: one project-scoped `budget_list`/`budget_detail`-equivalent target for the
+Financials-workspace consumer (source shows list+detail always queried together, no independent
+detail cache — matching every prior single-target precedent) *plus* a second, narrower hint for
+the Projects-workspace consumer (currently a blanket refresh; a typed event lets it narrow to
+exactly what it needs, an improvement over today's behavior, not merely parity). **`budgets_changed`
+deletable in one phase: YES — HIGH confidence.** No blocker identified. **Budget direct full
+modernization ready: YES.**
+
+**Billing Preparation — two genuinely distinct aggregates, not a category error.**
+`ProjectBillingProfile` (+ child `ProjectBillingScheduleLine`) in `billing_profile_service.py`:
+commercial-terms/contract header and a fixed-price milestone schedule — 4-state lifecycle
+(`DRAFT→ACTIVE→{ON_HOLD,CLOSED}`), 4 operations (`create_profile`, `activate_profile`,
+`add_schedule_line`, `mark_schedule_line_ready`), all raw `self._session.commit()` via one shared
+`_persist()` helper (try/except/rollback around commit — same "safer than Commitment's old bug,
+but still uncanonical" shape Cost Entry had before P37), zero governance, zero Approval
+involvement. `ProjectBillingPreparation` (+ `ProjectBillingPreparationLine`/
+`ProjectBillingSourceLock`/`ProjectBillingExternalEvent`) in `preparation_service.py`: the
+per-period invoice-evidence assembly, external-accounting-delivery, and reconciliation workflow —
+a much richer 9-state lifecycle (`DRAFT→SUBMITTED→APPROVED→DELIVERY_PENDING→DELIVERED→
+ACKNOWLEDGED→RECONCILED`, plus `REJECTED`/`CANCELLED`), 9 operations. **Why they share one
+signal: category B** (related but semantically distinct business capabilities that both happen to
+affect the same "commercial" Financials-tab UI destination) — not a shared read model (C) and not
+pure legacy fan-out convenience (D); a future modernization should use genuinely distinct
+DomainEvent families per aggregate even though today's one UI target can keep receiving both.
+
+**Billing transaction readiness is uneven, not absent.** `submit_preparation` already owns a
+bespoke, purpose-built canonical UoW (`BillingPreparationSubmissionUnitOfWorkFactory` —
+`billing`+`approvals` repos, `uow.record_event`, `uow.commit()`; narrower than
+`FinanceGovernanceUnitOfWork`, not currently exposing a `billing` accessor there) — the *only*
+Finance operation found across Budget+Billing that is transaction-canonical but still emits a
+legacy signal post-commit (a PARTIAL state, closer to done than "raw"). Every other Preparation
+operation (`create_preparation`, all three `add_*_source` methods via `_reserve`/`_write`,
+`request_delivery`, `record_external_outcome`) and all four Profile operations are raw-Session,
+try/except/rollback-around-commit — the same shape Cost Entry had before P37, times two aggregates
+instead of one. Approval readiness: READY for the same reason as Budget (participant is the
+identical pre-modernization shape, and per its own docstring `_apply_approval_decision`/
+`_apply_rejection_decision` have exactly one caller each in the whole codebase — no direct,
+non-governed approve/reject path exists at all for Preparation, simpler than Budget's dual path).
+Audit: ATOMIC on every operation in both aggregates, no gap. Concurrency: SAFE — `row_version` on
+every aggregate/line/lock, `expected_row_version`/`expected_version` checked throughout, plus a
+real idempotency key on preparation creation and a DB-level source-reservation uniqueness
+constraint (`BILLING_SOURCE_ALREADY_RESERVED`) preventing the same billable source from being
+double-prepared.
+
+**Proposed facts, kept separate by aggregate** (never a `BillingPreparationsChanged` catch-all):
+Profile — `BillingProfileActivated`, `BillingScheduleLineChanged` (add/ready, one class + enum).
+Preparation — `BillingPreparationCreated`, `BillingPreparationLineAdded` (three source types, one
+fact), `BillingPreparationStatusChanged` (submitted/approved/rejected — mirrors Budget's/Cost
+Entry's own status-transition shape), `BillingPreparationDeliveryRequested`,
+`BillingPreparationExternalOutcomeRecorded` (delivered/acknowledged/reconciled — the
+external-accounting-boundary facts, genuinely distinct from the internal-approval facts above).
+**ViewInvalidation**: both aggregates currently stale the *same* single `"commercial"` Financials
+destination (one genuine consumer, LOW consumer complexity — the lowest of any Finance capability
+audited) — source shows no independent per-aggregate read model, so one shared project-scoped
+target remains correct even once the DomainEvent vocabulary is split by aggregate.
+**`billing_preparations_changed` deletable in one phase: MEDIUM confidence** — both aggregates
+*can* be modernized together (neither is individually blocked, and their combined producer/consumer
+surface is smaller than Budget's), but real transaction-convergence work (adding a `billing`
+accessor to whichever UoW is chosen, or extending the bespoke submission UoW to cover the other
+eight operations) is required across two aggregates rather than zero, roughly doubling Cost Entry's
+own already-substantial P37 implementation surface. **Billing direct full modernization ready:
+YES, but at meaningfully higher implementation cost than Budget** — not blocked, not requiring a
+dedicated audit phase, just larger.
+
+**Reflective legacy mechanisms, recomputed.** `ApprovalPostCommitEvent(...)` remaining production
+call sites (5, all genuinely still needed, none touched): `baseline_apply_participant.py`,
+`billing_preparation_apply_participant.py`, `budget_apply_participant.py`,
+`financial_change_apply_participant.py` (its `tasks_changed`/PM-coupling branch, plus the
+`budgets_changed` branch this audit examined), `task_apply_participant.py`.
+`ApprovalService._emit_signal_safely` remains, required by those 5. `FinanceGovernedServicePort.
+__getattr__` reflective *command routing* is explicitly **not** legacy-event-publication
+machinery — it is the current canonical mechanism, now used by 9 families (`financial_setup`,
+`budget`, `forecast_version`, `forecast_generation`, `financial_change`, `rate_card`,
+`planned_cost`, `commitment`, `cost_entry`); no explicit typed port methods exist (fully
+`__getattr__`-dynamic), no permission enforcement of its own (delegated to each wrapped service's
+own `require_permission`/`require_project_permission` calls), a per-instance `mutations`
+frozenset acts as the command allowlist. Neither Budget nor Billing modernization requires
+changing it — confirmed by tracing exactly how a 9th/10th/11th family would be added (a new
+`family=` branch in `_project_id()`, following the pattern already used 8 times).
+**Architectural debt noted, not fixed**: `_project_id()`'s `budget`/`match_cost_entry` branches
+resolve via permission-checked public accessors (`get_budget`/`get_line`) the same way P37's now-
+fixed `cost_entry` branch originally did — a latent, currently-unexercised risk of the exact same
+silent-extra-permission bug, left as-is (out of P38A's audit-only scope; worth a one-line fix
+alongside whichever phase next touches that branch).
+
+**Cross-capability graph (remaining capabilities only).** Budget ← Financial Change (C, one edge,
+already transaction-safe, typed on the Financial-Change side already). Billing Profile: zero
+mutation edges to/from any other Finance capability (fully self-contained). Billing Preparation →
+Cost Entry (A, reference-only: `add_cost_plus_source` reads a POSTED `ProjectCostEntry` row, never
+writes it) and → Approved Time/`ApprovedTimeLaborPosting` (A, reference-only, via
+`labor_posting_repo`). No edges touch Commitment, Planned Cost, or Forecast for either remaining
+capability.
+
+**Comparison scorecard.**
+
+| | Budget | Billing Preparation |
+|---|---|---|
+| Semantic clarity | HIGH — explicit state machine | HIGH — two distinct, now-named aggregates |
+| Transaction readiness | READY (100% already governed) | PARTIAL (1 of 13 ops canonical; rest raw) |
+| Approval readiness | READY | READY |
+| Audit readiness | ATOMIC, no gap | ATOMIC, no gap |
+| Concurrency safety | SAFE | SAFE |
+| Cross-capability coupling | LOW (1 edge, already safe) | LOW (2 reference-only edges) |
+| Consumer complexity | MEDIUM (2 genuine consumers) | LOW (1 genuine consumer) |
+| UI precision | MEDIUM (2 targets to design) | LOW (1 shared target, already precise) |
+| Test readiness | HIGH (2215 test lines) | MEDIUM-HIGH (1276 test lines) |
+| One-phase deletion confidence | HIGH | MEDIUM |
+| Correctness gap closed by modernizing | Cleaner FinancialChange↔Budget event, narrower Projects-workspace refresh | None material (already atomic/safe) |
+
+**Selected: Budget.** Per the priority order: (1) one-phase deletion — Budget HIGH vs Billing
+MEDIUM; (2) semantic clarity — both HIGH, tie; (3) approval/cross-capability canonical — both
+READY, tie; (4) transaction-convergence effort — Budget LOW (already done) vs Billing MEDIUM-HIGH
+(real work across two aggregates) — **Budget wins decisively here**, and this criterion alone
+would be enough given every earlier criterion is a tie or near-tie. Not chosen "because listed
+first" — chosen because it is, uniquely among every Finance capability audited across this entire
+engagement, the one whose transaction convergence was already complete before its own
+event-modernization phase began.
+
+**Recommended P38B: Finance Budget Full Modernization — DIRECT FULL MODERNIZATION.** This audit
+itself resolved every semantic and architectural question a dedicated Budget audit would have
+existed to answer (the P34A-era open question — Financial Change coupling — is now closed).
+**Expected following Finance phase: Billing Preparation** (both aggregates together, since neither
+is individually blocked and splitting would only duplicate the same shared-target ViewInvalidation
+design work twice) — likely still DIRECT FULL MODERNIZATION given no blocker was found, just a
+larger implementation surface than Budget, closer in size to P37 doubled.
+
+**Finance completion projection.** Current Finance legacy count: 2. After Budget: 1
+(`billing_preparations_changed` only). After Billing: 0 — **these are confirmed, source-derived,
+the true last two Finance legacy fields** (no other Finance-owned field exists in current
+`DomainEvents`).
+
+**Overall legacy projection.** Current overall count: 9 (source-derived, unchanged by this
+audit-only pass). If both remaining Finance phases complete with no concurrent changes: 7,
+consisting of PM 6 (`project_changed`, `tasks_changed`, `timesheet_periods_changed`,
+`collaboration_changed`, `portfolio_changed`, `register_changed`) + Auth 1 (`auth_changed`) — this
+is the current, source-confirmed landscape, not an assumption.
+
+**Baseline regression debt.** The 19 pre-existing platform-suite failures/errors (enterprise
+calendar/shift patterns, party/site/department domain validation, platform persistence structure,
+access scopes, org desktop API, qml admin catalog, repository tenant hardening, auth registration
+audit atomicity, approval-events submission-count assertions) do not touch Budget, Billing
+Preparation, or their dependencies (Financial Change, Cost Entry, Approved Time) — none block
+trustworthy characterization of either capability. Carried forward as unrelated baseline debt, not
+fixed here.
+
+### P38B — Finance Budget Full Modernization (DIRECT FULL MODERNIZATION)
+
+Reconfirmed P38A's audit against current source before editing: 12 operations
+(`create_budget`, `create_successor`, `submit_budget`, `approve_budget`, `reject_budget`,
+`close_budget`, `update_budget_header`, `delete_budget`, `add_line`, `update_line`, `delete_line`
+all already `FinanceGovernedServicePort(family="budget")`-routed — the brief's own "12 operations"
+list additionally named `reject_budget_approval`, which does not exist in source under any name;
+source wins, the operation list is the 12 above). `_emit_budget` confirmed as the sole direct
+producer (3 producer mechanisms unchanged from P38A: `_emit_budget`, `BudgetApprovalParticipant`,
+`financial_change_apply_participant.apply()`); 2 genuine consumers unchanged (Financials workspace,
+Projects workspace blanket refresh).
+
+**Final event vocabulary — five classes, not three, after checking header-update and delete
+semantics against P38A's candidate three (§7-§9 of the brief).** `BudgetVersionCreated`
+(`create_budget`/`create_successor`, plus the Financial-Change-driven successor — `status` field
+distinguishes a normal DRAFT creation from the Financial-Change path's already-APPROVED one, since
+that path never persists an intermediate DRAFT/SUBMITTED row; `predecessor_budget_id` carries
+lineage when present). `BudgetProfileUpdated` — `update_budget_header`'s name/notes edit is a
+genuine fourth fact, not a status transition and not a line mutation; forcing it into
+`BudgetStatusChanged` or a generic `BudgetChanged` would have hidden real semantics to preserve an
+arbitrary three-class count. `BudgetLineChanged` (`add_line`/`update_line`/`delete_line` — one
+class + `change_type` enum, mirroring `CostEntryStatusChanged`'s "same kind of fact" reasoning).
+`BudgetStatusChanged` (`change_type: SUBMITTED|APPROVED|REJECTED|SUPERSEDED|CLOSED`). `BudgetRemoved`
+— `delete_budget`'s hard delete of a DRAFT is a genuine fifth fact (aggregate-level, not per-line:
+source confirms `delete_budget` calls one repository `delete()`, no per-line cascade events are
+warranted since no individual-line business meaning attaches to a whole-aggregate delete).
+
+**Successor/supersession multi-fact behavior — confirmed, not assumed.** Direct source reading of
+`create_successor` proved it does **not** touch the predecessor at all — supersession is an
+approval-time fact, not a creation-time one, contradicting the brief's own §25 hypothesis (a
+dedicated regression test, `test_create_successor_alone_does_not_supersede_the_predecessor`, proves
+this). The real two-fact case is `_apply_approval_decision`: when a competing approved budget
+already exists for the project, approving a successor emits **both**
+`BudgetStatusChanged(previous, SUPERSEDED)` **and** `BudgetStatusChanged(this budget, APPROVED)` —
+one fact per actually-mutated `ProjectBudget` row, in the same transaction, both recorded precommit
+(`test_approving_a_successor_supersedes_the_previous_approved_version`).
+
+**Direct-command transaction ownership — unchanged, now recording typed events instead of a
+post-commit signal.** `BudgetService` gained `record_event: Callable[[object], None] | None = None`
+(the exact Cost Entry/Commitment constructor shape); every direct mutation calls
+`self._record_event(event)` guarded by `is not None`, wired to `uow.record_event` only for the
+governed `budget_operations` instance `build_finance_governance_operations` constructs (the
+approval-participant's own fresh `BudgetService`, built by `build_budget_approval_deps`, is
+deliberately never given `record_event` — same established dual-use-service pattern Cost Entry's
+`_apply_approval_decision`/`_apply_rejection_decision` already established: the shared decision
+helpers build and return `(budget, events)`/`(budget, event)`, called-but-discarded on the direct
+path since the events are already recorded via `record_event` there, and taken and returned via
+`ApprovalHandlerResult(domain_events=...)` on the participant path where `record_event` is None).
+`command_boundary.py::_emit_budget` and `budget()`'s `invalidation=` callback are deleted outright
+— once Budget was the *last* family still passing a non-None `invalidation`, the whole
+`invalidation` parameter on `_execute` became dead code and was removed too (not left as an
+always-None-invoked no-op).
+
+**Cross-capability path — Financial Change → Budget, both typed facts now coexist in one
+`ApprovalHandlerResult`.** `BudgetService._apply_approved_financial_change` now builds and returns
+`(successor-created, base-superseded)` typed events via a new `domain_events` field added to the
+shared `ApprovedFinancialSuccessorResult` dataclass (default `()`, so Forecast's identical-shaped
+call site is unaffected). `FinancialChangeService._apply_budget_successor`/`_apply_approval_decision`
+thread that tuple upward; `FinancialChangeApprovalParticipant.apply()` no longer conditionally
+builds `ApprovalPostCommitEvent("budgets_changed", ...)` — it appends the returned Budget
+`domain_events` tuple onto its own `FinancialChangeChanged`(+`ForecastVersionChanged`) tuple, so one
+ApprovalService transaction can legitimately record a Financial Change fact and one-or-two Budget
+facts together
+(`test_financial_change_application_produces_budget_and_financial_change_facts_together`).
+
+**Permission-order bug — fixed for Budget, exactly the P37-FIX pattern.**
+`FinanceGovernanceCommandBoundary._project_id()`'s `budget` branch called the permission-checked
+public `get_budget()` to resolve a target budget's project_id before the actual command's own
+permission check ever ran — silently requiring `finance.read` first. Fixed by switching to the
+private, unchecked `_require_budget()` (all three sub-branches: `add_line`, `update_line`/
+`delete_line`, and the bare-`args[0]` fallback used by every other budget-family command).
+Commitment's `match_cost_entry` branch, flagged with the identical bug pattern in the P38A audit,
+remains deliberately untouched — out of scope, not part of Budget's own family. Regression proof:
+`test_add_line_permission_check_is_not_masked_by_project_id_resolution` (a viewer, lacking both
+`finance.read` and `budget.manage`, is now rejected on `budget.manage` — the actual missing command
+permission — not on `finance.read`).
+
+**Approval path.** `BudgetApprovalParticipant.apply`/`reject` no longer return
+`ApprovalPostCommitEvent("budgets_changed", ...)` — they forward the typed event(s) the shared
+decision helpers already built, via `ApprovalHandlerResult(domain_events=events)`/
+`ApprovalHandlerResult(domain_events=(event,))`, recorded precommit by `ApprovalService`'s own
+pre-existing canonical machinery — the identical P19 seam every prior phase reused, no
+`ApprovalService` changes.
+
+**ViewInvalidation — two targets, uniformly mapped, source-preserving.** `budget_planning`
+(Financials workspace — `overview`/`planning`/`performance`, reproducing the legacy signal's own
+exact 3-destination fan-out) and `budget_project_summary` (Projects workspace). Every current
+Budget fact stales both targets — the legacy `budgets_changed` signal never differentiated by fact
+type for either of its two consumers either, so this uniform mapping is source-preserving, not an
+invented fan-out (unlike Cost Entry's genuinely distinct two-target split, which was justified by a
+real `status IN (...)` SQL filter Budget has no equivalent of). The Projects-workspace consumer is
+a real behavior *improvement*, not just a mechanism swap: the old `project_domain_event_binder.py`
+blanket-subscribed `budgets_changed` with **zero project-id filtering at all** (`_on_domain_event`
+ignored its payload entirely, refreshing the whole workspace for *any* project's budget change);
+the new `on_budget_project_summary_stale` is genuinely project-scoped, matching the Financials
+consumer's own established `_selected_project_id` equality check.
+
+**Legacy retirement.** `budgets_changed` deleted from `DomainEvents`, added to
+`_DELETED_BRIDGE_NAMES`. `test_p7_legacy_bridge_removal.py`'s "unrelated signal" example and
+`test_r6b_finance_invalidation.py`'s parametrized case moved onto `billing_preparations_changed`
+(the one remaining Finance legacy signal); `test_p7c_zero_consumer_signal_cleanup.py`'s
+`_ACTIVE_FINANCE_SIGNALS` now names only `billing_preparations_changed`.
+`test_r6c_finance_governance_command_boundary.py`'s two `budget()`-invalidation-specific tests
+(which tested the now-deleted `invalidation=` callback) were replaced with equivalent
+`post_commit_actions`-failure-isolation proofs — `budget()` itself no longer has any post-commit
+mechanism of its own to test.
+
+**Regression battery.** New `test_p38b_finance_budget_full_modernization.py` (22 tests) covers the
+ViewInvalidation handler's uniform two-target mapping + dedupe, every direct command's exact hint
+set, the successor/supersession two-fact case, the create-successor-does-not-supersede proof, the
+governed-approval-participant path, the Financial-Change cross-capability path, the permission-order
+regression, the audit-failure rollback/session-reusability proof, the pre-existing
+optimistic-concurrency guard, and the Financials-workspace consumer reaction. `test_project_finance_
+budgets.py`, `test_r6c_finance_governance_command_boundary.py`, `test_r6b_finance_invalidation.py`,
+`test_r42_approved_budget_read_correctness.py` (Projects-workspace consumer rewritten onto
+`on_budget_project_summary_stale`, plus a new non-selected-project-is-ignored proof),
+`approval/test_budget_apply_participant.py`, `approval/test_financial_change_apply_participant.py`
+all pass, adapted where they asserted on the deleted signal/mechanism. Platform suite:
+`test_p7_legacy_bridge_removal.py`, `test_p7b_dead_signal_cleanup.py`,
+`test_p7c_zero_consumer_signal_cleanup.py`, `test_p8_platform_event_architecture_canonicalization.py`,
+`test_phase_b_session_permissions.py`, `test_approval_service_unit_of_work_cutover.py` all pass
+unmodified in intent (adapted only where they referenced `budgets_changed` directly). Full
+project_management-area suite green; full platform suite carries forward the same 19 pre-existing
+failures/12 errors, none newly introduced.
+
 ## 4. Current State
 
-**Legacy Signal count: 9 as of P37** (source-derived from
+**Legacy Signal count: 8 as of P38B** (source-derived from
 `src/core/shared/events/domain_events.py`, re-verified against current source when this document
-was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Down from 10 at
-P36 — `cost_entries_changed` is now deleted. This was the **last post-P8-freeze legacy-Signal
-violation** — the P8 architecture budget (`current ⊆ frozen`) is restored with zero exceptions.
+was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Down from 9 at
+P37 — `budgets_changed` is now deleted. The P8 architecture budget (`current ⊆ frozen`) remains
+restored with zero exceptions (P37 was the last post-freeze *violation*; P38B is ordinary further
+retirement of a pre-freeze, frozen-allowlisted signal, not a violation fix).
 
 | Area | Count |
 |---|---|
 | Platform | 0 |
 | Auth/Security | 1 |
 | Project Management | 6 |
-| Finance | 2 |
+| Finance | 1 |
 | Inventory/Procurement | 0 |
 
 > **This is a snapshot, not a fact.** Recompute the count directly from
@@ -2072,14 +2419,19 @@ impersonation). **Cost Entry is now DONE too (P37, see §3)** — `cost_entries_
 completing P34A's Finance-first trio. This was the **last post-P8-freeze legacy-Signal violation**
 — the P8 architecture budget (`current ⊆ frozen`) is now restored with zero exceptions; the P8
 guard suite is fully green. **No Finance capability with a post-freeze legacy-Signal violation
-remains.** `budgets_changed`/`billing_preparations_changed` (Budget, Billing Preparation) are the
-two remaining Finance legacy signals — both are pre-freeze, frozen-allowlisted, not violations.
-`budgets_changed` is genuinely coupled to PM's `tasks_changed` through one Approval participant
-(`financial_change_apply_participant.py::apply()`, which still conditionally emits both legacy
-signals even though its own `financial_changes_changed` is now typed), which needs its own
-deliberate resolution rather than being forced by finishing Budget in isolation. Per this document's
-own repeated caution, re-run prioritization from current source before committing further —
-concurrent development elsewhere may have changed readiness since P34A.
+remains.** **Budget is now DONE too (P38B, see §3)** — `budgets_changed` is deleted. The
+Financial-Change coupling P38A found (one Approval-participant edge, already transaction-safe) is
+now typed on both sides: `financial_change_apply_participant.apply()` returns the Budget-side
+`BudgetVersionCreated`/`BudgetStatusChanged` facts alongside its own `FinancialChangeChanged`(+
+`ForecastVersionChanged`), in the same `ApprovalHandlerResult.domain_events` tuple.
+`billing_preparations_changed` (Billing Preparation) is now the **sole remaining Finance legacy
+signal** — pre-freeze, frozen-allowlisted, not a violation. **Billing Preparation is next** (both
+`ProjectBillingProfile` and `ProjectBillingPreparation` aggregates together, per P38A's own
+sequencing) — likely DIRECT FULL MODERNIZATION given P38A found no blocker, just a larger
+transaction-convergence surface than Budget had (only `submit_preparation` is currently canonical;
+the other twelve operations across both aggregates are raw-Session). Per this document's own
+repeated caution, re-run prioritization from current source before committing further — concurrent
+development elsewhere may have changed readiness since P38A/P38B.
 
 **A pre-existing, explicitly-not-fixed note carried forward by P33**: `PurchaseOrderLineORM` has no
 `version` column and its repository performs a blind field overwrite on `update()` — confirmed real
@@ -2118,10 +2470,11 @@ Remaining capability groups, not yet assigned rigid phase numbers:
   any typed-event design), Project Lifecycle, Timesheet Period, Collaboration
   Comment (+ Collaboration Presence, which needs a non-`DomainEvent` mechanism, not a migration
   target), Portfolio (Template/Scenario/Intake/Dependency), Risk Register.
-- **Finance**: Project Budget, Billing Preparation — the two remaining capabilities, both
-  pre-freeze/frozen-allowlisted (no post-freeze violation to resolve). (Financial Change, Planned
-  Cost, Project Commitment, and Project Cost Entry — the full Finance-first trio — are all DONE —
-  see §3/§5. No Finance capability has an open post-P8-freeze legacy-Signal violation.)
+- **Finance**: Billing Preparation (next — both aggregates, `ProjectBillingProfile` and
+  `ProjectBillingPreparation`, together per P38A's sequencing) is the **only remaining Finance
+  capability**, pre-freeze/frozen-allowlisted (no post-freeze violation to resolve). (Financial
+  Change, Planned Cost, Project Commitment, Project Cost Entry, and Project Budget — see §3/§5 —
+  are all DONE. No Finance capability has an open post-P8-freeze legacy-Signal violation.)
 - **Inventory/Procurement — ALL NINE CAPABILITIES DONE, MODULE COMPLETE**: **Purchase Order — DONE
   (P28B/P28B-FIX, see §3)**, **Requisition — DONE (P29/P29-FIX, see §3)**, **Reservation — DONE
   (P30B/P30B-FIX, see §3)**, **Stock Balance — DONE (P31A/P31B, see §3)**, **Cycle Count — DONE

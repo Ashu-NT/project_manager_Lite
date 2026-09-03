@@ -6,13 +6,13 @@ post-commit-event construction, and behaves identically to `FinancialChangeServi
 `_apply_approval_decision`/`_apply_rejection_decision` (kept unmodified).
 
 Test-scope note: a BUDGET-only impact is enough to exercise the real, end-to-end apply path
-(including the `budgets_changed` branch of the conditional event list) without reproducing a
-full budget+forecast+schedule scenario -- `forecasts_changed`/`tasks_changed` not appearing for
-a BUDGET-only change is itself a meaningful assertion about the conditional logic. The FORECAST
-and SCHEDULE branches of that same conditional (and the schedule-impact path through the real,
-fully-wired `TaskService`) are already covered end-to-end by the existing
-`test_project_finance_change_orders.py` suite (run as part of this task's regression pass); this
-file does not duplicate that scenario building.
+(including the typed `BudgetStatusChanged`/`BudgetVersionCreated` events P38B added to the
+Budget-successor branch) without reproducing a full budget+forecast+schedule scenario --
+`forecasts_changed`/`tasks_changed` not appearing for a BUDGET-only change is itself a meaningful
+assertion about the conditional logic. The FORECAST and SCHEDULE branches of that same
+conditional (and the schedule-impact path through the real, fully-wired `TaskService`) are
+already covered end-to-end by the existing `test_project_finance_change_orders.py` suite (run as
+part of this task's regression pass); this file does not duplicate that scenario building.
 """
 
 from __future__ import annotations
@@ -28,6 +28,10 @@ from src.core.modules.project_management.domain.financials.financial_change impo
     FinancialChangeImpactType,
     FinancialChangeStatus,
 )
+from src.core.modules.project_management.application.financials.budgets.budget_events import (
+    BudgetStatusChangeType,
+    BudgetStatusChanged,
+)
 from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
     FinancialChangeChanged,
     FinancialChangeEventType,
@@ -36,7 +40,6 @@ from src.core.modules.project_management.infrastructure.approval.financial_chang
     FinancialChangeApprovalParticipant,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.contract.models.approval.contracts import ApprovalPostCommitEvent
 from src.infra.composition.approval_apply_dependencies.financial_change import (
     build_financial_change_approval_deps,
 )
@@ -131,14 +134,20 @@ def test_participant_apply_applies_change_on_the_supplied_session_with_budget_on
     assert applied.applied_budget_id
     assert applied.applied_forecast_id is None
     assert not applied.applied_schedule_count
-    assert result.post_commit_events == (
-        ApprovalPostCommitEvent("budgets_changed", project.id),
-    )
+    assert result.post_commit_events == ()
     change_event = next(
         event for event in result.domain_events if isinstance(event, FinancialChangeChanged)
     )
     assert change_event.change_type is FinancialChangeEventType.APPLIED
     assert change_event.applied_effects == ("budget",)
+
+    budget_status_events = [
+        event for event in result.domain_events if isinstance(event, BudgetStatusChanged)
+    ]
+    assert [event.change_type for event in budget_status_events] == [
+        BudgetStatusChangeType.SUPERSEDED
+    ]
+    assert budget_status_events[0].project_id == project.id
 
 
 def test_participant_reject_rejects_change_on_the_supplied_session(services, session):

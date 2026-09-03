@@ -1044,7 +1044,7 @@ def test_internal_apply_methods_bypass_budget_approve_permission(services) -> No
     real_user_session = budget_service._user_session
     budget_service._user_session = None
     try:
-        approved = budget_service._apply_approval_decision(
+        approved, _events = budget_service._apply_approval_decision(
             budget_id=budget.id,
             approved_by="approver-x",
             expected_version=budget.row_version,

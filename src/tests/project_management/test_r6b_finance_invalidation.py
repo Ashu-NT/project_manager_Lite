@@ -22,7 +22,7 @@ def _controller(services):
 @pytest.mark.parametrize(
     ("signal_name", "expected"),
     (
-        ("budgets_changed", {"overview", "planning", "performance"}),
+        ("billing_preparations_changed", {"commercial"}),
     ),
 )
 def test_scoped_finance_events_invalidate_only_dependent_destinations(
@@ -53,17 +53,19 @@ def test_scoped_finance_events_invalidate_only_dependent_destinations(
 
 def test_finance_invalidation_rejects_other_project(services) -> None:
     """P37: `cost_entries_changed` (the last `Signal[object]`/`FinanceInvalidationScope`-carrying
-    Finance signal) is retired -- every remaining legacy Finance signal (`budgets_changed`,
-    `billing_preparations_changed`) is a plain `Signal[str]` project id, whose consumer
-    (`_finance_event_matches`'s string branch) only ever checks project-id equality, not
-    tenant/organization -- so an "other organization" sub-case no longer has any real signal to
-    exercise it through this mechanism. Project-scoped rejection remains real and is proven here."""
+    Finance signal) is retired -- P38B: `budgets_changed` is retired too (typed DomainEvents +
+    ViewInvalidation, tested separately in `test_p38b_finance_budget_full_modernization.py`).
+    `billing_preparations_changed` is now the only remaining legacy Finance signal, a plain
+    `Signal[str]` project id whose consumer (`_finance_event_matches`'s string branch) only ever
+    checks project-id equality, not tenant/organization -- so an "other organization" sub-case no
+    longer has any real signal to exercise it through this mechanism. Project-scoped rejection
+    remains real and is proven here."""
     controller = _controller(services)
     controller._set_selected_project_id("selected-project")
     controller._invalidated_destinations.clear()
     controller._request_domain_refresh = MagicMock()
 
-    domain_events.budgets_changed.emit("other-project")
+    domain_events.billing_preparations_changed.emit("other-project")
 
     assert controller._invalidated_destinations == set()
     controller._request_domain_refresh.assert_not_called()
@@ -73,7 +75,7 @@ def test_finance_invalidation_rejects_other_project(services) -> None:
 def test_finance_controller_teardown_and_reopen_do_not_accumulate_subscriptions(
     services,
 ) -> None:
-    signal = domain_events.budgets_changed
+    signal = domain_events.billing_preparations_changed
     baseline = len(signal._subscribers)
 
     first = _controller(services)
@@ -90,7 +92,7 @@ def test_finance_controller_teardown_and_reopen_do_not_accumulate_subscriptions(
 def test_finance_refresh_does_not_reemit_business_invalidation(services, qapp) -> None:
     controller = _controller(services)
     controller._set_selected_project_id("selected-project")
-    controller._active_destination = "overview"
+    controller._active_destination = "commercial"
     refreshes: list[str] = []
     observed: list[str] = []
     controller.refresh = lambda: refreshes.append("refresh")
@@ -98,12 +100,12 @@ def test_finance_refresh_does_not_reemit_business_invalidation(services, qapp) -
     def capture(project_id: str) -> None:
         observed.append(project_id)
 
-    domain_events.budgets_changed.connect(capture)
+    domain_events.billing_preparations_changed.connect(capture)
     try:
-        domain_events.budgets_changed.emit("selected-project")
+        domain_events.billing_preparations_changed.emit("selected-project")
         qapp.processEvents()
     finally:
-        domain_events.budgets_changed.disconnect(capture)
+        domain_events.billing_preparations_changed.disconnect(capture)
         controller._disconnect_domain_event_subscriptions()
 
     assert refreshes == ["refresh"]

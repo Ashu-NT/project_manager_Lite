@@ -9,7 +9,6 @@ import pytest
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
 )
-from src.core.shared.events.domain_events import domain_events
 
 
 class _FakeUow:
@@ -45,8 +44,13 @@ class _FakeFactory:
         return uow
 
 
-def _boundary(factory: _FakeFactory) -> FinanceGovernanceCommandBoundary:
+def _boundary(
+    factory: _FakeFactory, *, post_commit_action=None
+) -> FinanceGovernanceCommandBoundary:
     def operations(uow):
+        actions: list = []
+        if post_commit_action is not None:
+            actions.append(post_commit_action)
         service = SimpleNamespace(
             create=lambda project_id: SimpleNamespace(project_id=project_id)
         )
@@ -56,7 +60,7 @@ def _boundary(factory: _FakeFactory) -> FinanceGovernanceCommandBoundary:
             forecast_generation=service,
             financial_changes=service,
             financial_setup=service,
-            post_commit_actions=[],
+            post_commit_actions=actions,
             session=uow._session,
         )
 
@@ -78,35 +82,32 @@ def test_each_command_uses_a_fresh_uow_and_commits_exactly_once() -> None:
     assert [uow.commit_count for uow in factory.created] == [1, 1]
 
 
-def test_commit_failure_rolls_back_and_emits_no_success_invalidation() -> None:
+def test_commit_failure_rolls_back_and_runs_no_post_commit_actions() -> None:
+    """P38B: `budget()` no longer has any post-commit invalidation callback of its own (typed
+    Budget events are recorded pre-commit via `uow.record_event`, inside the same UoW that
+    `commit()` failed to complete) -- `post_commit_actions` (the boundary's one remaining
+    post-commit mechanism, used by other families such as `financial_change`) is what this proves
+    must not run on a failed commit."""
     factory = _FakeFactory()
     factory.fail_next_commit = True
-    boundary = _boundary(factory)
     calls: list[str] = []
-    subscriber = calls.append
-    domain_events.budgets_changed.connect(subscriber)
-    try:
-        with pytest.raises(RuntimeError, match="commit unavailable"):
-            boundary.budget(lambda service: service.create("project-a"))
-    finally:
-        domain_events.budgets_changed.disconnect(subscriber)
+    boundary = _boundary(factory, post_commit_action=lambda: calls.append("ran"))
+
+    with pytest.raises(RuntimeError, match="commit unavailable"):
+        boundary.budget(lambda service: service.create("project-a"))
 
     assert calls == []
     assert factory.created[0].rollback_count == 1
 
 
-def test_post_commit_invalidation_failure_does_not_undo_commit() -> None:
+def test_post_commit_action_failure_does_not_undo_commit() -> None:
+    def _failing_action():
+        raise RuntimeError("post commit action unavailable")
+
     factory = _FakeFactory()
-    boundary = _boundary(factory)
+    boundary = _boundary(factory, post_commit_action=_failing_action)
 
-    def fail(_payload):
-        raise RuntimeError("subscriber unavailable")
-
-    domain_events.budgets_changed.connect(fail)
-    try:
-        result = boundary.budget(lambda service: service.create("project-a"))
-    finally:
-        domain_events.budgets_changed.disconnect(fail)
+    result = boundary.budget(lambda service: service.create("project-a"))
 
     assert result.project_id == "project-a"
     assert factory.created[0].commit_count == 1
