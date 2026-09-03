@@ -425,12 +425,22 @@ def test_receipt_and_stock_changes_roll_back_when_outbox_write_fails(
 
 
 def test_commitment_transactional_handler_runs_before_the_dispatcher_commits(services) -> None:
+    """P36-FIX2: the transactional handler must receive the actual canonical `UnitOfWork`
+    instance that owns this transaction -- never `ProcurementFinancialDispatcher` itself.
+    `ProcurementFinancialDispatcher` is not a `UnitOfWork` (no `record_event`/`commit`/
+    `__enter__`/`__exit__`); passing it as the handler's `uow` argument would be duck-typed
+    impersonation, not the canonical architecture. The handler instead receives a real
+    `SqlAlchemyUnitOfWorkBase` bound to the dispatcher's own session -- proven both by identity
+    (not the dispatcher) and by shape (implements the full `UnitOfWork` protocol)."""
+    from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
+
     dispatcher = services["procurement_financial_dispatcher"]
     seen = []
+    received_uows = []
 
-    def _observe(event, _uow) -> None:
+    def _observe(event, uow) -> None:
         seen.append(event)
-        assert _uow is dispatcher, "the dispatcher forwards itself as the transaction owner"
+        received_uows.append(uow)
 
     subscription = dispatcher._transactional_dispatcher.subscribe(
         CommitmentLineChanged, _observe
@@ -443,6 +453,14 @@ def test_commitment_transactional_handler_runs_before_the_dispatcher_commits(ser
 
     assert len(seen) == 1
     assert seen[0].change_type.value == "CREATED"
+    assert len(received_uows) == 1
+    handler_uow = received_uows[0]
+    assert handler_uow is not dispatcher, "must not be the dispatcher impersonating a UoW"
+    assert isinstance(handler_uow, SqlAlchemyUnitOfWorkBase)
+    assert hasattr(handler_uow, "record_event") and hasattr(handler_uow, "commit")
+    assert handler_uow._session is dispatcher._session, (
+        "the UoW wraps the dispatcher's own session -- one transaction owner, not a second one"
+    )
 
 
 def test_commitment_transactional_handler_failure_rolls_back_and_yields_zero_postcommit_event(

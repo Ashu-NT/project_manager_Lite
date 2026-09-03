@@ -209,17 +209,31 @@ def test_no_commit_and_emit_helper_remains_anywhere():
 
 
 def test_procurement_financial_dispatcher_emits_scoped_post_commit_hints():
-    """P36: Commitment fully modernized -- the dispatcher now publishes typed
-    `commitment_events` (`CommitmentLineChanged`/`CommitmentMatchChanged`) through the canonical
-    post-commit bus instead of the retired `commitments_changed` legacy signal.
-    `cost_entries_changed` remains untouched (Cost Entry is not yet modernized)."""
+    """P36/P36-FIX2: Commitment fully modernized -- typed `commitment_events`
+    (`CommitmentLineChanged`/`CommitmentMatchChanged`) are recorded into, and published by, a
+    real canonical `UnitOfWork` (`SqlAlchemyUnitOfWorkBase` bound to the dispatcher's own
+    session) -- `ProcurementFinancialDispatcher` itself must never directly invoke
+    `transactional_dispatcher.dispatch(...)` or `post_commit_bus.publish(...)` for Commitment
+    DomainEvent lifecycle purposes (that would be either UoW impersonation or a duplicate,
+    non-canonical event pipeline). `cost_entries_changed` remains untouched (Cost Entry is not
+    yet modernized) and is still emitted directly by the dispatcher, since it is a legacy
+    Signal, not a DomainEvent with a canonical lifecycle."""
     import src.infra.integration.procurement_financial_dispatcher as module
 
     source = inspect.getsource(module)
     assert "FinanceInvalidationScope" in source
-    assert "self._post_commit_bus.publish(event, context)" in source
-    assert "consumption.commitment_events" in source
+    assert "SqlAlchemyUnitOfWorkBase" in source
+    assert "uow.record_event(event)" in source
+    assert "uow.commit()" in source
     assert "cost_entries_changed.emit(scope)" in source
+    assert "self._transactional_dispatcher.dispatch(" not in source, (
+        "the dispatcher must not directly invoke the transactional dispatcher -- "
+        "that is the canonical UoW's own responsibility during commit()"
+    )
+    assert "self._post_commit_bus.publish(" not in source, (
+        "the dispatcher must not directly publish DomainEvents post-commit -- "
+        "that is the canonical UoW's own responsibility during commit()"
+    )
     assert source.index("self._session.commit()") < source.index("self._emit_refresh(")
 
 
