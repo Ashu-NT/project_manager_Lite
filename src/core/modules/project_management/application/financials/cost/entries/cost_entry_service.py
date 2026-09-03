@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -12,10 +13,14 @@ from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.financials.invalidation import (
-    FinanceInvalidationScope,
+from src.core.modules.project_management.application.financials.cost.entries.cost_entry_events import (
+    CostEntryRecorded,
+    CostEntryRemoved,
+    CostEntryReversed,
+    CostEntryStatusChangeType,
+    CostEntryStatusChanged,
+    CostEntryUpdated,
 )
-from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.application.financials.cost.entries.approval_result import (
     CostEntryApprovalOutcome,
     CostEntryApprovalResult,
@@ -98,6 +103,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         approval_service=None,
         rate_resolver: RateCardResolver | None = None,
         labor_posting_repo: ApprovedTimeLaborPostingRepository | None = None,
+        record_event: Callable[[object], None] | None = None,
     ) -> None:
         self._session = session
         self._entry_repo = entry_repo
@@ -115,11 +121,16 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         self._approval_service = approval_service
         self._rate_resolver = rate_resolver
         self._labor_posting_repo = labor_posting_repo
+        self._record_event = record_event
 
     def apply_approved_time_source(
         self, source: ApprovedTimeFinancialSource
-    ) -> ProjectCostEntry:
-        """Apply one trusted inbox delivery without committing the consumer transaction."""
+    ) -> tuple[object, ...]:
+        """Apply one trusted inbox delivery without committing the consumer transaction.
+        Returns the real typed Cost Entry DomainEvent(s) produced -- a true replay (identical
+        revision+content already posted) returns an empty tuple. A correction that supersedes a
+        prior revision produces two genuine facts: the prior entry was reversed, and the new
+        corrected entry was recorded -- both returned."""
         if self._rate_resolver is None or self._labor_posting_repo is None:
             raise BusinessRuleError(
                 "Approved Time financial consumer is not configured.",
@@ -143,7 +154,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
                 existing = self._entry_repo.get(latest.actual_cost_entry_id)
                 if existing is None:
                     raise BusinessRuleError("Approved labor posting lost its ledger entry.", code="APPROVED_TIME_LEDGER_INTEGRITY_FAILED")
-                return existing
+                return ()
             if revision <= latest.source_revision:
                 raise BusinessRuleError("Approved Time revision is stale or conflicting.", code="APPROVED_TIME_REVISION_CONFLICT")
             if source.correction_of_revision != str(latest.source_revision):
@@ -264,15 +275,41 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         ))
         self._entry_repo.flush()
         self._labor_posting_repo.flush()
+        events: list[object] = []
         if reversal is not None:
             self._record_audit("create_approved_time_reversal", reversal)
+            reversal_event = CostEntryReversed(
+                tenant_id=original.tenant_id,
+                organization_id=original.organization_id,
+                project_id=original.project_id,
+                cost_entry_id=reversal.id,
+                reverses_entry_id=original.id,
+                occurred_at=now,
+            )
+            if self._record_event is not None:
+                self._record_event(reversal_event)
+            events.append(reversal_event)
         self._record_audit("post_approved_time", entry)
-        return entry
+        recorded_event = CostEntryRecorded(
+            tenant_id=entry.tenant_id,
+            organization_id=entry.organization_id,
+            project_id=entry.project_id,
+            cost_entry_id=entry.id,
+            status=entry.status,
+            occurred_at=now,
+        )
+        if self._record_event is not None:
+            self._record_event(recorded_event)
+        events.append(recorded_event)
+        return tuple(events)
 
     def apply_procurement_receipt_source(
         self, source: ProcurementReceiptAccrualFinancialSource
-    ) -> ProjectCostEntry:
-        """Post one trusted Procurement receipt fact without committing the inbox transaction."""
+    ) -> tuple[ProjectCostEntry, tuple[object, ...]]:
+        """Post one trusted Procurement receipt fact without committing the inbox transaction.
+        Returns the entry (its id is needed by the caller to match it to a Commitment line) and
+        the real typed Cost Entry DomainEvent(s) produced -- a true replay returns an empty
+        event tuple."""
         context = self._require_full_context("post Procurement receipt accrual")
         reference = source.reference
         if (
@@ -314,7 +351,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             )
         existing = self._entry_repo.get_by_idempotency_key(reference.idempotency_key)
         if existing is not None:
-            return self._resolve_replay(existing, reference)
+            return self._resolve_replay(existing, reference), ()
         period = self._financial_period_service.require_open_period_for_integration(
             posting_date
         )
@@ -351,7 +388,17 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         self._entry_repo.add(entry)
         self._entry_repo.flush()
         self._record_audit("post_procurement_receipt", entry)
-        return entry
+        event = CostEntryRecorded(
+            tenant_id=entry.tenant_id,
+            organization_id=entry.organization_id,
+            project_id=entry.project_id,
+            cost_entry_id=entry.id,
+            status=entry.status,
+            occurred_at=now,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
+        return entry, (event,)
 
     def get_entry(self, entry_id: str) -> ProjectCostEntry:
         require_permission(self._user_session, "finance.read", operation_label="view project cost entry")
@@ -476,7 +523,17 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
                 code="PROJECT_COST_ENTRY_SOURCE_CONFLICT",
             ) from exc
         self._record_audit("create", entry)
-        self._commit(entry.project_id)
+        event = CostEntryRecorded(
+            tenant_id=entry.tenant_id,
+            organization_id=entry.organization_id,
+            project_id=entry.project_id,
+            cost_entry_id=entry.id,
+            status=entry.status,
+            occurred_at=now,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
+        self._session.flush()
         return entry
 
     def update_draft(
@@ -533,7 +590,16 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         )
         self._entry_repo.update(entry, expected_row_version=expected_version)
         self._record_audit("update_draft", entry)
-        self._commit(entry.project_id)
+        event = CostEntryUpdated(
+            tenant_id=entry.tenant_id,
+            organization_id=entry.organization_id,
+            project_id=entry.project_id,
+            cost_entry_id=entry.id,
+            occurred_at=entry.updated_at,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
+        self._session.flush()
         return entry
 
     def delete_draft(self, entry_id: str, *, expected_version: int) -> None:
@@ -549,7 +615,16 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             )
         self._entry_repo.delete_draft(entry.id, expected_row_version=expected_version)
         self._record_audit("delete_draft", entry)
-        self._commit(entry.project_id)
+        event = CostEntryRemoved(
+            tenant_id=entry.tenant_id,
+            organization_id=entry.organization_id,
+            project_id=entry.project_id,
+            cost_entry_id=entry.id,
+            occurred_at=self._clock.now(),
+        )
+        if self._record_event is not None:
+            self._record_event(event)
+        self._session.flush()
 
     def submit(self, entry_id: str, *, expected_version: int) -> ProjectCostEntry:
         entry = self._require_entry(entry_id)
@@ -558,7 +633,17 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         entry.submit(actor_id=self._actor_id(), occurred_at=self._clock.now())
         self._entry_repo.update(entry, expected_row_version=expected_version)
         self._record_audit("submit", entry)
-        self._commit(entry.project_id)
+        event = CostEntryStatusChanged(
+            tenant_id=entry.tenant_id,
+            organization_id=entry.organization_id,
+            project_id=entry.project_id,
+            cost_entry_id=entry.id,
+            change_type=CostEntryStatusChangeType.SUBMITTED,
+            occurred_at=entry.updated_at,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
+        self._session.flush()
         return entry
 
     def approve(
@@ -601,11 +686,10 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
                 row_version=entry.row_version,
                 approval_request_id=request.id,
             )
-        approved = self._apply_approval_decision(
+        approved, _event = self._apply_approval_decision(
             entry_id=entry.id,
             expected_version=expected_version,
             actor_id=self._actor_id(),
-            commit=True,
         )
         return CostEntryApprovalResult(
             outcome=CostEntryApprovalOutcome.APPLIED,
@@ -624,13 +708,13 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
     ) -> ProjectCostEntry:
         entry = self._require_entry(entry_id)
         self._require_command_permission(entry.project_id, "project_cost.approve", "reject project cost entry")
-        return self._apply_rejection_decision(
+        rejected, _event = self._apply_rejection_decision(
             entry_id=entry.id,
             expected_version=expected_version,
             actor_id=self._actor_id(),
             notes=notes,
-            commit=True,
         )
+        return rejected
 
     def post(
         self,
@@ -674,7 +758,17 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         )
         self._entry_repo.update(entry, expected_row_version=expected_version)
         self._record_audit("post", entry)
-        self._commit(entry.project_id)
+        event = CostEntryStatusChanged(
+            tenant_id=entry.tenant_id,
+            organization_id=entry.organization_id,
+            project_id=entry.project_id,
+            cost_entry_id=entry.id,
+            change_type=CostEntryStatusChangeType.POSTED,
+            occurred_at=entry.updated_at,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
+        self._session.flush()
         return entry
 
     def reverse(
@@ -737,7 +831,17 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             ) from exc
         self._record_audit("reverse_original", entry)
         self._record_audit("create_reversal", reversal)
-        self._commit(entry.project_id)
+        event = CostEntryReversed(
+            tenant_id=entry.tenant_id,
+            organization_id=entry.organization_id,
+            project_id=entry.project_id,
+            cost_entry_id=reversal.id,
+            reverses_entry_id=entry.id,
+            occurred_at=now,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
+        self._session.flush()
         return reversal
 
     def _apply_approval_decision(
@@ -746,18 +850,24 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         entry_id: str,
         expected_version: int,
         actor_id: str,
-        commit: bool,
-    ) -> ProjectCostEntry:
+    ) -> tuple[ProjectCostEntry, CostEntryStatusChanged]:
         entry = self._require_entry(entry_id)
         self._require_expected_version(entry, expected_version)
         entry.approve(actor_id=actor_id, occurred_at=self._clock.now())
         self._entry_repo.update(entry, expected_row_version=expected_version)
         self._record_audit("approve", entry)
-        if commit:
-            self._commit(entry.project_id)
-        else:
-            self._session.flush()
-        return entry
+        event = CostEntryStatusChanged(
+            tenant_id=entry.tenant_id,
+            organization_id=entry.organization_id,
+            project_id=entry.project_id,
+            cost_entry_id=entry.id,
+            change_type=CostEntryStatusChangeType.APPROVED,
+            occurred_at=entry.updated_at,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
+        self._session.flush()
+        return entry, event
 
     def _apply_rejection_decision(
         self,
@@ -766,18 +876,24 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         expected_version: int,
         actor_id: str,
         notes: str,
-        commit: bool,
-    ) -> ProjectCostEntry:
+    ) -> tuple[ProjectCostEntry, CostEntryStatusChanged]:
         entry = self._require_entry(entry_id)
         self._require_expected_version(entry, expected_version)
         entry.reject(actor_id=actor_id, occurred_at=self._clock.now(), notes=notes)
         self._entry_repo.update(entry, expected_row_version=expected_version)
         self._record_audit("reject", entry)
-        if commit:
-            self._commit(entry.project_id)
-        else:
-            self._session.flush()
-        return entry
+        event = CostEntryStatusChanged(
+            tenant_id=entry.tenant_id,
+            organization_id=entry.organization_id,
+            project_id=entry.project_id,
+            cost_entry_id=entry.id,
+            change_type=CostEntryStatusChangeType.REJECTED,
+            occurred_at=entry.updated_at,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
+        self._session.flush()
+        return entry, event
 
     def _require_dimensions(
         self,
@@ -1062,21 +1178,6 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         except Exception:
             self._session.rollback()
             raise
-
-    def _commit(self, project_id: str) -> None:
-        context = self._require_scope("publish project cost invalidation")
-        try:
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.cost_entries_changed.emit(
-            FinanceInvalidationScope(
-                tenant_id=context.tenant_id,
-                organization_id=context.organization_id,
-                project_id=project_id,
-            )
-        )
 
 
 __all__ = ["ProjectCostEntryService"]

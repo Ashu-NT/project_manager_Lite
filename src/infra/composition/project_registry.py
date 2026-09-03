@@ -55,6 +55,16 @@ from src.core.modules.project_management.application.financials.commitments.comm
     CommitmentLineChanged,
     CommitmentMatchChanged,
 )
+from src.core.modules.project_management.application.financials.cost.entries.event_handlers.view_invalidation import (
+    build_cost_entry_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.cost.entries.cost_entry_events import (
+    CostEntryRecorded,
+    CostEntryRemoved,
+    CostEntryReversed,
+    CostEntryStatusChanged,
+    CostEntryUpdated,
+)
 from src.core.modules.project_management.application.financials.event_handlers.view_invalidation import (
     build_financial_profile_view_invalidation_handler,
 )
@@ -714,6 +724,19 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus.subscribe(
             _commitment_event_type, _commitment_view_invalidation_handler
         )
+    _cost_entry_view_invalidation_handler = build_cost_entry_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _cost_entry_event_type in (
+        CostEntryRecorded,
+        CostEntryUpdated,
+        CostEntryStatusChanged,
+        CostEntryReversed,
+        CostEntryRemoved,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _cost_entry_event_type, _cost_entry_view_invalidation_handler
+        )
     _financial_profile_view_invalidation_handler = build_financial_profile_view_invalidation_handler(
         platform_services.platform_view_invalidation_channel
     )
@@ -881,6 +904,25 @@ def build_project_management_service_bundle(
             tenant_context_service=platform_services.tenant_context_service,
             record_event=uow.record_event,
         )
+        cost_entry_operations = ProjectCostEntryService(
+            session=uow._session,
+            entry_repo=uow.cost_entries,
+            project_repo=uow.projects,
+            financial_profile_repo=uow.profiles,
+            cost_code_repo=uow.cost_codes,
+            task_repo=uow.tasks,
+            resource_repo=repositories.resource_repo,
+            financial_period_service=platform_services.financial_period_service,
+            clock=system_clock,
+            user_session=platform_services.user_session,
+            enterprise_audit_service=uow._enterprise_audit_service,
+            module_catalog_service=platform_services.module_catalog_service,
+            tenant_context_service=platform_services.tenant_context_service,
+            approval_service=platform_services.approval_service,
+            rate_resolver=rate_card_resolver,
+            labor_posting_repo=repositories.approved_time_labor_posting_repo,
+            record_event=uow.record_event,
+        )
         return FinanceGovernanceOperations(
             budgets=budget_operations,
             forecast_versions=forecast_version_operations,
@@ -890,6 +932,7 @@ def build_project_management_service_bundle(
             rate_cards=rate_card_operations,
             planned_costs=planned_cost_operations,
             commitments=commitment_operations,
+            cost_entries=cost_entry_operations,
             post_commit_actions=post_commit_actions,
         )
 
@@ -1001,6 +1044,23 @@ def build_project_management_service_bundle(
         family="commitment",
         mutations=frozenset(
             {"ingest_procurement_source", "match_cost_entry", "reverse_match"}
+        ),
+    )
+    cost_entry_service = FinanceGovernedServicePort(
+        read_service=cost_entry_service,
+        boundary=finance_governance_commands,
+        family="cost_entry",
+        mutations=frozenset(
+            {
+                "create_manual_entry",
+                "update_draft",
+                "delete_draft",
+                "submit",
+                "approve",
+                "reject",
+                "post",
+                "reverse",
+            }
         ),
     )
     billing_profile_service = ProjectBillingProfileService(

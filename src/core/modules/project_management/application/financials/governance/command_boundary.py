@@ -11,6 +11,9 @@ from src.core.modules.project_management.application.financials.budgets.budget_s
 from src.core.modules.project_management.application.financials.commitments.commitment_service import (
     ProjectCommitmentService,
 )
+from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
+    ProjectCostEntryService,
+)
 from src.core.modules.project_management.application.financials.configuration_service import (
     FinancialConfigurationService,
 )
@@ -54,6 +57,7 @@ class FinanceGovernanceOperations:
     rate_cards: ProjectRateCardService
     planned_costs: PlannedCostService
     commitments: ProjectCommitmentService
+    cost_entries: ProjectCostEntryService
     post_commit_actions: list[Callable[[], None]] = field(default_factory=list)
 
 
@@ -136,6 +140,17 @@ class FinanceGovernanceCommandBoundary:
     ) -> T:
         return self._execute(
             lambda operations: command(operations.commitments),
+            invalidation=None,
+        )
+
+    def cost_entry(
+        self,
+        command: Callable[[ProjectCostEntryService], T],
+        *,
+        project_id: str | None = None,
+    ) -> T:
+        return self._execute(
+            lambda operations: command(operations.cost_entries),
             invalidation=None,
         )
 
@@ -272,6 +287,8 @@ class FinanceGovernedServicePort:
                     return str(
                         self._read_service.get_line(match.commitment_line_id).project_id
                     )
+            if self._family == "cost_entry":
+                return str(self._read_service.get_entry(args[0]).project_id)
         except (AttributeError, IndexError, KeyError, TypeError):
             return ""
         return ""

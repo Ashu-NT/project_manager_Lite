@@ -8,7 +8,6 @@ from src.core.modules.project_management.contracts.financial_sources.reference i
     FinancialSourceReference,
     FinancialSourceType,
 )
-from src.core.modules.project_management.domain.financials.cost_entry import ProjectCostEntry
 from src.core.platform.integration import APPROVED_TIME_ENTRY_EVENT_TYPE, ApprovedTimeEntryEventPayload, IntegrationEventEnvelope
 
 
@@ -16,7 +15,7 @@ class ApprovedTimeLaborCostConsumer:
     def __init__(self, cost_entry_service: ProjectCostEntryService) -> None:
         self._cost_entry_service = cost_entry_service
 
-    def consume(self, envelope: IntegrationEventEnvelope) -> ProjectCostEntry:
+    def consume(self, envelope: IntegrationEventEnvelope) -> tuple[object, ...]:
         if envelope.event_type != APPROVED_TIME_ENTRY_EVENT_TYPE:
             raise ValueError(f"Unsupported Approved Time event: {envelope.event_type}")
         payload = ApprovedTimeEntryEventPayload.model_validate(envelope.payload)

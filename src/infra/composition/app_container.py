@@ -371,6 +371,8 @@ def build_service_graph(session: Session) -> ServiceGraph:
         outbox_service=_time_financial_outbox_service,
         inbox_service=_project_finance_inbox_service,
         consumer=project_management_services.approved_time_labor_cost_consumer,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
     )
     _procurement_financial_dispatcher = ProcurementFinancialDispatcher(
         session=session,
