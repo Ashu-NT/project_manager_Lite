@@ -38,9 +38,6 @@ class PortfolioSupportMixin:
         return tenant_context.require_active_organization_id(operation_label=operation_label)
 
     def _active_portfolio_scope(self, *, operation_label: str):
-        """Full (tenant_id, organization_id) scope -- needed to build event payloads, distinct
-        from `_active_portfolio_organization_id`'s organization-only result (which every existing
-        permission/ownership call site keeps using unchanged)."""
         tenant_context = getattr(self, "_tenant_context_service", None)
         if tenant_context is None:
             from src.core.platform.common.exceptions import BusinessRuleError
@@ -193,6 +190,19 @@ class PortfolioSupportMixin:
             if template.is_active:
                 return template
         return templates[0]
+
+    def _scoring_templates_with_bootstrap(self) -> list[PortfolioScoringTemplate]:
+        
+        templates = self._scoring_template_repo.list()
+        if templates and any(template.is_active for template in templates):
+            return templates
+        with self._require_uow_factory().create(context=self._new_context()) as uow:
+            events: list = []
+            templates = self._ensure_scoring_templates(templates_repo=uow.scoring_templates, events=events)
+            for event in events:
+                uow.record_event(event)
+            uow.commit()
+        return templates
 
     def _resolve_scoring_template(
         self, template_id: str | None, *, templates_repo, events: list

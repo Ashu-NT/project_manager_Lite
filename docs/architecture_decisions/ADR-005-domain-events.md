@@ -3703,6 +3703,46 @@ reach zero.** `register_changed` rejoins the historical P8 frozen allowlist's de
 the frozen baseline itself is unchanged. Remaining PM legacy signals: `project_changed`, `tasks_
 changed`, `collaboration_changed`, `portfolio_changed` — Portfolio is next per P40A's sequence.
 
+**26.39 P42: PM Portfolio full modernization — `portfolio_changed` deleted, third PM capability to
+reach zero; the real nested/self-owned commit hazard P40A found is fixed.** Four sub-aggregate
+families kept as distinct DomainEvent vocabularies (`PortfolioIntakeItemChanged`, `PortfolioScenario
+Changed`, `PortfolioScoringTemplateChanged`, `PortfolioProjectDependencyChanged`), never collapsed
+into one `PortfolioChanged`.
+
+**The nested-commit hazard.** `portfolio_support.py`'s `_ensure_scoring_templates()` — a
+lazy-bootstrap helper reachable from BOTH Intake commands and Template commands themselves —
+called `self._session.commit()` internally, twice, as a side effect of what looked like a read
+helper. A command could durably commit a bootstrap-created or reactivated scoring template and
+then fail its own actual operation immediately after (e.g. a duplicate-name `ValidationError`) —
+the bootstrap write survived a failure the user's real request never completed. Fixed by making
+every scoring-template helper transaction-neutral: each now takes the caller's own UoW-scoped
+`templates_repo` and an `events` accumulator, never commits, never owns a session.
+
+**Canonical UoW: one `PortfolioUnitOfWork` owning all four named repositories**
+(`intake`/`scenarios`/`scoring_templates`/`dependencies`), mirroring `DocumentUnitOfWork`'s
+established one-capability-several-repos shape — not a mega-UoW, since Portfolio genuinely is one
+capability (one workspace) even though most single commands touch only one repository.
+`activate_scoring_template` mutates two rows in the same repository within one transaction (the
+newly-activated template and the previously-active one) — now provably atomic, proved by a
+dedicated multi-row rollback test, not merely asserted. Enterprise audit added to three of the
+four sub-aggregates (Intake, Scenario, ScoringTemplate), which had none before this phase —
+mirroring Register's own P41 precedent.
+
+**ViewInvalidation: one category, one target — and two of three legacy consumers turned out to be
+incidental.** No `Portfolio` entity exists (P40A: a pure organizational grouping) — all four
+sub-aggregate families genuinely stale the one org-wide workspace uniformly.
+`PORTFOLIO_WORKSPACE_SCOPE_CODE` (`OrganizationScope`) is the only target. PM Dashboard's own
+"portfolio" KPI (`DashboardPortfolioMixin`) is entirely Project/Task/Resource/Cost-derived and
+never reads any of the four real sub-aggregates; the Projects workspace displays no
+Portfolio-derived data anywhere. Both dropped with no replacement — carried-over fan-out from the
+pre-modernization era, exactly what P40A's own audit anticipated finding. Only Portfolio's own
+workspace was genuine.
+
+**Legacy Signal count: 4 (5 minus the one deletion) — third Project Management capability to
+reach zero.** `portfolio_changed` rejoins the historical P8 frozen allowlist's deleted-name set;
+the frozen baseline itself is unchanged. Remaining PM legacy signals: `project_changed`, `tasks_
+changed`, `collaboration_changed` — Project is next per P40A's tentative sequence.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

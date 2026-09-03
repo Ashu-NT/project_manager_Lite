@@ -2979,22 +2979,102 @@ signal," never specifically "reacts to Register") and found not to be masking an
 docstrings now cross-reference the new dedicated test file. All previously-green suites remain
 green.
 
+### P42 — Project Management Portfolio Full Modernization
+
+DIRECT FULL MODERNIZATION, per P40A's selection. Reconfirmed the exact current surface: `portfolio_
+changed` had exactly 8 producer sites (`create_intake_item`/`update_intake_item`, `create_scenario`/
+`update_scenario`, `create_scoring_template`/`activate_scoring_template`, `create_project_dependency`/
+`remove_project_dependency`) and 3 consumer files. Confirmed the four sub-aggregate families P40A
+found — **Intake** (`PortfolioIntakeItem`, versioned, real CAS), **Scenario** (`PortfolioScenario`,
+unversioned, was blind-overwrite), **ScoringTemplate** (`PortfolioScoringTemplate`, unversioned, was
+blind-overwrite), **ProjectDependency** (`PortfolioProjectDependency`, immutable — no update command
+exists) — each keeps its own DomainEvent vocabulary, never collapsed into one `PortfolioChanged`.
+
+**The nested-commit hazard, reconfirmed and fixed.** `portfolio_support.py`'s `_ensure_scoring_
+templates()` — a lazy-bootstrap helper called from BOTH Intake commands (`_resolve_scoring_
+template`) and Template commands themselves — called `self._session.commit()` internally, twice,
+as a side effect of what looked like a read. A command could bootstrap-create or reactivate a
+scoring template (committed immediately, durably) and then fail its OWN actual operation (e.g. a
+duplicate-name `ValidationError` raised right after) — the bootstrap write survived a failure the
+user's real request never got past. Fixed by making every scoring-template helper (`_ensure_
+scoring_templates`, `_active_scoring_template`, `_resolve_scoring_template`, `_deactivate_other_
+templates`) transaction-neutral: they now take an explicit `templates_repo` (the caller's own
+UoW-scoped repository) and an `events: list` accumulator they append genuine facts to, never
+commit, never own a session.
+
+**Canonical UoW: one `PortfolioUnitOfWork` owning all four named repositories** (`intake`,
+`scenarios`, `scoring_templates`, `dependencies`), mirroring `DocumentUnitOfWork`'s established
+"one capability, several sub-aggregate repos" shape — not a mega-UoW, since Portfolio genuinely is
+one capability (one workspace, one set of tabs) even though most single commands only touch one
+repository. `activate_scoring_template` is the one command that genuinely mutates two rows in the
+same repository within one transaction (the newly-activated template and the previously-active
+one) — now provably atomic: a forced failure on the second write rolls back the first too (proved
+by a dedicated multi-row atomicity test, not merely asserted).
+
+**Enterprise audit added where none existed.** Intake, Scenario, and ScoringTemplate had zero audit
+of any kind before this phase (not even the lighter Activity feed); Dependency had Activity feed
+only. All four now get real, atomic enterprise audit alongside their DomainEvent, matching
+Register's own P41 precedent for a capability that had none.
+
+**Event vocabulary**: `PortfolioIntakeItemChanged`/`PortfolioScenarioChanged`/`PortfolioProject
+DependencyChanged` (each `change_type`-differentiated, mirroring the shared-family precedent) and
+`PortfolioScoringTemplateChanged` (`CREATED`/`ACTIVATED`/`DEACTIVATED` — activation's own secondary
+mutation gets its own fact, per the "do not hide a genuine second mutation behind one event" rule,
+mirroring Budget's approve/supersede precedent).
+
+**ViewInvalidation: one category, one target.** No `Portfolio` entity exists at all (P40A: pure
+organizational grouping) — all four sub-aggregate fact families genuinely stale the one org-wide
+Portfolio workspace uniformly, exactly like the legacy signal's own real consumer. `PORTFOLIO_
+WORKSPACE_SCOPE_CODE` (`OrganizationScope`) is the only target; no per-screen targets were invented
+without a source-confirmed distinct projection. **Two of the three legacy consumers were found
+INCIDENTAL, not genuine, and dropped with no replacement** — PM Dashboard's own "portfolio" KPI
+(`DashboardPortfolioMixin.get_portfolio_data`) is entirely derived from Project/Task/Resource/Cost
+data, never reads any of the four real sub-aggregates; the Projects workspace displays no
+Portfolio-derived data anywhere (confirmed by source inspection — no other file in that workspace's
+controllers/presenters mentions "portfolio" at all). Both were carried-over fan-out from the
+pre-modernization era, exactly what P40A's own §27 anticipated finding. Only Portfolio's own
+workspace was a genuine consumer.
+
+**Regression**: new `test_p42_portfolio_full_modernization.py` (10), rewritten `test_portfolio_
+phase0a2_rollback_hardening.py` (33 — repository-class-level and `EnterpriseAuditService`-level
+failure injection replacing the old `services["session"].commit()` patch, which no longer reaches
+the new per-command UoW session; a dedicated multi-row atomicity test for `activate_scoring_
+template`), `test_portfolio_domain_validation.py` (7, fake-service harness extended with a fake
+UoW factory/tenant-scope, the same fix shape P41/P40B needed), `test_pm_r3_4_portfolio_ia_tabs.py`
+(3 — caught and fixed a real bug: the two scoring-template QUERY methods still called the old
+zero-arg helper signature; fixed via a new read-side `_scoring_templates_with_bootstrap()` that
+only opens a UoW when the rare lazy-bootstrap write is actually needed, never for the common
+already-bootstrapped read), the full remaining Portfolio-adjacent suite (40), `test_p8_platform_
+event_architecture_canonicalization.py` (31, `portfolio_changed` added to the deleted-name guard),
+`test_p7_legacy_bridge_removal.py`/`test_p7b_dead_signal_cleanup.py`/`test_qml_domain_event_
+bridges_pm.py` (characterization tests repointed to Portfolio's remaining `project_changed`/
+`tasks_changed` subscriptions, preserving each test's own original "still reacts to a surviving
+signal" intent), P40B/P41/P41-FIX regressions (51, reconfirmed unaffected). All green.
+
+**Legacy Signal count: 4 (5 minus one deletion) — third PM capability to reach zero, and the
+first phase to also close out two carried-over incidental consumers in the same pass.**
+`portfolio_changed` rejoins the historical P8 frozen allowlist's deleted-name set; the frozen
+baseline itself is unchanged. Remaining PM legacy signals: `project_changed`, `tasks_changed`,
+`collaboration_changed`. **Project remains next, unchanged from P40A's tentative sequence** —
+nothing discovered this phase materially changes Project's own facts, transaction shape, or
+cross-capability edges (Portfolio→Project remains reference-only in both directions, reconfirmed).
+
 ## 4. Current State
 
-**Legacy Signal count: 5 as of P41** (source-derived from
+**Legacy Signal count: 4 as of P42** (source-derived from
 `src/core/shared/events/domain_events.py`, re-verified against current source when this document
-was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Down from 6 at
-P40B — `register_changed` is now deleted, the second Project Management capability to reach zero.
+was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Down from 5 at
+P41 — `portfolio_changed` is now deleted, the third Project Management capability to reach zero.
 **Finance module event modernization is complete: zero Finance-owned legacy Signal fields
 remain.** The P8 architecture budget (`current ⊆ frozen`) remains restored with zero exceptions
-(P37 was the last post-freeze *violation*; P38B/P39/P40B/P41 are ordinary further retirement of
-pre-freeze, frozen-allowlisted signals, not violation fixes).
+(P37 was the last post-freeze *violation*; P38B/P39/P40B/P41/P42 are ordinary further retirement
+of pre-freeze, frozen-allowlisted signals, not violation fixes).
 
 | Area | Count |
 |---|---|
 | Platform | 0 |
 | Auth/Security | 1 |
-| Project Management | 4 |
+| Project Management | 3 |
 | Finance | 0 |
 | Inventory/Procurement | 0 |
 
@@ -3071,7 +3151,20 @@ constraint favored reuse, so this followed Resource's/Employee's own fresh-sessi
 precedent instead). One shared-family `RegisterEntryChanged` event and two ViewInvalidation
 targets (workspace/project). Platform's Control workspace subscription could not be cut over to a
 typed hint (a real Platform/PM layering guard forbids it) and was dropped with no replacement.
-**Portfolio remains next, unchanged from P40A's sequence.**
+That guard turned out (P41-FIX) to not actually cover the QML layer at all, but the composition-
+root Signal/Slot pattern already used for Platform→PM wiring restored the real dependency PM→
+Platform for the first time, with neither side importing the other's implementation.
+
+**Portfolio is now DONE too (P42, see §3)** — `portfolio_changed` is deleted, the third PM
+capability to reach zero. Fixed the real nested/self-owned commit hazard P40A found
+(`_ensure_scoring_templates()`'s own internal `session.commit()` calls, triggered as a side effect
+from Intake commands too) by converging all four sub-aggregates (Intake, Scenario, ScoringTemplate,
+ProjectDependency) onto one `PortfolioUnitOfWork`, mirroring `DocumentUnitOfWork`'s established
+one-capability-several-repos shape. Added enterprise audit to three of the four sub-aggregates,
+which had none before. Two of Portfolio's three legacy consumers (PM Dashboard, Projects workspace)
+turned out to be incidental — neither ever read any of the four real sub-aggregates — and were
+dropped with no replacement; only Portfolio's own workspace was genuine. **Project remains next,
+unchanged from P40A's tentative sequence.**
 
 **A pre-existing, explicitly-not-fixed note carried forward by P33**: `PurchaseOrderLineORM` has no
 `version` column and its repository performs a blind field overwrite on `update()` — confirmed real
@@ -3108,14 +3201,13 @@ Remaining capability groups, not yet assigned rigid phase numbers:
 
 - **Project Management** (re-sequenced by P40A, AUDIT + SEQUENCING ONLY, see §3/§5 — tentative
   past the first three): **1. Timesheet Period — DONE (P40B, see §3)**, **2. Risk Register — DONE
-  (P41, see §3)**, **3. Portfolio** (Template/Scenario/Intake/Dependency) — DIRECT FULL
-  MODERNIZATION ready. Then (tentative) **4. Project Lifecycle**, **5. Collaboration Comment**
-  (needs its own short audit/transport-split phase first — Collaboration Presence needs a
-  non-`DomainEvent` mechanism, not a migration target), **6. Task Lifecycle last** (highly
-  overloaded — 8 real facts across 3 aggregates + a bulk operation, requires a dedicated
-  audit-first phase and coordination with Financial Change's participant before implementation,
-  despite being the only capability that would shrink the shared `ApprovalPostCommitEvent`
-  legacy-bridge count).
+  (P41, see §3)**, **3. Portfolio — DONE (P42, see §3)** (Template/Scenario/Intake/Dependency).
+  Then (tentative) **4. Project Lifecycle**, **5. Collaboration Comment** (needs its own short
+  audit/transport-split phase first — Collaboration Presence needs a non-`DomainEvent` mechanism,
+  not a migration target), **6. Task Lifecycle last** (highly overloaded — 8 real facts across 3
+  aggregates + a bulk operation, requires a dedicated audit-first phase and coordination with
+  Financial Change's participant before implementation, despite being the only capability that
+  would shrink the shared `ApprovalPostCommitEvent` legacy-bridge count).
 - **Finance — MODULE COMPLETE (P39, see §3/§5)**: every Finance capability (Financial Setup, Rate
   Card, Forecast, Planned Cost, Project Commitment, Project Cost Entry, Project Budget, Billing
   Profile, Billing Preparation) is fully modernized onto typed DomainEvents. Zero Finance-owned
