@@ -10,6 +10,10 @@ from src.core.modules.project_management.domain.portfolio import (
     PortfolioScenarioComparison,
     PortfolioScoringTemplate,
 )
+from src.core.modules.project_management.application.portfolio.portfolio_events import (
+    PortfolioScoringTemplateChangeType,
+    PortfolioScoringTemplateChanged,
+)
 
 
 class PortfolioSupportMixin:
@@ -32,6 +36,19 @@ class PortfolioSupportMixin:
                 code="TENANT_CONTEXT_REQUIRED",
             )
         return tenant_context.require_active_organization_id(operation_label=operation_label)
+
+    def _active_portfolio_scope(self, *, operation_label: str):
+        """Full (tenant_id, organization_id) scope -- needed to build event payloads, distinct
+        from `_active_portfolio_organization_id`'s organization-only result (which every existing
+        permission/ownership call site keeps using unchanged)."""
+        tenant_context = getattr(self, "_tenant_context_service", None)
+        if tenant_context is None:
+            from src.core.platform.common.exceptions import BusinessRuleError
+            raise BusinessRuleError(
+                f"Active organization context is required for {operation_label}.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return tenant_context.require_active_scope_ids(operation_label=operation_label)
 
     @staticmethod
     def _scenario_selection(
@@ -125,16 +142,34 @@ class PortfolioSupportMixin:
         entity_type = str(getattr(row, "entity_type", "") or "record").replace("_", " ")
         return f"{entity_type.title()} updated."
 
-    def _ensure_scoring_templates(self) -> list[PortfolioScoringTemplate]:
+    def _scoring_template_event(
+        self, template: PortfolioScoringTemplate, change_type: PortfolioScoringTemplateChangeType
+    ) -> PortfolioScoringTemplateChanged:
+        scope = self._active_portfolio_scope(operation_label="record scoring template fact")
+        return PortfolioScoringTemplateChanged(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            scoring_template_id=template.id,
+            change_type=change_type,
+            occurred_at=self._utc_now(),
+        )
+
+    def _ensure_scoring_templates(
+        self, *, templates_repo, events: list
+    ) -> list[PortfolioScoringTemplate]:
         organization_id = self._active_portfolio_organization_id(operation_label="view scoring templates")
-        templates = self._scoring_template_repo.list()
+        templates = templates_repo.list()
         if templates:
             if not any(template.is_active for template in templates):
                 templates[0].is_active = True
                 templates[0].updated_at = self._utc_now()
-                self._scoring_template_repo.update(templates[0])
-                self._session.commit()
-                templates = self._scoring_template_repo.list()
+                templates_repo.update(templates[0])
+                events.append(
+                    self._scoring_template_event(
+                        templates[0], PortfolioScoringTemplateChangeType.ACTIVATED
+                    )
+                )
+                templates = templates_repo.list()
             return templates
         default_template = PortfolioScoringTemplate.create(
             organization_id=organization_id,
@@ -146,22 +181,26 @@ class PortfolioSupportMixin:
             risk_weight=1,
             is_active=True,
         )
-        self._scoring_template_repo.add(default_template)
-        self._session.commit()
+        templates_repo.add(default_template)
+        events.append(
+            self._scoring_template_event(default_template, PortfolioScoringTemplateChangeType.CREATED)
+        )
         return [default_template]
 
-    def _active_scoring_template(self) -> PortfolioScoringTemplate:
-        templates = self._ensure_scoring_templates()
+    def _active_scoring_template(self, *, templates_repo, events: list) -> PortfolioScoringTemplate:
+        templates = self._ensure_scoring_templates(templates_repo=templates_repo, events=events)
         for template in templates:
             if template.is_active:
                 return template
         return templates[0]
 
-    def _resolve_scoring_template(self, template_id: str | None) -> PortfolioScoringTemplate:
+    def _resolve_scoring_template(
+        self, template_id: str | None, *, templates_repo, events: list
+    ) -> PortfolioScoringTemplate:
         normalized_id = str(template_id or "").strip()
         if normalized_id:
             self._active_portfolio_organization_id(operation_label="view scoring template")
-            template = self._scoring_template_repo.get(normalized_id)
+            template = templates_repo.get(normalized_id)
             if template is None:
                 from src.core.platform.common.exceptions import NotFoundError
                 raise NotFoundError(
@@ -169,7 +208,7 @@ class PortfolioSupportMixin:
                     code="PORTFOLIO_TEMPLATE_NOT_FOUND",
                 )
             return template
-        return self._active_scoring_template()
+        return self._active_scoring_template(templates_repo=templates_repo, events=events)
 
     @staticmethod
     def _apply_scoring_template(
@@ -186,13 +225,16 @@ class PortfolioSupportMixin:
             risk_weight=template.risk_weight,
         )
 
-    def _deactivate_other_templates(self) -> None:
-        for template in self._ensure_scoring_templates():
+    def _deactivate_other_templates(self, *, templates_repo, events: list) -> None:
+        for template in self._ensure_scoring_templates(templates_repo=templates_repo, events=events):
             if not template.is_active:
                 continue
             template.is_active = False
             template.updated_at = self._utc_now()
-            self._scoring_template_repo.update(template)
+            templates_repo.update(template)
+            events.append(
+                self._scoring_template_event(template, PortfolioScoringTemplateChangeType.DEACTIVATED)
+            )
 
     def _validate_project_ids(self, project_ids: list[str]) -> list[str]:
         known_ids = {project.id for project in self._accessible_projects()}

@@ -16,7 +16,6 @@ def bind_portfolio_domain_events(controller: object) -> None:
         controller._request_domain_refresh()
 
     for signal in (
-        domain_events.portfolio_changed,
         domain_events.project_changed,
         domain_events.tasks_changed,
     ):

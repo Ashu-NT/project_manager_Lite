@@ -39,15 +39,21 @@ def test_pm_collaboration_workspace_refreshes_on_collaboration_workflow_events(m
 def test_pm_portfolio_workspace_refreshes_on_portfolio_workflow_events(
     monkeypatch, qapp
 ) -> None:
-    """P7A: direct-wired -- `portfolio_changed`/`project_changed` are the actual specific signals
+    """P7A: direct-wired -- `project_changed`/`tasks_changed` are the actual specific signals
     Portfolio's own debounced `_request_domain_refresh()` override coalesces into one refresh,
-    no generic `domain_changed` bridge involved."""
+    no generic `domain_changed` bridge involved.
+
+    P42: was `portfolio_changed`/`project_changed` -- `portfolio_changed` is deleted (Portfolio
+    fully modernized onto typed DomainEvents + `PortfolioViewInvalidationAdapter`, proved
+    separately with real services in `test_p42_portfolio_full_modernization.py`). This now uses
+    `project_changed`/`tasks_changed`, Portfolio's two remaining legacy subscriptions, to keep
+    proving the same coalescing property."""
     catalog = ProjectManagementWorkspaceCatalog()
     controller = catalog.portfolioWorkspace
     refresh_calls: list[str] = []
     monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
 
-    domain_events.portfolio_changed.emit("portfolio-1")
+    domain_events.tasks_changed.emit("proj-1")
     domain_events.project_changed.emit("proj-1")
     QApplication.processEvents()
 

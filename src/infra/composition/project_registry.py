@@ -34,6 +34,18 @@ from src.core.modules.project_management.application.risk.register_events import
 from src.core.modules.project_management.infrastructure.persistence.uow.register.register_unit_of_work import (
     SqlAlchemyRegisterUnitOfWorkFactory,
 )
+from src.core.modules.project_management.application.portfolio.event_handlers.view_invalidation import (
+    build_portfolio_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.portfolio.portfolio_events import (
+    PortfolioIntakeItemChanged,
+    PortfolioProjectDependencyChanged,
+    PortfolioScenarioChanged,
+    PortfolioScoringTemplateChanged,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.portfolio.portfolio_unit_of_work import (
+    SqlAlchemyPortfolioUnitOfWorkFactory,
+)
 from src.core.modules.project_management.application.resources.resource_capability_events import (
     ResourceCapabilityChanged,
 )
@@ -1258,6 +1270,27 @@ def build_project_management_service_bundle(
         role_binding_repo=repositories.role_binding_repo,
         notification_service=platform_services.notification_service,
     )
+    portfolio_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
+    portfolio_uow_factory = SqlAlchemyPortfolioUnitOfWorkFactory(
+        session_factory=portfolio_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
+    _portfolio_view_invalidation_handler = build_portfolio_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _portfolio_event_type in (
+        PortfolioIntakeItemChanged,
+        PortfolioScenarioChanged,
+        PortfolioScoringTemplateChanged,
+        PortfolioProjectDependencyChanged,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _portfolio_event_type,
+            _portfolio_view_invalidation_handler,
+        )
     portfolio_service = PortfolioService(
         session=session,
         intake_repo=repositories.portfolio_intake_repo,
@@ -1275,6 +1308,7 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         project_catalog_reader=SqlAlchemyProjectCatalogReader(session=session),
+        uow_factory=portfolio_uow_factory,
     )
     baseline_uow_factory = SqlAlchemyBaselineUnitOfWorkFactory(
         session=session,
@@ -1425,15 +1459,6 @@ def _register_project_management_approval_handlers(
     calendar_assignment_service=None,
     financial_period_service=None,
 ) -> None:
-    """P4 Step 2 (ADR-005 Section 24, Round 7/8): every request type below is now backed by a
-    module-owned, session-parameterized approval transaction participant, whose bound
-    apply/reject method is registered directly, alongside a `dependencies_factory(session)`
-    closure over this call site's ambient collaborators. `ApprovalService` itself now calls
-    `dependencies_factory(uow_session)` once per `approve_and_apply`/`reject` call, against its
-    own fresh `PlatformUnitOfWork` Session -- never a Session fixed at composition time.
-    See src/core/modules/project_management/infrastructure/approval/ and
-    src/infra/composition/approval_apply_dependencies/ for each family's participant/deps-factory.
-    """
     baseline_participant = BaselineApprovalParticipant()
     approval_service.register_apply_handler(
         "baseline.create",

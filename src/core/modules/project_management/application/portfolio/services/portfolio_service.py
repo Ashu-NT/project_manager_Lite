@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.contracts.uow.portfolio.portfolio_unit_of_work import (
+    PortfolioUnitOfWorkFactory,
+)
+from src.core.platform.common.ids import generate_id
+from src.core.shared.events.domain_event_context import DomainEventContext
+
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 from src.core.modules.project_management.application.portfolio.commands.portfolio_dependencies import PortfolioDependencyCommandMixin
 from src.core.modules.project_management.application.portfolio.commands.portfolio_intake import PortfolioIntakeCommandMixin
@@ -75,6 +81,7 @@ class PortfolioService(
         module_catalog_service=None,
         tenant_context_service=None,
         project_catalog_reader: ProjectCatalogReader | None = None,
+        uow_factory: PortfolioUnitOfWorkFactory | None = None,
     ) -> None:
         self._session = session
         self._intake_repo = intake_repo
@@ -97,6 +104,15 @@ class PortfolioService(
                 code="TENANT_CONTEXT_REQUIRED",
             )
         self._tenant_context_service = tenant_context_service
+        self._uow_factory: PortfolioUnitOfWorkFactory | None = uow_factory
+
+    def _require_uow_factory(self) -> PortfolioUnitOfWorkFactory:
+        if self._uow_factory is None:
+            raise RuntimeError("Portfolio unit of work is not configured.")
+        return self._uow_factory
+
+    def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
 
 
 __all__ = ["PortfolioService"]

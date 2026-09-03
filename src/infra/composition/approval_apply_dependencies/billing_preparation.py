@@ -1,27 +1,3 @@
-"""P4-PRE Step 1 (ADR-005 Section 24, Round 8): `dependencies_factory(session)` for
-`project_billing_preparation.approve`.
-
-Follows `budget.py`'s reference template. `ProjectBillingPreparationService` is the most
-collaborator-heavy of the eight approval-backed families: besides its own repositories, its real
-constructor (see `project_registry.py`'s `billing_preparation_service = ProjectBillingPreparationService(...)`
-call site) takes two further collaborators that are themselves Session-bound and therefore cannot
-be reused from the long-lived, startup-bound instances:
-
-- `rate_resolver` (`RateCardResolver`) wraps a `SqlAlchemyRateResolutionReader(session=...)` --
-  a fresh reader (and therefore a fresh resolver) is built here, bound to the supplied Session.
-- `financial_period_service` (`FinancialPeriodService`) is itself constructed with
-  `session=...`/`period_repo=...` in `platform_registry.py` -- a fresh instance is built here too,
-  bound to the supplied Session and sharing the same fresh `EnterpriseAuditService` this factory
-  builds for `ProjectBillingPreparationService` itself (both act within the same approval-apply
-  transaction).
-
-`_apply_approval_decision`/`_apply_rejection_decision` themselves never call `_rate_resolver`,
-`_financial_period_service`, `_cost_entry_repo`, or `_labor_posting_repo` -- but the service's
-constructor requires all of them regardless, so each is still built fresh and correctly
-Session-bound for construction-correctness, even though only `_billing_repo` (and the audit path)
-is actually exercised by the two governed-decision methods.
-"""
-
 from __future__ import annotations
 
 from sqlalchemy.orm import Session
@@ -54,13 +30,7 @@ def build_billing_preparation_approval_deps(
     tenant_context_service,
     module_catalog_service=None,
 ) -> BillingPreparationApprovalDeps:
-    """Every transaction-sensitive collaborator (every repository, the rate resolver's reader,
-    `FinancialPeriodService`, and `ProjectBillingPreparationService` itself) is constructed fresh,
-    bound to `session` -- never the caller's own, possibly different, Session.
-    `user_session`/`tenant_context_service`/`module_catalog_service` are ambient,
-    stateless-with-respect-to-this-transaction collaborators, passed through as-is (ADR-005
-    Section 24, Round 7's "ambient collaborators ... may be reused as-is" rule). `approval_service`
-    is deliberately omitted -- see `billing_preparation_apply_participant.py`'s module docstring."""
+
     bundle = build_repository_bundle(session)
     billing_repo = wire_tenant_context_service(bundle.project_billing_repo, tenant_context_service)
     financial_profile_repo = wire_tenant_context_service(

@@ -1,21 +1,31 @@
-"""Phase 0A.2 tests — Portfolio write rollback hardening
-(docs/pm_modernization/CQRS/project_management_cqrs_existing_state_audit.md, §18 Phase 0A.2).
+"""Phase 0A.2 / P42 — Portfolio write rollback hardening.
 
-Before this phase, every Portfolio command method committed with no `try/except` at all: a
-repository failure or a commit failure left whatever the ORM session happened to be holding, with
-no guarantee the shared, long-lived `Session` (§10 of the plan) would still be usable for the next
-operation in the same process. This phase wraps each method's mutate+commit step in
-`try/except Exception: session.rollback(); raise`, matching the established pattern already used
-elsewhere in this module (e.g. `CostService`/`_apply_cost_add_decision`).
-
-These tests exercise the real composition graph (the `services` fixture) so that "the shared
-Session remains usable after a failed write" is tested against the actual production session, not
-a fake.
+P42 converged every Portfolio command onto a single, narrow `PortfolioUnitOfWork` (a fresh
+session per command, via `PortfolioService._uow_factory`), eliminating the nested/self-owned
+commit hazard P40A found (`_ensure_scoring_templates()`'s own internal `session.commit()` calls)
+and adding real enterprise audit (previously absent for Intake/Scenario/ScoringTemplate). This
+file's ORIGINAL Phase 0A.2 intent -- "a repository or commit failure rolls back the whole write,
+leaves zero partial rows, and the service stays usable for the next command" -- is preserved, but
+its mechanism is rewritten: failure injection now targets the repository CLASS (so it reaches the
+fresh, UoW-owned repository instance each command constructs) or `EnterpriseAuditService.record`
+(simulating a failure elsewhere in the SAME transaction, after the mutation itself already
+succeeded -- the exact P40A hazard shape), and `domain_events.portfolio_changed` assertions are
+replaced with a `ViewInvalidationHint` spy, since the legacy Signal is deleted.
 """
 
 from __future__ import annotations
 
 import pytest
+
+from src.core.modules.project_management.infrastructure.persistence.repositories.portfolio.portfolio import (
+    SqlAlchemyPortfolioIntakeRepository,
+    SqlAlchemyPortfolioProjectDependencyRepository,
+    SqlAlchemyPortfolioScenarioRepository,
+    SqlAlchemyPortfolioScoringTemplateRepository,
+)
+from src.core.platform.application.history.audit.enterprise_audit_service import (
+    EnterpriseAuditService,
+)
 
 
 class _Boom(RuntimeError):
@@ -27,8 +37,29 @@ def _boom(*_args, **_kwargs):
     raise _Boom("forced failure for Phase 0A.2 rollback test")
 
 
+def _spy_hints(services):
+    hints: list = []
+
+    class _AnyOrgFilter:
+        def matches(self, scope) -> bool:
+            return True
+
+    services["platform_view_invalidation_channel"].subscribe(
+        _AnyOrgFilter(), lambda hint: hints.append(hint)
+    )
+    return hints
+
+
+def _portfolio_hints(hints):
+    from src.core.modules.project_management.application.portfolio.event_handlers.view_invalidation import (
+        PORTFOLIO_CATEGORY,
+    )
+
+    return [h for h in hints if h.category == PORTFOLIO_CATEGORY]
+
+
 # ---------------------------------------------------------------------------
-# Per-method fixtures: each returns (invoke, repo, repo_method_name, count_fn)
+# Per-method fixtures: each returns (invoke, repo_class, repo_method_name, count_fn)
 # invoke() performs one fresh write; count_fn() returns how many rows exist now.
 # ---------------------------------------------------------------------------
 
@@ -48,7 +79,12 @@ def _dependency_case(services):
             summary=f"link-{counter['n']}",
         )
 
-    return invoke, portfolio._dependency_repo, "add", lambda: len(portfolio._dependency_repo.list())
+    return (
+        invoke,
+        SqlAlchemyPortfolioProjectDependencyRepository,
+        "add",
+        lambda: len(portfolio._dependency_repo.list()),
+    )
 
 
 def _intake_case(services):
@@ -62,7 +98,12 @@ def _intake_case(services):
             sponsor_name="Sponsor",
         )
 
-    return invoke, portfolio._intake_repo, "add", lambda: len(portfolio._intake_repo.list())
+    return (
+        invoke,
+        SqlAlchemyPortfolioIntakeRepository,
+        "add",
+        lambda: len(portfolio._intake_repo.list()),
+    )
 
 
 def _scenario_case(services):
@@ -73,22 +114,36 @@ def _scenario_case(services):
         counter["n"] += 1
         return portfolio.create_scenario(name=f"Scenario {counter['n']}")
 
-    return invoke, portfolio._scenario_repo, "add", lambda: len(portfolio._scenario_repo.list())
+    return (
+        invoke,
+        SqlAlchemyPortfolioScenarioRepository,
+        "add",
+        lambda: len(portfolio._scenario_repo.list()),
+    )
 
 
 def _template_case(services):
     portfolio = services["portfolio_service"]
-    # Pre-seed the lazily-created default template so each invoke() below adds exactly one row —
-    # _ensure_scoring_templates() (out of this phase's scope) auto-creates "Balanced PMO" as a
-    # side effect of the *first* call in a repo with no templates at all.
-    portfolio._ensure_scoring_templates()
+    # Pre-seed the lazily-created default template so each invoke() below adds exactly one row --
+    # _ensure_scoring_templates() auto-creates "Balanced PMO" as a side effect of the *first* call
+    # against a repo with no templates at all. Runs through a real, disposable UoW so the bootstrap
+    # itself commits normally (mirrors production: any command touching scoring templates could
+    # trigger it).
+    with portfolio._require_uow_factory().create(context=portfolio._new_context()) as uow:
+        portfolio._ensure_scoring_templates(templates_repo=uow.scoring_templates, events=[])
+        uow.commit()
     counter = {"n": 0}
 
     def invoke():
         counter["n"] += 1
         return portfolio.create_scoring_template(name=f"Template {counter['n']}")
 
-    return invoke, portfolio._scoring_template_repo, "add", lambda: len(portfolio._scoring_template_repo.list())
+    return (
+        invoke,
+        SqlAlchemyPortfolioScoringTemplateRepository,
+        "add",
+        lambda: len(portfolio._scoring_template_repo.list()),
+    )
 
 
 _CREATE_CASES = {
@@ -102,8 +157,8 @@ _CREATE_CASES = {
 @pytest.fixture(params=list(_CREATE_CASES))
 def create_case(request, services):
     build = _CREATE_CASES[request.param]
-    invoke, repo, repo_method, count = build(services)
-    return request.param, services, invoke, repo, repo_method, count
+    invoke, repo_class, repo_method, count = build(services)
+    return request.param, services, invoke, repo_class, repo_method, count
 
 
 # ---------------------------------------------------------------------------
@@ -112,9 +167,9 @@ def create_case(request, services):
 
 
 def test_repository_failure_triggers_rollback_with_no_partial_row(create_case, monkeypatch):
-    _name, services, invoke, repo, repo_method, count = create_case
+    _name, services, invoke, repo_class, repo_method, count = create_case
     before = count()
-    monkeypatch.setattr(repo, repo_method, _boom)
+    monkeypatch.setattr(repo_class, repo_method, _boom)
 
     with pytest.raises(_Boom):
         invoke()
@@ -123,64 +178,60 @@ def test_repository_failure_triggers_rollback_with_no_partial_row(create_case, m
 
 
 # ---------------------------------------------------------------------------
-# 2 & 3. A forced commit failure triggers rollback; no partial row survives.
+# 2 & 3. A forced failure elsewhere in the SAME transaction (enterprise audit, which now runs
+# for every Portfolio sub-aggregate per P42) also triggers rollback -- this is the exact P40A
+# hazard shape: the inner mutation itself already succeeded before the failure.
 # ---------------------------------------------------------------------------
 
 
-def test_commit_failure_triggers_rollback_with_no_partial_row(create_case, monkeypatch):
-    _name, services, invoke, repo, repo_method, count = create_case
+def test_audit_failure_triggers_rollback_with_no_partial_row(create_case, monkeypatch):
+    _name, services, invoke, _repo_class, _repo_method, count = create_case
     before = count()
-    monkeypatch.setattr(services["session"], "commit", _boom)
+    monkeypatch.setattr(EnterpriseAuditService, "record", _boom)
 
     with pytest.raises(_Boom):
         invoke()
 
-    monkeypatch.undo()
     assert count() == before
 
 
 # ---------------------------------------------------------------------------
-# 4. No portfolio_changed event is emitted after either failure.
+# 4. No portfolio ViewInvalidation hint is published after either failure.
 # ---------------------------------------------------------------------------
 
 
-def test_no_portfolio_changed_event_after_repository_failure(create_case, monkeypatch):
-    _name, services, invoke, repo, repo_method, _count = create_case
-    from src.core.shared.events.domain_events import domain_events
-
-    emitted: list[str] = []
-    domain_events.portfolio_changed.connect(emitted.append)
-    monkeypatch.setattr(repo, repo_method, _boom)
+def test_no_view_invalidation_after_repository_failure(create_case, monkeypatch):
+    _name, services, invoke, repo_class, repo_method, _count = create_case
+    hints = _spy_hints(services)
+    monkeypatch.setattr(repo_class, repo_method, _boom)
 
     with pytest.raises(_Boom):
         invoke()
 
-    assert emitted == []
+    assert _portfolio_hints(hints) == []
 
 
-def test_no_portfolio_changed_event_after_commit_failure(create_case, monkeypatch):
-    _name, services, invoke, repo, repo_method, _count = create_case
-    from src.core.shared.events.domain_events import domain_events
-
-    emitted: list[str] = []
-    domain_events.portfolio_changed.connect(emitted.append)
-    monkeypatch.setattr(services["session"], "commit", _boom)
+def test_no_view_invalidation_after_audit_failure(create_case, monkeypatch):
+    _name, services, invoke, _repo_class, _repo_method, _count = create_case
+    hints = _spy_hints(services)
+    monkeypatch.setattr(EnterpriseAuditService, "record", _boom)
 
     with pytest.raises(_Boom):
         invoke()
 
-    assert emitted == []
+    assert _portfolio_hints(hints) == []
 
 
 # ---------------------------------------------------------------------------
-# 5. The shared Session remains usable after the rollback.
+# 5. The service remains usable for the next command after a failed write (each command uses its
+# own fresh, disposable UoW session -- P42 -- so this is naturally true, but proved end to end).
 # ---------------------------------------------------------------------------
 
 
-def test_session_remains_usable_after_repository_failure(create_case, monkeypatch):
-    _name, services, invoke, repo, repo_method, count = create_case
+def test_service_remains_usable_after_repository_failure(create_case, monkeypatch):
+    _name, services, invoke, repo_class, repo_method, count = create_case
     before = count()
-    monkeypatch.setattr(repo, repo_method, _boom)
+    monkeypatch.setattr(repo_class, repo_method, _boom)
     with pytest.raises(_Boom):
         invoke()
     monkeypatch.undo()
@@ -191,10 +242,10 @@ def test_session_remains_usable_after_repository_failure(create_case, monkeypatc
     assert count() == before + 1
 
 
-def test_session_remains_usable_after_commit_failure(create_case, monkeypatch):
-    _name, services, invoke, repo, repo_method, count = create_case
+def test_service_remains_usable_after_audit_failure(create_case, monkeypatch):
+    _name, services, invoke, _repo_class, _repo_method, count = create_case
     before = count()
-    monkeypatch.setattr(services["session"], "commit", _boom)
+    monkeypatch.setattr(EnterpriseAuditService, "record", _boom)
     with pytest.raises(_Boom):
         invoke()
     monkeypatch.undo()
@@ -206,51 +257,46 @@ def test_session_remains_usable_after_commit_failure(create_case, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# 6. Successful behavior and existing DTO output are unchanged for the non-failure path.
+# 6. Successful behavior is unaffected: exactly one ViewInvalidation hint, non-failure path.
 # ---------------------------------------------------------------------------
 
 
-def test_successful_write_is_unaffected_by_the_rollback_wrapper(create_case):
-    _name, services, invoke, repo, repo_method, count = create_case
-    from src.core.shared.events.domain_events import domain_events
-
-    emitted: list[str] = []
-    domain_events.portfolio_changed.connect(emitted.append)
+def test_successful_write_produces_exactly_one_portfolio_view_invalidation(create_case):
+    _name, services, invoke, _repo_class, _repo_method, count = create_case
+    hints = _spy_hints(services)
     before = count()
 
     created = invoke()
 
     assert created is not None
     assert count() == before + 1
-    assert emitted == [created.id]
+    assert len(_portfolio_hints(hints)) == 1
 
 
 # ---------------------------------------------------------------------------
-# activate_scoring_template / update_intake_item / update_scenario / remove_project_dependency —
-# the six named methods above cover every "create" write; these cover the remaining "update"/
-# "delete" writes with the same failure-injection shape, using update()/delete() instead of add().
+# activate_scoring_template / update_intake_item / update_scenario / remove_project_dependency --
+# the four "create" cases above cover every "create" write; these cover the remaining "update"/
+# "delete" writes with the same failure-injection shape.
 # ---------------------------------------------------------------------------
 
 
-def test_update_scoring_template_rolls_back_on_repository_failure(services, monkeypatch):
-    # _deactivate_other_templates() (called before this phase's new try block, and out of this
-    # phase's scope per §18) also calls scoring_template_repo.update — for `first`, the template
-    # being deactivated. To exercise this phase's own rollback wrapper specifically (the
-    # candidate=second update inside activate_scoring_template's try block) without that earlier,
-    # unrelated call tripping the same forced failure, the boom is targeted to `second`'s id only;
-    # `first`'s deactivation is left to execute for real, so the assertion below also proves that a
-    # failure on the transaction's *second* write correctly rolls back its *first* write too.
+def test_activate_scoring_template_rolls_back_both_writes_on_repository_failure(services, monkeypatch):
+    """`activate_scoring_template` mutates TWO rows in the same transaction (the newly-activated
+    template and the previously-active one, via `_deactivate_other_templates`) -- P42's UoW makes
+    both genuinely atomic. Forcing the SECOND write (the target) to fail must roll back the FIRST
+    (the deactivation) too -- proving real cross-sub-aggregate-row atomicity, not two independent
+    commits that merely happen to run in sequence."""
     portfolio = services["portfolio_service"]
     first = portfolio.create_scoring_template(name="Rollback Template A", activate=True)
     second = portfolio.create_scoring_template(name="Rollback Template B", activate=False)
-    original_update = portfolio._scoring_template_repo.update
+    original_update = SqlAlchemyPortfolioScoringTemplateRepository.update
 
-    def _boom_for_second(obj, *args, **kwargs):
+    def _boom_for_second(self, obj, *args, **kwargs):
         if obj.id == second.id:
             raise _Boom("forced failure for Phase 0A.2 rollback test")
-        return original_update(obj, *args, **kwargs)
+        return original_update(self, obj, *args, **kwargs)
 
-    monkeypatch.setattr(portfolio._scoring_template_repo, "update", _boom_for_second)
+    monkeypatch.setattr(SqlAlchemyPortfolioScoringTemplateRepository, "update", _boom_for_second)
 
     with pytest.raises(_Boom):
         portfolio.activate_scoring_template(second.id)
@@ -262,13 +308,11 @@ def test_update_scoring_template_rolls_back_on_repository_failure(services, monk
     assert reloaded_second.is_active is False
 
 
-def test_update_scoring_template_rolls_back_on_commit_failure_and_session_stays_usable(
-    services, monkeypatch
-):
+def test_activate_scoring_template_rolls_back_on_audit_failure(services, monkeypatch):
     portfolio = services["portfolio_service"]
     first = portfolio.create_scoring_template(name="Rollback Template C", activate=True)
     second = portfolio.create_scoring_template(name="Rollback Template D", activate=False)
-    monkeypatch.setattr(services["session"], "commit", _boom)
+    monkeypatch.setattr(EnterpriseAuditService, "record", _boom)
 
     with pytest.raises(_Boom):
         portfolio.activate_scoring_template(second.id)
@@ -284,7 +328,7 @@ def test_update_scoring_template_rolls_back_on_commit_failure_and_session_stays_
 def test_update_intake_item_rolls_back_on_repository_failure(services, monkeypatch):
     portfolio = services["portfolio_service"]
     item = portfolio.create_intake_item(title="Rollback Intake", sponsor_name="Sponsor")
-    monkeypatch.setattr(portfolio._intake_repo, "update", _boom)
+    monkeypatch.setattr(SqlAlchemyPortfolioIntakeRepository, "update", _boom)
 
     with pytest.raises(_Boom):
         portfolio.update_intake_item(item.id, title="Changed Title")
@@ -297,7 +341,7 @@ def test_update_intake_item_rolls_back_on_repository_failure(services, monkeypat
 def test_update_scenario_rolls_back_on_repository_failure(services, monkeypatch):
     portfolio = services["portfolio_service"]
     scenario = portfolio.create_scenario(name="Rollback Scenario")
-    monkeypatch.setattr(portfolio._scenario_repo, "update", _boom)
+    monkeypatch.setattr(SqlAlchemyPortfolioScenarioRepository, "update", _boom)
 
     with pytest.raises(_Boom):
         portfolio.update_scenario(scenario.id, name="Changed Name")
@@ -316,7 +360,7 @@ def test_remove_project_dependency_rolls_back_on_repository_failure(services, mo
         predecessor_project_id=project_a.id,
         successor_project_id=project_b.id,
     )
-    monkeypatch.setattr(portfolio._dependency_repo, "delete", _boom)
+    monkeypatch.setattr(SqlAlchemyPortfolioProjectDependencyRepository, "delete", _boom)
 
     with pytest.raises(_Boom):
         portfolio.remove_project_dependency(dependency.id)

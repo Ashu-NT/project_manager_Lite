@@ -9,7 +9,11 @@ from src.core.modules.project_management.domain.portfolio import (
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import NotFoundError
-from src.core.shared.events.domain_events import domain_events
+from src.core.shared.audit import record_audit_entry
+from src.core.modules.project_management.application.portfolio.portfolio_events import (
+    PortfolioIntakeItemChangeType,
+    PortfolioIntakeItemChanged,
+)
 
 
 class PortfolioIntakeCommandMixin:
@@ -31,39 +35,63 @@ class PortfolioIntakeCommandMixin:
     ) -> PortfolioIntakeItem:
         require_permission(self._user_session, "portfolio.manage", operation_label="create portfolio intake")
         organization_id = self._active_portfolio_organization_id(operation_label="create portfolio intake")
-        scoring_template = self._resolve_scoring_template(scoring_template_id)
-        item = PortfolioIntakeItem.create(
-            organization_id=organization_id,
-            title=title,
-            sponsor_name=sponsor_name,
-            summary=summary,
-            requested_budget=requested_budget,
-            requested_capacity_percent=requested_capacity_percent,
-            target_start_date=target_start_date,
-            strategic_score=strategic_score,
-            value_score=value_score,
-            urgency_score=urgency_score,
-            risk_score=risk_score,
-            scoring_template_id=scoring_template.id,
-            scoring_template_name=scoring_template.name,
-            strategic_weight=scoring_template.strategic_weight,
-            value_weight=scoring_template.value_weight,
-            urgency_weight=scoring_template.urgency_weight,
-            risk_weight=scoring_template.risk_weight,
-            status=status,
-        )
-        try:
-            self._intake_repo.add(item)
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.portfolio_changed.emit(item.id)
+        scope = self._active_portfolio_scope(operation_label="create portfolio intake")
+        with self._require_uow_factory().create(context=self._new_context()) as uow:
+            events: list = []
+            scoring_template = self._resolve_scoring_template(
+                scoring_template_id, templates_repo=uow.scoring_templates, events=events
+            )
+            item = PortfolioIntakeItem.create(
+                organization_id=organization_id,
+                title=title,
+                sponsor_name=sponsor_name,
+                summary=summary,
+                requested_budget=requested_budget,
+                requested_capacity_percent=requested_capacity_percent,
+                target_start_date=target_start_date,
+                strategic_score=strategic_score,
+                value_score=value_score,
+                urgency_score=urgency_score,
+                risk_score=risk_score,
+                scoring_template_id=scoring_template.id,
+                scoring_template_name=scoring_template.name,
+                strategic_weight=scoring_template.strategic_weight,
+                value_weight=scoring_template.value_weight,
+                urgency_weight=scoring_template.urgency_weight,
+                risk_weight=scoring_template.risk_weight,
+                status=status,
+            )
+            uow.intake.add(item)
+            record_audit_entry(
+                uow,
+                operation="create",
+                entity_type="portfolio_intake_item",
+                entity_id=item.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={"action": "portfolio.intake.create", "title": item.title},
+                commit=False,
+                fail_closed=True,
+            )
+            events.append(
+                PortfolioIntakeItemChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    intake_item_id=item.id,
+                    change_type=PortfolioIntakeItemChangeType.CREATED,
+                    occurred_at=self._utc_now(),
+                )
+            )
+            for event in events:
+                uow.record_event(event)
+            uow.commit()
         return item
 
     def update_intake_item(self, item_id: str, **changes) -> PortfolioIntakeItem:
         require_permission(self._user_session, "portfolio.manage", operation_label="update portfolio intake")
         self._active_portfolio_organization_id(operation_label="update portfolio intake")
+        scope = self._active_portfolio_scope(operation_label="update portfolio intake")
         item = self._intake_repo.get(item_id)
         if item is None:
             raise NotFoundError("Portfolio intake item not found.", code="PORTFOLIO_INTAKE_NOT_FOUND")
@@ -110,16 +138,38 @@ class PortfolioIntakeCommandMixin:
             status=item.status if changes.get("status") is None else changes["status"],
             updated_at=self._utc_now(),
         )
-        if "scoring_template_id" in changes and changes["scoring_template_id"] is not None:
-            scoring_template = self._resolve_scoring_template(changes["scoring_template_id"])
-            candidate = self._apply_scoring_template(candidate, scoring_template)
-        try:
-            self._intake_repo.update(candidate)
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.portfolio_changed.emit(candidate.id)
+        with self._require_uow_factory().create(context=self._new_context()) as uow:
+            events: list = []
+            if "scoring_template_id" in changes and changes["scoring_template_id"] is not None:
+                scoring_template = self._resolve_scoring_template(
+                    changes["scoring_template_id"], templates_repo=uow.scoring_templates, events=events
+                )
+                candidate = self._apply_scoring_template(candidate, scoring_template)
+            uow.intake.update(candidate)
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="portfolio_intake_item",
+                entity_id=candidate.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={"action": "portfolio.intake.update", "title": candidate.title},
+                commit=False,
+                fail_closed=True,
+            )
+            events.append(
+                PortfolioIntakeItemChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    intake_item_id=candidate.id,
+                    change_type=PortfolioIntakeItemChangeType.UPDATED,
+                    occurred_at=self._utc_now(),
+                )
+            )
+            for event in events:
+                uow.record_event(event)
+            uow.commit()
         return candidate
 
 

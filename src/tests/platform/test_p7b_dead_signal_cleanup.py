@@ -104,12 +104,18 @@ def test_pm_financials_workspace_coalesces_scoped_finance_invalidations(services
 
 
 def test_pm_portfolio_workspace_still_reacts_to_its_remaining_real_signals(services, qapp):
+    """P42: was `portfolio_changed` -- deleted (Portfolio fully modernized). This test's own
+    purpose was always "Portfolio workspace still reacts to at least one of its surviving legacy
+    Signal subscriptions," not specifically its own capability's typed facts (proved separately,
+    end to end with real services, by `test_p42_portfolio_full_modernization.py`) -- so
+    repointing to `project_changed`, Portfolio's other remaining legacy subscription, preserves
+    that intent exactly."""
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.portfolioWorkspace
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.portfolio_changed.emit(_unique("p7b-portfolio"))
+    domain_events.project_changed.emit(_unique("p7b-portfolio"))
     from PySide6.QtWidgets import QApplication
 
     QApplication.processEvents()

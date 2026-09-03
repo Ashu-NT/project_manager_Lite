@@ -53,6 +53,9 @@ from src.ui_qml.modules.project_management.adapters.timesheets.timesheet_view_in
 from src.ui_qml.modules.project_management.adapters.register.register_view_invalidation_adapter import (
     RegisterViewInvalidationAdapter,
 )
+from src.ui_qml.modules.project_management.adapters.portfolio.portfolio_view_invalidation_adapter import (
+    PortfolioViewInvalidationAdapter,
+)
 from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import (
     TenantSwitcherPresenter,
 )
@@ -226,6 +229,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self._control_register_view_invalidation_adapter.registerWorkspaceStale.connect(
             self.registerWorkspaceStale.emit
         )
+        self._portfolio_view_invalidation_adapter: PortfolioViewInvalidationAdapter | None = None
         self._pm_capability = PMCapabilityController(
             auth_engine=auth_engine,
             user_session_provider=user_session_provider,
@@ -498,6 +502,15 @@ class ProjectManagementWorkspaceCatalog(QObject):
             )
             self._portfolio_resource_view_invalidation_adapter = self._wire_resource_list_stale(
                 self._portfolio_workspace
+            )
+            self._portfolio_view_invalidation_adapter = PortfolioViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._portfolio_view_invalidation_adapter.portfolioWorkspaceStale.connect(
+                lambda _organization_id: self._portfolio_workspace._request_domain_refresh()
             )
         return self._portfolio_workspace
 
@@ -836,12 +849,18 @@ class ProjectManagementWorkspaceCatalog(QObject):
         for register_adapter in (
             self._register_view_invalidation_adapter,
             self._dashboard_register_view_invalidation_adapter,
+            self._control_register_view_invalidation_adapter,
         ):
             if register_adapter is not None:
                 register_adapter.set_active_scope(
                     tenant_id=self._active_tenant_id() or "",
                     organization_id=self._active_organization_id() or "",
                 )
+        if self._portfolio_view_invalidation_adapter is not None:
+            self._portfolio_view_invalidation_adapter.set_active_scope(
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+            )
 
     @Slot(str, result=bool)
     def isModuleEnabled(self, module_code: str) -> bool:
