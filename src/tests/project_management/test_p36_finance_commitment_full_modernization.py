@@ -353,23 +353,16 @@ def test_match_and_reverse_produce_matched_then_reversed_hints(services):
         content_hash="f" * 64,
         posting_purpose=FinancialPostingPurpose.RECEIPT_ACCRUAL,
     )
-    reversal_entry = ProjectCostEntry.create_draft(
-        tenant_id=organization.tenant_id, organization_id=organization.id, project_id=project.id,
-        description="P36 reversal", kind=ProjectCostEntryKind.REVERSAL,
-        money=Money.of("-40", organization.base_currency), transaction_date=date(2026, 8, 12),
-        cost_code_id=cost_code.id, source=reversal_source, task_id=None, resource_id=None,
-        actor_id=services["user_session"].principal.user_id,
-        occurred_at=datetime(2026, 8, 12, 9, tzinfo=timezone.utc),
-        reverses_entry_id=entry.id,
-    )
     now = datetime(2026, 8, 12, 9, tzinfo=timezone.utc)
-    reversal_entry.submit(actor_id=reversal_entry.created_by, occurred_at=now)
-    reversal_entry.approve(actor_id=reversal_entry.created_by, occurred_at=now)
-    reversal_entry.post(
-        actor_id=reversal_entry.created_by, occurred_at=now, posting_date=date(2026, 8, 12),
-        financial_period_id=period.id, base_money=Money.of("-40", organization.base_currency),
-        exchange_rate=Decimal("1"), exchange_rate_date=date(2026, 8, 12),
-        exchange_rate_source="identity", exchange_rate_captured_at=now,
+    reversal_entry = ProjectCostEntry.create_posted_reversal(
+        original=entry,
+        reversal_id="p36-reversal-entry-1",
+        description="P36 reversal",
+        source=reversal_source,
+        posting_date=date(2026, 8, 12),
+        financial_period_id=period.id,
+        actor_id=services["user_session"].principal.user_id,
+        occurred_at=now,
     )
     services["cost_entry_service"]._entry_repo.add(reversal_entry)
     services["session"].commit()
