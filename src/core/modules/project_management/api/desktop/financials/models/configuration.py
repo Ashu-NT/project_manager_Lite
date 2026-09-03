@@ -28,11 +28,26 @@ class FinancialProfileDto:
     status_label: str = "Not configured"
     subtitle: str = "Project-level currency, controls, and billing policy."
     fields: tuple[FinancialConfigurationFieldDto, ...] = ()
+    state: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
 class FinancialConfigurationWorkspaceDto:
     profile: FinancialProfileDto = field(default_factory=FinancialProfileDto)
+    can_create_cost_code: bool = False
+    can_manage_restrictions: bool = False
+    cost_codes: tuple[FinancialConfigurationRecordDto, ...] = ()
+    cost_code_page: int = 1
+    cost_code_page_size: int = 50
+    cost_code_total: int = 0
+    cost_code_sort_key: str = "code"
+    cost_code_sort_direction: str = "asc"
+    restrictions: tuple[FinancialConfigurationRecordDto, ...] = ()
+    restriction_page: int = 1
+    restriction_page_size: int = 50
+    restriction_total: int = 0
+    restriction_sort_key: str = "code"
+    restriction_sort_direction: str = "asc"
     selected_budget_id: str = ""
     show_create_budget_version: bool = False
     can_create_budget_version: bool = False

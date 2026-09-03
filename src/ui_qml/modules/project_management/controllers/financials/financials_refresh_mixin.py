@@ -93,6 +93,16 @@ class FinancialsRefreshMixin:
                 planned_cost_version_page=self._planned_cost_version_page,
                 billing_preparation_page=self._billing_preparation_page,
                 configuration_page_size=self._configuration_page_size,
+                setup_cost_code_page=self._setup_cost_code_page,
+                setup_restriction_page=self._setup_restriction_page,
+                setup_cost_code_sort_key=self._setup_cost_code_sort_key,
+                setup_cost_code_sort_direction=self._sort_direction_name(self._setup_cost_code_sort_direction),
+                setup_restriction_sort_key=self._setup_restriction_sort_key,
+                setup_restriction_sort_direction=self._sort_direction_name(self._setup_restriction_sort_direction),
+                setup_cost_code_search=self._setup_cost_code_search,
+                setup_cost_code_status=self._setup_cost_code_status,
+                setup_cost_code_assignment=self._setup_cost_code_assignment,
+                setup_restriction_search=self._setup_restriction_search,
                 actual_page=self._actual_page,
                 commitment_page=self._commitment_page,
                 transaction_page_size=self._transaction_page_size,
@@ -481,6 +491,9 @@ class FinancialsRefreshMixin:
             self._set_financial_profile(
                 serialize_financials_detail_view_model(state.financial_profile)
             )
+            self._set_setup_state(state)
+            self._setup_cost_code_page = state.setup_cost_codes.page
+            self._setup_restriction_page = state.setup_restrictions.page
         elif subsection == "changes":
             self._set_can_create_financial_change(state.can_create_change)
             self._set_selected_change_id(state.selected_change_id)
@@ -534,6 +547,13 @@ class FinancialsRefreshMixin:
         self._set_variance_basis(default_detail())
         self._set_report_basis(default_detail())
         self._set_financial_profile(default_detail())
+        self._can_create_cost_code = False
+        self._can_manage_restrictions = False
+        self._setup_cost_codes = default_collection()
+        self._setup_restrictions = default_collection()
+        self._setup_cost_codes_table_model.set_rows([])
+        self._setup_restrictions_table_model.set_rows([])
+        self.setupChanged.emit()
         self._set_budget_versions(default_collection())
         self._set_budget_lines(default_collection())
         self._set_selected_budget_id("")

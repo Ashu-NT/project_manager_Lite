@@ -4,6 +4,8 @@ from src.core.modules.project_management.api.desktop.financials.api import (
     ProjectManagementFinancialsDesktopApi,
 )
 from src.core.modules.project_management.api.desktop.financials.commands import (
+    FinancialChangeCostCodeStatusCommand,
+    FinancialCostCodeRestrictionCommand,
     FinancialActivateBillingProfileCommand,
     FinancialAddBudgetLineCommand,
     FinancialAddApprovedTimeBillingSourceCommand,
@@ -37,6 +39,9 @@ from src.core.modules.project_management.api.desktop.financials.commands import 
     FinancialVersionedBudgetCommand,
     FinancialVersionedForecastCommand,
     FinancialSubmitChangeCommand,
+    FinancialTransitionProfileCommand,
+    FinancialUpdateCostCodeCommand,
+    FinancialUpdateProfileCommand,
 )
 from src.core.modules.project_management.api.desktop.financials.factories.financials_api_factory import (
     build_project_management_financials_desktop_api,
@@ -73,6 +78,8 @@ from src.core.modules.project_management.api.desktop.financials.models import (
 )
 
 __all__ = [
+    "FinancialChangeCostCodeStatusCommand",
+    "FinancialCostCodeRestrictionCommand",
     "BaselineVarianceRecordDto",
     "FinancialActivateBillingProfileCommand",
     "FinancialAddBudgetLineCommand",
@@ -134,6 +141,9 @@ __all__ = [
     "FinancialVersionedBudgetCommand",
     "FinancialVersionedForecastCommand",
     "FinancialSubmitChangeCommand",
+    "FinancialTransitionProfileCommand",
+    "FinancialUpdateCostCodeCommand",
+    "FinancialUpdateProfileCommand",
     "ProjectManagementFinancialsDesktopApi",
     "build_project_management_financials_desktop_api",
 ]

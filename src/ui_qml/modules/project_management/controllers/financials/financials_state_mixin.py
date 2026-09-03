@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 
+from src.ui_qml.modules.project_management.controllers.common import (
+    serialize_financials_collection_view_model,
+)
+
 from src.ui_qml.modules.project_management.controllers.financials.financials_types import (
     FinancialsMap,
     FinancialsObjectList,
@@ -315,6 +319,19 @@ class FinancialsStateMixin:
         if value != self._financial_profile:
             self._financial_profile = value
             self.financialProfileChanged.emit()
+
+    def _set_setup_state(self, state) -> None:
+        self._can_create_cost_code = state.can_create_cost_code
+        self._can_manage_restrictions = state.can_manage_restrictions
+        self._setup_cost_codes = serialize_financials_collection_view_model(state.setup_cost_codes)
+        self._setup_restrictions = serialize_financials_collection_view_model(state.setup_restrictions)
+        self._setup_cost_codes_table_model.set_rows(self._setup_cost_codes.get("items", []))
+        self._setup_restrictions_table_model.set_rows(self._setup_restrictions.get("items", []))
+        self._setup_cost_code_sort_key = state.setup_cost_code_sort_key
+        self._setup_cost_code_sort_direction = Qt.DescendingOrder.value if state.setup_cost_code_sort_direction == "desc" else Qt.AscendingOrder.value
+        self._setup_restriction_sort_key = state.setup_restriction_sort_key
+        self._setup_restriction_sort_direction = Qt.DescendingOrder.value if state.setup_restriction_sort_direction == "desc" else Qt.AscendingOrder.value
+        self.setupChanged.emit()
 
     def _set_budget_versions(self, value: FinancialsMap) -> None:
         if value != self._budget_versions:

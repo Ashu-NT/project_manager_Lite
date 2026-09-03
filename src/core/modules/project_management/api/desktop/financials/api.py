@@ -47,6 +47,10 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     FinanceLookupQuery,
     ManualActualCostCodeQuery,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.finance_setup_facts import (
+    FinanceSetupCostCodeQuery,
+    FinanceSetupRestrictionQuery,
+)
 from src.core.modules.project_management.contracts.reads.pagination import (
     normalize_offset_for_total,
 )
@@ -111,7 +115,12 @@ from src.core.modules.project_management.api.desktop.financials.commands.cost_en
     FinancialVersionedActualCommand,
 )
 from src.core.modules.project_management.api.desktop.financials.commands.configuration import (
+    FinancialChangeCostCodeStatusCommand,
+    FinancialCostCodeRestrictionCommand,
     FinancialCreateCostCodeCommand,
+    FinancialTransitionProfileCommand,
+    FinancialUpdateCostCodeCommand,
+    FinancialUpdateProfileCommand,
 )
 from src.core.modules.project_management.api.desktop.financials.commands.budgets import (
     FinancialAddBudgetLineCommand,
@@ -429,6 +438,25 @@ class ProjectManagementFinancialsDesktopApi:
             )
         )
 
+    def search_setup_cost_codes(
+        self,
+        project_id: str,
+        *,
+        search: str = "",
+        page: int = 1,
+        page_size: int = 25,
+        assignment_state: str = "",
+        active_only: bool = True,
+    ) -> FinancialLookupPageDto:
+        return _serialize_lookup_page(
+            self._require_finance_workspace_query().search_setup_cost_codes(
+                project_id,
+                request=FinanceLookupQuery(search=search, page=page, page_size=page_size),
+                assignment_state=assignment_state,
+                active_only=active_only,
+            )
+        )
+
     def get_manual_actual_defaults(
         self, project_id: str
     ) -> FinancialManualActualOptionsDto:
@@ -445,18 +473,107 @@ class ProjectManagementFinancialsDesktopApi:
         self, command: FinancialCreateCostCodeCommand
     ) -> FinancialCostCodeOptionDescriptor:
         commands = self._require_finance_governance_commands()
+        optional_fields = {
+            key: value
+            for key, value in {
+                "parent_id": command.parent_id,
+                "external_system": command.external_system,
+                "external_reference": command.external_reference,
+                "effective_from": command.effective_from,
+                "effective_to": command.effective_to,
+            }.items()
+            if value is not None
+        }
         cost_code = commands.financial_setup(
             lambda service: service.create_cost_code(
                 code=command.code,
                 name=command.name,
                 description=command.description,
                 available_to_project_id=command.project_id,
+                **optional_fields,
             ),
             project_id=command.project_id,
         )
         return FinancialCostCodeOptionDescriptor(
             value=cost_code.id,
             label=f"{cost_code.code} - {cost_code.name}",
+        )
+
+    def update_financial_profile(self, command: FinancialUpdateProfileCommand) -> None:
+        self._require_finance_governance_commands().financial_setup(
+            lambda service: service.configure_profile(
+                command.project_id,
+                expected_version=command.expected_version,
+                currency_code=command.currency_code,
+                billing_method=command.billing_method,
+                budget_control_mode=command.budget_control_mode,
+                cost_code_policy=command.cost_code_policy,
+                financial_start_date=command.financial_start_date,
+                financial_end_date=command.financial_end_date,
+                is_funded=command.is_funded,
+                is_billable=command.is_billable,
+                default_cost_code_id=command.default_cost_code_id,
+            ),
+            project_id=command.project_id,
+        )
+
+    def transition_financial_profile(
+        self, command: FinancialTransitionProfileCommand
+    ) -> None:
+        self._require_finance_governance_commands().financial_setup(
+            lambda service: service.transition_profile(
+                command.project_id,
+                target=command.target_status,
+                expected_version=command.expected_version,
+            ),
+            project_id=command.project_id,
+        )
+
+    def update_cost_code(self, command: FinancialUpdateCostCodeCommand) -> None:
+        self._require_finance_governance_commands().financial_setup(
+            lambda service: service.update_cost_code(
+                command.cost_code_id,
+                expected_version=command.expected_version,
+                code=command.code,
+                name=command.name,
+                description=command.description,
+                parent_id=command.parent_id,
+                external_system=command.external_system,
+                external_reference=command.external_reference,
+                effective_from=command.effective_from,
+                effective_to=command.effective_to,
+            )
+        )
+
+    def change_cost_code_status(
+        self, command: FinancialChangeCostCodeStatusCommand
+    ) -> None:
+        def mutate(service):
+            operation = service.activate_cost_code if command.activate else service.deactivate_cost_code
+            return operation(command.cost_code_id, expected_version=command.expected_version)
+
+        self._require_finance_governance_commands().financial_setup(mutate)
+
+    def add_cost_code_restriction(
+        self, command: FinancialCostCodeRestrictionCommand
+    ) -> None:
+        self._require_finance_governance_commands().financial_setup(
+            lambda service: service.add_project_cost_code(
+                project_id=command.project_id,
+                cost_code_id=command.cost_code_id,
+            ),
+            project_id=command.project_id,
+        )
+
+    def remove_cost_code_restriction(
+        self, command: FinancialCostCodeRestrictionCommand
+    ) -> None:
+        self._require_finance_governance_commands().financial_setup(
+            lambda service: service.remove_project_cost_code(
+                project_id=command.project_id,
+                cost_code_id=command.cost_code_id,
+            ),
+            project_id=command.project_id,
         )
 
     def list_cost_entries(
@@ -1261,12 +1378,43 @@ class ProjectManagementFinancialsDesktopApi:
         return str(result)
 
     def get_financial_setup_workspace(
-        self, project_id: str
+        self,
+        project_id: str,
+        *,
+        cost_code_page: int = 1,
+        restriction_page: int = 1,
+        page_size: int = 50,
+        cost_code_search: str = "",
+        cost_code_status: str = "",
+        cost_code_assignment: str = "",
+        restriction_search: str = "",
+        cost_code_sort_key: str = "code",
+        cost_code_sort_direction: str = "asc",
+        restriction_sort_key: str = "code",
+        restriction_sort_direction: str = "asc",
     ) -> FinancialConfigurationWorkspaceDto:
         if not project_id or self._finance_workspace_query is None:
             return FinancialConfigurationWorkspaceDto()
         return serialize_finance_setup_workspace(
-            self._finance_workspace_query.get_setup_workspace(project_id)
+            self._finance_workspace_query.get_setup_workspace(
+                project_id,
+                cost_code_request=FinanceSetupCostCodeQuery(
+                    page=cost_code_page,
+                    page_size=page_size,
+                    search=cost_code_search,
+                    status=cost_code_status,
+                    assignment_state=cost_code_assignment,
+                    sort_key=cost_code_sort_key,
+                    sort_direction=cost_code_sort_direction,
+                ),
+                restriction_request=FinanceSetupRestrictionQuery(
+                    page=restriction_page,
+                    page_size=page_size,
+                    search=restriction_search,
+                    sort_key=restriction_sort_key,
+                    sort_direction=restriction_sort_direction,
+                ),
+            )
         )
 
     def get_budget_workspace(

@@ -138,6 +138,13 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
             ),
         }
         candidate = replace(current, **values)
+        if candidate.default_cost_code_id:
+            default_cost_code = self._require_cost_code(candidate.default_cost_code_id)
+            if not default_cost_code.is_effective_on(date.today()):
+                raise BusinessRuleError(
+                    "The default cost code must be active and effective today.",
+                    code="PROJECT_DEFAULT_COST_CODE_NOT_EFFECTIVE",
+                )
         if (
             candidate.cost_code_policy == CostCodePolicy.RESTRICTED
             and candidate.default_cost_code_id
@@ -461,7 +468,10 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
             for row in self._cost_code_repo.list_restrictions(project_id)
         }
         if cost_code_id in existing:
-            return existing[cost_code_id]
+            raise BusinessRuleError(
+                "Cost code is already assigned to this project.",
+                code="PROJECT_COST_CODE_RESTRICTION_DUPLICATE",
+            )
         context = self._require_context("restrict project cost codes")
         restriction = ProjectCostCodeRestriction.create(
             tenant_id=context.tenant_id,

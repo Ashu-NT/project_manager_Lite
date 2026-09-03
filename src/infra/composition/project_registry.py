@@ -59,6 +59,12 @@ from src.core.modules.project_management.application.financials.event_handlers.v
     build_financial_profile_view_invalidation_handler,
 )
 from src.core.modules.project_management.application.financials.configuration_events import (
+    CostCodeActivated,
+    CostCodeCreated,
+    CostCodeDeactivated,
+    CostCodeProfileUpdated,
+    ProjectCostCodeRestrictionAdded,
+    ProjectCostCodeRestrictionRemoved,
     ProjectFinancialProfileTransitioned,
     ProjectFinancialProfileUpdated,
 )
@@ -714,6 +720,12 @@ def build_project_management_service_bundle(
     for _financial_profile_event_type in (
         ProjectFinancialProfileUpdated,
         ProjectFinancialProfileTransitioned,
+        CostCodeCreated,
+        CostCodeProfileUpdated,
+        CostCodeActivated,
+        CostCodeDeactivated,
+        ProjectCostCodeRestrictionAdded,
+        ProjectCostCodeRestrictionRemoved,
     ):
         platform_services.platform_post_commit_bus.subscribe(
             _financial_profile_event_type, _financial_profile_view_invalidation_handler

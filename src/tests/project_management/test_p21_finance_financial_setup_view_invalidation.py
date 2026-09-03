@@ -2,11 +2,9 @@
 retirement.
 
 Covers: ProjectFinancialProfileUpdated/ProjectFinancialProfileTransitioned -> the sole proven
-read-model target (`financial_profile`, project-scoped `ResourceScope`); CostCodeCreated/
-CostCodeProfileUpdated/CostCodeActivated/CostCodeDeactivated/ProjectCostCodeRestrictionAdded/
-ProjectCostCodeRestrictionRemoved recorded as canonical typed DomainEvents with deliberately NO
-ViewInvalidation target (no cached cost-code projection exists anywhere in the Financials
-workspace -- every cost-code picker is a live, on-demand query); true no-op semantics on
+read-model target (`financial_profile`, project-scoped `ResourceScope`); organization-scoped
+cost-code catalog and project-scoped restriction invalidation added when R6C-E introduced their
+authoritative paged Setup projections; true no-op semantics on
 `configure_profile`/`update_cost_code`; dedupe by (transaction correlation_id, target identity);
 the real FinancialsWorkspaceController's narrow "controls"-only destination invalidation; and the
 full retirement of `financial_setup_changed` (zero producers, zero consumers, field absent).
@@ -27,6 +25,8 @@ from src.core.modules.project_management.application.financials.configuration_ev
     ProjectFinancialProfileUpdated,
 )
 from src.core.modules.project_management.application.financials.event_handlers.view_invalidation import (
+    FINANCIAL_COST_CODE_CATALOG_SCOPE_CODE,
+    FINANCIAL_COST_CODE_RESTRICTION_SCOPE_CODE,
     FINANCIAL_PROFILE_SCOPE_CODE,
     FINANCIAL_SETUP_CATEGORY,
     build_financial_profile_view_invalidation_handler,
@@ -242,11 +242,7 @@ def test_transition_profile_true_no_op_produces_zero_hints(services):
     assert _setup_hints(hints) == []
 
 
-def test_create_cost_code_records_typed_event_with_zero_view_invalidation_hints(services):
-    """The only Financial Setup operation with a real, current production caller
-    (`command_boundary.py`'s desktop-API `create_cost_code`) -- proven from source that no
-    read-model in the Financials workspace caches cost-code data, so it correctly produces
-    zero hints even though the typed event itself is genuinely recorded."""
+def test_create_cost_code_invalidates_the_authoritative_setup_catalog(services):
     setup = services["financial_configuration_service"]
     events = _spy_events(services, CostCodeCreated)
     hints = _spy_hints(services)
@@ -255,7 +251,10 @@ def test_create_cost_code_records_typed_event_with_zero_view_invalidation_hints(
 
     assert len(events) == 1
     assert events[0].cost_code_id == cost_code.id
-    assert _setup_hints(hints) == []
+    setup_hints = _setup_hints(hints)
+    assert [hint.scope_code for hint in setup_hints] == [
+        FINANCIAL_COST_CODE_CATALOG_SCOPE_CODE
+    ]
 
 
 def test_update_cost_code_true_no_op_records_zero_events(services):
@@ -285,7 +284,7 @@ def test_update_cost_code_real_change_records_exactly_one_event(services):
     assert events[0].cost_code_id == cost_code.id
 
 
-def test_activate_and_deactivate_cost_code_record_typed_events_with_zero_hints(services):
+def test_activate_and_deactivate_cost_code_invalidate_the_setup_catalog(services):
     setup = services["financial_configuration_service"]
     cost_code = setup.create_cost_code(code=_unique("P21-CC"), name="P21 Cost Code")
     events = _spy_events(services, CostCodeDeactivated, CostCodeActivated)
@@ -297,10 +296,13 @@ def test_activate_and_deactivate_cost_code_record_typed_events_with_zero_hints(s
     assert deactivated.is_active is False
     assert reactivated.is_active is True
     assert [type(e).__name__ for e in events] == ["CostCodeDeactivated", "CostCodeActivated"]
-    assert _setup_hints(hints) == []
+    assert [hint.scope_code for hint in _setup_hints(hints)] == [
+        FINANCIAL_COST_CODE_CATALOG_SCOPE_CODE,
+        FINANCIAL_COST_CODE_CATALOG_SCOPE_CODE,
+    ]
 
 
-def test_add_and_remove_project_cost_code_restriction_record_typed_events_with_zero_hints(services):
+def test_add_and_remove_project_cost_code_restriction_invalidate_project_setup(services):
     project = _seed_project(services)
     setup = services["financial_configuration_service"]
     setup.configure_profile(
@@ -321,7 +323,10 @@ def test_add_and_remove_project_cost_code_restriction_record_typed_events_with_z
     assert [type(e).__name__ for e in events] == [
         "ProjectCostCodeRestrictionAdded", "ProjectCostCodeRestrictionRemoved",
     ]
-    assert _setup_hints(hints) == []
+    assert [hint.scope_code for hint in _setup_hints(hints)] == [
+        FINANCIAL_COST_CODE_RESTRICTION_SCOPE_CODE,
+        FINANCIAL_COST_CODE_RESTRICTION_SCOPE_CODE,
+    ]
 
 
 # ---------------------------------------------------------------------------

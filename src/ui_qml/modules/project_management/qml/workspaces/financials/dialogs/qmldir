@@ -4,6 +4,9 @@ BudgetLifecycleDialog 1.0 BudgetLifecycleDialog.qml
 BudgetLineEditorDialog 1.0 BudgetLineEditorDialog.qml
 BudgetVersionEditorDialog 1.0 BudgetVersionEditorDialog.qml
 CostCodeEditorDialog 1.0 CostCodeEditorDialog.qml
+CostCodeRestrictionDialog 1.0 CostCodeRestrictionDialog.qml
+FinancialProfileEditorDialog 1.0 FinancialProfileEditorDialog.qml
+FinancialSetupLifecycleDialog 1.0 FinancialSetupLifecycleDialog.qml
 FinancialsDialogHost 1.0 FinancialsDialogHost.qml
 FinancialChangeImpactDialog 1.0 FinancialChangeImpactDialog.qml
 FinancialChangeLifecycleDialog 1.0 FinancialChangeLifecycleDialog.qml

@@ -13,6 +13,7 @@ from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesk
 from src.ui_qml.modules.project_management.view_models.financials import FinancialsWorkspaceViewModel
 
 from .command_handler import (
+    add_cost_code_restriction,
     add_budget_line,
     add_financial_change_impact,
     approve_actual,
@@ -20,6 +21,7 @@ from .command_handler import (
     create_budget_successor,
     create_budget_version,
     create_cost_code,
+    change_cost_code_status,
     create_manual_actual,
     create_financial_change,
     decide_budget_approval,
@@ -30,6 +32,7 @@ from .command_handler import (
     generate_forecast,
     post_actual,
     remove_financial_change_impact,
+    remove_cost_code_restriction,
     reject_actual,
     reverse_actual,
     submit_actual,
@@ -42,6 +45,9 @@ from .command_handler import (
     update_budget_line,
     update_financial_change,
     update_financial_change_impact,
+    transition_financial_profile,
+    update_cost_code,
+    update_financial_profile,
 )
 from .destination_builder import build_destination_state, build_shell_state
 
@@ -143,6 +149,9 @@ class ProjectFinancialsWorkspacePresenter:
     def search_forecast_risks(self, project_id: str, **query: Any):
         return self._desktop_api.search_forecast_risks(project_id, **query)
 
+    def search_setup_cost_codes(self, project_id: str, **query: Any):
+        return self._desktop_api.search_setup_cost_codes(project_id, **query)
+
     def create_budget_version(self, project_id: str, name: str, currency: str):
         return create_budget_version(self._desktop_api, project_id, name, currency)
 
@@ -228,6 +237,24 @@ class ProjectFinancialsWorkspacePresenter:
 
     def create_cost_code(self, payload: dict[str, Any]) -> None:
         create_cost_code(self._desktop_api, payload)
+
+    def update_financial_profile(self, payload: dict[str, Any]) -> None:
+        update_financial_profile(self._desktop_api, payload)
+
+    def transition_financial_profile(self, payload: dict[str, Any]) -> None:
+        transition_financial_profile(self._desktop_api, payload)
+
+    def update_cost_code(self, payload: dict[str, Any]) -> None:
+        update_cost_code(self._desktop_api, payload)
+
+    def change_cost_code_status(self, payload: dict[str, Any]) -> None:
+        change_cost_code_status(self._desktop_api, payload)
+
+    def add_cost_code_restriction(self, payload: dict[str, Any]) -> None:
+        add_cost_code_restriction(self._desktop_api, payload)
+
+    def remove_cost_code_restriction(self, payload: dict[str, Any]) -> None:
+        remove_cost_code_restriction(self._desktop_api, payload)
 
     def submit_actual(self, payload: dict[str, Any]) -> None:
         submit_actual(self._desktop_api, payload)

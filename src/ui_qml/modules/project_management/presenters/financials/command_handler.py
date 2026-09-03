@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
+    FinancialChangeCostCodeStatusCommand,
+    FinancialCostCodeRestrictionCommand,
     FinancialAddBudgetLineCommand,
     FinancialChangeImpactCommand,
     FinancialCreateChangeCommand,
@@ -21,6 +23,9 @@ from src.core.modules.project_management.api.desktop import (
     FinancialVersionedForecastCommand,
     FinancialSubmitChangeCommand,
     FinancialCreateCostCodeCommand,
+    FinancialTransitionProfileCommand,
+    FinancialUpdateCostCodeCommand,
+    FinancialUpdateProfileCommand,
     FinancialCreateManualActualCommand,
     FinancialDecideActualCommand,
     FinancialPostActualCommand,
@@ -52,6 +57,91 @@ def create_cost_code(
             code=require_text(payload, "code", "Cost code is required."),
             name=require_text(payload, "name", "Cost-code name is required."),
             description=optional_text(payload, "description") or "",
+            parent_id=optional_text(payload, "parentId"),
+            external_system=optional_text(payload, "externalSystem"),
+            external_reference=optional_text(payload, "externalReference"),
+            effective_from=_optional_date(payload, "effectiveFrom"),
+            effective_to=_optional_date(payload, "effectiveTo"),
+        )
+    )
+
+
+def _optional_date(payload: dict[str, Any], key: str):
+    value = optional_text(payload, key)
+    if not value:
+        return None
+    return require_date(payload, key, f"{key} must use YYYY-MM-DD.")
+
+
+def update_financial_profile(desktop_api, payload: dict[str, Any]) -> None:
+    desktop_api.update_financial_profile(
+        FinancialUpdateProfileCommand(
+            project_id=require_text(payload, "projectId", "Select a project."),
+            expected_version=require_int(payload, "version", "Profile version is required."),
+            currency_code=require_text(payload, "currency", "Currency is required.").upper(),
+            billing_method=require_text(payload, "billingMethod", "Billing method is required."),
+            budget_control_mode=require_text(payload, "budgetControlMode", "Budget control is required."),
+            cost_code_policy=require_text(payload, "costCodePolicy", "Cost-code policy is required."),
+            financial_start_date=_optional_date(payload, "financialStartDate"),
+            financial_end_date=_optional_date(payload, "financialEndDate"),
+            is_funded=bool(payload.get("isFunded", False)),
+            is_billable=bool(payload.get("isBillable", False)),
+            default_cost_code_id=optional_text(payload, "defaultCostCodeId"),
+        )
+    )
+
+
+def transition_financial_profile(desktop_api, payload: dict[str, Any]) -> None:
+    desktop_api.transition_financial_profile(
+        FinancialTransitionProfileCommand(
+            project_id=require_text(payload, "projectId", "Select a project."),
+            expected_version=require_int(payload, "version", "Profile version is required."),
+            target_status=require_text(payload, "targetStatus", "Target status is required."),
+        )
+    )
+
+
+def update_cost_code(desktop_api, payload: dict[str, Any]) -> None:
+    desktop_api.update_cost_code(
+        FinancialUpdateCostCodeCommand(
+            cost_code_id=require_text(payload, "costCodeId", "Select a cost code."),
+            expected_version=require_int(payload, "version", "Cost-code version is required."),
+            code=require_text(payload, "code", "Cost code is required."),
+            name=require_text(payload, "name", "Cost-code name is required."),
+            description=optional_text(payload, "description") or "",
+            parent_id=optional_text(payload, "parentId"),
+            external_system=optional_text(payload, "externalSystem"),
+            external_reference=optional_text(payload, "externalReference"),
+            effective_from=_optional_date(payload, "effectiveFrom"),
+            effective_to=_optional_date(payload, "effectiveTo"),
+        )
+    )
+
+
+def change_cost_code_status(desktop_api, payload: dict[str, Any]) -> None:
+    desktop_api.change_cost_code_status(
+        FinancialChangeCostCodeStatusCommand(
+            cost_code_id=require_text(payload, "costCodeId", "Select a cost code."),
+            expected_version=require_int(payload, "version", "Cost-code version is required."),
+            activate=bool(payload.get("activate", False)),
+        )
+    )
+
+
+def add_cost_code_restriction(desktop_api, payload: dict[str, Any]) -> None:
+    desktop_api.add_cost_code_restriction(
+        FinancialCostCodeRestrictionCommand(
+            project_id=require_text(payload, "projectId", "Select a project."),
+            cost_code_id=require_text(payload, "costCodeId", "Select a cost code."),
+        )
+    )
+
+
+def remove_cost_code_restriction(desktop_api, payload: dict[str, Any]) -> None:
+    desktop_api.remove_cost_code_restriction(
+        FinancialCostCodeRestrictionCommand(
+            project_id=require_text(payload, "projectId", "Select a project."),
+            cost_code_id=require_text(payload, "costCodeId", "Select a cost code."),
         )
     )
 
@@ -503,6 +593,8 @@ def reverse_actual(
 
 
 __all__ = [
+    "add_cost_code_restriction",
+    "change_cost_code_status",
     "add_budget_line",
     "add_financial_change_impact",
     "approve_actual",
@@ -532,4 +624,8 @@ __all__ = [
     "update_budget_line",
     "update_financial_change",
     "update_financial_change_impact",
+    "remove_cost_code_restriction",
+    "transition_financial_profile",
+    "update_cost_code",
+    "update_financial_profile",
 ]
