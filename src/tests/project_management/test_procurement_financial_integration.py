@@ -28,6 +28,10 @@ from src.core.modules.project_management.infrastructure.persistence.orm.finance_
 from src.core.modules.project_management.application.financials.invalidation import (
     FinanceInvalidationScope,
 )
+from src.core.modules.project_management.application.financials.commitments.commitment_events import (
+    CommitmentLineChanged,
+    CommitmentMatchChanged,
+)
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.domain.master_data.party import PartyType
 from src.core.platform.integration import InboxProcessingStatus, OutboxDeliveryStatus
@@ -169,16 +173,22 @@ def test_sent_po_partial_receipt_and_cancellation_update_project_finance(service
         _create_approved_project_purchase_order(services)
     )
     purchasing = services["inventory_purchasing_service"]
-    commitment_scopes: list[FinanceInvalidationScope] = []
+    commitment_scopes: list[object] = []
     actual_scopes: list[FinanceInvalidationScope] = []
 
-    def capture_commitment(scope: FinanceInvalidationScope) -> None:
-        commitment_scopes.append(scope)
+    def capture_commitment(event: object, _context: object) -> None:
+        commitment_scopes.append(event)
 
     def capture_actual(scope: FinanceInvalidationScope) -> None:
         actual_scopes.append(scope)
 
-    domain_events.commitments_changed.connect(capture_commitment)
+    post_commit_bus = services["procurement_financial_dispatcher"]._post_commit_bus
+    line_subscription = post_commit_bus.subscribe(
+        CommitmentLineChanged, capture_commitment
+    )
+    match_subscription = post_commit_bus.subscribe(
+        CommitmentMatchChanged, capture_commitment
+    )
     domain_events.cost_entries_changed.connect(capture_actual)
     try:
         sent = purchasing.send_purchase_order(purchase_order.id)
@@ -216,7 +226,8 @@ def test_sent_po_partial_receipt_and_cancellation_update_project_finance(service
             note="Supplier cannot deliver remaining project quantity",
         )
     finally:
-        domain_events.commitments_changed.disconnect(capture_commitment)
+        line_subscription.dispose()
+        match_subscription.dispose()
         domain_events.cost_entries_changed.disconnect(capture_actual)
     session.expire_all()
     commitment = session.execute(select(ProjectCommitmentLineORM)).scalar_one()

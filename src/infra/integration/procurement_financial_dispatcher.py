@@ -17,6 +17,9 @@ from src.core.platform.application.integration import (
     IntegrationInboxService,
     IntegrationOutboxService,
 )
+from src.core.platform.common.ids import generate_id
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.events.domain_event_publisher import PostCommitEventPublisher
 from src.core.shared.events.domain_events import domain_events
 
 
@@ -33,11 +36,13 @@ class ProcurementFinancialDispatcher:
         outbox_service: IntegrationOutboxService,
         inbox_service: IntegrationInboxService,
         consumer: ProcurementFinancialConsumer,
+        post_commit_bus: PostCommitEventPublisher,
     ) -> None:
         self._session = session
         self._outbox_service = outbox_service
         self._inbox_service = inbox_service
         self._consumer = consumer
+        self._post_commit_bus = post_commit_bus
 
     def dispatch_pending(self, *, limit: int = 50) -> int:
         lease_token = f"procurement-finance:{uuid4()}"
@@ -107,8 +112,8 @@ class ProcurementFinancialDispatcher:
                 )
         return published
 
-    @staticmethod
     def _emit_refresh(
+        self,
         consumption,
         *,
         tenant_id: str,
@@ -121,8 +126,10 @@ class ProcurementFinancialDispatcher:
             project_id=str(consumption.project_id),
         )
         try:
-            if consumption.commitment_changed:
-                domain_events.commitments_changed.emit(scope)
+            if consumption.commitment_events:
+                context = DomainEventContext(correlation_id=generate_id())
+                for event in consumption.commitment_events:
+                    self._post_commit_bus.publish(event, context)
             if consumption.cost_entry_changed:
                 domain_events.cost_entries_changed.emit(scope)
         except Exception:

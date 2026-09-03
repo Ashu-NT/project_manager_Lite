@@ -48,6 +48,13 @@ from src.core.modules.project_management.application.financials.planned_costs.ev
 from src.core.modules.project_management.application.financials.planned_costs.planned_cost_events import (
     PlannedCostSnapshotCalculated,
 )
+from src.core.modules.project_management.application.financials.commitments.event_handlers.view_invalidation import (
+    build_commitment_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.commitments.commitment_events import (
+    CommitmentLineChanged,
+    CommitmentMatchChanged,
+)
 from src.core.modules.project_management.application.financials.event_handlers.view_invalidation import (
     build_financial_profile_view_invalidation_handler,
 )
@@ -694,6 +701,13 @@ def build_project_management_service_bundle(
     platform_services.platform_post_commit_bus.subscribe(
         PlannedCostSnapshotCalculated, _planned_cost_view_invalidation_handler
     )
+    _commitment_view_invalidation_handler = build_commitment_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _commitment_event_type in (CommitmentLineChanged, CommitmentMatchChanged):
+        platform_services.platform_post_commit_bus.subscribe(
+            _commitment_event_type, _commitment_view_invalidation_handler
+        )
     _financial_profile_view_invalidation_handler = build_financial_profile_view_invalidation_handler(
         platform_services.platform_view_invalidation_channel
     )
@@ -838,6 +852,23 @@ def build_project_management_service_bundle(
             tenant_context_service=platform_services.tenant_context_service,
             record_event=uow.record_event,
         )
+        commitment_operations = ProjectCommitmentService(
+            session=uow._session,
+            commitment_repo=uow.commitments,
+            cost_entry_repo=uow.cost_entries,
+            project_repo=uow.projects,
+            financial_profile_repo=uow.profiles,
+            cost_code_repo=uow.cost_codes,
+            task_repo=uow.tasks,
+            party_repo=repositories.party_repo,
+            site_repo=repositories.site_repo,
+            clock=system_clock,
+            user_session=platform_services.user_session,
+            enterprise_audit_service=uow._enterprise_audit_service,
+            module_catalog_service=platform_services.module_catalog_service,
+            tenant_context_service=platform_services.tenant_context_service,
+            record_event=uow.record_event,
+        )
         return FinanceGovernanceOperations(
             budgets=budget_operations,
             forecast_versions=forecast_version_operations,
@@ -846,6 +877,7 @@ def build_project_management_service_bundle(
             financial_setup=setup_operations,
             rate_cards=rate_card_operations,
             planned_costs=planned_cost_operations,
+            commitments=commitment_operations,
             post_commit_actions=post_commit_actions,
         )
 
@@ -950,6 +982,14 @@ def build_project_management_service_bundle(
         boundary=finance_governance_commands,
         family="planned_cost",
         mutations=frozenset({"calculate_snapshot"}),
+    )
+    commitment_service = FinanceGovernedServicePort(
+        read_service=commitment_service,
+        boundary=finance_governance_commands,
+        family="commitment",
+        mutations=frozenset(
+            {"ingest_procurement_source", "match_cost_entry", "reverse_match"}
+        ),
     )
     billing_profile_service = ProjectBillingProfileService(
         session=session,
