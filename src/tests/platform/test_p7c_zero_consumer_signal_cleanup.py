@@ -8,7 +8,6 @@ from src.core.shared.events.domain_events import domain_events
 
 _ACTIVE_FINANCE_SIGNALS = (
     "cost_entries_changed",
-    "commitments_changed",
 )
 
 
@@ -210,11 +209,16 @@ def test_no_commit_and_emit_helper_remains_anywhere():
 
 
 def test_procurement_financial_dispatcher_emits_scoped_post_commit_hints():
+    """P36: Commitment fully modernized -- the dispatcher now publishes typed
+    `commitment_events` (`CommitmentLineChanged`/`CommitmentMatchChanged`) through the canonical
+    post-commit bus instead of the retired `commitments_changed` legacy signal.
+    `cost_entries_changed` remains untouched (Cost Entry is not yet modernized)."""
     import src.infra.integration.procurement_financial_dispatcher as module
 
     source = inspect.getsource(module)
     assert "FinanceInvalidationScope" in source
-    assert "commitments_changed.emit(scope)" in source
+    assert "self._post_commit_bus.publish(event, context)" in source
+    assert "consumption.commitment_events" in source
     assert "cost_entries_changed.emit(scope)" in source
     assert source.index("self._session.commit()") < source.index("self._emit_refresh(")
 

@@ -26,7 +26,6 @@ def _controller(services):
     ("signal_name", "expected"),
     (
         ("cost_entries_changed", {"overview", "costs", "performance", "commercial"}),
-        ("commitments_changed", {"overview", "planning", "costs", "performance", "commercial"}),
     ),
 )
 def test_scoped_finance_events_invalidate_only_dependent_destinations(
@@ -67,14 +66,14 @@ def test_finance_invalidation_rejects_other_project_and_organization(services) -
     controller._invalidated_destinations.clear()
     controller._request_domain_refresh = MagicMock()
 
-    domain_events.commitments_changed.emit(
+    domain_events.cost_entries_changed.emit(
         FinanceInvalidationScope(
             tenant_id=controller._active_tenant_id,
             organization_id=controller._active_organization_id,
             project_id="other-project",
         )
     )
-    domain_events.commitments_changed.emit(
+    domain_events.cost_entries_changed.emit(
         FinanceInvalidationScope(
             tenant_id=controller._active_tenant_id,
             organization_id="other-organization",
@@ -90,7 +89,7 @@ def test_finance_invalidation_rejects_other_project_and_organization(services) -
 def test_finance_controller_teardown_and_reopen_do_not_accumulate_subscriptions(
     services,
 ) -> None:
-    signal = domain_events.commitments_changed
+    signal = domain_events.cost_entries_changed
     baseline = len(signal._subscribers)
 
     first = _controller(services)
@@ -115,9 +114,9 @@ def test_finance_refresh_does_not_reemit_business_invalidation(services, qapp) -
     def capture(scope: FinanceInvalidationScope) -> None:
         observed.append(scope)
 
-    domain_events.commitments_changed.connect(capture)
+    domain_events.cost_entries_changed.connect(capture)
     try:
-        domain_events.commitments_changed.emit(
+        domain_events.cost_entries_changed.emit(
             FinanceInvalidationScope(
                 tenant_id=controller._active_tenant_id,
                 organization_id=controller._active_organization_id,
@@ -126,7 +125,7 @@ def test_finance_refresh_does_not_reemit_business_invalidation(services, qapp) -
         )
         qapp.processEvents()
     finally:
-        domain_events.commitments_changed.disconnect(capture)
+        domain_events.cost_entries_changed.disconnect(capture)
         controller._disconnect_domain_event_subscriptions()
 
     assert refreshes == ["refresh"]

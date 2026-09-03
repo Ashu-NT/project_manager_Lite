@@ -8,6 +8,9 @@ from typing import Any, TypeVar
 from src.core.modules.project_management.application.financials.budgets.budget_service import (
     BudgetService,
 )
+from src.core.modules.project_management.application.financials.commitments.commitment_service import (
+    ProjectCommitmentService,
+)
 from src.core.modules.project_management.application.financials.configuration_service import (
     FinancialConfigurationService,
 )
@@ -50,6 +53,7 @@ class FinanceGovernanceOperations:
     financial_setup: FinancialConfigurationService
     rate_cards: ProjectRateCardService
     planned_costs: PlannedCostService
+    commitments: ProjectCommitmentService
     post_commit_actions: list[Callable[[], None]] = field(default_factory=list)
 
 
@@ -121,6 +125,17 @@ class FinanceGovernanceCommandBoundary:
     ) -> T:
         return self._execute(
             lambda operations: command(operations.planned_costs),
+            invalidation=None,
+        )
+
+    def commitment(
+        self,
+        command: Callable[[ProjectCommitmentService], T],
+        *,
+        project_id: str | None = None,
+    ) -> T:
+        return self._execute(
+            lambda operations: command(operations.commitments),
             invalidation=None,
         )
 
@@ -242,7 +257,22 @@ class FinanceGovernedServicePort:
                         ).project_id
                     )
                 return str(self._read_service.get_change(args[0]).project_id)
-        except (AttributeError, IndexError, TypeError):
+            if self._family == "commitment":
+                if name == "ingest_procurement_source":
+                    source = args[0] if args else kwargs.get("source")
+                    return str(source.reference.project_id)
+                if name == "match_cost_entry":
+                    return str(self._read_service.get_line(kwargs["line_id"]).project_id)
+                if name == "reverse_match":
+                    match = self._read_service._commitment_repo.get_match(
+                        kwargs["original_match_id"]
+                    )
+                    if match is None:
+                        return ""
+                    return str(
+                        self._read_service.get_line(match.commitment_line_id).project_id
+                    )
+        except (AttributeError, IndexError, KeyError, TypeError):
             return ""
         return ""
 
