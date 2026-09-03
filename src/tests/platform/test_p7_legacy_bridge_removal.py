@@ -556,7 +556,7 @@ def test_no_service_locator_or_string_capability_router_introduced():
 def test_p6_helper_responsibility_unchanged():
     """`ScopedViewInvalidationSubscription`'s public surface is exactly what P6 shipped -- P7 must
     not add wildcards/service-locator behavior/capability strings to it."""
-    from src.ui_qml.platform.adapters.scoped_view_invalidation_subscription import (
+    from src.ui_qml.shared.adapters.scoped_view_invalidation_subscription import (
         ScopedViewInvalidationSubscription,
     )
 

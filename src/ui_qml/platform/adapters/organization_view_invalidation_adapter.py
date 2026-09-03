@@ -52,7 +52,7 @@ from src.core.shared.events.view_invalidation import (
     ViewInvalidationChannel,
     ViewInvalidationHint,
 )
-from src.ui_qml.platform.adapters.scoped_view_invalidation_subscription import (
+from src.ui_qml.shared.adapters.scoped_view_invalidation_subscription import (
     ScopedViewInvalidationSubscription,
 )
 

@@ -12,31 +12,31 @@ from src.ui_qml.platform.adapters.party_view_invalidation_adapter import (
 from src.ui_qml.platform.adapters.document_view_invalidation_adapter import (
     DocumentViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.cycle_count_view_invalidation_adapter import (
+from src.ui_qml.modules.inventory_procurement.adapters.inventory.cycle_count_view_invalidation_adapter import (
     CycleCountViewInvalidationAdapter,
 )
 from src.ui_qml.platform.adapters.document_links_view_invalidation_adapter import (
     DocumentLinksViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.inventory_foundation_view_invalidation_adapter import (
+from src.ui_qml.modules.inventory_procurement.adapters.inventory.inventory_foundation_view_invalidation_adapter import (
     InventoryFoundationViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.inventory_catalog_view_invalidation_adapter import (
+from src.ui_qml.modules.inventory_procurement.adapters.catalog.inventory_catalog_view_invalidation_adapter import (
     InventoryCatalogViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.purchase_order_view_invalidation_adapter import (
+from src.ui_qml.modules.inventory_procurement.adapters.procurement.purchase_order_view_invalidation_adapter import (
     PurchaseOrderViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.receipt_view_invalidation_adapter import (
+from src.ui_qml.modules.inventory_procurement.adapters.procurement.receipt_view_invalidation_adapter import (
     ReceiptViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.requisition_view_invalidation_adapter import (
+from src.ui_qml.modules.inventory_procurement.adapters.procurement.requisition_view_invalidation_adapter import (
     RequisitionViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.reservation_view_invalidation_adapter import (
+from src.ui_qml.modules.inventory_procurement.adapters.reservations.reservation_view_invalidation_adapter import (
     ReservationViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.stock_balance_view_invalidation_adapter import (
+from src.ui_qml.modules.inventory_procurement.adapters.inventory.stock_balance_view_invalidation_adapter import (
     StockBalanceViewInvalidationAdapter,
 )
 from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import (

@@ -11,34 +11,34 @@ from src.core.platform.api.desktop.integration import IntegrationCapabilityDeskt
 from src.ui_qml.platform.adapters.approval_view_invalidation_adapter import (
     ApprovalViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.baseline_view_invalidation_adapter import (
+from src.ui_qml.modules.project_management.adapters.scheduling.baseline_view_invalidation_adapter import (
     BaselineViewInvalidationAdapter,
 )
 from src.ui_qml.platform.adapters.employee_view_invalidation_adapter import (
     EmployeeViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.financial_profile_view_invalidation_adapter import (
+from src.ui_qml.modules.project_management.adapters.financials.financial_profile_view_invalidation_adapter import (
     FinancialProfileViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.forecast_view_invalidation_adapter import (
+from src.ui_qml.modules.project_management.adapters.financials.forecast_view_invalidation_adapter import (
     ForecastViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.financial_change_view_invalidation_adapter import (
+from src.ui_qml.modules.project_management.adapters.financials.financial_change_view_invalidation_adapter import (
     FinancialChangeViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.planned_cost_view_invalidation_adapter import (
+from src.ui_qml.modules.project_management.adapters.financials.planned_cost_view_invalidation_adapter import (
     PlannedCostViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.commitment_view_invalidation_adapter import (
+from src.ui_qml.modules.project_management.adapters.financials.commitment_view_invalidation_adapter import (
     CommitmentViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.cost_entry_view_invalidation_adapter import (
+from src.ui_qml.modules.project_management.adapters.financials.cost_entry_view_invalidation_adapter import (
     CostEntryViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.rate_card_view_invalidation_adapter import (
+from src.ui_qml.modules.project_management.adapters.financials.rate_card_view_invalidation_adapter import (
     RateCardViewInvalidationAdapter,
 )
-from src.ui_qml.platform.adapters.resource_view_invalidation_adapter import (
+from src.ui_qml.modules.project_management.adapters.resources.resource_view_invalidation_adapter import (
     ResourceViewInvalidationAdapter,
 )
 from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import (

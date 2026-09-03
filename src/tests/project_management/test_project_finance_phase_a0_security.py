@@ -245,6 +245,17 @@ def test_cost_entry_mutation_records_scoped_enterprise_audit(services):
 
 
 def test_cost_entry_mutation_rolls_back_when_required_audit_fails(services, monkeypatch):
+    """P37: `create_manual_entry` now runs under `FinanceGovernanceCommandBoundary.cost_entry()`,
+    whose UoW factory constructs a fresh `EnterpriseAuditService` per transaction (the same
+    already-established characteristic every other governed Finance family shares -- see
+    `SqlAlchemyFinanceGovernanceUnitOfWork.__init__`). Patching the outer, request-scoped
+    `services["enterprise_audit_service"]` instance no longer reaches the governed call, so this
+    patches `EnterpriseAuditService.record` at the class level instead -- the same pattern P35's
+    own governed-boundary audit-failure test already established."""
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
+
     organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         "Fail-closed canonical cost audit",
@@ -254,15 +265,14 @@ def test_cost_entry_mutation_rolls_back_when_required_audit_fails(services, monk
         code="AUD-FAIL",
         name="Fail-closed audit",
     )
-    audit_service = services["enterprise_audit_service"]
-    original_record = audit_service.record
+    original_record = EnterpriseAuditService.record
 
-    def _fail_cost_audit(**kwargs):
+    def _fail_cost_audit(self, **kwargs):
         if kwargs.get("entity_type") == "project_cost_entry":
             raise RuntimeError("simulated cost audit failure")
-        return original_record(**kwargs)
+        return original_record(self, **kwargs)
 
-    monkeypatch.setattr(audit_service, "record", _fail_cost_audit)
+    monkeypatch.setattr(EnterpriseAuditService, "record", _fail_cost_audit)
 
     with pytest.raises(RuntimeError, match="simulated cost audit failure"):
         services["cost_entry_service"].create_manual_entry(

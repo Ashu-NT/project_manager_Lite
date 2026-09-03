@@ -464,7 +464,7 @@ def test_no_adapter_subscribes_via_all_tenants_or_any_organization_in_tenant():
 
 
 def test_p6_helper_public_surface_unchanged():
-    from src.ui_qml.platform.adapters.scoped_view_invalidation_subscription import (
+    from src.ui_qml.shared.adapters.scoped_view_invalidation_subscription import (
         ScopedViewInvalidationSubscription,
     )
 
