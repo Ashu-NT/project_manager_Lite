@@ -3,10 +3,6 @@ from decimal import Decimal
 
 from sqlalchemy import select
 
-from src.core.modules.project_management.application.financials.invalidation import (
-    FinanceInvalidationScope,
-)
-from src.core.shared.events.domain_events import domain_events
 from alembic import command
 from alembic.config import Config
 import pytest
@@ -250,13 +246,17 @@ def test_closed_financial_period_keeps_approved_time_retryable_without_posting(s
 
 
 def test_post_commit_delivery_emits_scoped_refresh_after_durable_processing(services) -> None:
+    from src.core.modules.project_management.application.financials.cost.entries.cost_entry_events import (
+        CostEntryRecorded,
+    )
+
     _, project, resource, _, assignment = _setup(services)
-    scopes: list[FinanceInvalidationScope] = []
+    events: list[object] = []
 
-    def capture(scope: FinanceInvalidationScope) -> None:
-        scopes.append(scope)
-
-    domain_events.cost_entries_changed.connect(capture)
+    post_commit_bus = services["approved_time_financial_dispatcher"]._post_commit_bus
+    subscription = post_commit_bus.subscribe(
+        CostEntryRecorded, lambda e, c: events.append(e)
+    )
     services["task_service"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 8), hours=Decimal("1")
     )
@@ -269,7 +269,7 @@ def test_post_commit_delivery_emits_scoped_refresh_after_durable_processing(serv
             submitted.period_id, expected_version=submitted.version
         )
     finally:
-        domain_events.cost_entries_changed.disconnect(capture)
+        subscription.dispose()
 
     _, total = services["cost_entry_service"].list_for_project(project.id)
     assert total == 1
@@ -278,19 +278,24 @@ def test_post_commit_delivery_emits_scoped_refresh_after_durable_processing(serv
     assert outbox.status == OutboxDeliveryStatus.PUBLISHED.value
     assert outbox.last_error_code is None
     assert inbox.status == InboxProcessingStatus.PROCESSED.value
-    assert len(scopes) == 1
-    assert scopes[0].project_id == project.id
-    assert scopes[0].tenant_id == inbox.tenant_id
-    assert scopes[0].organization_id == inbox.organization_id
+    assert len(events) == 1
+    assert events[0].project_id == project.id
+    assert events[0].tenant_id == inbox.tenant_id
+    assert events[0].organization_id == inbox.organization_id
 
 
 def test_refresh_subscriber_failure_does_not_retry_approved_time_delivery(services) -> None:
+    from src.core.modules.project_management.application.financials.cost.entries.cost_entry_events import (
+        CostEntryRecorded,
+    )
+
     _, project, resource, _, assignment = _setup(services)
 
-    def fail_refresh(_scope: FinanceInvalidationScope) -> None:
+    def fail_refresh(_event, _context) -> None:
         raise RuntimeError("presentation refresh unavailable")
 
-    domain_events.cost_entries_changed.connect(fail_refresh)
+    post_commit_bus = services["approved_time_financial_dispatcher"]._post_commit_bus
+    subscription = post_commit_bus.subscribe(CostEntryRecorded, fail_refresh)
     services["task_service"].add_time_entry(
         assignment.id, entry_date=date(2026, 5, 9), hours=Decimal("1")
     )
@@ -302,7 +307,7 @@ def test_refresh_subscriber_failure_does_not_retry_approved_time_delivery(servic
             submitted.period_id, expected_version=submitted.version
         )
     finally:
-        domain_events.cost_entries_changed.disconnect(fail_refresh)
+        subscription.dispose()
 
     assert approved.status is TimesheetPeriodStatus.APPROVED
     _, total = services["cost_entry_service"].list_for_project(project.id)
@@ -311,6 +316,88 @@ def test_refresh_subscriber_failure_does_not_retry_approved_time_delivery(servic
     inbox = services["session"].execute(select(ProjectFinanceInboxORM)).scalar_one()
     assert outbox.status == OutboxDeliveryStatus.PUBLISHED.value
     assert inbox.status == InboxProcessingStatus.PROCESSED.value
+
+
+def test_approved_time_transactional_handler_receives_the_real_uow_not_the_dispatcher(
+    services,
+) -> None:
+    from src.core.modules.project_management.application.financials.cost.entries.cost_entry_events import (
+        CostEntryRecorded,
+    )
+    from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
+
+    _, project, resource, _, assignment = _setup(services)
+    dispatcher = services["approved_time_financial_dispatcher"]
+    seen: list[object] = []
+    received_uows: list[object] = []
+
+    def _observe(event, uow) -> None:
+        seen.append(event)
+        received_uows.append(uow)
+
+    subscription = dispatcher._transactional_dispatcher.subscribe(CostEntryRecorded, _observe)
+    try:
+        services["task_service"].add_time_entry(
+            assignment.id, entry_date=date(2026, 5, 6), hours=Decimal("2")
+        )
+        submitted = services["timesheet_service"].submit_timesheet_period(
+            resource.id, period_start=date(2026, 5, 1)
+        )
+        services["timesheet_service"].approve_timesheet_period(
+            submitted.period_id, expected_version=submitted.version
+        )
+    finally:
+        subscription.dispose()
+
+    assert len(seen) == 1
+    assert seen[0].project_id == project.id
+    assert len(received_uows) == 1
+    handler_uow = received_uows[0]
+    assert handler_uow is not dispatcher, "must not be the dispatcher impersonating a UoW"
+    assert isinstance(handler_uow, SqlAlchemyUnitOfWorkBase)
+    assert handler_uow._session is dispatcher._session
+
+
+def test_approved_time_transactional_handler_failure_rolls_back_and_yields_zero_postcommit_event(
+    services,
+) -> None:
+    """P37 core proof: when a precommit Cost Entry transactional handler fails, the mutation must
+    not persist and no postcommit event may occur."""
+    from src.core.modules.project_management.application.financials.cost.entries.cost_entry_events import (
+        CostEntryRecorded,
+    )
+
+    _, project, resource, _, assignment = _setup(services)
+    dispatcher = services["approved_time_financial_dispatcher"]
+
+    def _boom(_event, _uow) -> None:
+        raise RuntimeError("simulated precommit Cost Entry handler failure")
+
+    subscription = dispatcher._transactional_dispatcher.subscribe(CostEntryRecorded, _boom)
+    postcommit_seen: list[object] = []
+    post_commit_subscription = dispatcher._post_commit_bus.subscribe(
+        CostEntryRecorded, lambda e, c: postcommit_seen.append(e)
+    )
+    try:
+        services["task_service"].add_time_entry(
+            assignment.id, entry_date=date(2026, 5, 7), hours=Decimal("2")
+        )
+        submitted = services["timesheet_service"].submit_timesheet_period(
+            resource.id, period_start=date(2026, 5, 1)
+        )
+        services["timesheet_service"].approve_timesheet_period(
+            submitted.period_id, expected_version=submitted.version
+        )
+    finally:
+        subscription.dispose()
+        post_commit_subscription.dispose()
+
+    _, total = services["cost_entry_service"].list_for_project(project.id)
+    assert total == 0, "the failed-precommit-handler mutation must not persist"
+    assert postcommit_seen == [], "a precommit failure must never reach the postcommit bus"
+
+    outbox = services["session"].execute(select(TimeFinancialOutboxORM)).scalar_one()
+    assert outbox.status != OutboxDeliveryStatus.PUBLISHED.value
 
 
 def test_labor_posting_migration_is_reversible_and_immutable(tmp_path) -> None:

@@ -7,7 +7,8 @@ import inspect
 from src.core.shared.events.domain_events import domain_events
 
 _ACTIVE_FINANCE_SIGNALS = (
-    "cost_entries_changed",
+    "budgets_changed",
+    "billing_preparations_changed",
 )
 
 
@@ -117,10 +118,6 @@ def test_every_remaining_approval_post_commit_event_signal_name_exists_and_has_a
 
 
 def test_emit_signal_safely_still_exists_with_real_remaining_callers():
-    """§9: not removed -- `budget_apply_participant.py`/`task_apply_participant.py`/
-    `baseline_apply_participant.py`/`billing_preparation_apply_participant.py`/
-    `financial_change_apply_participant.py` (partially) and the two Inventory procurement
-    participants still return legitimate `ApprovalPostCommitEvent` values."""
     import src.core.platform.application.approval.approval_service as approval_service_module
 
     source = inspect.getsource(approval_service_module)
@@ -133,15 +130,32 @@ def test_emit_signal_safely_still_exists_with_real_remaining_callers():
 # ---------------------------------------------------------------------------
 
 
-def test_project_cost_apply_participant_emits_scoped_post_commit_events():
+def test_project_cost_apply_participant_emits_typed_status_changed_events():
     from src.core.modules.project_management.infrastructure.approval.project_cost_apply_participant import (
         ProjectCostApprovalParticipant,
     )
+    from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
+        ProjectCostEntryService,
+    )
 
-    for method in (ProjectCostApprovalParticipant.apply, ProjectCostApprovalParticipant.reject):
-        source = inspect.getsource(method)
-        assert '"cost_entries_changed"' in source
-        assert "invalidation_scope(entry)" in source
+    apply_source = inspect.getsource(ProjectCostApprovalParticipant.apply)
+    assert "_apply_approval_decision(" in apply_source
+    assert "ApprovalHandlerResult(domain_events=(event,))" in apply_source
+    assert '"cost_entries_changed"' not in apply_source
+
+    reject_source = inspect.getsource(ProjectCostApprovalParticipant.reject)
+    assert "_apply_rejection_decision(" in reject_source
+    assert "ApprovalHandlerResult(domain_events=(event,))" in reject_source
+    assert '"cost_entries_changed"' not in reject_source
+
+    approval_decision_source = inspect.getsource(
+        ProjectCostEntryService._apply_approval_decision
+    )
+    assert "CostEntryStatusChangeType.APPROVED" in approval_decision_source
+    rejection_decision_source = inspect.getsource(
+        ProjectCostEntryService._apply_rejection_decision
+    )
+    assert "CostEntryStatusChangeType.REJECTED" in rejection_decision_source
 
 
 def test_financial_change_apply_participant_emits_typed_change_and_forecast_events():
@@ -209,23 +223,18 @@ def test_no_commit_and_emit_helper_remains_anywhere():
 
 
 def test_procurement_financial_dispatcher_emits_scoped_post_commit_hints():
-    """P36/P36-FIX2: Commitment fully modernized -- typed `commitment_events`
-    (`CommitmentLineChanged`/`CommitmentMatchChanged`) are recorded into, and published by, a
-    real canonical `UnitOfWork` (`SqlAlchemyUnitOfWorkBase` bound to the dispatcher's own
-    session) -- `ProcurementFinancialDispatcher` itself must never directly invoke
-    `transactional_dispatcher.dispatch(...)` or `post_commit_bus.publish(...)` for Commitment
-    DomainEvent lifecycle purposes (that would be either UoW impersonation or a duplicate,
-    non-canonical event pipeline). `cost_entries_changed` remains untouched (Cost Entry is not
-    yet modernized) and is still emitted directly by the dispatcher, since it is a legacy
-    Signal, not a DomainEvent with a canonical lifecycle."""
     import src.infra.integration.procurement_financial_dispatcher as module
 
     source = inspect.getsource(module)
-    assert "FinanceInvalidationScope" in source
     assert "SqlAlchemyUnitOfWorkBase" in source
+    assert "consumption.commitment_events" in source
+    assert "consumption.cost_entry_events" in source
     assert "uow.record_event(event)" in source
     assert "uow.commit()" in source
-    assert "cost_entries_changed.emit(scope)" in source
+    assert "FinanceInvalidationScope" not in source, (
+        "the legacy Finance-signal payload type has no remaining use in this file"
+    )
+    assert "cost_entries_changed" not in source
     assert "self._transactional_dispatcher.dispatch(" not in source, (
         "the dispatcher must not directly invoke the transactional dispatcher -- "
         "that is the canonical UoW's own responsibility during commit()"
@@ -234,16 +243,19 @@ def test_procurement_financial_dispatcher_emits_scoped_post_commit_hints():
         "the dispatcher must not directly publish DomainEvents post-commit -- "
         "that is the canonical UoW's own responsibility during commit()"
     )
-    assert source.index("self._session.commit()") < source.index("self._emit_refresh(")
 
 
-def test_approved_time_dispatcher_emits_scoped_post_commit_hint():
+def test_approved_time_dispatcher_uses_canonical_unit_of_work():
     import src.infra.integration.approved_time_dispatcher as module
 
     source = inspect.getsource(module)
-    assert "FinanceInvalidationScope" in source
-    assert "cost_entries_changed.emit" in source
-    assert source.index("self._session.commit()") < source.index("self._emit_refresh(")
+    assert "SqlAlchemyUnitOfWorkBase" in source
+    assert "uow.record_event(event)" in source
+    assert "uow.commit()" in source
+    assert "FinanceInvalidationScope" not in source
+    assert "cost_entries_changed" not in source
+    assert "self._transactional_dispatcher.dispatch(" not in source
+    assert "self._post_commit_bus.publish(" not in source
 
 
 # ---------------------------------------------------------------------------

@@ -43,25 +43,6 @@ FROZEN_LEGACY_SIGNAL_ALLOWLIST = frozenset(
         "inventory_cycle_counts_changed",
     }
 )
-# P35-CLEANUP FINDING -- ARCHITECTURE VIOLATION, NOT A TEST BUG: `cost_entries_changed` was a
-# CURRENTLY LIVE production Signal field (real producer in `cost_entry_service.py`, a real
-# consumer in `financials_refresh_mixin.py`) that is deliberately NOT included above. Repository
-# history (see `_DELETED_BRIDGE_NAMES`'s own note) proves it was already deleted at the moment
-# this allowlist was frozen (commit d5a4069c, 2026-08-26) and was only REINTRODUCED three days
-# later (commit cf939588, 2026-08-29) by Cost Entry capability work that never updated this file.
-# This is a genuine post-freeze new-legacy-Signal introduction -- exactly what
-# `test_current_signals_are_a_subset_of_the_frozen_allowlist_not_equal`/`test_every_current_
-# signal_is_in_the_frozen_allowlist_no_silent_field_addition` exist to catch -- not a frozen-list
-# omission to silently correct. Adding it here would defeat the guard's purpose. These two
-# tests are EXPECTED to keep failing for exactly this one name until Cost Entry is properly
-# modernized (typed DomainEvent + canonical UoW + field deleted), at which point it leaves the
-# CURRENT set entirely and no allowlist edit is needed either way.
-#
-# P36: `commitments_changed` (Commitment's own sibling post-freeze reintroduction) has now been
-# fully modernized -- typed `CommitmentLineChanged`/`CommitmentMatchChanged` DomainEvents,
-# canonical `FinanceGovernanceUnitOfWork` convergence, field deleted from `domain_events.py` --
-# and moved to `_DELETED_BRIDGE_NAMES` below. `cost_entries_changed` is the one remaining
-# violation.
 
 _DELETED_BRIDGE_NAMES = (
     "_BRIDGE_SPECS",
@@ -76,6 +57,7 @@ _DELETED_BRIDGE_NAMES = (
     "forecasts_changed",
     "financial_changes_changed",
     "commitments_changed",
+    "cost_entries_changed",
 )
 # P35-CLEANUP: `cost_entries_changed`/`commitments_changed` were REMOVED from this list -- both
 # were genuinely live production Signal fields (real producers in `cost_entry_service.py`/
@@ -88,12 +70,15 @@ _DELETED_BRIDGE_NAMES = (
 # REINTRODUCED on 2026-08-29 (commit cf939588, "update domain event") by Cost Entry/Commitment
 # capability work built AFTER the freeze, without ever updating this file. This is a genuine,
 # real POST-FREEZE legacy-Signal reintroduction, not a frozen-allowlist omission -- see
-# `FROZEN_LEGACY_SIGNAL_ALLOWLIST`'s own note below for why `cost_entries_changed` (still live)
-# is deliberately NOT added there either. `financial_changes_changed` followed the identical
-# reintroduction/re-deletion path but IS now genuinely retired again (P35-CLEANUP era), so it
-# correctly remains here. P36: `commitments_changed` has now followed the same path -- fully
-# modernized (typed DomainEvents, canonical UoW convergence, field deleted from
-# `domain_events.py`) -- so it now correctly rejoins this list too.
+# `FROZEN_LEGACY_SIGNAL_ALLOWLIST`'s own note below for the full archaeology. `financial_changes_
+# changed` followed the identical reintroduction/re-deletion path but IS now genuinely retired
+# again (P35-CLEANUP era), so it correctly remains here. P36: `commitments_changed` followed the
+# same path -- fully modernized -- and rejoined this list. P37: `cost_entries_changed` has now
+# ALSO followed the same path -- fully modernized (typed DomainEvents, canonical
+# `FinanceGovernanceUnitOfWork` convergence + `ApprovalHandlerResult.domain_events` for the
+# approval path, field deleted from `domain_events.py`) -- so it now correctly rejoins this list
+# too. This was the LAST post-freeze violation: `current ⊆ frozen` is restored with zero
+# exceptions.
 
 
 def _strip_strings_and_comments(source: str) -> str:
