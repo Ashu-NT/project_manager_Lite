@@ -214,6 +214,9 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
     def _on_domain_event(self, _payload: object) -> None:
         self._request_domain_refresh()
 
+    def onExternalViewStale(self, _hint: str = "") -> None:
+        self._request_domain_refresh()
+
     def _apply_request_action(
         self,
         *,

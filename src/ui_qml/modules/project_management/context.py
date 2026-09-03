@@ -102,6 +102,8 @@ QML_IMPORT_MAJOR_VERSION = 1
 @QmlElement
 @QmlUncreatable("Project management workspace catalogs are provided by the shell runtime.")
 class ProjectManagementWorkspaceCatalog(QObject):
+    registerWorkspaceStale = Signal(str)  # project_id (payload passthrough, org-wide fact)
+
     def __init__(
         self,
         desktop_api_registry: object | None = None,
@@ -214,6 +216,16 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self._tasks_timesheet_view_invalidation_adapter: TimesheetViewInvalidationAdapter | None = None
         self._register_view_invalidation_adapter: RegisterViewInvalidationAdapter | None = None
         self._dashboard_register_view_invalidation_adapter: RegisterViewInvalidationAdapter | None = None
+
+        self._control_register_view_invalidation_adapter = RegisterViewInvalidationAdapter(
+            channel=self._view_invalidation_channel,
+            tenant_id=self._active_tenant_id() or "",
+            organization_id=self._active_organization_id() or "",
+            parent=self,
+        )
+        self._control_register_view_invalidation_adapter.registerWorkspaceStale.connect(
+            self.registerWorkspaceStale.emit
+        )
         self._pm_capability = PMCapabilityController(
             auth_engine=auth_engine,
             user_session_provider=user_session_provider,

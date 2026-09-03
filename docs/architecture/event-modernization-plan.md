@@ -2943,6 +2943,42 @@ baseline itself is unchanged. Remaining PM legacy signals: `project_changed`, `t
 sequence** — nothing discovered this phase touches Portfolio's own facts, transaction shape, or
 cross-capability edges.
 
+**P41-FIX — Control workspace's Register reaction restored without a Platform→PM dependency.**
+Re-traced Control's source and confirmed the dependency is GENUINE, not incidental: its "Recent
+Audit Feed" calls `audit_api.list_recent(...)` with no module filter — a generic, cross-entity-
+type projection — and P41 gave Register real enterprise audit for the first time, so Register
+rows now genuinely belong in that feed. Also found the specific test cited as the blocking guard,
+`test_platform_does_not_import_business_modules.py`, only scans `src/core/platform/` (the Python
+core layer) — it never covered `src/ui_qml/platform/` (the QML controller layer) at all, so the
+original P41 removal wasn't actually forced by a green test going red; it was a conservative
+default. The underlying architectural principle (Platform owns no business-module implementation)
+still fully applies at the QML layer even without an automated guard enforcing it there, so the
+fix was built to the same standard anyway, not to the letter of the (inapplicable) test.
+
+**Cross-layer contract**: `ProjectManagementWorkspaceCatalog` gained a public `registerWorkspaceStale`
+Signal, fed by a new, eagerly-constructed `RegisterViewInvalidationAdapter` instance (independent of
+the two lazy ones already wired to the Register workspace and Dashboard, since Control's reaction
+must not depend on the Register workspace UI ever having been opened) forwarding
+`REGISTER_WORKSPACE_SCOPE_CODE` (org-wide) hints. `PlatformControlWorkspaceController` gained one
+generic, Register-ignorant slot, `onExternalViewStale`, calling its own existing
+`_request_domain_refresh()`. The composition root, `shell/app.py::main()` — already the place
+`tenantSwitched`/`organizationSwitched`/`organizationsChanged` cross-catalog wiring lives — connects
+`pm_workspace_catalog.registerWorkspaceStale` to `platform_workspace_catalog.controlWorkspace.
+onExternalViewStale`, the exact same dependency-inversion shape already established there for
+Platform→PM wiring, now used in the PM→Platform direction for the first time. Neither catalog
+imports the other's implementation module.
+
+**Regression**: new `test_p41_fix_control_workspace_register_reaction.py` (7 tests — Control's
+genuine dependency proved from source; zero PM import from the Platform controller; zero raw
+`RegisterEntryChanged`/`register_changed` reference; real end-to-end create/update/delete →
+Control refresh; a Budget-category mutation proven NOT to fire the new signal, isolating it from
+Control's own separate, legitimate `project_changed`/`tasks_changed` legacy subscriptions). The
+three P41-repointed characterization tests were re-examined against their own original purpose
+(each was already proving "Control/Register-workspace-binder still reacts to a *surviving* legacy
+signal," never specifically "reacts to Register") and found not to be masking anything; their
+docstrings now cross-reference the new dedicated test file. All previously-green suites remain
+green.
+
 ## 4. Current State
 
 **Legacy Signal count: 5 as of P41** (source-derived from

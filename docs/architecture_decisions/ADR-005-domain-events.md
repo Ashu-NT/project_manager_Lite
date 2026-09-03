@@ -3686,6 +3686,18 @@ Adapter` subscription would violate that guard. Dropped with no replacement; thi
 phase in the engagement where a legacy consumer's removal was forced by an architecture boundary
 rather than by the consumer being incidental.
 
+**P41-FIX correction**: `test_platform_does_not_import_business_modules.py` only scans `src/core/
+platform/` — it never covered `src/ui_qml/platform/` (the QML controller layer) at all, so the
+guard cited above did not actually forbid this. The underlying ADR-005 Sec21 principle (Platform
+owns no business-module implementation) still applies at the QML layer regardless, so rather than
+import `RegisterViewInvalidationAdapter` directly into Control (which the principle still
+correctly disallows even without an automated guard), the reaction was restored via the same
+composition-root Signal/Slot dependency-inversion `shell/app.py::main()` already used for
+Platform→PM wiring (tenant/organization switching), now used PM→Platform for the first time:
+`ProjectManagementWorkspaceCatalog.registerWorkspaceStale` → `PlatformControlWorkspaceController.
+onExternalViewStale` (generic, Register-ignorant). Neither module imports the other's
+implementation. See the plan doc's own P41-FIX entry for full detail.
+
 **Legacy Signal count: 5 (6 minus the one deletion) — second Project Management capability to
 reach zero.** `register_changed` rejoins the historical P8 frozen allowlist's deleted-name set;
 the frozen baseline itself is unchanged. Remaining PM legacy signals: `project_changed`, `tasks_
