@@ -39,7 +39,7 @@ class PortfolioIntakeCommandMixin:
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             events: list = []
             scoring_template = self._resolve_scoring_template(
-                scoring_template_id, templates_repo=uow.scoring_templates, events=events
+                scoring_template_id, uow=uow, events=events
             )
             item = PortfolioIntakeItem.create(
                 organization_id=organization_id,
@@ -142,7 +142,7 @@ class PortfolioIntakeCommandMixin:
             events: list = []
             if "scoring_template_id" in changes and changes["scoring_template_id"] is not None:
                 scoring_template = self._resolve_scoring_template(
-                    changes["scoring_template_id"], templates_repo=uow.scoring_templates, events=events
+                    changes["scoring_template_id"], uow=uow, events=events
                 )
                 candidate = self._apply_scoring_template(candidate, scoring_template)
             uow.intake.update(candidate)

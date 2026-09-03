@@ -3059,6 +3059,69 @@ baseline itself is unchanged. Remaining PM legacy signals: `project_changed`, `t
 nothing discovered this phase materially changes Project's own facts, transaction shape, or
 cross-capability edges (Portfolio→Project remains reference-only in both directions, reconfirmed).
 
+**P42-FIX — Scoring-template lazy bootstrap verified canonical; a real audit gap found and
+closed.** Traced every caller of `_ensure_scoring_templates`/`_scoring_templates_with_bootstrap`:
+2 QUERY callers (`list_scoring_templates`, `get_active_scoring_template`) and 4 COMMAND call
+paths (all already inside their own `PortfolioUnitOfWork`). Classified the bootstrap default
+template as **REAL DOMAIN MUTATION**, not technical seeding — it is the exact same
+`PortfolioScoringTemplate` entity a user creates directly, shows up indistinguishable from a
+user-created row in the Templates tab, and can later be activated/deactivated through the normal
+commands.
+
+**Real gap found: the bootstrap path recorded a typed `PortfolioScoringTemplateChanged` event but
+never called enterprise audit.** `_ensure_scoring_templates`/`_deactivate_other_templates` mutated
+rows and appended DomainEvents, but only the COMMAND methods' own top-level `record_audit_entry`
+calls covered the row the user explicitly asked for — never the bootstrap default created as a
+side effect (reachable from `create_intake_item` too, not just the two query methods). A dedicated
+test (monkeypatching `EnterpriseAuditService.record` and asserting the whole bootstrap call raises)
+caught this directly: it didn't raise, because audit was never invoked for that row. Fixed by
+moving `record_audit_entry` calls inside the shared helpers themselves (`_ensure_scoring_templates`
+for create/reactivate, `_deactivate_other_templates` for deactivate) so every caller — command or
+query — gets complete, atomic audit coverage for every scoring-template row it touches, with zero
+double-auditing (the helpers only ever touch rows distinct from whatever the command's own
+top-level audit call already covers). Helper signatures changed from a bare `templates_repo`
+parameter to the full `uow` (needed for `_enterprise_audit_service` access) — `activate_scoring_
+template`'s one pre-UoW existence check no longer routes through `_resolve_scoring_template`
+(which now requires a `uow`) and instead does a direct, simpler `_scoring_template_repo.get(...)`
++ `NotFoundError`, since that read-only check never needed bootstrap capability anyway.
+
+**Write-on-read: RETAINED, deliberately, with justification recorded in the code itself.**
+Eliminating it was investigated and rejected: Portfolio has no `Portfolio` entity and no "create
+Portfolio" command to hook an explicit bootstrap into (P40A), and returning an unpersisted,
+in-memory-only default from the query would mint a fresh `generate_id()` every call — a later
+`activate_scoring_template(that_id)` or intake creation defaulting to it would 404, a worse
+regression than today's behavior. The write only happens ONCE per organization (`_scoring_
+templates_with_bootstrap`'s own `if templates and any(active): return templates` guard short-
+circuits every call after the first to a plain read, proved by a dedicated repeated-read test).
+Query methods are correspondingly **NOT fully mutation-free** — the rare first-open case remains
+an exception, proved safe (atomic, fully audited/evented) rather than hidden.
+
+**Concurrent first-bootstrap race: characterized, not fixed.** `PortfolioScoringTemplateORM` has
+no unique constraint on `(organization_id, name)` or `(organization_id, is_active)` — only plain
+indexes (confirmed by reading the ORM's own `__table_args__`). Two genuinely concurrent sessions
+racing the empty-organization bootstrap can both create an active "Balanced PMO" default,
+producing two active rows — reproduced directly with two real, independently-committing
+`PortfolioUnitOfWork` instances in a test, not merely asserted. This is **pre-existing debt**, not
+introduced by P42's UoW convergence (the same list-then-create-if-empty shape existed before,
+guarded only by a raw self-commit) — left unfixed, matching the standing "characterize, don't
+schema-migrate" precedent (PO-line receiving concurrency, Register delete, Project delete). Also
+discovered and recorded precisely: activating one of the two duplicates is a true no-op (both are
+already active, correct §20 no-op semantics) and does NOT self-heal the race by itself; creating
+(or activating) any other template does, since `_deactivate_other_templates` deactivates every
+currently-active row in one pass.
+
+**Regression**: new `test_p42_fix_portfolio_scoring_template_bootstrap.py` (7 — existing-template
+read is mutation-free; first bootstrap via each query method creates exactly one atomically-
+audited default with exactly one ViewInvalidation target and is itself idempotent on a second
+read; audit-failure and repository-failure bootstrap rollback leave zero partial state; the
+concurrent-race characterization proving both the duplicate outcome and its true recovery path),
+`test_portfolio_phase0a2_rollback_hardening.py`'s own `_template_case` fixture repointed to the
+new `uow=` signature, full Portfolio regression suite (212 total across this run) reconfirmed
+green.
+
+**Legacy Signal count: unchanged at 4.** `portfolio_changed` remains deleted; no field-level
+change in this phase. **Project remains next, unchanged.**
+
 ## 4. Current State
 
 **Legacy Signal count: 4 as of P42** (source-derived from

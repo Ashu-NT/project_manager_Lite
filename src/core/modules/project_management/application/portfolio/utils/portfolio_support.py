@@ -14,6 +14,7 @@ from src.core.modules.project_management.application.portfolio.portfolio_events 
     PortfolioScoringTemplateChangeType,
     PortfolioScoringTemplateChanged,
 )
+from src.core.shared.audit import record_audit_entry
 
 
 class PortfolioSupportMixin:
@@ -152,8 +153,10 @@ class PortfolioSupportMixin:
         )
 
     def _ensure_scoring_templates(
-        self, *, templates_repo, events: list
+        self, *, uow, events: list
     ) -> list[PortfolioScoringTemplate]:
+
+        templates_repo = uow.scoring_templates
         organization_id = self._active_portfolio_organization_id(operation_label="view scoring templates")
         templates = templates_repo.list()
         if templates:
@@ -161,6 +164,21 @@ class PortfolioSupportMixin:
                 templates[0].is_active = True
                 templates[0].updated_at = self._utc_now()
                 templates_repo.update(templates[0])
+                record_audit_entry(
+                    uow,
+                    operation="update",
+                    entity_type="portfolio_scoring_template",
+                    entity_id=templates[0].id,
+                    module="project_management",
+                    organization_id=organization_id,
+                    severity="low",
+                    metadata={
+                        "action": "portfolio.scoring_template.bootstrap_reactivate",
+                        "name": templates[0].name,
+                    },
+                    commit=False,
+                    fail_closed=True,
+                )
                 events.append(
                     self._scoring_template_event(
                         templates[0], PortfolioScoringTemplateChangeType.ACTIVATED
@@ -179,38 +197,52 @@ class PortfolioSupportMixin:
             is_active=True,
         )
         templates_repo.add(default_template)
+        record_audit_entry(
+            uow,
+            operation="create",
+            entity_type="portfolio_scoring_template",
+            entity_id=default_template.id,
+            module="project_management",
+            organization_id=organization_id,
+            severity="low",
+            metadata={
+                "action": "portfolio.scoring_template.bootstrap_create",
+                "name": default_template.name,
+            },
+            commit=False,
+            fail_closed=True,
+        )
         events.append(
             self._scoring_template_event(default_template, PortfolioScoringTemplateChangeType.CREATED)
         )
         return [default_template]
 
-    def _active_scoring_template(self, *, templates_repo, events: list) -> PortfolioScoringTemplate:
-        templates = self._ensure_scoring_templates(templates_repo=templates_repo, events=events)
+    def _active_scoring_template(self, *, uow, events: list) -> PortfolioScoringTemplate:
+        templates = self._ensure_scoring_templates(uow=uow, events=events)
         for template in templates:
             if template.is_active:
                 return template
         return templates[0]
 
     def _scoring_templates_with_bootstrap(self) -> list[PortfolioScoringTemplate]:
-        
         templates = self._scoring_template_repo.list()
         if templates and any(template.is_active for template in templates):
             return templates
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             events: list = []
-            templates = self._ensure_scoring_templates(templates_repo=uow.scoring_templates, events=events)
+            templates = self._ensure_scoring_templates(uow=uow, events=events)
             for event in events:
                 uow.record_event(event)
             uow.commit()
         return templates
 
     def _resolve_scoring_template(
-        self, template_id: str | None, *, templates_repo, events: list
+        self, template_id: str | None, *, uow, events: list
     ) -> PortfolioScoringTemplate:
         normalized_id = str(template_id or "").strip()
         if normalized_id:
             self._active_portfolio_organization_id(operation_label="view scoring template")
-            template = templates_repo.get(normalized_id)
+            template = uow.scoring_templates.get(normalized_id)
             if template is None:
                 from src.core.platform.common.exceptions import NotFoundError
                 raise NotFoundError(
@@ -218,7 +250,7 @@ class PortfolioSupportMixin:
                     code="PORTFOLIO_TEMPLATE_NOT_FOUND",
                 )
             return template
-        return self._active_scoring_template(templates_repo=templates_repo, events=events)
+        return self._active_scoring_template(uow=uow, events=events)
 
     @staticmethod
     def _apply_scoring_template(
@@ -235,13 +267,28 @@ class PortfolioSupportMixin:
             risk_weight=template.risk_weight,
         )
 
-    def _deactivate_other_templates(self, *, templates_repo, events: list) -> None:
-        for template in self._ensure_scoring_templates(templates_repo=templates_repo, events=events):
+    def _deactivate_other_templates(self, *, uow, events: list) -> None:
+        organization_id = self._active_portfolio_organization_id(
+            operation_label="deactivate portfolio scoring templates"
+        )
+        for template in self._ensure_scoring_templates(uow=uow, events=events):
             if not template.is_active:
                 continue
             template.is_active = False
             template.updated_at = self._utc_now()
-            templates_repo.update(template)
+            uow.scoring_templates.update(template)
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="portfolio_scoring_template",
+                entity_id=template.id,
+                module="project_management",
+                organization_id=organization_id,
+                severity="low",
+                metadata={"action": "portfolio.scoring_template.deactivate", "name": template.name},
+                commit=False,
+                fail_closed=True,
+            )
             events.append(
                 self._scoring_template_event(template, PortfolioScoringTemplateChangeType.DEACTIVATED)
             )

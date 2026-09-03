@@ -3743,6 +3743,22 @@ reach zero.** `portfolio_changed` rejoins the historical P8 frozen allowlist's d
 the frozen baseline itself is unchanged. Remaining PM legacy signals: `project_changed`, `tasks_
 changed`, `collaboration_changed` — Project is next per P40A's tentative sequence.
 
+**P42-FIX correction: the scoring-template bootstrap was missing enterprise audit.**
+`_ensure_scoring_templates`/`_deactivate_other_templates` mutated rows and recorded a typed
+`PortfolioScoringTemplateChanged` event, but never called `record_audit_entry` — only each
+COMMAND's own top-level audit call covered the row the user explicitly asked for, never a
+bootstrap default created as a side effect (reachable from `create_intake_item`, not just the two
+scoring-template query methods). Caught by a dedicated test asserting a monkeypatched
+`EnterpriseAuditService.record` failure aborts the whole bootstrap — it didn't, because audit was
+never invoked. Fixed by moving `record_audit_entry` inside the shared helpers themselves so every
+caller gets complete, atomic audit coverage; helper signatures changed from a bare `templates_repo`
+to the full `uow` (needed for audit-service access). The bootstrap's write-on-read shape itself was
+investigated and deliberately retained (no clean explicit-bootstrap command site exists, since
+Portfolio has no `Portfolio` entity to hook one to, and an unpersisted in-memory default would
+break id-stability) — proved safe (once-per-organization, atomic, fully audited/evented) rather
+than eliminated. A related concurrent-first-bootstrap duplicate-default race was found (no DB
+uniqueness constraint on scoring templates) and recorded as pre-existing debt, not fixed.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

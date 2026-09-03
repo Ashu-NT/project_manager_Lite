@@ -4,7 +4,7 @@ from dataclasses import replace
 
 from src.core.modules.project_management.domain.portfolio import PortfolioScoringTemplate
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.shared.audit import record_audit_entry
 from src.core.modules.project_management.application.portfolio.portfolio_events import (
     PortfolioScoringTemplateChangeType,
@@ -28,7 +28,7 @@ class PortfolioTemplateCommandMixin:
         organization_id = self._active_portfolio_organization_id(operation_label="create scoring template")
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             events: list = []
-            templates = self._ensure_scoring_templates(templates_repo=uow.scoring_templates, events=events)
+            templates = self._ensure_scoring_templates(uow=uow, events=events)
             template = PortfolioScoringTemplate.create(
                 organization_id=organization_id,
                 name=name,
@@ -45,7 +45,7 @@ class PortfolioTemplateCommandMixin:
                     code="PORTFOLIO_TEMPLATE_DUPLICATE",
                 )
             if activate:
-                self._deactivate_other_templates(templates_repo=uow.scoring_templates, events=events)
+                self._deactivate_other_templates(uow=uow, events=events)
             uow.scoring_templates.add(template)
             record_audit_entry(
                 uow,
@@ -68,12 +68,18 @@ class PortfolioTemplateCommandMixin:
 
     def activate_scoring_template(self, template_id: str) -> PortfolioScoringTemplate:
         require_permission(self._user_session, "portfolio.manage", operation_label="activate scoring template")
-        template = self._resolve_scoring_template(template_id, templates_repo=self._scoring_template_repo, events=[])
+        self._active_portfolio_organization_id(operation_label="activate scoring template")
+        template = self._scoring_template_repo.get(template_id)
+        if template is None:
+            raise NotFoundError(
+                "Portfolio scoring template not found.",
+                code="PORTFOLIO_TEMPLATE_NOT_FOUND",
+            )
         if template.is_active:
             return template
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             events: list = []
-            self._deactivate_other_templates(templates_repo=uow.scoring_templates, events=events)
+            self._deactivate_other_templates(uow=uow, events=events)
             candidate = replace(template, is_active=True, updated_at=self._utc_now())
             uow.scoring_templates.update(candidate)
             record_audit_entry(

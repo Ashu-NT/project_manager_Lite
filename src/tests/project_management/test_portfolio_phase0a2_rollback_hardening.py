@@ -130,7 +130,7 @@ def _template_case(services):
     # itself commits normally (mirrors production: any command touching scoring templates could
     # trigger it).
     with portfolio._require_uow_factory().create(context=portfolio._new_context()) as uow:
-        portfolio._ensure_scoring_templates(templates_repo=uow.scoring_templates, events=[])
+        portfolio._ensure_scoring_templates(uow=uow, events=[])
         uow.commit()
     counter = {"n": 0}
 
