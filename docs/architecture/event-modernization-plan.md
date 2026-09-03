@@ -1918,19 +1918,129 @@ failure set (enterprise calendar/shift patterns, party/site domain validation, p
 structure, `inventory_procurement` module-entitlement/import tests) remain, none touched by this
 phase's diff.
 
+### P36-FIX / P36-FIX2 — Canonical Event Lifecycle for the Procurement Commitment Producer (VERIFICATION + FIX)
+
+Two follow-up passes closed a real architectural gap P36's own report under-described. **P36-FIX**
+traced the exact Procurement-driven Commitment flow and found `ProcurementFinancialDispatcher`
+constructed `CommitmentLineChanged`/`CommitmentMatchChanged` precommit but never staged them into
+any canonical event lifecycle — they sat as bare return values, hand-carried across the commit
+boundary, then manually published post-commit. Fixed by having the dispatcher call
+`self._transactional_dispatcher.dispatch(event, self)` immediately before its own commit — but
+**P36-FIX2** found this passed the dispatcher itself as the handler's `uow` argument: real
+duck-typed `UnitOfWork` impersonation (`ProcurementFinancialDispatcher` has none of `record_event`/
+`commit`/`__enter__`/`__exit__`). The corrected, final design: `ProcurementFinancialDispatcher`
+wraps its own already-owned `self._session` in a real `SqlAlchemyUnitOfWorkBase` for the scope of
+one delivery (`uow._session is self._session` — no second transaction, no fresh session; a
+fresh-session-per-delivery alternative was evaluated and rejected because `commitment_service`/
+`cost_entry_service`/`inbox_service`/`outbox_service` are composition-root singletons shared
+across call sites, and splitting the session would break the existing atomicity between
+inbox-delivery-state and the Commitment mutation). `uow.record_event(event)` + `uow.commit()`
+replace every hand-rolled piece of `_drain_and_dispatch()`/postcommit-publish the dispatcher used
+to reproduce manually. Full platform suite re-run before/after: identical 23-failed/1599-passed/
+12-error totals — zero regressions from either pass.
+
+### P37 — Finance Cost Entry Full Modernization + P8 Architecture Budget Restored (DIRECT FULL MODERNIZATION)
+
+The last legacy Finance signal. Source reconfirmed `ProjectCostEntry` is a genuine hybrid: a
+mutable draft/lifecycle aggregate (DRAFT → SUBMITTED → APPROVED → POSTED, or SUBMITTED → DRAFT via
+`reject()`) with a true immutable-ledger correction concept for POSTED entries (`reverse` never
+mutates the original's financial facts — it flips `status` to REVERSED and records a brand-new,
+sign-flipped reversal entry). Five typed events
+(`application/financials/cost/entries/cost_entry_events.py`) reflect that split rather than a
+CRUD-shaped `CostEntryCreated/Updated/Deleted` or a single catch-all `CostEntryChanged`:
+`CostEntryRecorded` (a new entry now exists — manual create arrives DRAFT; both integration
+sources, Approved Time and Procurement receipt accrual, arrive already POSTED, since those two
+paths advance draft→submit→approve→post synchronously in one command and the intermediate
+transitions are internal plumbing, not independent facts — `status` lets ViewInvalidation decide),
+`CostEntryUpdated` (genuine mutable-CRUD draft edit), `CostEntryStatusChanged` (`change_type:
+SUBMITTED | APPROVED | REJECTED | POSTED` — one class, since `submit`/`approve`/`reject`/`post`
+are literally the same kind of fact, a status-field transition, differentiated only by the
+resulting state, mirroring the already-accepted `CommitmentLineChanged`/`FinancialChangeChanged`
+enum-in-one-class precedent rather than four near-identical classes), `CostEntryReversed` (a
+posted entry was reversed and a new reversal entry recorded — both the manual `reverse` command
+and the correction-of-a-prior-revision branch inside `apply_approved_time_source`), and
+`CostEntryRemoved` (draft deleted).
+
+**Transaction ownership.** Eight direct commands (`create_manual_entry`, `update_draft`,
+`delete_draft`, `submit`, `approve`, `reject`, `post`, `reverse`) converge onto
+`FinanceGovernanceUnitOfWork` via a new `FinanceGovernanceCommandBoundary.cost_entry()` (direct
+structural copy of `commitment()`), wrapped in an 8th `FinanceGovernedServicePort` family. Unlike
+Commitment, every mutation except `create_manual_entry` resolves `project_id` identically (`self.
+_read_service.get_entry(args[0]).project_id`) — `create_manual_entry` already passes `project_id`
+as an explicit kwarg, so it's caught by the existing generic shortcut with no family-specific
+branch needed. `_apply_approval_decision`/`_apply_rejection_decision` (the shared private helpers
+behind both the direct `approve()`/`reject()` and the Approval participant) construct and return
+`(entry, event)` — mirroring `ProjectCommitmentService._create_match`'s exact dual-path shape from
+P36: `record_event` is called when wired (the governed path), and the returned event is used
+directly by the participant (whose fresh per-transaction `ProjectCostEntryService` instance has no
+`record_event` wired). Cost Entry's own commit-without-rollback characteristic was less severe
+than Commitment's — the old `_commit()` already wrapped `self._session.commit()` in try/except/
+rollback — but it was still a raw, uncanonical Session with a post-commit legacy-signal emit; that
+raw `_commit()` method is deleted entirely.
+
+**Approval path.** `ProjectCostApprovalParticipant.apply`/`reject` no longer return
+`ApprovalPostCommitEvent("cost_entries_changed", ...)` — they forward the typed
+`CostEntryStatusChanged` the shared decision helpers already built, via
+`ApprovalHandlerResult(domain_events=(event,))`, recorded precommit by `ApprovalService`'s own
+pre-existing canonical machinery (the exact seam `FinancialChangeApprovalParticipant` established
+in P19) — no new participant-side event construction was needed.
+
+**Integration dispatchers.** `apply_approved_time_source`/`apply_procurement_receipt_source` no
+longer commit or emit — they construct and *return* their typed event(s) (0–2, since a correction
+produces both a `CostEntryReversed` for the superseded entry and a `CostEntryRecorded` for the new
+one). `ApprovedTimeFinancialDispatcher` gained the exact `SqlAlchemyUnitOfWorkBase`-wrapping shape
+P36-FIX2 established for `ProcurementFinancialDispatcher` (a new capability for this dispatcher,
+which never had it before) — proven by a dedicated precommit-timing/real-UoW-identity test
+mirroring P36-FIX2's own. `ProcurementFinancialDispatcher`'s `_consume_under_unit_of_work` now
+records both `consumption.commitment_events` and the new `consumption.cost_entry_events` into the
+SAME one UoW per delivery (a receipt can genuinely produce both a Commitment match fact and a Cost
+Entry recorded fact) — its `_emit_refresh` method, whose entire remaining job after P36-FIX2 was
+the `cost_entries_changed` emit, is now fully dead and deleted outright.
+
+**ViewInvalidation — two targets, not one, source-justified.** `finance_snapshot_statements.py`
+confirms only `status IN ('posted', 'reversed')` entries count toward actual-cost aggregates, so
+`cost_entry_list` (every fact — the "Costs" tab shows drafts too) and `cost_entry_actuals` (only
+POSTED-affecting facts: `CostEntryRecorded` when `status=POSTED`, `CostEntryStatusChanged(POSTED)`,
+`CostEntryReversed`) are genuinely distinct staleness surfaces. `on_cost_entry_list_stale`
+invalidates only `"costs"`; `on_cost_entry_actuals_stale` invalidates `"overview"`/`"performance"`/
+`"commercial"` (not `"costs"` again — already covered by the paired list hint every posted fact
+also emits) — together reproducing the legacy signal's own exact 4-destination fan-out
+(`overview`/`costs`/`performance`/`commercial` — confirmed NOT including `"planning"`, unlike
+Commitment's 5).
+
+**Legacy retirement.** `cost_entries_changed` deleted from `DomainEvents`, added to
+`_DELETED_BRIDGE_NAMES`. `test_r6b_finance_invalidation.py`'s remaining cases and
+`test_p7_legacy_bridge_removal.py`'s "unrelated signal" example moved onto `budgets_changed` (the
+next still-legacy Finance signal); `budgets_changed`/`billing_preparations_changed` are the two
+signals `test_p7c_zero_consumer_signal_cleanup.py`'s `_ACTIVE_FINANCE_SIGNALS` now names.
+
+**Regression battery.** Existing `test_project_cost_entries.py` (8 tests) and
+`test_project_cost_apply_participant.py` (5 tests) — full CRUD/lifecycle/concurrency/immutability
+coverage — pass unmodified in behavior; `test_approved_time_labor_integration.py` (11 tests, 2
+adapted to the typed-event/post-commit-bus path, 2 new precommit-timing/rollback proofs added) and
+`test_procurement_financial_integration.py` (9 tests, 1 adapted) both pass; a new
+`test_p37_finance_cost_entry_full_modernization.py` (21 tests) covers the two-target
+ViewInvalidation handler (mapping + dedupe), every direct command's exact hint set, the
+audit-failure rollback/session-reusability proof, the pre-existing optimistic-concurrency guard,
+and both controller consumer reactions. Full broad Finance-area PM suite: 556 passed (only the
+same pre-existing, unrelated `test_financials_mutation_error_boundary.py` harness bug remains,
+confirmed untouched by this diff). **P8 guard suite: all 29 tests green** — the milestone this
+phase exists to reach.
+
 ## 4. Current State
 
-**Legacy Signal count: 10 as of P36** (source-derived from
+**Legacy Signal count: 9 as of P37** (source-derived from
 `src/core/shared/events/domain_events.py`, re-verified against current source when this document
-was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Down from 11 at
-P35-CLEANUP — `commitments_changed` is now deleted.
+was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Down from 10 at
+P36 — `cost_entries_changed` is now deleted. This was the **last post-P8-freeze legacy-Signal
+violation** — the P8 architecture budget (`current ⊆ frozen`) is restored with zero exceptions.
 
 | Area | Count |
 |---|---|
 | Platform | 0 |
 | Auth/Security | 1 |
 | Project Management | 6 |
-| Finance | 3 |
+| Finance | 2 |
 | Inventory/Procurement | 0 |
 
 > **This is a snapshot, not a fact.** Recompute the count directly from
@@ -1954,24 +2064,19 @@ exists yet on that surface.
 
 **Planned Cost is DONE (P35, see §3)** — `planned_costs_changed` is deleted, the first of P34A's
 Finance-first trio complete. `financial_changes_changed` is ALSO now gone (retired independently,
-outside this document's tracked sequence — see the P35-CLEANUP entry). **Commitment is now DONE
-too (P36, see §3)** — `commitments_changed` is deleted; the commit-without-rollback bug in
-`commitment_service.py`'s old `_commit()` is fixed via convergence onto
-`FinanceGovernanceUnitOfWork`. **`cost_entries_changed` is next and last of the Finance-first
-trio**, as DIRECT FULL MODERNIZATION (no dedicated audit-first phase needed): it already has an
-unused, fully-wired canonical `FinanceGovernanceUnitOfWork` repo accessor and the same proven
-precommit-conversion pattern P22's Rate Card, P35's Planned Cost, and P36's Commitment already
-demonstrated on the exact same class. **Correction from P35-CLEANUP, re-confirmed at P36**:
-`cost_entries_changed` has 3 producers — `cost_entry_service.py` direct, plus
-`ProcurementFinancialDispatcher` and `ApprovedTimeFinancialDispatcher` — re-scope the producer
-surface from current source before implementing, not from P34A's original "single producer"
-characterization; P36 confirmed `ProcurementFinancialDispatcher`'s own commit/rollback handling is
-already correct, so the same "leave the dispatcher-embedded transaction alone, converge only the
-UI-facing direct path, change only the producer's return contract" shape applies again here.
-`budgets_changed` remains transaction-canonical but is deliberately sequenced
-after the trio — P34A found it genuinely coupled to PM's `tasks_changed` through one Approval
-participant (`financial_change_apply_participant.py::apply()`, which still conditionally emits both
-legacy signals even though its own `financial_changes_changed` is now typed), which needs its own
+outside this document's tracked sequence — see the P35-CLEANUP entry). **Commitment is DONE (P36,
+P36-FIX, P36-FIX2, see §3)** — `commitments_changed` is deleted; the commit-without-rollback bug is
+fixed via convergence onto `FinanceGovernanceUnitOfWork`; the Procurement-driven producer path's
+event lifecycle is fully canonical (real `SqlAlchemyUnitOfWorkBase`, no dispatcher-as-UoW
+impersonation). **Cost Entry is now DONE too (P37, see §3)** — `cost_entries_changed` is deleted,
+completing P34A's Finance-first trio. This was the **last post-P8-freeze legacy-Signal violation**
+— the P8 architecture budget (`current ⊆ frozen`) is now restored with zero exceptions; the P8
+guard suite is fully green. **No Finance capability with a post-freeze legacy-Signal violation
+remains.** `budgets_changed`/`billing_preparations_changed` (Budget, Billing Preparation) are the
+two remaining Finance legacy signals — both are pre-freeze, frozen-allowlisted, not violations.
+`budgets_changed` is genuinely coupled to PM's `tasks_changed` through one Approval participant
+(`financial_change_apply_participant.py::apply()`, which still conditionally emits both legacy
+signals even though its own `financial_changes_changed` is now typed), which needs its own
 deliberate resolution rather than being forced by finishing Budget in isolation. Per this document's
 own repeated caution, re-run prioritization from current source before committing further —
 concurrent development elsewhere may have changed readiness since P34A.
@@ -2013,8 +2118,10 @@ Remaining capability groups, not yet assigned rigid phase numbers:
   any typed-event design), Project Lifecycle, Timesheet Period, Collaboration
   Comment (+ Collaboration Presence, which needs a non-`DomainEvent` mechanism, not a migration
   target), Portfolio (Template/Scenario/Intake/Dependency), Risk Register.
-- **Finance**: Project Cost Entry (last of the Finance-first trio — see §5), Project Budget,
-  Billing Preparation. (Financial Change, Project Commitment, and Planned Cost are DONE — see §3/§5.)
+- **Finance**: Project Budget, Billing Preparation — the two remaining capabilities, both
+  pre-freeze/frozen-allowlisted (no post-freeze violation to resolve). (Financial Change, Planned
+  Cost, Project Commitment, and Project Cost Entry — the full Finance-first trio — are all DONE —
+  see §3/§5. No Finance capability has an open post-P8-freeze legacy-Signal violation.)
 - **Inventory/Procurement — ALL NINE CAPABILITIES DONE, MODULE COMPLETE**: **Purchase Order — DONE
   (P28B/P28B-FIX, see §3)**, **Requisition — DONE (P29/P29-FIX, see §3)**, **Reservation — DONE
   (P30B/P30B-FIX, see §3)**, **Stock Balance — DONE (P31A/P31B, see §3)**, **Cycle Count — DONE
@@ -2072,11 +2179,24 @@ document** - each is addressed when its owning capability's phase is implemented
   facts — `CommitmentLineChanged` (`CREATED`/`REVISED`) and `CommitmentMatchChanged`
   (`MATCHED`/`REVERSED`) — replace the signal, both routed through one `commitment_list`
   (`ResourceScope`, project-scoped) target, matching the legacy signal's own 5-destination fan-out.
-  The second producer P35-CLEANUP found (`ProcurementFinancialDispatcher`) was NOT converged onto
-  the UoW — its own commit/rollback was already correct — only its two Procurement-inbox-facing
-  methods' *return contract* changed (typed event instead of entity), so the dispatcher publishes
-  through the canonical post-commit bus instead of the legacy signal, field deleted (ADR-005
-  §26.32). Next: `cost_entries_changed`, the last of the trio.
+  The second producer P35-CLEANUP found (`ProcurementFinancialDispatcher`) was NOT converged onto a
+  *second* UoW — its own commit/rollback was already correct — only its two Procurement-inbox-facing
+  methods' *return contract* changed (typed event instead of entity); field deleted (ADR-005
+  §26.32). **P36-FIX/P36-FIX2 correction**: the initial fix had the dispatcher manually call
+  `transactional_dispatcher.dispatch(event, self)` — real `UnitOfWork` impersonation. Final design:
+  the dispatcher wraps its own already-owned session in a real `SqlAlchemyUnitOfWorkBase` per
+  delivery (`uow.record_event(...)` + `uow.commit()`), one canonical transaction, no impersonation.
+- ~~`cost_entries_changed`~~ **RESOLVED by P37 — third and LAST of P34A's Finance-first trio, and
+  the last post-P8-freeze legacy-Signal violation** - eight direct commands converge onto
+  `FinanceGovernanceUnitOfWork` via `FinanceGovernanceCommandBoundary.cost_entry()`. Five typed
+  facts (`CostEntryRecorded`/`Updated`/`StatusChanged`/`Reversed`/`Removed`) replace the signal,
+  routed through two targets (`cost_entry_list` for every fact, `cost_entry_actuals` only for
+  POSTED-affecting facts — source-confirmed via `finance_snapshot_statements.py`'s `status IN
+  ('posted','reversed')` filter). The Approval path uses `ApprovalHandlerResult.domain_events`
+  (P19's canonical seam), no legacy bridge. Both integration dispatchers
+  (`ProcurementFinancialDispatcher`, `ApprovedTimeFinancialDispatcher`) now record Cost Entry
+  events into the same canonical per-delivery UoW P36-FIX2 established; field deleted (ADR-005
+  §26.33). `current ⊆ frozen` restored — P8 guard suite fully green.
 - ~~`inventory_receipts_changed`~~ **RESOLVED by P33 — Inventory/Procurement's LAST legacy Signal,
   module now COMPLETE** - the one producer (`post_receipt`) now records a single typed
   `InventoryReceiptPosted` fact ("a Receipt was posted") alongside the pre-existing
@@ -2153,9 +2273,9 @@ document** - each is addressed when its owning capability's phase is implemented
   ADR-005 §26.16) rather than replacing it, since every other Approval participant still reports
   through the legacy Signal-name bridge.
 - Remaining raw process-lifetime Sessions - Auth (all 10 producer files, on one shared Session),
-  most of PM and Inventory/Procurement, and part of Finance (`cost_entries_changed` - notably,
-  already has an unused canonical UoW repo declared for it, same as `commitments_changed` did
-  before P36).
+  most of PM and Inventory/Procurement. Finance has none left with a legacy-Signal-carrying
+  producer on one — `budgets_changed`/`billing_preparations_changed` (Budget, Billing Preparation)
+  remain raw-Session in places but are pre-freeze/frozen-allowlisted, not violations.
 - ~~Orphan Resource typed events before P18~~ **RESOLVED by P18A** -
   `ResourceMasterChanged`/`ResourceCapabilityChanged` now dispatch through the canonical
   post-commit bus (bespoke `Signal[T]` transport deleted); still zero real UI subscribers until

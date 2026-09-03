@@ -3344,6 +3344,199 @@ legacy Signal count is 10 as of this phase (11 minus the one deletion — confir
 Commitment is now fully modernized — the second of P34A's Finance-first trio. Next planned target:
 `cost_entries_changed`, the last of the trio.
 
+**26.33 P36-FIX/P36-FIX2: canonical event lifecycle for the Procurement Commitment producer
+(verification + fix, no new phase number).** P36-FIX traced the exact Procurement-driven
+Commitment flow end-to-end and found a real gap the P36 report's own wording had glossed over:
+`CommitmentLineChanged`/`CommitmentMatchChanged` were constructed precommit inside
+`ProcurementFinancialConsumer.consume()` but never staged into any canonical event lifecycle —
+they were bare Python return values, hand-carried through `ProcurementFinancialConsumption` across
+the commit boundary, then manually published to `platform_post_commit_bus` *after*
+`self._session.commit()` succeeded. No pre-commit transactional-handler guarantee existed for
+them at all — accidentally harmless only because zero handlers happen to be registered for any
+ViewInvalidation-only event anywhere in this codebase. First fix: `ProcurementFinancialDispatcher`
+gained a `_record_precommit()` calling `self._transactional_dispatcher.dispatch(event, self)`
+immediately before its own commit.
+
+**P36-FIX2 found that fix itself violated the architecture it was restoring**: passing `self`
+(the dispatcher) as the handler's `uow: UnitOfWork` argument is real duck-typed impersonation —
+`ProcurementFinancialDispatcher` implements none of `record_event`/`commit`/`__enter__`/`__exit__`/
+`context`/`register_touched`/`tracked_aggregates`, and `InProcessTransactionalEventDispatcher`'s
+own docstring confirms `uow` is typed `UnitOfWork` throughout the architecture (Protocol, handler
+signature) even though its concrete implementation never inspects it structurally. A fresh-UoW-
+per-delivery alternative (§6 of that verification's own brief) was evaluated and rejected: `commitment_service`/`cost_entry_service`/`inbox_service`/`outbox_service` are
+composition-root singletons already bound to the dispatcher's one long-lived session at
+construction time; splitting only the event-recording portion onto a separate fresh session would
+break the existing atomicity between inbox-delivery-state (`begin_delivery`/`mark_processed`) and
+the Commitment mutation, which currently share one commit. Final, canonical design: a new private
+`_consume_under_unit_of_work()` wraps the dispatcher's own already-owned `self._session` in a real
+`SqlAlchemyUnitOfWorkBase` (`session=self._session` — the literal same object, not a new one) for
+the scope of one delivery — `consumer.consume()` runs inside it, `uow.record_event(event)` for
+each returned Commitment event, `uow.commit()` runs the exact same drain → precommit-dispatch →
+`self._session.commit()` → postcommit-publish lifecycle every other canonical UoW in this codebase
+already runs. `_record_precommit()` and the manual `_emit_refresh()` publish loop for
+`commitment_events` are both deleted — the dispatcher no longer directly invokes
+`transactional_dispatcher.dispatch(...)` or `post_commit_bus.publish(...)` for DomainEvent
+lifecycle purposes anywhere. A strengthened test proves the handler receives the real
+`SqlAlchemyUnitOfWorkBase` instance (`isinstance` + `is not dispatcher` + `handler_uow._session is
+dispatcher._session`), and a companion test proves a raising precommit handler rolls back the
+mutation and reaches zero postcommit event. Full platform suite before/after: identical
+23-failed/1599-passed/12-error totals across both passes — zero regressions. No production
+commits were made by the agent in either pass; HEAD advanced only through the same external
+auto-commit process observed throughout this engagement.
+
+**26.34 P37: Finance Cost Entry full modernization — `cost_entries_changed` deleted, third and
+LAST of P34A's Finance-first trio; the P8 architecture budget is restored.** Source reconfirmed
+`ProjectCostEntry` as a genuine hybrid: a mutable draft/lifecycle aggregate (`DRAFT` →
+`SUBMITTED` → `APPROVED` → `POSTED`, or `SUBMITTED` → `DRAFT` via `reject()`) with a true
+immutable-ledger correction concept for `POSTED` entries — `reverse` never mutates the original's
+financial facts, it flips `status` to `REVERSED` and records a brand-new, sign-flipped reversal
+entry (`ProjectCostEntry.create_posted_reversal`). Five typed events
+(`application/financials/cost/entries/cost_entry_events.py`) reflect that split rather than a
+CRUD-shaped `CostEntryCreated`/`Updated`/`Deleted` (rejected — source is not uniform CRUD across
+its whole lifecycle) or a single catch-all `CostEntryChanged` (rejected — an explicit test,
+`test_no_new_business_domain_event_or_replacement_signal_introduced`, forbids exactly that name):
+
+- `CostEntryRecorded` (`tenant_id`, `organization_id`, `project_id`, `cost_entry_id`, `status`,
+  `occurred_at`) — a new entry now exists. Manual `create_manual_entry` arrives `DRAFT`; both
+  integration sources (`apply_approved_time_source`, `apply_procurement_receipt_source`) arrive
+  already `POSTED`, since those two paths advance draft→submit→approve→post synchronously inside
+  one command and the intermediate transitions are internal plumbing, not independent
+  UI-observable facts — `status` lets the ViewInvalidation handler decide whether actual-cost
+  destinations need invalidating too.
+- `CostEntryUpdated` — `update_draft`'s genuine mutable-CRUD field edit.
+- `CostEntryStatusChanged` (`change_type: SUBMITTED | APPROVED | REJECTED | POSTED`) — one class,
+  not four near-identical ones: `submit`/`approve`/`reject`/`post` are literally the same *kind*
+  of fact (the entry's status field changed), differentiated only by the resulting state, mirroring
+  the already-accepted `CommitmentLineChanged`/`FinancialChangeChanged` enum-in-one-class shape
+  (§26.32/§26.16) rather than Rate Card's separate-class-per-operation shape (§26.22) — the
+  deciding factor was that these four operations share an identical payload shape and downstream
+  meaning (only "which status is it now" matters to a consumer), unlike Rate Card's genuinely
+  distinct operations. `REJECTED` exists as its own `change_type` value specifically because
+  `reject()` returns the domain status to `DRAFT` (there is no `REJECTED` value in
+  `ProjectCostEntryStatus`) — `entry.status` alone cannot disambiguate "was rejected back to
+  draft" from "was newly created as draft"; the typed event's `change_type` can.
+- `CostEntryReversed` (`cost_entry_id` = the new reversal entry, `reverses_entry_id` = the
+  original) — both the manual `reverse` command and the correction-of-a-prior-revision branch
+  inside `apply_approved_time_source` (a correction produces two real facts from one call: the
+  prior entry was reversed, and the new corrected entry was recorded — both returned).
+- `CostEntryRemoved` — `delete_draft`.
+
+**Transaction ownership.** All eight direct commands (`create_manual_entry`, `update_draft`,
+`delete_draft`, `submit`, `approve`, `reject`, `post`, `reverse`) converge onto the
+already-existing `FinanceGovernanceUnitOfWork.cost_entries` accessor (unused before this phase,
+same pattern as Commitment's own previously-unused `commitments` accessor) via a new
+`FinanceGovernanceCommandBoundary.cost_entry()` method, a direct structural copy of
+`commitment()`. `ProjectCostEntryService` is wrapped in an 8th `FinanceGovernedServicePort` family
+(`family="cost_entry"`). `_project_id()` needed exactly one new branch — every mutation except
+`create_manual_entry` resolves via `self._read_service.get_entry(args[0]).project_id`;
+`create_manual_entry` already passes `project_id` as an explicit kwarg, caught by the port's
+pre-existing generic `kwargs.get("project_id")` shortcut with no family-specific case needed. The
+shared private helpers behind both the direct `approve()`/`reject()` and the Approval
+participant — `_apply_approval_decision`/`_apply_rejection_decision` — construct and return
+`(entry, event)`, mirroring `ProjectCommitmentService._create_match`'s exact dual-path shape from
+P36: `self._record_event(event)` fires when wired (the governed direct path), and the returned
+event is used directly by the participant (whose fresh per-transaction `ProjectCostEntryService`,
+built by `build_project_cost_approval_deps`, has no `record_event` wired — `approval_service=None`
+by the same P4A reasoning as every sibling `*ApprovalDeps` builder). Cost Entry's own
+transaction-safety defect was narrower than Commitment's — the old `_commit()` already wrapped
+`self._session.commit()` in try/except/rollback — but it was still a raw, uncanonical Session with
+a post-commit legacy-signal emit; `_commit()` is deleted entirely, along with every
+`self._session.commit()` call for these eight commands.
+
+**Approval path — the canonical P19 seam, no new construction needed.**
+`ProjectCostApprovalParticipant.apply`/`reject` no longer build
+`ApprovalPostCommitEvent("cost_entries_changed", invalidation_scope(entry))` — they forward the
+typed `CostEntryStatusChanged` the shared decision helpers already constructed, via
+`ApprovalHandlerResult(domain_events=(event,))`. `ApprovalService`'s own pre-existing machinery
+(the exact `for domain_event in handler_result.domain_events: uow.record_event(domain_event)` seam
+`FinancialChangeApprovalParticipant` established in P19, §26.16) records it precommit on its own
+UoW — unlike Financial Change, which builds its typed events directly inline in the participant,
+Cost Entry's participant never constructs `CostEntryStatusChanged` itself; it only forwards what
+the service-layer helper already built, since that helper is shared with the direct governed path
+too and must be the single source of truth for the event's shape.
+
+**Integration dispatchers — both now canonical, `ProcurementFinancialDispatcher`'s `_emit_refresh`
+fully retired.** `apply_approved_time_source`/`apply_procurement_receipt_source` no longer commit
+or emit anything themselves — they construct and *return* their typed event(s) (0–2 for the
+Approved Time path, 0–1 for Procurement receipt), exactly mirroring Commitment's dispatcher-facing
+return-contract shape from P36. `ApprovedTimeFinancialDispatcher` gained the identical
+`SqlAlchemyUnitOfWorkBase`-wrapping shape §26.33 established for `ProcurementFinancialDispatcher`
+— a genuinely new capability for this dispatcher, which never had any canonical event lifecycle
+before this phase — proven by a dedicated precommit-timing/real-UoW-identity test mirroring
+§26.33's own two Commitment tests exactly (real-UoW-not-dispatcher identity, and
+handler-failure-rolls-back-with-zero-postcommit-event). `ProcurementFinancialDispatcher`'s
+`_consume_under_unit_of_work` now records both `consumption.commitment_events` and the new
+`consumption.cost_entry_events` into the SAME one UoW per delivery (a single Procurement receipt
+envelope can genuinely produce both a Commitment match fact and a Cost Entry recorded fact) —
+`_emit_refresh`, whose entire remaining responsibility after §26.33 was the `cost_entries_changed`
+emit, is now fully dead code and deleted outright, along with the now-unused `FinanceInvalidationScope`/`domain_events` imports in that file.
+
+**ViewInvalidation — two targets, source-justified, not copied from Commitment's one.**
+`finance_snapshot_statements.py` confirms actual-cost aggregation queries filter
+`ProjectCostEntryORM.status.in_(("posted", "reversed"))` — DRAFT/SUBMITTED/APPROVED entries never
+count toward actuals. This directly justifies two genuinely distinct staleness surfaces:
+`cost_entry_list` (every fact — the "Costs" tab lists entries of any status) and
+`cost_entry_actuals` (only POSTED-affecting facts: `CostEntryRecorded` when `status=POSTED`,
+`CostEntryStatusChanged(POSTED)`, `CostEntryReversed`). `on_cost_entry_list_stale` invalidates only
+`"costs"`; `on_cost_entry_actuals_stale` invalidates `"overview"`/`"performance"`/`"commercial"`
+(deliberately not `"costs"` again — the paired list hint every posted fact also emits already
+covers it) — together reproducing the legacy signal's own exact 4-destination fan-out
+(`overview`/`costs`/`performance`/`commercial`, confirmed via `financials_refresh_mixin.py`'s
+former `_cost_entries_changed` callback — notably NOT including `"planning"`, unlike Commitment's
+5-destination mapping; not copied automatically, source-proven independently).
+
+**Legacy retirement and test adaptation.** `cost_entries_changed` deleted from `DomainEvents`,
+added to `_DELETED_BRIDGE_NAMES`. `test_r6b_finance_invalidation.py`'s remaining cases and
+`test_p7_legacy_bridge_removal.py`'s "unrelated signal" example — both previously standing in on
+`cost_entries_changed` after P36 retired `commitments_changed` — moved onto `budgets_changed` (the
+next still-legacy Finance signal); the "other organization" rejection sub-case was dropped rather
+than faked, since `budgets_changed` is `Signal[str]` (plain project id, no tenant/org component)
+and `_finance_event_matches`'s string branch never checked organization to begin with — that
+capability was only ever exercised through `cost_entries_changed`'s `Signal[object]`/
+`FinanceInvalidationScope` payload, which no longer exists anywhere in `DomainEvents`.
+`test_p7c_zero_consumer_signal_cleanup.py`'s `_ACTIVE_FINANCE_SIGNALS` now names
+`budgets_changed`/`billing_preparations_changed` (verified real producers under
+`/application/financials/` for both) instead of the retired signal; its
+`test_project_cost_apply_participant_emits_scoped_post_commit_events` test was rewritten to prove
+the typed-event forwarding shape instead of the deleted string bridge, and its two
+dispatcher-source-inspection tests were rewritten to assert the canonical
+`SqlAlchemyUnitOfWorkBase`/`uow.record_event`/`uow.commit()` shape and the explicit absence of
+direct `transactional_dispatcher.dispatch(`/`post_commit_bus.publish(` calls in both dispatcher
+files.
+
+**Concurrency preserved exactly, unweakened.** The pre-existing `expected_row_version`
+optimistic-concurrency guard on every mutating command is untouched — a two-session
+repository-level regression test proves the second writer is genuinely rejected, matching the
+established pattern from every prior Finance phase.
+
+**Regression battery.** Pre-existing `test_project_cost_entries.py` (8 tests, full
+CRUD/lifecycle/idempotency/immutability/cross-currency/closed-period coverage) and
+`test_project_cost_apply_participant.py` (5 tests, session-binding/actor-authorization coverage)
+both pass unmodified in behavior through the newly-governed boundary — strong evidence the
+convergence preserved every existing business-correctness guarantee.
+`test_approved_time_labor_integration.py` (11 tests: 2 adapted from the legacy-signal-connect
+pattern to typed-event/post-commit-bus observation, 2 new precommit-timing/rollback proofs added)
+and `test_procurement_financial_integration.py` (9 tests, 1 adapted) both pass. A new
+`test_p37_finance_cost_entry_full_modernization.py` (21 tests) covers the two-target
+ViewInvalidation handler (exact mapping per event type/status, dedup), every direct command's
+exact hint set (list-only vs. list+actuals), the governed-boundary audit-failure rollback and
+session-reusability proof (patched at the `EnterpriseAuditService` class level, since the governed
+UoW factory constructs a fresh instance per transaction — the same already-established
+characteristic every other governed Finance family shares, not a P37-introduced quirk), the
+pre-existing concurrency guard, and both controller consumer reactions
+(`onCostEntryListStale`/`onCostEntryActualsStale`).
+
+`cost_entries_changed` is now deleted from `DomainEvents` entirely — zero producers (all three
+`.emit()` sites converted: `cost_entry_service.py` direct, `ProcurementFinancialDispatcher`,
+`ApprovedTimeFinancialDispatcher`), zero consumers (the sole owning subscription removed from
+`financials_refresh_mixin.py`, replaced by the typed adapter pair). `current − frozen` is now
+**empty** — the P8 architecture budget is fully restored, with zero post-freeze legacy-Signal
+exceptions remaining anywhere in `DomainEvents`. The legacy Signal count is 9 as of this phase (10
+minus the one deletion — confirmed source-derived). Cost Entry is now fully modernized — the
+third and last of P34A's Finance-first trio. No Finance capability has an open post-P8-freeze
+violation; Budget and Billing Preparation remain on their own, separately-scheduled track (both
+pre-freeze, frozen-allowlisted, not violations).
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

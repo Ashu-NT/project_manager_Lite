@@ -288,7 +288,7 @@ class FinanceGovernedServicePort:
                         self._read_service.get_line(match.commitment_line_id).project_id
                     )
             if self._family == "cost_entry":
-                return str(self._read_service.get_entry(args[0]).project_id)
+                return str(self._read_service._require_entry(args[0]).project_id)
         except (AttributeError, IndexError, KeyError, TypeError):
             return ""
         return ""
