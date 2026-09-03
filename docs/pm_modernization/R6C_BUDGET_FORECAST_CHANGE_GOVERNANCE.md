@@ -2,8 +2,8 @@
 
 ## 1. Status
 
-**R6C IN PROGRESS.** R6A and R6B are closed. R6C-A, R6C-B, and R6C-C are
-complete. R6C-D through R6C-H remain open. This document records the verified
+**R6C IN PROGRESS.** R6A and R6B are closed. R6C-A through R6C-D are
+complete. R6C-E through R6C-H remain open. This document records the verified
 R6C starting state and is the execution ledger for the forward-only write
 cutover. R6C must not be marked closed until every blocking exit gate is green.
 
@@ -606,5 +606,150 @@ depth, not application authorization.
 - No Financial Change UX, R6C-D, or R6D-R6G implementation was started. Nothing
   was committed by this implementation pass.
 
-R6C remains open. The next approved stage is R6C-D Financial Change Governance
-Command UX; do not start it implicitly.
+At R6C-C closure, the next approved stage was R6C-D Financial Change Governance
+Command UX. Its completed implementation record follows.
+
+## R6C-D Financial Change Governance Command UX
+
+**Status: COMPLETE.** Finance -> Controls -> Change Control is the only
+Financial Change workspace and command UX. R6C remains open; R6C-E through
+R6C-H were not started by this stage.
+
+### R6C-D Authority And Lifecycle
+
+- CURRENT AUTHORITATIVE COMMANDS: create and versioned edit of a Draft Change
+  Request; add, versioned edit, and versioned removal of Draft Budget, Forecast,
+  or Schedule Impacts; versioned Submit; and Platform Approval Approve-and-Apply
+  or Reject.
+- INTERNAL SUPPORT OPERATIONS: approval participant apply/reject and the
+  Budget, Forecast, and Scheduling authority calls used by an approved Change.
+  They are not separate desktop or QML commands.
+- NOT SUPPORTED: cancel, withdraw, reopen, generic JSON Impact editing, direct
+  apply, and a separate post-approval apply queue. Approval and application are
+  one existing atomic decision semantic, so `canApprove` governs the single
+  **Approve & Apply** action; inventing a separate `canApply` button would expose
+  a lifecycle the domain does not have.
+- DEAD/SUPERSEDED: the broad `financial_changes_changed` signal and its Finance
+  controller consumer are deleted. The obsolete generic scoped-emission helper
+  left in the governance boundary after typed-event cutover is also deleted.
+  No compatibility Change command API, presenter, dialog, route, transaction
+  wrapper, or approval engine remains.
+
+Only Draft requests and their unapplied Impacts are mutable. Submit freezes the
+aggregate and creates one Platform Approval request. Reject preserves governed
+history. Approve atomically applies all supported effects and marks the request
+Applied; a second decision or application cannot create duplicate successors.
+
+### R6C-D Command Architecture
+
+The sole production path is QML -> Financials controller -> presenter command
+mapper -> typed desktop DTO/API -> `FinanceGovernanceCommandBoundary` ->
+transaction-neutral `FinancialChangeService` -> repositories/authority ports ->
+one Finance UoW commit -> typed post-commit invalidation -> existing R6B Change
+Reader refresh. No visible rows are mutated optimistically in QML.
+
+Create resolves tenant, organization, Project, actor, Project currency, and the
+current approved Budget/Forecast IDs and revisions on the server. QML never
+supplies those bases as authority. Request and parent mutations carry the
+request row version; Impact edit/removal also carries the Impact row version.
+Stale writes fail with `STALE_WRITE` and are not automatically retried.
+
+Desktop Impact DTOs preserve money as canonical decimal strings. The adapter
+converts to `Decimal`; there is no Financial Change monetary `float()` path and
+no FX or mixed-currency aggregation in QML.
+
+### R6C-D Typed Impact Semantics
+
+- Budget Impact records a proposed amount, currency, Cost Code, optional Task,
+  and optional captured base Budget Line. It does not mutate Budget before
+  approval. Apply delegates successor creation, revision allocation, line
+  adjustment, supersession, and audit to the R6C-B Budget authority.
+- Forecast Impact has the corresponding governed Forecast line semantics and
+  does not mutate Forecast before approval. Apply delegates to the R6C-C
+  Forecast authority; Financial Change does not duplicate source-decision,
+  Manual ETC, EAC, or VAC calculation logic.
+- Schedule Impact records a Task and requested dates. The server captures the
+  Task version, validates the proposal through the Scheduling port, and applies
+  it through the Task/Scheduling owner with `commit=False` inside the caller's
+  Finance transaction. Finance imports no Task ORM and runs no CPM or dependency
+  calculation.
+
+Cost Code, Task, and base-line choices use bounded server-side search, paging,
+deterministic ordering, tenant/organization/Project scope, and stale lookup
+generation guards. Budget/Forecast line lookup is limited to the exact base
+captured by the selected Draft Change; arbitrary IDs and non-Draft requests fail
+closed. Type-specific domain validation rejects incomplete shapes, inactive or
+unauthorized Cost Codes, cross-Project Tasks, stale Task snapshots, duplicate
+targets, unsupported currencies, and immutable Impact type changes.
+
+### R6C-D Approval, Bases, And Consistency
+
+Platform Approval remains the only decision authority. `financial_change.manage`,
+`approval.request`, and `approval.decide` remain distinct permissions, enforced
+globally and at Project scope. Read facts project deny-safe create/edit/add/
+remove/submit/approve/reject capabilities. Decision capability also compares the
+authenticated requester user ID with the current principal, preventing a
+requester from approving or rejecting their own request.
+
+Submit and Apply both revalidate relevant captured Budget/Forecast authority.
+Apply reloads current approved bases immediately before successor creation; any
+ID or revision movement fails closed with a specific stale-base conflict. There
+is no silent rebase, latest-version substitution, or apply-anyway path. Budget
+and Forecast effects use the same database Session and UoW as the Change. The
+Scheduling owner participates in that same transaction boundary, so mixed
+effects are all-or-nothing in the current modular-monolith deployment.
+
+Request transition, Platform Approval request, Impact/application evidence,
+successors, audit, and domain events are staged before one outward commit. No
+nested transaction or SAVEPOINT was added. Fault tests prove commit, audit,
+Budget/Forecast/Schedule participant failures roll back the complete operation.
+Post-commit notification failure is logged without undoing committed business
+state.
+
+### R6C-D UX And Invalidation
+
+The Change destination retains R6B authoritative master/detail DataTables with
+server paging, filtering, sorting, counts, explicit selection, and no first-row
+auto-selection. Server-projected capabilities control Create, Edit, Add/Edit/
+Remove Impact, Submit, Approve & Apply, and Reject. Capability state resets
+deny-safe during refresh and context changes; shared mutation state prevents
+double commands and stale async responses are ignored.
+
+Centralized request, typed Impact, and lifecycle dialogs use the shared
+scrollable-body/pinned-footer pattern. Required fields are marked and focus is
+moved to invalid input. Dialogs preserve entered values after command failure,
+support Escape/shared keyboard behavior, and fit 1024x640, 1280x720, 1366x768,
+1440x900, and 1920x1080.
+
+`FinancialChangeChanged` is the canonical typed event. Ordinary mutations
+invalidate only Change Control. Applied events always invalidate Change Control
+and add only the Budget, Forecast, or Schedule scopes represented by actual
+effects. Correlation-scoped deduplication prevents refresh storms. Events are
+dispatched after commit; no global Finance refresh was introduced.
+
+### R6C-D PostgreSQL, Cleanup, And Verification
+
+The repository Docker PostgreSQL 16 environment was recreated from Alembic head.
+The live command suite ran through non-owner `app_runtime` with `NOSUPERUSER` and
+`NOBYPASSRLS`. Legal same-scope Request and Impact commands succeeded. Foreign
+tenant and same-tenant foreign-organization commands were denied. Direct foreign
+Impact INSERT was rejected, while UPDATE and DELETE saw zero rows. Request and
+Impact stale-version writes failed closed through the real command boundary.
+
+- Focused Change command/domain/read/QML/approval/UoW/SQLite session/event slice:
+  `72 passed`.
+- Live PostgreSQL Finance governance command/RLS/concurrency slice: `7 passed`.
+- Financial Change dialogs pass the five required viewport matrix. Python
+  compilation and `git diff --check`: PASS. Runtime QML component tests are
+  green; standalone `qmllint` and optional `ruff` are unavailable in `pmenv`.
+- The P8 Financial Change stale-signal assertion was reconciled to the canonical
+  typed event and `financial_changes_changed` now has zero production references.
+  Current P8 result is `26 passed, 4 failed`; every remaining failure is owned by
+  pre-existing Commitment/Cost signals (`commitments_changed` and
+  `cost_entries_changed`). R6C-D did not alter or allowlist them.
+- Search found no Financial Change compatibility workflow, deprecated action,
+  direct Task persistence mutation, duplicate Budget/Forecast successor
+  algorithm, nested transaction, or temporary delete-later scaffold.
+
+R6C remains open. The next approved stage is R6C-E Financial Setup Governance
+Command UX; R6C-F through R6C-H and R6D-R6G remain untouched.
