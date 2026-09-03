@@ -459,7 +459,6 @@ AppLayouts.WorkspaceFrame {
                     setupRestrictionsModel: root.workspaceController ? root.workspaceController.setupRestrictions : ({"items":[]})
                     setupCostCodesTableModel: root.workspaceController ? root.workspaceController.setupCostCodesTableModel : null
                     setupRestrictionsTableModel: root.workspaceController ? root.workspaceController.setupRestrictionsTableModel : null
-                    canCreateCostCode: root.workspaceController ? root.workspaceController.canCreateCostCode : false
                     canManageCostCodeRestrictions: root.workspaceController ? root.workspaceController.canManageCostCodeRestrictions : false
                     setupCostCodeSortKey: root.workspaceController ? root.workspaceController.setupCostCodeSortKey : "code"
                     setupCostCodeSortDirection: root.workspaceController ? root.workspaceController.setupCostCodeSortDirection : Qt.AscendingOrder
@@ -551,7 +550,6 @@ AppLayouts.WorkspaceFrame {
                     }
                     onSetupProfileEditRequested: function(profile) { dialogHostLoader.invoke("openFinancialProfileDialog", profile) }
                     onSetupProfileTransitionRequested: function(action, profile) { dialogHostLoader.invoke("openFinancialSetupLifecycleDialog", action, profile, null, null) }
-                    onSetupCostCodeCreateRequested: dialogHostLoader.invoke("openCostCodeDialog", "create", null)
                     onSetupCostCodeEditRequested: function(costCode) { dialogHostLoader.invoke("openCostCodeDialog", "edit", costCode) }
                     onSetupCostCodeStatusRequested: function(action, costCode) { dialogHostLoader.invoke("openFinancialSetupLifecycleDialog", action, null, costCode, null) }
                     onSetupRestrictionAddRequested: dialogHostLoader.invoke("openCostCodeRestrictionDialog")

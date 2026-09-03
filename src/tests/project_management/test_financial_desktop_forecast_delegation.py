@@ -67,9 +67,6 @@ class _CommitmentService:
 def _api(**dependencies) -> ProjectManagementFinancialsDesktopApi:
     return ProjectManagementFinancialsDesktopApi(
         finance_service=_FinanceService(),
-        financial_configuration_service=SimpleNamespace(
-            get_profile=lambda _project_id: SimpleNamespace(currency_code="EUR")
-        ),
         **dependencies,
     )
 
@@ -78,9 +75,6 @@ def test_financial_desktop_maps_commitment_controls() -> None:
     finance_service = _FinanceService()
     api = ProjectManagementFinancialsDesktopApi(
         finance_service=finance_service,
-        financial_configuration_service=SimpleNamespace(
-            get_profile=lambda _project_id: SimpleNamespace(currency_code="EUR")
-        ),
     )
 
     commitment = api.get_commitment_summary("project-1")

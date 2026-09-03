@@ -12,6 +12,7 @@ from PySide6.QtQml import QQmlComponent
 from src.core.modules.project_management.api.desktop.financials import (
     FinancialChangeCostCodeStatusCommand,
     FinancialCostCodeRestrictionCommand,
+    FinancialCreateCostCodeCommand,
     FinancialTransitionProfileCommand,
     FinancialUpdateCostCodeCommand,
     FinancialUpdateProfileCommand,
@@ -28,7 +29,11 @@ from src.core.modules.project_management.application.financials.configuration_ev
 )
 from src.core.modules.project_management.domain.financials.configuration import CostCodePolicy
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
+from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.shared.events.domain_event_context import DomainEventContext
+from src.ui_qml.modules.project_management.controllers.financials.financials_mutation_mixin import (
+    FinancialsMutationMixin,
+)
 from src.ui_qml.shell.qml_engine import create_qml_engine
 
 
@@ -41,6 +46,9 @@ DIALOGS = (
 )
 DIALOG_ROOT = Path(
     "src/ui_qml/modules/project_management/qml/workspaces/financials/dialogs"
+).resolve()
+SECTION_PATH = Path(
+    "src/ui_qml/modules/project_management/qml/workspaces/financials/sections/FinancialsProfileSection.qml"
 ).resolve()
 
 
@@ -111,6 +119,75 @@ def test_setup_service_rejects_stale_edits_inactive_default_and_duplicate_restri
         setup.add_project_cost_code(project_id=project.id, cost_code_id=active.id)
 
 
+def test_setup_authorization_denies_hidden_project_and_missing_manage_permission(
+    services,
+) -> None:
+    visible = services["project_service"].create_project("Visible Setup project")
+    hidden = services["project_service"].create_project("Hidden Setup project")
+    current = services["user_session"].principal
+    assert current is not None
+    tenant_id = services["user_session"].stored_active_tenant_id()
+    organization_id = services["user_session"].stored_active_organization_id()
+    api = ProjectManagementFinancialsDesktopApi(
+        finance_workspace_query=services["finance_workspace_query"],
+        finance_governance_commands=services["finance_governance_commands"],
+    )
+
+    services["user_session"].set_principal(
+        UserSessionPrincipal(
+            user_id=current.user_id,
+            username=current.username,
+            display_name=current.display_name,
+            role_names=frozenset({"finance_test"}),
+            permissions=frozenset({"finance.read", "finance.manage"}),
+            scoped_access={
+                "project": {
+                    visible.id: frozenset({"finance.read", "finance.manage"})
+                }
+            },
+            project_access={
+                visible.id: frozenset({"finance.read", "finance.manage"})
+            },
+            active_tenant_id=tenant_id,
+            active_organization_id=organization_id,
+        )
+    )
+    with pytest.raises(BusinessRuleError, match="finance.read"):
+        api.get_financial_setup_workspace(hidden.id)
+    with pytest.raises(BusinessRuleError, match="finance.manage"):
+        api.create_cost_code(
+            FinancialCreateCostCodeCommand(
+                project_id=hidden.id,
+                code="HIDDEN",
+                name="Hidden project code",
+            )
+        )
+
+    services["user_session"].set_principal(
+        UserSessionPrincipal(
+            user_id=current.user_id,
+            username=current.username,
+            display_name=current.display_name,
+            role_names=frozenset({"finance_reader"}),
+            permissions=frozenset({"finance.read"}),
+            scoped_access={"project": {visible.id: frozenset({"finance.read"})}},
+            project_access={visible.id: frozenset({"finance.read"})},
+            active_tenant_id=tenant_id,
+            active_organization_id=organization_id,
+        )
+    )
+    workspace = api.get_financial_setup_workspace(visible.id)
+    assert workspace.can_create_cost_code is False
+    with pytest.raises(BusinessRuleError, match="finance.manage"):
+        api.create_cost_code(
+            FinancialCreateCostCodeCommand(
+                project_id=visible.id,
+                code="READ-ONLY",
+                name="Read-only code",
+            )
+        )
+
+
 class _SetupBoundary:
     def __init__(self) -> None:
         self.service = SimpleNamespace()
@@ -179,6 +256,31 @@ def test_typed_setup_commands_use_one_governance_boundary() -> None:
         "add_project_cost_code",
         "remove_project_cost_code",
     ]
+
+
+def test_finance_mutation_rejects_duplicate_command_while_busy() -> None:
+    class _BusyController(FinancialsMutationMixin):
+        _is_busy = True
+
+    operation_called = False
+
+    def operation() -> None:
+        nonlocal operation_called
+        operation_called = True
+
+    result = _BusyController()._run_finance_mutation(
+        operation,
+        "Should not complete.",
+        on_success=lambda: None,
+    )
+
+    assert result == {
+        "ok": False,
+        "message": "A financial command is already in progress.",
+        "code": "FINANCE_COMMAND_BUSY",
+        "category": "busy",
+    }
+    assert operation_called is False
 
 
 def test_setup_events_produce_targeted_catalog_and_restriction_hints() -> None:
@@ -267,3 +369,28 @@ def test_setup_qml_uses_authoritative_tables_and_central_dialog_host() -> None:
         "removeCostCodeRestriction",
     ):
         assert f"workspaceController.{command}(" in host
+
+
+@pytest.mark.parametrize(("width", "height"), VIEWPORTS)
+def test_setup_section_loads_at_supported_viewports(qapp, width: int, height: int) -> None:
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    component.setData(
+        dedent(
+            f"""
+            import QtQuick
+            import QtQuick.Controls
+            ApplicationWindow {{
+                width: {width}; height: {height}; visible: true
+                Loader {{ anchors.fill: parent; source: "{SECTION_PATH.as_uri()}" }}
+            }}
+            """
+        ).encode(),
+        "r6ce-section.qml",
+    )
+    window = component.create()
+    assert window is not None, "\n".join(error.toString() for error in component.errors())
+    qapp.processEvents()
+    assert float(window.property("width")) == width
+    window.deleteLater()
+    qapp.processEvents()

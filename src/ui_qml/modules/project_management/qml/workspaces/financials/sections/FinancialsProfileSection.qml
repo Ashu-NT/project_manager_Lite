@@ -12,7 +12,6 @@ Item {
     property var restrictions: ({"items":[]})
     property var costCodesTableModel: null
     property var restrictionsTableModel: null
-    property bool canCreateCostCode: false
     property bool canManageRestrictions: false
     property bool busy: false
     property string costCodeSortKey: "code"
@@ -35,7 +34,6 @@ Item {
 
     signal profileEditRequested(var profile)
     signal profileTransitionRequested(string action, var profile)
-    signal costCodeCreateRequested()
     signal costCodeEditRequested(var costCode)
     signal costCodeStatusRequested(string action, var costCode)
     signal restrictionAddRequested()
@@ -78,7 +76,6 @@ Item {
 
         AppWidgets.SectionHeading { Layout.fillWidth:true; label:"Cost Codes" }
         Flow { Layout.fillWidth:true; spacing:Theme.AppTheme.spacingSm; leftPadding:Theme.AppTheme.spacingMd; rightPadding:Theme.AppTheme.spacingMd
-            AppControls.SecondaryButton { visible:root.canCreateCostCode; enabled:!root.busy; text:"Create Cost Code"; iconName:"add"; onClicked:root.costCodeCreateRequested() }
             AppControls.SecondaryButton { visible:Boolean(root.selectedCostCode&&root.selectedCostCode.state&&root.selectedCostCode.state.canEdit); enabled:!root.busy; text:"Edit"; iconName:"edit"; onClicked:root.costCodeEditRequested(root.selectedCostCode) }
             AppControls.SecondaryButton { visible:Boolean(root.selectedCostCode&&root.selectedCostCode.state&&root.selectedCostCode.state.canChangeStatus); enabled:!root.busy; text:root.selectedCostCode&&root.selectedCostCode.state&&root.selectedCostCode.state.isActive?"Deactivate":"Activate"; iconName:root.selectedCostCode&&root.selectedCostCode.state&&root.selectedCostCode.state.isActive?"pause":"approve"; onClicked:root.costCodeStatusRequested(root.selectedCostCode.state.isActive?"deactivate_cost_code":"activate_cost_code",root.selectedCostCode) }
             AppControls.SecondaryButton { visible:Boolean(root.selectedCostCode&&root.selectedCostCode.state&&root.selectedCostCode.state.canAddRestriction); enabled:!root.busy; text:"Add to Allow-list"; iconName:"add"; onClicked:root.restrictionAddRequested() }
