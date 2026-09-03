@@ -422,3 +422,60 @@ def test_receipt_and_stock_changes_roll_back_when_outbox_write_fails(
     assert balance is not None
     assert balance.on_order_qty == pytest.approx(5.0)
     assert balance.on_hand_qty == pytest.approx(0.0)
+
+
+def test_commitment_transactional_handler_runs_before_the_dispatcher_commits(services) -> None:
+    dispatcher = services["procurement_financial_dispatcher"]
+    seen = []
+
+    def _observe(event, _uow) -> None:
+        seen.append(event)
+        assert _uow is dispatcher, "the dispatcher forwards itself as the transaction owner"
+
+    subscription = dispatcher._transactional_dispatcher.subscribe(
+        CommitmentLineChanged, _observe
+    )
+    try:
+        _, _, _, purchase_order, _ = _create_approved_project_purchase_order(services)
+        services["inventory_purchasing_service"].send_purchase_order(purchase_order.id)
+    finally:
+        subscription.dispose()
+
+    assert len(seen) == 1
+    assert seen[0].change_type.value == "CREATED"
+
+
+def test_commitment_transactional_handler_failure_rolls_back_and_yields_zero_postcommit_event(
+    services,
+) -> None:
+    """P36-FIX core proof: when a precommit Commitment transactional handler fails, the mutation
+    must not persist and no postcommit event/ViewInvalidation may occur -- the exact guarantee a
+    bare `session.commit()` + `post_commit_bus.publish(event)` sequence could never provide."""
+    dispatcher = services["procurement_financial_dispatcher"]
+
+    def _boom(_event, _uow) -> None:
+        raise RuntimeError("simulated precommit Commitment handler failure")
+
+    subscription = dispatcher._transactional_dispatcher.subscribe(CommitmentLineChanged, _boom)
+    postcommit_seen = []
+    post_commit_subscription = dispatcher._post_commit_bus.subscribe(
+        CommitmentLineChanged, lambda e, c: postcommit_seen.append(e)
+    )
+    try:
+        _, _, _, purchase_order, _ = _create_approved_project_purchase_order(services)
+        services["inventory_purchasing_service"].send_purchase_order(purchase_order.id)
+    finally:
+        subscription.dispose()
+        post_commit_subscription.dispose()
+
+    assert services["session"].execute(
+        select(ProjectCommitmentLineORM)
+    ).scalars().all() == [], "the failed-precommit-handler mutation must not persist"
+    assert postcommit_seen == [], "a precommit failure must never reach the postcommit bus"
+
+    outbox = services["session"].execute(
+        select(ProcurementFinancialOutboxORM)
+    ).scalars().all()
+    assert all(
+        row.status != OutboxDeliveryStatus.PUBLISHED.value for row in outbox
+    ), "the delivery must not be marked published when its handler failed"

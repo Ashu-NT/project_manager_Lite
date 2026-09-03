@@ -28,12 +28,13 @@ from src.core.platform.integration import (
     ProcurementCommitmentEventPayload,
     ProcurementReceiptAccrualEventPayload,
 )
+from src.core.shared.events.domain_event import DomainEvent
 
 
 @dataclass(frozen=True)
 class ProcurementFinancialConsumption:
     project_id: str
-    commitment_events: tuple[object, ...] = ()
+    commitment_events: tuple[DomainEvent, ...] = ()
     cost_entry_changed: bool = False
 
 
