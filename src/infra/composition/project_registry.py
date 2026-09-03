@@ -9,9 +9,6 @@ from time import perf_counter
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.platform.access import ScopedRolePolicy
-from src.core.modules.project_management.infrastructure.persistence.uow.finance.billing_preparation_submission_unit_of_work import (
-    SqlAlchemyBillingPreparationSubmissionUnitOfWorkFactory,
-)
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
 )
@@ -74,6 +71,19 @@ from src.core.modules.project_management.application.financials.budgets.budget_e
     BudgetRemoved,
     BudgetStatusChanged,
     BudgetVersionCreated,
+)
+from src.core.modules.project_management.application.financials.invoicing.event_handlers.view_invalidation import (
+    build_billing_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.invoicing.billing_events import (
+    BillingPreparationCreated,
+    BillingPreparationExternalOutcomeRecorded,
+    BillingPreparationLineAdded,
+    BillingPreparationStatusChanged,
+    BillingProfileActivated,
+    BillingProfileCreated,
+    BillingScheduleLineAdded,
+    BillingScheduleLineMarkedReady,
 )
 from src.core.modules.project_management.application.financials.event_handlers.view_invalidation import (
     build_financial_profile_view_invalidation_handler,
@@ -760,6 +770,22 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus.subscribe(
             _budget_event_type, _budget_view_invalidation_handler
         )
+    _billing_view_invalidation_handler = build_billing_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _billing_event_type in (
+        BillingProfileCreated,
+        BillingProfileActivated,
+        BillingScheduleLineAdded,
+        BillingScheduleLineMarkedReady,
+        BillingPreparationCreated,
+        BillingPreparationLineAdded,
+        BillingPreparationStatusChanged,
+        BillingPreparationExternalOutcomeRecorded,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _billing_event_type, _billing_view_invalidation_handler
+        )
     _financial_profile_view_invalidation_handler = build_financial_profile_view_invalidation_handler(
         platform_services.platform_view_invalidation_channel
     )
@@ -947,6 +973,40 @@ def build_project_management_service_bundle(
             labor_posting_repo=repositories.approved_time_labor_posting_repo,
             record_event=uow.record_event,
         )
+        billing_profile_operations = ProjectBillingProfileService(
+            session=uow._session,
+            billing_repo=uow.billing,
+            financial_profile_repo=uow.profiles,
+            project_repo=uow.projects,
+            tenant_context_service=platform_services.tenant_context_service,
+            clock=system_clock,
+            user_session=platform_services.user_session,
+            enterprise_audit_service=uow._enterprise_audit_service,
+            module_catalog_service=platform_services.module_catalog_service,
+            record_event=uow.record_event,
+        )
+        billing_preparation_operations = ProjectBillingPreparationService(
+            session=uow._session,
+            billing_repo=uow.billing,
+            financial_profile_repo=uow.profiles,
+            cost_entry_repo=repositories.project_cost_entry_repo,
+            labor_posting_repo=repositories.approved_time_labor_posting_repo,
+            rate_resolver=rate_card_resolver,
+            financial_period_service=platform_services.financial_period_service,
+            approval_service=platform_services.approval_service,
+            tenant_context_service=platform_services.tenant_context_service,
+            clock=system_clock,
+            user_session=platform_services.user_session,
+            enterprise_audit_service=uow._enterprise_audit_service,
+            module_catalog_service=platform_services.module_catalog_service,
+            record_event=uow.record_event,
+        )
+        billing_preparation_operations._approval_repo = uow.approvals
+        billing_preparation_operations._approval_requested_staged = lambda request: (
+            post_commit_actions.append(
+                lambda: platform_services.approval_service.publish_requested(request)
+            )
+        )
         return FinanceGovernanceOperations(
             budgets=budget_operations,
             forecast_versions=forecast_version_operations,
@@ -957,6 +1017,8 @@ def build_project_management_service_bundle(
             planned_costs=planned_cost_operations,
             commitments=commitment_operations,
             cost_entries=cost_entry_operations,
+            billing_profiles=billing_profile_operations,
+            billing_preparations=billing_preparation_operations,
             post_commit_actions=post_commit_actions,
         )
 
@@ -1098,16 +1160,6 @@ def build_project_management_service_bundle(
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,
     )
-    billing_preparation_submission_uow_session_factory = sessionmaker(
-        bind=platform_services.session.bind, future=True
-    )
-    billing_preparation_submission_uow_factory = SqlAlchemyBillingPreparationSubmissionUnitOfWorkFactory(
-        session_factory=billing_preparation_submission_uow_session_factory,
-        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
-        post_commit_bus=platform_services.platform_post_commit_bus,
-        tenant_context_service=platform_services.tenant_context_service,
-        user_session=platform_services.user_session,
-    )
     billing_preparation_service = ProjectBillingPreparationService(
         session=session,
         billing_repo=repositories.project_billing_repo,
@@ -1119,10 +1171,38 @@ def build_project_management_service_bundle(
         approval_service=platform_services.approval_service,
         tenant_context_service=platform_services.tenant_context_service,
         clock=system_clock,
-        submission_uow_factory=billing_preparation_submission_uow_factory,
         user_session=platform_services.user_session,
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,
+    )
+    billing_profile_service = FinanceGovernedServicePort(
+        read_service=billing_profile_service,
+        boundary=finance_governance_commands,
+        family="billing_profile",
+        mutations=frozenset(
+            {
+                "create_profile",
+                "activate_profile",
+                "add_schedule_line",
+                "mark_schedule_line_ready",
+            }
+        ),
+    )
+    billing_preparation_service = FinanceGovernedServicePort(
+        read_service=billing_preparation_service,
+        boundary=finance_governance_commands,
+        family="billing_preparation",
+        mutations=frozenset(
+            {
+                "create_preparation",
+                "add_fixed_price_source",
+                "add_approved_time_source",
+                "add_cost_plus_source",
+                "submit_preparation",
+                "request_delivery",
+                "record_external_outcome",
+            }
+        ),
     )
     collaboration_service = CollaborationService(
         session=session,

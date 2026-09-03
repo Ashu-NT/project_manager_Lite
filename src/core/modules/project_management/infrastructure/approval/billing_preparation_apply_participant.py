@@ -23,6 +23,16 @@ submitted value) to both `_apply_approval_decision` and `_apply_rejection_decisi
 accounts for the row-version bump `submit_preparation()` itself performed when it moved the
 preparation from `draft`/`reserved` to `submitted`. This participant reproduces that `+ 1`
 verbatim.
+
+P39: `_apply_approval_decision`/`_apply_rejection_decision` no longer take a `commit` flag --
+transaction ownership converged onto `FinanceGovernanceUnitOfWork` (the bespoke
+`BillingPreparationSubmissionUnitOfWork` is retired entirely, no compatibility alias). Both
+methods now unconditionally build their typed `BillingPreparationStatusChanged` fact and return
+`(preparation, event)`, mirroring `ProjectCostEntryService`'s own dual-use shape: `record_event`
+fires when wired (the governed direct path, unused here since these two methods are reachable
+only from this participant), and the returned event is what this participant forwards via
+`ApprovalHandlerResult(domain_events=(event,))` -- no more `ApprovalPostCommitEvent(
+"billing_preparations_changed", ...)`.
 """
 
 from __future__ import annotations
@@ -35,10 +45,7 @@ from src.core.modules.project_management.application.financials.invoicing.prepar
 from src.core.modules.project_management.infrastructure.approval._financial_decision_actor import (
     require_financial_decision_actor,
 )
-from src.core.platform.contract.models.approval.contracts import (
-    ApprovalHandlerResult,
-    ApprovalPostCommitEvent,
-)
+from src.core.platform.contract.models.approval.contracts import ApprovalHandlerResult
 from src.core.platform.domain.approval import ApprovalRequest
 
 
@@ -60,17 +67,12 @@ class BillingPreparationApprovalParticipant:
         approved_by = require_financial_decision_actor(
             deps.billing_preparation_service._user_session
         )
-        preparation = deps.billing_preparation_service._apply_approval_decision(
+        _preparation, event = deps.billing_preparation_service._apply_approval_decision(
             request.payload["preparation_id"],
             approved_by=approved_by,
             expected_version=request.payload["expected_version"] + 1,
-            commit=False,
         )
-        return ApprovalHandlerResult(
-            post_commit_events=(
-                ApprovalPostCommitEvent("billing_preparations_changed", preparation.project_id),
-            )
-        )
+        return ApprovalHandlerResult(domain_events=(event,))
 
     def reject(
         self, request: ApprovalRequest, deps: BillingPreparationApprovalDeps
@@ -78,18 +80,13 @@ class BillingPreparationApprovalParticipant:
         rejected_by = require_financial_decision_actor(
             deps.billing_preparation_service._user_session
         )
-        preparation = deps.billing_preparation_service._apply_rejection_decision(
+        _preparation, event = deps.billing_preparation_service._apply_rejection_decision(
             request.payload["preparation_id"],
             rejected_by=rejected_by,
             expected_version=request.payload["expected_version"] + 1,
             notes=request.decision_note or "",
-            commit=False,
         )
-        return ApprovalHandlerResult(
-            post_commit_events=(
-                ApprovalPostCommitEvent("billing_preparations_changed", preparation.project_id),
-            )
-        )
+        return ApprovalHandlerResult(domain_events=(event,))
 
 
 __all__ = ["BillingPreparationApprovalDeps", "BillingPreparationApprovalParticipant"]

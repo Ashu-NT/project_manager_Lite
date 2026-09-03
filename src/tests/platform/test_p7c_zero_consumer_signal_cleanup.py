@@ -6,9 +6,13 @@ import inspect
 
 from src.core.shared.events.domain_events import domain_events
 
-_ACTIVE_FINANCE_SIGNALS = (
-    "billing_preparations_changed",
-)
+# P39: `billing_preparations_changed` (the last still-legacy Finance signal) is now deleted --
+# Finance has ZERO legacy Signal fields left (see `test_p8_platform_event_architecture_
+# canonicalization.py::test_zero_finance_legacy_signal_fields_remain` for the permanent guard).
+# This tuple is deliberately empty rather than removed -- the loop below stays a meaningful,
+# reusable "any remaining active Finance signal must have a real producer+consumer" check for a
+# future Finance-owned signal, without needing rewriting to reintroduce it.
+_ACTIVE_FINANCE_SIGNALS: tuple[str, ...] = ()
 
 
 def _strip_strings_and_comments(source: str) -> str:

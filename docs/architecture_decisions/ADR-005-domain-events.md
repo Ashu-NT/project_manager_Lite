@@ -3573,6 +3573,44 @@ changed` is now the sole remaining Finance legacy signal. Legacy Signal count: 8
 deletion). Budget is now fully modernized; Billing Preparation (both aggregates together) remains
 the only capability on Finance's track.
 
+**26.36 P39: Finance Billing full modernization — `billing_preparations_changed` deleted, the
+LAST Finance legacy signal; Finance module event modernization is 100% complete.** Two genuinely
+distinct aggregate families (`ProjectBillingProfile`/`ProjectBillingScheduleLine` and
+`ProjectBillingPreparation`/`ProjectBillingPreparationLine`) kept as separate DomainEvent
+vocabularies, never merged into a `BillingChanged` catch-all: Profile gained `BillingProfileCreated`,
+`BillingProfileActivated` (the only currently-reachable status transition — `place_on_hold`/`close`
+have no service command), `BillingScheduleLineAdded`, `BillingScheduleLineMarkedReady` (likewise
+the only reachable line transition). Preparation gained `BillingPreparationCreated`,
+`BillingPreparationLineAdded` (one class + the reused `BillableSourceType` enum for all three
+source kinds), `BillingPreparationStatusChanged` (`SUBMITTED`/`APPROVED`/`REJECTED`/
+`DELIVERY_PENDING`/`DELIVERED`/`ACKNOWLEDGED`/`RECONCILED`), `BillingPreparationExternalOutcome
+Recorded`. A candidate `BillingPreparationDeliveryRequested` fact was investigated and found
+unnecessary — `request_delivery` persists nothing beyond its own status transition.
+`record_external_outcome(DELIVERY_ACCEPTED)` transitions status twice in one call (`mark_delivered`
+then `acknowledge`) and records both as separate facts, mirroring Budget's approve/supersede
+two-fact shape. `ProjectBillingSourceLock` is infrastructure (source-reservation uniqueness), not
+an event-worthy business fact.
+
+**No mega-UoW.** Both services already shared one `ProjectBillingRepository` — `FinanceGovernance
+UnitOfWork` gained a single `billing` accessor (not a new UoW type) and both families converge onto
+it via two new `FinanceGovernanceCommandBoundary` methods, the same shape 9 other Finance families
+already use. The bespoke `BillingPreparationSubmissionUnitOfWork` (previously owning only
+`submit_preparation`) is retired entirely — both contract and SqlAlchemy files deleted, no
+compatibility alias — since its `billing`+`approvals` repo set was already a strict subset of
+`FinanceGovernanceUnitOfWork`'s own. `submit_preparation` now calls the transaction-agnostic
+`request_approval_using(...)` helper directly (not `ApprovalService.request_change(...)`, which
+would have silently added a new `"approval.request"` permission requirement on top of the existing
+`"finance.manage"` check — deliberately avoided, even though Financial Change's own `submit_change`
+independently chose to require both). `BillingPreparationApprovalParticipant` dropped its
+`_apply_approval_decision`/`_apply_rejection_decision` `commit: bool` flag entirely, matching every
+sibling participant's unconditional-build-and-return shape.
+
+**Zero Finance legacy signals remain — a permanent, explicit-name-set architecture guard now
+proves it** (`test_zero_finance_legacy_signal_fields_remain`, not a fragile prefix heuristic, since
+Finance signal names never shared one). Legacy Signal count: 7 (8 minus the one deletion). Finance
+is the first business module in this engagement to reach 100% typed-event coverage — Project
+Management and Auth/Security are the only tracks with legacy Signal fields left.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

@@ -59,6 +59,26 @@ _DELETED_BRIDGE_NAMES = (
     "commitments_changed",
     "cost_entries_changed",
     "budgets_changed",
+    "billing_preparations_changed",
+)
+
+# §34/P39: every Finance-owned legacy Signal name that has ever existed in `DomainEvents`,
+# regardless of current field-presence -- the permanent zero-legacy guard below asserts NONE of
+# these are current fields any more, using this explicit set rather than a fragile name-prefix
+# heuristic (Finance signal names never shared a common prefix: `budgets_changed`, `cost_entries_
+# changed`, `commitments_changed`, `financial_changes_changed`, `forecasts_changed`, `planned_
+# costs_changed`, `costs_changed`, `billing_preparations_changed`).
+_KNOWN_FINANCE_SIGNAL_NAMES = frozenset(
+    {
+        "budgets_changed",
+        "billing_preparations_changed",
+        "cost_entries_changed",
+        "commitments_changed",
+        "financial_changes_changed",
+        "forecasts_changed",
+        "planned_costs_changed",
+        "costs_changed",
+    }
 )
 # P35-CLEANUP: `cost_entries_changed`/`commitments_changed` were REMOVED from this list -- both
 # were genuinely live production Signal fields (real producers in `cost_entry_service.py`/
@@ -84,8 +104,17 @@ _DELETED_BRIDGE_NAMES = (
 # `BudgetVersionCreated`/`BudgetProfileUpdated`/`BudgetLineChanged`/`BudgetStatusChanged`/
 # `BudgetRemoved` DomainEvents, the `command_boundary.py::_emit_budget` legacy publication and
 # every `ApprovalPostCommitEvent("budgets_changed", ...)` site removed, field deleted from
-# `domain_events.py` -- so it rejoins this list too. `billing_preparations_changed` is now the
-# sole remaining Finance legacy signal.
+# `domain_events.py` -- so it rejoins this list too. P39: `billing_preparations_changed` -- the
+# last remaining Finance legacy signal -- has now also followed the same path across BOTH its
+# aggregate families (Billing Profile: `BillingProfileCreated`/`BillingProfileActivated`/
+# `BillingScheduleLineAdded`/`BillingScheduleLineMarkedReady`; Billing Preparation:
+# `BillingPreparationCreated`/`BillingPreparationLineAdded`/`BillingPreparationStatusChanged`/
+# `BillingPreparationExternalOutcomeRecorded`), converged onto `FinanceGovernanceUnitOfWork` (the
+# bespoke `BillingPreparationSubmissionUnitOfWork` is retired entirely, no compatibility alias),
+# field deleted from `domain_events.py` -- so it rejoins this list too. **Finance module event
+# modernization is now complete: zero Finance-owned legacy Signal fields remain anywhere in
+# `DomainEvents`** -- see `test_zero_finance_legacy_signal_fields_remain` below for the permanent
+# architecture guard.
 
 
 def _strip_strings_and_comments(source: str) -> str:
@@ -132,6 +161,35 @@ def test_a_hypothetical_deletion_still_passes_the_subset_check():
     assert "collaboration_changed" in _current_signal_names()
     hypothetical_current = _current_signal_names() - {"collaboration_changed"}
     assert hypothetical_current <= FROZEN_LEGACY_SIGNAL_ALLOWLIST
+
+
+# ---------------------------------------------------------------------------
+# §34/P39: Finance module event modernization is complete -- permanent zero-legacy guard
+# ---------------------------------------------------------------------------
+
+
+def test_zero_finance_legacy_signal_fields_remain():
+    """P39 milestone: Finance is the first fully-modernized business module in this engagement --
+    every Finance capability (Financial Setup, Rate Card, Forecast, Planned Cost, Commitment,
+    Cost Entry, Budget, Billing Profile, Billing Preparation) now publishes typed DomainEvents
+    exclusively. This must never silently regress: a future Finance-owned Signal field reintroduced
+    by unrelated work (the exact `cost_entries_changed`/`commitments_changed` post-freeze
+    reintroduction archaeology documented above) would only be caught by this explicit,
+    known-name-set assertion -- the frozen-allowlist subset check alone would NOT catch it, since
+    every Finance name is already frozen-allowlisted from its pre-modernization history."""
+    current = _current_signal_names()
+    reintroduced = current & _KNOWN_FINANCE_SIGNAL_NAMES
+    assert reintroduced == set(), (
+        f"Finance-owned legacy Signal field(s) reintroduced: {reintroduced}"
+    )
+
+
+def test_a_hypothetical_finance_signal_reintroduction_would_fail_the_zero_legacy_guard():
+    """Demonstrates the guard actually rejects Finance-owned reintroduction, mirroring the
+    subset-check's own hypothetical-growth proof above."""
+    hypothetical_current = _current_signal_names() | {"budgets_changed"}
+    reintroduced = hypothetical_current & _KNOWN_FINANCE_SIGNAL_NAMES
+    assert reintroduced == {"budgets_changed"}
 
 
 # ---------------------------------------------------------------------------

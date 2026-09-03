@@ -26,6 +26,12 @@ from src.core.modules.project_management.application.financials.forecasts.genera
 from src.core.modules.project_management.application.financials.forecasts.version_service import (
     ForecastVersionService,
 )
+from src.core.modules.project_management.application.financials.invoicing.billing_profile_service import (
+    ProjectBillingProfileService,
+)
+from src.core.modules.project_management.application.financials.invoicing.preparation_service import (
+    ProjectBillingPreparationService,
+)
 from src.core.modules.project_management.application.financials.planned_costs.planned_cost_service import (
     PlannedCostService,
 )
@@ -57,6 +63,8 @@ class FinanceGovernanceOperations:
     planned_costs: PlannedCostService
     commitments: ProjectCommitmentService
     cost_entries: ProjectCostEntryService
+    billing_profiles: ProjectBillingProfileService
+    billing_preparations: ProjectBillingPreparationService
     post_commit_actions: list[Callable[[], None]] = field(default_factory=list)
 
 
@@ -164,6 +172,22 @@ class FinanceGovernanceCommandBoundary:
             lambda operations: command(operations.rate_cards),
         )
 
+    def billing_profile(
+        self,
+        command: Callable[[ProjectBillingProfileService], T],
+        *,
+        project_id: str | None = None,
+    ) -> T:
+        return self._execute(lambda operations: command(operations.billing_profiles))
+
+    def billing_preparation(
+        self,
+        command: Callable[[ProjectBillingPreparationService], T],
+        *,
+        project_id: str | None = None,
+    ) -> T:
+        return self._execute(lambda operations: command(operations.billing_preparations))
+
     def _execute(self, command: Callable[[FinanceGovernanceOperations], T]) -> T:
         if self._prepare_command is not None:
             self._prepare_command()
@@ -221,7 +245,11 @@ class FinanceGovernedServicePort:
         explicit = kwargs.get("project_id") or kwargs.get("available_to_project_id")
         if explicit:
             return str(explicit)
-        if name in {"create_budget", "create_forecast", "generate_draft", "create_change", "calculate_snapshot"}:
+        if name in {
+            "create_budget", "create_forecast", "generate_draft", "create_change",
+            "calculate_snapshot", "create_profile", "activate_profile", "add_schedule_line",
+            "create_preparation",
+        }:
             return str(args[0]) if args else ""
         try:
             if self._family == "budget":
@@ -268,6 +296,17 @@ class FinanceGovernedServicePort:
                     )
             if self._family == "cost_entry":
                 return str(self._read_service._require_entry(args[0]).project_id)
+            if self._family == "billing_profile":
+                # mark_schedule_line_ready is the only mutation here not taking project_id
+                # directly -- resolved via the private, unchecked `_require_schedule_line`
+                # (never a permission-checked accessor -- see the P37-FIX/P38B precedent).
+                line = self._read_service._require_schedule_line(args[0])
+                return str(line.project_id)
+            if self._family == "billing_preparation":
+                # Every mutation here except create_preparation (caught by the generic
+                # args[0]-is-project_id shortcut above) takes preparation_id -- resolved via the
+                # private, unchecked `_require_preparation`.
+                return str(self._read_service._require_preparation(args[0]).project_id)
         except (AttributeError, IndexError, KeyError, TypeError):
             return ""
         return ""

@@ -232,15 +232,17 @@ def test_pm_register_workspace_does_not_react_to_an_unrelated_signal(services):
     P36: was `commitments_changed` (deleted at P36 -- Commitment fully modernized onto typed
     DomainEvents). P37: was `cost_entries_changed` (deleted at P37 -- Cost Entry fully modernized
     onto typed DomainEvents, restoring the P8 architecture budget). P38B: was `budgets_changed`
-    (deleted at P38B -- Budget fully modernized onto typed DomainEvents).
-    `billing_preparations_changed` is the last remaining legacy Finance signal, so it now stands
-    in as the "unrelated" example."""
+    (deleted at P38B -- Budget fully modernized onto typed DomainEvents). P39: was
+    `billing_preparations_changed` (deleted at P39 -- Billing Profile/Preparation fully
+    modernized onto typed DomainEvents; Finance now has ZERO legacy Signal fields left). No
+    Finance signal remains to stand in, so this now uses `auth_changed` (a genuinely different
+    module, Auth/Security) -- still proving the same cross-module-isolation property."""
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.registerWorkspace
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.billing_preparations_changed.emit(_unique("p7a-unrelated-finance"))
+    domain_events.auth_changed.emit(_unique("p7a-unrelated-auth"))
 
     assert refresh_calls == []
 

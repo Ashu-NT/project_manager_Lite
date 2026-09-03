@@ -475,7 +475,9 @@ def test_submit_preparation_records_exactly_one_approval_requested(services, mon
     )
     preparation = billing_preparation_service.get_preparation(preparation.id)
 
-    recorded = _spy_recorded_events(billing_preparation_service._submission_uow_factory, monkeypatch)
+    recorded = _spy_recorded_events(
+        services["finance_governance_commands"]._uow_factory, monkeypatch
+    )
     submitted = billing_preparation_service.submit_preparation(
         preparation.id, expected_row_version=preparation.row_version
     )
