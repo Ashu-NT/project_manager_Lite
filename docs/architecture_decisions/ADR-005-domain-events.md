@@ -3650,6 +3650,47 @@ set (`_DELETED_BRIDGE_NAMES`); the frozen baseline itself is unchanged, per stan
 Remaining PM legacy signals: `project_changed`, `tasks_changed`, `register_changed`,
 `collaboration_changed`, `portfolio_changed` — Register and Portfolio are next per P40A's sequence.
 
+**26.38 P41: PM Register full modernization — `register_changed` deleted, second PM capability to
+reach zero; the real two-commit business-mutation/audit split P40A found is fixed.** `RegisterEntry`
+confirmed one cohesive aggregate with a `RISK`/`ISSUE`/`CHANGE` discriminator field, not three
+separate aggregates — one shared-family `RegisterEntryChanged(change_type: CREATED|UPDATED|
+REMOVED)` event, not three per-type classes.
+
+**The two-commit bug.** Every mutation committed the business write first, then called
+`record_activity(self, ..., commit=True)` — a second, independent commit; if that second commit
+failed, the business mutation was already durably persisted with no way back. Worse: Register had
+no enterprise audit at all before this phase, only the Activity feed. Both gaps close in one
+converged transaction: business mutation → enterprise audit (new) → Activity feed (preserved,
+`commit=False`, staged on the same UoW) → `uow.record_event(...)` → one `uow.commit()`. A
+permanent test (`test_audit_failure_rolls_back_the_register_mutation_permanently`) proves this by
+asserting persisted state after a simulated audit failure — `list_entries` returns empty — not by
+counting commit calls.
+
+**Canonical UoW: a new, narrow `RegisterUnitOfWork`**, not a reused shared session. Unlike
+Timesheet (P40B), where the Approved Time outbox's own presence on the same shared session made
+reusing that session via a bare `SqlAlchemyUnitOfWorkBase` the correctness-preserving choice,
+Register had no such constraint — `RegisterService` shared the same long-lived PM session as
+everything else purely by historical accident, not by any transactional necessity. The
+architecturally cleaner and more consistent choice, matching Resource's/Employee's own precedent
+exactly, was a first-class single-repo UoW (`entries: RegisterEntryRepository`,
+`_enterprise_audit_service`, `_activity_service`) via `SqlAlchemyRegisterUnitOfWorkFactory` on its
+own fresh per-command session. Named accessor only, no generic repository bag.
+
+**ViewInvalidation: one event, two targets — a third dropped for a real architectural reason, not
+laziness.** `REGISTER_WORKSPACE_SCOPE_CODE` (`OrganizationScope`) serves Register's own workspace
+(its project filter defaults to "all"); `REGISTER_PROJECT_SCOPE_CODE` (`ResourceScope`) serves
+Dashboard's project-scoped register widget. Platform's Control workspace also legacy-subscribed,
+but `test_platform_does_not_import_business_modules.py` forbids Platform-layer QML from importing
+a `project_management`-owned module — cutting Control over to a typed `RegisterViewInvalidation
+Adapter` subscription would violate that guard. Dropped with no replacement; this is the first
+phase in the engagement where a legacy consumer's removal was forced by an architecture boundary
+rather than by the consumer being incidental.
+
+**Legacy Signal count: 5 (6 minus the one deletion) — second Project Management capability to
+reach zero.** `register_changed` rejoins the historical P8 frozen allowlist's deleted-name set;
+the frozen baseline itself is unchanged. Remaining PM legacy signals: `project_changed`, `tasks_
+changed`, `collaboration_changed`, `portfolio_changed` — Portfolio is next per P40A's sequence.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

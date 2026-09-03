@@ -2864,22 +2864,101 @@ changed`, `portfolio_changed`. **Register and Portfolio remain next, unchanged f
 sequence** — nothing discovered this phase touches either capability's own facts, transaction
 shape, or cross-capability edges.
 
+### P41 — Project Management Register Full Modernization
+
+DIRECT FULL MODERNIZATION, per P40A's selection. Reconfirmed the exact current surface before
+implementing: `register_changed` had exactly 3 producer sites, all in `register_lifecycle.py`
+(`create_entry`/`update_entry`/`delete_entry`), and 3 consumer files (Register's own workspace,
+PM Dashboard's register widget, Platform's Control workspace). `RegisterEntry` is confirmed one
+cohesive aggregate with a `RISK`/`ISSUE`/`CHANGE` discriminator field (`entry_type`), not three
+separate aggregates — matching P40A's own finding exactly, so one shared-family DomainEvent, not
+three per-type classes.
+
+**The two-commit bug, reconfirmed and fixed.** Every mutation committed the business write FIRST
+(`self._session.commit()`), THEN called `record_activity(self, ...)` with its default `commit=True`
+— a SECOND, independent commit. Worse: Register had **no enterprise audit at all** before this
+phase — only the lighter-weight Activity feed, `ACTIVITY-ONLY` exactly as P40A classified it. Both
+gaps are now closed in one converged transaction: business mutation → enterprise audit (new) →
+Activity feed (preserved, now `commit=False`, staged on the same UoW) → `uow.record_event(...)` →
+one `uow.commit()`.
+
+**Canonical UoW: a new, narrow `RegisterUnitOfWork`.** No existing PM UoW already owned the
+Register repository (unlike Timesheet, where reusing the shared session was possible because the
+only other participant, the Approved Time outbox, already lived on that same session). Register's
+`RegisterService` shared the same long-lived PM session as everything else with no compensating
+constraint forcing it to stay there, so the architecturally cleaner and more consistent choice —
+matching Resource's and Employee's own precedent exactly — was a first-class, single-repo
+`RegisterUnitOfWork` (`entries: RegisterEntryRepository`, `_enterprise_audit_service`,
+`_activity_service`), built via `SqlAlchemyRegisterUnitOfWorkFactory` on its own fresh
+`sessionmaker`-backed session per command, RLS-configured via `configure_session_rls_context`. Named
+accessor only — no generic repository bag, no `repository_for`/`resolve`/`container.get`.
+`RegisterService` gained `_uow_factory`/`_require_uow_factory`/`_new_context`, mirroring
+`ResourceService`'s own base-class shape exactly. `_resolve_entry_code`'s uniqueness check now
+reads through the UoW-scoped repository when one is supplied (not the outer, differently-scoped
+`_register_repo`), closing the same race window Resource's own code-uniqueness check was already
+built to avoid.
+
+**Event vocabulary**: one shared-family event, `RegisterEntryChanged(change_type:
+RegisterEntryChangeType)` — `CREATED`/`UPDATED`/`REMOVED` — mirroring `BudgetStatusChanged`'s/
+`TimesheetPeriodStatusChanged`'s precedent. Payload: `tenant_id`/`organization_id` (from
+`_tenant_context_service`, since `RegisterEntry` itself carries no tenant/org fields),
+`project_id`, `register_entry_id`, `entry_type`, `change_type`, `occurred_at`. No ORM/Session/UI
+destinations/DTOs/schema_version.
+
+**ViewInvalidation: one event, two targets, source-preserving.** The legacy signal reached two
+consumer families uniformly: Register's own workspace (`REGISTER_WORKSPACE_SCOPE_CODE`,
+`OrganizationScope` — its project filter defaults to "all", so it needs org-wide reactivity, not
+just the mutated project) and Dashboard's register widget (`REGISTER_PROJECT_SCOPE_CODE`,
+`ResourceScope`, project-scoped — the dashboard is always exactly one project). **Control
+workspace's third subscription was investigated and could NOT be cut over**: it shows a generic
+approval-queue/audit-feed, not register-specific data, and — the deciding factor — Control lives
+under `ui_qml/platform/`, and `test_platform_does_not_import_business_modules.py` forbids
+Platform-layer QML from importing a `project_management`-owned module (which a typed
+`RegisterViewInvalidationAdapter` subscription would require). Dropped with no replacement; the two
+now-affected characterization tests (`test_control_workspace_still_reacts_to_its_remaining_real_
+signals`, `test_platform_control_workspace_refreshes_on_control_events`) were repointed to Control's
+other remaining legacy signal (`tasks_changed`) rather than deleted, since Control itself still has
+real un-migrated subscriptions to prove.
+
+**Regression battery**: new `test_p41_register_full_modernization.py` (14: ViewInvalidation
+handler mapping/dedupe, real create/update/delete producer-path tests, a stale-version zero-write
+test, a duplicate-code-rejection test, the mandatory audit-failure-rolls-back-the-mutation
+regression proving the two-commit bug is fixed by asserting `list_entries` returns empty — not a
+commit-count assertion, a transactional-handler-failure test using the real shared
+`platform_transactional_dispatcher`, a cross-project-ownership rejection test, and the standing
+approval-bridge-unaffected characterization), `test_register_entry_domain_validation.py` (5, its
+fake-service harness extended with a fake UoW factory/tenant-context-service — the same fix shape
+`test_time_domain_validation.py` needed at P40B), `test_project_management_desktop_api_register.py`
++ `test_qml_project_management_presenters_register.py` (3), `test_p8_platform_event_architecture_
+canonicalization.py` (31, `register_changed` added to the deleted-name zero-reference guard),
+`test_p7_legacy_bridge_removal.py` + `test_p7b_dead_signal_cleanup.py` + `test_qml_domain_event_
+bridges_pm.py` (three pre-existing tests repointed from the now-deleted `register_changed` to a
+still-live signal each binder already subscribes to, per the established P33-CLEANUP/P36/P37/P38B/
+P39 swap precedent), P40B's own Timesheet regressions (25, reconfirmed unaffected). All green.
+
+**Legacy Signal count: 5 (6 minus one deletion) — second PM capability to reach zero.**
+`register_changed` rejoins the historical P8 frozen allowlist's deleted-name set; the frozen
+baseline itself is unchanged. Remaining PM legacy signals: `project_changed`, `tasks_changed`,
+`collaboration_changed`, `portfolio_changed`. **Portfolio remains next, unchanged from P40A's
+sequence** — nothing discovered this phase touches Portfolio's own facts, transaction shape, or
+cross-capability edges.
+
 ## 4. Current State
 
-**Legacy Signal count: 6 as of P40B** (source-derived from
+**Legacy Signal count: 5 as of P41** (source-derived from
 `src/core/shared/events/domain_events.py`, re-verified against current source when this document
-was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Down from 7 at
-P39/P40A — `timesheet_periods_changed` is now deleted, the first Project Management capability to
-reach zero. **Finance module event modernization is complete: zero Finance-owned legacy Signal
-fields remain.** The P8 architecture budget (`current ⊆ frozen`) remains restored with zero
-exceptions (P37 was the last post-freeze *violation*; P38B/P39/P40B are ordinary further
-retirement of pre-freeze, frozen-allowlisted signals, not violation fixes).
+was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Down from 6 at
+P40B — `register_changed` is now deleted, the second Project Management capability to reach zero.
+**Finance module event modernization is complete: zero Finance-owned legacy Signal fields
+remain.** The P8 architecture budget (`current ⊆ frozen`) remains restored with zero exceptions
+(P37 was the last post-freeze *violation*; P38B/P39/P40B/P41 are ordinary further retirement of
+pre-freeze, frozen-allowlisted signals, not violation fixes).
 
 | Area | Count |
 |---|---|
 | Platform | 0 |
 | Auth/Security | 1 |
-| Project Management | 5 |
+| Project Management | 4 |
 | Finance | 0 |
 | Inventory/Procurement | 0 |
 
@@ -2946,7 +3025,17 @@ involvement. Converged onto a bare `SqlAlchemyUnitOfWorkBase` wrapping `TimeServ
 already-shared session (no new named-repository UoW — none was architecturally required), one
 shared-family `TimesheetPeriodStatusChanged` event, and three ViewInvalidation targets (workspace/
 resource/project) replacing the legacy signal's unscoped fan-out to the same three consumer
-families. **Register and Portfolio remain next, unchanged from P40A's sequence.**
+families.
+
+**Register is now DONE too (P41, see §3)** — `register_changed` is deleted, the second PM
+capability to reach zero. Fixed the real two-commit business-mutation/audit split P40A found (and
+added enterprise audit, which Register never had before this phase — only the lighter Activity
+feed) by converging onto a new, narrow `RegisterUnitOfWork` (unlike Timesheet, no existing session
+constraint favored reuse, so this followed Resource's/Employee's own fresh-session-per-command
+precedent instead). One shared-family `RegisterEntryChanged` event and two ViewInvalidation
+targets (workspace/project). Platform's Control workspace subscription could not be cut over to a
+typed hint (a real Platform/PM layering guard forbids it) and was dropped with no replacement.
+**Portfolio remains next, unchanged from P40A's sequence.**
 
 **A pre-existing, explicitly-not-fixed note carried forward by P33**: `PurchaseOrderLineORM` has no
 `version` column and its repository performs a blind field overwrite on `update()` — confirmed real
@@ -2982,14 +3071,15 @@ number assigned yet — see the remaining capability groups below.
 Remaining capability groups, not yet assigned rigid phase numbers:
 
 - **Project Management** (re-sequenced by P40A, AUDIT + SEQUENCING ONLY, see §3/§5 — tentative
-  past the first three): **1. Timesheet Period — DONE (P40B, see §3)**, **2. Risk Register, 3.
-  Portfolio** (Template/Scenario/Intake/Dependency) — both DIRECT FULL MODERNIZATION ready. Then
-  (tentative) **4. Project Lifecycle**, **5. Collaboration Comment** (needs its own short audit/
-  transport-split phase first — Collaboration Presence needs a non-`DomainEvent` mechanism, not a
-  migration target), **6. Task Lifecycle last** (highly overloaded — 8 real facts across 3
-  aggregates + a bulk operation, requires a dedicated audit-first phase and coordination with
-  Financial Change's participant before implementation, despite being the only capability that
-  would shrink the shared `ApprovalPostCommitEvent` legacy-bridge count).
+  past the first three): **1. Timesheet Period — DONE (P40B, see §3)**, **2. Risk Register — DONE
+  (P41, see §3)**, **3. Portfolio** (Template/Scenario/Intake/Dependency) — DIRECT FULL
+  MODERNIZATION ready. Then (tentative) **4. Project Lifecycle**, **5. Collaboration Comment**
+  (needs its own short audit/transport-split phase first — Collaboration Presence needs a
+  non-`DomainEvent` mechanism, not a migration target), **6. Task Lifecycle last** (highly
+  overloaded — 8 real facts across 3 aggregates + a bulk operation, requires a dedicated
+  audit-first phase and coordination with Financial Change's participant before implementation,
+  despite being the only capability that would shrink the shared `ApprovalPostCommitEvent`
+  legacy-bridge count).
 - **Finance — MODULE COMPLETE (P39, see §3/§5)**: every Finance capability (Financial Setup, Rate
   Card, Forecast, Planned Cost, Project Commitment, Project Cost Entry, Project Budget, Billing
   Profile, Billing Preparation) is fully modernized onto typed DomainEvents. Zero Finance-owned

@@ -50,6 +50,9 @@ from src.ui_qml.modules.project_management.adapters.resources.resource_view_inva
 from src.ui_qml.modules.project_management.adapters.timesheets.timesheet_view_invalidation_adapter import (
     TimesheetViewInvalidationAdapter,
 )
+from src.ui_qml.modules.project_management.adapters.register.register_view_invalidation_adapter import (
+    RegisterViewInvalidationAdapter,
+)
 from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import (
     TenantSwitcherPresenter,
 )
@@ -209,6 +212,8 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self._review_queue_timesheet_view_invalidation_adapter: TimesheetViewInvalidationAdapter | None = None
         self._resources_timesheet_view_invalidation_adapter: TimesheetViewInvalidationAdapter | None = None
         self._tasks_timesheet_view_invalidation_adapter: TimesheetViewInvalidationAdapter | None = None
+        self._register_view_invalidation_adapter: RegisterViewInvalidationAdapter | None = None
+        self._dashboard_register_view_invalidation_adapter: RegisterViewInvalidationAdapter | None = None
         self._pm_capability = PMCapabilityController(
             auth_engine=auth_engine,
             user_session_provider=user_session_provider,
@@ -322,6 +327,15 @@ class ProjectManagementWorkspaceCatalog(QObject):
                     workspace_mode="register",
                 ),
                 parent=self,
+            )
+            self._register_view_invalidation_adapter = RegisterViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._register_view_invalidation_adapter.registerWorkspaceStale.connect(
+                lambda _project_id: self._register_workspace._request_domain_refresh()
             )
         return self._register_workspace
 
@@ -544,6 +558,15 @@ class ProjectManagementWorkspaceCatalog(QObject):
             )
             self._dashboard_baseline_view_invalidation_adapter.projectBaselineStale.connect(
                 self._dashboard_workspace.onProjectBaselineStale
+            )
+            self._dashboard_register_view_invalidation_adapter = RegisterViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._dashboard_register_view_invalidation_adapter.registerProjectStale.connect(
+                self._dashboard_workspace.onRegisterProjectStale
             )
         return self._dashboard_workspace
 
@@ -795,6 +818,15 @@ class ProjectManagementWorkspaceCatalog(QObject):
         ):
             if timesheet_adapter is not None:
                 timesheet_adapter.set_active_scope(
+                    tenant_id=self._active_tenant_id() or "",
+                    organization_id=self._active_organization_id() or "",
+                )
+        for register_adapter in (
+            self._register_view_invalidation_adapter,
+            self._dashboard_register_view_invalidation_adapter,
+        ):
+            if register_adapter is not None:
+                register_adapter.set_active_scope(
                     tenant_id=self._active_tenant_id() or "",
                     organization_id=self._active_organization_id() or "",
                 )

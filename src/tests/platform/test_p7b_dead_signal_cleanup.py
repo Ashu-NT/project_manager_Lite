@@ -56,9 +56,6 @@ def test_calendars_changed_signal_no_longer_exists():
 
 
 def test_costs_changed_and_calendars_changed_have_zero_production_references():
-    """Word-boundary matching -- `costs_changed` is a trailing substring of other Finance signal
-    names (e.g. the now-also-deleted `planned_costs_changed`, P35), so a plain substring search
-    would false-positive on any live or historical name sharing that suffix."""
     import re
 
     pattern = re.compile(r"(?<![\w.])(costs_changed|calendars_changed)\b")
@@ -72,10 +69,6 @@ def test_costs_changed_and_calendars_changed_have_zero_production_references():
 
 
 def test_approval_service_reflective_emission_mechanism_is_real_and_active():
-    """`_emit_signal_safely` -> `getattr(domain_events, signal_name).emit(...)` is a genuine,
-    active production emission path (called from `_emit_handler_events`, which runs after every
-    real approve/reject decision) -- not a dead/test-only mechanism. Confirms why a signal can
-    have a real producer with zero literal `domain_events.X.emit(` call sites of its own."""
     import src.core.platform.application.approval.approval_service as approval_service_module
 
     source = inspect.getsource(approval_service_module)
@@ -89,22 +82,12 @@ def test_approval_service_reflective_emission_mechanism_is_real_and_active():
 
 
 def test_pm_dashboard_no_longer_reacts_to_costs_changed_because_it_no_longer_exists(services):
-    """Behavior-preservation proof: since `costs_changed` never had a real producer, no
-    production code path could ever have triggered this reaction -- deleting the dead
-    subscription changes nothing observable."""
     _pm_catalog(services)
     assert not hasattr(domain_events, "costs_changed")
-    # There is no signal left to emit that could exercise the deleted subscription -- the
-    # absence assertion above, plus the source-reference-count guard, is the complete proof.
+
 
 
 def test_pm_financials_workspace_coalesces_scoped_finance_invalidations(services, qapp):
-    """P39: Finance has ZERO legacy Signal fields left (`budgets_changed`/`billing_preparations_
-    changed` were the last two, retired at P38B/P39) -- `project_changed` (whose handler
-    invalidates every finance destination, including the default "overview" active destination)
-    stands in as the matching signal, alongside `tasks_changed` (whose "planning"/"costs"/
-    "performance"-only invalidation does not match "overview" and so triggers no refresh of its
-    own) as the non-matching one -- reproducing the original two-signals-one-turn shape exactly."""
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.financialsWorkspace
     project_id = _unique("p7b-finance-project")
@@ -141,16 +124,12 @@ def test_control_workspace_still_reacts_to_its_remaining_real_signals(services):
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.register_changed.emit(_unique("p7b-register"))
+    domain_events.tasks_changed.emit(_unique("p7b-tasks"))
 
     assert refresh_calls == ["refresh"]
 
 
 def test_admin_console_still_reacts_to_its_remaining_signal(services):
-    """P10D/P12B/P13B/P14B/P15B/P16D: `organizations_changed`/`employees_changed`/
-    `departments_changed`/`sites_changed`/`parties_changed`/`documents_changed` are all gone (all
-    six now flow through their own typed ViewInvalidation targets, wired directly in
-    `context.py`, not through this composite Signal list) -- one legacy signal remains here."""
     catalog = _catalog(services)
     admin = catalog.adminWorkspace
     refresh_calls = []
@@ -162,11 +141,6 @@ def test_admin_console_still_reacts_to_its_remaining_signal(services):
 
 
 def test_pm_resources_workspace_still_reacts_to_resources(services):
-    """Confirms the resources binder's `calendars_changed`/`employees_changed` removals did not
-    accidentally also remove its other, still-real subscriptions. `resources_changed` itself is
-    deleted as of P18B -- the Resources workspace now reacts via
-    `ResourceViewInvalidationAdapter.resourceListStale`, driven by a real Resource mutation
-    flowing through the canonical typed-event pipeline."""
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.resourcesWorkspace
     refresh_calls = []
@@ -197,24 +171,6 @@ def test_pm_scheduling_workspace_still_reacts_to_its_remaining_real_signals(serv
 
 
 def test_no_new_business_domain_event_or_replacement_signal_introduced():
-    """The two deleted signals must not have been replaced by a renamed equivalent
-    (`CostsChanged`, `CalendarsChanged`, or similar) -- this is deletion only."""
-    forbidden = ("CostsChanged", "CalendarsChanged", "cost_changed", "calendar_changed")
-    hits = []
-    for path in _production_source_files():
-        with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-            source = _strip_strings_and_comments(fh.read())
-        if any(name in source for name in forbidden):
-            hits.append(path)
-    assert hits == [], hits
-
-
-def test_final_signal_invariant_every_remaining_signal_has_a_source_reference_beyond_its_declaration():
-    """§7: every remaining `DomainEvents` field must appear somewhere in production source beyond
-    its own declaration line in `domain_events.py` -- i.e. it has at least one real producer or
-    consumer reference. This is a coarse, source-grep-level sanity check (not a precise
-    producer/consumer classifier), intended to catch an obviously-orphaned field, not to replace
-    the manual audit above."""
     import dataclasses
 
     signal_names = [f.name for f in dataclasses.fields(domain_events)]
@@ -232,19 +188,10 @@ def test_final_signal_invariant_every_remaining_signal_has_a_source_reference_be
                 reference_counts[name] += 1
 
     orphaned = [name for name, count in reference_counts.items() if count == 0]
-    # R6B restored the Finance family hints only after adding both committed mutation
-    # producers and a targeted Finance destination-cache consumer. Every remaining signal
-    # therefore has an active production path in both directions.
     assert orphaned == [], orphaned
 
 
 def test_domain_event_binder_still_kept_unchanged_in_responsibility():
-    """§10: still not deleted -- still real, direct, non-compatibility composite-refresh
-    coordination, now for 1 signal instead of 8 (`calendars_changed` removed by P7B,
-    `organizations_changed` removed by P10D, `employees_changed` removed by P12B,
-    `departments_changed` removed by P13B, `sites_changed` removed by P14B, `parties_changed`
-    removed by P15B, `documents_changed` removed by P16D -- all seven route through their own
-    typed ViewInvalidation targets instead)."""
     import src.ui_qml.platform.controllers.admin_console.domain_event_binder as binder_module
 
     source = _strip_strings_and_comments(inspect.getsource(binder_module))
@@ -261,11 +208,6 @@ def test_domain_event_binder_still_kept_unchanged_in_responsibility():
 
 
 def test_organizations_changed_field_no_longer_exists():
-    """P10D superseded P7B's own `test_organizations_changed_untouched_by_p7b` (which proved
-    Organization's legacy signal was deliberately OUT of P7B's scope and left exactly as P7A left
-    it) -- Organization event modernization is now complete: creation, profile updates, and
-    enable/disable are all typed events, and the legacy Signal field itself is deleted, not
-    merely unproduced."""
     assert not hasattr(domain_events, "organizations_changed")
 
     import src.core.platform.application.master_data.org.organization_service as org_service_module

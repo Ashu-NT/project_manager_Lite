@@ -61,6 +61,7 @@ _DELETED_BRIDGE_NAMES = (
     "budgets_changed",
     "billing_preparations_changed",
     "timesheet_periods_changed",
+    "register_changed",
 )
 
 _KNOWN_FINANCE_SIGNAL_NAMES = frozenset(

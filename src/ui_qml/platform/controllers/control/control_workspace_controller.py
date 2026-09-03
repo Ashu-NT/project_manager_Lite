@@ -208,7 +208,6 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
         for signal in (
             domain_events.project_changed,
             domain_events.tasks_changed,
-            domain_events.register_changed,
         ):
             self._subscribe_domain_signal(signal, self._on_domain_event)
 

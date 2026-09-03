@@ -207,15 +207,13 @@ def test_approval_has_no_legacy_signal_at_all():
 # ---------------------------------------------------------------------------
 
 
-def test_pm_register_workspace_direct_wired_to_register_changed_exactly_once(services):
-    """PM's register binder now connects directly to `register_changed`/`project_changed` --
-    no generic `domain_changed` involved."""
+def test_pm_register_workspace_direct_wired_to_project_changed_exactly_once(services):
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.registerWorkspace
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.register_changed.emit(_unique("p7a-register"))
+    domain_events.project_changed.emit(_unique("p7a-register"))
 
     assert refresh_calls == ["refresh"]
 
@@ -248,13 +246,6 @@ def test_pm_register_workspace_does_not_react_to_an_unrelated_signal(services):
 
 
 def test_inventory_dashboard_direct_wired_to_every_inventory_signal(services):
-    """Inventory's dashboard binder now connects directly to every still-legacy inventory-module
-    signal -- no generic `scope_code="inventory_procurement"` bridge filter involved.
-    `inventory_items_changed` is gone (P24): Dashboard's real Item dependency (low-stock row
-    labels) now reaches it through `InventoryCatalogViewInvalidationAdapter.itemListStale`,
-    proven separately alongside the remaining direct-wired legacy signal. `inventory_purchase_
-    orders_changed` is gone too (P28B): Dashboard's real PO/Requisition/Balance KPI dependency
-    now reaches it through `PurchaseOrderViewInvalidationAdapter.purchaseOrderListStale`."""
     inventory_catalog = _inventory_catalog(services)
     controller = inventory_catalog.dashboardWorkspace
     refresh_calls = []
@@ -281,13 +272,6 @@ def test_inventory_dashboard_does_not_react_to_an_unrelated_pm_signal(services):
     assert refresh_calls == []
 
 
-# P16D removed `test_inventory_catalog_workspace_direct_wired_to_shared_master_document`:
-# Catalog's binder no longer subscribes to `documents_changed` at all -- Document changes now
-# reach this workspace only through the narrow `refresh_document_options()`/
-# `refresh_selected_item_linked_documents()` typed-event paths, not this composite signal. See
-# test_p16d_document_link_typed_events.py.
-
-
 def test_inventory_catalog_workspace_does_not_react_to_an_unrelated_shared_master_signal(services):
     """`auth_changed` is a real shared-master signal, but NOT one the catalog workspace's own
     binder ever subscribed to -- direct wiring must preserve that exact per-consumer scope, not
@@ -308,15 +292,6 @@ def test_inventory_catalog_workspace_does_not_react_to_an_unrelated_shared_maste
 
 
 def test_password_reset_fires_auth_changed_and_only_the_narrow_access_workspace_reaction(services):
-    """§18: a real operation on a genuinely still-unmodernized capability (password) ->
-    `auth_changed` -> `AccessWorkspaceController._on_auth_changed` -> the narrow
-    `_refresh_after_security_change()` reaction only -- never the full `refresh()`, never
-    RoleBinding's/TenantMembership's own typed read models, never any other modernized
-    capability's Qt adapter signal. (The mutation's own `on_success` callback ALSO calls
-    `_refresh_after_security_change()` immediately, independent of the event path -- the same
-    accepted "self-refresh after your own action" pattern already proven for Organization's own
-    `createOrganization`; that is not double-counted here, only the *additional* signals this
-    phase cares about.)"""
     _login(services, "admin", "ChangeMe123!")
     catalog = _catalog(services)
     access = catalog.adminAccessWorkspace
@@ -372,10 +347,6 @@ def test_password_reset_fires_auth_changed_and_only_the_narrow_access_workspace_
 
 
 def test_admin_console_domain_event_binder_never_touches_the_generic_bridge():
-    """§3: it subscribes directly to 8 specific legacy signals -- it never imports/uses
-    `_subscribe_domain_change`, `domain_changed`, or `_BRIDGE_SPECS` at all. It already IS the
-    §6-preferred "specific signal -> explicit consumer" shape; there is no compatibility-bridge
-    responsibility here to delete."""
     import src.ui_qml.platform.controllers.admin_console.domain_event_binder as binder_module
 
     source = _strip_strings_and_comments(inspect.getsource(binder_module))
@@ -386,9 +357,6 @@ def test_admin_console_domain_event_binder_never_touches_the_generic_bridge():
 def test_admin_console_still_composite_refreshes_on_the_one_genuinely_unmodernized_signal(
     services,
 ):
-    """Organization, Employee, Department, Site, and Party are no longer in this list (P10D, P12B,
-    P13B, P14B, P15B): all five are fully modernized and route through their own typed
-    ViewInvalidation targets instead."""
     catalog = _catalog(services)
     admin = catalog.adminWorkspace
     refresh_calls = []

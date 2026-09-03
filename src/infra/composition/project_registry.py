@@ -25,6 +25,15 @@ from src.core.platform.application.time_management.time.event_handlers.view_inva
 from src.core.platform.application.time_management.time.timesheet_events import (
     TimesheetPeriodStatusChanged,
 )
+from src.core.modules.project_management.application.risk.event_handlers.view_invalidation import (
+    build_register_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.risk.register_events import (
+    RegisterEntryChanged,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.register.register_unit_of_work import (
+    SqlAlchemyRegisterUnitOfWorkFactory,
+)
 from src.core.modules.project_management.application.resources.resource_capability_events import (
     ResourceCapabilityChanged,
 )
@@ -447,6 +456,20 @@ def build_project_management_service_bundle(
         assignment_repo=repositories.assignment_repo,
         financial_profile_repo=repositories.project_financial_profile_repo,
     )
+    register_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
+    register_uow_factory = SqlAlchemyRegisterUnitOfWorkFactory(
+        session_factory=register_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
+    platform_services.platform_post_commit_bus.subscribe(
+        RegisterEntryChanged,
+        build_register_view_invalidation_handler(
+            platform_services.platform_view_invalidation_channel
+        ),
+    )
     register_service = RegisterService(
         session=session,
         project_repo=repositories.project_repo,
@@ -456,6 +479,7 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         register_catalog_reader=SqlAlchemyRegisterCatalogReader(session=session),
+        uow_factory=register_uow_factory,
     )
     # Build enterprise calendar adapter here so it can be injected into SchedulingEngine.
     # Instantiated before scheduling_engine so we pass it in during construction.

@@ -61,7 +61,7 @@ def test_platform_control_workspace_refreshes_on_control_events(monkeypatch) -> 
     refresh_calls: list[str] = []
     monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
 
-    domain_events.register_changed.emit("proj-1")
+    domain_events.tasks_changed.emit("proj-1")
 
     assert refresh_calls == ["refresh"]
 
