@@ -47,6 +47,9 @@ from src.ui_qml.modules.project_management.adapters.financials.rate_card_view_in
 from src.ui_qml.modules.project_management.adapters.resources.resource_view_invalidation_adapter import (
     ResourceViewInvalidationAdapter,
 )
+from src.ui_qml.modules.project_management.adapters.timesheets.timesheet_view_invalidation_adapter import (
+    TimesheetViewInvalidationAdapter,
+)
 from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import (
     TenantSwitcherPresenter,
 )
@@ -202,14 +205,15 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self._dashboard_resource_view_invalidation_adapter: ResourceViewInvalidationAdapter | None = None
         self._timesheets_resource_view_invalidation_adapter: ResourceViewInvalidationAdapter | None = None
         self._review_queue_resource_view_invalidation_adapter: ResourceViewInvalidationAdapter | None = None
+        self._timesheets_view_invalidation_adapter: TimesheetViewInvalidationAdapter | None = None
+        self._review_queue_timesheet_view_invalidation_adapter: TimesheetViewInvalidationAdapter | None = None
+        self._resources_timesheet_view_invalidation_adapter: TimesheetViewInvalidationAdapter | None = None
+        self._tasks_timesheet_view_invalidation_adapter: TimesheetViewInvalidationAdapter | None = None
         self._pm_capability = PMCapabilityController(
             auth_engine=auth_engine,
             user_session_provider=user_session_provider,
             parent=self,
         )
-        # R2.3: the PM-wide canonical-navigation state owner. Constructed
-        # eagerly (like PMCapabilityController above) since it is cheap
-        # cross-cutting state, not a heavy per-capability workspace.
         self._pm_navigation = PMWorkspaceNavigationController(parent=self)
         self._projects_workspace: ProjectManagementProjectsWorkspaceController | None = None
         self._financials_workspace: ProjectManagementFinancialsWorkspaceController | None = None
@@ -294,6 +298,16 @@ class ProjectManagementWorkspaceCatalog(QObject):
             )
             self._resource_view_invalidation_adapter.resourceCapabilitiesStale.connect(
                 self._resources_workspace.onResourceCapabilitiesStale
+            )
+
+            self._resources_timesheet_view_invalidation_adapter = TimesheetViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._resources_timesheet_view_invalidation_adapter.timesheetResourceStale.connect(
+                self._resources_workspace.onTimesheetResourceStale
             )
         return self._resources_workspace
 
@@ -500,6 +514,15 @@ class ProjectManagementWorkspaceCatalog(QObject):
             self._tasks_resource_view_invalidation_adapter = self._wire_resource_list_stale(
                 self._tasks_workspace
             )
+            self._tasks_timesheet_view_invalidation_adapter = TimesheetViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._tasks_timesheet_view_invalidation_adapter.timesheetProjectStale.connect(
+                self._tasks_workspace.onTimesheetProjectStale
+            )
         return self._tasks_workspace
 
     def _get_dashboard_workspace(self) -> ProjectManagementDashboardWorkspaceController:
@@ -554,6 +577,15 @@ class ProjectManagementWorkspaceCatalog(QObject):
             self._timesheets_resource_view_invalidation_adapter = self._wire_resource_list_stale(
                 self._timesheets_workspace
             )
+            self._timesheets_view_invalidation_adapter = TimesheetViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._timesheets_view_invalidation_adapter.timesheetWorkspaceStale.connect(
+                lambda _resource_id: self._timesheets_workspace._request_domain_refresh()
+            )
         return self._timesheets_workspace
 
     def _get_review_queue_workspace(self) -> ProjectManagementTimesheetsWorkspaceController:
@@ -566,6 +598,15 @@ class ProjectManagementWorkspaceCatalog(QObject):
             )
             self._review_queue_resource_view_invalidation_adapter = self._wire_resource_list_stale(
                 self._review_queue_workspace
+            )
+            self._review_queue_timesheet_view_invalidation_adapter = TimesheetViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._review_queue_timesheet_view_invalidation_adapter.timesheetWorkspaceStale.connect(
+                lambda _resource_id: self._review_queue_workspace._request_domain_refresh()
             )
         return self._review_queue_workspace
 
@@ -743,6 +784,17 @@ class ProjectManagementWorkspaceCatalog(QObject):
         ):
             if resource_adapter is not None:
                 resource_adapter.set_active_scope(
+                    tenant_id=self._active_tenant_id() or "",
+                    organization_id=self._active_organization_id() or "",
+                )
+        for timesheet_adapter in (
+            self._timesheets_view_invalidation_adapter,
+            self._review_queue_timesheet_view_invalidation_adapter,
+            self._resources_timesheet_view_invalidation_adapter,
+            self._tasks_timesheet_view_invalidation_adapter,
+        ):
+            if timesheet_adapter is not None:
+                timesheet_adapter.set_active_scope(
                     tenant_id=self._active_tenant_id() or "",
                     organization_id=self._active_organization_id() or "",
                 )

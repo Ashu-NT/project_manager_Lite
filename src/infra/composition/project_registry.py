@@ -19,6 +19,12 @@ from src.core.modules.project_management.application.resources.event_handlers.vi
     build_resource_capabilities_view_invalidation_handler,
     build_resource_list_view_invalidation_handler,
 )
+from src.core.platform.application.time_management.time.event_handlers.view_invalidation import (
+    build_timesheet_view_invalidation_handler,
+)
+from src.core.platform.application.time_management.time.timesheet_events import (
+    TimesheetPeriodStatusChanged,
+)
 from src.core.modules.project_management.application.resources.resource_capability_events import (
     ResourceCapabilityChanged,
 )
@@ -418,8 +424,16 @@ def build_project_management_service_bundle(
         approved_time_outbox_service=approved_time_outbox_service,
         timesheet_workspace_reader=SqlAlchemyTimesheetWorkspaceReader(session=session),
         timesheet_review_reader=SqlAlchemyTimesheetReviewReader(session=session),
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
     )
     time_service: TimeService = timesheet_service
+    platform_services.platform_post_commit_bus.subscribe(
+        TimesheetPeriodStatusChanged,
+        build_timesheet_view_invalidation_handler(
+            platform_services.platform_view_invalidation_channel
+        ),
+    )
     project_resource_service = ProjectResourceService(
         project_resource_repo=repositories.project_resource_repo,
         resource_repo=repositories.resource_repo,

@@ -2542,22 +2542,344 @@ sites (Task family, and Financial Change's schedule-impact branch) will be remov
 capability, and this file's new characterization tests will track that shrinkage automatically
 rather than needing hand-edited counts each time.
 
+### P40A — Project Management Remaining Legacy Signal Re-Rank (AUDIT + SEQUENCING ONLY)
+
+Re-audited all six remaining PM legacy Signals from current source (not carried forward from P17/
+P34A, which predate every Finance/Inventory phase and are demonstrably stale in places — see the
+Project and Task corrections below). Six parallel read-only research passes, one per capability,
+each independently re-deriving producers/consumers/facts/transaction readiness/concurrency/audit
+from source.
+
+**Producer/consumer/transaction matrix (concise):**
+
+| Capability | Producers | Consumer files | Transaction owner | Audit | Concurrency |
+|---|---|---|---|---|---|
+| Timesheet (`timesheet_periods_changed`) | 1 site (1 private helper, 6 callers) | 5 | Raw Session, no UoW | ATOMIC | `version` on both `TimesheetPeriod`/`TimeEntry`, real CAS |
+| Register (`register_changed`) | 3 sites, 1 file | 3 | Raw Session, no UoW | ACTIVITY-ONLY, non-atomic (2-commit split) | `version` on update only; delete unguarded |
+| Portfolio (`portfolio_changed`) | 8 sites, 4 files (4 sub-aggregates) | 3 | Raw Session, no UoW; 1 nested mid-op commit hazard | NONE (3 of 4 sub-aggregates), ACTIVITY-ONLY+non-atomic (dependencies) | `version` on Intake only; Scenario/Template/Dependency unguarded |
+| Project (`project_changed`) | 7 sites + 1 confirmed live gap (`set_status` never emits) | 12 (10 PM + 2 platform) | Raw Session, no UoW | NONE on Project itself (only its embedded FinancialProfile) | Real CAS via repo (`update_with_version_check`); `delete_project` unguarded |
+| Collaboration (`collaboration_changed`) | 8 sites (6 durable comment ops + 2 presence, same Signal) | 3 | Raw Session, no UoW; already rollback-hardened (Phase 0A.3) | ATOMIC (durable ops) | `version` on `TaskComment`; none on `TaskPresence` (correctly, it's ephemeral) |
+| Task (`tasks_changed`) | 22 direct + 6 `ApprovalPostCommitEvent` = 28 sites, 2 module boundaries | 10 (8 blind full-refresh) | Raw Session, no UoW anywhere | NONE anywhere in Task's own module | `version` on 3 of 3 aggregates but inconsistently checked; `move_task` blind-overwrites siblings; several assignment ops have zero check |
+
+**Distinct-fact decomposition (recomputed from source, not from field-groupings):**
+- **Timesheet**: 1 fact family — `TimesheetPeriod` state transition (submit/approve/reject/lock/
+  unlock/reopen-for-correction), either one `TimesheetPeriodTransitioned{change_type}` or 6 named
+  classes. `TimeEntry` mutations are NOT part of this Signal (they emit `tasks_changed` only).
+- **Register**: 3 facts — `RegisterEntryCreated`/`Updated`/`Deleted`. One aggregate (`RegisterEntry`
+  with a `RISK|ISSUE|CHANGE` discriminator field), not several unrelated types — the module path
+  name (`application/risk/`) is misleading, confirmed a single class.
+- **Portfolio**: 8 facts across 4 independent sub-aggregates (no `Portfolio` entity exists at all —
+  "Portfolio" is a pure organizational grouping): `PortfolioScoringTemplateCreated/Activated`,
+  `PortfolioScenarioCreated/Updated`, `PortfolioIntakeItemCreated/Updated`,
+  `PortfolioProjectDependencyCreated/Removed`.
+- **Project**: 3 facts source-supported today — `ProjectCreated` (bundled with a same-transaction
+  `ProjectFinancialProfileCreated`), `ProjectProfileUpdated` (name/code/dates/client/site/dept/
+  manager — `update_project`'s own diff does not currently separate status from these), and a
+  materially separate `ProjectStatusChanged` (only `set_status` triggers it — own permission check,
+  own activity action, and the one with the live no-emit gap). `ProjectRemoved` (`delete_project`,
+  cascades Task/Dependency/Assignment/TimeEntry deletes in the same transaction) is a 4th. No
+  evidence for `ProjectOwnershipChanged`/`ProjectDatesChanged` as separate facts — both P34A
+  candidates were disproven by reading `update_project`'s actual diff fields.
+- **Collaboration**: 6 durable facts, all on `TaskComment` — `TaskCommentPosted/Edited/Deleted/
+  ReactionAdded/ReactionRemoved`, plus a read-receipt fact (`mark_task_mentions_read`) whose
+  DomainEvent-worthiness is a genuine open design question (inbox state vs. business fact). The 2
+  presence producers (`touch_task_presence`/`clear_task_presence`) are NOT durable facts — see
+  below.
+- **Task**: 8 facts across 3 independently-versioned aggregates + one bulk operation —
+  `TaskCreated/Updated`, `TaskMoved`, `TaskDeleted`, `TaskProgressChanged`,
+  `TaskSchedulingConstraintChanged`, `SchedulingLevelingApplied` (project-wide, fingerprint-keyed,
+  not per-entity), `TaskDependencyChanged{change_type}` (own aggregate), `TaskAssignmentChanged
+  {change_type}` (own aggregate). The Financial-Change-driven schedule application reuses fact
+  #1/#2's fields but is NOT a 9th Task-owned fact — see cross-capability edges below.
+
+**Cross-capability graph (only real category-C persisted-mutation edges reported):**
+- Timesheet → Finance: **C, already canonical on the Finance side.** Period approval enqueues an
+  outbox event inside the same atomic commit; an async dispatcher (`ApprovedTimeFinancialDispatcher`,
+  the identical `SqlAlchemyUnitOfWorkBase` shape Cost Entry/Commitment use) later creates/mutates
+  `ProjectCostEntry`/`ApprovedTimeLaborPosting` in its own canonical transaction. Timesheet's own
+  modernization does not need to touch or re-solve this boundary.
+- Register → Project: A only (existence-check read, never a write).
+- Portfolio → Project: A only (all 4 sub-aggregates store project ids as plain references; the
+  dependency repo's own "scope" check is read-only). Project → Portfolio: **zero coupling found** —
+  no Project code references "portfolio" at all. This is a clean, one-directional, read-only edge in
+  both audited directions — no Project/Portfolio sequencing constraint exists.
+- Project → its own sub-capabilities: **C** — `create_project` creates a `ProjectFinancialProfile`
+  in the same transaction; `delete_project` cascades hard-deletes across Task/Dependency/
+  Assignment/TimeEntry in the same transaction. No evidence of Project mutating Budget or
+  Portfolio-membership directly.
+- Task ← Financial Change: **C, real, already-wired.** `FinancialChangeService._apply_schedule_
+  changes` calls `TaskService._apply_approved_schedule_changes`, which writes `Task.start_date`/
+  `end_date`/`duration_days` directly, inside Financial Change's own transaction. The only producer
+  for this edge today is `financial_change_apply_participant.py`'s `ApprovalPostCommitEvent(
+  "tasks_changed", ...)` sole remaining site. Finance's own canonical facts (`FinancialChangeChanged`
+  etc.) do not replace this Task-owned fact — the Task side still needs its own typed event, and
+  that requires touching Financial Change's participant, not just Task's own module.
+- Task ← Timesheets (Platform): **C, real, unguarded.** `TaskTimeEntryMixin`/`timesheet_support.py`
+  write `TaskAssignment.hours_logged` directly (same `AssignmentRepository` instance shared with
+  TaskService) with **no version check** — a genuine, currently-live blind-overwrite risk against
+  Task's own version-checked assignment-hours mutations.
+
+**Collaboration transport finding (the key P40A discovery for this capability).** Presence
+(`touch_task_presence`/`clear_task_presence`) is not a separate mechanism — it fires the exact same
+`domain_events.collaboration_changed` Signal as durable comment facts, driven by a 30-second
+`runtimeHeartbeat` QTimer while any task is open. All 3 UI consumers do a blind full-workspace
+rebuild on every emission, payload-blind — meaning idle presence keepalive traffic currently costs
+the same UI-wide refresh as an actual comment post, continuously, for as long as a task view stays
+open. `DomainEvent`/`ViewInvalidationChannel` are built for durable, versioned, auditable facts;
+presence has none of those properties and cannot become one without violating that model. No
+ephemeral-presence transport exists anywhere else in the codebase to reuse — one must be designed.
+**This makes Collaboration the one PM capability that genuinely needs a dedicated audit/transport-
+split phase before implementation**, not because its own facts are unclear (they're the clearest of
+any capability audited — 6 operations, 1 aggregate) but because the ephemeral half requires a design
+decision this document's own architecture (typed DomainEvents = durable facts only) does not yet
+have an answer for.
+
+**Task strategic-value finding.** Task's own modernization phase would eliminate 5 of the current 6
+production `ApprovalPostCommitEvent` sites (all of `task_apply_participant.py`), but **not** the 6th
+(`financial_change_apply_participant.py`'s schedule-impact branch) — that site is owned by Financial
+Change's own participant, not Task's module, and requires an explicit, separate (small) touch-up
+regardless of how thoroughly Task's own capability is modernized. No other audited PM capability
+(Timesheet/Register/Portfolio/Project/Collaboration) has any `ApprovalPostCommitEvent`/`_emit_signal_
+safely` integration at all — Task is the *only* lever on the shared legacy-approval-infrastructure
+count.
+
+**Scorecard.**
+
+| | Timesheet | Register | Portfolio | Project | Collaboration | Task |
+|---|---|---|---|---|---|---|
+| Distinct-fact complexity | LOW | LOW | MEDIUM (4 sub-aggregates) | MEDIUM | LOW (durable) / N/A (ephemeral) | HIGH (3 aggregates + bulk op) |
+| Transaction readiness | HIGH (LOW effort) | HIGH (LOW effort) | MEDIUM (nested-commit hazard) | MEDIUM | HIGH for durable portion | LOW (HIGH effort, no UoW exists, 3 aggregates) |
+| Audit readiness | READY (already atomic) | PARTIAL (2-commit split) | BLOCKED (3 of 4 sub-aggregates: none) | BLOCKED (none on Project itself) | READY (already atomic+rollback-hardened) | BLOCKED (none anywhere) |
+| Concurrency safety | SAFE | PARTIAL (delete unguarded) | PARTIAL (1 of 4 sub-aggregates guarded) | PARTIAL (delete unguarded) | SAFE (durable); N/A (ephemeral, correctly unguarded) | PARTIAL (inconsistent; real blind-overwrite risk in `move_task` and cross-capability Timesheets edge) |
+| Cross-capability coupling | LOW (1 edge, already canonical) | NONE | LOW (1 edge, reference-only both directions) | LOW (2 edges, both self-contained) | NONE (durable) | HIGH (2 real edges, one requires touching another module) |
+| Consumer fan-out | MEDIUM (5) | LOW (3) | LOW (3) | HIGH (12) | LOW (3, but high-frequency) | HIGH (10, 8 blind) |
+| UI precision needed | LOW (ResourceScope, project-scoped) | LOW (ResourceScope, project-scoped) | LOW (likely OrganizationScope — Portfolio artifacts aren't per-project) | MEDIUM (12 destinations to re-map, 2 of them incidental/platform-external) | MEDIUM (durable: ResourceScope/task; ephemeral: needs an entirely new non-DomainEvent mechanism) | HIGH (10 destinations, mostly blind, need real per-fact mapping) |
+| Correctness/audit debt closed | LOW (little to close) | MEDIUM (fixes real 2-commit gap) | MEDIUM-HIGH (fixes real audit gaps + nested-commit hazard + TOCTOU race) | MEDIUM (fixes `set_status` no-emit gap + adds missing audit) | LOW for durable (already hardened) | HIGH (fixes multiple real blind-overwrite risks) but requires building new infra to do it |
+| Test readiness | Not separately re-verified this phase (existing PM test suites presumed present; no gap found) | Same | Same | Same | Same (Phase 0A.3 rollback-hardening tests already exist) | Same |
+| One-phase deletion confidence | HIGH | HIGH | HIGH | MEDIUM | LOW (whole-signal); HIGH (durable-only, post-split) | LOW (MEDIUM if Financial-Change touch-up is explicitly included) |
+| Strategic cleanup value | NONE (no approval-bridge involvement) | NONE | NONE | NONE | NONE | HIGH (only lever on `ApprovalPostCommitEvent`/`_emit_signal_safely`) |
+
+**Ranking (priority order: 1-deletable-in-one-phase, 2-semantic-clarity, 3-transaction-readiness,
+4-cross-capability-canonical, 5-consumer-precision, 6-correctness-debt-closed, 7-test-readiness,
+8-removes-shared-legacy-infra, 9-smaller-surface-wins-ties).** Timesheet, Register, and Portfolio
+all score HIGH on priority 1 — Timesheet and Register additionally tie on priority-3 (LOW effort,
+vs. Portfolio's MEDIUM effort from its nested-commit hazard and 4-sub-aggregate surface). Between
+Timesheet and Register: Timesheet has the single smallest producer surface (1 call site) of any PM
+capability audited (priority 9), while Register closes more real correctness debt (priority 6, its
+2-commit audit split). Given priorities 1-5 are an exact tie between them, Timesheet is placed first
+purely on surface-size (priority 9 only breaks a tie that persists through priority 6-8 as well,
+since neither touches the approval bridge). Project (MEDIUM confidence, a confirmed live bug, and
+the widest "normal" consumer fan-out at 12) ranks 4th — its facts and edges are now fully
+characterized by this audit, so no separate audit-first phase is needed despite the wider surface.
+Collaboration ranks 5th, needing its own short audit/transport-split phase before implementation (not
+because of unclear facts, but an unresolved ephemeral-transport design question this document's own
+model doesn't yet answer). Task ranks last on every ease-based priority (1-5) despite scoring highest
+on priority 8 (strategic legacy-infrastructure value) — priorities 1-5 are weighted above priority 8
+by design, and Task loses on all five.
+
+**Direct-implementation readiness.** Timesheet, Register, Portfolio, and Project: **DIRECT FULL
+MODERNIZATION** — each capability's facts, transaction shape, and cross-capability edges are now
+fully characterized by this audit; no further discovery work is needed before implementation.
+Collaboration: **CAPABILITY-SPECIFIC AUDIT FIRST** (a short transport-split design phase — decide and
+build the ephemeral-presence mechanism, cut presence over to it, leave `collaboration_changed`
+comment-only — before a normal modernization phase converts the now-cleanly-durable comment
+operations). Task: **CAPABILITY-SPECIFIC AUDIT FIRST** — not because its facts are unclear (this
+audit already enumerated all 8), but because its scale (28 producer sites across 2 module
+boundaries, 3 independently-versioned aggregates, a new UoW to build from scratch, and mandatory
+coordination with Financial Change's own participant) warrants a dedicated implementation-planning
+pass, the same way Billing Preparation's 2-aggregate, 13-operation surface warranted P38A before
+P39 — Task's surface is larger still.
+
+**Recommended next three, in order:**
+1. **Timesheet** — smallest producer surface of any remaining PM capability (1 call site), already-
+   atomic audit, already-correct concurrency, zero approval-subsystem entanglement, Finance boundary
+   already fully canonical and async-decoupled. DIRECT FULL MODERNIZATION.
+2. **Register** — single cohesive aggregate, 3 producers in one file, 3 coarse consumers, zero
+   cross-capability mutation; closes a real audit-atomicity gap. DIRECT FULL MODERNIZATION.
+3. **Portfolio** — 4 independent sub-aggregates but each individually simple; zero Project coupling
+   in either direction (no Project/Portfolio sequencing constraint); closes real audit gaps (3 of 4
+   sub-aggregates currently have none) and a nested-commit hazard. DIRECT FULL MODERNIZATION.
+
+**Tentative full PM sequence** (first three are the recommendation above; the rest are *tentative*,
+subject to re-ranking after each phase per this document's own standing caution):
+1. Timesheet
+2. Register
+3. Portfolio
+4. Project *(tentative)*
+5. Collaboration — audit/transport-split phase, then implementation *(tentative)*
+6. Task — dedicated audit-first phase, then implementation; remains last *(tentative)*
+
+**Should Task remain last: YES.** Both factors were weighed explicitly, not just complexity: Task
+has the highest semantic complexity (3 independently-versioned aggregates + a bulk fingerprint
+operation), the highest transaction-convergence effort (no UoW exists at all, must be built from
+scratch, unlike every Finance phase which extended an existing one), the widest blind-refresh
+consumer fan-out (10, 8 of them untargeted), and a mandatory cross-module coordination point
+(Financial Change's participant) that no other PM capability has. Its strategic value (the only
+capability that can shrink the shared `ApprovalPostCommitEvent` count) is real but does not
+outweigh five ease-based priorities it loses on. Modernizing Timesheet/Register/Portfolio/Project/
+Collaboration first will shrink Task's own eventual blast radius indirectly: several of Task's own
+10 consumer files (`dashboard_refresh_mixin.py`, `control_workspace_controller.py`, `portfolio/
+domain_event_binder.py`, `collaboration/domain_event_binder.py`, `timesheets/domain_event_binder.py`)
+currently blanket-refresh on *multiple* legacy signals including `tasks_changed` — once those other
+signals are retired and those binders are rewired to typed `ViewInvalidationHint`s for their *own*
+capability, Task's own eventual cutover only has to reason about what's left in each binder, not the
+current tangle of five-or-more legacy signals sharing one blanket-refresh call.
+
+**Legacy Signal countdown.** Current: 7 (Finance 0, PM 6, Auth 1). If Timesheet → Register →
+Portfolio → Project → Collaboration → Task retire one-by-one as tentatively sequenced: after PM, 1
+(Auth only). Then Auth (P26A, still deferred): 0. Not hardcoded as a roadmap guarantee — current
+source remains authoritative at each future phase's own start, per this document's repeated
+caution.
+
+**Approval-infrastructure projection.** Current production `ApprovalPostCommitEvent` sites: exactly
+2 files (`financial_change_apply_participant.py`'s schedule-impact branch, `task_apply_participant.py`'s
+5 decisions), all publishing `tasks_changed` only — reconfirmed unchanged from P39-CLEANUP (this
+audit touched no production code). Timesheet/Register/Portfolio/Project/Collaboration modernization
+will not reduce this count (none of them have any approval-subsystem integration). Only Task's own
+phase reduces it, and only to 1 (not 0) unless that phase's scope explicitly includes the small
+Financial-Change-side touch-up — recommended to fold that touch-up into Task's phase so
+`ApprovalPostCommitEvent`/`ApprovalService._emit_signal_safely` become fully production-dead at the
+end of PM modernization, with no compatibility shell left behind.
+
+**Auth remains AUDITED / DEFERRED** — not re-audited this phase, per the brief's own explicit
+instruction; P26A remains authoritative. Auth becomes the final legacy capability once PM reaches
+zero.
+
+### P40B — Project Management Timesheet Full Modernization
+
+DIRECT FULL MODERNIZATION, per P40A's selection. Reconfirmed the exact current surface before
+implementing (source wins over the brief's own P40A-carried-forward numbers, unchanged here):
+`timesheet_periods_changed` had exactly 1 producer site — `TimesheetPeriodsMixin._emit_timesheet_
+period_events` (`timesheet_periods.py`), called only from `_persist_timesheet_transition`, itself
+called by all 6 period-transition commands (`submit`/`approve`/`reject`/`lock`/`unlock`/`reopen_
+for_correction`) — and 5 consumer files (Timesheets workspace, Resource-scoped personal Timesheets
+controller, Task workspace, Resource inspector's assignments tab, Collaboration workspace).
+`TimeEntry` add/update/delete were confirmed NOT part of this signal (they already published
+`tasks_changed` only) and are untouched — this phase's scope is the `TimesheetPeriod` aggregate
+alone.
+
+**Aggregate boundary confirmed**: `TimesheetPeriod` (own identity, `resource_id`, `organization_id`,
+`status`, `version`) is the sole root in scope; `TimeEntry` is a sibling aggregate under the same
+`TimeService`, not a child of `TimesheetPeriod`, and was already excluded per the point above.
+Concurrency was already real CAS via a `WHERE status = expected_status AND version = expected_
+version` conditional UPDATE (`SqlAlchemyTimesheetPeriodRepository.transition`) — preserved
+unchanged; this phase did not touch it.
+
+**Event vocabulary**: one shared-family event, `TimesheetPeriodStatusChanged(change_type:
+TimesheetPeriodStatusChangeType)` — `SUBMITTED`/`APPROVED`/`REJECTED`/`LOCKED`/`UNLOCKED`/
+`REOPENED_FOR_CORRECTION` — mirroring `BudgetStatusChanged`'s precedent, not six near-identical
+classes or one generic `TimesheetChanged`. Payload: `tenant_id`, `organization_id` (sourced from
+`_tenant_context_service.require_active_scope_ids(...)`, the same source `_enqueue_approved_time_
+events` already used — not `period.organization_id`, which the fixture data leaves unset), `period_
+id`, `resource_id`, `change_type`, `project_ids: tuple[str, ...]` (every distinct project referenced
+by the period's own entries at transition time), `occurred_at`. No ORM, Session, UI destination, or
+full-DTO snapshot in the payload; no `schema_version` (matches every prior phase's convention).
+
+**Transaction convergence — adapter, not a new named-repository UoW.** `TimeService` (Platform-
+owned, `src/core/platform/application/time_management/time/`, shared by every PM Timesheet
+workflow via `TimesheetService(GuardMixin, TimeService)`) already held one long-lived, request-
+scoped `Session` directly, injected once at composition (`project_registry.py`), shared with every
+other PM service in that request — not the per-command-fresh-session shape Resource/Employee/
+Budget's own UoWs use. Rather than build a first-ever `TimesheetUnitOfWork` with its own fresh
+session (which would have split the period-transition write from the Approved Time outbox enqueue
+that must stay in the SAME transaction for atomicity), `_persist_timesheet_transition` wraps its
+existing `self._session` directly with the generic `SqlAlchemyUnitOfWorkBase` — exactly the shape
+`ApprovedTimeFinancialDispatcher` (this same subsystem's own Approved Time → Cost Entry dispatcher)
+already uses in production against this identical shared session. `Session.close()` (called inside
+`UnitOfWork.commit()`) only ends the current transaction and expires identity-mapped objects — it
+does not invalidate the Python `Session` object for further reuse by other services later in the
+same request — so this is safe and precedented, not a novel risk. `TimeService` gained two new
+optional constructor params, `transactional_dispatcher`/`post_commit_bus`, wired from `project_
+registry.py`'s existing `platform_services.platform_transactional_dispatcher`/`platform_post_
+commit_bus`. The manual `try/except: session.rollback()` block is gone — `SqlAlchemyUnitOfWorkBase`'s
+own context-manager `__exit__` now owns rollback-on-exception, matching every other converged
+capability's shape.
+
+**Enterprise audit preserved unchanged** (still `record_audit_entry(self, ...)`, since `self._
+enterprise_audit_service` was already correctly scoped to the same shared session — no divergence
+introduced). **Approved Time outbox enqueue preserved unchanged and still atomic** with the period
+transition (same session, same UoW, same commit).
+
+**ViewInvalidation: one event, three targets, source-preserving fan-out.** The legacy signal
+reached exactly three consumer families, uniformly, with zero scoping. `TIMESHEET_WORKSPACE_SCOPE_
+CODE` (`OrganizationScope` — any reviewer or team-scoped viewer needs every resource's periods, not
+just one) serves both Timesheet workspaces (personal + review queue). `TIMESHEET_RESOURCE_SCOPE_
+CODE` (`ResourceScope`, entity=resource) serves the Resource inspector's assignments tab, filtered
+to the selected resource. `TIMESHEET_PROJECT_SCOPE_CODE` (`ResourceScope`, entity=project, one hint
+per `event.project_ids` entry) serves the Task workspace, filtered to the selected project — this is
+a genuine precision gain over the legacy signal's total lack of scoping (Task workspace no longer
+refreshes for periods with zero entries in its own project). **Collaboration's identical
+subscription was investigated and found INCIDENTAL**: `selectedPeriodKey` there is an unrelated
+comment-date filter (grouping comments by "today"/"this week"), not timesheet-period data of any
+kind — dropped with no replacement, per the standing consumer-precision discipline (P40A/P39's own
+"remove incidental subscriptions" rule).
+
+**Consumer cutover**: `TimesheetViewInvalidationAdapter` (new, `src/ui_qml/modules/project_
+management/adapters/timesheets/`) wired into `context.py` at all four call sites (`_get_timesheets_
+workspace`, `_get_review_queue_workspace`, `_get_resources_workspace`, `_get_tasks_workspace`).
+Both Timesheet workspaces connect `timesheetWorkspaceStale` straight to their existing `_request_
+domain_refresh()` (unchanged blanket-refresh behavior, now organization-scoped instead of global).
+Resources gained `onTimesheetResourceStale` (delegates to a new `on_timesheet_resource_stale`
+binder helper, filtered by `controller._selected_resource_id`). Tasks gained `onTimesheetProjectStale`
+(delegates to a new `on_timesheet_project_stale` binder helper, filtered by `controller._selected_
+project_id`). All five legacy `domain_events.timesheet_periods_changed` subscriptions removed; the
+four still-relevant binder files keep their other, unrelated legacy-signal subscriptions untouched.
+
+**Finance boundary unaffected, confirmed by re-reading source, not by memory of P40A's own
+characterization.** Approved Time → Cost Entry remains category D (async, integration-outbox-
+driven): `approve_timesheet_period` still enqueues `ApprovedTimeEntryEventPayload` rows in the same
+transaction as the status change (unchanged code, `timesheet_financial_events.py`); `ApprovedTime
+FinancialDispatcher` still consumes them under its own separate `SqlAlchemyUnitOfWorkBase`
+transaction, producing Cost Entry's own already-canonical typed events. No `cost_entries_changed`
+reintroduced; no cross-module DomainEvent standing in for Cost Entry's own fact. Proved end to end,
+unmodified, by the pre-existing `test_approved_time_labor_integration.py` (11/11 passing against
+the now-modernized transition path — submit → approve → lock → unlock → reopen-for-correction →
+resubmit → approve, with real Cost Entry posting/reversal/correction consequences).
+
+**Regression battery**: `test_time_domain_validation.py` (3, extended with real `TransactionalEvent
+Dispatcher`/`PostCommitEventPublisher`/`TenantContextService` fakes and new event-content
+assertions), `test_p8_platform_event_architecture_canonicalization.py` (31, `timesheet_periods_
+changed` added to the deleted-name zero-reference guard), `test_qml_domain_event_bridges_pm.py` (5,
+one test's dead emit line removed, one retired with a pointer comment mirroring the Resources/
+Settings retirement precedent, one's assertion corrected for the dropped Collaboration
+subscription), `test_approved_time_labor_integration.py` (11), `test_r5h_time_entry_concurrency_
+atomicity.py` + `test_r5f1_resource_timesheets.py` (10), `test_shared_collaboration_import_and_
+timesheets.py` + `test_workspace_database_pagination.py` + `test_assignment_time_task_detail_r43.py`
++ `test_approved_time_work_allocation_n_plus_one.py` (44), new `test_p40b_timesheet_period_full_
+modernization.py` (14: ViewInvalidation handler mapping/dedupe/no-project-ids/multi-project unit
+tests, real submit/approve/reject producer-path tests, a stale-version rollback-produces-zero-hints
+test, and a characterization test proving the remaining `ApprovalPostCommitEvent` sites are
+unchanged from P39-CLEANUP). All green. One pre-existing, unrelated failure confirmed via `git
+stash` (`test_repository_tenant_hardening_time_governance.py::test_time_and_governance_
+repositories_scope_cross_organization_data` calls `TimeEntryRepository.delete()` without the
+`expected_version` it has always required — a `TimeEntry`-side test bug, out of this phase's
+`TimesheetPeriod`-only scope, present identically before this phase started).
+
+**Legacy Signal count: 6 (7 minus one deletion) — first PM capability to reach zero, first
+retirement of any kind since Finance completed at P39.** `timesheet_periods_changed` rejoins the
+historical P8 frozen allowlist's deleted-name set; the frozen baseline itself is unchanged (P40B is
+ordinary further retirement of a pre-freeze, frozen-allowlisted signal, not a violation fix).
+Remaining PM legacy signals: `project_changed`, `tasks_changed`, `register_changed`, `collaboration_
+changed`, `portfolio_changed`. **Register and Portfolio remain next, unchanged from P40A's
+sequence** — nothing discovered this phase touches either capability's own facts, transaction
+shape, or cross-capability edges.
+
 ## 4. Current State
 
-**Legacy Signal count: 7 as of P39** (source-derived from
+**Legacy Signal count: 6 as of P40B** (source-derived from
 `src/core/shared/events/domain_events.py`, re-verified against current source when this document
-was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Down from 8 at
-P38B — `billing_preparations_changed` is now deleted. **Finance module event modernization is
-complete: zero Finance-owned legacy Signal fields remain.** The P8 architecture budget
-(`current ⊆ frozen`) remains restored with zero exceptions (P37 was the last post-freeze
-*violation*; P38B/P39 are ordinary further retirement of pre-freeze, frozen-allowlisted signals,
-not violation fixes).
+was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Down from 7 at
+P39/P40A — `timesheet_periods_changed` is now deleted, the first Project Management capability to
+reach zero. **Finance module event modernization is complete: zero Finance-owned legacy Signal
+fields remain.** The P8 architecture budget (`current ⊆ frozen`) remains restored with zero
+exceptions (P37 was the last post-freeze *violation*; P38B/P39/P40B are ordinary further
+retirement of pre-freeze, frozen-allowlisted signals, not violation fixes).
 
 | Area | Count |
 |---|---|
 | Platform | 0 |
 | Auth/Security | 1 |
-| Project Management | 6 |
+| Project Management | 5 |
 | Finance | 0 |
 | Inventory/Procurement | 0 |
 
@@ -2605,6 +2927,27 @@ entirely). **This was the last Finance legacy signal — Finance module event mo
 this document to prioritize.** Attention on the Finance track ends here; remaining modernization
 work is entirely Project Management and Auth/Security, per §6.
 
+**PM re-audited and re-sequenced (P40A, AUDIT + SEQUENCING ONLY — see §3's P40A entry, no code
+changed).** All six remaining PM legacy Signals were re-audited from current source. Next three
+targets selected, in order: Timesheet → Register → Portfolio (all rated DIRECT FULL
+MODERNIZATION — smallest producer surfaces, already-atomic or near-atomic transactions, zero
+approval-subsystem entanglement, and (Portfolio) zero coupling with Project in either direction).
+Tentative full sequence after that: Project, then Collaboration (needs its own short audit/
+transport-split phase first — presence and durable comments currently share one Signal and
+presence needs a non-`DomainEvent` mechanism), then Task last (highest strategic value — the only
+capability touching the shared `ApprovalPostCommitEvent` legacy bridge — but worst-in-class on
+every ease dimension: no UoW exists yet, 3 independently-versioned aggregates, 28 producer sites
+across 2 module boundaries, and a required coordination point with Financial Change's own
+participant). Full reasoning, matrices, and scorecard in §3's P40A entry.
+
+**Timesheet is now DONE (P40B, see §3)** — `timesheet_periods_changed` is deleted, the first of
+P40A's PM sequence complete and the first PM capability of any kind to reach zero legacy Signal
+involvement. Converged onto a bare `SqlAlchemyUnitOfWorkBase` wrapping `TimeService`'s own
+already-shared session (no new named-repository UoW — none was architecturally required), one
+shared-family `TimesheetPeriodStatusChanged` event, and three ViewInvalidation targets (workspace/
+resource/project) replacing the legacy signal's unscoped fan-out to the same three consumer
+families. **Register and Portfolio remain next, unchanged from P40A's sequence.**
+
 **A pre-existing, explicitly-not-fixed note carried forward by P33**: `PurchaseOrderLineORM` has no
 `version` column and its repository performs a blind field overwrite on `update()` — confirmed real
 by a two-session regression test (P33 §14), contrasted directly against `PurchaseRequisitionLine`
@@ -2638,10 +2981,15 @@ number assigned yet — see the remaining capability groups below.
 
 Remaining capability groups, not yet assigned rigid phase numbers:
 
-- **Project Management**: Task Lifecycle (highly overloaded - split into ~9 real facts before
-  any typed-event design), Project Lifecycle, Timesheet Period, Collaboration
-  Comment (+ Collaboration Presence, which needs a non-`DomainEvent` mechanism, not a migration
-  target), Portfolio (Template/Scenario/Intake/Dependency), Risk Register.
+- **Project Management** (re-sequenced by P40A, AUDIT + SEQUENCING ONLY, see §3/§5 — tentative
+  past the first three): **1. Timesheet Period — DONE (P40B, see §3)**, **2. Risk Register, 3.
+  Portfolio** (Template/Scenario/Intake/Dependency) — both DIRECT FULL MODERNIZATION ready. Then
+  (tentative) **4. Project Lifecycle**, **5. Collaboration Comment** (needs its own short audit/
+  transport-split phase first — Collaboration Presence needs a non-`DomainEvent` mechanism, not a
+  migration target), **6. Task Lifecycle last** (highly overloaded — 8 real facts across 3
+  aggregates + a bulk operation, requires a dedicated audit-first phase and coordination with
+  Financial Change's participant before implementation, despite being the only capability that
+  would shrink the shared `ApprovalPostCommitEvent` legacy-bridge count).
 - **Finance — MODULE COMPLETE (P39, see §3/§5)**: every Finance capability (Financial Setup, Rate
   Card, Forecast, Planned Cost, Project Commitment, Project Cost Entry, Project Budget, Billing
   Profile, Billing Preparation) is fully modernized onto typed DomainEvents. Zero Finance-owned

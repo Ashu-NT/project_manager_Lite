@@ -3611,6 +3611,45 @@ Finance signal names never shared one). Legacy Signal count: 7 (8 minus the one 
 is the first business module in this engagement to reach 100% typed-event coverage — Project
 Management and Auth/Security are the only tracks with legacy Signal fields left.
 
+**26.37 P40B: PM Timesheet full modernization — `timesheet_periods_changed` deleted, first PM
+capability retired.** P40A's re-audit selected Timesheet as the next target (smallest remaining
+PM producer surface — one helper, six callers). Only the `TimesheetPeriod` lifecycle (`submit`/
+`approve`/`reject`/`lock`/`unlock`/`reopen_for_correction`) was in scope — `TimeEntry` mutations
+already published `tasks_changed` only and are untouched. One shared-family event,
+`TimesheetPeriodStatusChanged(change_type: TimesheetPeriodStatusChangeType)`, replaces the six
+transitions (mirrors `BudgetStatusChanged`'s precedent) rather than six near-identical classes or
+one generic `TimesheetChanged`.
+
+**Transaction convergence without a new named-repository UoW.** `TimeService` (Platform-owned,
+shared by every PM Timesheet workflow) already held one long-lived, request-scoped `Session`
+directly — the same shape `ApprovedTimeFinancialDispatcher` (this exact subsystem's own Approved
+Time → Cost Entry dispatcher) already wraps with a bare `SqlAlchemyUnitOfWorkBase` for one
+transaction's commit lifecycle, reusing the *same* session rather than opening a second one. Since
+`Session.close()` (called by `UnitOfWork.commit()`) only ends the current transaction and expires
+identity-mapped objects — it does not invalidate the Python `Session` object for further reuse —
+`_persist_timesheet_transition` adopts the identical adapter shape instead of building a new
+named-repository `TimesheetUnitOfWork`: `SqlAlchemyUnitOfWorkBase(session=self._session, ...)`
+wraps the period transition, the Approved Time outbox enqueue, and `record_event(...)`, so all
+three still commit atomically on the one session they always shared. This keeps `TimeService`'s
+constructor-injected repositories untouched and avoids the "mega-UoW" anti-pattern from the other
+direction — no repo-bag UoW was introduced where none was architecturally required.
+
+**ViewInvalidation: one event, three targets, source-preserving.** The legacy signal reached three
+consumer families uniformly with zero scoping — Task's workspace (needs the affected project),
+the Resource inspector's assignments tab (needs the affected resource), and both Timesheet
+workspaces themselves (personal + review queue, org-wide, since a reviewer needs every resource's
+submission). `TIMESHEET_WORKSPACE_SCOPE_CODE` (`OrganizationScope`), `TIMESHEET_RESOURCE_SCOPE_CODE`
+and `TIMESHEET_PROJECT_SCOPE_CODE` (both `ResourceScope`) reproduce exactly that fan-out with real
+scoping instead of none. Collaboration's identical subscription was investigated and found
+INCIDENTAL — `selectedPeriodKey` there is an unrelated comment-date filter, not timesheet data —
+and dropped with no replacement, per the standing consumer-precision discipline.
+
+**Legacy Signal count: 6 (7 minus the one deletion) — the first Project Management capability to
+reach zero.** `timesheet_periods_changed` rejoins the historical P8 frozen allowlist's deleted-name
+set (`_DELETED_BRIDGE_NAMES`); the frozen baseline itself is unchanged, per standing convention.
+Remaining PM legacy signals: `project_changed`, `tasks_changed`, `register_changed`,
+`collaboration_changed`, `portfolio_changed` — Register and Portfolio are next per P40A's sequence.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

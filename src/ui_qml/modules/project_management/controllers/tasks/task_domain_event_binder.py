@@ -4,8 +4,6 @@ from src.core.shared.events.domain_events import domain_events
 
 
 def bind_task_domain_events(controller) -> None:
-    """P7A: direct-wired to the specific legacy signals this workspace actually reads -- no
-    generic `domain_changed` bridge."""
 
     def _on_domain_event(_payload: object) -> None:
         controller._request_domain_refresh()
@@ -13,10 +11,14 @@ def bind_task_domain_events(controller) -> None:
     for signal in (
         domain_events.project_changed,
         domain_events.tasks_changed,
-        domain_events.timesheet_periods_changed,
         domain_events.collaboration_changed,
     ):
         controller._subscribe_domain_signal(signal, _on_domain_event)
 
 
-__all__ = ["bind_task_domain_events"]
+def on_timesheet_project_stale(controller, project_id: str) -> None:
+    if str(project_id or "") == controller._selected_project_id:
+        controller._request_domain_refresh()
+
+
+__all__ = ["bind_task_domain_events", "on_timesheet_project_stale"]

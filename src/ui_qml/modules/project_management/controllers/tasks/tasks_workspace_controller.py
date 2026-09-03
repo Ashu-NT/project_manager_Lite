@@ -35,7 +35,7 @@ from . import task_filter_actions as _filter
 from . import task_mutation_facade as _mut
 from . import task_pagination_actions as _pag
 from . import task_time_selection_actions as _time_sel
-from .task_domain_event_binder import bind_task_domain_events
+from .task_domain_event_binder import bind_task_domain_events, on_timesheet_project_stale
 from .task_export_handler import export_tasks
 from .task_lazy_section_loader import (
     load_selected_task_activity,
@@ -177,6 +177,9 @@ class ProjectManagementTasksWorkspaceController(
         bind_task_domain_events(self)
         self.refresh()
 
+    def onTimesheetProjectStale(self, project_id: str) -> None:
+        on_timesheet_project_stale(self, project_id)
+
     # ── Sub-controller access properties ─────────────────────────────
 
     @Property(QObject, constant=True)
@@ -231,9 +234,6 @@ class ProjectManagementTasksWorkspaceController(
 
     @Property("QVariantList", notify=constraintOptionsChanged)
     def constraintOptions(self) -> list[dict[str, object]]:
-        # Static (never changes at runtime for a given session) -- a
-        # real notify signal is declared only because QML properties
-        # need one for binding correctness; nothing ever emits it.
         return list(self._tasks_workspace_presenter.list_constraint_options())
 
     @Property(str, notify=selectedStatusFilterChanged)
@@ -551,10 +551,6 @@ class ProjectManagementTasksWorkspaceController(
 
     @Slot(int, result="QVariantMap")
     def previewTaskScheduleImpact(self, delay_working_days: int) -> dict[str, object]:
-        """Explicit "Preview Impact" what-if (§12/§13) -- never run
-        automatically. A genuine simulation (two CPM passes), so this is
-        deliberately a separate action from loadSelectedTaskScheduleImpact's
-        cheap current-facts auto-load (§26)."""
         try:
             preview = self._tasks_workspace_presenter.build_task_schedule_impact_preview_state(
                 task_id=self._selected_task_id,

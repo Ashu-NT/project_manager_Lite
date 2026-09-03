@@ -60,14 +60,9 @@ _DELETED_BRIDGE_NAMES = (
     "cost_entries_changed",
     "budgets_changed",
     "billing_preparations_changed",
+    "timesheet_periods_changed",
 )
 
-# §34/P39: every Finance-owned legacy Signal name that has ever existed in `DomainEvents`,
-# regardless of current field-presence -- the permanent zero-legacy guard below asserts NONE of
-# these are current fields any more, using this explicit set rather than a fragile name-prefix
-# heuristic (Finance signal names never shared a common prefix: `budgets_changed`, `cost_entries_
-# changed`, `commitments_changed`, `financial_changes_changed`, `forecasts_changed`, `planned_
-# costs_changed`, `costs_changed`, `billing_preparations_changed`).
 _KNOWN_FINANCE_SIGNAL_NAMES = frozenset(
     {
         "budgets_changed",
@@ -80,41 +75,6 @@ _KNOWN_FINANCE_SIGNAL_NAMES = frozenset(
         "costs_changed",
     }
 )
-# P35-CLEANUP: `cost_entries_changed`/`commitments_changed` were REMOVED from this list -- both
-# were genuinely live production Signal fields (real producers in `cost_entry_service.py`/
-# `commitment_service.py`, a real consumer in `financials_refresh_mixin.py`), not deleted names.
-# Repository history proves this is not a stale-test omission: at the P8 freeze baseline
-# (commit d5a4069c, 2026-08-26 18:39 UTC+2) both fields, along with `forecasts_changed`/
-# `financial_changes_changed`, had ALREADY been deleted by an earlier "P7C" zero-consumer cleanup
-# (commit 72481db8, 2026-08-26 17:42 UTC+2, ~1 hour before the freeze -- see that commit's own
-# `domain_events.py` docstring). `cost_entries_changed`/`commitments_changed` were then
-# REINTRODUCED on 2026-08-29 (commit cf939588, "update domain event") by Cost Entry/Commitment
-# capability work built AFTER the freeze, without ever updating this file. This is a genuine,
-# real POST-FREEZE legacy-Signal reintroduction, not a frozen-allowlist omission -- see
-# `FROZEN_LEGACY_SIGNAL_ALLOWLIST`'s own note below for the full archaeology. `financial_changes_
-# changed` followed the identical reintroduction/re-deletion path but IS now genuinely retired
-# again (P35-CLEANUP era), so it correctly remains here. P36: `commitments_changed` followed the
-# same path -- fully modernized -- and rejoined this list. P37: `cost_entries_changed` has now
-# ALSO followed the same path -- fully modernized (typed DomainEvents, canonical
-# `FinanceGovernanceUnitOfWork` convergence + `ApprovalHandlerResult.domain_events` for the
-# approval path, field deleted from `domain_events.py`) -- so it now correctly rejoins this list
-# too. This was the LAST post-freeze violation: `current ⊆ frozen` is restored with zero
-# exceptions. P38B: `budgets_changed` -- the only Finance capability found ALREADY transaction-
-# canonical at its own audit phase (P38A) -- has now also followed the same path: typed
-# `BudgetVersionCreated`/`BudgetProfileUpdated`/`BudgetLineChanged`/`BudgetStatusChanged`/
-# `BudgetRemoved` DomainEvents, the `command_boundary.py::_emit_budget` legacy publication and
-# every `ApprovalPostCommitEvent("budgets_changed", ...)` site removed, field deleted from
-# `domain_events.py` -- so it rejoins this list too. P39: `billing_preparations_changed` -- the
-# last remaining Finance legacy signal -- has now also followed the same path across BOTH its
-# aggregate families (Billing Profile: `BillingProfileCreated`/`BillingProfileActivated`/
-# `BillingScheduleLineAdded`/`BillingScheduleLineMarkedReady`; Billing Preparation:
-# `BillingPreparationCreated`/`BillingPreparationLineAdded`/`BillingPreparationStatusChanged`/
-# `BillingPreparationExternalOutcomeRecorded`), converged onto `FinanceGovernanceUnitOfWork` (the
-# bespoke `BillingPreparationSubmissionUnitOfWork` is retired entirely, no compatibility alias),
-# field deleted from `domain_events.py` -- so it rejoins this list too. **Finance module event
-# modernization is now complete: zero Finance-owned legacy Signal fields remain anywhere in
-# `DomainEvents`** -- see `test_zero_finance_legacy_signal_fields_remain` below for the permanent
-# architecture guard.
 
 
 def _strip_strings_and_comments(source: str) -> str:
@@ -154,10 +114,6 @@ def test_a_hypothetical_new_signal_name_would_fail_the_subset_check():
 
 
 def test_a_hypothetical_deletion_still_passes_the_subset_check():
-    """Demonstrates deletion remains unrestricted: simulate one currently-present allowlisted
-    signal being removed (as every future capability migration is expected to do) and confirm
-    the subset check still passes without editing the allowlist or any deletion-tracking set --
-    deleting a legacy signal requires zero test bookkeeping, only the subset relationship."""
     assert "collaboration_changed" in _current_signal_names()
     hypothetical_current = _current_signal_names() - {"collaboration_changed"}
     assert hypothetical_current <= FROZEN_LEGACY_SIGNAL_ALLOWLIST
@@ -169,14 +125,6 @@ def test_a_hypothetical_deletion_still_passes_the_subset_check():
 
 
 def test_zero_finance_legacy_signal_fields_remain():
-    """P39 milestone: Finance is the first fully-modernized business module in this engagement --
-    every Finance capability (Financial Setup, Rate Card, Forecast, Planned Cost, Commitment,
-    Cost Entry, Budget, Billing Profile, Billing Preparation) now publishes typed DomainEvents
-    exclusively. This must never silently regress: a future Finance-owned Signal field reintroduced
-    by unrelated work (the exact `cost_entries_changed`/`commitments_changed` post-freeze
-    reintroduction archaeology documented above) would only be caught by this explicit,
-    known-name-set assertion -- the frozen-allowlist subset check alone would NOT catch it, since
-    every Finance name is already frozen-allowlisted from its pre-modernization history."""
     current = _current_signal_names()
     reintroduced = current & _KNOWN_FINANCE_SIGNAL_NAMES
     assert reintroduced == set(), (
@@ -385,9 +333,6 @@ def test_five_capability_adapters_never_import_domain_event_vocabulary():
 
 
 def test_domain_event_is_a_protocol_not_related_to_integration_event_envelope():
-    """`DomainEvent` is a `runtime_checkable` `Protocol` (structural typing, in-process only);
-    `IntegrationEventEnvelope` is a `pydantic.BaseModel` (durable, schema-versioned). Neither can
-    be a real base/subclass of the other -- confirmed structurally, not merely by convention."""
     import typing
 
     from pydantic import BaseModel
@@ -411,10 +356,6 @@ def test_view_invalidation_hint_is_a_plain_dataclass_not_a_domain_event_or_integ
     assert dc.is_dataclass(ViewInvalidationHint)
     assert not issubclass(ViewInvalidationHint, BaseModel)
     hint_fields = {f.name for f in dc.fields(ViewInvalidationHint)}
-    # P16D briefly added `module_code` directly to this hint; P16D-FIX reverted that in favor of
-    # a typed `ResourceScope` (see src/core/shared/events/view_invalidation.py) so capability-
-    # specific targeting identity never accumulates as an optional top-level field here. Still a
-    # plain dataclass, still not a DomainEvent/IntegrationEvent.
     assert hint_fields == {"scope", "category", "scope_code", "entity_type", "entity_id"}
 
 

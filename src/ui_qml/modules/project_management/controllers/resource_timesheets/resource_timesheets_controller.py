@@ -107,7 +107,6 @@ class ProjectManagementResourceTimesheetsController(ProjectManagementWorkspaceCo
         self._resource_page_size = 20
         self._resource_total = 0
         for signal in (
-            domain_events.timesheet_periods_changed,
             domain_events.tasks_changed,
         ):
             self._subscribe_domain_signal(signal, lambda _payload: self._request_domain_refresh())

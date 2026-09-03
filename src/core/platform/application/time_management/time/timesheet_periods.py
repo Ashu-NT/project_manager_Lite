@@ -6,9 +6,16 @@ import logging
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, ValidationError
+from src.core.platform.common.ids import generate_id
 from src.core.shared.events.domain_events import domain_events
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.platform.application.time_management.time.timesheet_events import (
+    TimesheetPeriodStatusChangeType,
+    TimesheetPeriodStatusChanged,
+)
 from src.core.platform.domain.time_management.time import TimesheetPeriod, TimesheetPeriodStatus
 from src.core.platform.application.time_management.time.timesheet_query import TimesheetPeriodAggregate
+from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
 
 
 logger = logging.getLogger(__name__)
@@ -69,6 +76,7 @@ class TimesheetPeriodsMixin:
             expected_status=previous_status,
             expected_version=(period.version if expected_version is None else expected_version),
             action="timesheet_period.submit",
+            change_type=TimesheetPeriodStatusChangeType.SUBMITTED,
             entries=entries,
             severity="low",
         )
@@ -101,6 +109,7 @@ class TimesheetPeriodsMixin:
             expected_status=TimesheetPeriodStatus.SUBMITTED,
             expected_version=expected_version,
             action="timesheet_period.approve",
+            change_type=TimesheetPeriodStatusChangeType.APPROVED,
             entries=entries,
             severity="medium",
             enqueue_approved_time=True,
@@ -140,6 +149,7 @@ class TimesheetPeriodsMixin:
             expected_status=TimesheetPeriodStatus.SUBMITTED,
             expected_version=expected_version,
             action="timesheet_period.reject",
+            change_type=TimesheetPeriodStatusChangeType.REJECTED,
             entries=entries,
             severity="medium",
         )
@@ -168,6 +178,7 @@ class TimesheetPeriodsMixin:
             expected_status=TimesheetPeriodStatus.APPROVED,
             expected_version=expected_version,
             action="timesheet_period.lock",
+            change_type=TimesheetPeriodStatusChangeType.LOCKED,
             entries=entries,
             severity="medium",
         )
@@ -196,6 +207,7 @@ class TimesheetPeriodsMixin:
             expected_status=TimesheetPeriodStatus.LOCKED,
             expected_version=expected_version,
             action="timesheet_period.unlock",
+            change_type=TimesheetPeriodStatusChangeType.UNLOCKED,
             entries=entries,
             severity="medium",
         )
@@ -229,6 +241,7 @@ class TimesheetPeriodsMixin:
             expected_status=TimesheetPeriodStatus.APPROVED,
             expected_version=expected_version,
             action="timesheet_period.reopen_for_correction",
+            change_type=TimesheetPeriodStatusChangeType.REOPENED_FOR_CORRECTION,
             entries=entries,
             severity="high",
         )
@@ -255,6 +268,7 @@ class TimesheetPeriodsMixin:
         expected_status: TimesheetPeriodStatus,
         expected_version: int,
         action: str,
+        change_type: TimesheetPeriodStatusChangeType,
         entries: list,
         severity: str,
         enqueue_approved_time: bool = False,
@@ -262,7 +276,16 @@ class TimesheetPeriodsMixin:
         project_ids = self._project_ids_for_entries(entries)
         emitted_count = 0
         principal = getattr(self._user_session, "principal", None)
-        try:
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="mutate timesheet period"
+        )
+
+        with SqlAlchemyUnitOfWorkBase(
+            session=self._session,
+            transactional_dispatcher=self._transactional_dispatcher,
+            post_commit_bus=self._post_commit_bus,
+            context=DomainEventContext(correlation_id=generate_id()),
+        ) as uow:
             period = self._timesheet_period_repo.transition(  # type: ignore[union-attr]
                 period,
                 expected_status=expected_status,
@@ -303,13 +326,21 @@ class TimesheetPeriodsMixin:
                 commit=False,
                 fail_closed=True,
             )
-            self._session.flush()
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
+            uow.record_event(
+                TimesheetPeriodStatusChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    period_id=period.id,
+                    resource_id=period.resource_id,
+                    change_type=change_type,
+                    project_ids=tuple(project_ids),
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
 
-        self._emit_timesheet_period_events(period.id, project_ids)
+        for project_id in project_ids:
+            domain_events.tasks_changed.emit(project_id)
         dispatcher = getattr(self, "_approved_time_dispatcher", None)
         if callable(dispatcher) and emitted_count:
             try:
@@ -324,12 +355,6 @@ class TimesheetPeriodsMixin:
             period=period,
             entries=entries,
         )
-
-    @staticmethod
-    def _emit_timesheet_period_events(period_id: str, project_ids: list[str]) -> None:
-        domain_events.timesheet_periods_changed.emit(period_id)
-        for project_id in project_ids:
-            domain_events.tasks_changed.emit(project_id)
 
 
 __all__ = ["TimesheetPeriodsMixin"]
