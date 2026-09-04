@@ -10,6 +10,13 @@ from src.core.modules.project_management.domain.collaboration import (
 )
 from src.core.modules.project_management.infrastructure.collaboration_attachments import store_task_comment_attachments
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.modules.project_management.application.collaboration.collaboration_events import (
+    TaskCommentChangeType,
+    TaskCommentChanged,
+    TaskCommentReactionChangeType,
+    TaskCommentReactionChanged,
+    TaskCommentReadStateChanged,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
@@ -19,7 +26,7 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from src.core.platform.common.pydantic import normalize_optional_text
-from src.core.shared.events.domain_events import domain_events
+from src.core.shared.audit import record_audit_entry
 from src.core.shared.notifications import safe_dispatch_notification
 
 
@@ -85,28 +92,49 @@ class CollaborationCommentCommandMixin:
             comment_id=comment.id,
             attachments=list(attachments or []),
         )
-        try:
-            self._comment_repo.add(comment)
-            if self._document_integration_service is not None and comment.attachments:
-                self._document_integration_service.register_entity_attachments(
-                    required_permission="collaboration.manage",
-                    operation_label="register task collaboration attachments",
-                    module_code="project_management",
-                    entity_type="task_comment",
-                    entity_id=comment.id,
-                    attachments=comment.attachments,
-                    source_system="project_management",
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="post task collaboration update"
+        )
+        with self._require_collaboration_uow_factory().create(context=self._new_context()) as uow:
+            uow.comments.add(comment)
+            record_audit_entry(
+                uow,
+                operation="create",
+                entity_type="task_comment",
+                entity_id=comment.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={"action": "collaboration.comment.create", "task_id": task_id},
+                commit=False,
+                fail_closed=True,
+            )
+            uow.record_event(
+                TaskCommentChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    project_id=task.project_id,
+                    task_id=task_id,
+                    comment_id=comment.id,
+                    change_type=TaskCommentChangeType.CREATED,
+                    occurred_at=datetime.now(timezone.utc),
                 )
-            else:
-                self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
+            )
+            uow.commit()
+        if self._document_integration_service is not None and comment.attachments:
+            self._document_integration_service.register_entity_attachments(
+                required_permission="collaboration.manage",
+                operation_label="register task collaboration attachments",
+                module_code="project_management",
+                entity_type="task_comment",
+                entity_id=comment.id,
+                attachments=comment.attachments,
+                source_system="project_management",
+            )
         self._link_existing_comment_documents(
             comment_id=comment.id,
             document_ids=normalized_linked_document_ids,
         )
-        domain_events.collaboration_changed.emit(task_id)
         self._notify_mentioned_users(task=task, comment=comment, author_user_id=comment.author_user_id)
         return comment
 
@@ -140,9 +168,11 @@ class CollaborationCommentCommandMixin:
         if not principal_user_id and not aliases:
             return
 
-        changed = False
-        try:
-            for comment in self._comment_repo.list_by_task(task_id):
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="mark collaboration updates read"
+        )
+        with self._require_collaboration_uow_factory().create(context=self._new_context()) as uow:
+            for comment in uow.comments.list_by_task(task_id):
                 if not self._comment_mentions_principal(comment):
                     continue
 
@@ -161,16 +191,30 @@ class CollaborationCommentCommandMixin:
                 primary_alias = self._principal_primary_alias()
                 if primary_alias:
                     comment.read_by = sorted(alias_reads.union({primary_alias}))
-                self._comment_repo.update(comment)
-                changed = True
-
-            if changed:
-                self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        if changed:
-            domain_events.collaboration_changed.emit(task_id)
+                uow.comments.update(comment)
+                record_audit_entry(
+                    uow,
+                    operation="update",
+                    entity_type="task_comment",
+                    entity_id=comment.id,
+                    module="project_management",
+                    organization_id=scope.organization_id,
+                    severity="low",
+                    metadata={"action": "collaboration.comment.mark_read", "task_id": task_id},
+                    commit=False,
+                    fail_closed=True,
+                )
+                uow.record_event(
+                    TaskCommentReadStateChanged(
+                        tenant_id=scope.tenant_id,
+                        organization_id=scope.organization_id,
+                        project_id=task.project_id,
+                        task_id=task_id,
+                        comment_id=comment.id,
+                        occurred_at=datetime.now(timezone.utc),
+                    )
+                )
+            uow.commit()
 
     def edit_comment(
         self,
@@ -214,13 +258,35 @@ class CollaborationCommentCommandMixin:
         comment.mentions = mentions
         comment.mentioned_user_ids = mentioned_user_ids
         comment.updated_at = datetime.now(timezone.utc)
-        try:
-            self._comment_repo.update(comment)
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.collaboration_changed.emit(task.id)
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="edit task collaboration update"
+        )
+        with self._require_collaboration_uow_factory().create(context=self._new_context()) as uow:
+            uow.comments.update(comment)
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="task_comment",
+                entity_id=comment.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={"action": "collaboration.comment.edit", "task_id": task.id},
+                commit=False,
+                fail_closed=True,
+            )
+            uow.record_event(
+                TaskCommentChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    project_id=task.project_id,
+                    task_id=task.id,
+                    comment_id=comment.id,
+                    change_type=TaskCommentChangeType.EDITED,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
         return comment
 
     def delete_comment(
@@ -247,13 +313,35 @@ class CollaborationCommentCommandMixin:
             comment.deleted_at = datetime.now(timezone.utc)
             comment.deleted_by_user_id = getattr(principal, "user_id", None)
             comment.deletion_reason = reason
-            try:
-                self._comment_repo.update(comment)
-                self._session.commit()
-            except Exception:
-                self._session.rollback()
-                raise
-            domain_events.collaboration_changed.emit(task.id)
+            scope = self._tenant_context_service.require_active_scope_ids(
+                operation_label="delete task collaboration update"
+            )
+            with self._require_collaboration_uow_factory().create(context=self._new_context()) as uow:
+                uow.comments.update(comment)
+                record_audit_entry(
+                    uow,
+                    operation="delete",
+                    entity_type="task_comment",
+                    entity_id=comment.id,
+                    module="project_management",
+                    organization_id=scope.organization_id,
+                    severity="low",
+                    metadata={"action": "collaboration.comment.delete", "task_id": task.id},
+                    commit=False,
+                    fail_closed=True,
+                )
+                uow.record_event(
+                    TaskCommentChanged(
+                        tenant_id=scope.tenant_id,
+                        organization_id=scope.organization_id,
+                        project_id=task.project_id,
+                        task_id=task.id,
+                        comment_id=comment.id,
+                        change_type=TaskCommentChangeType.REMOVED,
+                        occurred_at=datetime.now(timezone.utc),
+                    )
+                )
+                uow.commit()
         return comment
 
     def _require_comment_for_reaction(self, comment_id: str) -> tuple[TaskComment, object]:
@@ -295,13 +383,35 @@ class CollaborationCommentCommandMixin:
         reactors.add(principal_user_id)
         reactions[emoji_key] = sorted(reactors)
         comment.reactions = reactions
-        try:
-            self._comment_repo.update(comment)
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.collaboration_changed.emit(task.id)
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="react to task collaboration update"
+        )
+        with self._require_collaboration_uow_factory().create(context=self._new_context()) as uow:
+            uow.comments.update(comment)
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="task_comment",
+                entity_id=comment.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={"action": "collaboration.comment.react", "task_id": task.id},
+                commit=False,
+                fail_closed=True,
+            )
+            uow.record_event(
+                TaskCommentReactionChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    project_id=task.project_id,
+                    task_id=task.id,
+                    comment_id=comment.id,
+                    change_type=TaskCommentReactionChangeType.ADDED,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
         return comment
 
     def remove_reaction(self, comment_id: str, emoji: str) -> TaskComment:
@@ -318,13 +428,35 @@ class CollaborationCommentCommandMixin:
         else:
             reactions.pop(emoji_key, None)
         comment.reactions = reactions
-        try:
-            self._comment_repo.update(comment)
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.collaboration_changed.emit(task.id)
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="remove reaction from task collaboration update"
+        )
+        with self._require_collaboration_uow_factory().create(context=self._new_context()) as uow:
+            uow.comments.update(comment)
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="task_comment",
+                entity_id=comment.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={"action": "collaboration.comment.unreact", "task_id": task.id},
+                commit=False,
+                fail_closed=True,
+            )
+            uow.record_event(
+                TaskCommentReactionChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    project_id=task.project_id,
+                    task_id=task.id,
+                    comment_id=comment.id,
+                    change_type=TaskCommentReactionChangeType.REMOVED,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
         return comment
 
 

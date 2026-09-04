@@ -62,6 +62,9 @@ from src.ui_qml.modules.project_management.adapters.projects.project_view_invali
 from src.ui_qml.modules.project_management.adapters.collaboration.task_presence_view_invalidation_adapter import (
     TaskPresenceViewInvalidationAdapter,
 )
+from src.ui_qml.modules.project_management.adapters.collaboration.task_comment_view_invalidation_adapter import (
+    TaskCommentViewInvalidationAdapter,
+)
 from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import (
     TenantSwitcherPresenter,
 )
@@ -246,6 +249,9 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self._dashboard_project_view_invalidation_adapter: ProjectViewInvalidationAdapter | None = None
         self._collaboration_project_view_invalidation_adapter: ProjectViewInvalidationAdapter | None = None
         self._tasks_presence_view_invalidation_adapter: TaskPresenceViewInvalidationAdapter | None = None
+        self._tasks_comment_view_invalidation_adapter: TaskCommentViewInvalidationAdapter | None = None
+        self._collaboration_comment_view_invalidation_adapter: TaskCommentViewInvalidationAdapter | None = None
+        self._dashboard_comment_view_invalidation_adapter: TaskCommentViewInvalidationAdapter | None = None
 
         self._external_project_view_invalidation_adapter = ProjectViewInvalidationAdapter(
             channel=self._view_invalidation_channel,
@@ -651,6 +657,16 @@ class ProjectManagementWorkspaceCatalog(QObject):
             self._tasks_presence_view_invalidation_adapter.taskPresenceStale.connect(
                 self._tasks_workspace.onTaskPresenceStale
             )
+
+            self._tasks_comment_view_invalidation_adapter = TaskCommentViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._tasks_comment_view_invalidation_adapter.taskCommentsStale.connect(
+                self._tasks_workspace.onTaskCommentsStale
+            )
         return self._tasks_workspace
 
     def _get_dashboard_workspace(self) -> ProjectManagementDashboardWorkspaceController:
@@ -685,6 +701,16 @@ class ProjectManagementWorkspaceCatalog(QObject):
             self._dashboard_project_view_invalidation_adapter = self._wire_project_stale(
                 self._dashboard_workspace
             )
+
+            self._dashboard_comment_view_invalidation_adapter = TaskCommentViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._dashboard_comment_view_invalidation_adapter.collaborationWorkspaceStale.connect(
+                self._dashboard_workspace.onCollaborationWorkspaceStale
+            )
         return self._dashboard_workspace
 
     def _get_collaboration_workspace(self) -> ProjectManagementCollaborationWorkspaceController:
@@ -708,6 +734,16 @@ class ProjectManagementWorkspaceCatalog(QObject):
             )
             self._collaboration_project_view_invalidation_adapter = self._wire_project_stale(
                 self._collaboration_workspace
+            )
+
+            self._collaboration_comment_view_invalidation_adapter = TaskCommentViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._collaboration_comment_view_invalidation_adapter.collaborationWorkspaceStale.connect(
+                lambda _task_id: self._collaboration_workspace._request_domain_refresh()
             )
         return self._collaboration_workspace
 
@@ -981,6 +1017,16 @@ class ProjectManagementWorkspaceCatalog(QObject):
                 tenant_id=self._active_tenant_id() or "",
                 organization_id=self._active_organization_id() or "",
             )
+        for comment_adapter in (
+            self._tasks_comment_view_invalidation_adapter,
+            self._collaboration_comment_view_invalidation_adapter,
+            self._dashboard_comment_view_invalidation_adapter,
+        ):
+            if comment_adapter is not None:
+                comment_adapter.set_active_scope(
+                    tenant_id=self._active_tenant_id() or "",
+                    organization_id=self._active_organization_id() or "",
+                )
 
     @Slot(str, result=bool)
     def isModuleEnabled(self, module_code: str) -> bool:

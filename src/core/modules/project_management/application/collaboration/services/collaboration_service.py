@@ -38,8 +38,13 @@ from src.core.modules.project_management.contracts.reads.collaboration import (
 )
 from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
+from src.core.modules.project_management.contracts.uow.collaboration.collaboration_unit_of_work import (
+    CollaborationUnitOfWorkFactory,
+)
+from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.repositories.security.auth import UserRepository
 from src.core.platform.application.master_data.documents import DocumentIntegrationService
+from src.core.shared.events.domain_event_context import DomainEventContext
 
 
 class CollaborationService(
@@ -71,6 +76,7 @@ class CollaborationService(
         role_binding_repo=None,
         notification_service=None,
         view_invalidation_channel=None,
+        uow_factory: CollaborationUnitOfWorkFactory | None = None,
     ) -> None:
         self._session = session
         self._comment_repo = comment_repo
@@ -87,7 +93,16 @@ class CollaborationService(
         self._role_binding_repo = role_binding_repo
         self._notification_service = notification_service
         self._view_invalidation_channel = view_invalidation_channel
+        self._uow_factory: CollaborationUnitOfWorkFactory | None = uow_factory
         self._presence_ttl_seconds = max(int(os.getenv("PM_TASK_PRESENCE_TTL_SECONDS", "900") or 900), 60)
+
+    def _require_collaboration_uow_factory(self) -> CollaborationUnitOfWorkFactory:
+        if self._uow_factory is None:
+            raise RuntimeError("Collaboration unit of work is not configured.")
+        return self._uow_factory
+
+    def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
 
 
 __all__ = ["CollaborationService"]

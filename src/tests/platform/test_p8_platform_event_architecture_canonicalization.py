@@ -64,6 +64,7 @@ _DELETED_BRIDGE_NAMES = (
     "register_changed",
     "portfolio_changed",
     "project_changed",
+    "collaboration_changed",
 )
 
 _KNOWN_FINANCE_SIGNAL_NAMES = frozenset(
@@ -117,8 +118,8 @@ def test_a_hypothetical_new_signal_name_would_fail_the_subset_check():
 
 
 def test_a_hypothetical_deletion_still_passes_the_subset_check():
-    assert "collaboration_changed" in _current_signal_names()
-    hypothetical_current = _current_signal_names() - {"collaboration_changed"}
+    assert "tasks_changed" in _current_signal_names()
+    hypothetical_current = _current_signal_names() - {"tasks_changed"}
     assert hypothetical_current <= FROZEN_LEGACY_SIGNAL_ALLOWLIST
 
 

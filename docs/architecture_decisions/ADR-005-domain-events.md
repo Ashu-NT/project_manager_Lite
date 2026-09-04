@@ -3846,6 +3846,31 @@ producers remain on it pending P44B's direct full modernization (audited and con
 one-phase-achievable: one aggregate, `TaskComment`, currently on a raw shared session with zero
 audit of any kind — the largest audit gap found in any PM capability so far).
 
+**P44B: durable `TaskComment` full modernization — `collaboration_changed` deleted.** One
+aggregate (`TaskComment`), three semantically distinct event families rather than one catch-all:
+`TaskCommentChanged(change_type=CREATED|EDITED|REMOVED)` (a shared family, mirroring
+`RegisterEntryChanged`'s precedent — create/edit/soft-delete are the same kind of fact),
+`TaskCommentReactionChanged(change_type=ADDED|REMOVED)`, and `TaskCommentReadStateChanged` (each
+kept separate because each represents a genuinely different business fact, confirmed from source —
+a reaction or read-receipt changing does not mean the comment's own content/existence changed).
+New `CollaborationUnitOfWork` is the first canonical transaction owner this capability has ever
+had (previously a raw shared `Session`, identical to Presence's own pre-P44A state); Enterprise
+audit was added to all 6 durable operations where **zero** existed before — this ADR's audit
+gap-tracking now shows Collaboration closed alongside Register/Portfolio/Project. A real latent
+bug was found and fixed as a side effect of the UoW conversion, not sought out separately:
+`post_comment`'s attachment-registration branch called into `DocumentIntegrationService`'s own,
+always-separate `DocumentUnitOfWork` and, in doing so, skipped the comment's own session commit
+entirely — silently leaving the comment row uncommitted whenever attachments were present. Fixed
+by making the comment's own atomic transaction (mutation + audit + event) commit unconditionally,
+first, before the pre-existing (unchanged) document-integration calls run afterward.
+ViewInvalidation mapping deliberately does not treat all three event families alike:
+`TaskCommentReactionChanged`/`TaskCommentReadStateChanged` stale only the exact task's own comment
+list, while `TaskCommentChanged` additionally stales the organization-wide Collaboration workspace/
+dashboard "recent activity" target — mapped by actual proven business meaning (does this fact
+appear in the cross-project activity feed?), not uniformly, per this ADR's standing principle
+against unproven broad ViewInvalidation fan-out. `collaboration_changed` is now fully deleted;
+`tasks_changed` is the sole remaining PM legacy Signal, owned by Task's own future modernization.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

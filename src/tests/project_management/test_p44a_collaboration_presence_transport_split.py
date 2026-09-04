@@ -4,20 +4,11 @@ import ast
 import glob
 
 from src.core.modules.project_management.application.collaboration.event_handlers.view_invalidation import (
+    TASK_COMMENT_CATEGORY,
     TASK_PRESENCE_CATEGORY,
     TASK_PRESENCE_SCOPE_CODE,
 )
 from src.core.shared.events.domain_events import domain_events
-
-
-def _spy_collaboration_changed():
-    calls: list[str] = []
-
-    def _on(task_id: str) -> None:
-        calls.append(task_id)
-
-    domain_events.collaboration_changed.connect(_on)
-    return calls, _on
 
 
 def _spy_hints(services):
@@ -37,6 +28,10 @@ def _presence_hints(hints):
     return [h for h in hints if h.category == TASK_PRESENCE_CATEGORY]
 
 
+def _durable_comment_hints(hints):
+    return [h for h in hints if h.category == TASK_COMMENT_CATEGORY]
+
+
 def _setup(services):
     project = services["project_service"].create_project("P44A collaboration project")
     task = services["task_service"].create_task(project.id, "P44A collaboration task")
@@ -48,25 +43,21 @@ def _setup(services):
 # ---------------------------------------------------------------------------
 
 
-def test_touch_task_presence_does_not_emit_collaboration_changed(services):
+def test_touch_task_presence_produces_zero_durable_comment_hints(services):
+    """P44B deleted `collaboration_changed` entirely -- the durable-side equivalent of this
+    check is now "zero TASK_COMMENT_CATEGORY hints", not "zero legacy Signal emissions"."""
     _, task = _setup(services)
-    calls, handler = _spy_collaboration_changed()
-    try:
-        services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
-        assert calls == []
-    finally:
-        domain_events.collaboration_changed.disconnect(handler)
+    hints = _spy_hints(services)
+    services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
+    assert _durable_comment_hints(hints) == []
 
 
-def test_clear_task_presence_does_not_emit_collaboration_changed(services):
+def test_clear_task_presence_produces_zero_durable_comment_hints(services):
     _, task = _setup(services)
     services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
-    calls, handler = _spy_collaboration_changed()
-    try:
-        services["collaboration_service"].clear_task_presence(task.id)
-        assert calls == []
-    finally:
-        domain_events.collaboration_changed.disconnect(handler)
+    hints = _spy_hints(services)
+    services["collaboration_service"].clear_task_presence(task.id)
+    assert _durable_comment_hints(hints) == []
 
 
 def test_touch_task_presence_does_not_emit_tasks_changed(services):
@@ -133,30 +124,23 @@ def test_clear_task_presence_produces_a_scoped_presence_hint(services):
 
 
 def test_repeated_presence_touches_never_trigger_a_durable_collaboration_signal(services):
-    """§36: 10 repeated touches -- assert the expensive durable-refresh signal count, not
-    merely the (expected, harmless) lightweight presence-hint count."""
+    """§36: 10 repeated touches -- assert the expensive durable-refresh hint count stays zero,
+    not merely the (expected, harmless) lightweight presence-hint count."""
     _, task = _setup(services)
-    durable_calls, handler = _spy_collaboration_changed()
     hints = _spy_hints(services)
-    try:
-        for _ in range(10):
-            services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
+    for _ in range(10):
+        services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
 
-        assert durable_calls == [], "presence storm must never trigger a durable refresh"
-        assert len(_presence_hints(hints)) == 10, "each touch still produces its own presence hint"
-    finally:
-        domain_events.collaboration_changed.disconnect(handler)
+    assert _durable_comment_hints(hints) == [], "presence storm must never trigger a durable refresh"
+    assert len(_presence_hints(hints)) == 10, "each touch still produces its own presence hint"
 
 
 def test_clear_presence_causes_zero_durable_collaboration_refresh(services):
     _, task = _setup(services)
     services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
-    durable_calls, handler = _spy_collaboration_changed()
-    try:
-        services["collaboration_service"].clear_task_presence(task.id)
-        assert durable_calls == []
-    finally:
-        domain_events.collaboration_changed.disconnect(handler)
+    hints = _spy_hints(services)
+    services["collaboration_service"].clear_task_presence(task.id)
+    assert _durable_comment_hints(hints) == []
 
 
 # ---------------------------------------------------------------------------
@@ -164,29 +148,12 @@ def test_clear_presence_causes_zero_durable_collaboration_refresh(services):
 # ---------------------------------------------------------------------------
 
 
-def test_post_comment_still_emits_collaboration_changed(services):
-    _, task = _setup(services)
-    calls, handler = _spy_collaboration_changed()
-    try:
-        services["collaboration_service"].post_comment(task_id=task.id, body="P44A durable comment")
-        assert calls == [task.id]
-    finally:
-        domain_events.collaboration_changed.disconnect(handler)
-
-
-def test_edit_delete_react_still_emit_collaboration_changed(services):
-    _, task = _setup(services)
-    comment = services["collaboration_service"].post_comment(task_id=task.id, body="Original")
-
-    calls, handler = _spy_collaboration_changed()
-    try:
-        services["collaboration_service"].edit_comment(comment.id, "Edited", expected_revision=comment.version)
-        services["collaboration_service"].react_to_comment(comment.id, "👍")
-        services["collaboration_service"].remove_reaction(comment.id, "👍")
-        services["collaboration_service"].delete_comment(comment.id)
-        assert calls == [task.id, task.id, task.id, task.id]
-    finally:
-        domain_events.collaboration_changed.disconnect(handler)
+# P44A-era `test_post_comment_still_emits_collaboration_changed`/
+# `test_edit_delete_react_still_emit_collaboration_changed` characterized durable comment
+# operations as still using the legacy `collaboration_changed` Signal, which was P44A's own
+# deliberate interim state. P44B converged all 6 durable operations onto typed DomainEvents and
+# deleted `collaboration_changed` entirely -- see `test_p44b_collaboration_comment_full_
+# modernization.py` for the equivalent (and now much more precise) durable-refresh proof.
 
 
 def test_post_comment_does_not_produce_a_presence_hint(services):
@@ -279,8 +246,10 @@ def test_approval_post_commit_event_bridge_is_unaffected_by_collaboration_transp
     }
 
 
-def test_collaboration_changed_and_tasks_changed_still_exist_unchanged():
-    """P44A does not delete any Signal field -- durable Collaboration commands may temporarily
-    remain on `collaboration_changed` until P44B."""
-    assert hasattr(domain_events, "collaboration_changed")
+def test_tasks_changed_still_exists_collaboration_changed_now_deleted():
+    """P44A did not delete any Signal field -- durable Collaboration commands temporarily
+    remained on `collaboration_changed` until P44B, which fully modernized them and deleted the
+    field (see `test_p44b_collaboration_comment_full_modernization.py`). `tasks_changed` is
+    untouched by both phases and is now the sole remaining PM legacy Signal."""
+    assert not hasattr(domain_events, "collaboration_changed")
     assert hasattr(domain_events, "tasks_changed")

@@ -15,7 +15,6 @@ def test_pm_tasks_workspace_queues_domain_refresh_while_busy(monkeypatch) -> Non
 
     controller._set_is_busy(True)
     domain_events.tasks_changed.emit("proj-1")
-    domain_events.collaboration_changed.emit("task-1")
 
     assert refresh_calls == []
 
@@ -26,12 +25,16 @@ def test_pm_tasks_workspace_queues_domain_refresh_while_busy(monkeypatch) -> Non
 
 
 def test_pm_collaboration_workspace_refreshes_on_collaboration_workflow_events(monkeypatch) -> None:
+    """P44B: was `domain_events.collaboration_changed.emit(...)` (deleted -- durable Collaboration
+    fully modernized onto typed DomainEvents + `TaskCommentViewInvalidationAdapter`, proved
+    separately with real services in `test_p44b_collaboration_comment_full_modernization.py`).
+    `tasks_changed` is Collaboration workspace's one remaining legacy subscription."""
     catalog = ProjectManagementWorkspaceCatalog()
     controller = catalog.collaborationWorkspace
     refresh_calls: list[str] = []
     monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
 
-    domain_events.collaboration_changed.emit("task-1")
+    domain_events.tasks_changed.emit("task-1")
 
     assert refresh_calls == ["refresh"]
 

@@ -3434,22 +3434,134 @@ to force deletion). Remaining PM legacy signals: `tasks_changed`, `collaboration
 durable-only). **P44B is next: direct full modernization of durable Collaboration. Task remains
 last.**
 
+**P44B — Durable `TaskComment` full modernization; `collaboration_changed` deleted.** Reconfirmed
+the exact remaining surface from source, not P44A's own truncated summary: 6 durable operations,
+all in `collaboration_comments.py` — `post_comment`, `mark_task_mentions_read`, `edit_comment`,
+`delete_comment`, `react_to_comment`, `remove_reaction` — one aggregate, `TaskComment`, no separate
+`Discussion`/`Reaction`/`Mention` entities (replies are `parent_comment_id` self-references,
+reactions an embedded `dict[emoji, [user_id]]`, mentions plain string-list fields on the comment
+itself). 3 consumers reconfirmed: Collaboration workspace, Dashboard (activity feed only), Tasks
+workspace (both durable comments and presence, kept intentionally separate).
+
+**Event vocabulary — three semantically distinct families, not one catch-all.** `TaskCommentChanged
+(change_type=CREATED|EDITED|REMOVED)` — a shared family mirroring `RegisterEntryChanged`'s
+precedent, since create/edit/(soft-)delete are genuinely the same kind of fact (the comment itself
+changed); `TaskCommentReactionChanged(change_type=ADDED|REMOVED)` — a distinct business fact,
+since a reaction changing doesn't mean the comment's own content/existence changed;
+`TaskCommentReadStateChanged` — a distinct read-receipt fact, no `change_type` (marking is
+one-directional in the current domain). Mentions have no separate event — confirmed source-only
+mutated as part of create/edit, never independently (brief's own §8 "option A"). Payloads carry
+only `tenant_id/organization_id/project_id/task_id/comment_id/occurred_at` plus `change_type`
+where applicable — no comment body, no full reactions/mentions list, no ORM/session/DTO.
+
+**A real latent bug found and fixed while converging `post_comment` onto the canonical UoW.**
+`post_comment`'s interaction with `DocumentIntegrationService.register_entity_attachments` (itself
+always on its own separate, fresh `DocumentUnitOfWork` — confirmed by reading its source, never the
+Collaboration session) meant the *old* code's `else: self._session.commit()` branch was skipped
+entirely whenever attachments were present, silently leaving the comment row **uncommitted** on
+the shared session. Fixed as a natural consequence of UoW conversion: the comment's own atomic
+transaction (mutation + audit + `TaskCommentChanged`) now *always* commits first, unconditionally,
+before the pre-existing (unchanged, still-separate) document-attachment/link calls run afterward —
+strictly safer than before, not merely equivalent.
+
+**Canonical transaction ownership: new `CollaborationUnitOfWork`.** No Collaboration UoW existed
+before this phase (all 6 durable operations *and* both presence operations ran on one raw shared
+`Session`, confirmed identically for `TaskComment` as it was for Presence in P44A). Added
+`CollaborationUnitOfWork` (`contracts/uow/collaboration/` + matching infra, fresh session per
+transaction, one named accessor `comments: TaskCommentRepository`, mirroring the Register/Project/
+Portfolio precedent exactly) — no `_activity_service` was added, since Collaboration never had one
+in the first place: the "activity feed" shown by Collaboration workspace/Dashboard is not the
+generic `ActivityService`/`ActivityEntry` mechanism at all, it is `TaskComment` rows themselves,
+read through `SqlAlchemyCollaborationWorkspaceReader.read_comment_page` — confirmed by source, so
+adding a parallel Activity-feed write would have been a duplicate, invented mechanism, not a real
+gap (brief's own §19 guidance followed precisely).
+
+**Enterprise audit added where none existed at all — the largest audit gap found in any PM
+capability so far.** All 6 durable operations now record `record_audit_entry(uow, ..., commit=
+False, fail_closed=True)` atomically alongside their mutation and typed event, inside the same
+`uow.commit()`. Presence (P44A) remains deliberately un-audited — confirmed still correct and
+unchanged by this phase.
+
+**Concurrency preserved exactly, not weakened.** `SqlAlchemyTaskCommentRepository.update()`'s
+always-on `update_with_version_check` CAS is unchanged; `edit_comment`/`delete_comment`'s optional
+caller-supplied `expected_revision` pre-check is unchanged. Proved with a real two-independent-
+read/two-independent-write concurrency test for `edit_comment` (the second writer gets
+`ConcurrencyError`, final persisted body reflects only the winner) — the same shape already
+established for Register/Project. `react_to_comment`/`remove_reaction`/`mark_task_mentions_read`
+confirmed to have **no** caller-supplied `expected_revision` guard in source (unchanged, not a
+regression) — protected only by the storage-layer CAS.
+
+**No-op semantics reconfirmed and preserved exactly, not invented.** `mark_task_mentions_read`'s
+existing "already read" guard and `delete_comment`'s existing "already deleted" guard are true,
+source-established no-ops: zero write, zero audit, zero event, zero ViewInvalidation, proved
+directly. `react_to_comment`/`remove_reaction` are confirmed to have **no** such guard in source
+(repeating the same reaction still writes/audits/emits every time) — this pre-existing behavior
+was preserved as-is, not "fixed" into a new idempotency behavior the domain never asked for; the
+final reactor *set* is still data-level idempotent (one entry, not duplicated), just not
+event-level idempotent.
+
+**ViewInvalidation: two scope codes, mapped by actual business meaning, not uniformly.**
+`TASK_COMMENT_SCOPE_CODE` (`ResourceScope`, exact task) fires for every one of the three event
+families; `COLLABORATION_WORKSPACE_SCOPE_CODE` (`OrganizationScope`, org-wide) fires *only* for
+`TaskCommentChanged` (create/edit/remove — content that genuinely appears in cross-project "recent
+activity"), deliberately excluding `TaskCommentReactionChanged`/`TaskCommentReadStateChanged`
+(neither is displayed anywhere at the workspace/dashboard level per source inspection — brief's own
+§37/§38 guidance against unproven broad fan-out, applied directly rather than uniformly mapping
+every event to every target the way the legacy Signal did).
+
+**Consumer cutover: all 3 real consumers, zero incidental, zero blanket fan-out on
+reactions/read-state.** New `TaskCommentViewInvalidationAdapter` (two signals:
+`taskCommentsStale`/`collaborationWorkspaceStale`), wired per consumer in `context.py`: Tasks
+workspace gets a narrow `onTaskCommentsStale(task_id)` (refreshes only when the stale task matches
+the currently selected one, mirroring the established `onTimesheetProjectStale`/`onRegisterProjectStale`
+pattern) *in addition to* its own separate, pre-existing `onTaskPresenceStale` (P44A) — genuinely
+two independent inputs, never merged back together, exactly as the brief required. Collaboration
+workspace and Dashboard each get a blanket-refresh connection to `collaborationWorkspaceStale`
+only (never `taskCommentsStale`, and never the presence adapter — Dashboard heartbeat-refreshing
+was explicitly forbidden and confirmed absent).
+
+**Regression**: new `test_p44b_collaboration_comment_full_modernization.py` (25 — ViewInvalidation
+handler unit tests for all three event families + dedupe, real create/edit/delete/react/unreact/
+mark-read producer paths with atomic-audit proofs, both source-established no-ops proved zero-effect,
+the reaction-repeat-is-not-a-no-op characterization preserving exact current behavior, mandatory
+audit-failure and transactional-handler-failure rollback, real two-session `edit_comment`
+concurrency, cross-reference rejection, the legacy-deletion and Approval-bridge baseline checks),
+`test_collaboration_phase0a3_rollback_hardening.py` rewritten in place for all 6 durable methods
+(repository-class-level and `EnterpriseAuditService`-level failure injection replacing the old
+shared-session/legacy-Signal assertions; presence sections entirely unchanged, still passing),
+`test_p44a_collaboration_presence_transport_split.py` updated (4 tests repointed from the now-
+deleted legacy Signal to the durable-hint-count equivalent), `test_qml_domain_event_bridges_pm.py`
+and `test_p8_platform_event_architecture_canonicalization.py` repointed off the deleted field, full
+existing Collaboration/Presence/Project/Register/Portfolio/Timesheet suites plus P7/P7B/P8/
+architecture-guard/Finance-financial-setup regressions (297 total across this run) all green.
+
+**Legacy Signal count: 2 (3 minus one deletion) — Collaboration reaches zero legacy Signal
+fields.** `collaboration_changed` rejoins the historical P8 frozen allowlist's deleted-name set
+(added to `_DELETED_BRIDGE_NAMES`); the frozen baseline itself is unchanged. **`tasks_changed` is
+now the sole remaining PM legacy Signal — Task is the final PM legacy modernization phase.**
+Approval's `ApprovalPostCommitEvent`/`_emit_signal_safely` baseline reconfirmed unchanged (still
+exactly `financial_change_apply_participant.py` + `task_apply_participant.py`, both emitting
+`tasks_changed`) — Task itself remains responsible for that mechanism's eventual retirement.
+
 ## 4. Current State
 
-**Legacy Signal count: 3 as of P43** (source-derived from
+**Legacy Signal count: 2 as of P44B** (source-derived from
 `src/core/shared/events/domain_events.py`, re-verified against current source when this document
-was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Down from 4 at
-P42 — `project_changed` is now deleted, the fourth Project Management capability to reach zero.
+was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Down from 3 at
+P43 — `collaboration_changed` is now deleted, the fifth Project Management capability to reach
+zero, and Collaboration's own legacy surface is fully closed (durable modernized in P44B, ephemeral
+presence transport-split in P44A). `tasks_changed` remains the sole PM legacy Signal, pending
+Task's own dedicated-audit-first modernization.
 **Finance module event modernization is complete: zero Finance-owned legacy Signal fields
 remain.** The P8 architecture budget (`current ⊆ frozen`) remains restored with zero exceptions
-(P37 was the last post-freeze *violation*; P38B/P39/P40B/P41/P42/P43 are ordinary further
-retirement of pre-freeze, frozen-allowlisted signals, not violation fixes).
+(P37 was the last post-freeze *violation*; P38B/P39/P40B/P41/P42/P43/P44A/P44B are ordinary
+further retirement of pre-freeze, frozen-allowlisted signals, not violation fixes).
 
 | Area | Count |
 |---|---|
 | Platform | 0 |
 | Auth/Security | 1 |
-| Project Management | 2 |
+| Project Management | 1 |
 | Finance | 0 |
 | Inventory/Procurement | 0 |
 

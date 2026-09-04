@@ -49,6 +49,17 @@ from src.core.modules.project_management.application.resources.project_resource_
 from src.core.modules.project_management.infrastructure.persistence.uow.projects.project_unit_of_work import (
     SqlAlchemyProjectUnitOfWorkFactory,
 )
+from src.core.modules.project_management.application.collaboration.event_handlers.view_invalidation import (
+    build_task_comment_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.collaboration.collaboration_events import (
+    TaskCommentChanged,
+    TaskCommentReactionChanged,
+    TaskCommentReadStateChanged,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.collaboration.collaboration_unit_of_work import (
+    SqlAlchemyCollaborationUnitOfWorkFactory,
+)
 from src.core.modules.project_management.application.portfolio.event_handlers.view_invalidation import (
     build_portfolio_view_invalidation_handler,
 )
@@ -1296,6 +1307,25 @@ def build_project_management_service_bundle(
             }
         ),
     )
+    collaboration_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
+    collaboration_uow_factory = SqlAlchemyCollaborationUnitOfWorkFactory(
+        session_factory=collaboration_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
+    _task_comment_view_invalidation_handler = build_task_comment_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _task_comment_event_type in (
+        TaskCommentChanged,
+        TaskCommentReactionChanged,
+        TaskCommentReadStateChanged,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _task_comment_event_type, _task_comment_view_invalidation_handler
+        )
     collaboration_service = CollaborationService(
         session=session,
         comment_repo=repositories.task_comment_repo,
@@ -1312,6 +1342,7 @@ def build_project_management_service_bundle(
         role_binding_repo=repositories.role_binding_repo,
         notification_service=platform_services.notification_service,
         view_invalidation_channel=platform_services.platform_view_invalidation_channel,
+        uow_factory=collaboration_uow_factory,
     )
     portfolio_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
     portfolio_uow_factory = SqlAlchemyPortfolioUnitOfWorkFactory(

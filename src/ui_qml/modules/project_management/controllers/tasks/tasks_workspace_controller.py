@@ -183,6 +183,10 @@ class ProjectManagementTasksWorkspaceController(
     def onTaskPresenceStale(self, task_id: str) -> None:
         self._collab_ctrl.refresh_presence_for_task(task_id)
 
+    def onTaskCommentsStale(self, task_id: str) -> None:
+        if str(task_id or "") == self._selected_task_id:
+            self._request_domain_refresh()
+
     # ── Sub-controller access properties ─────────────────────────────
 
     @Property(QObject, constant=True)

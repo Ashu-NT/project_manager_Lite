@@ -6,7 +6,6 @@ from src.core.shared.events.domain_events import domain_events
 def bind_collaboration_domain_events(controller: object) -> None:
     for signal in (
         domain_events.tasks_changed,
-        domain_events.collaboration_changed,
     ):
         controller._subscribe_domain_signal(signal, controller._on_domain_event)
 
