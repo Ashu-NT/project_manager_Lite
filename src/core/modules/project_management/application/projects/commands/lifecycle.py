@@ -288,6 +288,7 @@ class ProjectLifecycleMixin:
                     workspace_id=project.id,
                     message=f"Created project {project.name}",
                     details={"name": project.name},
+                    commit=False,
                 )
                 uow.record_event(
                     ProjectCreated(
@@ -369,6 +370,7 @@ class ProjectLifecycleMixin:
                         }
                     },
                 },
+                commit=False,
             )
             uow.record_event(
                 ProjectStatusChanged(
@@ -504,6 +506,7 @@ class ProjectLifecycleMixin:
                         "status": candidate.status.value,
                         "changes": _diff_project_fields(original_project, candidate),
                     },
+                    commit=False,
                 )
                 uow.record_event(
                     ProjectProfileUpdated(
@@ -626,6 +629,7 @@ class ProjectLifecycleMixin:
                 workspace_id=project.id,
                 message=f"Deleted project {project.name}",
                 details={"name": project.name},
+                commit=False,
             )
             uow.record_event(
                 ProjectRemoved(

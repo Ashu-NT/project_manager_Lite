@@ -88,6 +88,8 @@ def test_pm_dashboard_no_longer_reacts_to_costs_changed_because_it_no_longer_exi
 
 
 def test_pm_financials_workspace_coalesces_scoped_finance_invalidations(services, qapp):
+    """P43: was `domain_events.project_changed.emit(...)` (deleted -- Project fully modernized
+    onto typed DomainEvents + `ProjectViewInvalidationAdapter`)."""
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.financialsWorkspace
     project_id = _unique("p7b-finance-project")
@@ -95,7 +97,7 @@ def test_pm_financials_workspace_coalesces_scoped_finance_invalidations(services
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.project_changed.emit(project_id)
+    pm_catalog._financials_project_view_invalidation_adapter.projectDetailStale.emit(project_id)
     domain_events.tasks_changed.emit(project_id)
 
     qapp.processEvents()
@@ -104,18 +106,19 @@ def test_pm_financials_workspace_coalesces_scoped_finance_invalidations(services
 
 
 def test_pm_portfolio_workspace_still_reacts_to_its_remaining_real_signals(services, qapp):
-    """P42: was `portfolio_changed` -- deleted (Portfolio fully modernized). This test's own
-    purpose was always "Portfolio workspace still reacts to at least one of its surviving legacy
-    Signal subscriptions," not specifically its own capability's typed facts (proved separately,
-    end to end with real services, by `test_p42_portfolio_full_modernization.py`) -- so
-    repointing to `project_changed`, Portfolio's other remaining legacy subscription, preserves
-    that intent exactly."""
+    """P42: was `portfolio_changed` -- deleted (Portfolio fully modernized). P43: was
+    `project_changed` -- also deleted (Project fully modernized). This test's own purpose was
+    always "Portfolio workspace still reacts to at least one of its surviving legacy Signal
+    subscriptions," not specifically its own capability's typed facts (proved separately, end to
+    end with real services, by `test_p42_portfolio_full_modernization.py`) -- so repointing to
+    `tasks_changed`, Portfolio's one remaining legacy subscription, preserves that intent
+    exactly."""
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.portfolioWorkspace
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.project_changed.emit(_unique("p7b-portfolio"))
+    domain_events.tasks_changed.emit(_unique("p7b-portfolio"))
     from PySide6.QtWidgets import QApplication
 
     QApplication.processEvents()
@@ -158,13 +161,16 @@ def test_pm_resources_workspace_still_reacts_to_resources(services):
 
 
 def test_pm_scheduling_workspace_still_reacts_to_its_remaining_real_signals(services):
-
+    """P43: was `domain_events.project_changed.emit(...)` (deleted -- Project fully modernized
+    onto typed DomainEvents + `ProjectViewInvalidationAdapter`)."""
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.schedulingWorkspace
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.project_changed.emit(_unique("p7b-sched-project"))
+    pm_catalog._scheduling_project_view_invalidation_adapter.projectListStale.emit(
+        _unique("p7b-sched-project")
+    )
     domain_events.tasks_changed.emit(_unique("p7b-sched-tasks"))
     services["resource_service"].create_resource(name=_unique("p7b-sched-resource"))
 

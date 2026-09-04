@@ -5,7 +5,6 @@ from src.core.shared.events.signal import Signal
 
 @dataclass
 class DomainEvents:
-    project_changed: Signal[str] = field(default_factory=Signal)
     tasks_changed: Signal[str] = field(default_factory=Signal)
     auth_changed: Signal[str] = field(default_factory=Signal)
     collaboration_changed: Signal[str] = field(default_factory=Signal)

@@ -3782,6 +3782,44 @@ than silently retrying, matching the general principle that idempotent reads may
 transparently while explicit user commands must surface a genuine conflict rather than mask it.
 No event vocabulary, `PortfolioUnitOfWork` shape, or ViewInvalidation target changed.
 
+**P43: PM Project full modernization, closing the P40A-discovered silent `set_status` gap.**
+`project_changed` deleted — the fourth Project Management capability to reach zero legacy Signal
+fields. Reconfirmed from source (not P40A's approximate count): 7 producer sites (3 real Project
+mutations, 4 `ProjectResource`-assignment sites on a different aggregate) and 11 real consumers
+(10 genuine, reclassified per-consumer against current queries; 1 — Platform Control — confirmed
+INCIDENTAL and removed with no replacement, since its own `build_overview`/`build_approval_queue`/
+`build_audit_feed` never dereference a Project field). Event vocabulary: `ProjectCreated`,
+`ProjectProfileUpdated`, `ProjectStatusChanged`, `ProjectRemoved` — matching P40A's own audited
+decomposition exactly (`ProjectOwnershipChanged`/`ProjectDatesChanged` reconfirmed NOT distinct
+facts). New `ProjectUnitOfWork` (`projects` + `financial_profiles` named accessors, the latter so
+`create_project`'s atomic `ProjectFinancialProfile` side effect stays in the same transaction) —
+the first Project-specific UoW to exist; before this phase every Project command ran on a raw,
+shared `Session`. `delete_project` is a deliberate, source-justified exception mirroring P40B
+Timesheet's own precedent: its Task/Dependency/Assignment/TimeEntry cascade is cross-capability
+cleanup (Task stays out of scope), so it keeps the shared session via a bare
+`SqlAlchemyUnitOfWorkBase` wrapper rather than moving cross-capability repos onto a foreign
+session.
+
+**The critical correctness fix: `set_status` previously persisted the status change but emitted
+zero `project_changed` and had zero EnterpriseAudit coverage — the exact live bug P40A's own audit
+flagged.** Closed directly with a typed `ProjectStatusChanged` plus atomic audit inside
+`ProjectUnitOfWork`, no legacy-Signal intermediate step, per this ADR's own established principle
+that a fix must land on the canonical mechanism, never a temporary bridge back to `Signal[str]`.
+Gained an optional `expected_version` parameter for parity with `update_project`'s existing
+explicit check (the DB-level `update_with_version_check` CAS already protected it implicitly via
+`project.version`, so this closes a caller-visible-staleness and audit gap, not a silent-corruption
+one) — confirmed by a genuine two-read/two-write concurrency test.
+
+**A real, previously-latent atomicity bug found and fixed along the way, scoped narrowly.** The
+established `record_activity(uow, ...)` call shape (used verbatim by Register/P41) leaves `commit`
+at its own default of `True`, so `ActivityService.record()` commits early, *before* the same UoW's
+event-dispatch/final commit runs — a later transactional-handler failure cannot roll back the
+already-committed mutation. A dedicated Project transactional-handler-failure test caught this
+directly. Fixed by passing `commit=False` on every `record_activity` call in Project's own
+`lifecycle.py` and `project_resource_commands.py`, folding the Activity write into the same atomic
+commit. Register's equivalent call sites were deliberately left untouched — out of P43's scope,
+recorded as a known follow-up rather than silently fixed project-wide.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

@@ -3191,22 +3191,155 @@ suite (82 across this run, including `test_portfolio_phase0a2_rollback_hardening
 concurrency debt recorded by P42-FIX, it does not touch the event/legacy-signal ledger. **Project
 remains next, unchanged.**
 
+**P43 — PM Project full modernization, and the P40A-discovered silent `set_status` notification
+gap closed.** Reconfirmed the current surface from source, not P40A's approximate count: 7
+non-test `project_changed` producer sites (3 real Project mutations in `lifecycle.py` —
+`create_project`/`update_project`/`delete_project` — plus 4 `ProjectResource`-assignment sites in
+`project_resource_commands.py`, a different aggregate that merely carries `project_id`), and
+`set_status` confirmed as a real, committed Project mutation that emitted **zero**
+`project_changed` at all — the exact live correctness gap P40A flagged. 11 real (non-test)
+consumer subscription sites found, reclassified against current source: **10 genuine** (Projects
+workspace = OWNER; Dashboard and Portfolio = REAL SUMMARY; Register, Resources, Tasks,
+Collaboration, Financials, Scheduling, Platform Access = CROSS-CAPABILITY READ MODEL, each proved
+by tracing an actual query/selector that reads `Project.name`/`status`/dates/code) and **1
+INCIDENTAL** (Platform Control — its own `build_overview`/`build_approval_queue`/
+`build_audit_feed` never dereference a single Project field, confirmed by source; removed with no
+replacement).
+
+**Aggregate structure, reconfirmed.** `Project` (`domain/projects/project.py`) — plain
+`@validated_dataclass`, no `tenant_id` field (ORM-only), `organization_id`, `version` (real
+optimistic-concurrency field), `status: ProjectStatus` (`PLANNED`/`ACTIVE`/`ON_HOLD`/`COMPLETED`,
+no enum-level or service-level transition graph — any value to any value was, and remains, valid;
+no invented `archive`/`reopen`/`cancel` transitions). No `Project.set_status()` domain method —
+status mutation was, and remains, a plain service-layer field assignment (`project.status =
+status`), now inside `ProjectUnitOfWork`. Confirmed Task/Resource/Budget/Portfolio/Register are
+NOT Project-owned children (reference-only or read-model edges); the one genuine same-transaction
+child is `ProjectFinancialProfile`, created atomically alongside every new Project.
+
+**Event vocabulary — 4 classes, no generic `ProjectChanged`.** `ProjectCreated`,
+`ProjectProfileUpdated`, `ProjectStatusChanged` (carries `status: ProjectStatus`), `ProjectRemoved`
+(`application/projects/project_events.py`) — matching P40A's own audited decomposition exactly;
+`ProjectOwnershipChanged`/`ProjectDatesChanged` reconfirmed NOT distinct (ownership/dates are
+ordinary profile fields changed through the same cohesive `update_project` operation).
+`update_project` additionally emits `ProjectStatusChanged` alongside `ProjectProfileUpdated` when
+its own optional `status` argument actually changes the value — a genuine second fact, not hidden
+behind one event (mirrors Budget's approve/supersede precedent). A same-transaction
+`ProjectFinancialProfileCreated` was added to Finance's own `configuration_events.py` (alongside
+its existing `Updated`/`Transitioned` siblings) and folded into Finance's existing
+`build_financial_profile_view_invalidation_handler` — `create_project` was the one Project-lifecycle
+side effect Finance's own event modernization had never covered, since it's not a standalone
+Finance command.
+
+**Canonical transaction ownership: new `ProjectUnitOfWork`.** No Project-specific or PM-wide UoW
+existed before this phase (`create_project`/`update_project`/`set_status`/`delete_project` all ran
+on a raw, shared `Session` with direct `self._session.commit()`/`.rollback()`). Added
+`ProjectUnitOfWork` (`contracts/uow/projects/` + matching infra, fresh session per transaction,
+mirroring the Register/Portfolio precedent) with two named accessors — `projects` and
+`financial_profiles` — the latter so `create_project`'s atomic `ProjectFinancialProfile` write
+participates in the exact same transaction, not a parallel raw-session write. `create_project`/
+`update_project`/`set_status` all converged onto it: mutation + enterprise audit (`commit=False,
+fail_closed=True`) + typed `DomainEvent`, one `uow.commit()`. `delete_project` is the one
+deliberate exception, mirroring P40B Timesheet's own precedent exactly: its Task/Dependency/
+Assignment/TimeEntry cascade is cross-capability cleanup (Task stays out of P43's scope per the
+brief), so it stays on the existing shared session via a bare `SqlAlchemyUnitOfWorkBase` wrapper
+around that same session, giving it typed-event capability while its cascade participates in the
+identical transaction as the Project row's own deletion.
+
+**A real cross-cutting correctness bug found and fixed during this phase, not merely inherited.**
+The established `record_activity(uow, ...)` call shape (used verbatim by Register/P41) leaves
+`commit` at its own default of `True`, which makes `ActivityService.record()` issue an early,
+independent `session.commit()` *before* the same UoW's later `_drain_and_dispatch()`/event-commit
+runs — meaning a transactional-handler failure occurring afterward cannot roll back the
+already-committed mutation. A dedicated transactional-handler-failure regression test for Project
+caught this directly (the project persisted despite the "rollback"). Fixed by passing
+`commit=False` explicitly on every `record_activity`/`record_activity`-via-bare-wrapper call in
+both `lifecycle.py` and `project_resource_commands.py`, folding the Activity-feed write into the
+same atomic commit as the audit entry and the DomainEvent. Register's own equivalent call sites
+were deliberately left untouched (out of P43's scope; its own tests happen not to observe the gap
+due to a stale-session read masking it, not because the gap doesn't exist there too) — recorded
+here as a known, narrowly-scoped follow-up, not silently fixed project-wide.
+
+**`set_status` gap closed exactly as specified — no legacy intermediate step.** `set_status` now
+runs inside `ProjectUnitOfWork`: mutation, atomic enterprise audit (previously **zero** audit
+coverage — the weakest path of any Project command), a typed `ProjectStatusChanged`, and precise
+ViewInvalidation, all in one transaction. Gained an optional `expected_version` parameter (parity
+with `update_project`'s existing explicit pre-check) for symmetry and testability; the DB-level
+`update_with_version_check` CAS already protected it implicitly before this phase (via the
+just-fetched `project.version`), so this was a real gap in caller-visible staleness reporting and
+audit, not a silent-corruption gap — confirmed by a genuine two-read/two-write concurrency test
+(the second writer gets `ConcurrencyError`, final persisted status reflects only the winner).
+
+**Concurrency preserved, not broadened.** `update_project`'s explicit `expected_version` check plus
+the repository's own `update_with_version_check` CAS are unchanged. `delete_project` remains
+genuinely unguarded (a plain filtered `DELETE`, no version predicate) — this is pre-existing debt,
+not introduced or worsened by P43's transaction convergence, and out of scope to fix here (matching
+the standing "characterize, don't schema-migrate" precedent).
+
+**ViewInvalidation: two targets, not one per screen.** `PROJECT_LIST_SCOPE_CODE` (`OrganizationScope`
+— Project collection/selector staleness) and `PROJECT_DETAIL_SCOPE_CODE` (`ResourceScope`, exact
+project) — `ProjectCreated` maps to the list target only (no existing detail view for a
+not-yet-created Project); `ProjectProfileUpdated`/`ProjectStatusChanged`/`ProjectRemoved` map to
+both. The 4 `ProjectResource`-assignment sites needed their own minimal fact
+(`ProjectResourceAssignmentChanged`, `application/resources/project_resource_events.py` — a real
+`resources`-module fact, not a Project field change) since they never touch the Project entity at
+all; it reuses Project's own detail-only target rather than inventing a parallel Resource
+ViewInvalidation category for one narrow fact.
+
+**Consumer cutover: 10 genuine consumers re-wired, 1 incidental removed, zero blanket-fan-out
+carried over unexamined.** One `ProjectViewInvalidationAdapter` (list+detail signals), wired per
+consumer in `context.py`: 7 blanket-refresh consumers (Projects, Dashboard, Portfolio, Register,
+Tasks, Collaboration, Scheduling) via a `_wire_project_stale` helper mirroring the established
+`_wire_resource_list_stale` pattern; Resources kept its existing surgical `_reload_if_loaded`
+scoping (now triggered by the adapter instead of the legacy Signal); Financials kept its existing
+project-scoped, lazy-per-destination `_finance_event_matches`/`_invalidate_destinations` logic
+(extracted into a public `onProjectStale` method). Platform Access's genuine but narrow dependency
+(the "Project" scope-target selector) is preserved through composition-root Signal/Slot wiring —
+`ProjectManagementWorkspaceCatalog.projectDirectoryStale` re-exposes the list-target hint,
+`shell/app.py::main()` connects it to `PlatformAdminAccessWorkspaceController.onExternalViewStale`
+— mirroring P41-FIX's Register→Control precedent exactly, never a Platform→PM import. Platform
+Control's subscription was removed with no replacement (INCIDENTAL, proved from source).
+
+**Regression**: new `test_p43_project_full_modernization.py` (21 — ViewInvalidation handler unit
+tests for all 4 event types + the resource-assignment fact, dedupe, real create/set_status/update/
+delete producer paths with atomic-audit proofs, the mandatory `set_status` gap-closure test
+asserting actual persisted status + real hint delivery, audit-failure rollback for both `create`
+and the previously-weakest `set_status` path, the newly-discovered transactional-handler-failure
+regression, two-session concurrency for both `update_project` and `set_status`, duplicate-name and
+cross-reference rejection, the Approval bridge isolation check reused verbatim), full existing
+Project/Resources/Register/Portfolio/Timesheet/Finance-financial-setup suites (over 300 across
+this run) plus the P7/P7B/P8/architecture-guard/domain-event-wiring suites (130, several rewritten
+in place: `test_domain_event_wiring.py`'s two `project_changed`-Signal tests now assert the typed
+events/hints directly; `test_p7_legacy_bridge_removal.py`'s Register direct-wiring proof and its
+"unrelated PM signal" example both repointed off the deleted field; `test_p7b_dead_signal_cleanup.
+py`'s Financials/Portfolio/Scheduling coalescing proofs repointed to the new adapter/remaining
+signal) all green.
+
+**Legacy Signal count: 3 (4 minus one deletion) — fourth Project Management capability to reach
+zero.** `project_changed` rejoins the historical P8 frozen allowlist's deleted-name set (added to
+`_DELETED_BRIDGE_NAMES` in `test_p8_platform_event_architecture_canonicalization.py`); the frozen
+baseline itself is unchanged. Remaining PM legacy signals: `tasks_changed`, `collaboration_changed`.
+Approval's `ApprovalPostCommitEvent`/`_emit_signal_safely` baseline reconfirmed unchanged (still
+exactly `financial_change_apply_participant.py` + `task_apply_participant.py`) — Task remains
+responsible for its eventual retirement. **Collaboration is next, per P40A's tentative sequence —
+its own dedicated durable-vs-ephemeral transport split first, not generic DomainEvents; Task
+remains last** (dedicated audit first, final PM legacy modernization).
+
 ## 4. Current State
 
-**Legacy Signal count: 4 as of P42** (source-derived from
+**Legacy Signal count: 3 as of P43** (source-derived from
 `src/core/shared/events/domain_events.py`, re-verified against current source when this document
-was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Down from 5 at
-P41 — `portfolio_changed` is now deleted, the third Project Management capability to reach zero.
+was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Down from 4 at
+P42 — `project_changed` is now deleted, the fourth Project Management capability to reach zero.
 **Finance module event modernization is complete: zero Finance-owned legacy Signal fields
 remain.** The P8 architecture budget (`current ⊆ frozen`) remains restored with zero exceptions
-(P37 was the last post-freeze *violation*; P38B/P39/P40B/P41/P42 are ordinary further retirement
-of pre-freeze, frozen-allowlisted signals, not violation fixes).
+(P37 was the last post-freeze *violation*; P38B/P39/P40B/P41/P42/P43 are ordinary further
+retirement of pre-freeze, frozen-allowlisted signals, not violation fixes).
 
 | Area | Count |
 |---|---|
 | Platform | 0 |
 | Auth/Security | 1 |
-| Project Management | 3 |
+| Project Management | 2 |
 | Finance | 0 |
 | Inventory/Procurement | 0 |
 

@@ -194,6 +194,7 @@ class ProjectResourceCommandMixin:
                     "currency_code": project_resource.currency_code,
                     "is_active": project_resource.is_active,
                 },
+                commit=False,
             )
             self._record_assignment_changed(uow, project_id)
             uow.commit()
@@ -279,6 +280,7 @@ class ProjectResourceCommandMixin:
                     "resource_name": resource_name,
                     "changes": _diff_project_resource_fields(before, project_resource),
                 },
+                commit=False,
             )
             self._record_assignment_changed(uow, project_resource.project_id)
             uow.commit()
@@ -326,6 +328,7 @@ class ProjectResourceCommandMixin:
                         before, project_resource, fields=("is_active",)
                     ),
                 },
+                commit=False,
             )
             self._record_assignment_changed(uow, project_resource.project_id)
             uow.commit()
@@ -345,13 +348,7 @@ class ProjectResourceCommandMixin:
             "project.manage",
             operation_label="delete project resource",
         )
-        # Historical actual work must not disappear because a planning
-        # assignment is removed: the DB FK cascade would otherwise silently
-        # delete every TaskAssignment (and, via ITS cascade, every TimeEntry)
-        # referencing this project resource. Once real hours have been
-        # logged against any of them, block the hard delete and point the
-        # caller at deactivation instead, which preserves the historical
-        # relationship intact.
+
         if self._task_repo is not None and self._assignment_repo is not None:
             assignments = envelope_policy.resource_assignments_in_project(
                 task_repo=self._task_repo,
@@ -385,6 +382,7 @@ class ProjectResourceCommandMixin:
                     "resource_id": project_resource.resource_id,
                     "resource_name": resource_name,
                 },
+                commit=False,
             )
             self._record_assignment_changed(uow, project_resource.project_id)
             uow.commit()

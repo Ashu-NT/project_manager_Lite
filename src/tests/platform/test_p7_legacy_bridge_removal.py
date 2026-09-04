@@ -113,11 +113,12 @@ def test_all_still_unmodernized_signals_survive_with_real_direct_consumers():
     is ALSO deliberately absent (P35-CLEANUP correction) -- P18A/P18B fully modernized Project
     Resource (`ResourceMasterChanged`/`ResourceCapabilityChanged`, canonical ViewInvalidation),
     so it was actually deleted too; see `test_resources_changed_field_is_absent_from_domain_events`
-    in `test_p18b_resource_view_invalidation.py` for the dedicated retirement proof."""
+    in `test_p18b_resource_view_invalidation.py` for the dedicated retirement proof.
+    `project_changed` is likewise deliberately absent (P43) -- Project is now fully modernized."""
 
     for signal_name in (
         "auth_changed",
-        "project_changed", "tasks_changed",
+        "tasks_changed",
     ):
         assert hasattr(domain_events, signal_name), f"{signal_name} was deleted, not just un-bridged"
 
@@ -207,13 +208,16 @@ def test_approval_has_no_legacy_signal_at_all():
 # ---------------------------------------------------------------------------
 
 
-def test_pm_register_workspace_direct_wired_to_project_changed_exactly_once(services):
+def test_pm_register_workspace_direct_wired_to_project_stale_exactly_once(services):
+
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.registerWorkspace
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.project_changed.emit(_unique("p7a-register"))
+    pm_catalog._register_project_view_invalidation_adapter.projectListStale.emit(
+        _unique("p43-register")
+    )
 
     assert refresh_calls == ["refresh"]
 
@@ -262,12 +266,15 @@ def test_inventory_dashboard_direct_wired_to_every_inventory_signal(services):
 
 
 def test_inventory_dashboard_does_not_react_to_an_unrelated_pm_signal(services):
+    """P43: was `domain_events.project_changed.emit(...)` (deleted -- Project fully modernized
+    onto typed DomainEvents + ViewInvalidation, no legacy Signal left). `tasks_changed` is still
+    a genuinely unrelated, undeleted PM legacy signal, preserving the same isolation property."""
     inventory_catalog = _inventory_catalog(services)
     controller = inventory_catalog.dashboardWorkspace
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.project_changed.emit(_unique("p7a-unrelated-pm"))
+    domain_events.tasks_changed.emit(_unique("p7a-unrelated-pm"))
 
     assert refresh_calls == []
 
