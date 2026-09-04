@@ -16,6 +16,11 @@ from src.core.platform.application.history.audit.enterprise_audit_service import
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
+from src.core.platform.infrastructure.persistence.repositories.master_data.documents.documents import (
+    SqlAlchemyDocumentLinkRepository,
+    SqlAlchemyDocumentRepository,
+    SqlAlchemyDocumentStructureRepository,
+)
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_event_publisher import (
     PostCommitEventPublisher,
@@ -48,6 +53,18 @@ class SqlAlchemyCollaborationUnitOfWork(SqlAlchemyUnitOfWorkBase, CollaborationU
         self.comments = SqlAlchemyTaskCommentRepository(session)
         if hasattr(self.comments, "_tenant_context_service"):
             self.comments._tenant_context_service = tenant_context_service
+
+        self.documents = SqlAlchemyDocumentRepository(session)
+        if hasattr(self.documents, "_tenant_context_service"):
+            self.documents._tenant_context_service = tenant_context_service
+
+        self.structures = SqlAlchemyDocumentStructureRepository(session)
+        if hasattr(self.structures, "_tenant_context_service"):
+            self.structures._tenant_context_service = tenant_context_service
+
+        self.links = SqlAlchemyDocumentLinkRepository(session)
+        if hasattr(self.links, "_tenant_context_service"):
+            self.links._tenant_context_service = tenant_context_service
 
         audit_repo = SqlAlchemyAuditRepository(session)
         audit_repo._tenant_context_service = tenant_context_service

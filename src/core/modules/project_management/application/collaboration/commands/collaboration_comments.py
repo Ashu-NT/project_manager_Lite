@@ -17,6 +17,11 @@ from src.core.modules.project_management.application.collaboration.collaboration
     TaskCommentReactionChanged,
     TaskCommentReadStateChanged,
 )
+from src.core.platform.application.master_data.documents.document_context import active_organization
+from src.core.platform.application.master_data.documents.document_integration_service import (
+    link_existing_document_in_uow,
+    register_entity_attachments_in_uow,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
@@ -28,6 +33,7 @@ from src.core.platform.common.exceptions import (
 from src.core.platform.common.pydantic import normalize_optional_text
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.notifications import safe_dispatch_notification
+from src.infra.time.system_clock import SystemClock
 
 
 class CollaborationCommentCommandMixin:
@@ -95,6 +101,8 @@ class CollaborationCommentCommandMixin:
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="post task collaboration update"
         )
+        uploader_user_id = getattr(principal, "user_id", None)
+
         with self._require_collaboration_uow_factory().create(context=self._new_context()) as uow:
             uow.comments.add(comment)
             record_audit_entry(
@@ -120,21 +128,32 @@ class CollaborationCommentCommandMixin:
                     occurred_at=datetime.now(timezone.utc),
                 )
             )
+            if self._document_integration_service is not None and comment.attachments:
+                register_entity_attachments_in_uow(
+                    uow=uow,
+                    organization=active_organization(self),
+                    module_code="project_management",
+                    entity_type="task_comment",
+                    entity_id=comment.id,
+                    attachments=comment.attachments,
+                    clock=SystemClock(),
+                    source_system="project_management",
+                    uploaded_by_user_id=uploader_user_id,
+                )
+            if self._document_integration_service is not None and normalized_linked_document_ids:
+                organization = active_organization(self)
+                for document_id in normalized_linked_document_ids:
+                    link_existing_document_in_uow(
+                        uow=uow,
+                        organization=organization,
+                        module_code="project_management",
+                        entity_type="task_comment",
+                        entity_id=comment.id,
+                        document_id=document_id,
+                        clock=SystemClock(),
+                        link_role="reference",
+                    )
             uow.commit()
-        if self._document_integration_service is not None and comment.attachments:
-            self._document_integration_service.register_entity_attachments(
-                required_permission="collaboration.manage",
-                operation_label="register task collaboration attachments",
-                module_code="project_management",
-                entity_type="task_comment",
-                entity_id=comment.id,
-                attachments=comment.attachments,
-                source_system="project_management",
-            )
-        self._link_existing_comment_documents(
-            comment_id=comment.id,
-            document_ids=normalized_linked_document_ids,
-        )
         self._notify_mentioned_users(task=task, comment=comment, author_user_id=comment.author_user_id)
         return comment
 

@@ -3871,6 +3871,37 @@ appear in the cross-project activity feed?), not uniformly, per this ADR's stand
 against unproven broad ViewInvalidation fan-out. `collaboration_changed` is now fully deleted;
 `tasks_changed` is the sole remaining PM legacy Signal, owned by Task's own future modernization.
 
+**P44B-FIX: correcting P44B's own "cross-capability mutations: zero" characterization — a real
+Category-C edge, now made atomic.** P44B's account above (and the pre-implementation audit
+scorecard before it) treated `post_comment`'s call into `DocumentIntegrationService` as incidental,
+pre-existing, unchanged plumbing once the comment's own commit-ordering bug was fixed. Re-tracing
+the attachment/`linked_document_ids` path end-to-end from current source found that characterization
+wrong: `DocumentIntegrationService.register_entity_attachments`/`link_existing_document` persist
+real `Document`/`DocumentLink` rows (each with its own EnterpriseAudit entry and
+`DocumentCreated`/`DocumentReferenceLinked` typed event) via a *separate* `DocumentUnitOfWork`
+transaction — a genuine, conditional (only when attachments/linked documents are supplied)
+persisted cross-capability mutation, and, left as two transactions, a source of real retry-
+duplication risk (a Document-side failure after the comment's own UoW had already committed would
+leave a durable, already-persisted `TaskComment` behind an exception the caller has no way to
+attribute to "already succeeded"). Determined atomic by business intent (no structured partial-
+success/warning-reporting shape exists anywhere in `post_comment`'s API, and the split was the same
+accidental two-independently-committed-services root cause already half-fixed once before in this
+exact method during P44B) rather than assumed from "two `UnitOfWork`s currently exist." Fixed by
+extracting `register_entity_attachments_in_uow`/`link_existing_document_in_uow` — transaction-
+neutral functions (mutate/flush/audit/`record_event` on a caller-supplied `uow`; never commit,
+roll back, or publish postcommit themselves) — reused identically by `DocumentIntegrationService`'s
+own standalone methods (their own fresh `DocumentUnitOfWork`, zero behavior change, reverified by
+124 pre-existing P16/Inventory-Procurement Document tests) and by `post_comment`, which now invokes
+them directly inside its own `CollaborationUnitOfWork` (extended with `documents`/`links`/
+`structures` accessors — the second instance, after `ProjectUnitOfWork.financial_profiles` (P43),
+of a capability UoW holding another capability's repository for a genuinely atomic need). One
+physical transaction, one FAIL_FAST/rollback boundary, for comment + its audit + `TaskCommentChanged`
++ any Document/DocumentLink rows + their own audit + their own typed events. Document capability
+still owns its own fact — no Collaboration-owned duplicate event was invented; P16's existing
+vocabulary is reused verbatim. See `docs/architecture/event-modernization-plan.md`'s own P44B-FIX
+entry for the full regression-test inventory (7 new tests plus the full pre-existing suite,
+green).
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

@@ -3543,6 +3543,80 @@ Approval's `ApprovalPostCommitEvent`/`_emit_signal_safely` baseline reconfirmed 
 exactly `financial_change_apply_participant.py` + `task_apply_participant.py`, both emitting
 `tasks_changed`) — Task itself remains responsible for that mechanism's eventual retirement.
 
+**P44B-FIX — TaskComment attachment/linked-document boundary: a real Category-C cross-capability
+mutation, correcting P44B's own report.** P44B's narrative above described the `post_comment` →
+`DocumentIntegrationService` interaction only as a two-commit ordering bug (comment silently
+uncommitted) and, having fixed that ordering, characterized the resulting shape as merely
+"pre-existing (unchanged, still-separate) document-attachment/link calls" — implying Collaboration
+had zero cross-capability persisted mutations, echoing the audit-era scorecard's own "Cross-
+capability coupling: NONE (durable)" verdict for this capability. Re-tracing `post_comment`'s
+attachment/`linked_document_ids` path end-to-end from current source (not from that summary) found
+this was never accurate: `DocumentIntegrationService.register_entity_attachments`/
+`link_existing_document` persist real `Document`/`DocumentLink` rows, each with its own
+EnterpriseAudit entry and `DocumentCreated`/`DocumentReferenceLinked` typed event, via a *separate*
+`DocumentUnitOfWork` transaction — a genuine, if conditional (only when attachments or
+`linked_document_ids` are supplied), Category-C persisted cross-capability mutation edge:
+**`Collaboration TaskComment → Document/DocumentLink`**. Classified as business-atomic (not
+intentionally split): `post_comment`'s API returns one `TaskComment` or raises, with no structured
+partial-success/warning-reporting shape anywhere that would signal a deliberate non-atomic design,
+and the two-transaction shape was the same accidental "compose two independently-committed
+services" root cause already found (and only half-fixed) once before in this exact method during
+P44B itself. Left as two separate transactions, a Document-side failure after the comment's own
+UoW had already committed would silently leave a durable `TaskComment` behind while the caller
+observes a raised exception with no way to know the comment already persisted — a real retry-
+duplication hazard, not a hypothetical one.
+
+**Fix — one physical transaction, narrowest-boundary shape (mirrors `ProjectUnitOfWork.
+financial_profiles`'s exact P43 precedent), zero duplicated Document business logic.**
+`DocumentIntegrationService.register_entity_attachments`/`link_existing_document`'s method bodies
+were extracted into new, transaction-neutral module-level functions —
+`register_entity_attachments_in_uow`/`link_existing_document_in_uow` (`document_integration_
+service.py`) — that mutate/flush/audit/`record_event` on a caller-supplied `uow` but never call
+`commit()`/`rollback()`/publish postcommit themselves. `DocumentIntegrationService`'s own public
+methods now delegate to these same functions inside their own fresh `DocumentUnitOfWork` (zero
+behavior change for their existing standalone callers elsewhere in the app — reverified by the
+full pre-existing P16/Inventory-Procurement Document regression suite, 124 tests, unchanged and
+green). `CollaborationUnitOfWork` gained three new named accessors — `documents`/`links`/
+`structures` (Platform's own `DocumentRepository`/`DocumentLinkRepository`/
+`DocumentStructureRepository`, bound to Collaboration's own per-transaction session) — the second
+precedent (after `ProjectUnitOfWork.financial_profiles`) for a capability UoW holding another
+capability's repository for a genuinely atomic need, not a generic repository bag or a mega-UoW.
+`post_comment` now calls `register_entity_attachments_in_uow`/`link_existing_document_in_uow`
+directly inside its own `CollaborationUnitOfWork` block, ending in one `uow.commit()` — comment +
+comment audit + `TaskCommentChanged` + any new `Document`/`DocumentLink` rows + their own audit +
+their own `DocumentCreated`/`DocumentReferenceLinked` events all now share one physical transaction
+and one FAIL_FAST/rollback boundary. **Document capability still owns its own fact** — no
+Collaboration-owned "AttachmentCreated"/"DocumentLinked" event was invented; P16's existing typed
+vocabulary is reused verbatim, exactly as this document's own "one canonical event family, not a
+catch-all" principle requires when a *different* capability's fact is genuinely involved.
+
+**Regression**: new `test_p44b_fix_collaboration_attachment_transaction_boundary.py` (7 tests —
+success path with both an attachment and a `linked_document_ids` entry proving one Document +
+two DocumentLink rows + both capabilities' audits + both capabilities' typed postcommit hints in
+one transaction; a no-attachment path proving zero Document-capability touch at all; Document-
+registration failure *after* the comment was already staged in the same transaction rolling back
+the comment too — the exact scenario the old two-transaction shape could not protect against;
+comment-persistence failure preventing any Document-side work from ever running; a transactional-
+handler failure on `TaskCommentChanged` rolling back a comment posted with both an attachment and a
+linked document; a physical-commit failure persisting neither capability; a retry-after-failure
+characterization proving a failed attempt leaves nothing durable, so retrying produces exactly one
+final comment + one final document, never a duplicate). Full existing Collaboration/P44A/P44B/
+Tasks-workspace/Dashboard/P7/P7C/P8/Finance-invalidation/P16-Document/Inventory-Procurement
+regression suites re-run unmodified and green (`test_task_comment_domain_validation.py`'s 11
+pre-existing failures reconfirmed unrelated — a `_FakeTenantContextService` test-fixture gap
+against `require_active_scope_ids`, a call already present in P44B's own committed HEAD, byte-for-
+byte unchanged by this fix). Presence (P44A) reconfirmed completely untouched — its own suite
+passes unmodified. `collaboration_changed` remains deleted; `tasks_changed` remains unexpanded and
+is not emitted by any comment/attachment path.
+
+**Cross-capability graph correction.** The pre-implementation audit scorecard's "Cross-capability
+coupling: NONE (durable)" verdict for Collaboration (§ audit table above) is superseded for the
+attachment/linked-document path only: it is now **LOW (1 conditional edge, canonical)** —
+`Collaboration TaskComment → Document/DocumentLink`, Category C, atomic, single transaction,
+Document owns its own fact. The other 5 durable operations (`mark_task_mentions_read`,
+`edit_comment`, `delete_comment`, `react_to_comment`, `remove_reaction`) and presence remain
+exactly as P44A/P44B described — zero cross-capability coupling.
+
 ## 4. Current State
 
 **Legacy Signal count: 2 as of P44B** (source-derived from
