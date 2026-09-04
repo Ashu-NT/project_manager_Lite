@@ -59,6 +59,9 @@ from src.ui_qml.modules.project_management.adapters.portfolio.portfolio_view_inv
 from src.ui_qml.modules.project_management.adapters.projects.project_view_invalidation_adapter import (
     ProjectViewInvalidationAdapter,
 )
+from src.ui_qml.modules.project_management.adapters.collaboration.task_presence_view_invalidation_adapter import (
+    TaskPresenceViewInvalidationAdapter,
+)
 from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import (
     TenantSwitcherPresenter,
 )
@@ -242,6 +245,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self._tasks_project_view_invalidation_adapter: ProjectViewInvalidationAdapter | None = None
         self._dashboard_project_view_invalidation_adapter: ProjectViewInvalidationAdapter | None = None
         self._collaboration_project_view_invalidation_adapter: ProjectViewInvalidationAdapter | None = None
+        self._tasks_presence_view_invalidation_adapter: TaskPresenceViewInvalidationAdapter | None = None
 
         self._external_project_view_invalidation_adapter = ProjectViewInvalidationAdapter(
             channel=self._view_invalidation_channel,
@@ -637,6 +641,16 @@ class ProjectManagementWorkspaceCatalog(QObject):
             self._tasks_project_view_invalidation_adapter = self._wire_project_stale(
                 self._tasks_workspace
             )
+
+            self._tasks_presence_view_invalidation_adapter = TaskPresenceViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._tasks_presence_view_invalidation_adapter.taskPresenceStale.connect(
+                self._tasks_workspace.onTaskPresenceStale
+            )
         return self._tasks_workspace
 
     def _get_dashboard_workspace(self) -> ProjectManagementDashboardWorkspaceController:
@@ -962,6 +976,11 @@ class ProjectManagementWorkspaceCatalog(QObject):
                     tenant_id=self._active_tenant_id() or "",
                     organization_id=self._active_organization_id() or "",
                 )
+        if self._tasks_presence_view_invalidation_adapter is not None:
+            self._tasks_presence_view_invalidation_adapter.set_active_scope(
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+            )
 
     @Slot(str, result=bool)
     def isModuleEnabled(self, module_code: str) -> bool:

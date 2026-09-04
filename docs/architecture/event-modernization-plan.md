@@ -3324,6 +3324,116 @@ responsible for its eventual retirement. **Collaboration is next, per P40A's ten
 its own dedicated durable-vs-ephemeral transport split first, not generic DomainEvents; Task
 remains last** (dedicated audit first, final PM legacy modernization).
 
+**P44A — Collaboration durable/ephemeral transport split (category-error correction, not full
+modernization).** Reconfirmed the current `collaboration_changed` surface from source: 8
+non-test producers, not P40A's approximate count — 6 **DURABLE** (`post_comment`,
+`mark_task_mentions_read`, `edit_comment`, `delete_comment`, `react_to_comment`,
+`remove_reaction`, all in `collaboration_comments.py`, all mutating the single `TaskComment`
+aggregate, all on a raw shared `Session` with **zero** EnterpriseAudit and **zero** Activity-feed
+coverage) and 2 **EPHEMERAL** (`touch_task_presence`/`clear_task_presence`, `collaboration_
+presence.py`, upserting/deleting a TTL-windowed `TaskPresence` row keyed `(task_id, username)`,
+also on a raw shared session, also with zero audit — correctly, since presence is not business
+history). 3 consumers: Collaboration workspace (durable-only need), Dashboard (durable-only need,
+specifically the activity feed), Tasks workspace (**both** — the one consumer with a real,
+pre-existing dependency on presence data). Confirmed `touch_task_presence`/`clear_task_presence`
+are the *only* two presence operations that exist — no typing/heartbeat/viewing/cleanup-job
+methods were found anywhere in the codebase; TTL (default 900s, `PM_TASK_PRESENCE_TTL_SECONDS`) is
+enforced purely by a query-time `last_seen_at >= now - ttl` filter, never a scheduled sweep.
+
+**The category error, confirmed and now removed.** Before this phase: `touch_task_presence`/
+`clear_task_presence` → `collaboration_changed.emit(task_id)` → Tasks workspace's blanket
+`_request_domain_refresh()` → a full workspace rebuild (durable comments + everything else)
+on *every single presence keepalive tick* (the heartbeat re-touches presence roughly every 30s
+while any task detail panel is open). This was pure amplification: Task workspace's own presence
+display was never actually driven by this refresh path in the first place — it already
+self-updates via `beginTaskPresence`/`endTaskPresence`'s own slot flow and an independent
+30-second heartbeat poll (`PMCollaborationController._on_runtime_heartbeat`) that rebuilds only
+the presence collection. The full-workspace rebuild was pure waste, not a real dependency.
+
+**Presence transport: a direct, scoped `ViewInvalidationHint` notify — no DomainEvent, no
+handler, no dispatcher.** `TaskPresence` is genuinely a persisted, TTL-windowed read model
+(`list_task_presence`/`list_active_presence`), so a real projection *does* become stale on
+touch/clear — this is a legitimate ViewInvalidation use, not an abuse of it (per this project's own
+"ViewInvalidation means a persisted/read-model projection became stale" principle) — while
+remaining strictly forbidden from ever becoming a `DomainEvent`: no `uow.record_event(...)`, no
+`TransactionalEventDispatcher`, no `PostCommitEventPublisher`, no audit-trail/business-history
+implication. `touch_task_presence`/`clear_task_presence` now call `notify_task_presence_stale(...)`
+(`application/collaboration/event_handlers/view_invalidation.py`, new — `TASK_PRESENCE_CATEGORY`/
+`TASK_PRESENCE_SCOPE_CODE`, PM-owned vocabulary, generic `ViewInvalidationHint`/`ResourceScope`
+transport shape owned by shared/platform) directly, synchronously, after their own commit
+succeeds — no new capability UnitOfWork was introduced for this (source doesn't warrant one for a
+blind TTL upsert/delete with no version field and no audit). A new `TaskPresenceViewInvalidation
+Adapter` (QML) and one `onTaskPresenceStale`/`refresh_presence_for_task` hook were wired into Tasks
+workspace's *existing* presence-rebuild code path (the same logic `_on_runtime_heartbeat` already
+used) — giving genuine, tested value: the calling user's own presence indicator now updates
+immediately on touch/clear instead of waiting up to 30s for the next heartbeat tick, with zero
+effect on the durable comment thread.
+
+**Ephemeral legacy publication fully removed; durable publication fully preserved.**
+`collaboration_changed`/`tasks_changed` producer count for presence: 0 (both `touch_task_presence`
+and `clear_task_presence` — confirmed by a source-level architecture-guard test, not just a
+runtime probe). All 6 durable producers still emit `collaboration_changed` exactly as before —
+proved by rerunning them end to end. A 10-touch presence storm test asserts the *durable* signal
+count directly (must stay 0), not merely the lightweight hint count (which legitimately fires once
+per touch — no coalescing was added, since none was required to satisfy the correctness goal and
+none exists as an established precedent to reuse). Presence remains unaudited by design (a
+dedicated test asserts zero new `AuditEntryORM` rows across a touch+clear pair) — this is expected
+for ephemeral coordination state, not a newly-introduced or automatically-assumed gap.
+
+**Multi-user/same-user semantics reconfirmed unchanged.** Presence is keyed `(task_id, username)`,
+not `(task_id, user_id)` and with no session/client id — two different users can be simultaneously
+present on the same task (proved with two real, independently-authenticated `UserSessionContext`s),
+and one user's touch/clear can never affect another user's row. Same-user, multi-tab/multi-session
+collapse to one row (last-write-wins on `activity`/`last_seen_at`) is pre-existing, unaffected
+behavior — recorded as known debt for a future phase to reconsider if ever needed, not touched here
+since the transport split doesn't require it.
+
+**`collaboration_changed` intentionally remains — this phase's job was category separation, not
+Signal deletion.** All remaining producers of `collaboration_changed` are now durable-only (the 6
+`TaskComment` operations); no premature field deletion was made. **P44B readiness, audited now so
+it can be DIRECT FULL MODERNIZATION**: one aggregate root, `TaskComment` (no separate
+`Discussion`/`Reaction`/`Mention` entities — replies are `parent_comment_id` self-references,
+reactions are an embedded `dict[emoji, [user_id]]` field, mentions are plain string-list fields);
+`version: int` with real storage-layer CAS (`update_with_version_check`) on every `_comment_repo.
+update()` call regardless of caller-supplied `expected_revision` (only `edit_comment`/
+`delete_comment` pass one explicitly today — `react_to_comment`/`remove_reaction`/`mark_task_
+mentions_read` blind-read-modify-write, protected only by the storage-layer CAS, a candidate for
+P44B to reconsider, not fixed here); **zero EnterpriseAudit, zero Activity-feed coverage on any
+durable Collaboration operation** — the biggest audit gap of any PM capability audited so far, a
+mandatory P44B fix; **no `CollaborationUnitOfWork` exists** (raw shared session throughout,
+matching presence) — P44B's first task is converging all 6 durable operations onto one; zero
+cross-capability persisted mutations (Task/Project referenced by id only, read-time join only,
+never mutated). Candidate P44B DomainEvents: a shared-family `CollaborationCommentChanged(change_
+type=CREATED|UPDATED|REMOVED|REACTED|UNREACTED|MENTIONS_READ)` (mirroring `RegisterEntryChanged`'s
+precedent — one cohesive aggregate, several operation kinds) is the leading candidate over 6
+separate classes, to be finalized in P44B. Candidate ViewInvalidation targets: a per-task scope
+(`SqlAlchemyTaskCommentRepository.list_by_task`) and a per-project/workspace scope
+(`SqlAlchemyCollaborationWorkspaceReader.read_comment_page`, already a real paginated/filterable
+read-model) — mirroring Register's dual-target (`REGISTER_PROJECT_SCOPE_CODE`/`REGISTER_WORKSPACE_
+SCOPE_CODE`) shape closely. **P44B can delete `collaboration_changed` in one direct
+full-modernization phase: YES** — no blocker identified.
+
+**Read-only check performed, not fixed (§45 of the brief): Register's `record_activity(commit=
+True)` early-commit pattern, flagged as a P43 discovery, is a STALE OBSERVATION for Register
+specifically** — `register_lifecycle.py`'s three mutation methods already pass `commit=False`
+explicitly at every `record_activity(uow, ...)` call site; P41's own UoW conversion never had the
+bug P43 found and fixed in Project's files. No Register production changes were made in P44A.
+
+**Regression**: new `test_p44a_collaboration_presence_transport_split.py` (15 — ephemeral
+producers confirmed to emit zero `collaboration_changed`/zero `tasks_changed`, a source-level
+architecture guard against reintroducing either, the scoped presence-hint proof for touch and
+clear, a 10-touch storm asserting zero durable-signal amplification, all 6 durable producers
+reconfirmed still firing `collaboration_changed`, presence proved un-audited by design, two-user
+concurrent-presence proof, the Approval-bridge and Signal-still-exists baseline checks), full
+existing Collaboration/Presence/Task suites (33) plus Project/Register/Portfolio/Timesheet/P7/P7B/
+P8/architecture-guard/Finance-financial-setup regressions (277 total across this run) all green.
+
+**Legacy Signal count: unchanged at 3.** No field deleted — architecture category separation is
+this phase's milestone, not a Signal-count reduction (per the brief's own explicit instruction not
+to force deletion). Remaining PM legacy signals: `tasks_changed`, `collaboration_changed` (now
+durable-only). **P44B is next: direct full modernization of durable Collaboration. Task remains
+last.**
+
 ## 4. Current State
 
 **Legacy Signal count: 3 as of P43** (source-derived from

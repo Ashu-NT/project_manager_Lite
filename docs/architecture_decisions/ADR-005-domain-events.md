@@ -3820,6 +3820,32 @@ directly. Fixed by passing `commit=False` on every `record_activity` call in Pro
 commit. Register's equivalent call sites were deliberately left untouched — out of P43's scope,
 recorded as a known follow-up rather than silently fixed project-wide.
 
+**P44A: a durable architectural rule — ephemeral coordination state MUST NOT be modeled as a
+DomainEvent, even when it is persisted for TTL/coordination purposes.** Collaboration's
+`collaboration_changed` legacy Signal mixed two categorically different things: 6 DURABLE
+`TaskComment` mutations (create/edit/delete/react/unreact/mark-mentions-read) and 2 EPHEMERAL
+`TaskPresence` operations (`touch_task_presence`/`clear_task_presence`). `TaskPresence` rows ARE
+persisted (a real `task_presence` table, keyed `(task_id, username)`) and ARE queried through a
+real read model (`list_task_presence`) — but a database row existing is not, by itself, evidence of
+durable business history: presence has no `version` field, is blind-upserted, is TTL-windowed
+(`last_seen_at >= now - N seconds`) at query time with no retained history once stale, and carries
+zero EnterpriseAudit or Activity-feed coverage by design. **The rule this ADR now records:
+"persisted for coordination/TTL purposes" and "durable business fact worth a DomainEvent" are
+independent questions — never infer the second from the first.** The correct transport for such
+state, established here as precedent for any future ephemeral/coordination feature: a direct,
+synchronous `ViewInvalidationHint` notify (a real read-model projection legitimately went stale),
+skipping the entire DomainEvent pipeline (no `uow.record_event`, no `TransactionalEventDispatcher`,
+no `PostCommitEventPublisher`, no audit-trail implication) — narrower than a full DomainEvent, not
+a workaround for lacking one. `ViewInvalidationHint`'s own category/scope-code namespacing (a new
+`TASK_PRESENCE_CATEGORY`/`TASK_PRESENCE_SCOPE_CODE`, PM-owned vocabulary on the existing shared
+transport shape, per this ADR's established shared-owns-transport/module-owns-vocabulary
+principle) is sufficient to keep it fully distinct from every durable ViewInvalidation target
+already in the system, with no new infrastructure required. `collaboration_changed` itself was
+deliberately NOT deleted in this phase — category separation was the goal; the 6 durable
+producers remain on it pending P44B's direct full modernization (audited and confirmed
+one-phase-achievable: one aggregate, `TaskComment`, currently on a raw shared session with zero
+audit of any kind — the largest audit gap found in any PM capability so far).
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

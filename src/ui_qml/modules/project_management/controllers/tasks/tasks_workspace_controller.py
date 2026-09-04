@@ -180,6 +180,9 @@ class ProjectManagementTasksWorkspaceController(
     def onTimesheetProjectStale(self, project_id: str) -> None:
         on_timesheet_project_stale(self, project_id)
 
+    def onTaskPresenceStale(self, task_id: str) -> None:
+        self._collab_ctrl.refresh_presence_for_task(task_id)
+
     # ── Sub-controller access properties ─────────────────────────────
 
     @Property(QObject, constant=True)

@@ -1311,6 +1311,7 @@ def build_project_management_service_bundle(
         role_repo=repositories.role_repo,
         role_binding_repo=repositories.role_binding_repo,
         notification_service=platform_services.notification_service,
+        view_invalidation_channel=platform_services.platform_view_invalidation_channel,
     )
     portfolio_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
     portfolio_uow_factory = SqlAlchemyPortfolioUnitOfWorkFactory(

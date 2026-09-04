@@ -252,6 +252,25 @@ class PMCollaborationController(QObject):
         self._presence_session_activity = ""
         self._presenter.clear_task_collaboration_presence(clear_id)
 
+    def refresh_presence_for_task(self, task_id: str) -> None:
+
+        normalized = (task_id or "").strip()
+        if not normalized or normalized != self._last_selected_task_id:
+            return
+        try:
+            workspace_state = self._presenter.build_task_collaboration_state(task_id=normalized)
+            self._set_collaboration_presence(
+                serialize_collaboration_collection_view_model(
+                    workspace_state.collaboration_presence
+                )
+            )
+        except Exception:
+            logger.warning(
+                "Task presence refresh failed task_id=%s",
+                normalized,
+                exc_info=True,
+            )
+
     def _ensure_runtime_heartbeat_connection(self) -> None:
         if self._runtime_heartbeat_connected:
             return
