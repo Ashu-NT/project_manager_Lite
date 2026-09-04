@@ -11,11 +11,7 @@ class PortfolioTemplateQueryMixin:
 
     def get_active_scoring_template(self) -> PortfolioScoringTemplate:
         require_permission(self._user_session, "portfolio.read", operation_label="view active scoring template")
-        templates = self._scoring_templates_with_bootstrap()
-        for template in templates:
-            if template.is_active:
-                return template
-        return templates[0]
+        return self._active_scoring_template_resolved()
 
 
 __all__ = ["PortfolioTemplateQueryMixin"]

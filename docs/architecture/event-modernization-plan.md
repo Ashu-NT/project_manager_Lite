@@ -3122,6 +3122,75 @@ green.
 **Legacy Signal count: unchanged at 4.** `portfolio_changed` remains deleted; no field-level
 change in this phase. **Project remains next, unchanged.**
 
+**P42-FIX2 — Concurrent first-bootstrap race closed with a real database constraint, not just
+characterized.** P42-FIX had proven the race (two concurrent sessions, two active default rows,
+no DB constraint preventing it) and left it as recorded debt. P42-FIX2 first proved "at most one
+active `PortfolioScoringTemplate` per organization" is a genuine domain invariant, not a
+convenience assumption: `_deactivate_other_templates`'s "deactivate every currently-active row"
+loop only makes sense defending against duplicates; `get_active_scoring_template()`'s singular
+return type assumes exactly one; and — the deepest evidence — `create_intake_item`/
+`update_intake_item` derive an intake item's scoring WEIGHTS deterministically from "the" active
+template, so two simultaneously-active rows would make a core prioritization calculation silently
+arbitrary, not merely cosmetic.
+
+**Enforcement: a real partial unique index, both dialects, both layers.** Added
+`uq_portfolio_scoring_one_active_per_org` — `UNIQUE(organization_id) WHERE is_active` — to both
+`PortfolioScoringTemplateORM` (`postgresql_where=`/`sqlite_where=`, mirroring the Budget module's
+own proven `uq_pf_budgets_one_approved_per_project` shape) and a new Alembic migration
+(`d8e1f4a7b2c3`, chained after `c3f6a1b8d9e0`). One deliberate deviation from the Budget
+precedent: scoped by `organization_id` alone, not `tenant_id + organization_id` — `tenant_id` is
+nullable on this table, and a composite unique index over a nullable column would not enforce
+uniqueness across NULL-tenant rows (SQL's `NULL <> NULL`). The migration also deterministically
+normalizes any pre-existing duplicate-active rows before creating the index (a raw-SQL
+window-function update, keep the most-recently-updated active row per organization, tie-broken by
+id — the same ordering the application's own reads already implicitly favor), so it cannot fail
+outright on data that predates the invariant; proved by a dedicated migration test that seeds two
+dirty active rows and asserts exactly the newer one survives.
+
+**Idempotent bootstrap made concurrency-safe: the loser gets zero durable side effects, not a
+crash.** `_scoring_templates_with_bootstrap()` now wraps its bootstrap `UnitOfWork` block in
+`try/except IntegrityError`: on a lost race, the UoW's own `__exit__` has already rolled back and
+closed the poisoned transaction, and the except branch performs one more plain read on the
+existing (un-poisoned) repository, returning the winner's canonical, already-committed state —
+zero new rows, zero audit, zero events, zero ViewInvalidation for the loser. Proved with a real
+two-independent-`PortfolioUnitOfWork` test (both stage their own default before either commits;
+the second commit raises `IntegrityError` for real, not simulated) and a second, deterministic
+test that forces the exact catch-and-recover path via monkeypatched commit failure.
+
+**Explicit commands map the same conflict to `ConcurrencyError`, never silently retry.**
+`activate_scoring_template`, `create_scoring_template` (its `activate=True` path can also set
+`is_active=True` directly), and `create_intake_item` (which resolves and can implicitly bootstrap
+the active template inside its own transaction) each wrap their commit in
+`try/except IntegrityError as exc: raise ConcurrencyError(..., code="PORTFOLIO_TEMPLATE_
+ACTIVATION_CONFLICT") from exc` — the project's own established concurrency-exception convention,
+not a raw SQLAlchemy leak, and not a retry loop. `create_scoring_template`'s duplicate-name check
+was also simplified from a bootstrap-triggering `_ensure_scoring_templates(...)` call to a plain
+`uow.scoring_templates.list()`, removing an unnecessary collision surface on a fresh organization.
+`_resolve_scoring_template`/`_active_scoring_template` (in-transaction, bootstrap-capable) are
+retained for `create_intake_item`'s use; a separate `_active_scoring_template_resolved()` (built
+on the catch-and-recover `_scoring_templates_with_bootstrap()`) now backs the pure-read
+`get_active_scoring_template()` query path — two call shapes for two different safety contracts,
+not one over-generalized helper.
+
+**Cross-organization independence preserved.** The constraint is scoped by `organization_id`, not
+global — two different organizations can each have their own active default template
+simultaneously, proved directly against two real organizations via `organization_service.
+create_organization`/`enable_organization`, not a fake harness.
+
+**Regression**: new/updated tests in `test_p42_fix_portfolio_scoring_template_bootstrap.py` (12 —
+the P42-FIX "recorded debt" characterization test rewritten as an "invariant enforced" proof;
+added: idempotent-bootstrap recovery, explicit `activate`/`create(activate=True)` conflict
+mapping, cross-org independence, a raw-insert-bypassing-application-code architecture guarantee)
+and new `test_p42_fix2_portfolio_scoring_template_migration.py` (2 — fresh-baseline index
+presence/uniqueness/downgrade, dirty-data deterministic normalization), full Portfolio regression
+suite (82 across this run, including `test_portfolio_phase0a2_rollback_hardening.py` and
+`test_pm_r3_4_portfolio_ia_tabs.py`) plus Register/Timesheet/P7/P8/architecture-guard regressions
+(63) reconfirmed green.
+
+**Legacy Signal count: unchanged at 4.** No field-level change in this phase — this closes
+concurrency debt recorded by P42-FIX, it does not touch the event/legacy-signal ledger. **Project
+remains next, unchanged.**
+
 ## 4. Current State
 
 **Legacy Signal count: 4 as of P42** (source-derived from

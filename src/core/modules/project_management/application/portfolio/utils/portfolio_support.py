@@ -3,8 +3,10 @@ from __future__ import annotations
 from dataclasses import replace
 from decimal import Decimal
 
+from sqlalchemy.exc import IntegrityError
+
 from src.core.modules.project_management.access.scope_permissions import filter_project_rows
-from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioScenarioComparison,
@@ -217,6 +219,28 @@ class PortfolioSupportMixin:
         )
         return [default_template]
 
+    def _scoring_templates_with_bootstrap(self) -> list[PortfolioScoringTemplate]:
+        templates = self._scoring_template_repo.list()
+        if templates and any(template.is_active for template in templates):
+            return templates
+        try:
+            with self._require_uow_factory().create(context=self._new_context()) as uow:
+                events: list = []
+                templates = self._ensure_scoring_templates(uow=uow, events=events)
+                for event in events:
+                    uow.record_event(event)
+                uow.commit()
+        except IntegrityError:
+            templates = self._scoring_template_repo.list()
+        return templates
+
+    def _active_scoring_template_resolved(self) -> PortfolioScoringTemplate:
+        templates = self._scoring_templates_with_bootstrap()
+        for template in templates:
+            if template.is_active:
+                return template
+        return templates[0]
+
     def _active_scoring_template(self, *, uow, events: list) -> PortfolioScoringTemplate:
         templates = self._ensure_scoring_templates(uow=uow, events=events)
         for template in templates:
@@ -224,27 +248,14 @@ class PortfolioSupportMixin:
                 return template
         return templates[0]
 
-    def _scoring_templates_with_bootstrap(self) -> list[PortfolioScoringTemplate]:
-        templates = self._scoring_template_repo.list()
-        if templates and any(template.is_active for template in templates):
-            return templates
-        with self._require_uow_factory().create(context=self._new_context()) as uow:
-            events: list = []
-            templates = self._ensure_scoring_templates(uow=uow, events=events)
-            for event in events:
-                uow.record_event(event)
-            uow.commit()
-        return templates
-
     def _resolve_scoring_template(
-        self, template_id: str | None, *, uow, events: list
+        self, scoring_template_id: str | None, *, uow, events: list
     ) -> PortfolioScoringTemplate:
-        normalized_id = str(template_id or "").strip()
+        normalized_id = str(scoring_template_id or "").strip()
         if normalized_id:
             self._active_portfolio_organization_id(operation_label="view scoring template")
             template = uow.scoring_templates.get(normalized_id)
             if template is None:
-                from src.core.platform.common.exceptions import NotFoundError
                 raise NotFoundError(
                     "Portfolio scoring template not found.",
                     code="PORTFOLIO_TEMPLATE_NOT_FOUND",

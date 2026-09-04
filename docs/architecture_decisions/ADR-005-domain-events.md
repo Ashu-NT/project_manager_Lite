@@ -3759,6 +3759,29 @@ break id-stability) — proved safe (once-per-organization, atomic, fully audite
 than eliminated. A related concurrent-first-bootstrap duplicate-default race was found (no DB
 uniqueness constraint on scoring templates) and recorded as pre-existing debt, not fixed.
 
+**P42-FIX2 correction: the recorded concurrent-bootstrap race is now closed at the database, not
+merely characterized.** "At most one active `PortfolioScoringTemplate` per organization" was
+confirmed as a genuine domain invariant (not convenience) — `create_intake_item`/
+`update_intake_item` derive an intake item's scoring weights deterministically from "the" active
+template, so two simultaneously-active rows would make a core prioritization calculation silently
+arbitrary. Enforced with a real partial unique index, `uq_portfolio_scoring_one_active_per_org`
+(`UNIQUE(organization_id) WHERE is_active`, both `postgresql_where=`/`sqlite_where=` on the ORM
+and a matching Alembic migration `d8e1f4a7b2c3`), scoped by `organization_id` alone rather than
+`tenant_id + organization_id` like the Budget precedent it otherwise mirrors — `tenant_id` is
+nullable here, and a composite unique index over a nullable column would not enforce uniqueness
+across NULL-tenant rows. The migration deterministically normalizes any pre-existing
+duplicate-active rows first (keep the most-recently-updated one per organization). The idempotent
+lazy-bootstrap path now catches the resulting `IntegrityError` on a lost race, relies on the
+UoW's own rollback-and-close, and returns the winner's canonical state via a fresh read — zero
+durable side effects for the loser, proved with a real two-independent-UoW concurrency test, not
+a simulation. Explicit commands (`activate_scoring_template`, `create_scoring_template(activate=
+True)`, `create_intake_item`) instead map the same `IntegrityError` to `ConcurrencyError` — the
+project's existing concurrency-exception convention (the same `ConcurrencyError`/`STALE_WRITE`
+class already used for optimistic-locking conflicts elsewhere in Project Management) — rather
+than silently retrying, matching the general principle that idempotent reads may recover
+transparently while explicit user commands must surface a genuine conflict rather than mask it.
+No event vocabulary, `PortfolioUnitOfWork` shape, or ViewInvalidation target changed.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant
