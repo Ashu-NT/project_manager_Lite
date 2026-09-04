@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from decimal import Decimal
 from types import SimpleNamespace
 
 from src.core.modules.project_management.application.common import (
     project_resource_envelope_policy as envelope_policy,
+)
+from src.core.modules.project_management.application.resources.project_resource_events import (
+    ProjectResourceAssignmentChanged,
 )
 from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
@@ -20,10 +24,10 @@ from src.core.modules.project_management.access.scope_permissions import require
 from src.core.shared.activity import record_activity
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.application.common.currency_policy import (
     resolve_pm_currency,
 )
+from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
 
 # Fields diffed for the project_resource.update/set_active activity entries,
 # in the order shown to the user.
@@ -63,6 +67,33 @@ class ProjectResourceCommandMixin:
     # necessarily deals with task assignments.
     _task_repo: TaskRepository | None = None
     _assignment_repo: AssignmentRepository | None = None
+
+    def _new_context(self):
+        from src.core.platform.common.ids import generate_id
+        from src.core.shared.events.domain_event_context import DomainEventContext
+
+        return DomainEventContext(correlation_id=generate_id())
+
+    def _project_resource_uow(self):
+        return SqlAlchemyUnitOfWorkBase(
+            session=self._session,
+            transactional_dispatcher=self._transactional_dispatcher,
+            post_commit_bus=self._post_commit_bus,
+            context=self._new_context(),
+        )
+
+    def _record_assignment_changed(self, uow, project_id: str) -> None:
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="record project resource assignment change"
+        )
+        uow.record_event(
+            ProjectResourceAssignmentChanged(
+                tenant_id=scope.tenant_id,
+                organization_id=scope.organization_id,
+                project_id=project_id,
+                occurred_at=datetime.now(timezone.utc),
+            )
+        )
 
     def _financial_currency_code(self, project_id: str) -> str | None:
         profile_repo = getattr(self, "_financial_profile_repo", None)
@@ -142,9 +173,8 @@ class ProjectResourceCommandMixin:
             is_active=is_active,
         )
 
-        try:
+        with self._project_resource_uow() as uow:
             self._project_resource_repo.add(project_resource)
-            self._session.commit()
             record_activity(
                 self,
                 action="project_resource.add",
@@ -165,11 +195,9 @@ class ProjectResourceCommandMixin:
                     "is_active": project_resource.is_active,
                 },
             )
-        except Exception:
-            self._session.rollback()
-            raise
+            self._record_assignment_changed(uow, project_id)
+            uow.commit()
 
-        domain_events.project_changed.emit(project_id)
         return project_resource
 
     def update(
@@ -228,14 +256,13 @@ class ProjectResourceCommandMixin:
         resource = self._resource_repo.get(project_resource.resource_id)
         resource_name = resource.name if resource is not None else project_resource.resource_id
 
-        try:
+        with self._project_resource_uow() as uow:
             if expected_version is not None:
                 self._project_resource_repo.update_with_version_check(
                     project_resource, expected_version=expected_version
                 )
             else:
                 self._project_resource_repo.update(project_resource)
-            self._session.commit()
             record_activity(
                 self,
                 action="project_resource.update",
@@ -253,11 +280,8 @@ class ProjectResourceCommandMixin:
                     "changes": _diff_project_resource_fields(before, project_resource),
                 },
             )
-        except Exception:
-            self._session.rollback()
-            raise
-
-        domain_events.project_changed.emit(project_resource.project_id)
+            self._record_assignment_changed(uow, project_resource.project_id)
+            uow.commit()
 
     def set_active(self, pr_id: str, is_active: bool) -> None:
         require_permission(
@@ -277,9 +301,8 @@ class ProjectResourceCommandMixin:
 
         before = SimpleNamespace(is_active=project_resource.is_active)
         project_resource.is_active = is_active
-        try:
+        with self._project_resource_uow() as uow:
             self._project_resource_repo.update(project_resource)
-            self._session.commit()
             resource = self._resource_repo.get(project_resource.resource_id)
             resource_name = resource.name if resource is not None else project_resource.resource_id
             record_activity(
@@ -304,10 +327,8 @@ class ProjectResourceCommandMixin:
                     ),
                 },
             )
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.project_changed.emit(project_resource.project_id)
+            self._record_assignment_changed(uow, project_resource.project_id)
+            uow.commit()
 
     def delete(self, pr_id: str) -> None:
         require_permission(
@@ -347,9 +368,8 @@ class ProjectResourceCommandMixin:
                 )
         resource = self._resource_repo.get(project_resource.resource_id)
         resource_name = resource.name if resource is not None else project_resource.resource_id
-        try:
+        with self._project_resource_uow() as uow:
             self._project_resource_repo.delete(pr_id)
-            self._session.commit()
             record_activity(
                 self,
                 action="project_resource.delete",
@@ -366,10 +386,8 @@ class ProjectResourceCommandMixin:
                     "resource_name": resource_name,
                 },
             )
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.project_changed.emit(project_resource.project_id)
+            self._record_assignment_changed(uow, project_resource.project_id)
+            uow.commit()
 
 
 __all__ = ["ProjectResourceCommandMixin"]

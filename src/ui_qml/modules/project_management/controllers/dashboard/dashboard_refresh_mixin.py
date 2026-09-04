@@ -179,7 +179,6 @@ class DashboardRefreshMixin:
             self._request_domain_refresh()
 
         for signal in (
-            domain_events.project_changed,
             domain_events.tasks_changed,
             domain_events.collaboration_changed,
         ):

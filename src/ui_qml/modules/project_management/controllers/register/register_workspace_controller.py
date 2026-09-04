@@ -25,7 +25,6 @@ from .register_state import (
 )
 from .register_table_models import RegisterTableModels, create_register_table_models
 from .register_state_setters import RegisterStateSettersMixin
-from .register_domain_event_binder import bind_register_domain_events
 from .register_selection_handler import (
     select_entry,
     select_project,
@@ -118,7 +117,6 @@ class ProjectManagementRegisterWorkspaceController(
         self._entry_sort_direction = 0
         self._selected_entry_ids: list[str] = []
 
-        bind_register_domain_events(self)
         self.refresh()
 
     # ── Properties ───────────────────────────────────────────────────────

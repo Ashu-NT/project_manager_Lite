@@ -34,6 +34,21 @@ from src.core.modules.project_management.application.risk.register_events import
 from src.core.modules.project_management.infrastructure.persistence.uow.register.register_unit_of_work import (
     SqlAlchemyRegisterUnitOfWorkFactory,
 )
+from src.core.modules.project_management.application.projects.event_handlers.view_invalidation import (
+    build_project_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.projects.project_events import (
+    ProjectCreated,
+    ProjectProfileUpdated,
+    ProjectRemoved,
+    ProjectStatusChanged,
+)
+from src.core.modules.project_management.application.resources.project_resource_events import (
+    ProjectResourceAssignmentChanged,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.projects.project_unit_of_work import (
+    SqlAlchemyProjectUnitOfWorkFactory,
+)
 from src.core.modules.project_management.application.portfolio.event_handlers.view_invalidation import (
     build_portfolio_view_invalidation_handler,
 )
@@ -122,6 +137,7 @@ from src.core.modules.project_management.application.financials.configuration_ev
     CostCodeProfileUpdated,
     ProjectCostCodeRestrictionAdded,
     ProjectCostCodeRestrictionRemoved,
+    ProjectFinancialProfileCreated,
     ProjectFinancialProfileTransitioned,
     ProjectFinancialProfileUpdated,
 )
@@ -400,6 +416,27 @@ def build_project_management_service_bundle(
     logger.debug("Project Management core services build begin")
     # GlobalCalendarShim is the enterprise-backed calendar. Used everywhere WorkCalendarEngine was.
     work_calendar_engine = platform_services.global_calendar_shim
+    project_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
+    project_uow_factory = SqlAlchemyProjectUnitOfWorkFactory(
+        session_factory=project_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
+    _project_view_invalidation_handler = build_project_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _project_event_type in (
+        ProjectCreated,
+        ProjectProfileUpdated,
+        ProjectStatusChanged,
+        ProjectRemoved,
+        ProjectResourceAssignmentChanged,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _project_event_type, _project_view_invalidation_handler
+        )
     project_service = ProjectService(
         session,
         repositories.project_repo,
@@ -407,13 +444,15 @@ def build_project_management_service_bundle(
         repositories.dependency_repo,
         repositories.assignment_repo,
         repositories.time_entry_repo,
-        repositories.project_financial_profile_repo,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         project_catalog_reader=SqlAlchemyProjectCatalogReader(session=session),
+        uow_factory=project_uow_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
     )
 
     def _time_scope_organization_id(scope_type: str, scope_id: str) -> str | None:
@@ -467,6 +506,8 @@ def build_project_management_service_bundle(
         task_repo=repositories.task_repo,
         assignment_repo=repositories.assignment_repo,
         financial_profile_repo=repositories.project_financial_profile_repo,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
     )
     register_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
     register_uow_factory = SqlAlchemyRegisterUnitOfWorkFactory(
@@ -840,6 +881,7 @@ def build_project_management_service_bundle(
         platform_services.platform_view_invalidation_channel
     )
     for _financial_profile_event_type in (
+        ProjectFinancialProfileCreated,
         ProjectFinancialProfileUpdated,
         ProjectFinancialProfileTransitioned,
         CostCodeCreated,

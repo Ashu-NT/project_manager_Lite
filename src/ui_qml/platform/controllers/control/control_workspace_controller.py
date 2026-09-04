@@ -206,7 +206,6 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
     def _bind_domain_events(self) -> None:
 
         for signal in (
-            domain_events.project_changed,
             domain_events.tasks_changed,
         ):
             self._subscribe_domain_signal(signal, self._on_domain_event)

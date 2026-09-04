@@ -12,37 +12,61 @@ def _login_as(services, username: str, password: str) -> None:
     user_session.set_principal(auth.build_principal(user))
 
 
-def test_project_create_emits_project_changed(services):
+def test_project_create_emits_typed_domain_event_and_view_invalidation(services):
+    """P43: `project_changed` is deleted -- `create_project` now records a typed `ProjectCreated`
+    DomainEvent, delivered as a `project_list` ViewInvalidation hint."""
+    from src.core.modules.project_management.application.projects.event_handlers.view_invalidation import (
+        PROJECT_CATEGORY,
+        PROJECT_LIST_SCOPE_CODE,
+    )
+
     ps = services["project_service"]
-    seen: list[str] = []
 
-    def _on_project_changed(project_id: str) -> None:
-        seen.append(project_id)
+    class _AnyOrgFilter:
+        def matches(self, scope) -> bool:
+            return True
 
-    domain_events.project_changed.connect(_on_project_changed)
-    try:
-        project = ps.create_project("Event Project", "")
-    finally:
-        domain_events.project_changed.disconnect(_on_project_changed)
+    hints: list = []
+    services["platform_view_invalidation_channel"].subscribe(
+        _AnyOrgFilter(), lambda hint: hints.append(hint)
+    )
 
-    assert project.id in seen
+    project = ps.create_project("Event Project", "")
+
+    project_hints = [h for h in hints if h.category == PROJECT_CATEGORY]
+    assert len(project_hints) == 1
+    assert project_hints[0].scope_code == PROJECT_LIST_SCOPE_CODE
+    assert project_hints[0].entity_id == project.id
 
 
-def test_project_update_emits_project_changed(services):
+def test_project_update_emits_typed_domain_event_and_view_invalidation(services):
+    """P43: `project_changed` is deleted -- `update_project` now records a typed
+    `ProjectProfileUpdated` DomainEvent, delivered as both `project_list` and `project_detail`
+    ViewInvalidation hints."""
+    from src.core.modules.project_management.application.projects.event_handlers.view_invalidation import (
+        PROJECT_CATEGORY,
+        PROJECT_DETAIL_SCOPE_CODE,
+        PROJECT_LIST_SCOPE_CODE,
+    )
+
     ps = services["project_service"]
     project = ps.create_project("Event Update Project", "")
-    seen: list[str] = []
 
-    def _on_project_changed(project_id: str) -> None:
-        seen.append(project_id)
+    class _AnyOrgFilter:
+        def matches(self, scope) -> bool:
+            return True
 
-    domain_events.project_changed.connect(_on_project_changed)
-    try:
-        ps.update_project(project.id, name="Event Update Project V2")
-    finally:
-        domain_events.project_changed.disconnect(_on_project_changed)
+    hints: list = []
+    services["platform_view_invalidation_channel"].subscribe(
+        _AnyOrgFilter(), lambda hint: hints.append(hint)
+    )
 
-    assert seen == [project.id]
+    ps.update_project(project.id, name="Event Update Project V2")
+
+    project_hints = [h for h in hints if h.category == PROJECT_CATEGORY]
+    scope_codes = {h.scope_code for h in project_hints}
+    assert scope_codes == {PROJECT_LIST_SCOPE_CODE, PROJECT_DETAIL_SCOPE_CODE}
+    assert all(h.entity_id == project.id for h in project_hints)
 
 
 def test_task_create_dependency_assignment_emit_tasks_changed(services):

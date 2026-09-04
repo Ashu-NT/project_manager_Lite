@@ -30,7 +30,7 @@ from .project_state import (
 )
 from .project_table_models import ProjectTableModels, create_project_table_models
 from .project_state_setters import ProjectStateSettersMixin
-from .project_domain_event_binder import bind_project_domain_events, on_budget_project_summary_stale
+from .project_domain_event_binder import on_budget_project_summary_stale
 from .project_selection_handler import (
     activate_project,
     clear_filters,
@@ -194,7 +194,6 @@ class ProjectManagementProjectsWorkspaceController(
         self._assignable_resource_options: list[dict[str, str]] = []
         self._selected_project_resource_id = ""
 
-        bind_project_domain_events(self)
         self.refresh()
 
     # ── Properties ───────────────────────────────────────────────────────

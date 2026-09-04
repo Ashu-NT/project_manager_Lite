@@ -17,9 +17,6 @@ from src.ui_qml.modules.project_management.controllers.projects.project_state_se
 from src.ui_qml.modules.project_management.controllers.projects.project_serializers import (
     serialize_project_section,
 )
-from src.ui_qml.modules.project_management.controllers.projects.project_domain_event_binder import (
-    bind_project_domain_events,
-)
 from src.ui_qml.modules.project_management.controllers.projects.project_selection_handler import (
     activate_project,
     reset_project_lazy_sections,
@@ -68,7 +65,6 @@ __all__ = [
     "activate_project",
     "apply_bulk_status",
     "assign_project_resource",
-    "bind_project_domain_events",
     "bulk_delete_projects",
     "cancel_import",
     "clear_project_bulk_selection",

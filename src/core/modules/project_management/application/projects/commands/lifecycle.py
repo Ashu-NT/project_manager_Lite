@@ -9,13 +9,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
-    ProjectFinancialProfileRepository,
-)
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,
+)
+from src.core.modules.project_management.contracts.uow.projects.project_unit_of_work import (
+    ProjectUnitOfWorkFactory,
 )
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.tasks.hierarchy import (
@@ -28,15 +28,24 @@ from src.core.modules.project_management.domain.financials.configuration import 
 from src.core.modules.project_management.application.common.currency_policy import (
     resolve_pm_currency,
 )
+from src.core.modules.project_management.application.financials.configuration_events import (
+    ProjectFinancialProfileCreated,
+)
+from src.core.modules.project_management.application.projects.project_events import (
+    ProjectCreated,
+    ProjectProfileUpdated,
+    ProjectRemoved,
+    ProjectStatusChanged,
+)
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository
-from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
 
 logger = logging.getLogger(__name__)
 
@@ -96,8 +105,8 @@ class ProjectLifecycleMixin:
     _dependency_repo: DependencyRepository
     _assignment_repo: AssignmentRepository
     _time_entry_repo: TimeEntryRepository | None
-    _financial_profile_repo: ProjectFinancialProfileRepository
-    _user_session:UserSessionContext
+    _user_session: UserSessionContext
+    _uow_factory: ProjectUnitOfWorkFactory | None
 
     def _validate_project_name(
         self,
@@ -105,11 +114,13 @@ class ProjectLifecycleMixin:
         *,
         organization_id: str,
         exclude_id: str | None = None,
+        project_repo: ProjectRepository | None = None,
     ) -> None:
         normalized_name = name.strip().lower()
         if not normalized_name:
             return
-        for project in self._project_repo.list():
+        repo = project_repo if project_repo is not None else self._project_repo
+        for project in repo.list():
             if exclude_id is not None and project.id == exclude_id:
                 continue
             if project.name.strip().lower() == normalized_name:
@@ -125,6 +136,7 @@ class ProjectLifecycleMixin:
         *,
         exclude_id: str | None = None,
         organization_id: str | None = None,
+        project_repo: ProjectRepository | None = None,
     ) -> str:
         """Normalize a manual code or auto-generate a unique code."""
         from src.core.platform.common.code_generation import (
@@ -133,7 +145,8 @@ class ProjectLifecycleMixin:
             normalize_manual_code,
         )
 
-        project_rows = self._project_repo.list()
+        repo = project_repo if project_repo is not None else self._project_repo
+        project_rows = repo.list()
         existing = {
             str(getattr(project, "code", "") or "").upper()
             for project in project_rows
@@ -173,6 +186,11 @@ class ProjectLifecycleMixin:
             f"Project code '{code}' already exists.",
             code="CODE_DUPLICATE",
         ) from exc
+
+    def _require_project_uow_factory(self) -> ProjectUnitOfWorkFactory:
+        if self._uow_factory is None:
+            raise RuntimeError("Project unit of work is not configured.")
+        return self._uow_factory
 
     def create_project(
         self,
@@ -215,73 +233,123 @@ class ProjectLifecycleMixin:
             client_party_id=client_party_id,
             manager_user_id=manager_user_id,
         )
-        self._validate_project_name(project.name, organization_id=resolved_organization_id)
-        project.code = self._resolve_project_code(
-            code,
-            project.name,
-            organization_id=resolved_organization_id,
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="create project"
         )
 
         try:
-            self._project_repo.add(project)
-            self._session.flush()
-            context = self._tenant_context_service.require_organization_context(
-                operation_label="create project financial profile"
-            )
-            profile = ProjectFinancialProfile.create(
-                tenant_id=context.tenant_id,
-                organization_id=context.organization_id,
-                project_id=project.id,
-                currency_code=resolved_currency,
-                financial_start_date=project.start_date,
-                financial_end_date=project.end_date,
-            )
-            self._financial_profile_repo.add(profile)
-            self._record_financial_profile_audit("create", profile)
-            self._session.commit()
-            record_activity(
-                self,
-                action="project.create",
-                entity_type="project",
-                entity_id=project.id,
-                module="project_management",
-                workspace_id=project.id,
-                message=f"Created project {project.name}",
-                details={"name": project.name},
-            )
-            logger.info("Created project %s - %s", project.id, project.name)
-            domain_events.project_changed.emit(project.id)
-            return project
+            with self._require_project_uow_factory().create(context=self._new_context()) as uow:
+                self._validate_project_name(
+                    project.name, organization_id=resolved_organization_id, project_repo=uow.projects
+                )
+                project.code = self._resolve_project_code(
+                    code,
+                    project.name,
+                    organization_id=resolved_organization_id,
+                    project_repo=uow.projects,
+                )
+                uow.projects.add(project)
+                profile = ProjectFinancialProfile.create(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    project_id=project.id,
+                    currency_code=resolved_currency,
+                    financial_start_date=project.start_date,
+                    financial_end_date=project.end_date,
+                )
+                uow.financial_profiles.add(profile)
+                self._record_financial_profile_audit(uow, "create", profile)
+                uow.record_event(
+                    ProjectFinancialProfileCreated(
+                        tenant_id=scope.tenant_id,
+                        organization_id=scope.organization_id,
+                        project_id=project.id,
+                        occurred_at=datetime.now(timezone.utc),
+                    )
+                )
+                record_audit_entry(
+                    uow,
+                    operation="create",
+                    entity_type="project",
+                    entity_id=project.id,
+                    module="project_management",
+                    organization_id=scope.organization_id,
+                    severity="low",
+                    metadata={"action": "project.create", "name": project.name},
+                    commit=False,
+                    fail_closed=True,
+                )
+                record_activity(
+                    uow,
+                    action="project.create",
+                    entity_type="project",
+                    entity_id=project.id,
+                    module="project_management",
+                    workspace_id=project.id,
+                    message=f"Created project {project.name}",
+                    details={"name": project.name},
+                )
+                uow.record_event(
+                    ProjectCreated(
+                        tenant_id=scope.tenant_id,
+                        organization_id=scope.organization_id,
+                        project_id=project.id,
+                        occurred_at=datetime.now(timezone.utc),
+                    )
+                )
+                uow.commit()
         except IntegrityError as exc:
-            self._session.rollback()
             if self._is_project_code_integrity_error(exc):
                 self._raise_project_code_duplicate(project.code, exc)
             logger.error("Error creating project: %s", exc)
             raise
-        except Exception as exc:
-            self._session.rollback()
-            logger.error("Error creating project: %s", exc)
-            raise
+        logger.info("Created project %s - %s", project.id, project.name)
+        return project
 
-    def set_status(self, project_id: str, status: ProjectStatus) -> None:
+    def set_status(
+        self, project_id: str, status: ProjectStatus, *, expected_version: int | None = None
+    ) -> Project:
         require_permission(self._user_session, "project.manage", operation_label="set project status")
         project = self._project_repo.get(project_id)
         if not project:
-            raise NotFoundError("Project not found")
+            raise NotFoundError("Project not found", code="PROJECT_NOT_FOUND")
         require_project_permission(
             self._user_session,
             project.id,
             "project.manage",
             operation_label="set project status",
         )
+        if expected_version is not None and project.version != expected_version:
+            raise ConcurrencyError(
+                "Project changed since you opened it. Refresh and try again.",
+                code="STALE_WRITE",
+            )
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="set project status"
+        )
 
         old_status = project.status
         project.status = status
-        try:
-            self._project_repo.update(project)
-            self._session.commit()
+        with self._require_project_uow_factory().create(context=self._new_context()) as uow:
+            uow.projects.update(project)
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="project",
+                entity_id=project.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={
+                    "action": "project.set_status",
+                    "status": project.status.value,
+                    "from": old_status.value,
+                },
+                commit=False,
+                fail_closed=True,
+            )
             record_activity(
-                self,
+                uow,
                 action="project.set_status",
                 entity_type="project",
                 entity_id=project.id,
@@ -302,9 +370,17 @@ class ProjectLifecycleMixin:
                     },
                 },
             )
-        except Exception:
-            self._session.rollback()
-            raise
+            uow.record_event(
+                ProjectStatusChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    project_id=project.id,
+                    status=project.status,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
+        return project
 
     def update_dates_from_tasks(self, project_id: str) -> None:
         project = self._project_repo.get(project_id)
@@ -388,46 +464,76 @@ class ProjectLifecycleMixin:
                 organization_id=getattr(candidate, "organization_id", None),
                 exclude_id=project.id,
             )
-        if code is not None and code.strip():
-            candidate.code = self._resolve_project_code(
-                code,
-                candidate.name,
-                exclude_id=project.id,
-                organization_id=getattr(candidate, "organization_id", None),
-            )
-        project = candidate
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="update project"
+        )
 
         try:
-            self._project_repo.update(project)
-            self._session.commit()
-            record_activity(
-                self,
-                action="project.update",
-                entity_type="project",
-                entity_id=project.id,
-                module="project_management",
-                workspace_id=project.id,
-                message=f"Updated project {project.name}",
-                details={
-                    "name": project.name,
-                    "status": project.status.value,
-                    "changes": _diff_project_fields(original_project, project),
-                },
-            )
+            with self._require_project_uow_factory().create(context=self._new_context()) as uow:
+                if code is not None and code.strip():
+                    candidate.code = self._resolve_project_code(
+                        code,
+                        candidate.name,
+                        exclude_id=project.id,
+                        organization_id=getattr(candidate, "organization_id", None),
+                        project_repo=uow.projects,
+                    )
+                uow.projects.update(candidate)
+                record_audit_entry(
+                    uow,
+                    operation="update",
+                    entity_type="project",
+                    entity_id=candidate.id,
+                    module="project_management",
+                    organization_id=scope.organization_id,
+                    severity="low",
+                    metadata={"action": "project.update", "name": candidate.name},
+                    commit=False,
+                    fail_closed=True,
+                )
+                record_activity(
+                    uow,
+                    action="project.update",
+                    entity_type="project",
+                    entity_id=candidate.id,
+                    module="project_management",
+                    workspace_id=candidate.id,
+                    message=f"Updated project {candidate.name}",
+                    details={
+                        "name": candidate.name,
+                        "status": candidate.status.value,
+                        "changes": _diff_project_fields(original_project, candidate),
+                    },
+                )
+                uow.record_event(
+                    ProjectProfileUpdated(
+                        tenant_id=scope.tenant_id,
+                        organization_id=scope.organization_id,
+                        project_id=candidate.id,
+                        occurred_at=datetime.now(timezone.utc),
+                    )
+                )
+                if candidate.status != original_project.status:
+                    uow.record_event(
+                        ProjectStatusChanged(
+                            tenant_id=scope.tenant_id,
+                            organization_id=scope.organization_id,
+                            project_id=candidate.id,
+                            status=candidate.status,
+                            occurred_at=datetime.now(timezone.utc),
+                        )
+                    )
+                uow.commit()
         except IntegrityError as exc:
-            self._session.rollback()
             if self._is_project_code_integrity_error(exc):
-                self._raise_project_code_duplicate(project.code, exc)
-            raise
-        except Exception:
-            self._session.rollback()
+                self._raise_project_code_duplicate(candidate.code, exc)
             raise
 
-        domain_events.project_changed.emit(project_id)
-        return project
+        return candidate
 
     def _record_financial_profile_audit(
         self,
+        owner: object,
         operation: str,
         profile: ProjectFinancialProfile,
         *,
@@ -449,7 +555,7 @@ class ProjectLifecycleMixin:
             )
 
         record_audit_entry(
-            self,
+            owner,
             operation=f"financial_profile.{operation}",
             entity_type="project_financial_profile",
             entity_id=profile.id,
@@ -477,8 +583,16 @@ class ProjectLifecycleMixin:
             "project.manage",
             operation_label="delete project",
         )
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="delete project"
+        )
 
-        try:
+        with SqlAlchemyUnitOfWorkBase(
+            session=self._session,
+            transactional_dispatcher=self._transactional_dispatcher,
+            post_commit_bus=self._post_commit_bus,
+            context=self._new_context(),
+        ) as uow:
             tasks = order_tasks_children_first(self._task_repo.list_by_project(project_id))
             for task in tasks:
                 self._dependency_repo.delete_for_task(task.id)
@@ -491,7 +605,18 @@ class ProjectLifecycleMixin:
                 self._task_repo.delete(task.id)
 
             self._project_repo.delete(project_id)
-            self._session.commit()
+            record_audit_entry(
+                self,
+                operation="delete",
+                entity_type="project",
+                entity_id=project.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={"action": "project.delete", "name": project.name},
+                commit=False,
+                fail_closed=True,
+            )
             record_activity(
                 self,
                 action="project.delete",
@@ -502,11 +627,15 @@ class ProjectLifecycleMixin:
                 message=f"Deleted project {project.name}",
                 details={"name": project.name},
             )
-        except Exception:
-            self._session.rollback()
-            raise
-
-        domain_events.project_changed.emit(project_id)
+            uow.record_event(
+                ProjectRemoved(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    project_id=project.id,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
 
     def _active_project_organization_id(self, *, operation_label: str) -> str | None:
         tenant_context = getattr(self, "_tenant_context_service", None)

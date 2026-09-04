@@ -14,9 +14,6 @@ from src.ui_qml.modules.project_management.controllers.register.register_table_m
 from src.ui_qml.modules.project_management.controllers.register.register_state_setters import (
     RegisterStateSettersMixin,
 )
-from src.ui_qml.modules.project_management.controllers.register.register_domain_event_binder import (
-    bind_register_domain_events,
-)
 from src.ui_qml.modules.project_management.controllers.register.register_selection_handler import (
     select_entry,
     select_project,
@@ -46,7 +43,6 @@ __all__ = [
     "RegisterStateSettersMixin",
     "RegisterTableModels",
     "apply_bulk_entry_status",
-    "bind_register_domain_events",
     "bulk_delete_entries",
     "clear_entry_bulk_selection",
     "create_entry",

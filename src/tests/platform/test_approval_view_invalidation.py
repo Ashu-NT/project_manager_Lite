@@ -330,9 +330,10 @@ def test_reject_refreshes_control_workspace_exactly_once(services, session):
 
 def test_refresh_approvals_does_not_touch_the_unrelated_audit_feed(services, session):
     """§14/§18: the narrow Control reaction must not force the genuinely unrelated audit-feed
-    read model to re-fetch. Uses a standalone `request_change` (no project creation) so the
-    pre-existing, unrelated `project_changed` subscription (out of scope for Approval-P3) cannot
-    confound this Approval-only isolation check."""
+    read model to re-fetch. Uses a standalone `request_change` (no project creation) so no other
+    Control subscription confounds this Approval-only isolation check (P43: Control's own
+    `project_changed` subscription -- confirmed incidental, since Control never reads any Project
+    field -- was removed with no replacement, not merely avoided here)."""
     catalog = _catalog(services)
     control = catalog.controlWorkspace
     control.ensureLoaded()
@@ -355,8 +356,8 @@ def test_control_workspace_approval_refresh_respects_lazy_loading(services, sess
     """Replaces the removed `_CASES` entry in `test_secondary_workspace_lazy_loading.py`: an
     unvisited (`_loaded is False`) Control workspace must not be force-loaded by an Approval
     invalidation; once visited, it reacts. Uses standalone `request_change` calls (no project
-    creation) so the pre-existing, unrelated `project_changed` subscription cannot confound the
-    exactly-once assertion below."""
+    creation) so no other Control subscription confounds the exactly-once assertion below (P43:
+    Control's own `project_changed` subscription was removed entirely, not merely avoided)."""
     catalog = _catalog(services)
     control = catalog.controlWorkspace
     assert control._loaded is False

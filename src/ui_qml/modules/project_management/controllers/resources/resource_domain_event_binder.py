@@ -49,14 +49,12 @@ def on_timesheet_resource_stale(controller, resource_id: str) -> None:
         _reload_if_loaded(controller, "assignments")
 
 
+def on_project_stale(controller, _project_id: str) -> None:
+    _reload_if_loaded(controller, "projects")
+    _reload_if_loaded(controller, "activity")
+
+
 def bind_resource_domain_events(controller) -> None:
-    controller._subscribe_domain_signal(
-        domain_events.project_changed,
-        lambda _project_id: (
-            _reload_if_loaded(controller, "projects"),
-            _reload_if_loaded(controller, "activity"),
-        ),
-    )
     controller._subscribe_domain_signal(
         domain_events.tasks_changed,
         lambda _project_id: (
@@ -72,4 +70,5 @@ __all__ = [
     "on_resource_list_stale",
     "on_resource_capabilities_stale",
     "on_timesheet_resource_stale",
+    "on_project_stale",
 ]
