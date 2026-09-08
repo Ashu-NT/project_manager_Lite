@@ -202,8 +202,9 @@ def test_stale_version_raises_and_produces_zero_hints(services):
 
 def test_approval_post_commit_event_bridge_is_unaffected_by_timesheet_modernization():
     """P39-CLEANUP established the exact remaining legacy approval-bridge sites; Timesheet has
-    never been one of them (it has no approval-participant integration at all), and P40B must
-    not change that set."""
+    never been one of them (it has no approval-participant integration at all). Superseded by
+    P45B: Task (and Financial Change's Task branch) were the last two sites and are now
+    converted to typed `domain_events=` -- the bridge is fully retired, zero sites remain."""
     import ast
     import glob
 
@@ -224,7 +225,4 @@ def test_approval_post_commit_event_bridge_is_unaffected_by_timesheet_modernizat
                 and node.func.id == "ApprovalPostCommitEvent"
             ):
                 hits.add(normalized)
-    assert hits == {
-        "src/core/modules/project_management/infrastructure/approval/financial_change_apply_participant.py",
-        "src/core/modules/project_management/infrastructure/approval/task_apply_participant.py",
-    }
+    assert hits == set()

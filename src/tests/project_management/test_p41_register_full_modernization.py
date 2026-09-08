@@ -301,7 +301,6 @@ def test_approval_post_commit_event_bridge_is_unaffected_by_register_modernizati
                 and node.func.id == "ApprovalPostCommitEvent"
             ):
                 hits.add(normalized)
-    assert hits == {
-        "src/core/modules/project_management/infrastructure/approval/financial_change_apply_participant.py",
-        "src/core/modules/project_management/infrastructure/approval/task_apply_participant.py",
-    }
+    # Superseded by P45B: Task (and Financial Change's Task branch) were the last two
+    # ApprovalPostCommitEvent construction sites, now converted to typed `domain_events=`.
+    assert hits == set()

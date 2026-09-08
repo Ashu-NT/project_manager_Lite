@@ -159,8 +159,13 @@ def test_financial_change_apply_participant_emits_typed_change_and_forecast_even
     assert "ForecastVersionChanged(" in apply_source
     assert "ForecastVersionChangeType.APPROVED" in apply_source
     assert "budget_events" in apply_source
-    assert "tasks_changed" in apply_source
+    # Superseded by P45B: the Task-branch's conditional `tasks_changed`
+    # ApprovalPostCommitEvent is gone -- schedule impacts now flow through
+    # `_apply_schedule_changes`'s own typed `TaskScheduleChanged` events,
+    # folded into this same `domain_events` tuple.
+    assert "tasks_changed" not in apply_source
     assert "budgets_changed" not in apply_source
+    assert "ApprovalPostCommitEvent" not in apply_source
 
     reject_source = inspect.getsource(FinancialChangeApprovalParticipant.reject)
     assert "FinancialChangeChanged(" in reject_source

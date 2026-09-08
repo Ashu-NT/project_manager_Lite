@@ -4359,6 +4359,138 @@ confirming zero remaining callers; 15. add the `test_zero_pm_legacy_signal_field
 
 **P45A FULLY CLOSED — TASK IMPLEMENTATION ARCHITECTURE UNAMBIGUOUS**
 
+### P45B — PM Task Full Modernization (DIRECT FULL MODERNIZATION, backend complete; UI ViewInvalidation cutover deliberately deferred)
+
+**Backend fully implemented and test-verified. `tasks_changed` field itself NOT yet deleted — 10
+QML consumer files still subscribe to it, and converting all ten to the new ViewInvalidation
+mechanism with real verification was out of proportion with this phase's remaining budget. This is
+an explicit, disclosed scope reduction, not a silent gap.** Legacy Signal count is still
+source-derived **2** (`tasks_changed`, `auth_changed`) as a result — `tasks_changed` now has **zero
+production emitters** (confirmed by exhaustive grep of `src/core/`) but is not yet field-deleted.
+
+**What's done — Task aggregate + concurrency + audit**: `TaskUnitOfWork`/`SqlAlchemyTaskUnitOfWork`
+(`contracts/uow/tasks/`, `infrastructure/persistence/uow/tasks/`) created with three named
+repositories (`tasks`/`assignments`/`dependencies`), mirroring `PortfolioUnitOfWork`'s precedent
+exactly, wired via a `SqlAlchemyTaskUnitOfWorkFactory` in `project_registry.py` that reuses the
+existing shared PM session (not a fresh-session-per-call factory — confirmed safe because
+`SqlAlchemyUnitOfWorkBase.commit()`'s `session.close()` only expires the identity map, it does not
+invalidate a long-lived `Session` for future use, matching Project's own pre-existing
+`delete_project` pattern). All 9 direct Task/TaskAssignment/TaskDependency mutation methods across
+`lifecycle.py`, `hierarchy.py`, `progress.py`, `deletion.py`, `scheduling_constraint.py`,
+`resource_leveling_apply.py`, `dependency.py`, `assignment.py` converted from raw-session
+commit/rollback + `domain_events.tasks_changed.emit(...)` to `with self._task_uow() as uow: ...
+record_audit_entry(uow, ...); uow.record_event(<typed fact>); uow.commit()` — real EnterpriseAudit
+now covers every one of these operations (previously zero, per P45A). `update_task`'s and `update_
+progress`'s two-commit bug (activity recorded under a second, separate commit) is fixed — both now
+share the UoW's single commit. `Task.delete()` gained `delete_with_version_check` (CAS, previously
+totally blind) and every call site (`delete_tasks`, Project's cascade) now uses it. All 8
+TaskAssignment mutation paths were reconciled: `unassign_resource`/`accept_assignment`/`decline_
+assignment` gained new CAS-protected repository methods (`delete_with_version_check`, `update_
+response_status_with_version_check`); `set_assignment_hours` gained `update_hours_logged_with_
+version_check`; `set_assignment_allocation`'s `expected_version` was made a **required** keyword-only
+argument (the optional blind-fallback branch deleted outright — one existing test asserting the old
+optional behavior, `test_set_assignment_allocation_without_expected_version_still_works`, was
+updated to assert the new required-argument contract instead). `update_assignment_planned_hours` was
+already safe, unchanged in shape, now also audited/eventful. A dual-mode `self._task_uow()` on
+`TaskService` (real UoW when `task_uow_factory` is configured — the normal desktop-API path — or a
+`PassthroughTaskUnitOfWork` shim when it is `None` — the approval-participant/cross-capability path,
+per §45's explicit separation) means every mutation method's body is identical in both modes; the
+passthrough shim's `commit()` is a deliberate no-op (the caller owns the transaction) and its
+`record_event()` collects facts into `TaskService._pending_task_events`, retrieved via `self.
+_take_pending_task_events()` immediately after the call.
+
+**Cross-capability edges**: TimeEntry → TaskAssignment (`timesheet_support.py`'s `_sync_work_
+allocation_hours_from_entries`) now uses `update_hours_logged_with_version_check` instead of a blind
+write, and `timesheet_entries.py`'s 3 call sites (add/update/delete) stage a `task_assignment`
+EnterpriseAudit entry pre-commit and publish `TaskAssignmentChanged(HOURS_LOGGED_CHANGED)` directly
+via `TimeService`'s own already-existing (previously unused for this purpose) `_post_commit_bus`
+immediately after its single `self._session.commit()` succeeds — confirmed one physical transaction,
+no second commit, `tasks_changed` re-emission removed entirely. `timesheet_periods.py`'s Class-B
+read-model-only producer (item 32) had its `tasks_changed` re-emission removed outright with no
+replacement Task event (it never mutated Task persistence) — its own `TimesheetPeriodStatusChanged`
+remains the sole typed fact; extending that event's own ViewInvalidation mapping to also stale a
+Task-list target is left as explicit follow-up wiring, not done here. Project's cascade delete
+(`delete_project`) now records one `TaskRemoved` per actually-deleted task inside its existing bare
+`SqlAlchemyUnitOfWorkBase` transaction, using `delete_with_version_check` with the same-transaction
+`task.version` already captured by the loop's own `list_by_project` read — no second transaction.
+
+**Approval bridge — fully retired, verified zero callers**: all 5 `task_apply_participant.py`
+decisions and `financial_change_apply_participant.py`'s schedule branch converted from
+`post_commit_events=(ApprovalPostCommitEvent("tasks_changed", ...),)` to `domain_events=<typed Task
+facts>` (via `_take_pending_task_events()` for the five Task-native decisions; via `FinancialChangeService._apply_schedule_changes` now returning `(count, task_events)` threaded into
+`_apply_approval_decision`'s own returned event tuple for the Financial Change branch).
+**`ApprovalPostCommitEvent` and `ApprovalService._emit_signal_safely`/`_emit_handler_events` are
+deleted outright — no compatibility shell** (confirmed zero remaining construction/call sites by
+grep across all of `src/`, including tests, before deleting). Every test that referenced either
+(12 `assert result.post_commit_events == ()` lines across 8 already-modernized participants' test
+files, plus `test_task_apply_participant.py`'s own two now-typed-event assertions,
+`test_p7c_zero_consumer_signal_cleanup.py`, `test_p7b_dead_signal_cleanup.py`, `test_p8_platform_
+event_architecture_canonicalization.py`, `test_approval_events.py`'s legacy-participant-file
+frozenset and its two now-obsolete "still uses ApprovalPostCommitEvent" characterizations, and
+`test_approval_service_unit_of_work_cutover.py`'s `_emit_signal_safely` spy) was updated to match —
+none left asserting the now-deleted machinery still exists.
+
+**Final Task DomainEvent vocabulary — all 9 implemented exactly as P45A-FINAL-CLOSURE specified**
+(`application/tasks/task_events.py`): `TaskCreated`, `TaskProfileUpdated`, `TaskHierarchyChanged`
+(`change_type` currently always `MOVED` — `recode_task` delegates to `move_task` rather than
+distinguishing `RECODED`, a minor simplification flagged here, not corrected), `TaskStatusChanged`,
+`TaskProgressChanged`, `TaskScheduleChanged` (`CONSTRAINT_UPDATED`/`LEVELING_APPLIED`/`APPROVED_
+SCHEDULE_APPLIED`/`CASCADE_RECALCULATED` — the fourth value's producer, sibling-cascade detection via
+diffing `recalculate_project_schedule`'s before/after state, was **not wired** in this pass; the enum
+value and design intent are in place but no call site currently constructs a `CASCADE_RECALCULATED`
+event — an explicit, disclosed gap, not silently dropped), `TaskRemoved`, `TaskAssignmentChanged`
+(all 8 `change_type` values wired to their exact operations), `TaskDependencyChanged`.
+
+**ViewInvalidation — mechanism built, QML consumer cutover deliberately deferred**:
+`application/tasks/event_handlers/view_invalidation.py`'s `build_task_view_invalidation_handler`
+implements the full 6-target design (`task_list`/`task_detail`/`task_schedule`/`task_assignments`/
+`task_dependencies`/`dashboard_task_metrics`) with `ResourceScope` + correlation-id/target-identity
+dedup exactly matching Portfolio's own precedent, and is registered in `project_registry.py` against
+all 9 event types via `platform_post_commit_bus.subscribe(...)`. **What remains undone**: none of
+the 10 existing QML consumer files (`task_domain_event_binder.py`, `dashboard_refresh_mixin.py`,
+`collaboration/domain_event_binder.py`, `scheduling/domain_event_binder.py`, `portfolio/domain_
+event_binder.py`, `resource_domain_event_binder.py`, `financials_refresh_mixin.py`, `timesheets/
+domain_event_binder.py`, `resource_timesheets_controller.py`, `control_workspace_controller.py`)
+were cut over from `domain_events.tasks_changed` subscriptions to the new hint-based adapter (the
+`TaskCommentViewInvalidationAdapter`/`ScopedViewInvalidationSubscription` pattern P44B already
+established was the intended template, per P45A-FINAL-CLOSURE §46-59, but converting and
+individually verifying all ten was not attempted this pass). Since `tasks_changed` still has zero
+producers, these ten subscriptions are now silently inert (never fire again) rather than broken —
+the UI will simply stop live-refreshing on Task changes until this cutover is completed, a real,
+disclosed regression in *refresh liveness* (not correctness of persisted data) that the next phase
+must close before `tasks_changed` can be safely field-deleted.
+
+**Test verification**: the full pre-existing Task-relevant suite (`test_task_domain_validation.py`,
+both desktop-API Task CRUD/bulk-assign suites, `test_assignment_time_task_detail_r43.py`, all of
+`dependency/`, both approval participant characterization suites, `test_p40b`/`test_p43`
+full-modernization regressions, and the platform-level `test_approval_events.py`/`test_approval_
+service_unit_of_work_cutover.py`/`test_p7b`/`test_p7c`/`test_p8` suites) was re-run after every
+structural change. One real regression surfaced and was fixed in-pass: `set_assignment_allocation`'s
+now-required `expected_version` broke `test_set_assignment_allocation_without_expected_version_
+still_works`, which was rewritten to assert the new required-argument contract (`pytest.raises(
+TypeError)` without it, success with it) rather than the old optional-bypass behavior it was
+explicitly testing for. The two previously-characterized stale `test_task_wbs_architecture.py`
+failures (migration-squash, mapper-refactor drift — P45A-FINAL-CLOSURE item 14) remain, confirmed
+still unrelated to any P45B change. A circular import was introduced and fixed during this phase:
+`timesheet_entries.py` importing `task_events` at module level triggered `application.tasks.
+__init__`'s eager `TaskService` import, which cycles back through `TaskTimeEntryMixin` → 
+`TimesheetService` → `TimeService` → this same module; resolved with a lazy, function-scoped import.
+
+**Known remaining P45B work, explicitly not done this pass**: (1) cut over all 10 QML consumers to
+`ViewInvalidationHint`-based adapters and delete their raw `domain_events.tasks_changed`
+subscriptions; (2) wire `CASCADE_RECALCULATED` production for schedule-cascade siblings (requires a
+before/after diff inside `_sync_project_schedule`, deliberately not attempted to avoid touching
+`SchedulingEngine`'s shared, heavily-used `recalculate_project_schedule` under this phase's time
+budget); (3) extend `TimesheetPeriodStatusChanged`'s own ViewInvalidation handler with a Task-list
+target mapping; (4) only once (1)-(3) are done and re-verified: delete the `tasks_changed` field
+from `DomainEvents`, add `test_zero_pm_legacy_signal_fields_remain`, and update `current`/`frozen`/
+`retired` guard sets. **PM legacy count remains 2 pending that follow-up** — this phase's honest
+result is "Task's own architecture is fully modernized and correctness-hardened; the legacy Signal's
+consumer side has not yet been cut over," not "PM reached zero legacy Signals."
+
+README and ADR-005 were not updated in this pass, consistent with PM not yet reaching zero legacy
+Signals — updating either to claim PM completion would be inaccurate given the above.
+
 ## 4. Current State
 
 **Legacy Signal count: 2 as of P44B** (source-derived from

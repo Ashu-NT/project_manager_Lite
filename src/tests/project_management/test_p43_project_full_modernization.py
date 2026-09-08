@@ -371,6 +371,9 @@ def test_set_status_for_unknown_project_is_rejected_with_zero_write(services):
 
 
 def test_approval_post_commit_event_bridge_is_unaffected_by_project_modernization():
+    """Superseded by P45B: Task (and Financial Change's Task branch) were the last two
+    ApprovalPostCommitEvent construction sites and are now converted to typed
+    `domain_events=` -- the bridge is fully retired, zero sites remain."""
     import ast
     import glob
 
@@ -391,7 +394,4 @@ def test_approval_post_commit_event_bridge_is_unaffected_by_project_modernizatio
                 and node.func.id == "ApprovalPostCommitEvent"
             ):
                 hits.add(normalized)
-    assert hits == {
-        "src/core/modules/project_management/infrastructure/approval/financial_change_apply_participant.py",
-        "src/core/modules/project_management/infrastructure/approval/task_apply_participant.py",
-    }
+    assert hits == set()
