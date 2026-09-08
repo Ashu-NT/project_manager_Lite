@@ -12,9 +12,6 @@ class ResourceCapabilityChangeType(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class ResourceCapabilityChanged:
-    """A canonical DomainEvent (P18A) -- recorded via `uow.record_event(...)` and dispatched
-    through the shared transactional/post-commit pipeline, never a bespoke `Signal[T]`."""
-
     tenant_id: str
     organization_id: str
     resource_id: str

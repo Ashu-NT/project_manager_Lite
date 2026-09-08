@@ -135,14 +135,9 @@ def test_approval_apply_rolls_back_handler_when_decision_update_fails(
     approval_repo_class = type(approvals._approval_repo)
     original_update = approval_repo_class.update
 
-    # P4 Step 2 (ADR-005 Section 24, Round 7/8): approve_and_apply's actual decision-update now
-    # runs against a fresh PlatformUnitOfWork's own `uow.approvals` -- an independently
-    # constructed ApprovalRepository instance, distinct from `approvals._approval_repo` (kept on
-    # ApprovalService only for read paths and the caller-owned-transaction request_change mode).
-    # An instance-level monkeypatch on `approvals._approval_repo` would no longer reach the fresh
-    # instance, so this patches the class method instead -- every instance shares it, preserving
-    # this test's actual intent (proving decision-update failure rolls back atomically) without
-    # depending on instance identity.
+    # approve_and_apply's decision-update runs against a fresh UoW's own `uow.approvals`, a
+    # different instance from `approvals._approval_repo` -- patch the class method so it's
+    # reached regardless of instance identity.
     def _fail_decision_update(self, candidate):
         if candidate.id == request.id:
             raise RuntimeError("simulated decision persistence failure")
@@ -181,11 +176,9 @@ def test_approval_apply_rolls_back_handler_when_required_audit_fails(
     audit_service_class = type(approvals._enterprise_audit_service)
     original_record = audit_service_class.record
 
-    # P4 Step 2 (ADR-005 Section 24, Round 7/8): approve_and_apply's same-transaction audit write
-    # now runs against a fresh PlatformUnitOfWork's own `uow._enterprise_audit_service` --
-    # distinct from `approvals._enterprise_audit_service` (kept on ApprovalService only for the
-    # caller-owned-transaction request_change mode). Patch the class method so the fresh instance
-    # is affected too.
+    # approve_and_apply's audit write runs against a fresh UoW's own `_enterprise_audit_service`,
+    # a different instance from `approvals._enterprise_audit_service` -- patch the class method
+    # so it's reached regardless of instance identity.
     def _fail_approval_audit(self, **kwargs):
         if kwargs.get("entity_type") == "approval_request" and (
             kwargs.get("metadata") or {}

@@ -72,22 +72,18 @@ def build_document_structure_list_view_invalidation_handler(channel: ViewInvalid
 
 
 def build_document_links_view_invalidation_handler(channel: ViewInvalidationChannel):
-    """One `document_links` hint per distinct link *target* touched in a transaction, in each
-    of two shapes, each targeted via a `ResourceScope` (P16D-FIX) rather than a bare
-    `OrganizationScope` + an ad hoc field on the hint itself:
+    """One `document_links` hint per distinct link target touched in a transaction, in each of
+    two shapes, both via `ResourceScope`:
 
-    - forward (module_code, entity_type, entity_id): "this business entity's linked documents
-      changed" -- for Catalog/Reservations/Procurement's own linked-document projections.
-    - reverse ("platform", "document", document_id): "this document's own link set changed" --
-      for Admin's per-document link panel. Module code is `"platform"` because Document is a
-      Platform-owned resource, not owned by any business module -- the same convention already
-      used by `record_audit_entry(..., module="platform", ...)` elsewhere in this codebase.
+    - forward (module_code, entity_type, entity_id): the linked business entity's documents
+      changed -- for Catalog/Reservations/Procurement's own projections.
+    - reverse ("platform", "document", document_id): the document's own link set changed -- for
+      Admin's per-document link panel. Module code is `"platform"` since Document itself is not
+      owned by any business module.
 
-    Deduplicated independently per shape, keyed by (transaction correlation_id, target scope
-    identity) -- not correlation_id alone, since one transaction (e.g.
-    `register_entity_attachments`) can legitimately touch multiple distinct documents while
-    targeting one shared business entity. Both dedup sets are transaction-scoped: cleared the
-    moment a new correlation_id arrives, so neither ever grows across unrelated transactions."""
+    Deduplicated independently per shape, keyed by (correlation_id, target identity) -- one
+    transaction can touch multiple distinct documents while targeting one shared entity. Both
+    dedup sets clear when a new correlation_id arrives."""
 
     current_correlation_id: list[str | None] = [None]
     notified_entity_targets: set[tuple[str, str, str, str, str]] = set()

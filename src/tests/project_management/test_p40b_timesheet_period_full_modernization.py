@@ -18,10 +18,6 @@ from src.core.platform.application.time_management.time.timesheet_events import 
 from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.shared.events.domain_event_context import DomainEventContext
 
-# P46B: test_legacy_timesheet_periods_signal_field_is_deleted removed -- domain_events module is
-# deleted outright (see docs/architecture/event-modernization-plan.md's P46B entry).
-
-
 # ---------------------------------------------------------------------------
 # ViewInvalidation handler: unit-level mapping/dedupe
 # ---------------------------------------------------------------------------
@@ -55,10 +51,8 @@ def _event(*, change_type, project_ids=("project-1",)) -> TimesheetPeriodStatusC
     list(TimesheetPeriodStatusChangeType),
 )
 def test_every_change_type_maps_to_workspace_resource_and_project_targets(change_type):
-    """P45B-CLOSURE item 8/9: this transition's per-project loop now ALSO emits a `task_list`
-    hint (category `"task"`, not `TIMESHEET_CATEGORY`) -- the Class-B replacement for the
-    removed legacy `tasks_changed` re-emission, mapped directly onto the existing Task
-    ViewInvalidation target instead of inventing a fake Task DomainEvent."""
+    """Each transition also emits a `task_list` hint (category `"task"`) per affected project,
+    alongside the three Timesheet-category hints."""
     channel = _fake_channel()
     handler = build_timesheet_view_invalidation_handler(channel)
     handler(_event(change_type=change_type), DomainEventContext(correlation_id="c1"))
@@ -102,8 +96,7 @@ def test_multiple_projects_each_produce_their_own_target():
 
 
 def test_dedupe_by_target_within_one_transaction():
-    """P45B-CLOSURE item 8/9: four distinct targets now (the three Timesheet ones plus the
-    Class-B `task_list` replacement for the removed legacy `tasks_changed` re-emission)."""
+    """Four distinct targets: three Timesheet-category hints plus one `task_list` hint."""
     channel = _fake_channel()
     handler = build_timesheet_view_invalidation_handler(channel)
     event = _event(change_type=TimesheetPeriodStatusChangeType.LOCKED)
@@ -209,10 +202,8 @@ def test_stale_version_raises_and_produces_zero_hints(services):
 
 
 def test_approval_post_commit_event_bridge_is_unaffected_by_timesheet_modernization():
-    """P39-CLEANUP established the exact remaining legacy approval-bridge sites; Timesheet has
-    never been one of them (it has no approval-participant integration at all). Superseded by
-    P45B: Task (and Financial Change's Task branch) were the last two sites and are now
-    converted to typed `domain_events=` -- the bridge is fully retired, zero sites remain."""
+    """The `ApprovalPostCommitEvent` bridge is fully retired; zero construction sites remain
+    anywhere. Timesheet never had an approval-participant integration to begin with."""
     import ast
     import glob
 

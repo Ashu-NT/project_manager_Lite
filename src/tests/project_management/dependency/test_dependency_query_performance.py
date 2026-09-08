@@ -1,9 +1,5 @@
-"""Phase L: the Scheduling workspace's project-wide dependency read must be
-O(1) queries regardless of task count, not the confirmed 2N+1 per-task
-loop. See
-docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
-§17/Phase L.
-"""
+"""The Scheduling workspace's project-wide dependency read must be O(1) queries regardless of
+task count, never a per-task loop."""
 from __future__ import annotations
 
 from datetime import date
@@ -50,13 +46,8 @@ def test_application_layer_method_is_permission_checked(services):
 
 
 def test_recalculation_only_persists_tasks_whose_dates_actually_changed(services):
-    """Phase L1: a re-run of recalculate_project_schedule() that reproduces
-    the same CPM dates for every task must not re-issue a repository update
-    for any of them. Before this fix, every leaf task in the project was
-    written unconditionally on every single recalculation, correlating DB
-    write volume with project size rather than with how much the schedule
-    actually moved.
-    """
+    """A re-run of recalculate_project_schedule() that reproduces the same CPM dates for every
+    task must not re-issue a repository update for any of them."""
     ps = services["project_service"]
     ts = services["task_service"]
     sched = services["scheduling_engine"]

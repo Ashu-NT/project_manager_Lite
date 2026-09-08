@@ -95,11 +95,9 @@ class DownstreamExposureDto:
 
 @dataclass(frozen=True)
 class TaskScheduleImpactOverviewDesktopDto:
-    """Task Detail -> Schedule Impact's always-visible current-state
-    facts. Deliberately a different shape from ScheduleImpactReportDto --
-    this is "what is true now," not "what would a hypothetical change
-    produce" (see docs/pm_modernization/R4_4_TASK_DEPENDENCY_IMPLEMENTATION_SUMMARY.md,
-    "Task Detail -> Schedule Impact")."""
+    """Task Detail -> Schedule Impact's always-visible current-state facts.
+    Deliberately a different shape from ScheduleImpactReportDto: this is
+    "what is true now," not "what would a hypothetical change produce"."""
 
     task_id: str
     is_available: bool

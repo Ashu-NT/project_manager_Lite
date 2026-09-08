@@ -35,11 +35,9 @@ _BillingEvent = (
     | BillingPreparationExternalOutcomeRecorded
 )
 
-# Both aggregate families stale the same single real UI read area (Financials -> "commercial") --
-# P38A/P39 found no independent per-family cached projection, so every current Billing fact maps
-# to this one target. DomainEvents describe what happened (kept per-family, distinct classes);
-# ViewInvalidation describes what became stale (one shared target) -- these are deliberately not
-# the same design axis.
+# Both aggregate families stale the same single real UI read area (Financials -> "commercial"),
+# so every Billing fact maps to this one target -- distinct from the per-family typed DomainEvents,
+# which describe what happened, not what became stale.
 _SCOPE_CODES = (BILLING_COMMERCIAL_SCOPE_CODE,)
 
 

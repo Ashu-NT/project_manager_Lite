@@ -1,17 +1,9 @@
-"""Phase 0A.1 tests — Portfolio resource-report authorization
-(docs/pm_modernization/CQRS/project_management_cqrs_existing_state_audit.md, §18 Phase 0A.1).
-
-``PortfolioResourcePoolService`` was found, during this phase, to have never been constructed
-anywhere in production composition (confirmed by a repo-wide grep for the class name returning
-zero matches before this phase's fix). These tests exercise the service directly — the same
-object now returned by the real composition graph under the ``"portfolio_resource_pool_service"``
-key — to prove both the new authorization guard and the (newly-completed) composition wiring
-work correctly.
+"""Portfolio resource-report authorization for `PortfolioResourcePoolService`.
 
 Tests that only need permission/tenant-context control use hand-built fakes, mirroring the
 established convention in ``test_tenant_isolation_services_pm.py``. Tests that need to prove the
-composition wiring and the desktop DTO boundary are unaffected use the real ``services`` fixture
-(the actual production composition graph via ``build_service_dict``).
+composition wiring and the desktop DTO boundary use the real ``services`` fixture (the actual
+production composition graph via ``build_service_dict``).
 """
 
 from __future__ import annotations

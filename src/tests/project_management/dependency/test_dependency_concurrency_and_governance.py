@@ -1,9 +1,5 @@
-"""Phase G/H regressions: optimistic concurrency, update-governance parity,
-update atomicity, exclude_dependency_id validation, and the approval-apply
-TOCTOU fix. See
-docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
-§8/§16/Phase G/Phase H for the audit findings these close.
-"""
+"""Task dependency optimistic concurrency, update-governance parity, update atomicity,
+`exclude_dependency_id` validation, and the approval-apply TOCTOU fix."""
 from __future__ import annotations
 
 from datetime import date
@@ -63,11 +59,8 @@ class TestOptimisticConcurrency:
 
 
 class TestUpdateOptimisticConcurrency:
-    """Phase N10: the Task Detail edit dialog must detect when the
-    dependency changed underneath it between "dialog opened" and "user
-    clicked Save" -- update_dependency previously always re-fetched fresh
-    and compared against itself, so a stale client payload could never be
-    detected (unlike delete, which already threaded expected_version)."""
+    """`update_dependency` must detect when the dependency changed underneath the caller between
+    read and write -- a stale client payload must never silently overwrite a newer version."""
 
     def test_update_with_stale_expected_version_raises_instead_of_overwriting(self, services):
         ts = services["task_service"]

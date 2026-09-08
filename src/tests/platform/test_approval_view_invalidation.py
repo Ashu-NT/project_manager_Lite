@@ -90,10 +90,8 @@ def _submitted_budget(services, session):
 
 
 def _request_budget_approval_as_a_different_user(services, budget):
-    # P10A: a fresh login's active-organization auto-select is genuinely ambiguous once more than
-    # one organization is enabled simultaneously (no longer "the one enabled org", unlike the
-    # pre-P10A mutual-exclusion model) -- pin it explicitly to whatever was active immediately
-    # before the switch rather than relying on that heuristic.
+    # A fresh login's active-organization auto-select is ambiguous once more than one
+    # organization is enabled -- pin it explicitly to whatever was active before the switch.
     active_organization_id = services["tenant_context_service"].get_active_organization_id()
     _login_as_fresh_requester(services)
     if active_organization_id:
@@ -197,7 +195,7 @@ def test_approval_view_invalidation_adapter_has_no_domain_event_import():
 
 
 def test_control_workspace_controller_does_not_import_domain_event_vocabulary():
-    """§10: controllers must not import ApprovalRequested/ApprovalApproved/ApprovalRejected/
+    """Controllers must not import ApprovalRequested/ApprovalApproved/ApprovalRejected/
     DomainEvent/ViewInvalidationHint/ScopeFilter/EventScope/postcommit bus."""
     import src.ui_qml.platform.controllers.control.control_workspace_controller as controller_module
 
@@ -326,11 +324,9 @@ def test_reject_refreshes_control_workspace_exactly_once(services, session):
 
 
 def test_refresh_approvals_does_not_touch_the_unrelated_audit_feed(services, session):
-    """§14/§18: the narrow Control reaction must not force the genuinely unrelated audit-feed
-    read model to re-fetch. Uses a standalone `request_change` (no project creation) so no other
-    Control subscription confounds this Approval-only isolation check (P43: Control's own
-    `project_changed` subscription -- confirmed incidental, since Control never reads any Project
-    field -- was removed with no replacement, not merely avoided here)."""
+    """The narrow Control reaction must not force the unrelated audit-feed read model to
+    re-fetch. Uses a standalone `request_change` (no project creation) so no other Control
+    subscription confounds this Approval-only isolation check."""
     catalog = _catalog(services)
     control = catalog.controlWorkspace
     control.ensureLoaded()
@@ -350,11 +346,9 @@ def test_refresh_approvals_does_not_touch_the_unrelated_audit_feed(services, ses
 
 
 def test_control_workspace_approval_refresh_respects_lazy_loading(services, session):
-    """Replaces the removed `_CASES` entry in `test_secondary_workspace_lazy_loading.py`: an
-    unvisited (`_loaded is False`) Control workspace must not be force-loaded by an Approval
-    invalidation; once visited, it reacts. Uses standalone `request_change` calls (no project
-    creation) so no other Control subscription confounds the exactly-once assertion below (P43:
-    Control's own `project_changed` subscription was removed entirely, not merely avoided)."""
+    """An unvisited (`_loaded is False`) Control workspace must not be force-loaded by an
+    Approval invalidation; once visited, it reacts. Uses standalone `request_change` calls (no
+    project creation) so no other Control subscription confounds the assertion below."""
     catalog = _catalog(services)
     control = catalog.controlWorkspace
     assert control._loaded is False
@@ -408,8 +402,8 @@ def test_standalone_request_change_refreshes_pm_collaboration_workspace(services
 
 
 def test_pm_dashboard_no_longer_reacts_to_approval_mutations(services):
-    """Approval-P3: the incidental `approval_request`/`platform` subscription is dropped, not
-    migrated -- this dashboard's own `build_workspace_state(...)` never reads Approval data."""
+    """The dashboard's own `build_workspace_state(...)` never reads Approval data, so it must
+    never subscribe to Approval invalidation at all."""
     pm_catalog = _pm_catalog(services)
     dashboard = pm_catalog.dashboardWorkspace
     refresh_calls = []
@@ -545,8 +539,8 @@ def test_adapter_follows_an_organization_switch_with_no_stale_or_duplicate_subsc
 
 
 def test_full_switch_sequence_a1_a2_b1_a1_ends_with_exactly_one_live_subscription(services):
-    """§37: A/A1 -> A/A2 -> B/B1 -> A/A1 -- exactly one live subscription throughout, correct
-    final scope, no duplicate callbacks."""
+    """A/A1 -> A/A2 -> B/B1 -> A/A1 -- exactly one live subscription throughout, correct final
+    scope, no duplicate callbacks."""
     channel = services["platform_view_invalidation_channel"]
     organization_service = services["organization_service"]
     tenant_admin = services["tenant_admin_service"]
@@ -646,8 +640,8 @@ def test_adapter_follows_a_tenant_switch_via_refresh_current_permissions(service
 
 
 def test_cross_org_decision_denial_produces_no_ui_refresh(services, session):
-    """§35: Tenant A, active Org A1, Approval belongs to Org A2 -> zero refresh for A1's UI;
-    after switching to A2, the identical decision succeeds and refreshes exactly once."""
+    """Tenant A, active Org A1, Approval belongs to Org A2: zero refresh for A1's UI; after
+    switching to A2, the identical decision succeeds and refreshes exactly once."""
     catalog = _catalog(services)
     catalog.controlWorkspace.ensureLoaded()
     refresh_calls = []
@@ -690,9 +684,8 @@ def test_cross_org_decision_denial_produces_no_ui_refresh(services, session):
 
 
 def test_cross_tenant_approval_event_produces_zero_callback(services, session):
-    """§36: adapter scoped to Tenant A/Org A1 -- an event for a genuinely different tenant must
-    never be observed, proven via two independent `TenantContextService` fakes over the same
-    database (mirrors the Approval-P2 event-layer proof, extended here to the Qt adapter)."""
+    """Adapter scoped to Tenant A/Org A1: an event for a genuinely different tenant must never be
+    observed, proven via two independent `TenantContextService` fakes over the same database."""
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
 
@@ -762,11 +755,9 @@ def test_cross_tenant_approval_event_produces_zero_callback(services, session):
         clock=_FixedClock(),
     )
 
-    # This mapper handler is bound to the app's REAL channel -- publishing through the
-    # standalone factory above (a different bus) does not reach it at all, so subscribe a
-    # handler on the same bus this standalone factory uses to prove the ADAPTER's exact-scope
-    # filter is what matters, then verify the adapter (bound to the real app's channel) never
-    # observes a hint published on a genuinely unrelated bus/tenant in the first place.
+    # Subscribe the mapper on the standalone factory's own bus so the request below actually
+    # produces a hint on the real channel -- isolating the adapter's exact-scope filter as what's
+    # actually under test.
     mapper_handler = build_approval_view_invalidation_handler(channel)
     bus.subscribe(ApprovalRequested, mapper_handler)
 
@@ -931,8 +922,8 @@ def test_transactional_handler_failure_rolls_back_with_zero_ui_refresh(services,
 
 
 def test_one_broken_postcommit_subscriber_does_not_block_the_control_workspace_refresh(services):
-    """§26: ISOLATE_AND_CONTINUE -- a failing sibling postcommit subscriber must not prevent the
-    Control workspace's own subscriber from firing, and the transaction stays committed."""
+    """A failing sibling postcommit subscriber must not prevent the Control workspace's own
+    subscriber from firing, and the transaction stays committed."""
     channel = services["platform_view_invalidation_channel"]
     catalog = _catalog(services)
     catalog.controlWorkspace.ensureLoaded()

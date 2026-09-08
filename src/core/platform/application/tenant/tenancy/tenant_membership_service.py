@@ -70,42 +70,23 @@ class IssuedTenantInvitation:
 class TenantMembershipService:
     """Authorized orchestration for tenant membership lifecycle changes.
 
-    P5D-1: converged onto a canonical, fresh-session `TenantMembershipUnitOfWork` -- one
-    business operation, one transaction owner, no shared process-lifetime Session and no
-    inline commit()/rollback(). The two RoleBinding mutations that are genuine membership-
-    lifecycle facts (the default-role grant on acceptance, the cascade revoke on removal) reuse
-    the SAME canonical identity/no-op/audit/event mechanics `RoleGovernanceService` uses --
-    the transaction-agnostic `role_binding_mutation_participant` module -- atomically within
-    this service's own UoW. This is never a nested `RoleGovernanceService` call and never a
-    second transaction. Deliberately does NOT apply interactive-admin delegation/SoD policy to
-    either mutation: a self-service acceptance and a membership-removal cascade are
-    system/lifecycle operations, not an admin delegating a role to someone else, so the
-    delegation-namespace and permission-snapshot checks `RoleGovernanceService.assign_role`
-    enforces for an interactive admin grant do not apply here.
+    Each operation uses one fresh-session `TenantMembershipUnitOfWork` -- no shared
+    process-lifetime session, no inline commit/rollback. The RoleBinding mutations tied to
+    acceptance (default-role grant) and removal (cascade revoke) reuse
+    `role_binding_mutation_participant`'s shared mechanics atomically within this same UoW --
+    never a nested `RoleGovernanceService` call or a second transaction, and never subject to the
+    interactive-admin delegation/SoD checks `RoleGovernanceService.assign_role` enforces, since
+    these are system/lifecycle operations, not an admin delegating a role to someone else.
 
-    `suspend_member`/`reactivate_member` never touch RoleBinding rows -- confirmed by the P5D-1
-    audit, not assumed: they only transition the membership's own status and (suspend only)
-    revoke the target's affected AuthSessions. Neither emits a RoleBinding event.
+    `suspend_member`/`reactivate_member` only transition membership status and (suspend only)
+    revoke the target's AuthSessions -- never touch RoleBinding rows or emit a RoleBinding event.
 
-    P5D-2: each of the four non-trivial aggregate transition methods this service actually
-    invokes -- `accept_invitation()`, `suspend()`, `reactivate()`, `remove()` -- now has this
-    service record exactly one corresponding fact (`TenantMembershipActivated`/`Suspended`/
-    `Reactivated`/`Removed`) via `uow.record_event(...)`, atomically with that same transition,
-    inside the SAME outer UoW. `issue_invitation`/`reinvite` (still `invited`) and
-    `revoke_invitation` (a distinct invitation-lifecycle fact, not a membership-removal fact --
-    see `revoke_invitation`'s own comment for the evidence) deliberately record none. Recording
-    is this service's responsibility alone: `UserTenantMembership` stays a plain aggregate that
-    owns its own state invariants and does not implement `RecordsDomainEvents` -- one recording
-    responsibility, not two.
-
-    P5D-2A: the membership event is recorded immediately after its own aggregate transition
-    succeeds -- BEFORE the consequential RoleBinding mutation that follows it in the same
-    command (`_ensure_default_role_bindings` on acceptance, the cascade revoke on removal) --
-    so the committed event order mirrors actual business-transition order
-    (`TenantMembershipActivated` then `RoleBindingAssigned`; `TenantMembershipRemoved` then
-    `RoleBindingRevoked`), not merely wherever `record_event()` happened to be convenient near
-    `commit()`. This is safe because the canonical UoW never publishes anything until
-    `uow.commit()` succeeds, so recording early carries no rollback-safety cost.
+    Each of `accept_invitation`/`suspend`/`reactivate`/`remove` records exactly one membership
+    fact (`TenantMembershipActivated`/`Suspended`/`Reactivated`/`Removed`), recorded before any
+    consequential RoleBinding mutation in the same command so committed event order matches
+    business-transition order -- safe since the UoW never publishes before `commit()` succeeds.
+    `issue_invitation`/`reinvite`/`revoke_invitation` record invitation-lifecycle facts, not
+    membership facts. `UserTenantMembership` itself records nothing; this service owns recording.
     """
 
     def __init__(

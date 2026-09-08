@@ -1,15 +1,9 @@
-"""P4B (Organization Capability Transaction Convergence) + P5A (OrganizationCreated) + P10A
-(Multi-Organization Model Correction) + P10D (Organization Event Modernization):
-`OrganizationService`'s transaction-owning commands (`create_organization`, `update_organization`,
-`enable_organization`, `bootstrap_defaults`) use the canonical fresh-session
-`OrganizationUnitOfWork`. `create_organization` records exactly one `OrganizationCreated` before
-commit (P5A); `update_organization`/`enable_organization`/`disable_organization` now record
-`OrganizationProfileUpdated`/`OrganizationEnabled`/`OrganizationDisabled` before commit (P10D) --
-the legacy `organizations_changed` signal no longer exists at all. P10A deleted
-`set_active_organization` (its persisted mutual-exclusion designation behavior was legacy
-single-org scaffolding) in favor of the narrower `enable_organization`/`disable_organization`,
-which never touch sibling organizations.
-"""
+"""`OrganizationService`'s transaction-owning commands (`create_organization`,
+`update_organization`, `enable_organization`, `bootstrap_defaults`) use a fresh-session
+`OrganizationUnitOfWork`. `create_organization` records `OrganizationCreated`;
+`update_organization`/`enable_organization`/`disable_organization` record
+`OrganizationProfileUpdated`/`OrganizationEnabled`/`OrganizationDisabled` -- each organization is
+enabled/disabled independently, with no sibling side effects."""
 
 from __future__ import annotations
 
@@ -89,10 +83,8 @@ def test_create_organization_repository_and_audit_share_the_uow_session(services
 def test_successful_create_organization_commits_and_publishes_view_invalidation_only_after_commit(
     services,
 ):
-    """P5A + Organization-specific P6A cutover, legacy signal fully deleted in P10D: organization
-    creation produces exactly one `OrganizationCreated` -> `ViewInvalidationHint` for the
-    tenant-wide organization-list target, published only after commit, via the real
-    composition-owned `ViewInvalidationChannel`."""
+    """Organization creation produces exactly one `OrganizationCreated` -> `ViewInvalidationHint`
+    for the tenant-wide organization-list target, published only after commit."""
     organization_service = services["organization_service"]
     channel = services["platform_view_invalidation_channel"]
     hints = []
@@ -251,10 +243,9 @@ def test_enable_organization_default_mode_uses_a_fresh_uow(services, monkeypatch
 
 
 def test_enable_organization_is_a_noop_when_already_enabled_and_opens_no_uow(services, monkeypatch):
-    """P10A: a past-tense state-transition write must represent an actual transition -- enabling
-    an already-enabled organization performs no write, no audit, and no event (P10D:
-    `OrganizationEnabled`, verified end to end via the real `ViewInvalidationChannel` rather than
-    the deleted legacy signal)."""
+    """A past-tense state-transition write must represent an actual transition -- enabling an
+    already-enabled organization performs no write, no audit, and no `OrganizationEnabled`
+    event."""
     organization_service = services["organization_service"]
     channel = services["platform_view_invalidation_channel"]
     organization = organization_service.create_organization(
@@ -283,8 +274,7 @@ def test_enable_organization_is_a_noop_when_already_enabled_and_opens_no_uow(ser
 
 
 def test_disable_organization_does_not_touch_sibling_organizations(services):
-    """P10A: the legacy sibling-deactivation invariant is deleted, not preserved under new
-    vocabulary -- disabling one organization must never change any other organization's row."""
+    """Disabling one organization must never change any other organization's row."""
     organization_service = services["organization_service"]
     organization_a = organization_service.create_organization(
         organization_code=_unique_code("SIBLING-A"), display_name="Sibling A"
@@ -304,10 +294,9 @@ def test_disable_organization_does_not_touch_sibling_organizations(services):
 
 
 def test_create_and_enable_organization_no_longer_accept_a_commit_argument(services):
-    """P4C removes the grandfathered `commit=False` transaction switch from both methods --
-    `provision_organization` now expresses its own transaction participation structurally via
-    `_create_organization_using`/`_enable_organization_using` and a `PlatformProvisioningUnitOfWork`,
-    never a boolean. Structural proof, not just a grep: the public methods genuinely reject it."""
+    """Neither method accepts a `commit=False` transaction switch -- `provision_organization`
+    expresses its own transaction participation structurally via a
+    `PlatformProvisioningUnitOfWork`, never a boolean."""
     organization_service = services["organization_service"]
     organization = organization_service.create_organization(
         organization_code=_unique_code("NOCOMMITARG"), display_name="No Commit Arg Org"
@@ -321,10 +310,8 @@ def test_create_and_enable_organization_no_longer_accept_a_commit_argument(servi
 
 
 def test_provision_organization_still_commits_organization_and_entitlements_atomically(services):
-    """Real regression for the one genuine caller-owned case: `provision_organization` composes
-    Organization creation, module entitlement provisioning, and (optionally) activation into one
-    `PlatformProvisioningUnitOfWork` transaction (P4C) -- structurally, not via `commit=False`.
-    Must remain atomic and externally unaffected by the P4B/P4C cutovers."""
+    """`provision_organization` composes Organization creation, module entitlement provisioning,
+    and (optionally) activation into one `PlatformProvisioningUnitOfWork` transaction."""
     app_service = services["platform_runtime_application_service"]
 
     created = app_service.provision_organization(
@@ -392,9 +379,8 @@ def test_migrated_create_and_update_remain_tenant_isolated(services):
         service_as_b.update_organization(organization_a.id, display_name="Hijacked")
 
 
-def test_p5a_does_not_add_p5b_plus_event_vocabulary():
-    """Phase-boundary guard (superseding P4B's own, now-obsolete guard now that P5A legitimately
-    records `OrganizationCreated`): no P5B+ event vocabulary belongs in this module."""
+def test_organization_service_never_references_another_capabilitys_event_vocabulary():
+    """No other capability's DomainEvent classes belong in this module."""
     source = inspect.getsource(organization_service_module)
     for forbidden in (
         "ModuleLicensed",

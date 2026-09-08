@@ -1,18 +1,9 @@
-"""P4-PRE Step 1 (ADR-005 Section 24, Round 8): `FinancialChangeApprovalParticipant` +
-`build_financial_change_approval_deps` -- proves the participant is genuinely
-session-parameterizable (the Step-2 readiness criterion), reproduces the
-`_apply_financial_change`/`_reject_financial_change` closures' exact conditional
-post-commit-event construction, and behaves identically to `FinancialChangeService`'s own
-`_apply_approval_decision`/`_apply_rejection_decision` (kept unmodified).
+"""`FinancialChangeApprovalParticipant` stages a financial change on a caller-supplied Session
+without opening or completing its own transaction.
 
-Test-scope note: a BUDGET-only impact is enough to exercise the real, end-to-end apply path
-(including the typed `BudgetStatusChanged`/`BudgetVersionCreated` events P38B added to the
-Budget-successor branch) without reproducing a full budget+forecast+schedule scenario --
-`forecasts_changed`/`tasks_changed` not appearing for a BUDGET-only change is itself a meaningful
-assertion about the conditional logic. The FORECAST and SCHEDULE branches of that same
-conditional (and the schedule-impact path through the real, fully-wired `TaskService`) are
-already covered end-to-end by the existing `test_project_finance_change_orders.py` suite (run as
-part of this task's regression pass); this file does not duplicate that scenario building.
+Scope: only the BUDGET-impact branch is exercised here (including its typed
+`BudgetStatusChanged`/`BudgetVersionCreated` events); the FORECAST and SCHEDULE branches are
+covered end-to-end by `test_project_finance_change_orders.py`.
 """
 
 from __future__ import annotations
@@ -171,8 +162,7 @@ def test_participant_reject_rejects_change_on_the_supplied_session(services, ses
 
 
 def test_participant_never_calls_commit_or_rollback(services, session, monkeypatch):
-    """The participant stages only -- the caller (today: ApprovalService on the shared Session;
-    from Step 2 onward: its own PlatformUnitOfWork) owns transaction completion."""
+    """The participant stages only; the caller owns transaction completion."""
     _login(services, "admin", "ChangeMe123!")
     _, _, request = _submitted_change(services, session)
     deps = _deps(services, session)

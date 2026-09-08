@@ -22,10 +22,6 @@ from src.core.modules.project_management.application.portfolio.portfolio_events 
 from src.core.platform.common.exceptions import ValidationError
 from src.core.shared.events.domain_event_context import DomainEventContext
 
-# P46B: test_legacy_portfolio_signal_field_is_deleted removed -- domain_events module is deleted
-# outright (see docs/architecture/event-modernization-plan.md's P46B entry).
-
-
 # ---------------------------------------------------------------------------
 # ViewInvalidation handler: unit-level mapping/dedupe -- one shared org-wide target
 # ---------------------------------------------------------------------------
@@ -138,9 +134,7 @@ def test_create_intake_item_produces_one_hint_and_atomic_audit(services):
     rows = services["session"].execute(
         select(AuditEntryORM).where(AuditEntryORM.entity_id == item.id)
     ).scalars().all()
-    assert [row.operation for row in rows] == ["create"], (
-        "Intake never had enterprise audit before P42 -- now it does, atomically"
-    )
+    assert [row.operation for row in rows] == ["create"]
 
 
 def test_update_intake_item_produces_one_hint(services):
@@ -250,6 +244,4 @@ def test_approval_post_commit_event_bridge_is_unaffected_by_portfolio_modernizat
                 and node.func.id == "ApprovalPostCommitEvent"
             ):
                 hits.add(normalized)
-    # Superseded by P45B: Task (and Financial Change's Task branch) were the last two
-    # ApprovalPostCommitEvent construction sites, now converted to typed `domain_events=`.
     assert hits == set()

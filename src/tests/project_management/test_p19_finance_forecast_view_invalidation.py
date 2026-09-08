@@ -1,14 +1,10 @@
-"""P19: Finance Forecast typed events + ViewInvalidation + `forecasts_changed` retirement.
-
-Covers: ForecastVersionChanged/ForecastLineChanged/ForecastDraftGenerated -> the two proven
-read-model targets (forecast_planning, forecast_approved_basis) at project scope
-(`ResourceScope(module_code="project_management", entity_type="project")`), dedupe by
-(transaction correlation_id, target identity), true no-op semantics on `update_line`, the
-financial-change-apply forecast-successor path reporting the same canonical
-`ForecastVersionChanged(APPROVED)` vocabulary via the new generic
-`ApprovalHandlerResult.domain_events` seam, the real FinancialsWorkspaceController's narrow
-per-target destination invalidation, and the full retirement of `forecasts_changed` (zero
-producers, zero consumers, field absent).
+"""Finance Forecast ViewInvalidation: `ForecastVersionChanged`/`ForecastLineChanged`/
+`ForecastDraftGenerated` -> `forecast_planning`/`forecast_approved_basis` at project scope
+(`ResourceScope(module_code="project_management", entity_type="project")`), deduped by
+(transaction correlation_id, target identity), no-op semantics on `update_line`, the
+financial-change-apply forecast-successor path reporting the same `ForecastVersionChanged(APPROVED)`
+vocabulary via `ApprovalHandlerResult.domain_events`, and the FinancialsWorkspaceController's
+narrow per-target destination invalidation.
 """
 
 from __future__ import annotations

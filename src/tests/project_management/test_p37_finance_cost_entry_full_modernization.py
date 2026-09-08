@@ -79,10 +79,6 @@ def _create_draft(services, project, cost_code, *, command_id="p37-manual-1", am
     )
 
 
-# P46B: test_legacy_cost_entry_signal_field_is_deleted removed -- domain_events module is deleted
-# outright (see docs/architecture/event-modernization-plan.md's P46B entry).
-
-
 # ---------------------------------------------------------------------------
 # ViewInvalidation handler: unit-level mapping/dedupe
 # ---------------------------------------------------------------------------
@@ -270,7 +266,7 @@ def test_submit_approve_post_progression_produces_source_derived_hints(services)
     assert [h.scope_code for h in submit_hints] == [COST_ENTRY_LIST_SCOPE_CODE]
 
     hints.clear()
-    approval_result = service.approve(submitted.id, expected_version=submitted.row_version)
+    service.approve(submitted.id, expected_version=submitted.row_version)
     approved = service.get_entry(submitted.id)
     approve_hints = _cost_entry_hints(hints)
     assert [h.scope_code for h in approve_hints] == [COST_ENTRY_LIST_SCOPE_CODE]
@@ -282,7 +278,6 @@ def test_submit_approve_post_progression_produces_source_derived_hints(services)
     post_hints = {h.scope_code for h in _cost_entry_hints(hints)}
     assert post_hints == {COST_ENTRY_LIST_SCOPE_CODE, COST_ENTRY_ACTUALS_SCOPE_CODE}
     assert posted.status == ProjectCostEntryStatus.POSTED
-    del approval_result
 
 
 def test_reject_produces_exactly_one_list_hint(services):
@@ -328,11 +323,8 @@ def test_reverse_produces_both_list_and_actuals_hints(services):
 
 
 def test_audit_failure_rolls_back_and_leaves_the_session_usable(services, monkeypatch):
-    """The direct commands now run inside `FinanceGovernanceCommandBoundary.cost_entry()`, whose
-    UoW factory constructs a fresh `EnterpriseAuditService` per transaction (the same
-    already-established characteristic every other governed Finance family shares). A failed
-    audit call raises and produces zero postcommit hints; the shared session must remain usable
-    for a subsequent legitimate operation afterward -- proof no session poisoning occurs."""
+    """A failed audit call raises and produces zero postcommit hints; the shared session must
+    remain usable for a subsequent legitimate operation -- proof no session poisoning occurs."""
     from src.core.platform.application.history.audit.enterprise_audit_service import (
         EnterpriseAuditService,
     )
@@ -366,9 +358,8 @@ def test_audit_failure_rolls_back_and_leaves_the_session_usable(services, monkey
 
 
 def test_concurrent_update_draft_second_writer_rejected(services, session):
-    """The pre-existing `expected_row_version` optimistic-concurrency guard on `ProjectCostEntry`
-    is exercised directly at the repository layer, unchanged by P37's transaction-convergence
-    work."""
+    """Exercises the repository-level `expected_row_version` optimistic-concurrency guard
+    directly, using two separate sessions racing on the same row."""
     from sqlalchemy.orm import sessionmaker
 
     from src.core.modules.project_management.infrastructure.persistence.repositories.finance.cost_entries.cost_entry import (
@@ -427,9 +418,8 @@ def test_financials_controller_cost_entry_list_stale_invalidates_costs_only(serv
 def test_financials_controller_cost_entry_actuals_stale_invalidates_the_legacy_four_minus_costs(
     services,
 ):
-    """Preserves the legacy signal's own 4-destination fan-out (overview/costs/performance/
-    commercial) -- `costs` is covered by the separate list-target hint every fact already emits,
-    so the actuals binder only needs to add overview/performance/commercial."""
+    """`costs` is covered by the separate list-target hint every fact already emits, so this
+    handler only needs to invalidate overview/performance/commercial."""
     catalog = _pm_catalog(services)
     controller = catalog.financialsWorkspace
     controller._set_selected_project_id("proj-a")

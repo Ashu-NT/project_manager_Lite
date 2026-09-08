@@ -23,12 +23,11 @@ from src.ui_qml.shared.adapters.scoped_view_invalidation_subscription import (
 
 
 class TaskViewInvalidationAdapter(QObject):
-    """The single QML-facing entry point for all Task ViewInvalidation hints
-    (P45B-CLOSURE item 32): controllers/presenters connect to these signals
-    instead of subscribing to any of the 9 Task DomainEvent classes directly.
-    One instance is shared across every PM controller in a shell/workspace via
-    the composition root (mirroring `TaskCommentViewInvalidationAdapter`'s own
-    P44B precedent)."""
+    """The single QML-facing entry point for all Task ViewInvalidation
+    hints: controllers/presenters connect to these signals instead of
+    subscribing to any of the 9 Task DomainEvent classes directly. One
+    instance is shared across every PM controller in a shell/workspace via
+    the composition root."""
 
     taskListStale = Signal(str)  # project_id
     taskProfileStale = Signal(str)  # project_id (narrower: name/identity/existence only)

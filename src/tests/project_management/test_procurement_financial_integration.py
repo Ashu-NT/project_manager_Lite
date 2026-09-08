@@ -424,7 +424,7 @@ def test_receipt_and_stock_changes_roll_back_when_outbox_write_fails(
 
 
 def test_commitment_transactional_handler_runs_before_the_dispatcher_commits(services) -> None:
-    """P36-FIX2: the transactional handler must receive the actual canonical `UnitOfWork`
+    """The transactional handler must receive the actual canonical `UnitOfWork`
     instance that owns this transaction -- never `ProcurementFinancialDispatcher` itself.
     `ProcurementFinancialDispatcher` is not a `UnitOfWork` (no `record_event`/`commit`/
     `__enter__`/`__exit__`); passing it as the handler's `uow` argument would be duck-typed
@@ -465,9 +465,8 @@ def test_commitment_transactional_handler_runs_before_the_dispatcher_commits(ser
 def test_commitment_transactional_handler_failure_rolls_back_and_yields_zero_postcommit_event(
     services,
 ) -> None:
-    """P36-FIX core proof: when a precommit Commitment transactional handler fails, the mutation
-    must not persist and no postcommit event/ViewInvalidation may occur -- the exact guarantee a
-    bare `session.commit()` + `post_commit_bus.publish(event)` sequence could never provide."""
+    """When a precommit Commitment transactional handler fails, the mutation must not persist
+    and no postcommit event/ViewInvalidation may occur."""
     dispatcher = services["procurement_financial_dispatcher"]
 
     def _boom(_event, _uow) -> None:

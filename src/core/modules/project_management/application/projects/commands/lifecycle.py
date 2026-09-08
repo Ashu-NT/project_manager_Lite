@@ -607,11 +607,9 @@ class ProjectLifecycleMixin:
                     self._session.flush()
                 self._assignment_repo.delete_by_task(task.id)
                 self._task_repo.delete_with_version_check(task.id, expected_version=task.version)
-                # P45B item 9/33: one TaskRemoved per actually-deleted Task,
-                # same transaction as the Project delete -- Task is an
-                # independently versioned/audited aggregate, so its removal
-                # is its own fact even though Project's own command triggered
-                # it; never a synthetic project-level bulk fact.
+                # One TaskRemoved per deleted Task, same transaction as the Project
+                # delete -- Task is an independently versioned/audited aggregate, so
+                # its removal is its own fact, never a synthetic bulk fact.
                 uow.record_event(
                     TaskRemoved(
                         tenant_id=scope.tenant_id,

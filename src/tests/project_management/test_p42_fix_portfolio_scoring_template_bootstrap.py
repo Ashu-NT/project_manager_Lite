@@ -336,7 +336,3 @@ def test_database_rejects_a_second_active_row_via_raw_insert_bypassing_applicati
     with pytest.raises(_IntegrityError):
         session.commit()
     session.rollback()
-
-
-# P46B: test_legacy_portfolio_signal_still_absent removed -- domain_events module is deleted
-# outright (see docs/architecture/event-modernization-plan.md's P46B entry).

@@ -1,6 +1,4 @@
-"""ADR-PF-005 rate-card resolution — orchestration only.
-
-"""
+"""Rate-card resolution -- orchestration only."""
 
 from __future__ import annotations
 
@@ -42,8 +40,7 @@ def _fold(value: str | None) -> str | None:
 
 
 class RateCardResolver:
-    """Selects and snapshots a rate-card line per ADR-PF-005's precedence order.
-    """
+    """Selects and snapshots a rate-card line by precedence order."""
 
     def __init__(
         self,

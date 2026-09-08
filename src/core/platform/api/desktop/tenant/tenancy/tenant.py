@@ -19,10 +19,10 @@ from src.core.platform.application.tenant.tenancy.tenant_context import TenantCo
 
 
 class PlatformTenantDesktopApi:
-    """Desktop-facing adapter for tenant switching, listing accessible tenants, and (P10C)
-    Organization Switcher session-context operations -- organization availability
-    (enable/disable) and organization-scoped access grants remain on `PlatformRuntimeDesktopApi`
-    and `PlatformAccessDesktopApi` respectively; this class owns session/working-context only."""
+    """Desktop-facing adapter for tenant/organization switching and session working-context.
+
+    Organization availability (enable/disable) lives on `PlatformRuntimeDesktopApi`;
+    organization-scoped access grants live on `PlatformAccessDesktopApi`."""
 
     def __init__(
         self,

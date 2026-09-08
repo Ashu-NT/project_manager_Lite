@@ -15,11 +15,8 @@ from src.core.modules.project_management.domain.enums import DependencyType
 
 
 def _impact_service(services):
-    """ScheduleChangeImpactService is only constructed in the desktop
-    runtime layer (desktop_api_builder.py) today, not in this repo's
-    shared test service graph -- build it directly from the same real
-    repos/calendar/baseline_service the desktop runtime wires, exactly
-    like scheduling_helpers.build_schedule_change_impact_service does."""
+    """`ScheduleChangeImpactService` isn't in the shared test `services` graph -- build it
+    directly from the same real repos/calendar/baseline_service the desktop runtime wires."""
     ts = services["task_service"]
     return ScheduleChangeImpactService(
         task_repo=ts._task_repo,

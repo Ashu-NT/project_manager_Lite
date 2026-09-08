@@ -31,16 +31,12 @@ from src.core.platform.common.exceptions import (
 class TaskSchedulingConstraintMixin:
     """Governed Task scheduling-constraint mutation (MSO/MFO/SNET/SNLT/
     FNET/FNLT + clear-back-to-ASAP). Mirrors TaskDependencyMixin's
-    request-time/apply-time governance shape (see
-    docs/pm_modernization/R4_4_TASK_CONSTRAINT_CURRENT_STATE_AND_TARGET_GAPS.md
-    §21/§28) -- separate from generic update_task rather than overloading
-    it with raw dict semantics, matching how dependency mutations already
-    get their own dedicated, explicitly-governed command shape.
+    request-time/apply-time governance shape -- kept separate from generic
+    update_task rather than overloading it with raw dict semantics.
 
     Task.deadline is intentionally NOT part of this command: it never
     drives CPM (validation-only, same as FINISH_NO_LATER_THAN) and stays
-    on the plain update_task path -- see the implementation summary's
-    "Deadline governance decision" for the explicit reasoning.
+    on the plain update_task path.
     """
 
     def update_task_scheduling_constraint(
@@ -125,13 +121,11 @@ class TaskSchedulingConstraintMixin:
         """Apply immediately (ungoverned path) or when an approved
         ``task.constraint.update`` request is finally applied. Re-fetches
         the CURRENT task and re-validates version/calendar rather than
-        trusting request-time facts -- matching the TOCTOU fix already
-        established for dependency mutations: real time (and possibly the
-        task's version or calendar exceptions) may have passed since the
-        original request was validated. ``expected_version`` is the
-        version captured AT REQUEST TIME (governed path) or just-read
-        (ungoverned path) -- not re-derived from the current row, or this
-        check could never fire."""
+        trusting request-time facts, since real time (and possibly the
+        task's version or calendar exceptions) may have passed.
+        ``expected_version`` is the version captured at request time
+        (governed path) or just-read (ungoverned path) -- not re-derived
+        from the current row, or this check could never fire."""
         task = self._task_repo.get(task_id)
         if task is None:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")

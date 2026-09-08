@@ -1,12 +1,7 @@
-"""Phase K: typed, non-persisting impact preview for dependency changes.
-
-Create/update preview already existed as ``get_dependency_diagnostics(...,
-include_impact=True)``; ``preview_dependency_removal`` closes the gap for
-DELETE. Both use the exact same canonical ``run_cpm`` path the committed
-schedule uses, so a preview can never disagree with what saving/removing
-would actually produce. See
-docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
-§17/Phase K.
+"""Typed, non-persisting impact preview for dependency changes: create/update via
+``get_dependency_diagnostics(..., include_impact=True)``, delete via
+``preview_dependency_removal``. Both use the exact same canonical ``run_cpm`` path the committed
+schedule uses, so a preview can never disagree with what saving/removing would actually produce.
 """
 from __future__ import annotations
 
@@ -29,13 +24,9 @@ def _make_chain(services):
 
 
 def test_removal_preview_reports_no_shift_when_successor_has_no_other_anchor(services):
-    """Real, load-bearing property of this scheduling engine, not a bug:
-    once A->B has been added, CPM persists its computed date back onto
-    B.start_date (the normal commit behavior). If B loses its only
-    incoming dependency, the "without" simulation falls back to using
-    B's OWN (already-persisted, previously dependency-derived)
-    start_date as its anchor -- so it reproduces the exact date it already
-    had, and the preview correctly reports no shift. Removing a task's
+    """Not a bug: CPM persists A->B's computed date onto B.start_date on commit, so if B loses
+    that dependency, the "without" simulation falls back to B's own already-persisted
+    start_date -- reproducing the same date and correctly reporting no shift. Removing a task's
     only incoming dependency does not retroactively un-schedule it."""
     ts = services["task_service"]
     _project, a, b, c, dep_ab = _make_chain(services)

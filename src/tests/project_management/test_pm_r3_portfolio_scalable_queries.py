@@ -1,9 +1,6 @@
-"""R3.3: Portfolio scalable collection query contract.
-
-Covers the server-side pagination added for the three collections classified
-SCALABLE (intake, heatmap, dependencies) and the bounded Top-N analytical
-projection added for Heatmap's global pressure ranking. See
-docs/pm_modernization/qml_redesign for the full classification record.
+"""Portfolio scalable collection query contract: server-side pagination for the
+three collections classified SCALABLE (intake, heatmap, dependencies), plus the
+bounded Top-N analytical projection for Heatmap's global pressure ranking.
 """
 
 from __future__ import annotations
@@ -358,7 +355,7 @@ def test_dependencies_page_rejects_pressure_as_a_sortable_key(services) -> None:
     assert page.total == 2
 
 
-# ── R3.4 groundwork: desktop API pagination pass-through ────────────────
+# ── Desktop API pagination pass-through ─────────────────────────────────
 
 
 def test_desktop_api_intake_page_passes_through_and_serializes(services) -> None:

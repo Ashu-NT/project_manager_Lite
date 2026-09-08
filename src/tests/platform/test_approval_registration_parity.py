@@ -1,9 +1,6 @@
-"""Proves the 20 real approval
-apply/reject registrations survive the switch from long-lived-service closures (Step 1) to
-module-owned, session-parameterized transaction participants registered directly, alongside a
-`dependencies_factory` (Step 2) -- no registration missing, none duplicated, none pointed at the
-wrong module's participant.
-"""
+"""Proves all 20 real approval apply/reject registrations are present, each bound to the right
+module's participant with a working `dependencies_factory` -- no registration missing, none
+duplicated, none pointed at the wrong participant."""
 
 from __future__ import annotations
 
@@ -64,10 +61,8 @@ EXPECTED_REJECT_REGISTRATIONS = {
 
 
 def _bound_participant_class(entry):
-    # P4 Step 2: each registered entry is now `(handler, dependencies_factory)`, where `handler`
-    # is the participant's own bound method (e.g. `budget_participant.apply`), registered
-    # directly -- no lambda/closure indirection to unwrap any more. `handler.__self__` is the
-    # participant instance itself.
+    # Each entry is `(handler, dependencies_factory)`, where `handler` is the participant's own
+    # bound method (e.g. `budget_participant.apply`) -- `handler.__self__` is the instance.
     handler, dependencies_factory = entry
     assert callable(dependencies_factory), (
         f"expected a callable dependencies_factory alongside {handler}, got {dependencies_factory!r}"
@@ -122,8 +117,8 @@ def test_every_expected_reject_request_type_is_registered_to_the_right_participa
 
 
 def test_every_dependencies_factory_produces_deps_bound_to_the_supplied_session(tmp_path, services):
-    """The Step-2 acceptance criterion: every registered `dependencies_factory` genuinely
-    accepts an arbitrary Session, not just the one Session it happened to be built alongside."""
+    """Every registered `dependencies_factory` accepts an arbitrary Session, not just the one it
+    happened to be built alongside."""
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
 

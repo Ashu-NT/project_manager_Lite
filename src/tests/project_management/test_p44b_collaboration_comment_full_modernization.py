@@ -25,10 +25,6 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError
 from src.core.shared.events.domain_event_context import DomainEventContext
 
-# P46B: test_legacy_collaboration_signal_field_is_deleted removed -- domain_events module is
-# deleted outright (see docs/architecture/event-modernization-plan.md's P46B entry).
-
-
 # ---------------------------------------------------------------------------
 # ViewInvalidation handler: unit-level mapping/dedupe
 # ---------------------------------------------------------------------------
@@ -244,10 +240,8 @@ def test_delete_comment_is_a_true_no_op_when_already_deleted(services):
 
 
 def test_reaction_repeat_is_not_a_no_op_matching_current_domain_behavior(services):
-    """§54: current domain does NOT treat "same user, same reaction, twice" as a no-op (no
-    already-reacted guard exists in source) -- the final persisted state is data-level idempotent
-    (still exactly one reactor), but the second call still writes/audits/emits, exactly like the
-    first. This test proves and preserves that exact pre-existing behavior, not an invented one."""
+    """No already-reacted guard exists: a repeat reaction still writes/audits/emits like the
+    first call, even though the reactor set itself stays data-level idempotent."""
     _, task = _setup(services)
     comment = services["collaboration_service"].post_comment(task_id=task.id, body="React twice")
 
@@ -260,7 +254,7 @@ def test_reaction_repeat_is_not_a_no_op_matching_current_domain_behavior(service
 
 
 # ---------------------------------------------------------------------------
-# Audit failure rollback (mandatory, §50) and transactional-handler failure (§51)
+# Audit failure rollback and transactional-handler failure
 # ---------------------------------------------------------------------------
 
 
@@ -304,7 +298,7 @@ def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
 
 
 # ---------------------------------------------------------------------------
-# Concurrency (§21/§22/§53)
+# Concurrency
 # ---------------------------------------------------------------------------
 
 
@@ -339,8 +333,8 @@ def test_stale_delete_raises_and_produces_zero_hints_and_zero_write(services):
 
 
 def test_two_independent_sessions_concurrent_edit_second_writer_gets_canonical_error(services):
-    """§22: a real two-independent-UoW concurrency proof, not merely 'one command raised' --
-    asserts the FINAL persisted body reflects only the winner."""
+    """Two independent UoWs race on the same comment; the final persisted body must reflect only
+    the winner."""
     _, task = _setup(services)
     comment = services["collaboration_service"].post_comment(task_id=task.id, body="Race me")
 
@@ -362,7 +356,7 @@ def test_two_independent_sessions_concurrent_edit_second_writer_gets_canonical_e
 
 
 # ---------------------------------------------------------------------------
-# Cross-organization ownership (§26)
+# Cross-organization ownership
 # ---------------------------------------------------------------------------
 
 
@@ -372,7 +366,7 @@ def test_edit_unknown_comment_is_rejected_with_zero_write(services):
 
 
 # ---------------------------------------------------------------------------
-# §41/§42: legacy producers/consumers fully removed; source-level architecture guards
+# Source-level architecture guards: legacy producers/consumers fully removed
 # ---------------------------------------------------------------------------
 
 
@@ -388,13 +382,8 @@ def test_durable_comment_commands_source_never_names_collaboration_changed():
     assert "tasks_changed" not in source
 
 
-# P46B: test_no_new_signal_field_introduced removed -- domain_events module is deleted outright
-# (Auth's `auth_changed` was the last surviving field; see docs/architecture/
-# event-modernization-plan.md's P46B entry).
-
-
 # ---------------------------------------------------------------------------
-# §47: Approval infrastructure baseline unchanged
+# Approval infrastructure baseline unchanged
 # ---------------------------------------------------------------------------
 
 
@@ -416,6 +405,4 @@ def test_approval_post_commit_event_bridge_is_unaffected_by_collaboration_modern
                 and node.func.id == "ApprovalPostCommitEvent"
             ):
                 hits.add(normalized)
-    # Superseded by P45B: Task (and Financial Change's Task branch) were the last two
-    # ApprovalPostCommitEvent construction sites, now converted to typed `domain_events=`.
     assert hits == set()

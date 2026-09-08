@@ -1,22 +1,8 @@
-"""P45B-CLOSURE mandatory regressions (brief items §4, §10, §30, §36).
-
-§4  -- a transactional-handler failure during `TimeService.add_work_entry` /
-        `update_time_entry` rolls back the TimeEntry write, the TaskAssignment
-        hours-sync CAS write, and the EnterpriseAudit entry together (same
-        physical transaction, per the `_time_entry_unit_of_work` fix), and
-        yields zero postcommit ViewInvalidation hint.
-§10 -- the Timesheet Class-B `task_list` replacement (for the deleted legacy
-        `tasks_changed` re-emission) proved end-to-end with real services:
-        exactly the referenced project's Task list projection is stale, an
-        unrelated project's is not, and zero real Task DomainEvent fires.
-§30 -- explicit per-consumer QML regression coverage for the four Task
-        ViewInvalidation consumers not already covered elsewhere (Dashboard,
-        Resources, Timesheets/ResourceTimesheetsController, Review Queue) plus
-        Portfolio's second signal (`taskDependenciesStale`).
-§36 -- the "producerless legacy consumer" / inert-consumer regression: the
-        legacy `tasks_changed` field itself is gone, and a real, typed Task
-        mutation still reaches its genuine QML consumer purely through
-        ViewInvalidation, with zero legacy Signal involved anywhere.
+"""Task/TimeEntry ViewInvalidation regressions: TimeEntry/TaskAssignment
+transactional rollback, the Timesheet `task_list` bridge proved end-to-end,
+per-consumer QML coverage for the Task ViewInvalidation consumers, and the
+producerless-consumer proof that a typed Task mutation reaches its QML
+consumer purely through ViewInvalidation.
 """
 
 from __future__ import annotations
@@ -52,15 +38,6 @@ def _task_hints(hints):
     return [h for h in hints if h.category == "task"]
 
 
-# ---------------------------------------------------------------------------
-# §36 -- the legacy field itself is gone, module-wide.
-# ---------------------------------------------------------------------------
-
-
-# P46B: test_domain_events_has_no_tasks_changed_field removed -- domain_events module is deleted
-# outright (see docs/architecture/event-modernization-plan.md's P46B entry).
-
-
 def test_task_mutation_succeeds_with_zero_tasks_changed_and_genuine_consumer_refreshes(services, monkeypatch, qapp):
     """A real, typed Task mutation (`create_task`) reaches the Tasks workspace's genuine
     consumer purely through ViewInvalidation -- no legacy Signal exists to have carried it."""
@@ -79,7 +56,7 @@ def test_task_mutation_succeeds_with_zero_tasks_changed_and_genuine_consumer_ref
 
 
 # ---------------------------------------------------------------------------
-# §30 -- per-consumer QML regression coverage for the remaining, not-yet-covered consumers
+# Per-consumer QML regression coverage
 # ---------------------------------------------------------------------------
 
 
@@ -175,7 +152,7 @@ def test_resources_workspace_ignores_unselected_resource_task_assignment_stale(m
 
 
 # ---------------------------------------------------------------------------
-# §4 -- TimeEntry transactional-handler failure rolls back the whole transaction
+# TimeEntry transactional-handler failure rolls back the whole transaction
 # ---------------------------------------------------------------------------
 
 
@@ -259,7 +236,7 @@ def test_update_time_entry_transactional_handler_failure_rolls_back_the_revision
 
 
 # ---------------------------------------------------------------------------
-# §10 -- Timesheet Class-B `task_list` replacement, proved end-to-end
+# Timesheet's `task_list` ViewInvalidation bridge, proved end-to-end
 # ---------------------------------------------------------------------------
 
 
@@ -290,8 +267,8 @@ def test_submit_timesheet_period_stales_only_the_referenced_project_task_list(se
 
 
 def test_submit_timesheet_period_records_zero_real_task_domain_event(services, monkeypatch):
-    """The Class-B bridge maps directly onto the existing `task_list` ViewInvalidation target --
-    it must never construct or dispatch a real typed Task DomainEvent to do it."""
+    """Timesheet submission maps directly onto the existing `task_list` ViewInvalidation target
+    -- it must never construct or dispatch a real typed Task DomainEvent to do it."""
     from src.core.modules.project_management.application.tasks import task_events
 
     organization = services["tenant_context_service"].get_active_organization()

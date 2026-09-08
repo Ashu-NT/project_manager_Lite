@@ -71,9 +71,7 @@ class SqlAlchemyResourceUnitOfWork(SqlAlchemyUnitOfWorkBase, ResourceUnitOfWork)
 
         # Activity-feed staging must ride this same fresh transaction -- a separately-scoped
         # ActivityService bound to a different (process-lifetime shared) Session would stage an
-        # entry that this UoW's own commit() never persists (a real regression P18A's own
-        # convergence would otherwise introduce, since the mutation no longer shares a Session
-        # with anything outside this UoW).
+        # entry that this UoW's own commit() never persists.
         activity_repo = SqlAlchemyActivityRepository(session)
         activity_repo._tenant_context_service = tenant_context_service
         self._activity_service = ActivityService(

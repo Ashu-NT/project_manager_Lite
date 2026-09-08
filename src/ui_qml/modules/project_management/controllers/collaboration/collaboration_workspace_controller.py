@@ -246,10 +246,10 @@ class ProjectManagementCollaborationWorkspaceController(
     # ── Domain event handler ──────────────────────────────────────────
 
     def onTaskProfileStale(self, _project_id: str) -> None:
-        """Narrow, per P45A: inbox/mentions/activity-feed row titles read
-        `Task.name` via a live join -- only name/identity/existence facts
-        (TaskCreated/TaskProfileUpdated/TaskRemoved) affect what's displayed
-        here, never progress/status/schedule/assignment/dependency."""
+        """Inbox/mentions/activity-feed row titles read `Task.name` via a
+        live join -- only name/identity/existence facts affect what's
+        displayed here, never progress/status/schedule/assignment/
+        dependency."""
         self._request_domain_refresh()
 
     def refresh_approvals(self) -> None:

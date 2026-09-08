@@ -1,14 +1,9 @@
-"""ADR-005 Section 12 (P5A): `OrganizationCreated` -> `ViewInvalidationHint` post-commit reaction.
+"""Maps `OrganizationCreated` onto its two stale-read targets: the tenant-wide organization
+list, and the created organization's own details view. Two hints, not one `TenantScope`-only
+hint, since the details view is organization-scoped.
 
-Maps the `OrganizationCreated` business fact onto the two stale-read targets
-`platform_p5_event_discovery.md`'s Event -> Invalidation Matrix (Section 9) documents: the
-tenant-wide organization list, and the created organization's own details view. One business
-event legitimately produces two hints (ADR-005 Section 3a's multi-hint rule) -- never a single
-`TenantScope`-only hint, since the details view is genuinely organization-scoped, not tenant-wide.
-
-Transport-independent: no Qt, no QML. Routing is delegated entirely to `ScopeFilter.matches(...)`
-via the P2 `ViewInvalidationChannel` -- this module never reimplements tenant/organization
-matching itself. The P6 Qt adapter consumes `ViewInvalidationHint`, never this event directly.
+Transport-independent: no Qt, no QML. Routing is delegated to `ScopeFilter.matches(...)` via
+`ViewInvalidationChannel`; this module never reimplements tenant/organization matching itself.
 """
 
 from __future__ import annotations

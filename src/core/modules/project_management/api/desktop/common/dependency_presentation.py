@@ -1,12 +1,6 @@
 """Single canonical source for Task dependency-type/direction presentation
 and input coercion, shared across the Tasks, Scheduling, and Portfolio
-desktop-API workspaces. See
-docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
-Phase M -- previously four independently-maintained copies of this same
-label map and coercion logic existed and had already drifted from one
-another (e.g. scheduling's copy silently dropped SF from CPM handling
-until Phase C/D fixed the underlying math; the label maps themselves were
-identical by luck, not by construction).
+desktop-API workspaces.
 """
 from __future__ import annotations
 

@@ -67,9 +67,6 @@ def test_role_governance_service_emits_no_auth_changed():
 
 
 def test_tenant_membership_service_still_emits_no_auth_changed():
-    """Item 10: P5D-3's removal must not have regressed -- re-verified here, in the same pass
-    that touches the sibling RoleBinding capability, so a future edit to either file gets caught
-    by both guards independently."""
     import inspect
 
     import src.core.platform.application.tenant.tenancy.tenant_membership_service as module
@@ -79,11 +76,9 @@ def test_tenant_membership_service_still_emits_no_auth_changed():
 
 
 def test_zero_auth_changed_subscribers_remain():
-    """P46B: `auth_changed` and every consumer of it are deleted outright -- the admin console's
-    own legacy binder module (`admin_console/domain_event_binder.py`) no longer exists at all,
-    and the access workspace controller no longer references `domain_events` in any form. Both
-    now react to the canonical `account_security`/`authorization_context` ViewInvalidation
-    targets instead (see `context.py`'s composition wiring)."""
+    """The admin console's legacy binder module no longer exists, and the access workspace
+    controller no longer references `domain_events` in any form. Both react to the
+    `account_security`/`authorization_context` ViewInvalidation targets instead."""
     import importlib
     import inspect
 
@@ -143,10 +138,9 @@ def test_role_binding_revocation_causes_exactly_one_narrow_refresh_and_zero_coar
 
 
 def test_role_binding_assignment_no_longer_reaches_the_admin_console_coarse_binder(services):
-    """P46B: the admin console's coarse `domain_event_binder.py` (formerly subscribed to
-    `auth_changed` among 8 signals, triggering a full 9-presenter reload) is deleted outright.
-    A RoleBinding mutation reaches only the narrow `role_binding` ViewInvalidation target (wired
-    to the access workspace); it must never trigger the admin console's coarse full refresh."""
+    """A RoleBinding mutation reaches only the narrow `role_binding` ViewInvalidation target
+    (wired to the access workspace); it must never trigger the admin console's coarse full
+    refresh."""
     catalog = _catalog(services)
     target, target_role = _tenant_scoped_binding_setup(services, suffix="admin-console-isolation")
 
@@ -162,10 +156,8 @@ def test_role_binding_assignment_no_longer_reaches_the_admin_console_coarse_bind
 
 
 def test_role_binding_events_stay_silent_on_rollback(services, monkeypatch):
-    """P46B: `auth_changed` is deleted, so there is nothing left to prove silent on rollback for
-    that signal specifically. What remains true and worth proving directly: a failed commit must
-    not have recorded any typed `RoleBindingAssigned` event as having been dispatched -- the UoW's
-    own commit failure must abort the whole transaction, event included."""
+    """A failed commit must not leave a typed `RoleBindingAssigned` event dispatched -- the UoW's
+    own commit failure aborts the whole transaction, event included."""
     from src.core.platform.infrastructure.persistence.uow.role_governance_unit_of_work import (
         SqlAlchemyRoleGovernanceUnitOfWork,
     )
@@ -187,10 +179,9 @@ def test_role_binding_events_stay_silent_on_rollback(services, monkeypatch):
 
 
 def test_current_principal_refresh_still_occurs_and_fails_closed_without_auth_changed(services, monkeypatch):
-    """Item 3/14: current-principal refresh is `role_assignment_service.py`'s own explicit,
-    unconditional call to `refresh_current_session_if_user(...)` -- never wired through
-    `auth_changed`. Proven directly: it still happens (and still fails closed) with the legacy
-    signal fully removed from `RoleGovernanceService`."""
+    """Current-principal refresh is `role_assignment_service.py`'s own explicit, unconditional
+    call to `refresh_current_session_if_user(...)`. Proven directly: it still happens, and still
+    fails closed, on its own -- independent of any ViewInvalidation wiring."""
     auth = services["auth_service"]
     tenant_id = _active_tenant(services)
     username = _unique_code("p5closeout-self-actor")
@@ -227,9 +218,8 @@ def test_current_principal_refresh_still_occurs_and_fails_closed_without_auth_ch
 
 
 def test_other_user_role_binding_mutation_leaves_acting_admin_principal_untouched(services):
-    """Item 15: admin changes User B's RoleBinding -- binding state updates, narrow RoleBinding
-    ViewInvalidation fires, the acting admin's own principal is untouched, and no coarse
-    `auth_changed` UI refresh happens for either party."""
+    """Admin changes User B's RoleBinding: binding state updates, narrow RoleBinding
+    ViewInvalidation fires, and the acting admin's own principal is untouched."""
     catalog = _catalog(services)
     catalog.adminAccessWorkspace.refresh()
     target, target_role = _tenant_scoped_binding_setup(services, suffix="other-user")

@@ -244,20 +244,18 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
         self._refresh_empty_state()
 
     def refresh_security_users(self) -> None:
-        """Narrow reaction to the tenant-membership ViewInvalidation target (P5D-3 direct
-        cutover) -- unlike `refresh_after_account_security_change`'s `account_security`/
-        `authorization_context` targets (password/MFA/session/custom-role/role-policy changes),
-        this only ever fires for a real membership transition."""
+        """Narrow reaction to the tenant-membership ViewInvalidation target -- unlike
+        `refresh_after_account_security_change`, this only fires for a real membership
+        transition, never for password/MFA/session/custom-role/role-policy changes."""
         if not self._loaded or self._is_loading or self._is_busy:
             return
         self._refresh_security_users()
         self._refresh_empty_state()
 
     def refresh_after_account_security_change(self) -> None:
-        """P46B direct cutover: reacts to the `account_security`/`authorization_context`
-        ViewInvalidation targets (replacing the legacy `auth_changed` Signal, which covered
+        """Reacts to the `account_security`/`authorization_context` ViewInvalidation targets:
         password/MFA/session/custom-role/role-policy changes for users visible in this
-        workspace)."""
+        workspace."""
         if not self._loaded or self._is_loading or self._is_busy:
             return
         self._refresh_after_security_change()

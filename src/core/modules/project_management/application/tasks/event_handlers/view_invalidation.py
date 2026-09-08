@@ -45,12 +45,12 @@ _Target = tuple[str, str, str, str, str]
 
 
 def build_task_view_invalidation_handler(channel: ViewInvalidationChannel):
-    """One handler for all 9 Task DomainEvent classes -- P45B's final ViewInvalidation
-    design (P45A-FINAL-CLOSURE §46-54). Dedupes by (correlation_id, exact target/scope
-    identity) so N per-task facts sharing one project (bulk leveling, bulk status,
-    Project cascade delete, Financial Change sibling reschedule) still produce exactly
-    one hint per distinct target -- DomainEvent volume is never conflated with UI
-    rebuild volume."""
+    """One handler for all 9 Task DomainEvent classes. Dedupes by
+    (correlation_id, exact target/scope identity) so N per-task facts
+    sharing one project (bulk leveling, bulk status, Project cascade
+    delete, Financial Change sibling reschedule) still produce exactly one
+    hint per distinct target -- DomainEvent volume is never conflated with
+    UI rebuild volume."""
 
     current_correlation_id: list[str | None] = [None]
     notified_targets: set[_Target] = set()
@@ -112,9 +112,9 @@ def build_task_view_invalidation_handler(channel: ViewInvalidationChannel):
         if isinstance(event, (TaskCreated, TaskProfileUpdated, TaskRemoved)):
             # Narrower than task_list: only facts that change a task's own
             # displayed name/identity/existence -- Collaboration's inbox/
-            # mentions/activity-feed row titles read exactly this (P45A
-            # proved `Task.name` via a live join), never progress/status/
-            # schedule/assignment/dependency facts.
+            # mentions/activity-feed row titles read exactly this (a live
+            # join on `Task.name`), never progress/status/schedule/
+            # assignment/dependency facts.
             _notify(TASK_PROFILE_SCOPE_CODE, "project", project_id, event)
 
     return handle_task_event

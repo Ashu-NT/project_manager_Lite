@@ -126,8 +126,6 @@ def test_list_accessible_tenants_inactive_membership_excluded(services):
     ut_repo.add(UserTenantMembership.create(user_id=user_id, tenant_id=t_inactive.id))
     services["session"].flush()
 
-    # P5D-1: `deactivate()` was removed (dead, zero-production-caller convenience method) --
-    # the equivalent direct repository sequence for test setup.
     ut_repo.update(ut_repo.get(user_id, t_inactive.id).suspend())
     services["session"].flush()
 
@@ -186,19 +184,15 @@ def test_switch_to_tenant_clears_previous_organization(services):
     admin_svc = services["tenant_admin_service"]
     user_session = services["user_session"]
 
-    # Confirm there is an active organization from the current (default) tenant
     current_org = tenant_context.get_active_organization()
     assert current_org is not None, "Test requires a pre-set active org from default tenant"
 
-    # Create a new tenant (admin is exempt from membership check, so can switch freely)
     new_tenant = admin_svc.create_tenant("P2D-SWITCH-CLR", "Switch Clear Test")
     services["session"].flush()
 
     tenant_context.switch_to_tenant(new_tenant.id)
 
-    # Active org must be None — the new tenant has no orgs
     assert tenant_context.get_active_organization() is None
-    # And the raw session org_id must not point to the old tenant's org
     assert user_session.active_organization_id() != current_org.id
 
 
@@ -258,7 +252,6 @@ def test_switch_to_tenant_without_membership_denied(services):
     locked_tenant = admin_svc.create_tenant("P2D-LOCKED", "Locked Tenant")
     services["session"].flush()
 
-    # Regular user — NOT added as a member of locked_tenant
     _, context_svc, _ = _make_regular_user_svc(services, username="p2d-no-access-user")
 
     with pytest.raises(BusinessRuleError) as exc:
@@ -274,7 +267,6 @@ def test_platform_admin_list_accessible_tenants_returns_all(services):
     admin_svc = services["tenant_admin_service"]
     t1 = admin_svc.create_tenant("P2D-ADMIN-ALL1", "Admin All 1")
     t2 = admin_svc.create_tenant("P2D-ADMIN-ALL2", "Admin All 2")
-    # Suspend one to verify platform.admin also sees non-active tenants
     admin_svc.suspend_tenant(t2.id)
     services["session"].flush()
 

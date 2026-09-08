@@ -379,12 +379,6 @@ def test_register_entity_attachments_coalesces_to_one_document_list_hint(service
     assert len(hints) == 1
 
 
-# P16D superseded `test_register_entity_attachments_still_emits_legacy_documents_changed_
-# per_document`: documents_changed is deleted entirely -- register_entity_attachments now
-# records DocumentReferenceLinked per document instead. See
-# test_p16d_document_link_typed_events.py.
-
-
 # ---------------------------------------------------------------------------
 # UI: Admin narrow refresh
 # ---------------------------------------------------------------------------
@@ -628,12 +622,6 @@ def test_document_list_view_invalidation_handler_has_no_generic_bridge():
 
     source = inspect.getsource(vi_module)
     assert "getattr(domain_events" not in source
-
-
-# P16D superseded `test_documents_changed_field_still_present` and
-# `test_documents_changed_remaining_producers_are_link_related_only`: documents_changed is
-# deleted entirely once the Link facts it covered got their own typed events -- see
-# test_p16d_document_link_typed_events.py for the deletion proof.
 
 
 def test_no_documents_changed_reference_in_simple_document_and_structure_paths():

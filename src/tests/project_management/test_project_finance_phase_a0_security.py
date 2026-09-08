@@ -245,13 +245,9 @@ def test_cost_entry_mutation_records_scoped_enterprise_audit(services):
 
 
 def test_cost_entry_mutation_rolls_back_when_required_audit_fails(services, monkeypatch):
-    """P37: `create_manual_entry` now runs under `FinanceGovernanceCommandBoundary.cost_entry()`,
-    whose UoW factory constructs a fresh `EnterpriseAuditService` per transaction (the same
-    already-established characteristic every other governed Finance family shares -- see
-    `SqlAlchemyFinanceGovernanceUnitOfWork.__init__`). Patching the outer, request-scoped
-    `services["enterprise_audit_service"]` instance no longer reaches the governed call, so this
-    patches `EnterpriseAuditService.record` at the class level instead -- the same pattern P35's
-    own governed-boundary audit-failure test already established."""
+    """`create_manual_entry` constructs a fresh `EnterpriseAuditService` per transaction, so
+    patching the outer `services["enterprise_audit_service"]` instance would not reach it --
+    this patches `EnterpriseAuditService.record` at the class level instead."""
     from src.core.platform.application.history.audit.enterprise_audit_service import (
         EnterpriseAuditService,
     )
@@ -291,7 +287,7 @@ def test_cost_entry_mutation_rolls_back_when_required_audit_fails(services, monk
 
 
 # ---------------------------------------------------------------------------
-# F0 — ReportingService / DashboardService authorization boundary closure
+# ReportingService / DashboardService authorization boundary
 #
 # report.view is a general reporting permission. It must never, by itself,
 # expose Project Finance authority data (EVM, cost breakdown, cost source

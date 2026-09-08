@@ -1,4 +1,4 @@
-"""Phase 1 team-collaboration notifications: approval requested/decided dispatch."""
+"""Team-collaboration notifications: approval requested/decided dispatch."""
 
 from __future__ import annotations
 
@@ -77,9 +77,8 @@ def _build_service(*, notification_service, tenant_id="tenant-1"):
     return ApprovalService(
         session=SimpleNamespace(),
         approval_repo=SimpleNamespace(),
-        # P4 Step 2 (ADR-005 Section 24, Round 7/8): these tests exercise
-        # _notify_approval_requested/_notify_approval_decided directly -- neither touches the
-        # UnitOfWork factory, so a placeholder that is never called is sufficient here.
+        # Notification methods don't touch the UnitOfWork factory; a never-called placeholder
+        # is sufficient here.
         uow_factory=SimpleNamespace(),
         tenant_context_service=_FakeTenantContextService(tenant_id),
         notification_service=notification_service,

@@ -115,12 +115,8 @@ def build_timesheet_view_invalidation_handler(channel: ViewInvalidationChannel):
                     )
                 )
 
-            # P45B-CLOSURE item 8/9: the legacy `tasks_changed` re-emission this
-            # transition used to trigger was staling the Task workspace's own
-            # task_list (time totals shown per task), not the Timesheet
-            # workspace above -- a genuine Class-B dependency, not a Task
-            # mutation. Map it directly onto the existing Task `task_list`
-            # target instead of inventing a fake Task DomainEvent.
+            # This transition also stales the Task workspace's task_list (time totals shown
+            # per task) -- map onto Task's existing target rather than inventing a new event.
             from src.core.modules.project_management.application.tasks.event_handlers.view_invalidation import (
                 TASK_CATEGORY,
                 TASK_LIST_SCOPE_CODE,

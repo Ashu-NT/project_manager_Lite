@@ -47,8 +47,8 @@ class PlatformOrganizationCatalogPresenter:
                 empty_state=message,
             )
 
-        # P10A: multiple organizations may be enabled simultaneously in the same tenant -- no
-        # single "active" designee to name, so the subtitle reports a count instead.
+        # Multiple organizations may be enabled at once in the same tenant -- no single
+        # "active" designee to name, so the subtitle reports a count instead.
         enabled_count = sum(1 for row in result.data if row.is_enabled)
         return PlatformWorkspaceActionListViewModel(
             title="Organizations",

@@ -142,16 +142,11 @@ def _wbs_cycle_finding(session: Session, *, sample_limit: int) -> IntegrityFindi
 
 
 def _dependency_cycle_finding(session: Session, *, sample_limit: int) -> IntegrityFinding:
-    """Detect a persisted Task->Task dependency cycle -- i.e. a graph that
-    should never have been writable (creation-time cycle detection has
-    covered this since before this check existed), but the approval-apply
-    TOCTOU hole fixed in
-    docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
-    §10/Phase I meant one COULD have been persisted by two
-    concurrently-approved requests each individually valid at request time.
-    Before this check existed, a persisted cycle was invisible to
-    `python -m tools.pm_data_integrity_check` and would only surface later
-    as a `SCHEDULE_CYCLE` crash the next time CPM ran for that project.
+    """Detect a persisted Task->Task dependency cycle -- creation-time
+    validation should prevent this, but two concurrently-approved requests
+    each valid at request time could still persist one. Left undetected,
+    it would only surface later as a `SCHEDULE_CYCLE` crash the next time
+    CPM ran for that project.
 
     Uses the same DFS three-color cycle detection idiom as
     ``_wbs_cycle_finding`` above, generalized from a single-parent tree

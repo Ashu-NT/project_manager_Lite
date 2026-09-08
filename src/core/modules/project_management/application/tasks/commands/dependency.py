@@ -39,9 +39,8 @@ if TYPE_CHECKING:
 
 def _raise_for_invalid_diagnostic(diagnostic: "DependencyDiagnostic") -> None:
     """Shared error-mapping for a failed DependencyDiagnostic, used by both
-    the request-time check (add/update) and the apply-time re-check
-    (Phase H1) so the two can never map codes to exception types
-    differently."""
+    the request-time check (add/update) and the apply-time re-check so the
+    two can never map codes to exception types differently."""
     message = diagnostic.summary
     if diagnostic.detail:
         message = f"{diagnostic.summary}\n{diagnostic.detail}"
@@ -55,11 +54,10 @@ def _raise_for_invalid_diagnostic(diagnostic: "DependencyDiagnostic") -> None:
 class TaskDependencyMixin:
     """Governed dependency lifecycle for add/remove/update. All three go
     through matching authorization/project-scope/governance/transaction
-    machinery -- see docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
-    Phase H. Approved requests for any of the three are applied via
+    machinery. Approved requests are applied via
     ``_apply_dependency_*_decision``, each of which re-validates against the
     CURRENT graph at apply time rather than trusting request-time
-    validation (Phase H1's TOCTOU fix)."""
+    validation."""
 
     _session: Session
     _task_repo: TaskRepository
@@ -119,12 +117,10 @@ class TaskDependencyMixin:
                 operation_label="add dependency",
             )
         # Also scope-check the successor's project explicitly (not just the
-        # predecessor's) -- the cross-project rule below still prevents any
-        # SUCCESSFUL cross-project write, but omitting this check let an
-        # authorized-on-predecessor-only caller distinguish "successor id
-        # exists in a project I can't see" (DEPENDENCY_CROSS_PROJECT) from
-        # "successor id doesn't exist" (TASK_NOT_FOUND) -- an information
-        # disclosure oracle within a tenant. See §15 finding 4b.
+        # predecessor's): otherwise a caller authorized only on the
+        # predecessor could distinguish "successor exists in a project I
+        # can't see" from "successor doesn't exist" -- an information
+        # disclosure oracle within a tenant.
         if successor.project_id != predecessor.project_id:
             require_project_permission(
                 self._user_session,
@@ -175,15 +171,12 @@ class TaskDependencyMixin:
         dependency_type: DependencyType,
         lag_days: int,
     ) -> TaskDependency:
-        """Apply an add — either immediately (ungoverned path) or when an
-        approved ``dependency.add`` request is finally applied. In the
-        governed case, real time may have passed since the original
-        request was validated, so this re-runs the full validation against
-        the CURRENT graph rather than trusting the request-time diagnostic
-        (Phase H1: closes the TOCTOU hole where two concurrently-approved
-        requests could otherwise both apply and persist a cycle, or an
-        endpoint could have become a summary task, moved project, etc. in
-        the meantime)."""
+        """Apply an add -- either immediately (ungoverned path) or when an
+        approved ``dependency.add`` request is finally applied. Re-runs
+        full validation against the CURRENT graph rather than trusting the
+        request-time diagnostic, since real time may have passed and the
+        graph may have changed (e.g. two concurrently-approved requests
+        both applying, or an endpoint becoming a summary task)."""
         predecessor = self._task_repo.get(predecessor_id)
         if predecessor is None:
             raise NotFoundError("Predecessor task not found", code="TASK_NOT_FOUND")
@@ -383,13 +376,9 @@ class TaskDependencyMixin:
 
     def list_dependencies_for_project(self, project_id: str) -> list[TaskDependency]:
         """One-query project-wide dependency read, backed directly by
-        ``DependencyRepository.list_by_project`` (Phase L). Exists because
-        the Scheduling desktop API's project-wide dependency read used to
-        loop ``list_dependencies_for_task`` once per task -- a confirmed
-        ``2N+1`` query pattern for an N-task project, despite this
-        single-query repository method already existing one layer down.
-        See docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
-        §17/Phase L."""
+        ``DependencyRepository.list_by_project``. Use this instead of
+        looping ``list_dependencies_for_task`` per task, which is an
+        N+1 query pattern."""
         require_permission(self._user_session, "task.read", operation_label="list project dependencies")
         require_project_permission(
             self._user_session,
@@ -410,12 +399,10 @@ class TaskDependencyMixin:
         dependency = self._dependency_repo.get(dep_id)
         if not dependency:
             raise NotFoundError("Dependency not found.", code="DEPENDENCY_NOT_FOUND")
-        # Phase N10: the client's expected_version reflects what it had
-        # loaded when the edit dialog was opened, not just-now -- this is
-        # the actual concurrency window an optimistic check needs to
-        # cover. Checked before governance/diagnostics so a stale dialog
-        # never gets to file an approval request against data it never
-        # actually saw.
+        # expected_version reflects what the client loaded when the edit
+        # dialog was opened -- checked before governance/diagnostics so a
+        # stale dialog never files an approval request against data it
+        # never actually saw.
         if expected_version is not None and dependency.version != expected_version:
             raise ConcurrencyError("Dependency was updated by another user.", code="STALE_WRITE")
 
@@ -444,12 +431,9 @@ class TaskDependencyMixin:
         resolved_lag = dependency.lag_days if lag_days is None else lag_days
 
         # Validate the CANDIDATE relationship, excluding this dependency's
-        # own existing row from the duplicate check (Phase H4) -- the old
-        # code instead blindly whitelisted DEPENDENCY_DUPLICATE for every
-        # update, which also silently made the cycle check unreachable
-        # (the duplicate check short-circuits before it in
-        # get_dependency_diagnostics). Excluding by id keeps both checks
-        # live.
+        # own existing row from the duplicate check -- otherwise the
+        # duplicate check would always fire on the row being updated and
+        # short-circuit before the cycle check ever runs.
         diagnostic = self.get_dependency_diagnostics(
             predecessor_id=dependency.predecessor_task_id,
             successor_id=dependency.successor_task_id,
@@ -473,10 +457,8 @@ class TaskDependencyMixin:
                     "successor_name": successor.name if successor else None,
                     "dependency_type": resolved_type.value,
                     "lag_days": resolved_lag,
-                    # Version AT REQUEST TIME (Phase N10) -- re-checked
-                    # against whatever is current when an admin finally
-                    # applies this, since approval can land long after
-                    # the requester's dialog was open.
+                    # Version at request time -- re-checked against whatever
+                    # is current when an admin finally applies this.
                     "expected_version": dependency.version,
                 },
             )
@@ -502,14 +484,11 @@ class TaskDependencyMixin:
         """Apply an update -- either immediately (ungoverned path) or when
         an approved ``dependency.update`` request is finally applied.
         Always re-fetches and re-validates against the CURRENT row/graph at
-        apply time (Phase H1), and is fully atomic: repository update,
-        schedule recalculation, and activity recording all happen with
-        ``commit=False`` and share exactly one final commit (Phase H2) --
-        unlike the old code, which committed the dependency row change
-        BEFORE running the schedule recalculation and activity write, so a
-        failure in either of those left a committed dependency edit with a
-        stale project schedule and no audit record.
-        """
+        apply time. Fully atomic: repository update, schedule
+        recalculation, and activity recording all happen with
+        ``commit=False`` and share exactly one final commit, so a failure
+        in any of them never leaves a committed edit with a stale schedule
+        or no audit record."""
         dependency = self._dependency_repo.get(dependency_id)
         if not dependency:
             raise NotFoundError("Dependency not found.", code="DEPENDENCY_NOT_FOUND")

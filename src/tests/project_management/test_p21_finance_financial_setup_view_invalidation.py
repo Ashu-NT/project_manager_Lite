@@ -1,13 +1,9 @@
-"""P21: Finance Financial Setup typed events + ViewInvalidation + `financial_setup_changed`
-retirement.
-
-Covers: ProjectFinancialProfileUpdated/ProjectFinancialProfileTransitioned -> the sole proven
-read-model target (`financial_profile`, project-scoped `ResourceScope`); organization-scoped
-cost-code catalog and project-scoped restriction invalidation added when R6C-E introduced their
-authoritative paged Setup projections; true no-op semantics on
-`configure_profile`/`update_cost_code`; dedupe by (transaction correlation_id, target identity);
-the real FinancialsWorkspaceController's narrow "controls"-only destination invalidation; and the
-full retirement of `financial_setup_changed` (zero producers, zero consumers, field absent).
+"""Finance Financial Setup ViewInvalidation: `ProjectFinancialProfileUpdated`/
+`ProjectFinancialProfileTransitioned` -> `financial_profile` (project-scoped `ResourceScope`);
+organization-scoped cost-code catalog and project-scoped restriction invalidation; no-op
+semantics on `configure_profile`/`update_cost_code`; deduped by (transaction correlation_id,
+target identity); and the FinancialsWorkspaceController's narrow "controls"-only destination
+invalidation.
 """
 
 from __future__ import annotations

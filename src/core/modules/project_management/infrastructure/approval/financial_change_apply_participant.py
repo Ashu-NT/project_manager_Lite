@@ -23,12 +23,9 @@ from src.core.platform.domain.approval import ApprovalRequest
 
 @dataclass(frozen=True)
 class FinancialChangeApprovalDeps:
-    """`financial_change_service` is a fresh `FinancialChangeService`, bound to the Session
-    `build_financial_change_approval_deps(session, ...)` was called with, constructed with
-    `approval_service=None` -- the apply path never calls back into `ApprovalService` (same
-    P4A finding as the other three financial families: the circular reference on the long-lived
-    instance exists only for its own, unrelated, outbound `request_change(...)` call from
-    `submit_change()`, which this participant never invokes)."""
+    """`financial_change_service` is a fresh `FinancialChangeService`,
+    constructed with `approval_service=None` -- the apply path never calls
+    back into `ApprovalService`."""
 
     financial_change_service: FinancialChangeService
 

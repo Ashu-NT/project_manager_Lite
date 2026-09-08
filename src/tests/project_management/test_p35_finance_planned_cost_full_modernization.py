@@ -1,17 +1,9 @@
-"""P35: Finance Planned Cost full modernization -- `calculate_snapshot` (the ONLY Planned Cost
-write operation) converges onto the already-existing, already-wired `FinanceGovernanceUnitOfWork`
-(via a new `FinanceGovernanceCommandBoundary.planned_cost()` method, mirroring the exact P19
-Forecast pattern), records a single typed `PlannedCostSnapshotCalculated` DomainEvent precommit
-in place of the legacy `planned_costs_changed` Signal, and routes ViewInvalidation through a new
-project-scoped `planned_cost_snapshot` target -- mirroring `forecast_planning`'s own single-target
-shape exactly, since source proves there is no independently cached "detail" read model to route a
-separate scope to.
-
-`planned_costs_changed` is DELETED from `DomainEvents` entirely -- assert
-`not hasattr(domain_events, ...)`. Enterprise audit was already atomic before this phase and stays
-atomic; the real, pre-existing optimistic-concurrency guard (a version-checked supersede of the
-previous version, plus a DB-level per-project-revision uniqueness constraint mapped to
-`ConcurrencyError`) is preserved exactly, unweakened."""
+"""Finance Planned Cost: `calculate_snapshot` (the only Planned Cost write operation) runs inside
+`FinanceGovernanceUnitOfWork`, records a single typed `PlannedCostSnapshotCalculated` event
+precommit, and routes ViewInvalidation through the project-scoped `planned_cost_snapshot` target
+(there is no independently cached "detail" read model to route a separate scope to). Enterprise
+audit is atomic; the optimistic-concurrency guard (a version-checked supersede plus a DB-level
+per-project-revision uniqueness constraint mapped to `ConcurrencyError`) is unweakened."""
 
 from __future__ import annotations
 

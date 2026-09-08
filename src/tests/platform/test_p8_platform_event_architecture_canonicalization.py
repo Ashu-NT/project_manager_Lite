@@ -4,7 +4,7 @@ import glob
 import inspect
 
 # ---------------------------------------------------------------------------
-# §26.5 / §6 / §19 / §20: the frozen legacy Signal allowlist
+# The frozen legacy Signal allowlist
 # ---------------------------------------------------------------------------
 
 FROZEN_LEGACY_SIGNAL_ALLOWLIST = frozenset(
@@ -96,10 +96,9 @@ def _production_source_files():
 
 
 def _current_signal_names() -> set[str]:
-    """P46B: `domain_events`/`DomainEvents` is deleted outright -- `auth_changed` was the last
-    surviving legacy Signal field application-wide. This is now a fixed, permanently-empty set;
-    every test below that consumes it remains a valid permanent regression guard, just checking
-    against a fixed empty set instead of a live introspected one."""
+    """The legacy `domain_events`/`DomainEvents` module is deleted outright -- fixed at a
+    permanently-empty set rather than introspected live. Every test below that consumes it
+    remains a valid permanent regression guard."""
     return set()
 
 
@@ -128,7 +127,7 @@ def test_tasks_changed_deletion_still_passes_the_subset_check():
 
 
 # ---------------------------------------------------------------------------
-# §34/P39: Finance module event modernization is complete -- permanent zero-legacy guard
+# Finance module event modernization is complete -- permanent zero-legacy guard
 # ---------------------------------------------------------------------------
 
 
@@ -149,8 +148,7 @@ def test_a_hypothetical_finance_signal_reintroduction_would_fail_the_zero_legacy
 
 
 # ---------------------------------------------------------------------------
-# P45B: Project Management module event modernization is complete -- permanent
-# zero-legacy guard, independent of Auth's own AUDITED/DEFERRED status.
+# Project Management module event modernization is complete -- permanent zero-legacy guard
 # ---------------------------------------------------------------------------
 
 _KNOWN_PM_SIGNAL_NAMES = frozenset(
@@ -166,11 +164,8 @@ _KNOWN_PM_SIGNAL_NAMES = frozenset(
 
 
 def test_zero_pm_legacy_signal_fields_remain():
-    """Task was the last PM capability to reach zero legacy Signal involvement (P45B) --
-    project_changed/timesheet_periods_changed/collaboration_changed/portfolio_changed/
-    register_changed/tasks_changed were each already or are now confirmed absent. P46B: Auth
-    (`auth_changed`) is now also fully modernized -- the last surviving legacy Signal field
-    application-wide -- so zero fields remain at all, not just zero PM-owned ones."""
+    """Every PM-owned legacy Signal is confirmed absent, and in fact zero legacy Signal fields
+    remain application-wide."""
     current = _current_signal_names()
     reintroduced = current & _KNOWN_PM_SIGNAL_NAMES
     assert reintroduced == set(), (
@@ -190,7 +185,7 @@ def test_a_hypothetical_pm_signal_reintroduction_would_fail_the_zero_legacy_guar
 
 
 # ---------------------------------------------------------------------------
-# §7 / §20: no new legacy emitters -- every current producer site is pre-existing
+# No new legacy emitters -- every current producer site is pre-existing
 # ---------------------------------------------------------------------------
 
 
@@ -202,7 +197,7 @@ def test_every_current_signal_is_in_the_frozen_allowlist_no_silent_field_additio
 
 
 # ---------------------------------------------------------------------------
-# §7 / §20: the deleted generic bridge stays deleted -- zero production references
+# The deleted generic bridge stays deleted -- zero production references
 # ---------------------------------------------------------------------------
 
 
@@ -219,12 +214,6 @@ def test_deleted_bridge_and_dead_signal_names_have_zero_production_references():
         if pattern.search(source):
             hits.append(path)
     assert hits == [], hits
-
-
-# P46B: `test_domain_events_module_has_no_bridge_machinery` removed -- the `domain_events` module
-# is deleted outright, and `test_deleted_bridge_and_dead_signal_names_have_zero_production_
-# references` above already proves `_BRIDGE_SPECS`/`domain_changed`/`_wire_bridges`/`_build_bridge`
-# have zero references across all production source, a strictly stronger guarantee.
 
 
 def test_no_controller_base_has_the_generic_subscribe_domain_change_method():
@@ -279,7 +268,7 @@ def test_no_service_locator_pattern_reintroduced_in_composition_roots():
 
 
 # ---------------------------------------------------------------------------
-# §23 / §9: five fully-modernized capability slices cannot regress to a legacy signal
+# Five fully-modernized capability slices cannot regress to a legacy signal
 # ---------------------------------------------------------------------------
 
 
@@ -492,15 +481,13 @@ def test_p6_helper_public_surface_unchanged():
 
 
 # ---------------------------------------------------------------------------
-# §12: every remaining ApprovalPostCommitEvent resolves to an allowlisted, consumed signal
+# Every remaining ApprovalPostCommitEvent resolves to an allowlisted, consumed signal
 # ---------------------------------------------------------------------------
 
 
 def test_zero_approval_post_commit_event_construction_sites_remain():
-    """Superseded by P45B: Task was the last capability whose approval participant
-    constructed `ApprovalPostCommitEvent(...)` -- zero production sites remain, so
-    `ApprovalPostCommitEvent` itself is production-dead (retained only as an inert,
-    unconstructed contract type pending a future cleanup pass)."""
+    """Zero production sites construct `ApprovalPostCommitEvent(...)` -- the type itself is
+    production-dead, retained only as an inert, unconstructed contract type."""
     import ast
 
     signal_names_found = set()

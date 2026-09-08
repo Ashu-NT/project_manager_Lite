@@ -309,11 +309,10 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         do_refresh(self)
 
     def refresh_organizations(self) -> None:
-        """Narrow reaction to the organization-collection ViewInvalidation target (P5A +
-        Organization-specific P6A cutover) -- delegates to the organization sub-controller's own
-        narrow refresh, unlike `refresh()`'s coarse cascade over every entity sub-controller
-        (calendars/sites/departments/etc.), none of which are stale after an organization
-        creation."""
+        """Narrow reaction to the organization-collection ViewInvalidation target -- delegates
+        to the organization sub-controller's own narrow refresh, unlike `refresh()`'s coarse
+        cascade over every entity sub-controller (calendars/sites/departments/etc.), none of
+        which are stale after an organization creation."""
         self._organization_controller.refresh_organizations()
 
     def refresh_users(self) -> None:
@@ -342,7 +341,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         """Narrow reaction to the reverse (`entity_type="document"`) shape of the
         `document_links` ViewInvalidation target -- refreshes the currently-selected
         document's link panel only when it's the document that actually changed, never a
-        full workspace cascade (P16D)."""
+        full workspace cascade."""
         if entity_type == "document" and entity_id == self._document_controller._selected_document_id:
             self._document_controller.refreshFocus()
 

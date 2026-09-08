@@ -151,9 +151,9 @@ def test_submit_change_uses_a_fresh_uow_session_shared_by_the_approval_request(
 def test_submit_change_commit_failure_rolls_back_change_and_approval_request_together(
     services, monkeypatch
 ) -> None:
-    """Approval-P1 (§23-26): a commit failure inside `submit_change`'s canonical UoW must roll
-    back the WHOLE transaction -- the financial change must remain in its pre-submit state, and
-    no `ApprovalRequest` may have been persisted independently of its host command."""
+    """A commit failure inside `submit_change`'s canonical UoW must roll back the WHOLE
+    transaction -- the financial change must remain in its pre-submit state, and no
+    `ApprovalRequest` may have been persisted independently of its host command."""
     from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
         SqlAlchemyFinanceGovernanceUnitOfWork,
     )

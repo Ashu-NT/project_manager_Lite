@@ -21,8 +21,8 @@ class OrganizationSwitcherController(PlatformWorkspaceControllerBase):
     """Shell-level controller for listing and switching the current session's working
     Organization. Sibling of `TenantSwitcherController`, not a merged concept: a tenant switch
     rebuilds the whole authority context (RBAC, module mix, every workspace), while an
-    organization switch only rescopes the organization-owned adapters -- P10C keeps them as two
-    independently-lifecycled controllers, exactly mirroring how the backend keeps
+    organization switch only rescopes the organization-owned adapters -- two
+    independently-lifecycled controllers, mirroring how the backend keeps
     `TenantContextService.switch_to_tenant`/`set_active_organization` as two separate methods
     rather than one parameterized switch."""
 

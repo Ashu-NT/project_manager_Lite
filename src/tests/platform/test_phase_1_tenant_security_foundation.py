@@ -198,9 +198,6 @@ def test_user_tenant_repo_deactivate(session):
     session.flush()
 
     assert repo.is_active_member("u-deact-1", "t-deact-1") is True
-    # P5D-1: the dead, zero-production-caller `deactivate()` convenience method was removed
-    # (it bypassed all authorization/audit/session-revocation logic) -- the equivalent direct
-    # repository sequence for test setup is `get()` + `update(membership.suspend())`.
     repo.update(repo.get("u-deact-1", "t-deact-1").suspend())
     session.flush()
     assert repo.is_active_member("u-deact-1", "t-deact-1") is False
@@ -239,7 +236,6 @@ def test_user_tenant_repo_list_tenant_ids_for_user(session):
 # ---------------------------------------------------------------------------
 
 def test_user_repo_list_for_tenant(services):
-    """list_for_tenant() returns only users with active membership in that tenant."""
     session = services["session"]
     auth = services["auth_service"]
     tenant_context = services["tenant_context_service"]
@@ -247,12 +243,9 @@ def test_user_repo_list_for_tenant(services):
     active_tenant_id = tenant_context.get_active_tenant_id()
     assert active_tenant_id is not None
 
-    # Register a user with tenant membership
     user_a = auth.register_user(
         "tenant-member-a", "StrongPass123!", role_names=["viewer"], tenant_id=active_tenant_id
     )
-
-    # Register a user without tenant membership
     user_b = auth.register_user(
         "no-tenant-b", "StrongPass123!", role_names=["viewer"]
     )
@@ -261,9 +254,7 @@ def test_user_repo_list_for_tenant(services):
     members = user_repo.list_for_tenant(active_tenant_id)
     member_ids = {u.id for u in members}
 
-    assert user_a.id in member_ids
-    # user_b may or may not be in there depending on bootstrap backfill;
-    # the key invariant is user_a IS there.
+    assert user_a.id in member_ids  # user_b's membership is incidental to bootstrap backfill
 
 
 # ---------------------------------------------------------------------------
@@ -271,24 +262,20 @@ def test_user_repo_list_for_tenant(services):
 # ---------------------------------------------------------------------------
 
 def test_set_active_tenant_admin_bypasses_membership_check(services):
-    """Admin user can switch to any tenant without a membership record."""
     session = services["session"]
     tenant_context = services["tenant_context_service"]
     user_session = services["user_session"]
 
-    # Create a second tenant with no membership for admin
     second_tenant = Tenant.create(tenant_code="TENANT2", display_name="Tenant Two")
     tenant_repo = SqlAlchemyTenantRepository(session)
     tenant_repo.add(second_tenant)
     session.flush()
 
-    # Admin principal — should pass without membership
     result = tenant_context.set_active_tenant(second_tenant.id)
     assert result.id == second_tenant.id
 
 
 def test_set_active_tenant_non_admin_without_membership_raises(services):
-    """Non-admin user without tenant membership is denied access."""
     session = services["session"]
     auth = services["auth_service"]
     user_session = services["user_session"]
@@ -296,15 +283,12 @@ def test_set_active_tenant_non_admin_without_membership_raises(services):
     tenant_repo = SqlAlchemyTenantRepository(session)
     org_repo = services["organization_service"]._organization_repo
 
-    # Create a second tenant
     second_tenant = Tenant.create(tenant_code="DENIED", display_name="Denied Tenant")
     tenant_repo.add(second_tenant)
     session.flush()
 
-    # Register a viewer (no platform_admin)
     viewer = auth.register_user("viewer-no-access", "StrongPass123!", role_names=["viewer"])
 
-    # Set viewer as principal
     viewer_principal = _make_principal(
         viewer.id, role_names=["viewer"], permissions=["settings.manage"]
     )
@@ -324,19 +308,16 @@ def test_set_active_tenant_non_admin_without_membership_raises(services):
 
 
 def test_set_active_tenant_non_admin_with_membership_succeeds(services):
-    """Non-admin user with active membership can switch to that tenant."""
     session = services["session"]
     auth = services["auth_service"]
     user_tenant_repo = SqlAlchemyUserTenantMembershipRepository(session)
     tenant_repo = SqlAlchemyTenantRepository(session)
     org_repo = services["organization_service"]._organization_repo
 
-    # Create a second tenant
     second_tenant = Tenant.create(tenant_code="ALLOWED", display_name="Allowed Tenant")
     tenant_repo.add(second_tenant)
     session.flush()
 
-    # Register a viewer and add membership
     viewer = auth.register_user("viewer-with-access", "StrongPass123!", role_names=["viewer"])
     user_tenant_repo.add(
         UserTenantMembership.create(user_id=viewer.id, tenant_id=second_tenant.id)
@@ -361,7 +342,6 @@ def test_set_active_tenant_non_admin_with_membership_succeeds(services):
 
 
 def test_set_active_tenant_platform_admin_bypasses_membership_check(services):
-    """platform_admin permission also exempts the membership check."""
     session = services["session"]
     auth = services["auth_service"]
     user_tenant_repo = SqlAlchemyUserTenantMembershipRepository(session)
@@ -372,7 +352,6 @@ def test_set_active_tenant_platform_admin_bypasses_membership_check(services):
     tenant_repo.add(third_tenant)
     session.flush()
 
-    # A user with platform.admin permission but not "admin" role
     padmin_principal = _make_principal(
         "some-user", role_names=["member"], permissions=["platform.admin"]
     )
@@ -395,7 +374,6 @@ def test_set_active_tenant_platform_admin_bypasses_membership_check(services):
 # ---------------------------------------------------------------------------
 
 def test_register_user_with_tenant_id_creates_membership(services):
-    """register_user(tenant_id=...) atomically creates the user + membership."""
     session = services["session"]
     auth = services["auth_service"]
     tenant_context = services["tenant_context_service"]
@@ -412,7 +390,8 @@ def test_register_user_with_tenant_id_creates_membership(services):
 
 
 def test_register_user_without_tenant_id_does_not_create_membership(services):
-    """register_user() without tenant_id creates user only, no membership."""
+    """Bootstrap backfill creates a membership for all users regardless, so this only confirms
+    registration itself succeeds without one."""
     session = services["session"]
     auth = services["auth_service"]
     tenant_context = services["tenant_context_service"]
@@ -423,11 +402,7 @@ def test_register_user_without_tenant_id_does_not_create_membership(services):
 
     user = auth.register_user("no-tenant-user", "StrongPass123!", role_names=["viewer"])
 
-    # The bootstrap backfill in platform_registry creates a membership for all users,
-    # so this user WILL have membership if registered after bootstrap. We verify the
-    # user exists and auth works — membership is handled by backfill, not registration.
     assert user.id is not None
-    # The backfill may have already run; we just confirm no crash occurred.
 
 
 # ---------------------------------------------------------------------------
@@ -435,7 +410,6 @@ def test_register_user_without_tenant_id_does_not_create_membership(services):
 # ---------------------------------------------------------------------------
 
 def test_admin_user_has_membership_in_default_tenant(services):
-    """After bootstrap, the admin user has an active membership in the default tenant."""
     auth = services["auth_service"]
     user_session = services["user_session"]
     tenant_context = services["tenant_context_service"]
@@ -450,7 +424,6 @@ def test_admin_user_has_membership_in_default_tenant(services):
 
 
 def test_list_users_for_tenant_returns_backfilled_admin(services):
-    """list_users_for_tenant() returns the admin user after bootstrap backfill."""
     auth = services["auth_service"]
     tenant_context = services["tenant_context_service"]
     session = services["session"]

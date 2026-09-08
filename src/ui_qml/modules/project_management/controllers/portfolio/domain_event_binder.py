@@ -9,16 +9,12 @@ logger = logging.getLogger(__name__)
 
 
 def on_task_metrics_stale(controller: object, _project_id: str) -> None:
-    """Portfolio Executive/heatmap computes real per-project critical/late
-    task counts from Task status/schedule/dependency/removal facts (P45A) --
-    `taskListStale` already covers Created/StatusChanged/ScheduleChanged/
+    """Portfolio Executive/heatmap computes per-project critical/late task
+    counts from Task status/schedule/dependency/removal facts.
+    `taskListStale` covers Created/StatusChanged/ScheduleChanged/
     HierarchyChanged/Removed; `taskDependenciesStale` covers the one fact
-    `taskListStale` doesn't (a dependency add/update/remove can move a task
-    in or out of "late" without the task's own row changing). Neither
-    TaskProfileUpdated-only nor TaskProgressChanged-only changes reach here
-    via a distinct signal, so this remains a modest over-trigger versus a
-    theoretical maximally-precise mapping -- still a real, disclosed
-    improvement over the previous blanket-every-Task-fact refresh."""
+    it doesn't (a dependency add/update/remove can move a task in or out
+    of "late" without the task's own row changing)."""
     controller._request_domain_refresh()
 
 

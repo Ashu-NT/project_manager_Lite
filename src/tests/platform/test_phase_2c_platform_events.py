@@ -73,7 +73,6 @@ def test_suspend_tenant_emits_event_medium_severity(services):
     tenant = svc.create_tenant("P2C-SUSP1", "Suspend Emission Test")
     services["session"].flush()
 
-    # Clear create event for cleaner assertion
     svc.suspend_tenant(tenant.id)
     services["session"].flush()
 

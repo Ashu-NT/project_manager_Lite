@@ -1,10 +1,7 @@
-"""P4 Step 2 (ADR-005 Section 24, Round 7/8): `ApprovalService`'s transaction-owning commands
-(`request_change` when transaction-owning, `approve_and_apply`, `reject`) cut over onto the
-canonical fresh-session `PlatformUnitOfWork`. Focused, additive to the full existing Approval/
-ADR-PF-008 regression suite (`test_phase_b_approval_workflow.py` etc.), which already proves
-apply-failure/audit-failure rollback, self-decision, and notification dispatch through the new
-wiring unmodified.
-"""
+"""`ApprovalService`'s transaction-owning commands (`request_change`, `approve_and_apply`,
+`reject`) use a fresh-session `PlatformUnitOfWork` per call -- proves session isolation, commit/
+rollback behavior, and audit failure semantics. Additive to `test_phase_b_approval_workflow.py`,
+which covers apply-failure/audit-failure rollback, self-decision, and notification dispatch."""
 
 from __future__ import annotations
 
@@ -65,11 +62,9 @@ def _submitted_budget(services, session):
 
 def _request_budget_approval_as_a_different_user(services, budget):
     """Requests as a fresh, non-admin user, then logs back in as admin -- so admin (the eventual
-    decider) never becomes the requester, avoiding the (correctly enforced) self-decision rule.
-
-    P10A: a fresh login's active-organization auto-select is genuinely ambiguous once more than
-    one organization is enabled simultaneously -- pin it explicitly to whatever was active
-    immediately before the switch rather than relying on that heuristic."""
+    decider) never becomes the requester, avoiding the correctly-enforced self-decision rule. Pins
+    the fresh login's active organization explicitly, since auto-select is ambiguous once more
+    than one organization is enabled."""
     active_organization_id = services["tenant_context_service"].get_active_organization_id()
     _login_as_fresh_requester(services)
     if active_organization_id:
@@ -152,18 +147,11 @@ def test_approve_and_apply_shares_one_session_across_approvals_repo_and_particip
 def test_commit_failure_rolls_back_approval_decision_and_module_mutation_together(
     services, session, monkeypatch
 ):
-    """A database commit failure must roll back the whole UoW and fire zero post-commit
-    reactions. Verified structurally (the UoW's own `_committed`/`_closed` state after the
-    exception, plus zero legacy signals emitted) rather than via a cross-session re-read for
-    this specific family: `BudgetService._apply_approval_decision` uses an internal
-    `session.begin_nested()` SAVEPOINT, which -- combined with `sqlite:///:memory:`'s
-    `SingletonThreadPool` and a well-known pysqlite legacy-driver transaction-handling quirk this
-    test fixture does not work around (the same limitation already discovered and documented in
-    P4-PRE Step 1's own test suite) -- makes a real cross-session post-rollback read unreliable
-    in this exact test topology, independent of whether the underlying rollback is correct. Real,
-    full end-to-end atomic-rollback-on-failure proof for representative families (`project_cost.
-    approve` via decision-update and audit failure) already exists, unmodified, in
-    `test_phase_b_approval_workflow.py`, and passes."""
+    """A database commit failure must roll back the whole UoW. Verified structurally via the
+    UoW's own `_committed`/`_closed` state, not a cross-session re-read: `BudgetService.
+    _apply_approval_decision` uses a nested SAVEPOINT that, combined with this fixture's
+    `sqlite:///:memory:` pooling, makes a real cross-session post-rollback read unreliable here.
+    Full end-to-end atomic-rollback proof exists in `test_phase_b_approval_workflow.py`."""
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
     approvals = services["approval_service"]
@@ -190,13 +178,8 @@ def test_commit_failure_rolls_back_approval_decision_and_module_mutation_togethe
     assert uow._committed is False, "commit() failing must never mark the UoW committed"
     assert uow._closed is True, "the UoW's own __exit__ must still roll back and close"
 
-    # The approval decision itself: confirmed via the SAME (already-closed) UoW's identity-map
-    # state is not meaningful post-close, but the request's in-memory status object passed to
-    # approve_and_apply was mutated in place before the failed commit -- prove ApprovalService
-    # does not report success despite that by confirming the exception is what the caller sees
-    # (already proven above) and that a fresh, independent read agrees the request is still
-    # pending (this read goes through the *shared* legacy session, deliberately, to prove that
-    # session was never touched by the failed fresh-UoW transaction at all).
+    # Read through the shared session (never touched by the failed fresh-UoW transaction) to
+    # confirm the request is still genuinely pending, not just that the exception propagated.
     reloaded_request = approvals.list_pending(project_id=budget.project_id)
     assert any(r.id == request.id for r in reloaded_request), (
         "approval decision must not persist when commit fails"
@@ -258,10 +241,8 @@ def test_request_change_fails_closed_when_the_approval_audit_write_fails(service
 
 
 def test_request_change_has_no_commit_parameter(services):
-    """Approval-P1 (§13/§38): `request_change(commit=False)` no longer exists -- every former
-    caller-owned-transaction path now calls `request_approval_using(...)` directly inside its own
-    canonical UoW instead of composing into this method. No deprecated compatibility argument is
-    left on the signature."""
+    """`request_change(commit=False)` no longer exists on the signature, and passing it raises
+    rather than being silently accepted."""
     import inspect
 
     approvals = services["approval_service"]

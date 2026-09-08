@@ -1,4 +1,4 @@
-"""Rate cards — ADR-PF-005 precedence-based rate selection and snapshotting."""
+"""Rate cards -- precedence-based rate selection and snapshotting."""
 
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import (
     RateCardResolver,

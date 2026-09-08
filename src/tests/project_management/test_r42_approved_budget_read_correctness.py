@@ -309,12 +309,9 @@ class _RefreshProbe(ProjectManagementWorkspaceControllerBase):
 
 
 def test_project_budget_event_uses_existing_queued_refresh_behavior() -> None:
-    """P38B: `budgets_changed` (a blanket, unscoped legacy Signal) is retired -- the Projects
-    workspace's Budget reaction is now `on_budget_project_summary_stale`, wired from
-    `BudgetViewInvalidationAdapter.budgetProjectSummaryStale` in `context.py`, and is genuinely
-    project-scoped (see `test_project_budget_event_for_another_project_is_ignored` below) rather
-    than blanket -- a real behavior improvement, not just a mechanism swap. The existing queued-
-    while-busy behavior is preserved."""
+    """`on_budget_project_summary_stale` is project-scoped (see
+    `test_project_budget_event_for_another_project_is_ignored`); the existing queued-while-busy
+    behavior is preserved."""
     controller = _RefreshProbe()
     controller._set_is_busy(True)
 

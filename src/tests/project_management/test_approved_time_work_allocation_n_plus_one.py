@@ -1,14 +1,6 @@
-"""P3.4 -- regression guardrail for the confirmed N+1 in
-TimesheetFinancialEventsMixin._enqueue_approved_time_events
-(src/core/platform/application/time_management/time/timesheet_financial_events.py).
-
-Before the fix, approving a timesheet period called
-WorkAllocationRepository.get() once per time entry -- O(N) calls and O(N)
-`task_assignments` SELECTs for N entries sharing the same work allocation.
-The fix batches every distinct work_allocation_id into one
-list_by_ids() call before the loop. These tests pin that behavior so it
-cannot silently regress back to a per-entry loop.
-"""
+"""Regression guardrail: `TimesheetFinancialEventsMixin._enqueue_approved_time_events` must batch
+every distinct `work_allocation_id` into one `list_by_ids()` call before its loop, not call
+`WorkAllocationRepository.get()` once per time entry."""
 from __future__ import annotations
 
 from datetime import date

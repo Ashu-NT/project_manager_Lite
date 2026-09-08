@@ -109,8 +109,7 @@ class ProjectManagementResourceTimesheetsController(ProjectManagementWorkspaceCo
 
     def onTaskProfileStale(self, _project_id: str) -> None:
         """Task labels shown on this resource's timesheet rows -- only
-        name/identity/existence facts affect them (see P45A finding: this
-        controller shows task names on resource-scoped timesheet entries)."""
+        name/identity/existence facts affect them."""
         self._request_domain_refresh()
 
     period = Property("QVariantMap", lambda self: self._period, notify=periodChanged)

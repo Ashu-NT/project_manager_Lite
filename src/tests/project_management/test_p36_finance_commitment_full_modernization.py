@@ -1,26 +1,15 @@
-"""P36: Finance Commitment full modernization -- the three UI-facing Commitment mutations
-(`ingest_procurement_source`, `match_cost_entry`, `reverse_match`) converge onto the canonical
-`FinanceGovernanceUnitOfWork` (via a new `FinanceGovernanceCommandBoundary.commitment()` method,
-mirroring the P35 Planned Cost / P19 Forecast pattern), fixing the known commit-without-rollback
-transaction defect (the old `_commit()` called `self._session.commit()` with zero try/except/
-rollback). Two typed DomainEvents replace the legacy `commitments_changed` Signal:
-`CommitmentLineChanged` (CREATED/REVISED) and `CommitmentMatchChanged` (MATCHED/REVERSED), both
-routed through a single project-scoped `commitment_list` ViewInvalidation target -- matching the
-legacy signal's own confirmed 5-destination fan-out (overview/planning/costs/performance/
-commercial), the widest of any Finance signal.
+"""Finance Commitment: the three UI-facing mutations (`ingest_procurement_source`,
+`match_cost_entry`, `reverse_match`) run inside `FinanceGovernanceUnitOfWork`. Two typed events,
+`CommitmentLineChanged` (CREATED/REVISED) and `CommitmentMatchChanged` (MATCHED/REVERSED), route
+through the project-scoped `commitment_list` ViewInvalidation target.
 
 The two Procurement-inbox-facing methods (`apply_procurement_source`,
-`apply_procurement_receipt_match`) stay on the raw, dispatcher-owned `ProjectCommitmentService`
-instance -- `ProcurementFinancialDispatcher` already wraps its own `self._session.commit()` in a
-correct try/except/rollback, so no transaction-ownership change was needed there. What changed is
-their RETURN CONTRACT: they now return the constructed typed event (or `None` on a true replay)
-instead of the entity, so the dispatcher can publish through the canonical post-commit bus instead
-of emitting the legacy signal.
+`apply_procurement_receipt_match`) stay on the dispatcher-owned `ProjectCommitmentService`
+instance and return the constructed typed event (or `None` on a true replay) instead of the
+entity, so `ProcurementFinancialDispatcher` can publish through the canonical post-commit bus.
 
-`commitments_changed` is DELETED from `DomainEvents` entirely -- assert
-`not hasattr(domain_events, ...)`. The existing defense-in-depth concurrency guard (pessimistic
-`for_update` row lock plus optimistic `expected_row_version` check) is preserved exactly,
-unweakened."""
+The defense-in-depth concurrency guard (pessimistic `for_update` row lock plus optimistic
+`expected_row_version` check) is unweakened."""
 
 from __future__ import annotations
 

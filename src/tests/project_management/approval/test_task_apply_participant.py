@@ -1,11 +1,5 @@
-"""P4-PRE Step 1 (ADR-005 Section 24, Round 8): `TaskApprovalParticipant` +
-`build_task_approval_deps` -- proves the participant is genuinely session-parameterizable
-(the Step-2 readiness criterion) and behaves identically to `TaskService`'s own
-``_apply_dependency_add_decision``/``_apply_dependency_remove_decision``/
-``_apply_dependency_update_decision``/``_apply_task_scheduling_constraint_decision``/
-``_apply_resource_leveling_plan_decision`` (all kept unmodified -- the direct-apply,
-non-governed paths on `TaskService` still call them too).
-"""
+"""`TaskApprovalParticipant` stages a task dependency/constraint/leveling approval decision on a
+caller-supplied Session without opening or completing its own transaction."""
 
 from __future__ import annotations
 
@@ -161,8 +155,7 @@ def test_participant_apply_task_constraint_update_updates_task_on_the_supplied_s
 
 
 def test_participant_never_calls_commit_or_rollback(services, session, monkeypatch):
-    """The participant stages only -- the caller (today: ApprovalService on the shared Session;
-    from Step 2 onward: its own PlatformUnitOfWork) owns transaction completion."""
+    """The participant stages only; the caller owns transaction completion."""
     _login(services, "admin", "ChangeMe123!")
     project, a, b = _make_two_tasks(services)
     deps = _deps(services, session)

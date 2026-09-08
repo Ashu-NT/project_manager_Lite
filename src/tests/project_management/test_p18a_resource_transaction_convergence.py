@@ -1,13 +1,7 @@
-"""P18A: Project Resource transaction + event-pipeline convergence.
-
-Covers: canonical ResourceUnitOfWork ownership, atomic audit, typed
-ResourceMasterChanged/ResourceCapabilityChanged dispatch through the shared
-transactional/post-commit pipeline (never a bespoke Signal[T]), pre-release no-op
-discipline, cross-org integrity, and the Employee-driven Resource sync path.
-
-The legacy `resources_changed` Signal these events used to also emit alongside
-(temporary, P18A §7) is deleted as of P18B -- see test_p18b_resource_view_invalidation.py
-for the typed ViewInvalidation cutover that replaced it.
+"""Project Resource transaction + event-pipeline: canonical `ResourceUnitOfWork` ownership, atomic
+audit, typed `ResourceMasterChanged`/`ResourceCapabilityChanged` dispatch through the shared
+transactional/post-commit pipeline, no-op discipline, cross-org integrity, and the Employee-driven
+Resource sync path. See `test_p18b_resource_view_invalidation.py` for the ViewInvalidation side.
 """
 
 from __future__ import annotations

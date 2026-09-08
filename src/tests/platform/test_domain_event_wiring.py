@@ -14,8 +14,8 @@ def _login_as(services, username: str, password: str) -> None:
 
 
 def test_project_create_emits_typed_domain_event_and_view_invalidation(services):
-    """P43: `project_changed` is deleted -- `create_project` now records a typed `ProjectCreated`
-    DomainEvent, delivered as a `project_list` ViewInvalidation hint."""
+    """`create_project` records a typed `ProjectCreated` DomainEvent, delivered as a
+    `project_list` ViewInvalidation hint."""
     from src.core.modules.project_management.application.projects.event_handlers.view_invalidation import (
         PROJECT_CATEGORY,
         PROJECT_LIST_SCOPE_CODE,
@@ -41,9 +41,8 @@ def test_project_create_emits_typed_domain_event_and_view_invalidation(services)
 
 
 def test_project_update_emits_typed_domain_event_and_view_invalidation(services):
-    """P43: `project_changed` is deleted -- `update_project` now records a typed
-    `ProjectProfileUpdated` DomainEvent, delivered as both `project_list` and `project_detail`
-    ViewInvalidation hints."""
+    """`update_project` records a typed `ProjectProfileUpdated` DomainEvent, delivered as both
+    `project_list` and `project_detail` ViewInvalidation hints."""
     from src.core.modules.project_management.application.projects.event_handlers.view_invalidation import (
         PROJECT_CATEGORY,
         PROJECT_DETAIL_SCOPE_CODE,
@@ -71,9 +70,9 @@ def test_project_update_emits_typed_domain_event_and_view_invalidation(services)
 
 
 def test_task_create_dependency_assignment_emit_typed_domain_events_and_view_invalidation(services):
-    """P45B: `tasks_changed` is deleted -- `create_task`/`add_dependency`/`assign_resource` now
-    record typed `TaskCreated`/`TaskDependencyChanged`/`TaskAssignmentChanged` DomainEvents,
-    delivered as `task_list`/`task_dependencies`/`task_assignments` ViewInvalidation hints."""
+    """`create_task`/`add_dependency`/`assign_resource` record typed `TaskCreated`/
+    `TaskDependencyChanged`/`TaskAssignmentChanged` DomainEvents, delivered as
+    `task_list`/`task_dependencies`/`task_assignments` ViewInvalidation hints."""
     from src.core.modules.project_management.application.tasks.event_handlers.view_invalidation import (
         TASK_ASSIGNMENTS_SCOPE_CODE,
         TASK_CATEGORY,
@@ -111,9 +110,8 @@ def test_task_create_dependency_assignment_emit_typed_domain_events_and_view_inv
 
 
 def test_task_update_emits_typed_domain_event_and_view_invalidation(services):
-    """P45B: `tasks_changed` is deleted -- `update_task` now records a typed
-    `TaskProfileUpdated` DomainEvent, delivered as `task_list`/`task_detail` ViewInvalidation
-    hints for the exact project/task."""
+    """`update_task` records a typed `TaskProfileUpdated` DomainEvent, delivered as
+    `task_list`/`task_detail` ViewInvalidation hints for the exact project/task."""
     from src.core.modules.project_management.application.tasks.event_handlers.view_invalidation import (
         TASK_CATEGORY,
         TASK_DETAIL_SCOPE_CODE,
@@ -145,9 +143,9 @@ def test_task_update_emits_typed_domain_event_and_view_invalidation(services):
 
 
 def test_approve_baseline_request_emits_project_baseline_view_invalidation(services, monkeypatch):
-    """P23: `baseline_changed` is retired -- an approved `baseline.create` request now produces
-    a typed `ProjectBaselineCreated` DomainEvent, delivered as a `project_baseline`
-    ViewInvalidation hint scoped to the requesting project."""
+    """An approved `baseline.create` request produces a typed `ProjectBaselineCreated`
+    DomainEvent, delivered as a `project_baseline` ViewInvalidation hint scoped to the requesting
+    project."""
     from src.core.modules.project_management.application.scheduling.baselines.event_handlers.view_invalidation import (
         BASELINE_CATEGORY,
         BASELINE_PROJECT_SCOPE_CODE,

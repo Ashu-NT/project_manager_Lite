@@ -180,13 +180,9 @@ def test_detects_self_dependency(session):
 
 
 def test_detects_dependency_cycle(session):
-    """See docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
-    §10/§I2: before this check existed, a persisted cycle was invisible to
-    the integrity tool and would only surface as a SCHEDULE_CYCLE crash the
-    next time CPM ran. A -> B -> C -> A here is inserted directly via the
-    ORM (no cycle CHECK constraint exists at the DB layer -- creation-time
-    cycle detection is application-layer only), simulating exactly the
-    approval-apply TOCTOU scenario Phase H1 closes at the write path."""
+    """No cycle CHECK constraint exists at the DB layer -- creation-time cycle detection is
+    application-layer only, so A -> B -> C -> A is inserted directly via the ORM here to prove
+    the integrity tool still detects an already-persisted cycle."""
     _project(session, "p1")
     _task(session, "t1", "p1")
     _task(session, "t2", "p1")

@@ -65,9 +65,8 @@ def test_set_assignment_allocation_stale_version_raises_concurrency_error(servic
 
 
 def test_set_assignment_allocation_requires_expected_version(services):
-    """P45B closed the blind-write fallback (P45A-FINAL-CLOSURE item 25):
-    `expected_version` is now a required keyword-only argument, not an
-    optional bypass -- every caller must supply the version it read."""
+    """`expected_version` is a required keyword-only argument, not an optional bypass -- every
+    caller must supply the version it read."""
     ts = services["task_service"]
     _, _, _, assignment = _setup_assignment(services)
 

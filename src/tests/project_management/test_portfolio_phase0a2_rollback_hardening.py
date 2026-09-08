@@ -1,16 +1,9 @@
-"""Phase 0A.2 / P42 — Portfolio write rollback hardening.
-
-P42 converged every Portfolio command onto a single, narrow `PortfolioUnitOfWork` (a fresh
-session per command, via `PortfolioService._uow_factory`), eliminating the nested/self-owned
-commit hazard P40A found (`_ensure_scoring_templates()`'s own internal `session.commit()` calls)
-and adding real enterprise audit (previously absent for Intake/Scenario/ScoringTemplate). This
-file's ORIGINAL Phase 0A.2 intent -- "a repository or commit failure rolls back the whole write,
-leaves zero partial rows, and the service stays usable for the next command" -- is preserved, but
-its mechanism is rewritten: failure injection now targets the repository CLASS (so it reaches the
-fresh, UoW-owned repository instance each command constructs) or `EnterpriseAuditService.record`
-(simulating a failure elsewhere in the SAME transaction, after the mutation itself already
-succeeded -- the exact P40A hazard shape), and `domain_events.portfolio_changed` assertions are
-replaced with a `ViewInvalidationHint` spy, since the legacy Signal is deleted.
+"""Portfolio write rollback hardening: a repository or commit failure rolls back the whole
+write, leaves zero partial rows and zero ViewInvalidation hint, and the service stays usable
+for the next command. Failure injection targets the repository CLASS (so it reaches the fresh,
+UoW-owned repository instance each command constructs) or `EnterpriseAuditService.record`
+(simulating a failure elsewhere in the same transaction, after the mutation itself already
+succeeded).
 """
 
 from __future__ import annotations
@@ -162,7 +155,7 @@ def create_case(request, services):
 
 
 # ---------------------------------------------------------------------------
-# 1 & 3. A forced repository failure triggers rollback; no partial row survives.
+# A forced repository failure triggers rollback; no partial row survives.
 # ---------------------------------------------------------------------------
 
 
@@ -178,9 +171,8 @@ def test_repository_failure_triggers_rollback_with_no_partial_row(create_case, m
 
 
 # ---------------------------------------------------------------------------
-# 2 & 3. A forced failure elsewhere in the SAME transaction (enterprise audit, which now runs
-# for every Portfolio sub-aggregate per P42) also triggers rollback -- this is the exact P40A
-# hazard shape: the inner mutation itself already succeeded before the failure.
+# A forced failure elsewhere in the same transaction (enterprise audit) also triggers
+# rollback, even though the inner mutation itself already succeeded before the failure.
 # ---------------------------------------------------------------------------
 
 
@@ -196,7 +188,7 @@ def test_audit_failure_triggers_rollback_with_no_partial_row(create_case, monkey
 
 
 # ---------------------------------------------------------------------------
-# 4. No portfolio ViewInvalidation hint is published after either failure.
+# No portfolio ViewInvalidation hint is published after either failure.
 # ---------------------------------------------------------------------------
 
 
@@ -223,8 +215,8 @@ def test_no_view_invalidation_after_audit_failure(create_case, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# 5. The service remains usable for the next command after a failed write (each command uses its
-# own fresh, disposable UoW session -- P42 -- so this is naturally true, but proved end to end).
+# The service remains usable for the next command after a failed write (each command uses
+# its own fresh, disposable UoW session).
 # ---------------------------------------------------------------------------
 
 
@@ -257,7 +249,7 @@ def test_service_remains_usable_after_audit_failure(create_case, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# 6. Successful behavior is unaffected: exactly one ViewInvalidation hint, non-failure path.
+# Successful behavior is unaffected: exactly one ViewInvalidation hint, non-failure path.
 # ---------------------------------------------------------------------------
 
 

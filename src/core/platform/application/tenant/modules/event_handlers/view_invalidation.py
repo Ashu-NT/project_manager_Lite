@@ -1,21 +1,15 @@
-"""ADR-005 Section 12 (P5B-3): the five Module Entitlement business events ->
-`ViewInvalidationHint` post-commit reaction.
+"""Maps the five Module Entitlement events (`ModuleLicensed`/`ModuleLicenseRevoked`/
+`ModuleEnabled`/`ModuleDisabled`/`ModuleLifecycleTransitioned`) onto one `ViewInvalidationHint`.
 
-All five events (`ModuleLicensed`/`ModuleLicenseRevoked`/`ModuleEnabled`/`ModuleDisabled`/
-`ModuleLifecycleTransitioned`) collapse onto the SAME single stale-read target -- the
-organization's module entitlement collection -- because every real consumer re-reads that whole
-collection in one call (`build_module_entitlements()`), never one module row at a time. One
-mapping handler, reused across all five `post_commit_bus.subscribe(...)` registrations in
-composition (`platform_registry.py`), rather than five near-identical copies.
+All five collapse onto the same stale-read target -- the organization's module entitlement
+collection -- because every consumer re-reads that whole collection in one call
+(`build_module_entitlements()`), never one module row at a time. One handler, reused across all
+five subscriptions in composition, rather than five near-identical copies.
 
-Organization-scoped, never tenant-wide or all-tenants: each event already carries its own
-`organization_id`, and the Organization P6A hardening review established that an
-organization-specific read must never be invalidated via a broader `TenantWide`/`AllTenants`
-filter merely because the eventual re-fetch is itself tenant-safe.
+Organization-scoped, never tenant-wide: an organization-specific read must never be invalidated
+via a broader `TenantWide`/`AllTenants` filter merely because the eventual re-fetch is tenant-safe.
 
-Transport-independent: no Qt, no QML. Routing is delegated entirely to `ScopeFilter.matches(...)`
-via the P2 `ViewInvalidationChannel` -- this module never reimplements tenant/organization
-matching itself. The Qt adapter consumes `ViewInvalidationHint`, never these events directly.
+Transport-independent: no Qt, no QML. Routing is delegated to `ScopeFilter.matches(...)`.
 """
 
 from __future__ import annotations

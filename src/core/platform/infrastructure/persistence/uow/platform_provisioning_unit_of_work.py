@@ -73,9 +73,8 @@ class SqlAlchemyPlatformProvisioningUnitOfWork(SqlAlchemyUnitOfWorkBase, Platfor
 
 
 class SqlAlchemyPlatformProvisioningUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
-    """Closes over a session *factory* (per ADR-005 Section 6.1) plus the ambient collaborators
-    (`tenant_context_service`, `user_session`) needed to build this UoW's fresh, session-bound
-    accessors on every `create()` call."""
+    """Closes over a session factory plus the ambient collaborators (`tenant_context_service`,
+    `user_session`) needed to build this UoW's fresh, session-bound accessors per call."""
 
     def __init__(
         self,

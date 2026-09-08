@@ -1,15 +1,10 @@
 """Pure, stateless CPM entry point for consumers that need a computed
 schedule without a live SchedulingEngine (session, task repo, etc).
 
-This is the single non-persisting CPM implementation in the codebase.
-Before this module existed, ``CPMCalculator`` filled this role with its own
-duplicated dependency-date math and, critically, applied no scheduling
-constraints at all -- while ``SchedulingEngine`` (the live, persisting path)
-did. That meant the same project could report a different schedule on the
-Portfolio heatmap than on the Dashboard/Task Detail, purely because of which
-screen was open. See
-docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
-§11/§12/Phase D.
+This is the single non-persisting CPM implementation in the codebase --
+sharing SchedulingEngine's own primitives (including scheduling constraints)
+so every screen computing a schedule from the same task/dependency set
+reports the same dates.
 
 ``run_cpm`` shares the exact same primitives SchedulingEngine uses
 (``build_project_dependency_graph``, ``run_forward_pass``,

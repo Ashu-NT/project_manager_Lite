@@ -358,9 +358,9 @@ def test_two_separate_link_commits_to_different_entities_produce_two_invalidatio
 
 
 def test_same_target_entity_across_two_separate_transactions_produces_two_invalidations(services):
-    """Dedup is transaction-scoped only (P16D-FIX §7): the per-transaction dedup sets are
-    cleared the moment a new correlation_id arrives, so a second, later transaction that
-    happens to target the very same entity as an earlier one is never silently suppressed."""
+    """Dedup is transaction-scoped only: the per-transaction dedup sets are cleared the moment a
+    new correlation_id arrives, so a later transaction targeting the same entity as an earlier
+    one is never silently suppressed."""
     document_service = services["document_service"]
     doc_1 = document_service.create_document(
         document_code=_unique_code("P16D-XACT-1"), title="Doc 1", storage_uri="C:/docs/q.pdf"
@@ -407,8 +407,7 @@ def test_failed_link_commit_produces_zero_document_links_hints(services, monkeyp
 def test_link_scope_is_typed_not_stringly_encoded():
     """The forward-shape hint's identity lives in a typed `ResourceScope`
     (tenant_id/organization_id/module_code/entity_type/entity_id), never joined into one opaque
-    string like 'inventory:item:123' (P16D §3, corrected by P16D-FIX to use `ResourceScope`
-    rather than a bare `module_code` field on the hint itself)."""
+    string like 'inventory:item:123'."""
     from src.core.platform.application.master_data.documents.event_handlers.view_invalidation import (
         build_document_links_view_invalidation_handler,
     )
@@ -583,10 +582,9 @@ def test_admin_unselected_document_link_does_not_refresh_focus(services):
 
 
 def test_reservations_document_linking_has_no_ui_consumer():
-    """P16A/P16D audit: reservation_service.list_reservation_documents/link_document/
-    unlink_document exist at the application layer but are not exposed through any desktop API
-    or UI controller/presenter -- there is nothing to wire a narrow refresh onto, and nothing
-    would ever observe staleness. Proven by source absence, not asserted by assumption."""
+    """`reservation_service.list_reservation_documents/link_document/unlink_document` exist at
+    the application layer but are not exposed through any desktop API or UI controller/presenter
+    -- proven by source absence, not asserted by assumption."""
     import glob
 
     hits = []
@@ -624,13 +622,12 @@ def test_procurement_document_linking_has_no_ui_consumer():
 
 
 def test_all_real_business_callers_resolve_entity_org_scoped_before_linking():
-    """P16A found DocumentLink's entity_id is caller-trusted, not independently validated by the
-    Document layer. P16D re-confirmed no clean generic cross-module resolver exists (building one
-    would be exactly the forbidden generic entity resolver/service locator) and kept the
-    invariant caller-owned. This proves every current REAL business-workflow caller resolves its
-    entity through its own organization-scoped lookup before calling into
-    DocumentIntegrationService -- Admin's manual add_link tool is a deliberately different,
-    settings.manage-gated manual-entry path and is not held to this invariant."""
+    """DocumentLink's `entity_id` is caller-trusted, not independently validated by the Document
+    layer -- a generic cross-module resolver would just be a forbidden entity resolver/service
+    locator. Every real business-workflow caller must resolve its entity through its own
+    organization-scoped lookup before calling into DocumentIntegrationService. Admin's manual
+    `add_link` tool is a deliberately different, settings.manage-gated manual-entry path and is
+    not held to this invariant."""
     import importlib
     import inspect
 
@@ -713,11 +710,6 @@ def test_no_document_changed_or_document_updated_blanket_event():
         if re.search(r"\bDocumentChanged\b", source) or re.search(r"\bDocumentUpdated\b", source):
             hits.append(normalized)
     assert hits == [], hits
-
-
-# P46B: `test_no_new_signal_added_to_domain_events` removed -- `domain_events` module is deleted
-# outright; see test_p8_platform_event_architecture_canonicalization.py's permanent "zero legacy
-# signals application-wide" guard.
 
 
 def test_no_generic_entity_resolver_or_service_locator_introduced():

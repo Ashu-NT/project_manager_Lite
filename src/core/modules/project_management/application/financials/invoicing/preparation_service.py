@@ -91,12 +91,9 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
         self._record_event = record_event
-        # P39: `_approval_repo`/`_approval_requested_staged` are wired post-construction by
-        # composition, only for the governed direct-command instance -- mirrors
-        # `FinancialChangeService`'s identical `_approval_repo`/`_approval_requested_staged`
-        # attributes (`build_finance_governance_operations`). None here means "not
-        # governed-composition-wired" (e.g. the approval-participant's own fresh instance, which
-        # never calls `submit_preparation`).
+        # Wired post-construction by composition, only for the governed direct-command
+        # instance. None means "not governed-composition-wired" (e.g. the approval
+        # participant's own fresh instance, which never calls submit_preparation).
         self._approval_repo = None
         self._approval_requested_staged: Callable[[object], None] | None = None
 

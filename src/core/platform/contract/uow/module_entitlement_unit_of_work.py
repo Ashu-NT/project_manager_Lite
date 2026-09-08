@@ -1,12 +1,8 @@
-"""P5B prerequisite (Module Entitlement Transaction Convergence): `ModuleEntitlementUnitOfWork`
--- the narrow, Platform-owned extension of the P3 canonical `UnitOfWork` that
-`ModuleCatalogService.set_module_state` uses.
+"""`ModuleEntitlementUnitOfWork` -- the narrow UoW `ModuleCatalogService.set_module_state` uses.
 
 A sibling of `OrganizationUnitOfWork`/`PlatformUnitOfWork`/`PlatformProvisioningUnitOfWork`, not a
-growth of any of them -- ADR-005 Section 9/24 rejects a single Platform-wide UoW that accumulates
-one named accessor per capability. Module Entitlements get their own narrow UoW with exactly the
-one typed accessor `set_module_state` needs -- `entitlements` -- never a generic
-`repository_for`/`resolve` lookup.
+growth of any of them: each capability gets its own narrow UoW with exactly the accessor it
+needs, never a shared Platform-wide UoW with a generic `repository_for`/`resolve` lookup.
 """
 
 from __future__ import annotations

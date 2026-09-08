@@ -75,10 +75,6 @@ def _setup(services):
     return project, cost_code
 
 
-# P46B: test_legacy_budget_signal_field_is_deleted removed -- domain_events module is deleted
-# outright (see docs/architecture/event-modernization-plan.md's P46B entry).
-
-
 # ---------------------------------------------------------------------------
 # ViewInvalidation handler: unit-level mapping/dedupe
 # ---------------------------------------------------------------------------
@@ -96,8 +92,6 @@ def _fake_channel():
 
 
 def test_every_budget_event_maps_to_both_planning_and_summary_targets():
-    """Source-preserving design: the legacy `budgets_changed` signal never differentiated by fact
-    type either -- both of its consumers reacted to every emission uniformly."""
     channel = _fake_channel()
     handler = build_budget_view_invalidation_handler(channel)
     now = datetime.now(timezone.utc)
@@ -304,9 +298,8 @@ def test_approving_a_successor_supersedes_the_previous_approved_version(services
     budgets.approve_budget(successor.id, approved_by="admin", expected_version=successor.row_version)
 
     approved_hints = _budget_hints(hints)
-    # Both the successor and the now-superseded predecessor are project-scoped facts for the
-    # same project -- planning + summary targets for each, still deduped by target within the
-    # one transaction (2 targets total, not 4).
+    # Successor and superseded-predecessor facts share the same project scope, deduped to one
+    # hint per target (2, not 4).
     assert len(approved_hints) == 2
 
     predecessor_after = budgets.get_budget(approved_first.id)
@@ -315,7 +308,7 @@ def test_approving_a_successor_supersedes_the_previous_approved_version(services
 
 def test_create_successor_alone_does_not_supersede_the_predecessor(services):
     """`create_successor` only creates a new DRAFT -- supersession is an approval-time fact, not a
-    creation-time one (confirmed by direct source reading, not assumed)."""
+    creation-time one."""
     project, cost_code = _setup(services)
     budgets = services["budget_service"]
     first = budgets.create_budget(project.id, "V1")
@@ -381,9 +374,9 @@ def test_governed_approval_participant_emits_the_same_typed_status_fact(services
 
 
 def test_financial_change_application_produces_budget_and_financial_change_facts_together(services):
-    """The most important cross-capability proof: one ApprovalService transaction produces BOTH a
-    typed `FinancialChangeChanged` fact and typed Budget facts (`BudgetVersionCreated` for the new
-    successor, `BudgetStatusChanged(SUPERSEDED)` for the base) in the same commit."""
+    """One ApprovalService transaction produces both a typed `FinancialChangeChanged` fact and
+    typed Budget facts (`BudgetVersionCreated` for the new successor,
+    `BudgetStatusChanged(SUPERSEDED)` for the base) in the same commit."""
     from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
         FinancialChangeChanged,
     )
@@ -441,7 +434,7 @@ def test_financial_change_application_produces_budget_and_financial_change_facts
 
 
 # ---------------------------------------------------------------------------
-# P38B §21: latent permission-order bug -- fixed for the Budget branch
+# Permission-order: command permission reported without a masking pre-read
 # ---------------------------------------------------------------------------
 
 
@@ -469,15 +462,8 @@ def test_add_line_reports_the_command_permission_without_a_boundary_pre_read(ser
 
 
 def test_audit_failure_rolls_back_and_leaves_the_session_usable(services, monkeypatch):
-    """The failed attempt's own project is deliberately not reused for the recovery call --
-    `create_budget`'s pre-commit `session.begin_nested()` SAVEPOINT combined with
-    `sqlite:///:memory:`'s `SingletonThreadPool` makes a real cross-session post-rollback read of
-    THIS SPECIFIC nested-transaction shape unreliable in this exact test topology (the same
-    documented pysqlite legacy-driver limitation already noted for `BudgetService._apply_approval_
-    decision` in `test_approval_service_unit_of_work_cutover.py`), independent of whether the
-    underlying rollback is correct. A fresh project for the recovery call still proves the shared
-    session remains usable for a subsequent legitimate operation, without depending on that
-    unreliable read."""
+    """Uses a fresh project for the recovery call -- reusing the failed one hits an unrelated
+    sqlite in-memory cross-session read quirk after a nested-transaction rollback."""
     from src.core.platform.application.history.audit.enterprise_audit_service import (
         EnterpriseAuditService,
     )
@@ -507,7 +493,7 @@ def test_audit_failure_rolls_back_and_leaves_the_session_usable(services, monkey
 
 
 # ---------------------------------------------------------------------------
-# Concurrency -- preserved, unweakened
+# Concurrency
 # ---------------------------------------------------------------------------
 
 
@@ -557,9 +543,7 @@ def test_concurrent_update_line_second_writer_rejected(services, session):
 # ---------------------------------------------------------------------------
 
 
-def test_financials_controller_budget_planning_stale_invalidates_the_legacy_three(services):
-    """Preserves the legacy `budgets_changed` signal's own 3-destination fan-out
-    (overview/planning/performance) exactly."""
+def test_financials_controller_budget_planning_stale_invalidates_three_destinations(services):
     catalog = _pm_catalog(services)
     controller = catalog.financialsWorkspace
     controller._set_selected_project_id("proj-a")

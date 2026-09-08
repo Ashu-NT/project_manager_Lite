@@ -1,14 +1,10 @@
-"""P44B-FIX: TaskComment attachment/linked-document cross-capability atomicity.
+"""TaskComment attachment/linked-document cross-capability atomicity.
 
-Proves the corrected transaction boundary -- `post_comment`'s attachment and
-linked-document integration with the Document capability now shares ONE
-physical transaction with the TaskComment write, via
-`register_entity_attachments_in_uow`/`link_existing_document_in_uow`
-(transaction-neutral, never commit/rollback/publish) invoked directly inside
-`CollaborationUnitOfWork` (extended with `documents`/`links`/`structures`
-accessors mirroring `ProjectUnitOfWork.financial_profiles`'s precedent).
-
-All assertions check actual DB row state, never commit counts.
+`post_comment`'s attachment and linked-document integration with the Document
+capability shares ONE physical transaction with the TaskComment write, via
+`register_entity_attachments_in_uow`/`link_existing_document_in_uow` invoked
+directly inside `CollaborationUnitOfWork`. All assertions check actual DB row
+state, never commit counts.
 """
 
 from __future__ import annotations
@@ -99,7 +95,7 @@ def _make_existing_document(services) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Success path (§21): one physical transaction, both capabilities' facts
+# Success path: one physical transaction, both capabilities' facts
 # ---------------------------------------------------------------------------
 
 
@@ -161,7 +157,7 @@ def test_post_comment_without_attachment_never_touches_document_capability(servi
 
 
 # ---------------------------------------------------------------------------
-# Attachment/Document failure AFTER comment staged in the SAME transaction (§17)
+# Attachment/Document failure AFTER comment staged in the SAME transaction
 # ---------------------------------------------------------------------------
 
 
@@ -196,7 +192,7 @@ def test_document_registration_failure_rolls_back_the_already_staged_comment(ser
 
 
 # ---------------------------------------------------------------------------
-# TaskComment persistence failure (§18): Document work never even runs
+# TaskComment persistence failure: Document work never even runs
 # ---------------------------------------------------------------------------
 
 
@@ -227,7 +223,7 @@ def test_comment_persistence_failure_prevents_any_document_state(services, monke
 
 
 # ---------------------------------------------------------------------------
-# Transactional handler failure (§19): FAIL_FAST, no partial cross-capability state
+# Transactional handler failure: FAIL_FAST, no partial cross-capability state
 # ---------------------------------------------------------------------------
 
 
@@ -266,7 +262,7 @@ def test_transactional_handler_failure_rolls_back_both_capabilities(services):
 
 
 # ---------------------------------------------------------------------------
-# Physical commit failure (§20)
+# Physical commit failure
 # ---------------------------------------------------------------------------
 
 
@@ -299,9 +295,8 @@ def test_physical_commit_failure_persists_neither_capability(services, monkeypat
 
 
 # ---------------------------------------------------------------------------
-# Retry/idempotency characterization (§22): a failed attempt leaves nothing
-# durable, so retrying the identical logical operation produces exactly one
-# final result, never a duplicate.
+# Retry/idempotency: a failed attempt leaves nothing durable, so retrying the
+# identical logical operation produces exactly one final result, never a duplicate.
 # ---------------------------------------------------------------------------
 
 

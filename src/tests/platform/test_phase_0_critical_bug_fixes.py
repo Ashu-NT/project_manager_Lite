@@ -35,9 +35,8 @@ from src.infra.time.system_clock import SystemClock
 # ---------------------------------------------------------------------------
 
 def _make_organization_uow_factory(session, tenant_context_service, user_session):
-    """P4B: mirrors `platform_registry.py`'s own `organization_uow_factory` construction --
-    derived from `session.bind` so it resolves to the test's isolated engine, never a real,
-    on-disk database."""
+    """Mirrors `platform_registry.py`'s own factory construction, derived from `session.bind` so
+    it resolves to the test's isolated engine, never a real on-disk database."""
     return SqlAlchemyOrganizationUnitOfWorkFactory(
         session_factory=sessionmaker(bind=session.bind, future=True),
         transactional_dispatcher=InProcessTransactionalEventDispatcher(),
@@ -68,7 +67,6 @@ def _add_tenant_row(session, tenant_id: str, code: str) -> None:
 
 
 def test_list_organizations_is_scoped_to_active_tenant(services):
-    """list_organizations() should return only the current tenant's orgs."""
     session = services["session"]
     repo = SqlAlchemyOrganizationRepository(session)
     tenant_context_service = services["tenant_context_service"]
@@ -101,28 +99,15 @@ def test_list_organizations_is_scoped_to_active_tenant(services):
     assert org_b.id not in ids
 
 
-# P10A: `OrganizationService.get_active_organization()` and
-# `OrganizationRepository.get_active_for_tenant()` are deleted entirely -- both represented "the
-# one tenant-wide active organization," a concept with no room in the corrected multi-org model
-# (more than one organization may be enabled per tenant at once). The real runtime "current
-# organization" resolution has always gone through `TenantContextService.get_active_organization()`
-# (unaffected by this deletion; see test_p10a_organization_availability_model.py's structural
-# guards and test_organization_platform_foundation.py's behavioral coverage), so
-# `test_get_active_organization_returns_tenant_scoped_active_org` and
-# `test_get_active_for_tenant_repository_method` are retired without replacement.
-
-
 # ---------------------------------------------------------------------------
 # Fix 3: platform.admin permission seeded and admin role receives it
 # ---------------------------------------------------------------------------
 
 def test_platform_admin_permission_in_default_permissions():
-    """DEFAULT_PERMISSIONS must define platform.admin."""
     assert "platform.admin" in DEFAULT_PERMISSIONS
 
 
 def test_admin_user_has_platform_admin_permission(services):
-    """The bootstrapped admin user's permissions must include platform.admin."""
     auth = services["auth_service"]
     user_session = services["user_session"]
 
@@ -133,12 +118,10 @@ def test_admin_user_has_platform_admin_permission(services):
 
 
 def test_is_platform_admin_returns_true_for_admin_session(services):
-    """UserSessionContext.is_platform_admin() returns True for the admin session."""
     assert services["user_session"].is_platform_admin() is True
 
 
 def test_is_platform_admin_returns_false_for_viewer(services):
-    """UserSessionContext.is_platform_admin() returns False for a non-admin user."""
     auth = services["auth_service"]
     user_session = services["user_session"]
 

@@ -1,13 +1,6 @@
-"""A minimal, self-contained time source for PM application services.
-
-Scoped to exactly one need: giving the rate-card cutover (resource rate
-seeding/supersession, snapshot timestamps) a deterministic, injectable
-"what time is it" instead of a hidden ``date.today()``/``datetime.now()``
-call buried in business logic. This is intentionally not an attempt to
-implement ADR-005's separately-proposed, not-yet-accepted ``Clock``
-design — that ADR is unrelated and still proposed; this is a small,
-local utility.
-"""
+"""A minimal, injectable time source for PM application services -- lets
+rate-card seeding/supersession and snapshot timestamps be deterministic
+in tests instead of calling ``datetime.now()`` directly."""
 
 from __future__ import annotations
 

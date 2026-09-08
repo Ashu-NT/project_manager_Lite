@@ -4,14 +4,6 @@ from __future__ import annotations
 import glob
 import inspect
 
-# P39: `billing_preparations_changed` (the last still-legacy Finance signal) is now deleted --
-# Finance has ZERO legacy Signal fields left (see `test_p8_platform_event_architecture_
-# canonicalization.py::test_zero_finance_legacy_signal_fields_remain` for the permanent guard).
-# P46B: `domain_events`/`DomainEvents` is deleted outright and the legacy Signal mechanism is gone
-# for good -- a future Finance signal can no longer be expressed as `domain_events.X.emit(...)` at
-# all, so the "reusable check for a future Finance-owned signal" this tuple/loop existed for is now
-# a moot premise; removed rather than kept as a permanently-dead placeholder.
-
 
 def _strip_strings_and_comments(source: str) -> str:
     import re
@@ -40,8 +32,6 @@ def _production_source_files():
 
 
 def test_zero_remaining_approval_post_commit_event_sites_after_task_modernization():
-    """Superseded by P45B: Task was the last capability whose approval participant
-    constructed `ApprovalPostCommitEvent(...)` -- zero production sites remain."""
     import ast
 
     signal_names_found = set()
@@ -71,12 +61,7 @@ def test_zero_remaining_approval_post_commit_event_sites_after_task_modernizatio
 
 
 # ---------------------------------------------------------------------------
-# 3. _emit_signal_safely retired (P45B) -- Task modernization was its last
-#    remaining production caller (task_apply_participant.py's 5 decisions +
-#    financial_change_apply_participant.py's Task branch); zero callers
-#    remain, so the reflective legacy-signal dispatch bridge is now deleted
-#    outright, no compatibility shell, per this project's pre-release
-#    convergence rule.
+# 3. _emit_signal_safely: the reflective legacy-signal dispatch bridge, fully retired
 # ---------------------------------------------------------------------------
 
 
@@ -133,10 +118,6 @@ def test_financial_change_apply_participant_emits_typed_change_and_forecast_even
     assert "ForecastVersionChanged(" in apply_source
     assert "ForecastVersionChangeType.APPROVED" in apply_source
     assert "budget_events" in apply_source
-    # Superseded by P45B: the Task-branch's conditional `tasks_changed`
-    # ApprovalPostCommitEvent is gone -- schedule impacts now flow through
-    # `_apply_schedule_changes`'s own typed `TaskScheduleChanged` events,
-    # folded into this same `domain_events` tuple.
     assert "tasks_changed" not in apply_source
     assert "budgets_changed" not in apply_source
     assert "ApprovalPostCommitEvent" not in apply_source
@@ -147,10 +128,8 @@ def test_financial_change_apply_participant_emits_typed_change_and_forecast_even
 
 
 def test_real_budget_approval_still_emits_its_own_real_view_invalidation(services):
-    """Approval regression (P38B): a real budget approval no longer emits any legacy Signal --
-    `budgets_changed` is deleted -- but still produces the legitimate typed
-    `BudgetStatusChanged(APPROVED)` post-commit ViewInvalidation output, proving the
-    apply-participant edits did not disturb the real consumer, only its mechanism."""
+    """A real budget approval produces the typed `BudgetStatusChanged(APPROVED)` post-commit
+    ViewInvalidation output."""
     from decimal import Decimal
 
     from src.core.modules.project_management.application.financials.budgets.event_handlers.view_invalidation import (
@@ -247,13 +226,6 @@ def test_approved_time_dispatcher_uses_canonical_unit_of_work():
 # ---------------------------------------------------------------------------
 # 6. Final legacy signal invariant
 # ---------------------------------------------------------------------------
-
-
-# P46B: `test_final_invariant_every_remaining_signal_has_a_production_reference` (an orphan-
-# detection loop over `dataclasses.fields(domain_events)`) removed -- `domain_events` module is
-# deleted outright; see test_p8_platform_event_architecture_canonicalization.py's
-# `_current_signal_names`/`test_zero_pm_legacy_signal_fields_remain` for the permanent, stronger
-# "zero legacy signals application-wide" guard.
 
 
 def test_no_new_business_domain_event_or_replacement_signal_introduced():

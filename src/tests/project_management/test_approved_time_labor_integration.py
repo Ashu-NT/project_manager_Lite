@@ -361,8 +361,8 @@ def test_approved_time_transactional_handler_receives_the_real_uow_not_the_dispa
 def test_approved_time_transactional_handler_failure_rolls_back_and_yields_zero_postcommit_event(
     services,
 ) -> None:
-    """P37 core proof: when a precommit Cost Entry transactional handler fails, the mutation must
-    not persist and no postcommit event may occur."""
+    """When a precommit Cost Entry transactional handler fails, the mutation must not persist and
+    no postcommit event may occur."""
     from src.core.modules.project_management.application.financials.cost.entries.cost_entry_events import (
         CostEntryRecorded,
     )

@@ -43,15 +43,14 @@ class TaskScheduleSyncMixin:
         exclude_task_ids: frozenset[str] = frozenset(),
     ) -> list[str]:
         """Recalculates the project's CPM schedule and returns the ids of
-        every Task whose persisted `start_date`/`end_date` actually changed as
-        a result -- excluding `exclude_task_ids` (tasks the caller already
-        recorded its own primary `TaskScheduleChanged` fact for). Callers use
-        this to emit `TaskScheduleChanged(CASCADE_RECALCULATED)` for genuine
-        sibling schedule changes, one fact per actually-changed Task, never a
-        synthetic bulk fact (P45B-CLOSURE item 6). The before/after diff is
-        computed here, entirely within this thin wrapper -- `SchedulingEngine.
-        recalculate_project_schedule` itself is untouched, since it is shared,
-        heavily-used infrastructure this phase does not need to modify."""
+        every Task whose persisted `start_date`/`end_date` actually changed,
+        excluding `exclude_task_ids` (tasks the caller already recorded its
+        own primary `TaskScheduleChanged` fact for). Callers use this to
+        emit `TaskScheduleChanged(CASCADE_RECALCULATED)` for genuine sibling
+        schedule changes, one fact per actually-changed Task, never a
+        synthetic bulk fact. The before/after diff is computed here as a
+        thin wrapper -- `SchedulingEngine.recalculate_project_schedule`
+        itself is unaffected."""
         if not project_id:
             return []
         scheduler: SchedulingEngine = getattr(self, "_scheduling_engine", None)

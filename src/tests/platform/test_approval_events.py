@@ -66,10 +66,8 @@ class _FixedClock:
 
 
 def _spy_recorded_events(uow_factory, monkeypatch) -> list:
-    """Mirrors `test_role_binding_events.py::_spy_recorded_events` -- captures every event
-    recorded via `uow.record_event(...)` on ANY UoW `uow_factory.create(...)` produces, asserting
-    (structurally, not by convention) that recording happens strictly before `uow._committed`
-    flips True."""
+    """Captures every event recorded via `uow.record_event(...)` on any UoW the factory produces,
+    and asserts recording always happens before `uow._committed` flips True."""
     recorded = []
     original_create = type(uow_factory).create
 
@@ -221,8 +219,8 @@ def test_approval_request_does_not_implement_records_domain_events():
 
 
 def test_no_approval_applied_or_changed_event_classes_exist():
-    """§40: `ApprovalApplied`/`ApprovalChanged`/`ApprovalStatusChanged` must not exist anywhere
-    in production source -- there is no fourth Approval event, by locked design."""
+    """There is no fourth Approval event: `ApprovalApplied`/`ApprovalChanged`/
+    `ApprovalStatusChanged` must not exist anywhere in production source."""
     import re
     from pathlib import Path
 
@@ -335,11 +333,8 @@ def test_submit_requisition_records_exactly_one_approval_requested(services, mon
     recorded = _spy_recorded_events(procurement._requisition_submission_uow_factory, monkeypatch)
     submitted = procurement.submit_requisition(requisition.id)
 
-    # P39-CLEANUP: Requisition's own modernization (P29) added `InventoryRequisitionSubmitted`
-    # alongside `ApprovalRequested` in the same transaction -- a naked `len(recorded) == 1` went
-    # stale the moment that typed event existed. Filtering by type keeps the real invariant this
-    # test exists to prove (exactly one `ApprovalRequested`) durable regardless of how many other
-    # typed facts a modernized capability's own submission records alongside it.
+    # Filtered by type: submission also records InventoryRequisitionSubmitted in the same
+    # transaction, so a naked recorded-event count would be fragile.
     approval_requested = [e for e in recorded if isinstance(e, ApprovalRequested)]
     assert len(approval_requested) == 1
     event = approval_requested[0]
@@ -383,8 +378,8 @@ def test_submit_purchase_order_records_exactly_one_approval_requested(services, 
     recorded = _spy_recorded_events(purchasing._purchase_order_submission_uow_factory, monkeypatch)
     submitted = purchasing.submit_purchase_order(purchase_order.id)
 
-    # P39-CLEANUP: see the identical Requisition note above -- Purchase Order's own modernization
-    # (P28B) added `InventoryPurchaseOrderSubmitted` alongside `ApprovalRequested`.
+    # Filtered by type: submission also records InventoryPurchaseOrderSubmitted (see Requisition
+    # test above).
     approval_requested = [e for e in recorded if isinstance(e, ApprovalRequested)]
     assert len(approval_requested) == 1
     event = approval_requested[0]
@@ -440,8 +435,7 @@ def test_submit_change_records_exactly_one_approval_requested(services, monkeypa
         change.id, submitted_by="admin", expected_version=change.row_version
     )
 
-    # P39-CLEANUP: Financial Change's own modernization (P19) added `FinancialChangeChanged`
-    # alongside `ApprovalRequested`.
+    # Filtered by type: submission also records FinancialChangeChanged.
     approval_requested = [e for e in recorded if isinstance(e, ApprovalRequested)]
     assert len(approval_requested) == 1
     event = approval_requested[0]
@@ -505,8 +499,7 @@ def test_submit_preparation_records_exactly_one_approval_requested(services, mon
         preparation.id, expected_row_version=preparation.row_version
     )
 
-    # P39-CLEANUP: Billing Preparation's own modernization (P39) added
-    # `BillingPreparationStatusChanged(SUBMITTED)` alongside `ApprovalRequested`.
+    # Filtered by type: submission also records BillingPreparationStatusChanged(SUBMITTED).
     approval_requested = [e for e in recorded if isinstance(e, ApprovalRequested)]
     assert len(approval_requested) == 1
     event = approval_requested[0]
@@ -534,9 +527,8 @@ def test_approve_and_apply_records_exactly_one_approval_approved(services, sessi
 
     decided = approvals.approve_and_apply(request.id, note="Approved")
 
-    # P39-CLEANUP: Budget's own modernization (P38B) added `BudgetStatusChanged` alongside
-    # `ApprovalApproved` (`BudgetApprovalParticipant.apply()` returns it via
-    # `ApprovalHandlerResult.domain_events`).
+    # Filtered by type: approval also records BudgetStatusChanged via
+    # `ApprovalHandlerResult.domain_events`.
     approved_events = [e for e in recorded if isinstance(e, ApprovalApproved)]
     assert len(approved_events) == 1
     event = approved_events[0]
@@ -553,9 +545,8 @@ def test_approve_and_apply_records_exactly_one_approval_approved(services, sessi
 
 
 def test_apply_handler_failure_emits_zero_approval_approved(services, session, monkeypatch):
-    """§20: apply participant raises -> zero `ApprovalApproved`, request remains PENDING, and the
-    failure is unobservable post-commit (subscribed via the shared bus, not merely absent from
-    the spy list -- proving no dispatch reached a real subscriber either)."""
+    """An apply participant raising leaves zero `ApprovalApproved`, the request stays PENDING, and
+    the failure is unobservable to real post-commit subscribers, not just absent from the spy."""
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
     approvals = services["approval_service"]
@@ -583,8 +574,8 @@ def test_apply_handler_failure_emits_zero_approval_approved(services, session, m
 
 
 def test_approve_already_decided_request_emits_zero_new_events(services, session, monkeypatch):
-    """§23: a second decision attempt on an already-decided request is a command, not a new
-    business fact -- zero events, zero audit, zero postcommit reaction."""
+    """A second decision on an already-decided request is a no-op command, not a new business
+    fact -- zero events, zero audit, zero postcommit reaction."""
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
     approvals = services["approval_service"]
@@ -611,7 +602,7 @@ def test_reject_records_exactly_one_approval_rejected(services, session, monkeyp
 
     decided = approvals.reject(request.id, note="Rejected")
 
-    # P39-CLEANUP: see the identical Budget-approve note above.
+    # Filtered by type: rejection also records BudgetStatusChanged (see approve test above).
     rejected_events = [e for e in recorded if isinstance(e, ApprovalRejected)]
     assert len(rejected_events) == 1
     event = rejected_events[0]
@@ -628,7 +619,7 @@ def test_reject_records_exactly_one_approval_rejected(services, session, monkeyp
 
 
 def test_reject_handler_failure_emits_zero_approval_rejected(services, session, monkeypatch):
-    """§22: a registered reject participant raises -> zero `ApprovalRejected`, request remains
+    """A registered reject participant raising leaves zero `ApprovalRejected`; the request stays
     PENDING."""
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
@@ -754,8 +745,8 @@ def test_one_post_commit_handler_failing_does_not_block_the_other_or_the_commit(
 def test_transactional_handler_failure_rolls_back_the_whole_request_transaction(
     services, monkeypatch
 ):
-    """§34: a FAIL_FAST transactional (pre-commit) handler failing must roll back the whole
-    owning transaction -- no `ApprovalRequest` persists, no postcommit publication follows."""
+    """A FAIL_FAST transactional (pre-commit) handler failing rolls back the whole owning
+    transaction -- no `ApprovalRequest` persists, no postcommit publication follows."""
     _login_as_fresh_requester(services)
     approvals = services["approval_service"]
     dispatcher = approvals._uow_factory._transactional_dispatcher
@@ -790,9 +781,8 @@ def test_transactional_handler_failure_rolls_back_the_whole_request_transaction(
 
 
 def test_cross_org_decision_denial_emits_zero_approval_approved_or_rejected(services, monkeypatch):
-    """§27: same tenant, request belongs to Org A1, active org = A2 -> decide denial emits zero
-    `ApprovalApproved`/`ApprovalRejected` (Approval-P1A's own negative authorization case,
-    re-verified here at the event layer)."""
+    """Same tenant, request belongs to Org A1, active org = A2: decide denial emits zero
+    `ApprovalApproved`/`ApprovalRejected`."""
     _login(services, "admin", "ChangeMe123!")
     organization_service = services["organization_service"]
     org_a1 = services["tenant_context_service"].get_active_organization()
@@ -978,10 +968,8 @@ def test_sequence_of_two_standalone_requests_produces_events_in_committed_order(
 
 
 _LEGACY_APPROVAL_PARTICIPANT_FILES = frozenset()
-"""Empty as of P45B: Task was the last capability whose approval participant
-constructed `ApprovalPostCommitEvent(...)` (task_apply_participant.py's 5
-decisions + financial_change_apply_participant.py's Task branch) -- both now
-report exclusively via `ApprovalHandlerResult.domain_events`."""
+"""Every `*_apply_participant.py` file now reports exclusively via
+`ApprovalHandlerResult.domain_events` -- none construct `ApprovalPostCommitEvent(...)` anymore."""
 
 _MODERNIZED_APPROVAL_RESULT_SOURCES = {
     "Baseline": "core/modules/project_management/infrastructure/approval/baseline_apply_participant.py",
@@ -1019,10 +1007,8 @@ def _approval_participant_files():
 
 
 def test_only_the_known_legacy_participant_files_construct_approval_post_commit_event():
-    """The trustworthy PM-modernization baseline: exactly which `*_apply_participant.py` files
-    still construct `ApprovalPostCommitEvent(...)` for their OWN capability's decision, recomputed
-    from source rather than asserted as a fixed count or copied from an earlier phase's report. A
-    future capability's own modernization phase deleting its file's site needs zero edits here."""
+    """Computed from source rather than hardcoded, so a capability deleting its own last
+    `ApprovalPostCommitEvent(...)` site needs zero edits here."""
     legacy_files = {
         path.name
         for path in _approval_participant_files()
@@ -1034,9 +1020,8 @@ def test_only_the_known_legacy_participant_files_construct_approval_post_commit_
 
 
 def test_zero_approval_participant_files_construct_approval_post_commit_event():
-    """As of P45B, Task was the last capability whose approval participant still constructed
-    `ApprovalPostCommitEvent(...)` -- zero `*_apply_participant.py` files do so anymore, and
-    `"tasks_changed"` no longer appears as a construction-site payload in either file."""
+    """Zero `*_apply_participant.py` files construct the legacy `ApprovalPostCommitEvent(...)`
+    bridge, and no Finance legacy signal name appears as a construction-site payload anywhere."""
     from pathlib import Path
 
     for path in _approval_participant_files():
@@ -1058,10 +1043,9 @@ def test_zero_approval_participant_files_construct_approval_post_commit_event():
 def test_modernized_approval_capability_uses_only_typed_domain_events(
     capability_name, relative_path
 ):
-    """Positive characterization for every already-modernized approval capability: its
-    `ApprovalHandlerResult` is built exclusively from `domain_events=`, never
-    `ApprovalPostCommitEvent(`. `capability_name` is asserted only to make a failing
-    parametrization case readable -- the real check is against `relative_path`'s source."""
+    """Every modernized approval capability's `ApprovalHandlerResult` is built exclusively from
+    `domain_events=`, never `ApprovalPostCommitEvent(`. `capability_name` only makes a failing
+    parametrization case readable; the check itself is against `relative_path`'s source."""
     from pathlib import Path
 
     assert capability_name  # readability only; the path below is what's actually verified

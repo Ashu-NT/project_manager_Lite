@@ -1,11 +1,8 @@
-"""P18B: Project Resource ViewInvalidation cutover + resources_changed retirement.
-
-Covers: ResourceMasterChanged -> resource_list (OrganizationScope), ResourceCapabilityChanged ->
-resource_capabilities (ResourceScope), scope isolation across organizations/resources, the real
-Resources workspace controller's narrow reactions, the other 6 consumers' resourceListStale-only
-wiring, the Employee-driven sync path producing exactly one Resource invalidation (no fake
-cross-capability event, no duplicate), and the full retirement of `resources_changed` (zero
-producers, zero consumers, field absent).
+"""Project Resource ViewInvalidation: `ResourceMasterChanged` -> `resource_list`
+(`OrganizationScope`), `ResourceCapabilityChanged` -> `resource_capabilities` (`ResourceScope`),
+scope isolation across organizations/resources, the Resources workspace controller's narrow
+reactions, the other 6 consumers' `resourceListStale`-only wiring, and the Employee-driven sync
+path producing exactly one Resource invalidation (no fake cross-capability event, no duplicate).
 """
 
 from __future__ import annotations

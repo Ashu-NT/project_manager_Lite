@@ -109,10 +109,10 @@ class RoleGovernanceService:
         scope_type: str,
         resolver: OrganizationOwnerResolver,
     ) -> None:
-        """P5C-1: resolves a RESOURCE-scoped binding's authoritative organization owner
-        (never the ambient active organization) -- so a future P5C-2 `RoleBindingAssigned`/
-        `Revoked` event can carry `organization_id` without a post-commit re-query. Returns
-        `None` only when the specific resource instance genuinely has no organization owner."""
+        """Resolves a resource-scoped binding's authoritative organization owner (never the
+        ambient active organization), so `RoleBindingAssigned`/`Revoked` can carry
+        `organization_id` without a post-commit re-query. Returns `None` only when the resource
+        instance genuinely has no organization owner."""
         self._organization_owner_resolvers[
             normalize_role_scope_type(scope_type)
         ] = resolver
@@ -329,10 +329,6 @@ class RoleGovernanceService:
                 additional_role_id=role.id,
             )
 
-            # P5D-1: the actual RoleBinding identity/no-op/audit/event mechanics now live in the
-            # shared, transaction-agnostic `role_binding_mutation_participant` module -- reused
-            # verbatim by `TenantMembershipService`'s own canonical transaction, never
-            # duplicated.
             binding, is_noop = create_role_binding_using(
                 role_bindings_repo=uow.role_bindings,
                 audit_repo=uow.audit,
@@ -348,9 +344,8 @@ class RoleGovernanceService:
                 expires_at=expires_at,
             )
             if is_noop:
-                # No-op: an identical active binding already exists -- no write, no audit, no
-                # event, and (per this early `return` from inside the `with` block) no commit
-                # and no post-commit legacy signal either.
+                # No-op: an identical active binding already exists -- no write, no audit,
+                # no event, no commit.
                 return binding
             try:
                 uow.commit()
@@ -377,7 +372,7 @@ class RoleGovernanceService:
                     code="ROLE_BINDING_NOT_FOUND",
                 )
             if binding.revoked_at is not None:
-                # No-op: already revoked -- no write, no audit. Same P5C-2 rule as above.
+                # No-op: already revoked -- no write, no audit.
                 return binding
             role = self._require_role(uow.roles, binding.role_id)
             self._require_delegation(
@@ -402,8 +397,6 @@ class RoleGovernanceService:
                 scope_id=binding.actual_scope_id,
                 organization_owner_resolvers=self._organization_owner_resolvers,
             )
-            # P5D-1: shared with `TenantMembershipService`'s own cascade revocation -- see
-            # `role_binding_mutation_participant.py`.
             binding = revoke_role_binding_using(
                 role_bindings_repo=uow.role_bindings,
                 audit_repo=uow.audit,

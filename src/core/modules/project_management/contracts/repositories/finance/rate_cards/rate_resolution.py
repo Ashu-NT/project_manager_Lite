@@ -1,5 +1,4 @@
-"""Rate-resolution read contracts — ADR-PF-005.
-"""
+"""Rate-resolution read contracts."""
 
 from __future__ import annotations
 

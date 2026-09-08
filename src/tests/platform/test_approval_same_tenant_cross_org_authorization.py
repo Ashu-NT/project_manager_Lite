@@ -1,49 +1,21 @@
-"""Approval-P1A (verification-closure pass): same-tenant, cross-organization Approval
-authorization.
+"""Same-tenant, cross-organization Approval authorization.
 
-`ApprovalRequest` now carries authoritative `tenant_id` + `organization_id` (Approval-P1). This
-file proves the actual invariant the codebase's authorization model provides for `approve_and_apply`
-/`reject`:
+`ApprovalService.approve_and_apply`/`reject` require only the GLOBAL permission
+`approval.decide` -- there is no per-organization "decide" grant. The organization boundary is
+enforced entirely by the repository's ambient tenant-scoping filter, which requires the SESSION's
+active organization (`TenantContextService`, not `OrganizationService.get_active_organization()`'s
+separate "business-active org" flag) to match the request's own `organization_id`. Switching the
+active organization itself requires only the global `settings.manage` permission, not per-org
+membership.
 
-- `ApprovalService.approve_and_apply`/`reject` require only the GLOBAL role permission
-  `approval.decide` (see `require_permission(self._user_session, "approval.decide", ...)` --
-  there is no per-organization-scoped "decide" grant for Approval). The organization boundary is
-  enforced entirely by `SqlAlchemyApprovalRepository.get()`'s ambient
-  `TenantScopedRepositorySupport._context()` filter, which requires the SESSION's active
-  organization (`TenantContextService`, driven by `UserSessionContext.active_organization_id()`
-  -- never `OrganizationService.get_active_organization()`'s DB-level "single business-active
-  org per tenant" flag, which is a different, unrelated concept) to match the request's own
-  `organization_id` (or its project's organization) -- confirmed by reading `approval_service.py`
-  (`_require_pending_using` -> `uow.approvals.get(...)` ->
-  `_assert_project_in_active_organization_using`).
-- `OrganizationService.set_active_organization` requires only the global `settings.manage`
-  permission, with NO per-organization membership check -- switching the session's active
-  organization is itself a coarse-grained, tenant-wide capability, not an org-specific grant, and
-  is the ONLY way this codebase changes which organization's data (including Approval requests)
-  is visible to `uow.approvals.get(...)`.
+So an actor holding `approval.decide`, with Org A2 active, cannot decide an Approval belonging to
+Org A1 -- the request is structurally invisible via the repository, not merely permission-denied.
+There is no code path granting decide authority over a non-active organization's request, so
+`test_actor_gains_authority_only_after_switching_active_organization_to_the_target_org` covers the
+complementary case directly: decide fails before switching to A1, succeeds after.
 
-Given that authorization model, the correct invariant to prove is: an actor holding the global
-`approval.decide` permission, with Org A2 active, cannot decide an Approval that belongs to Org
-A1 -- regardless of same-tenant membership -- because the request's own `organization_id` (A1)
-never matches the active organization (A2). This is true structurally (the row is invisible to
-`uow.approvals.get(...)`), not merely a permission-check outcome, so it cannot be bypassed by
-holding more permissions.
-
-The complementary "explicit cross-org authority while A2 remains active" case (§3 of the
-Approval-P1A request) is **N/A**: nothing in this codebase's Approval authorization model grants
-decide authority over a non-active organization's request while a different organization is
-active. The only way to decide Org A1's request is to make A1 the active organization first
-(itself gated only by the coarse-grained `settings.manage` permission, not per-org membership).
-`test_actor_gains_authority_only_after_switching_active_organization_to_the_target_org` proves
-this "switch first" requirement is real (decide fails before the switch, succeeds after), which is
-the evidence for the N/A determination -- there is no simultaneous multi-org decide capability to
-test as a distinct code path.
-
-§4 (cross-tenant isolation must remain strict) is proven in
-`test_platform_unit_of_work.py::test_cross_tenant_context_cannot_read_another_tenants_approval_
-request` -- cited/re-run here, not duplicated: that test already proves a genuinely different
-`TenantContextService` (bound to Tenant B) cannot read a Tenant A `ApprovalRequest` via
-`uow.approvals.get(...)`, which is the exact mechanism `approve_and_apply`/`reject` depend on.
+Cross-tenant isolation is covered separately in
+`test_platform_unit_of_work.py::test_cross_tenant_context_cannot_read_another_tenants_approval_request`.
 """
 
 from __future__ import annotations
@@ -69,17 +41,14 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _session_active_organization_id(services) -> str | None:
-    """The SESSION-scoped active organization -- what `ApprovalService`/`SqlAlchemyApprovalRepository`
-    actually use for scoping. Deliberately NOT `OrganizationService.get_active_organization()`,
-    which reads a different, DB-level "single business-active organization per tenant" flag that
-    `create_organization(is_enabled=True)` (the default) flips independently of session state."""
+    """The session-scoped active organization used for Approval scoping -- distinct from
+    `OrganizationService.get_active_organization()`'s separate "business-active org" DB flag."""
     return services["tenant_context_service"].get_active_organization_id()
 
 
 def _create_second_org_in_same_tenant(services):
-    """Org A2, created with `is_active=False` so it never touches the DB-level "single
-    business-active organization per tenant" flag (an unrelated concept -- see module docstring)
-    -- the session's real active organization (Org A1) must stay untouched by mere creation."""
+    """Org A2, created disabled so it never touches the DB "business-active org" flag -- the
+    session's real active organization (Org A1) must stay untouched by mere creation."""
     organization_service = services["organization_service"]
     org_a1_session_id = _session_active_organization_id(services)
     assert org_a1_session_id is not None
@@ -95,7 +64,7 @@ def _create_second_org_in_same_tenant(services):
 def _request_pending_approval_in_org_a1(services, *, org_a1_id: str):
     """Requests a standalone-path Approval while Org A1 is the session's active organization --
     `ApprovalRequest.organization_id`/`tenant_id` are stamped from that active context at creation
-    time (Approval-P1's authoritative-ownership rule), never re-derived afterward."""
+    time, never re-derived afterward."""
     assert _session_active_organization_id(services) == org_a1_id
     approvals = services["approval_service"]
     request = approvals.request_change(
@@ -112,11 +81,9 @@ def _request_pending_approval_in_org_a1(services, *, org_a1_id: str):
 def test_actor_with_decide_permission_cannot_reach_org_a1_approval_while_org_a2_is_active(
     services,
 ):
-    """Negative case (§2): Tenant A / Org A1 holds Approval P; Org A2 is active; the deciding
-    actor holds the global `approval.decide` permission (there is no finer-grained per-org grant
-    to withhold) but is NOT operating in Org A1. `approve_and_apply`/`reject` must fail, P must
-    remain PENDING, and no apply/reject handler, audit-decision entry, notification, or
-    `approvals_changed` signal may fire -- the failure occurs before any of that code runs."""
+    """Tenant A / Org A1 holds Approval P; Org A2 is active; the deciding actor holds the global
+    `approval.decide` permission but is NOT operating in Org A1. `approve_and_apply`/`reject`
+    must fail and P must remain PENDING and undecided."""
     _login(services, "admin", "ChangeMe123!")
     org_a1, org_a2 = _create_second_org_in_same_tenant(services)
 
@@ -136,13 +103,8 @@ def test_actor_with_decide_permission_cannot_reach_org_a1_approval_while_org_a2_
     assert _session_active_organization_id(services) == org_a2.id
 
     _login(services, approver_username, "StrongPass123")
-    # P10A: with multiple organizations enabled simultaneously, a freshly-logged-in user's
-    # active-organization auto-select is genuinely ambiguous (no longer "the one enabled org") --
-    # unlike the pre-P10A mutual-exclusion model, where enabling A2 always left exactly one
-    # enabled org for a fresh login to auto-resolve to. This directly pins the session's active
-    # organization to A2 the way that auto-select accidentally used to, without granting the
-    # approver any RBAC organization-scoped access (there is none to grant here -- this test is
-    # about Approval's own org-scoping, not organization-access authorization).
+    # With multiple organizations enabled, a fresh login's active-org auto-select is ambiguous --
+    # pin it to A2 explicitly.
     services["user_session"].set_active_organization_id(org_a2.id)
     approvals = services["approval_service"]
 
@@ -201,13 +163,10 @@ def _submitted_budget_in_org_a1(services, *, org_a1_id: str):
 def test_actor_gains_authority_only_after_switching_active_organization_to_the_target_org(
     services,
 ):
-    """§3 evidence: the SAME actor, holding the SAME global `approval.decide` permission, fails
-    against Org A1's request while Org A2 is active, and succeeds against the identical request
-    once Org A1 becomes active -- proving decide authority tracks the active organization
-    matching the request's own authoritative `organization_id`, never a broader "same tenant" or
-    "holds the permission somewhere" notion. This is the evidence for the §3 N/A determination:
-    there is no code path granting authority over a non-active organization's request, so a
-    complementary "succeeds while A2 remains active" test does not apply."""
+    """The same actor, holding the same global `approval.decide` permission, fails against Org
+    A1's request while Org A2 is active, then succeeds against the identical request once Org A1
+    becomes active -- decide authority tracks the active organization, not "same tenant" or
+    "holds the permission somewhere"."""
     _login(services, "admin", "ChangeMe123!")
     org_a1, org_a2 = _create_second_org_in_same_tenant(services)
     request = _submitted_budget_in_org_a1(services, org_a1_id=org_a1.id)
@@ -218,7 +177,7 @@ def test_actor_gains_authority_only_after_switching_active_organization_to_the_t
     services["tenant_context_service"].set_active_organization(org_a2.id)
 
     _login(services, approver_username, "StrongPass123")
-    # P10A: pin the fresh login's ambiguous auto-select the same way as the sibling test above.
+    # Pin the fresh login's ambiguous auto-select the same way as the sibling test above.
     services["user_session"].set_active_organization_id(org_a2.id)
     approvals = services["approval_service"]
     with pytest.raises(NotFoundError, match="Approval request not found"):

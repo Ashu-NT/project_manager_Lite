@@ -424,8 +424,7 @@ class ApprovalService:
         entity_type: str | list[str] | None,
         entity_id: str | None,
     ) -> list[ApprovalRequest]:
-        """Standalone read path -- uses the long-lived `self._approval_repo` (ADR-005 Section 24
-        Round 8/P4 Step 2 Section 9: read-only methods are out of this phase's scope)."""
+        """Read-only path using the service's own long-lived repository, not a transaction."""
         return self._list_approval_rows_using(
             self._approval_repo,
             status=status,

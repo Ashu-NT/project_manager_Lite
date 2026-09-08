@@ -45,10 +45,10 @@ def _snapshot_utc_now() -> datetime:
 
 @dataclass(frozen=True, slots=True)
 class RateSelectionSnapshot:
-    """An immutable record of one ADR-PF-005 rate resolution — the
-    monetary rate selected, which line/card/version produced it, and any
-    modifier applied. Lives in the domain layer (not application, where
-    the resolver that builds these lives) so both the resolver and the
+    """An immutable record of one rate resolution — the monetary rate
+    selected, which line/card/version produced it, and any modifier
+    applied. Lives in the domain layer (not application, where the
+    resolver that builds these lives) so both the resolver and the
     read/resolution contracts can depend on it without either depending
     on the other's layer."""
 

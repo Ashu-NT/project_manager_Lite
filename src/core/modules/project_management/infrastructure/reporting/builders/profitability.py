@@ -1,7 +1,7 @@
 """Profitability mixin — thin reporting delegate.
 
-Computes the ADR-PF-010 commercial/profitability projections (contract,
-billable, externally invoiced, externally paid, projected margin). Billing
+Computes commercial/profitability projections (contract, billable,
+externally invoiced, externally paid, projected margin). Billing
 aggregation reads the existing canonical ProjectBillingRepository; cost
 composition reads the existing canonical CostPolicyEngine result
 (CostControlTotals.estimate_at_completion). Margin arithmetic itself lives

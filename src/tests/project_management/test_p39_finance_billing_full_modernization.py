@@ -112,10 +112,6 @@ def _ready_schedule_line(services, project, *, amount=Decimal("24000")):
     return bp_profile, line
 
 
-# P46B: test_legacy_billing_signal_field_is_deleted removed -- domain_events module is deleted
-# outright (see docs/architecture/event-modernization-plan.md's P46B entry).
-
-
 # ---------------------------------------------------------------------------
 # ViewInvalidation handler: unit-level mapping
 # ---------------------------------------------------------------------------
@@ -348,15 +344,6 @@ def _submitted_preparation(services, project, line):
     )
 
 
-def _approve_preparation(services, project):
-    """Approves via the governed participant path (mirrors production `approve_and_apply`)."""
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
-    services["auth_service"].register_user(
-        _unique("p39-reviewer"), "StrongPass123", role_names=["approver"]
-    )
-    return request
-
-
 def test_governed_approval_produces_status_changed_approved(services):
     _login(services, "admin", "ChangeMe123!")
     _, project, _cost_code = _setup_billable_project(services)
@@ -496,7 +483,7 @@ def test_external_outcome_replay_produces_zero_hints(services):
 
 
 # ---------------------------------------------------------------------------
-# P39 §40-41: permission-order regression -- both new families
+# Permission-order regression -- both new families
 # ---------------------------------------------------------------------------
 
 
@@ -602,7 +589,7 @@ def test_profile_audit_failure_rolls_back_and_leaves_the_session_usable(services
 
 
 # ---------------------------------------------------------------------------
-# Concurrency -- preserved, unweakened
+# Concurrency
 # ---------------------------------------------------------------------------
 
 

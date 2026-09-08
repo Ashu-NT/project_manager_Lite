@@ -29,8 +29,7 @@ _ProjectTarget = tuple[str, str, str, str, str, str]
 
 
 def _project_scope_target(scope_code: str, scope: ResourceScope) -> _ProjectTarget:
-    """Dedupe identity is the (scope_code, target/scope) identity -- never a raw event field
-    (P18B-FIX principle, applied from day one here)."""
+    """Dedupe identity is (scope_code, scope) -- never a raw event field."""
     return (
         scope_code,
         scope.tenant_id,

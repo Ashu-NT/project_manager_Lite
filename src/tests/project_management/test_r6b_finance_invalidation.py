@@ -19,11 +19,8 @@ def _controller(services):
 
 
 def test_scoped_task_schedule_stale_invalidates_only_dependent_destinations(services) -> None:
-    """P45B: `tasks_changed` is deleted -- `FinancialsRefreshMixin` now reacts to the Task
-    ViewInvalidation channel's `taskScheduleStale` hint directly (wired via a
-    `TaskViewInvalidationAdapter` in the composition root, not a legacy Signal subscription),
-    calling `onTaskScheduleStale` -- this proves the same scoped-destination-invalidation
-    mechanism this file exists to test, driven by the new mechanism."""
+    """Scoped Task-schedule invalidation must invalidate only the dependent finance
+    destinations, not all of them."""
     controller = _controller(services)
     project_id = "r6b-invalidation-project"
     expected = {"planning", "costs", "performance"}
@@ -47,9 +44,8 @@ def test_scoped_task_schedule_stale_invalidates_only_dependent_destinations(serv
 
 
 def test_finance_invalidation_rejects_other_project(services) -> None:
-    """P45B: `tasks_changed` is deleted -- `onTaskScheduleStale`'s `_finance_event_matches`
-    string branch only ever checks project-id equality, not tenant/organization, so an "other
-    project" case still proves project-scoped rejection through the new mechanism."""
+    """`onTaskScheduleStale` only checks project-id equality -- an event for a different
+    project must be rejected."""
     controller = _controller(services)
     controller._set_selected_project_id("selected-project")
     controller._invalidated_destinations.clear()
@@ -62,9 +58,8 @@ def test_finance_invalidation_rejects_other_project(services) -> None:
 
 
 def test_finance_refresh_does_not_reemit_business_invalidation(services, qapp) -> None:
-    """P45B: `tasks_changed` is deleted -- calling `onTaskScheduleStale` directly for the
-    active destination must trigger exactly one (deferred, timer-scheduled) refresh, matching
-    the old signal-driven behavior this test originally proved."""
+    """Calling `onTaskScheduleStale` for the active destination must trigger exactly one
+    deferred, timer-scheduled refresh."""
     controller = _controller(services)
     controller._set_selected_project_id("selected-project")
     controller._active_destination = "planning"

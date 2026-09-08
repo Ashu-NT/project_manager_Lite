@@ -23,16 +23,9 @@ def _unique_code(prefix: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Document
+# Document (write-outcome/rollback only -- event-emission proofs live in
+# test_p16c_document_typed_events.py and test_p16d_document_link_typed_events.py)
 # ---------------------------------------------------------------------------
-#
-# P16C superseded this file's original documents_changed-emission proofs for
-# create_document/update_document (typed DocumentCreated/DocumentProfileUpdated replaced them);
-# P16D then deleted documents_changed entirely, so every remaining `_spy_signal(domain_events.
-# documents_changed)` use in this file (DocumentLink section included) has been dropped too --
-# the write-outcome/rollback assertions below are unaffected and remain the real coverage. See
-# test_p16c_document_typed_events.py and test_p16d_document_link_typed_events.py for the current
-# event-emission proofs.
 
 
 def test_create_document_still_persists(services):

@@ -1,9 +1,5 @@
-"""P4-PRE Step 1 (ADR-005 Section 24, Round 8): `ProjectCostApprovalParticipant` +
-`build_project_cost_approval_deps` -- proves the participant is genuinely
-session-parameterizable (the Step-2 readiness criterion) and behaves identically to
-`ProjectCostEntryService`'s own `_apply_approval_decision`/`_apply_rejection_decision` (kept
-unmodified -- `approve()`/`reject()`'s direct-apply path still calls them too).
-"""
+"""`ProjectCostApprovalParticipant` stages a project cost entry approval/rejection on a
+caller-supplied Session without opening or completing its own transaction."""
 
 from __future__ import annotations
 
@@ -99,8 +95,7 @@ def test_participant_apply_approves_entry_on_the_supplied_session(services, sess
 
 
 def test_participant_never_calls_commit_or_rollback(services, session, monkeypatch):
-    """The participant stages only -- the caller (today: ApprovalService on the shared Session;
-    from Step 2 onward: its own PlatformUnitOfWork) owns transaction completion."""
+    """The participant stages only; the caller owns transaction completion."""
     _login(services, "admin", "ChangeMe123!")
     _, entry = _submitted_entry(services, session)
     deps = _deps(services, session)

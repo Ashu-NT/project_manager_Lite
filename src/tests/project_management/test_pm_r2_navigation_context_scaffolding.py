@@ -1,8 +1,6 @@
-"""R2.1 characterization tests for the pre-existing, committed-but-inert R2
-scaffolding: navigation.py and PMWorkspaceNavigationController. These freeze
-CURRENT behavior before any wiring/integration work touches them -- do not
-"fix" surprising behavior found here without deliberately deciding to
-change it in a later R2 stage."""
+"""Characterization tests for `navigation.py` and `PMWorkspaceNavigationController`.
+These freeze CURRENT behavior -- do not "fix" surprising behavior found here
+without deliberately deciding to change it."""
 
 from __future__ import annotations
 
@@ -245,16 +243,9 @@ def test_apply_route_unknown_route_is_rejected():
 
 
 def test_all_current_destinations_are_always_present_in_navigation_items():
-    """R2.14: PMCapabilityController's existing R1.8 facts (canApproveBaseline,
-    canApplyLeveling, canManageSkills, canRequestAssignmentOverride, canImport,
-    canApprovePmRequest) are all fine-grained ACTION-level permissions, not a
-    per-destination "can you see this workspace" contract. No such contract
-    exists yet, so R2 deliberately does not filter navigationItems by
-    capability -- doing so would mean inventing a destination->capability
-    mapping with no backing product decision, which this modernization
-    effort has consistently avoided elsewhere (e.g. no invented Rebalance,
-    no invented Purchase Orders). This test freezes that as an explicit,
-    verified statement rather than a silent gap."""
+    """`navigationItems` is deliberately never filtered by capability -- no
+    destination->capability mapping exists as a product decision, so every
+    workspace is always present regardless of the caller's permissions."""
     controller = PMWorkspaceNavigationController()
 
     ids = {item["id"] for item in controller.navigationItems}

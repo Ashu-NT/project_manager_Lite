@@ -1,16 +1,8 @@
-"""P46B: Final Application Legacy Capability -- Auth/Security Full Modernization + Delete
-`auth_changed` + Delete Legacy DomainEvents Infrastructure.
-
-Mandatory new regression coverage for this phase: bounded-retry concurrent lockout race,
-audit-failure-during-failed-login (fail-closed), registration rollback + event completeness,
-bootstrap self-heal event completeness, custom-Role retirement N-binding revocation + rollback,
-`account_security`/`authorization_context` ViewInvalidation precision (including cross-tenant
-isolation), the ephemeral session-transport listeners, and the permanent zero-legacy-Signal
-application-wide guard (including a hypothetical-reintroduction-fails-the-guard proof).
-
-See `docs/architecture/event-modernization-plan.md`'s P46A/P46A-FINAL-CLOSURE/P46B entries for
-the full design history and rationale.
-"""
+"""Auth/Security: bounded-retry lockout race, fail-closed audit, registration/bootstrap/
+custom-role-retirement event completeness and rollback, `account_security`/`authorization_context`
+ViewInvalidation precision, ephemeral session-transport listeners, and the permanent
+zero-legacy-Signal application-wide guard. See ADR-005 and the event-modernization plan doc for
+design rationale."""
 
 from __future__ import annotations
 
@@ -555,9 +547,8 @@ def _strip_strings_and_comments(source: str) -> str:
 
 
 def test_zero_auth_changed_anywhere_in_production_source():
-    """Checks for actual code usage, not the bare substring -- several files carry deliberate
-    retirement comments explaining the P46B removal (matching this session's established
-    convention), which would otherwise false-positive a blanket substring scan."""
+    """Strips comments/docstrings before scanning, so historical mentions in prose don't
+    false-positive this guard."""
     import glob
 
     hits = []

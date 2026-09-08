@@ -136,9 +136,9 @@ class ReportingService(
         )
 
     def _has_profitability_view(self, project_id: str) -> bool:
-        """Non-raising finance.read_profitability check (ADR-PF-010) for the
-        commercial projection, which mixes ordinary billing-progress figures
-        with commercial margin and must redact only the margin family rather
+        """Non-raising finance.read_profitability check for the commercial
+        projection, which mixes ordinary billing-progress figures with
+        commercial margin and must redact only the margin family rather
         than deny the whole call."""
         return bool(
             self._user_session is not None

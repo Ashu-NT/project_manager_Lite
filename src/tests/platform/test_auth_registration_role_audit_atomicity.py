@@ -146,11 +146,9 @@ def test_canonical_role_assignment_rolls_back_when_security_audit_fails(
     services,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # P5D-1/RoleGovernance convergence: `assign_role`/`revoke_role` now delegate to
-    # `RoleGovernanceService`, which opens its own `RoleGovernanceUnitOfWork` (a fresh
-    # `SqlAlchemyAuditRepository` instance per call, not `AuthService._security_audit_repo`) --
-    # fail-injection must target the repository CLASS so it reaches whichever instance the UoW
-    # constructs, matching this codebase's own established rollback-hardening pattern.
+    # `assign_role` delegates to `RoleGovernanceService`, which opens its own
+    # `RoleGovernanceUnitOfWork` with a fresh `SqlAlchemyAuditRepository` instance, not
+    # `AuthService._security_audit_repo` -- fail-injection must target the repository CLASS.
     auth = services["auth_service"]
     target = _register_tenant_identity(
         services,
@@ -350,13 +348,9 @@ def test_bootstrap_role_repair_rolls_back_when_system_audit_fails(
 
 
 def test_idempotent_canonical_role_operations_do_not_emit_audit(services) -> None:
-    # P46B: registration's own RoleBinding grant now records its own canonical
-    # `auth.role.binding.assigned` audit entry (via `create_role_binding_using`, the same
-    # shared mechanics `RoleGovernanceService.assign_role` uses) -- a real, disclosed
-    # improvement over the prior raw `role_binding_repo.add(...)` with no per-binding audit at
-    # all. This test's own intent -- that the SUBSEQUENT, genuinely idempotent `assign_role`/
-    # `revoke_role` calls below do not emit a SECOND audit entry -- is unaffected: exactly one
-    # `auth.role.binding.assigned` audit is expected (from registration itself), not zero.
+    # Registration's own RoleBinding grant records one `auth.role.binding.assigned` audit entry;
+    # the subsequent, genuinely idempotent `assign_role`/`revoke_role` calls below must not add a
+    # second one.
     auth = services["auth_service"]
     tenant_id = services["tenant_context_service"].get_active_tenant_id()
     target = auth.register_user(

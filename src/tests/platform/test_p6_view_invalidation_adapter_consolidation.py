@@ -91,10 +91,8 @@ def test_replace_filter_disposes_the_previous_subscription_before_creating_the_n
 
 
 def test_replace_filter_with_the_same_filter_still_unconditionally_resubscribes():
-    """No idempotence was added -- every pre-P6 adapter's own bespoke implementation always
-    disposed and resubscribed on every rescope call, even for an unchanged filter. Preserving
-    that exactly (rather than adding an equality short-circuit) avoids an unrequested behavior
-    change in a consolidation-only phase."""
+    """No idempotence check exists: even an unchanged filter disposes the old subscription and
+    creates a new one."""
     channel = _FakeChannel()
     helper = ScopedViewInvalidationSubscription(channel=channel, on_hint=lambda hint: None)
     filt = TenantWide("t-1")
@@ -318,9 +316,6 @@ def test_view_invalidation_hint_contract_unchanged_by_p6():
     from src.core.shared.events import view_invalidation as contract_module
 
     hint_fields = {f for f in ViewInvalidationHint.__dataclass_fields__}
-    # P16D briefly added `module_code` here; P16D-FIX reverted that in favor of a typed
-    # `ResourceScope` -- see test_p8_platform_event_architecture_canonicalization.py's own copy
-    # of this same contract check for the full rationale.
     assert hint_fields == {"scope", "category", "scope_code", "entity_type", "entity_id"}
     assert set(contract_module.__all__) == {
         "EventScope", "PlatformScope", "TenantScope", "OrganizationScope", "ResourceScope",
@@ -331,8 +326,8 @@ def test_view_invalidation_hint_contract_unchanged_by_p6():
 
 
 def test_shared_helper_lives_outside_core_shared_and_platform_application():
-    """§37: the helper is Qt/UI-boundary infrastructure, replaceable by a future web transport --
-    it must never migrate into core/shared or Platform application code."""
+    """The helper is Qt/UI-boundary infrastructure, replaceable by a future web transport -- it
+    must never migrate into core/shared or Platform application code."""
     import src.ui_qml.shared.adapters.scoped_view_invalidation_subscription as helper_module
 
     assert helper_module.__name__.startswith("src.ui_qml.")

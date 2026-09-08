@@ -1,15 +1,7 @@
-"""P7 + P7A: pre-release removal of the ENTIRE generic legacy-compatibility bridge architecture
+"""Guards against reintroducing a generic legacy-compatibility bridge
 (`_BRIDGE_SPECS`/`_wire_bridges`/`domain_changed`/`DomainChangeEvent`/`shared_master_changed`/
-`_subscribe_domain_change`) -- not merely the residue for the five already-modernized capabilities
-(P7's original, narrower scope), but the entire mechanism (P7A). Every still-unmodernized
-capability (PM/Inventory module signals, auth-adjacent Platform signals) is now direct-wired:
-`domain_events.<specific_signal>.connect(callback)`, never routed through a generic entity_type/
-scope_code dispatch table.
-
-`admin_console/domain_event_binder.py` was never part of the bridge in the first place (proven in
-P7: it subscribes directly to 8 specific signals) -- kept unchanged, still real, non-compatibility
-composite-refresh coordination.
-"""
+`_subscribe_domain_change`). Every capability wires its own typed ViewInvalidation adapter
+directly; nothing is routed through a generic entity_type/scope_code dispatch table."""
 
 from __future__ import annotations
 
@@ -64,17 +56,6 @@ def _strip_strings_and_comments(source: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-# P46B: `test_bridge_specs_no_longer_exists_at_all`/`test_domain_changed_signal_no_longer_exists`/
-# `test_shared_master_changed_signal_no_longer_exists`/`test_domain_change_event_class_no_longer_
-# exists`/`test_wire_bridges_no_longer_exists` (standalone `hasattr(domain_events, ...)` checks)
-# removed -- `domain_events`/`DomainEvents` is deleted outright. `test_no_generic_bridge_registry_
-# exists_anywhere` below, and `test_deleted_bridge_and_dead_signal_names_have_zero_production_
-# references` in test_p8_platform_event_architecture_canonicalization.py, independently prove zero
-# production references for `_BRIDGE_SPECS`/`domain_changed`/`shared_master_changed`/
-# `DomainChangeEvent`/`_wire_bridges`/`_build_bridge` across all production source -- a strictly
-# stronger guarantee than a runtime `hasattr` check on one (now-deleted) object.
-
-
 def test_subscribe_domain_change_no_longer_exists_on_any_controller_base():
     import src.ui_qml.modules.inventory_procurement.controllers.common.workspace_controller_base as inv_base
     import src.ui_qml.modules.project_management.controllers.common.workspace_controller_base as pm_base
@@ -89,26 +70,12 @@ def test_subscribe_domain_change_no_longer_exists_on_any_controller_base():
         assert not hasattr(cls, "_subscribe_domain_change")
 
 
-# P46B: `test_zero_legacy_signals_remain_on_domain_events` (this pass's own interim guard, added
-# when `DomainEvents` was emptied but not yet deleted) is superseded now that the module is deleted
-# outright -- see test_p8_platform_event_architecture_canonicalization.py's `_current_signal_
-# names`/`test_zero_pm_legacy_signal_fields_remain` for the permanent "zero legacy signals
-# application-wide" guard.
-
-
 # ---------------------------------------------------------------------------
 # 2. Modernized capabilities: zero legacy-bridge presentation dependency
 # ---------------------------------------------------------------------------
 
 
 def test_organization_creation_produces_exactly_the_typed_view_invalidation(services):
-    """P5A proved `create_organization` never emitted `organizations_changed`, back when
-    `update_organization`/`set_active_organization` still did for their own then-unmodernized
-    transitions. P10D modernized those too and deleted the legacy signal entirely (see
-    `test_organizations_changed_field_no_longer_exists` in test_p7b_dead_signal_cleanup.py and
-    `test_organization_has_no_legacy_signal_at_all` in
-    test_p8_platform_event_architecture_canonicalization.py) -- this test now only proves the
-    positive: creation still produces exactly the one typed `organization_list` invalidation."""
     catalog = _catalog(services)
     typed_calls = []
     catalog._organization_view_invalidation_adapter.organizationCollectionStale.connect(
@@ -122,18 +89,8 @@ def test_organization_creation_produces_exactly_the_typed_view_invalidation(serv
     assert typed_calls == ["typed"]
 
 
-# P46B: `test_module_entitlement_has_no_legacy_signal_at_all` (`modules_changed`, retired P5B-3)
-# and `test_role_binding_has_no_legacy_signal_at_all` (`access_changed`/`role_binding_changed`,
-# never existed for RoleBinding at all) removed -- both were standalone `hasattr(domain_events,
-# ...)` checks; `domain_events` is deleted outright.
-
-
 def test_tenant_membership_mutation_produces_exactly_the_typed_view_invalidation(services):
-    """P5D: TenantMembership transitions collapse entirely into the typed
-    TenantMembership{Activated,Suspended,Reactivated,Removed} -> ViewInvalidation path.
-    P46B: `auth_changed` no longer exists at all (Auth/Security is itself now fully modernized),
-    so there is no legacy signal left to prove this doesn't also emit -- this now only proves the
-    positive: `accept_invitation` produces exactly the one typed `tenant_membership` invalidation."""
+    """`accept_invitation` produces exactly one typed `tenant_membership` invalidation."""
     from datetime import datetime, timedelta, timezone
 
     catalog = _catalog(services)
@@ -158,12 +115,8 @@ def test_tenant_membership_mutation_produces_exactly_the_typed_view_invalidation
     assert typed_calls == ["typed"]
 
 
-# P46B: `test_approval_has_no_legacy_signal_at_all` (`approvals_changed`, deleted Approval-P3)
-# removed -- standalone `hasattr(domain_events, ...)` check; `domain_events` is deleted outright.
-
-
 # ---------------------------------------------------------------------------
-# 2b. §21: representative direct-wiring proofs across PM, Inventory, and shared-master
+# 2b. Representative direct-wiring proofs across PM, Inventory, and shared-master
 # ---------------------------------------------------------------------------
 
 
@@ -179,18 +132,6 @@ def test_pm_register_workspace_direct_wired_to_project_stale_exactly_once(servic
     )
 
     assert refresh_calls == ["refresh"]
-
-
-# P46B: `test_pm_register_workspace_does_not_react_to_an_unrelated_signal` used `auth_changed` as
-# its "some other module's still-legacy signal" stand-in (P33/P36/P37/P38B/P39 had each already
-# retired the previous stand-in in turn). Auth/Security is now itself fully modernized -- there is
-# no legacy Signal field left anywhere in the application to construct this proof from at all
-# (see `test_zero_legacy_signals_remain_on_domain_events` above). The property it protected --
-# direct ViewInvalidation wiring never widens scope to an unrelated module -- is now a structural
-# guarantee of the ViewInvalidation channel's own scope/category filtering, not something a signal
-# emission can accidentally leak through; it stays covered by each adapter's own dedicated
-# scope-filter tests (e.g. this file's own precision tests below, and each capability's own
-# `event_handlers/view_invalidation.py` mapping tests).
 
 
 def test_inventory_dashboard_direct_wired_to_every_inventory_signal(services):
@@ -209,26 +150,15 @@ def test_inventory_dashboard_direct_wired_to_every_inventory_signal(services):
     assert refresh_calls == ["refresh", "refresh"]
 
 
-# P46B: `test_inventory_dashboard_does_not_react_to_an_unrelated_shared_master_signal` and
-# `test_inventory_catalog_workspace_does_not_react_to_an_unrelated_shared_master_signal` both used
-# `auth_changed` as the "genuinely unrelated shared-master signal" stand-in -- removed for the same
-# reason as the PM equivalent above: there is no legacy Signal field left anywhere to construct
-# this proof from, and the isolation property itself is now structural (ViewInvalidation scope/
-# category filtering), not something dependent on any one signal's continued existence.
-
-
 # ---------------------------------------------------------------------------
-# 3. Auth/Security: fully modernized, direct-wired, narrow (P46B)
+# 3. Auth/Security: direct-wired, narrow
 # ---------------------------------------------------------------------------
 
 
 def test_password_reset_produces_exactly_the_typed_account_security_invalidation(services):
-    """P46B: password reset (`force_password_reset`) is now fully modernized -- it records the
-    typed `PasswordChanged` event, mapped to the `account_security` ViewInvalidation category
-    (replacing the legacy `auth_changed` Signal this test previously exercised). Proves the same
-    isolation property as before: only the narrow `account_security` target reacts; the Access
-    workspace's own FULL refresh, and every other unrelated ViewInvalidation target, stay
-    untouched."""
+    """Password reset records the typed `PasswordChanged` event, mapped to the
+    `account_security` ViewInvalidation category: only that narrow target reacts; the Access
+    workspace's FULL refresh and every other target stay untouched."""
     _login(services, "admin", "ChangeMe123!")
     catalog = _catalog(services)
     access = catalog.adminAccessWorkspace
@@ -272,31 +202,14 @@ def test_password_reset_produces_exactly_the_typed_account_security_invalidation
     assert approval_calls == []
 
 
-# P46B: `test_admin_console_domain_event_binder_never_touches_the_generic_bridge` and
-# `test_admin_console_still_composite_refreshes_on_the_one_genuinely_unmodernized_signal` are
-# removed -- `admin_console/domain_event_binder.py` (the composite `auth_changed`-among-8-signals
-# coarse refresher) is deleted outright, not merely unused: the admin console now reacts to the
-# narrow `account_security` target (`refresh_after_account_security_change`) and the pre-existing
-# narrow `refresh_users` target, never a coarse full refresh. See
-# `test_zero_auth_changed_subscribers_remain` in test_p5_closeout_auth_changed_audit.py for the
-# module-deletion guard.
-
-
-# P46B: `test_pm_dashboard_still_does_not_react_to_unrelated_capability_events` used `auth_changed`
-# as its "unrelated capability event" vehicle -- removed for the same reason as the other
-# auth_changed-as-stand-in isolation tests above; there is no legacy Signal left to construct it
-# from, and the underlying isolation guarantee is structural (ViewInvalidation scope/category
-# filtering), covered by each capability's own dedicated tests.
-
-
 # ---------------------------------------------------------------------------
 # 6. Architecture guards
 # ---------------------------------------------------------------------------
 
 
 def test_no_generic_bridge_registry_exists_anywhere():
-    """P7A: `_BRIDGE_SPECS` is gone entirely. P46B: the legacy `domain_events.py` module it once
-    lived in is deleted outright."""
+    """`_BRIDGE_SPECS` and the legacy `domain_events.py` module it once lived in are both gone
+    entirely."""
     import glob
 
     hits = []
@@ -316,8 +229,8 @@ def test_no_generic_bridge_registry_exists_anywhere():
 
 
 def test_no_replacement_generic_router_or_registry_introduced():
-    """§7/§23: forbidden replacement shapes -- a signal-name-string -> registry -> generic
-    callback under any name would just rename `_BRIDGE_SPECS`."""
+    """A signal-name-string -> registry -> generic callback under any name would just rename
+    `_BRIDGE_SPECS`."""
     import glob
 
     forbidden_names = (
@@ -401,9 +314,8 @@ def test_no_capability_mapper_imports_domain_events_or_qt():
 
 def test_no_wildcard_view_invalidation_listener_was_introduced():
     """No adapter (including admin_console/access) subscribes via `AllTenants`/
-    `AnyOrganizationInTenant`, and no new "subscribe to everything, emit domain_changed" bridge
-    was built on top of ViewInvalidation. P46B: `admin_console/domain_event_binder.py` is deleted
-    outright, so it is no longer part of this module inventory at all."""
+    `AnyOrganizationInTenant`, and no new "subscribe to everything" bridge was built on top of
+    ViewInvalidation."""
     modules = (
         "src.ui_qml.platform.controllers.admin_console.admin_console_controller",
         "src.ui_qml.platform.controllers.identity_access.access.access_workspace_controller",
@@ -432,8 +344,8 @@ def test_no_service_locator_or_string_capability_router_introduced():
 
 
 def test_p6_helper_responsibility_unchanged():
-    """`ScopedViewInvalidationSubscription`'s public surface is exactly what P6 shipped -- P7 must
-    not add wildcards/service-locator behavior/capability strings to it."""
+    """`ScopedViewInvalidationSubscription`'s public surface stays minimal -- no
+    wildcards/service-locator behavior/capability strings."""
     from src.ui_qml.shared.adapters.scoped_view_invalidation_subscription import (
         ScopedViewInvalidationSubscription,
     )

@@ -222,9 +222,7 @@ class OrganizationService:
             )
             availability_changed = candidate.is_enabled != organization.is_enabled
             if not profile_changed and not availability_changed:
-                # No-op: nothing actually changes, so no write, no audit, no event -- mirrors
-                # `_set_organization_enabled`'s own no-op rule (P9A-R/P9B decision): a past-tense
-                # state-transition event must represent an actual transition (P10D).
+                # No-op: a state-transition event must represent an actual transition.
                 return organization
 
             existing = uow.organizations.get_by_code_for_tenant(
@@ -313,9 +311,7 @@ class OrganizationService:
             if organization is None:
                 raise NotFoundError("Organization not found.", code="ORGANIZATION_NOT_FOUND")
             if organization.is_enabled == is_enabled:
-                # No-op: nothing actually changes, so no write, no audit, no signal -- a
-                # past-tense state-transition write must represent an actual transition
-                # (P9A-R/P9B decision, applied here for the first time it's implementable).
+                # No-op: a state-transition event must represent an actual transition.
                 return organization
             candidate = replace(organization, is_enabled=is_enabled, tenant_id=tenant_id)
             uow.organizations.update(candidate)

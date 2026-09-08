@@ -1,14 +1,9 @@
-"""P22: Finance Rate Card typed events + ViewInvalidation + `rates_changed` retirement.
-
-Covers: RateCardCreated/RateCardDeactivated/RateCardLineAdded/RateCardLineUpdated/
-RateCardLineDeactivated -> the two proven read-model targets (`rate_card_list`,
-`OrganizationScope`; `rate_card_detail`, exact-card `ResourceScope`), the dual notification for
-RateCardDeactivated (mirroring the P19-FIX correction), true no-op semantics on `update_line`,
-dedupe by (transaction correlation_id, target identity), the new canonical
-`FinanceGovernanceUnitOfWork.rate_cards` transaction boundary (Option A convergence -- no
-separate UoW), the real FinancialsWorkspaceController's narrow "costs"-only destination
-invalidation, and the full retirement of `rates_changed` (zero producers, zero consumers, field
-absent).
+"""Finance Rate Card ViewInvalidation: `RateCardCreated`/`RateCardDeactivated`/
+`RateCardLineAdded`/`RateCardLineUpdated`/`RateCardLineDeactivated` -> `rate_card_list`
+(`OrganizationScope`) and `rate_card_detail` (exact-card `ResourceScope`), the dual notification
+for `RateCardDeactivated`, no-op semantics on `update_line`, deduped by (transaction
+correlation_id, target identity), the `FinanceGovernanceUnitOfWork.rate_cards` transaction
+boundary, and the FinancialsWorkspaceController's narrow "costs"-only destination invalidation.
 """
 
 from __future__ import annotations

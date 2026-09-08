@@ -38,13 +38,11 @@ def _setup(services):
 
 
 # ---------------------------------------------------------------------------
-# §22/§24/§46: ephemeral producers must never emit collaboration_changed / tasks_changed
+# Ephemeral presence producers never touch the durable comment category
 # ---------------------------------------------------------------------------
 
 
 def test_touch_task_presence_produces_zero_durable_comment_hints(services):
-    """P44B deleted `collaboration_changed` entirely -- the durable-side equivalent of this
-    check is now "zero TASK_COMMENT_CATEGORY hints", not "zero legacy Signal emissions"."""
     _, task = _setup(services)
     hints = _spy_hints(services)
     services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
@@ -60,10 +58,8 @@ def test_clear_task_presence_produces_zero_durable_comment_hints(services):
 
 
 def test_touch_task_presence_does_not_emit_a_task_view_invalidation_hint(services):
-    """Superseded by P45B: `tasks_changed` is deleted entirely, so there is no longer a legacy
-    Signal for presence to accidentally emit. The still-meaningful property is that presence
-    (ephemeral, ViewInvalidation-only per this phase's own design) never produces a Task-category
-    hint either -- that category is reserved for genuine Task aggregate mutations."""
+    """Presence is ephemeral and ViewInvalidation-only; it must never produce a Task-category
+    hint -- that category is reserved for genuine Task aggregate mutations."""
     from src.core.modules.project_management.application.tasks.event_handlers.view_invalidation import (
         TASK_CATEGORY,
     )
@@ -75,8 +71,8 @@ def test_touch_task_presence_does_not_emit_a_task_view_invalidation_hint(service
 
 
 def test_presence_producers_source_never_names_collaboration_changed_or_tasks_changed():
-    """Architecture guard (§46): a source-level check, not just a runtime probe -- proves no
-    ephemeral producer can ever be reintroduced to reference either legacy signal."""
+    """Source-level guard: proves the ephemeral presence producer never references a legacy
+    signal or the canonical event/dispatch machinery."""
     path = (
         "src/core/modules/project_management/application/collaboration/commands/"
         "collaboration_presence.py"
@@ -92,7 +88,7 @@ def test_presence_producers_source_never_names_collaboration_changed_or_tasks_ch
 
 
 # ---------------------------------------------------------------------------
-# §10-§15: presence uses a direct, scoped ViewInvalidation notify -- not a DomainEvent
+# Presence uses a direct, scoped ViewInvalidation notify, not a DomainEvent
 # ---------------------------------------------------------------------------
 
 
@@ -122,13 +118,13 @@ def test_clear_task_presence_produces_a_scoped_presence_hint(services):
 
 
 # ---------------------------------------------------------------------------
-# §26/§27/§35/§36: no durable refresh amplification from presence, including under a storm
+# No durable refresh amplification from presence, including under a storm
 # ---------------------------------------------------------------------------
 
 
 def test_repeated_presence_touches_never_trigger_a_durable_collaboration_signal(services):
-    """§36: 10 repeated touches -- assert the expensive durable-refresh hint count stays zero,
-    not merely the (expected, harmless) lightweight presence-hint count."""
+    """10 repeated touches: the durable-refresh hint count must stay zero; only the lightweight
+    presence-hint count grows."""
     _, task = _setup(services)
     hints = _spy_hints(services)
     for _ in range(10):
@@ -147,16 +143,9 @@ def test_clear_presence_causes_zero_durable_collaboration_refresh(services):
 
 
 # ---------------------------------------------------------------------------
-# §28: durable comment operations must still cause the currently-required durable refresh
+# Durable comment operations still cause the durable refresh
 # ---------------------------------------------------------------------------
-
-
-# P44A-era `test_post_comment_still_emits_collaboration_changed`/
-# `test_edit_delete_react_still_emit_collaboration_changed` characterized durable comment
-# operations as still using the legacy `collaboration_changed` Signal, which was P44A's own
-# deliberate interim state. P44B converged all 6 durable operations onto typed DomainEvents and
-# deleted `collaboration_changed` entirely -- see `test_p44b_collaboration_comment_full_
-# modernization.py` for the equivalent (and now much more precise) durable-refresh proof.
+# See test_p44b_collaboration_comment_full_modernization.py for the durable-refresh proof.
 
 
 def test_post_comment_does_not_produce_a_presence_hint(services):
@@ -170,7 +159,7 @@ def test_post_comment_does_not_produce_a_presence_hint(services):
 
 
 # ---------------------------------------------------------------------------
-# §37: enterprise audit separation
+# Enterprise audit separation
 # ---------------------------------------------------------------------------
 
 
@@ -192,7 +181,7 @@ def test_presence_is_not_enterprise_audited(services):
 
 
 # ---------------------------------------------------------------------------
-# §17/§18: multi-user / same-user semantics preserved (not changed by the transport split)
+# Multi-user / same-user semantics
 # ---------------------------------------------------------------------------
 
 
@@ -221,7 +210,7 @@ def test_two_users_can_be_simultaneously_present_without_overwriting_each_other(
 
 
 # ---------------------------------------------------------------------------
-# §42: Approval infrastructure baseline unchanged
+# Approval infrastructure baseline unchanged
 # ---------------------------------------------------------------------------
 
 
@@ -243,15 +232,4 @@ def test_approval_post_commit_event_bridge_is_unaffected_by_collaboration_transp
                 and node.func.id == "ApprovalPostCommitEvent"
             ):
                 hits.add(normalized)
-    # Superseded by P45B: Task (and Financial Change's Task branch) were the last two
-    # ApprovalPostCommitEvent construction sites, now converted to typed `domain_events=`.
     assert hits == set()
-
-
-# P46B: `test_collaboration_changed_and_tasks_changed_stay_deleted` is removed -- the legacy
-# `domain_events` module (`DomainEvents` dataclass + singleton) is deleted outright, not merely
-# emptied. `collaboration_changed`/`tasks_changed`/`auth_changed` (the last surviving legacy
-# Signal field application-wide) are proven permanently gone by
-# `test_zero_pm_legacy_signal_fields_remain` in
-# test_p8_platform_event_architecture_canonicalization.py, which no longer depends on the deleted
-# module either (it checks against a fixed empty set).

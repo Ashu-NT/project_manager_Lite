@@ -1,13 +1,8 @@
-"""Phase J: actual-date x dependency semantics.
-
-Characterizes and pins the existing behavior (actuals are historical
-truth, never moved to satisfy a planned dependency; a predecessor's actual
-dates propagate to successors; a task's own actual date can only float the
-computed date later via the one-sided floor, never earlier) and adds the
-previously-missing signal: an explicit, non-blocking fact when a task's
-own actual execution violated what its dependency graph required. See
-docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
-§14/Phase J.
+"""Actual-date x dependency semantics: actuals are historical truth and are never moved to
+satisfy a planned dependency; a predecessor's actual dates propagate to successors; a task's own
+actual date can only float its computed date later (a one-sided floor), never earlier. Also
+covers the explicit, non-blocking variance signal raised when a task's own actual execution
+violated what its dependency graph required.
 """
 from __future__ import annotations
 

@@ -1,20 +1,10 @@
-"""Phase F regression: hard constraints must not silently override a
-dependency-driven date with no trace of the conflict. See
-docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
-§12/Phase F for the audit finding this closes.
+"""Hard constraints must not silently override a dependency-driven date with no trace of the
+conflict.
 
-Pure, in-memory tests (no DB) using ``run_cpm`` directly with hand-built
-``Task``/``TaskDependency`` domain objects -- NOT the ``services`` fixture's
-repository round-trip. At the time this test was written,
-``Task.constraint_type``/``Task.constraint_date`` had no backing ORM
-columns at all and were silently dropped on every save/reload; the R4.4
-constraint pass has since closed that gap (see
-infrastructure/persistence/orm/task.py, mappers/task.py, and
-test_task_constraint_persistence.py, which cover the real repository
-round-trip end-to-end). This file is kept as a pure, in-memory
-``run_cpm`` test regardless, since it exercises the exact same
-``task_date_math``/``ConstraintValidator`` code SchedulingEngine uses
-(Phase D consolidated them) without the overhead of a DB-backed fixture.
+Pure, in-memory tests using ``run_cpm`` directly with hand-built ``Task``/``TaskDependency``
+domain objects -- NOT the ``services`` fixture's repository round-trip. Exercises the exact same
+``task_date_math``/``ConstraintValidator`` code ``SchedulingEngine`` uses, without the overhead of
+a DB-backed fixture; `test_task_constraint_persistence.py` covers the real repository round-trip.
 """
 from __future__ import annotations
 

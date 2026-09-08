@@ -91,9 +91,9 @@ class AssignmentRepository(ABC):
     def update_hours_logged_with_version_check(
         self, assignment: TaskAssignment, *, expected_version: int
     ) -> TaskAssignment:
-        """Dedicated, versioned write path for ``hours_logged`` -- used by both
-        the manual `set_assignment_hours` command and the TimeEntry-driven
-        sync (P45A-FINAL-CLOSURE items 2/29)."""
+        """Dedicated, versioned write path for ``hours_logged`` -- used by
+        both the manual `set_assignment_hours` command and the
+        TimeEntry-driven sync."""
         ...
 
     @abstractmethod

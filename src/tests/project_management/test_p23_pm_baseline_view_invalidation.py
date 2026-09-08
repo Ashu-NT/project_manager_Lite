@@ -272,8 +272,8 @@ def test_delete_baseline_produces_exactly_one_hint(services):
 
 
 def test_disallowed_transition_raises_and_produces_zero_hints(services):
-    """Approving a DRAFT baseline (never submitted) must raise, never commit, and never notify
-    -- the `with uow:` block's rollback-on-exception behavior (P23)."""
+    """Approving a DRAFT baseline (never submitted) must raise, never commit, and never notify --
+    the `with uow:` block's rollback-on-exception behavior."""
     project = _project_with_tasks(services)
     baseline_service = services["baseline_service"]
     baseline = baseline_service.create_baseline(project.id, "BL1", rate_as_of=date.today())

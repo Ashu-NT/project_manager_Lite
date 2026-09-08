@@ -30,9 +30,8 @@ class TaskHierarchyChangeType(str, Enum):
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class TaskHierarchyChanged:
-    """`move_task`/`recode_task` -- includes sibling resequencing under the same
-    project_id target; siblings are not individually faceted, matching how the
-    legacy signal only ever carried project_id."""
+    """`move_task`/`recode_task` -- includes sibling resequencing under the
+    same project_id target; siblings are not individually faceted."""
 
     tenant_id: str
     organization_id: str
@@ -72,10 +71,8 @@ class TaskScheduleChangeType(str, Enum):
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class TaskScheduleChanged:
-    """One instance per actually-changed Task -- never a synthetic project-level
-    bulk fact (P45A-FINAL-CLOSURE §8/§41). ViewInvalidation dedupes UI amplification
-    by correlation_id + target identity; DomainEvent volume mirrors real mutation
-    volume 1:1."""
+    """One instance per actually-changed Task -- never a synthetic
+    project-level bulk fact."""
 
     tenant_id: str
     organization_id: str
@@ -87,8 +84,8 @@ class TaskScheduleChanged:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class TaskRemoved:
-    """One instance per actually-deleted Task -- direct delete, bulk delete, and
-    Project cascade-delete all record this per task_id (P45A-FINAL-CLOSURE §9)."""
+    """One instance per actually-deleted Task -- direct delete, bulk
+    delete, and Project cascade-delete all record this per task_id."""
 
     tenant_id: str
     organization_id: str
@@ -110,10 +107,10 @@ class TaskAssignmentChangeType(str, Enum):
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class TaskAssignmentChanged:
-    """HOURS_CHANGED (manual `set_assignment_hours`) and HOURS_LOGGED_CHANGED (the
-    TimeEntry-driven sync) are deliberately distinct change_types, not merged --
-    production treats them as mutually exclusive alternate paths to the same
-    field with different provenance (P45A-FINAL-CLOSURE §11)."""
+    """HOURS_CHANGED (manual `set_assignment_hours`) and
+    HOURS_LOGGED_CHANGED (the TimeEntry-driven sync) are deliberately
+    distinct change_types, not merged -- mutually exclusive alternate
+    paths to the same field with different provenance."""
 
     tenant_id: str
     organization_id: str

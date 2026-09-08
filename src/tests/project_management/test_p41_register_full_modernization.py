@@ -21,10 +21,6 @@ from src.core.modules.project_management.domain.risk.register import (
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.shared.events.domain_event_context import DomainEventContext
 
-# P46B: test_legacy_register_signal_field_is_deleted removed -- domain_events module is deleted
-# outright (see docs/architecture/event-modernization-plan.md's P46B entry).
-
-
 # ---------------------------------------------------------------------------
 # ViewInvalidation handler: unit-level mapping/dedupe
 # ---------------------------------------------------------------------------
@@ -210,11 +206,7 @@ def test_duplicate_code_rejected_with_zero_hints(services):
 
 
 def test_audit_failure_rolls_back_the_register_mutation_permanently(services, monkeypatch):
-    """The mandatory P41 acceptance test (§13/§36). Before this phase, `create_entry` committed
-    the business mutation FIRST, then recorded Activity feed second in a separate commit -- an
-    audit-adjacent failure there could never undo the already-committed row. This proves the
-    opposite is now true: a failure anywhere in the one-transaction write path leaves ZERO
-    persisted state, not a commit-count assertion."""
+    """A failure anywhere in the one-transaction write path must leave zero persisted state."""
     _, project = _setup(services)
     hints = _spy_hints(services)
 
@@ -238,9 +230,8 @@ def test_audit_failure_rolls_back_the_register_mutation_permanently(services, mo
 
 
 def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
-    """§37: a typed Register transactional handler raising must roll back the whole transaction
-    and produce zero postcommit ViewInvalidation, exercising the real, shared
-    `platform_transactional_dispatcher` (not a fake one) through Register's own wiring."""
+    """A typed Register transactional handler raising must roll back the whole transaction and
+    produce zero postcommit ViewInvalidation."""
     _, project = _setup(services)
     hints = _spy_hints(services)
 
@@ -299,6 +290,4 @@ def test_approval_post_commit_event_bridge_is_unaffected_by_register_modernizati
                 and node.func.id == "ApprovalPostCommitEvent"
             ):
                 hits.add(normalized)
-    # Superseded by P45B: Task (and Financial Change's Task branch) were the last two
-    # ApprovalPostCommitEvent construction sites, now converted to typed `domain_events=`.
     assert hits == set()

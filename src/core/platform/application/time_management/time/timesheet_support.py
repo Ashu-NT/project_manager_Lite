@@ -258,11 +258,10 @@ class TimesheetSupportMixin:
         }
 
     def _sync_work_allocation_hours_from_entries(self, work_allocation_id: str):
-        """Returns the updated work allocation (a `TaskAssignment`, structurally) so the
-        caller can record its own `TaskAssignmentChanged(HOURS_LOGGED_CHANGED)` fact and
-        EnterpriseAudit entry inside the SAME physical transaction (P45B mandatory fixes
-        #6/#29/#30/#31) -- this method itself stays transaction-neutral, using the
-        CAS-protected `update_hours_logged_with_version_check` instead of a blind write."""
+        """Returns the updated work allocation (a `TaskAssignment`, structurally) so the caller
+        can record its own `TaskAssignmentChanged(HOURS_LOGGED_CHANGED)` fact and audit entry
+        inside the same physical transaction -- this method itself stays transaction-neutral,
+        using the CAS-protected `update_hours_logged_with_version_check` instead of a blind write."""
         if self._time_entry_repo is None:
             return None
         work_allocation = self._work_allocation_repo.get(work_allocation_id)

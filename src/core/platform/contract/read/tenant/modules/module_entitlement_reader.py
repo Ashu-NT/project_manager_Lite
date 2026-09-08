@@ -1,12 +1,9 @@
-"""Module-entitlement read contract — CQRS pilot (audit §15-17).
+"""Module-entitlement read contract.
 
-Separate from ``ModuleEntitlementRepository`` (the write-side contract in
-``contracts.py``): a reader answers "what is this organization entitled to"
-with exactly one query, returning an immutable snapshot the caller can reuse
-for every module/derived question in one logical read — instead of calling
-the write repository's ``list_all()`` once per module, which is the
-confirmed 15-20-query N+1 this pilot exists to close (see the audit's
-"P0 correctness/security remediation status" / §7 R7a / §17).
+Separate from ``ModuleEntitlementRepository`` (the write-side contract in ``contracts.py``): a
+reader answers "what is this organization entitled to" with exactly one query, returning an
+immutable snapshot the caller reuses for every module/derived question in one logical read --
+instead of calling the write repository's ``list_all()`` once per module.
 """
 
 from __future__ import annotations

@@ -13,12 +13,10 @@ def on_task_list_stale(controller, project_id: str) -> None:
 
 
 def on_task_detail_stale(controller, task_id: str) -> None:
-    """Closes the P45A/P45B-identified task_detail gap: the currently-open
-    detail panel's own header/profile fields now refresh precisely when the
-    selected task itself changes (TaskCreated/ProfileUpdated/HierarchyChanged/
-    StatusChanged/ProgressChanged/ScheduleChanged/Removed all map to this
-    target) -- previously nothing refreshed it short of leaving and
-    re-entering the task."""
+    """Refreshes the currently-open detail panel's header/profile fields
+    precisely when the selected task itself changes (TaskCreated/
+    ProfileUpdated/HierarchyChanged/StatusChanged/ProgressChanged/
+    ScheduleChanged/Removed all map to this target)."""
     if str(task_id or "") != controller._selected_task_id:
         return
     try:

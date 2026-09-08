@@ -23,10 +23,6 @@ from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.shared.events.domain_event_context import DomainEventContext
 
-# P46B: test_legacy_project_signal_field_is_deleted removed -- domain_events module is deleted
-# outright (see docs/architecture/event-modernization-plan.md's P46B entry).
-
-
 # ---------------------------------------------------------------------------
 # ViewInvalidation handler: unit-level mapping/dedupe
 # ---------------------------------------------------------------------------
@@ -158,10 +154,8 @@ def test_create_produces_list_hint_and_atomic_audit_for_project_and_financial_pr
 
 
 def test_set_status_closes_the_silent_notification_gap(services):
-    """The P40A-discovered bug: before P43, `set_status` persisted the status change but emitted
-    zero `project_changed` -- every consumer stayed stale. This proves the fix end to end: the
-    status persists, a typed `ProjectStatusChanged` is recorded, and both the list and detail
-    ViewInvalidation targets fire -- a consumer subscribed to either would now actually refresh."""
+    """`set_status` must persist the change, record a typed `ProjectStatusChanged`, and fire
+    both the list and detail ViewInvalidation targets."""
     project = services["project_service"].create_project("P43 status project", "")
     hints = _spy_hints(services)
 
@@ -176,9 +170,7 @@ def test_set_status_closes_the_silent_notification_gap(services):
     assert all(h.entity_id == project.id for h in project_hints)
 
     rows = _audit_rows_for(services, project.id)
-    assert "update" in [row.operation for row in rows], (
-        "set_status previously had zero EnterpriseAudit coverage -- now atomic with the mutation"
-    )
+    assert "update" in [row.operation for row in rows]
 
 
 def test_update_produces_hints_for_profile_change(services):
@@ -259,8 +251,6 @@ def test_audit_failure_rolls_back_create_permanently(services, monkeypatch):
 
 
 def test_audit_failure_rolls_back_set_status_permanently(services, monkeypatch):
-    """§18/§19: `set_status` previously had the weakest audit path of all Project mutations
-    (none at all) -- this proves it now rolls back exactly like every other command."""
     project = services["project_service"].create_project("P43 status rollback project", "")
     hints = _spy_hints(services)
 
@@ -282,9 +272,8 @@ def test_audit_failure_rolls_back_set_status_permanently(services, monkeypatch):
 
 
 def test_transactional_handler_failure_rolls_back_and_never_publishes(services):
-    """§54: a typed Project transactional handler raising must roll back the whole transaction
-    and produce zero postcommit ViewInvalidation, exercising the real, shared
-    `platform_transactional_dispatcher` (not a fake one) through Project's own wiring."""
+    """A typed Project transactional handler raising must roll back the whole transaction and
+    produce zero postcommit ViewInvalidation."""
     hints = _spy_hints(services)
 
     dispatcher = services["project_service"]._uow_factory._transactional_dispatcher
@@ -321,9 +310,9 @@ def test_stale_update_raises_and_produces_zero_hints_and_zero_write(services):
 
 
 def test_concurrent_set_status_second_writer_gets_canonical_concurrency_error(services):
-    """§21/§57: `set_status` has no `expected_version` guard of its own visibility, but the repo
-    always performs a version-checked conditional update -- two genuinely independent reads/writes
-    on the same row must not silently overwrite each other."""
+    """`set_status` takes no `expected_version` parameter, but the repository still performs a
+    version-checked conditional update -- two independent reads/writes on the same row must not
+    silently overwrite each other."""
     project = services["project_service"].create_project("P43 concurrent status project", "")
 
     winner = services["project_service"].get_project(project.id)
@@ -369,9 +358,6 @@ def test_set_status_for_unknown_project_is_rejected_with_zero_write(services):
 
 
 def test_approval_post_commit_event_bridge_is_unaffected_by_project_modernization():
-    """Superseded by P45B: Task (and Financial Change's Task branch) were the last two
-    ApprovalPostCommitEvent construction sites and are now converted to typed
-    `domain_events=` -- the bridge is fully retired, zero sites remain."""
     import ast
     import glob
 

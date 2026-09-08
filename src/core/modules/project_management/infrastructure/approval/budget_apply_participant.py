@@ -1,18 +1,11 @@
-"""P4-PRE Step 1 (ADR-005 Section 24, Round 8): module-owned, session-parameterized approval
-transaction participant for `budget.approve`.
+"""Session-parameterized approval transaction participant for
+`budget.approve`/`reject`.
 
-Design note (discovered during Step 1 implementation, not assumed up front): `BudgetService`'s
-own `approve_budget()`/`reject_budget()` call `_apply_approval_decision`/`_apply_rejection_decision`
-directly for the *non-governed, direct-apply* case -- these methods are not exclusively reachable
-from the approval-composed path, so they cannot be deleted or duplicated (a real, non-approval
-consumer would break, and a duplicate copy would drift from the original over time). Per the
-"if shared logic is reused, extract a lower-level operation rather than duplicate it" rule, this
-participant instead reuses the method verbatim, unmodified, by constructing a fresh
-`BudgetService` instance -- bound to whichever Session `build_budget_approval_deps(session, ...)`
-was called with, and deliberately never given `approval_service=` -- rather than reaching for the
-long-lived, permanently shared-Session instance `project_registry.py` builds at startup. This is
-what makes the approval-facing call genuinely session-parameterizable: given Session A it acts
-against A; given Session B, against B; it never touches the startup Session by construction.
+Constructs a fresh `BudgetService` bound to whichever Session
+`build_budget_approval_deps(session, ...)` was called with (never the
+shared startup instance), then calls its own
+`_apply_approval_decision`/`_apply_rejection_decision` directly rather
+than duplicating them.
 """
 
 from __future__ import annotations
@@ -31,11 +24,9 @@ from src.core.platform.domain.approval import ApprovalRequest
 
 @dataclass(frozen=True)
 class BudgetApprovalDeps:
-    """`budget_service` is a fresh `BudgetService`, bound to the Session
-    `build_budget_approval_deps(session, ...)` was called with, constructed with
-    `approval_service=None` -- the apply path never calls back into `ApprovalService` (confirmed
-    by the P4A investigation: the circular reference on the long-lived instance exists only for
-    its own, unrelated, outbound `request_change(...)` calls)."""
+    """`budget_service` is a fresh `BudgetService`, constructed with
+    `approval_service=None` -- the apply path never calls back into
+    `ApprovalService`."""
 
     budget_service: BudgetService
 

@@ -320,8 +320,7 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
             line.period_start, line.period_end,
         ) != original
         if not changed:
-            # True no-op (P19 §12): zero repository write, zero audit, zero typed event, no
-            # synthetic version bump.
+            # True no-op: no write, audit, event, or version bump.
             return line
         now = self._clock.now()
         line.updated_at = now

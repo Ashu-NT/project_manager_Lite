@@ -4,10 +4,10 @@ Computes labor details (actual, from assignments) and, as diagnostics on the
 same result, unpriced resource-envelope planning rows. Reporting delegates
 here; this class is the authoritative source for labor figures.
 
-Labor rates are resolved through the ADR-PF-005 rate-card system
+Labor rates are resolved through the rate-card system
 (``LaborRateResolver.resolve_many``), batched once per calculation rather
 than per assignment/resource — ``ProjectResource.hourly_rate``/
-``Resource.hourly_rate`` are no longer read directly here.
+``Resource.hourly_rate`` are never read directly here.
 """
 
 from __future__ import annotations

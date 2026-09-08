@@ -68,8 +68,7 @@ _REVISION_CONSTRAINT = "uq_pf_budget_project_revision"
 
 
 class BudgetService(ProjectManagementModuleGuardMixin):
-    """Governed lifecycle for the versioned ``ProjectBudget``/``BudgetLine``
-    aggregate — see docs/pm_modernization/project_budget_lifecycle_plan.md.
+    """Governed lifecycle for the versioned ``ProjectBudget``/``BudgetLine`` aggregate.
 
     ``approve_budget`` names direct application and governed request creation
     as separate successful outcomes. Both direct application and the

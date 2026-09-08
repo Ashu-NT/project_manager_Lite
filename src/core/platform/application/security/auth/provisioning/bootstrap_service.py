@@ -27,12 +27,10 @@ if TYPE_CHECKING:
 
 
 def bootstrap_policy_catalog(service: AuthService) -> None:
-    """Initialize definitions without mutating reviewed role permissions. Deliberately its own,
-    separate physical transaction from `bootstrap_defaults` below -- P46A-FINAL-CLOSURE proved
-    both are independently idempotent (existence-guarded inserts here, existence-checked
-    create-or-repair there), so a crash between the two self-heals deterministically on the next
-    startup with no duplicate-insert or partial-account risk; merging them into one transaction
-    would be a purely cosmetic simplification, not a correctness fix."""
+    """Initialize definitions without mutating reviewed role permissions. Deliberately its own
+    transaction, separate from `bootstrap_defaults` below: both are independently idempotent, so
+    a crash between the two self-heals on the next startup with no duplicate-insert or
+    partial-account risk. Do not merge them into one transaction."""
     with service._uow() as uow:
         ensure_auth_policy_definitions(service)
         uow.commit()

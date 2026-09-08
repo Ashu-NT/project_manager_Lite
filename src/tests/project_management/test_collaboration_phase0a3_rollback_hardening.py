@@ -1,15 +1,8 @@
-"""Phase 0A.3 tests — Collaboration rollback hardening
-(docs/pm_modernization/CQRS/project_management_cqrs_existing_state_audit.md, §18 Phase 0A.3).
-
-P44B converged all 6 durable `TaskComment` command methods onto a canonical
+"""Collaboration rollback hardening: every durable `TaskComment` command runs inside its own
 `CollaborationUnitOfWork` (fresh session per transaction, atomic mutation + EnterpriseAudit +
-typed DomainEvent + single commit) and deleted `collaboration_changed` -- the durable sections
-below are rewritten accordingly: rollback is now proved via the repository CLASS (since each
-command opens its own fresh session/repo instance, unlike the old shared-session repo instance)
-and via ViewInvalidation hints (replacing the deleted legacy Signal's "zero emitted" assertions).
-`touch_task_presence`/`clear_task_presence` are untouched by P44B (P44A already converged presence
-onto its own, deliberately UoW-less, ViewInvalidation-only transport) -- their sections below are
-unchanged from the original phase.
+typed DomainEvent + single commit) -- a failure must roll back the mutation, the audit entry, and
+the ViewInvalidation hint together. `touch_task_presence`/`clear_task_presence` use a separate,
+deliberately UoW-less, ViewInvalidation-only transport.
 """
 
 from __future__ import annotations
@@ -32,7 +25,7 @@ class _Boom(RuntimeError):
 
 
 def _boom(*_args, **_kwargs):
-    raise _Boom("forced failure for Phase 0A.3 rollback test")
+    raise _Boom("forced failure for rollback test")
 
 
 def _make_task(services):

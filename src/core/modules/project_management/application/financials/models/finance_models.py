@@ -168,17 +168,15 @@ class CostBreakdownRow:
     actual: Decimal
 
 
-# ── Commercial / profitability DTOs (ADR-PF-010) ───────────────────────────────
+# ── Commercial / profitability DTOs ───────────────────────────────
 
 @dataclass(frozen=True)
 class ProjectCommercialProjection:
-    """ADR-PF-010's five commercial projections. contract_value/billable_amount/
-    externally_invoiced_amount/externally_paid_amount are ordinary Project
-    Finance authority data (finance.read); forecast_revenue_at_completion/
-    revenue_basis/projected_margin_* are further redacted without
-    finance.read_profitability (profitability_detail_included is False, all
-    four are None/"") -- the same mixed-content pattern as
-    ProjectKPI.financial_detail_included."""
+    """contract_value/billable_amount/externally_invoiced_amount/
+    externally_paid_amount are ordinary Project Finance authority data
+    (finance.read); forecast_revenue_at_completion/revenue_basis/
+    projected_margin_* are further redacted without finance.read_profitability
+    (profitability_detail_included is False, all four are None/"")."""
 
     project_id: str
     project_currency: str | None

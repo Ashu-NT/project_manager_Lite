@@ -45,8 +45,7 @@ _UNSET = object()
 
 
 class ProjectRateCardService(ProjectManagementModuleGuardMixin):
-    """Governed creation, update, and overlap validation of rate cards and lines.
-    """
+    """Governed creation, update, and overlap validation of rate cards and lines."""
 
     def __init__(
         self,
@@ -260,8 +259,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
             ),
         )
         if candidate == current:
-            # True no-op (P22 §6): zero repository write, zero audit, zero typed event, no
-            # synthetic version/updated_at bump.
+            # True no-op: no write, audit, event, or version bump.
             return current
         now = datetime.now(timezone.utc)
         candidate = replace(candidate, updated_at=now)

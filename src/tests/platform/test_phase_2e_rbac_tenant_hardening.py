@@ -320,7 +320,7 @@ class TestCanAccessNullBypass:
         )
 
     def test_org_with_null_tenant_id_denied_when_session_has_tenant(self, services):
-        """H-5: org.tenant_id=None is rejected when active tenant is set."""
+        """`org.tenant_id=None` is rejected when an active tenant is set."""
         from src.core.platform.domain.master_data.org.organization import Organization
 
         active_tid = services["tenant_context_service"].get_active_tenant_id()
@@ -329,7 +329,6 @@ class TestCanAccessNullBypass:
         assert svc._can_access(org) is False
 
     def test_org_with_wrong_tenant_id_denied(self, services):
-        """_can_access rejects orgs that belong to a different tenant."""
         from src.core.platform.domain.master_data.org.organization import Organization
 
         svc = self._make_ctx_svc(services["session"], "tenant-A")
@@ -337,7 +336,6 @@ class TestCanAccessNullBypass:
         assert svc._can_access(org) is False
 
     def test_org_with_matching_tenant_id_allowed(self, services):
-        """_can_access allows orgs that match the active tenant (no principal check)."""
         from src.core.platform.domain.master_data.org.organization import Organization
 
         active_tid = services["tenant_context_service"].get_active_tenant_id()
@@ -346,7 +344,7 @@ class TestCanAccessNullBypass:
         assert svc._can_access(org) is True
 
     def test_org_tenant_check_skipped_when_no_active_tenant(self, services):
-        """_can_access is not restricted when no tenant is active (single-tenant mode)."""
+        """No tenant restriction applies when no tenant is active (single-tenant mode)."""
         from src.core.platform.domain.master_data.org.organization import Organization
         from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
             SqlAlchemyOrganizationRepository,
@@ -369,8 +367,8 @@ class TestCanAccessNullBypass:
 
 class TestStaleOrgRestore:
     def test_org_not_restored_when_principal_has_no_tenant(self):
-        """H-3: principal with org but no tenant_id must NOT write org into session state
-        when the session already has an active tenant set."""
+        """A principal with org but no tenant_id must NOT write org into session state when the
+        session already has an active tenant set."""
         ctx = UserSessionContext()
         ctx.set_active_tenant_id("tenant-A")
         ctx.set_active_organization_id(None)
@@ -390,7 +388,6 @@ class TestStaleOrgRestore:
         assert ctx.stored_active_organization_id() is None
 
     def test_org_restored_when_tenant_matches(self):
-        """When principal.tenant matches session tenant, org IS correctly restored."""
         ctx = UserSessionContext()
         ctx.set_active_tenant_id("tenant-A")
         ctx.set_active_organization_id(None)
@@ -422,7 +419,7 @@ class TestPrincipalBuilderOrgClearing:
 
         auth = services["auth_service"]
         if auth._auth_session_repo is None:
-            pytest.skip("auth_session_repo not wired — H-4 only applies when sessions are persisted")
+            pytest.skip("auth_session_repo not wired -- only applies when sessions are persisted")
 
         user = auth.register_user("p2e-h4-u1", "StrongPass123!")
 
@@ -446,7 +443,7 @@ class TestPrincipalBuilderOrgClearing:
 
         auth = services["auth_service"]
         if auth._auth_session_repo is None:
-            pytest.skip("auth_session_repo not wired — H-4 only applies when sessions are persisted")
+            pytest.skip("auth_session_repo not wired -- only applies when sessions are persisted")
 
         user = auth.register_user("p2e-h4-u2", "StrongPass123!")
 
@@ -470,7 +467,7 @@ class TestPrincipalBuilderOrgClearing:
 
 class TestActiveOrganizationIdTenantGuard:
     def test_principal_org_not_returned_when_tenant_mismatch(self):
-        """H-2: org fallback from principal is suppressed when session tenant differs."""
+        """Org fallback from principal is suppressed when session tenant differs."""
         ctx = UserSessionContext()
         ctx._principal = UserSessionPrincipal(
             user_id="u-h2a",
@@ -487,7 +484,7 @@ class TestActiveOrganizationIdTenantGuard:
         assert ctx.active_organization_id() is None
 
     def test_principal_org_returned_when_tenant_matches(self):
-        """H-2: org fallback from principal is returned when tenants are consistent."""
+        """Org fallback from principal is returned when tenants are consistent."""
         ctx = UserSessionContext()
         ctx._principal = UserSessionPrincipal(
             user_id="u-h2b",
@@ -504,7 +501,7 @@ class TestActiveOrganizationIdTenantGuard:
         assert ctx.active_organization_id() == "org-A"
 
     def test_principal_org_returned_when_session_has_no_tenant(self):
-        """H-2: org fallback from principal is returned in single-tenant mode."""
+        """Org fallback from principal is returned in single-tenant mode."""
         ctx = UserSessionContext()
         ctx._principal = UserSessionPrincipal(
             user_id="u-h2c",
@@ -526,8 +523,7 @@ class TestActiveOrganizationIdTenantGuard:
 # ---------------------------------------------------------------------------
 
 def test_organization_orm_tenant_id_is_not_nullable():
-    """H-6: OrganizationORM.tenant_id must be NOT NULL (DB constraint aligned with ORM)."""
     from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
 
     col = OrganizationORM.__table__.c["tenant_id"]
-    assert col.nullable is False, "tenant_id must be NOT NULL after H-6 fix"
+    assert col.nullable is False

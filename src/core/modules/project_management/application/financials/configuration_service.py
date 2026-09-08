@@ -159,8 +159,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
                 code="PROJECT_DEFAULT_COST_CODE_NOT_ALLOWED",
             )
         if candidate == current:
-            # True no-op (P21 §11): zero repository write, zero audit, zero typed event, no
-            # synthetic version/updated_at bump.
+            # True no-op: no write, audit, event, or version bump.
             return current
         now = datetime.now(timezone.utc)
         candidate = replace(candidate, updated_at=now)
@@ -351,8 +350,7 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
             effective_to=current.effective_to if effective_to is _UNSET else effective_to,
         )
         if candidate == current:
-            # True no-op (P21 §11): zero repository write, zero audit, zero typed event, no
-            # synthetic version/updated_at bump.
+            # True no-op: no write, audit, event, or version bump.
             return current
         self._ensure_parent_is_acyclic(
             candidate.id,

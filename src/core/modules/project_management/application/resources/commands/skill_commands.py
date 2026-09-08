@@ -142,8 +142,7 @@ class SkillCommandMixin:
             notes=notes,
         )
         if candidate == existing:
-            # True no-op (P18A §10): zero repository write, zero audit, zero typed event, zero
-            # legacy signal, no synthetic version bump.
+            # True no-op: no write, audit, event, or version bump.
             return existing
         if self._skill_repo.code_exists(
             existing.resource_id, candidate.skill_code, exclude_id=existing.id
@@ -311,7 +310,7 @@ class SkillCommandMixin:
             notes=notes,
         )
         if candidate == existing:
-            # True no-op (P18A §10).
+            # True no-op.
             return existing
         if self._cert_repo.code_exists(
             existing.resource_id,

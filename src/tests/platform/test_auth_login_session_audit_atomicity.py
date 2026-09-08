@@ -96,13 +96,8 @@ def test_failed_login_fails_closed_and_records_nothing_when_audit_fails(
     services,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """P46B: `register_failed_login`'s prior bare `except Exception: ... return` silently
-    swallowed an audit-write failure, so `authenticate()` always reached its own
-    `ValidationError(code="AUTH_FAILED")` regardless -- a genuinely failed attempt could go
-    completely unaudited with no trace. That silent swallow is deleted: any exception other than
-    a bounded `ConcurrencyError` retry now propagates immediately (fail-closed, matching the
-    successful-login audit policy), and the whole attempt rolls back rather than partially
-    persisting."""
+    """An audit-write failure during a failed login must propagate (fail-closed, matching the
+    successful-login audit policy) and roll back the whole attempt, not partially persist it."""
     auth = services["auth_service"]
     target = auth.register_user("atomic-login-denial-target", _PASSWORD)
     _fail_tenant_audit(services, monkeypatch)

@@ -1,11 +1,5 @@
-"""Task scheduling-constraint mutation: governance parity with
-dependency mutations, optimistic concurrency, apply-time TOCTOU
-revalidation, and the non-working-date calendar policy. See
-docs/pm_modernization/R4_4_TASK_CONSTRAINT_CURRENT_STATE_AND_TARGET_GAPS.md
-Phase F/G/E for the audit findings this closes: constraint_type/
-constraint_date had no mutation path at all, so none of this existed
-before.
-"""
+"""Task scheduling-constraint mutation: governance parity with dependency mutations, optimistic
+concurrency, apply-time TOCTOU revalidation, and the non-working-date calendar policy."""
 from __future__ import annotations
 
 from datetime import date

@@ -1,11 +1,5 @@
-"""P4-PRE Step 1 (ADR-005 Section 24, Round 8): `BillingPreparationApprovalParticipant` +
-`build_billing_preparation_approval_deps` -- proves the participant is genuinely
-session-parameterizable (the Step-2 readiness criterion) and behaves identically to
-`ProjectBillingPreparationService`'s own `_apply_approval_decision`/`_apply_rejection_decision`
-(kept unmodified -- they are this family's only callers of those two methods, confirmed by grep;
-`project_registry.py`'s `_approve_billing_preparation`/`_reject_billing_preparation` closures are
-reproduced here verbatim, including their `expected_version + 1` payload adjustment).
-"""
+"""`BillingPreparationApprovalParticipant` stages a billing preparation approval/rejection on a
+caller-supplied Session without opening or completing its own transaction."""
 
 from __future__ import annotations
 
@@ -69,11 +63,7 @@ def _setup_billable_project(services, *, suffix: str):
 
 
 def _submitted_preparation(services, session, *, suffix: str):
-    """Builds a real, submitted `ProjectBillingPreparation` using the production, ambient
-    `billing_preparation_service` (bound to the test's own `session` fixture) -- exactly the same
-    setup path `test_project_finance_billing_command_surface.py` uses -- then hands back the real
-    `ApprovalRequest` `submit_preparation()` created, exactly as `ApprovalService` would have.
-    """
+    """Builds a real, submitted `ProjectBillingPreparation` and its `ApprovalRequest`."""
     project = _setup_billable_project(services, suffix=suffix)
     billing_profile_service = services["billing_profile_service"]
     profile = billing_profile_service.create_profile(
@@ -123,10 +113,9 @@ def _deps(services, session):
 def test_submit_preparation_uses_a_fresh_uow_session_shared_by_the_approval_request(
     services, monkeypatch
 ):
-    """P39: `submit_preparation` converged onto `FinanceGovernanceUnitOfWork` (the bespoke
-    `BillingPreparationSubmissionUnitOfWork` is retired) -- a genuinely fresh Session per call,
-    distinct from the shared legacy Session, with the preparation update and the Approval request
-    sharing that one Session/transaction."""
+    """`submit_preparation` opens a fresh `FinanceGovernanceUnitOfWork` Session, distinct from the
+    ambient shared Session, with the preparation update and the Approval request sharing that one
+    Session/transaction."""
     _login(services, "admin", "ChangeMe123!")
     project = _setup_billable_project(services, suffix="UOW")
     billing_profile_service = services["billing_profile_service"]
@@ -290,8 +279,7 @@ def test_participant_reject_rejects_preparation_on_the_supplied_session(services
 
 
 def test_participant_never_calls_commit_or_rollback(services, session, monkeypatch):
-    """The participant stages only -- the caller (today: ApprovalService on the shared Session;
-    from Step 2 onward: its own PlatformUnitOfWork) owns transaction completion."""
+    """The participant stages only; the caller owns transaction completion."""
     _login(services, "admin", "ChangeMe123!")
     _, _preparation, request = _submitted_preparation(services, session, suffix="C")
     deps = _deps(services, session)

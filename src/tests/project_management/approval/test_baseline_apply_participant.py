@@ -1,9 +1,6 @@
-"""P4-PRE Step 1 (ADR-005 Section 24, Round 8): `BaselineApprovalParticipant` +
-`build_baseline_approval_deps` -- proves the participant is genuinely session-parameterizable
-(the Step-2 readiness criterion) and behaves identically to `BaselineService`'s own
-`_apply_baseline_creation_decision` (kept unmodified -- `create_baseline`'s direct-apply path
-still calls it too).
-"""
+"""`BaselineApprovalParticipant` stages a baseline creation on a caller-supplied Session without
+opening or completing its own transaction, and its dependency factory must not leak state between
+concurrently-injected instances."""
 
 from __future__ import annotations
 
@@ -104,8 +101,7 @@ def test_participant_apply_creates_baseline_on_the_supplied_session(services, se
 
 
 def test_participant_never_calls_commit_or_rollback(services, session, monkeypatch):
-    """The participant stages only -- the caller (today: ApprovalService on the shared Session;
-    from Step 2 onward: its own PlatformUnitOfWork) owns transaction completion."""
+    """The participant stages only; the caller owns transaction completion."""
     _login(services, "admin", "ChangeMe123!")
     project = _project_with_tasks(services)
     deps = _deps(services, session)

@@ -1,30 +1,11 @@
-"""P4-PRE Step 1 (ADR-005 Section 24, Round 8): module-owned, session-parameterized approval
-transaction participant for the Task family -- `dependency.add`, `dependency.remove`,
-`dependency.update`, `task.constraint.update`, `scheduling.leveling.apply`.
+"""Session-parameterized approval transaction participant for the Task
+family -- `dependency.add`, `dependency.remove`, `dependency.update`,
+`task.constraint.update`, `scheduling.leveling.apply`.
 
-Design note (mirrors the finding already documented for `budget.approve`, and confirmed here by
-grep for ALL FIVE request types): none of `TaskDependencyMixin._apply_dependency_add_decision`
-/`_apply_dependency_remove_decision`/`_apply_dependency_update_decision`,
-`TaskSchedulingConstraintMixin._apply_task_scheduling_constraint_decision`, or
-`ResourceLevelingApplyMixin._apply_resource_leveling_plan_decision` are exclusively reachable
-from the approval-composed path -- each one is also called directly by `TaskService`'s own
-public `add_dependency`/`remove_dependency`/`update_dependency`/
-`update_task_scheduling_constraint`/`apply_resource_leveling_plan` for the *non-governed,
-direct-apply* case. They cannot be deleted or duplicated (a real, non-approval consumer would
-break, and a duplicate copy would drift from the original over time). Per the "if shared logic
-is reused, extract a lower-level operation rather than duplicate it" rule, this participant
-instead reuses each method verbatim, unmodified, by constructing a fresh `TaskService` instance
--- bound to whichever Session `build_task_approval_deps(session, ...)` was called with, and
-deliberately never given `approval_service=` -- rather than reaching for the long-lived,
-permanently shared-Session instance `project_registry.py` builds at startup. This is what makes
-the approval-facing call genuinely session-parameterizable: given Session A it acts against A;
-given Session B, against B; it never touches the startup Session by construction.
-
-`_as_dependency_type`/`_as_optional_date` are moved here verbatim from `project_registry.py`
-(confirmed via a grep for both names across ``src/`` to have no callers outside that file's own
-Task approval-registration closures) since they exist solely to decode these five request types'
-JSON payloads. `coerce_constraint_type` is NOT moved -- it is imported from its existing home,
-`constraint_presentation.py`, which also backs the non-approval desktop API surface.
+Constructs a fresh `TaskService` bound to whichever Session
+`build_task_approval_deps(session, ...)` was called with (never the
+shared startup instance), then calls each request type's own
+`_apply_*_decision` method directly rather than duplicating it.
 """
 
 from __future__ import annotations
@@ -58,13 +39,9 @@ def _as_optional_date(value: Any) -> date | None:
 
 @dataclass(frozen=True)
 class TaskApprovalDeps:
-    """`task_service` is a fresh `TaskService`, bound to the Session
-    `build_task_approval_deps(session, ...)` was called with, constructed with
-    `approval_service=None` -- the apply path never calls back into `ApprovalService` (each of
-    the five ``_apply_*_decision`` methods below is a pure re-fetch/re-validate/mutate operation;
-    none of them raise `APPROVAL_REQUIRED` or otherwise reach for `self._approval_service`, that
-    branching lives only in the public, non-underscore request-time methods this participant
-    never calls)."""
+    """`task_service` is a fresh `TaskService`, constructed with
+    `approval_service=None` -- the apply path never calls back into
+    `ApprovalService`."""
 
     task_service: TaskService
 
