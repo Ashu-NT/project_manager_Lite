@@ -295,6 +295,7 @@ def test_platform_master_data_services_use_runtime_tenant_context() -> None:
         user_session=user_session,
         tenant_context_service=tenant_context,
         uow_factory=object(),
+        clock=object(),
     )
     document_service = DocumentService(
         session=object(),
@@ -305,6 +306,7 @@ def test_platform_master_data_services_use_runtime_tenant_context() -> None:
         user_session=user_session,
         tenant_context_service=tenant_context,
         uow_factory=object(),
+        clock=object(),
     )
     calendar_service = EnterpriseCalendarService(
         session=object(),

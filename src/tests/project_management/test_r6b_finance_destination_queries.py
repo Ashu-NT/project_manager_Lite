@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, call
 import pytest
 from PySide6.QtCore import QObject, QUrl
 from PySide6.QtQml import QQmlComponent
+from PySide6.QtTest import QTest
 from sqlalchemy import event
 
 from src.core.modules.project_management.api.desktop.financials.models.configuration import (
@@ -702,12 +703,16 @@ Window {
     root = component.create()
     assert root is not None
     root.show()
-    for _ in range(5):
+    overview = None
+    for _ in range(20):
         qapp.processEvents()
+        overview = root.findChild(QObject, "financialsOverviewSection")
+        if overview is not None:
+            break
+        QTest.qWait(25)
 
     panel = root.findChild(QObject, "financialsDetailPanel")
     loader = root.findChild(QObject, "financialsDestinationLoader")
-    overview = root.findChild(QObject, "financialsOverviewSection")
     assert panel is not None
     assert loader is not None
     assert overview is not None
@@ -943,12 +948,17 @@ Window {
     window.setProperty("width", width)
     window.setProperty("height", height)
     window.show()
-    for _ in range(8):
+    accounting = None
+    dialog = None
+    for _ in range(40):
         qapp.processEvents()
+        accounting = window.findChild(QObject, "financialsAccountingSection")
+        dialog = window.findChild(QObject, "manualActualEditorDialog")
+        if accounting is not None and dialog is not None and dialog.property("opened") is True:
+            break
+        QTest.qWait(25)
 
     panel = window.findChild(QObject, "financialsPanel")
-    accounting = window.findChild(QObject, "financialsAccountingSection")
-    dialog = window.findChild(QObject, "manualActualEditorDialog")
     selectors = (
         window.findChild(QObject, "manualActualProjectSelector"),
         window.findChild(QObject, "manualActualTaskSelector"),

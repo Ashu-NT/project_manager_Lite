@@ -23,6 +23,40 @@ class _FakeSession:
         return None
 
 
+class _FakeAuditService:
+    def record(self, **_kwargs) -> None:
+        return None
+
+
+class _FakeCollaborationUnitOfWork:
+    def __init__(self, factory, comments: _FakeCommentRepo, context) -> None:
+        self._factory = factory
+        self.comments = comments
+        self.context = context
+        self._enterprise_audit_service = _FakeAuditService()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        return None
+
+    def record_event(self, _event) -> None:
+        return None
+
+    def commit(self) -> None:
+        self._factory.commit_calls += 1
+
+
+class _FakeCollaborationUnitOfWorkFactory:
+    def __init__(self, comments: _FakeCommentRepo) -> None:
+        self._comments = comments
+        self.commit_calls = 0
+
+    def create(self, *, context):
+        return _FakeCollaborationUnitOfWork(self, self._comments, context)
+
+
 class _FakeCommentRepo:
     def __init__(self) -> None:
         self._comments: dict[str, TaskComment] = {}
@@ -123,6 +157,10 @@ class _FakeTenantContextService:
     def get_active_tenant_id(self) -> str:
         return "tenant-1"
 
+    def require_active_scope_ids(self, *, operation_label: str):
+        del operation_label
+        return SimpleNamespace(tenant_id="tenant-1", organization_id="org-1")
+
 
 class _FakeUserSession:
     def __init__(
@@ -179,9 +217,10 @@ def _make_service(
             if str(item).strip()
         ],
     )
+    comment_repo = _FakeCommentRepo()
     return CollaborationService(
         session=_FakeSession(),
-        comment_repo=_FakeCommentRepo(),
+        comment_repo=comment_repo,
         presence_repo=object(),
         task_repo=_FakeTaskRepo(),
         project_repo=object(),
@@ -198,6 +237,7 @@ def _make_service(
         role_binding_repo=_FakeRoleBindingRepo(
             {"role-viewer": [_FakeRoleBinding("user-2", "project", "proj-1")]}
         ),
+        uow_factory=_FakeCollaborationUnitOfWorkFactory(comment_repo),
     )
 
 
@@ -272,7 +312,8 @@ def test_collaboration_service_post_comment_uses_domain_validation(monkeypatch: 
     assert comment.mentions == ["planner"]
     assert comment.mentioned_user_ids == ["user-2"]
     assert comment.attachments == ["handover.txt", "ticket-42"]
-    assert service._session.commit_calls == 1
+    assert service._uow_factory.commit_calls == 1
+    assert service._session.commit_calls == 0
 
     with pytest.raises(ValidationError) as exc:
         service.post_comment(task_id="task-1", body="   ")
@@ -314,7 +355,8 @@ def test_collaboration_service_marks_mentions_read_idempotently(
     assert stored is not None
     assert stored.read_by == ["planner"]
     assert stored.read_by_user_ids == ["user-2"]
-    assert service._session.commit_calls == 1
+    assert service._uow_factory.commit_calls == 1
+    assert service._session.commit_calls == 0
 
     unchanged = service._comment_repo.get(not_mentioned.id)
     assert unchanged is not None
@@ -322,7 +364,8 @@ def test_collaboration_service_marks_mentions_read_idempotently(
     assert unchanged.read_by_user_ids == []
 
     service.mark_task_mentions_read("task-1")
-    assert service._session.commit_calls == 1
+    assert service._uow_factory.commit_calls == 2
+    assert service._session.commit_calls == 0
 
 
 def test_comment_action_context_is_computed_from_authenticated_scope(

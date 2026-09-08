@@ -9,6 +9,7 @@ from src.ui_qml.modules.project_management.controllers.financials.financials_mut
 
 class _Harness(FinancialsMutationMixin):
     def __init__(self) -> None:
+        self._is_busy = False
         self.busy = False
         self.error_message = ""
         self.feedback_message = ""

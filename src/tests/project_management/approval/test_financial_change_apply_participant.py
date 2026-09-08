@@ -231,6 +231,8 @@ def test_dependencies_factory_binds_every_transaction_sensitive_field_to_the_sup
         assert task_service_b._session is session_b
         assert task_service_a._task_repo.session is session_a
         assert task_service_b._task_repo.session is session_b
+        assert task_service_a._enterprise_audit_service._session is session_a
+        assert task_service_b._enterprise_audit_service._session is session_b
         assert task_service_a._approval_service is None, (
             "the fresh TaskService must never reach back into ApprovalService either"
         )

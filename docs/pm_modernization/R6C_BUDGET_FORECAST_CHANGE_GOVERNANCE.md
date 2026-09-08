@@ -2,10 +2,10 @@
 
 ## 1. Status
 
-**R6C IN PROGRESS.** R6A and R6B are closed. R6C-A through R6C-G are
-complete. R6C-H remains open. This document records the verified
-R6C starting state and is the execution ledger for the forward-only write
-cutover. R6C must not be marked closed until every blocking exit gate is green.
+**R6C CLOSED.** R6A and R6B are closed, and R6C-A through R6C-H are
+complete. This document records the verified starting state, forward-only
+write cutover, and final closure evidence. Every R6C-owned blocking exit gate
+is green.
 
 ## 2. Scope
 
@@ -261,8 +261,8 @@ integration. R6H: final scale, exhaustive RLS, and release closure.
 
 ## 42. R6C Closure Decision
 
-**R6C NOT CLOSED.** R6C-A through R6C-F are complete. Pre-release cleanup and
-the broad final regression remain blocking in R6C-G and R6C-H.
+**R6C CLOSED.** R6C-A through R6C-H are complete. Pre-release cleanup,
+architecture reconciliation, and broad final regression are green.
 
 ## R6C-A Transaction Ownership Migration
 
@@ -347,8 +347,8 @@ distinct current semantics, not R6C compatibility. No `*_without_commit` API,
 transaction bridge, deprecated caller, or Financial Change submission wrapper
 remains.
 
-R6C remains open. R6C-A added no QML workflow and started no R6D, R6E, R6F, or
-R6G implementation.
+At R6C-A closure, later R6C stages were still pending. R6C-A added no QML
+workflow and started no R6D, R6E, R6F, or R6G implementation.
 
 ## R6C-B Budget Governance Command UX
 
@@ -457,8 +457,8 @@ the subsequent Budget command commits through its isolated UoW.
 ## R6C-C Forecast Governance Command UX
 
 **Status: COMPLETE.** The existing Finance -> Planning -> Forecast destination
-is the only Forecast command UX. R6C remains open; R6C-D through R6C-H were not
-started by this stage.
+is the only Forecast command UX. At this point in the execution history,
+R6C-D through R6C-H had not started; they are now complete.
 
 ### R6C-C Authority Inventory
 
@@ -610,8 +610,8 @@ Command UX. Its completed implementation record follows.
 ## R6C-D Financial Change Governance Command UX
 
 **Status: COMPLETE.** Finance -> Controls -> Change Control is the only
-Financial Change workspace and command UX. R6C remains open; R6C-E through
-R6C-H were not started by this stage.
+Financial Change workspace and command UX. At this point in the execution
+history, R6C-E through R6C-H had not started; they are now complete.
 
 ### R6C-D Authority And Lifecycle
 
@@ -749,13 +749,13 @@ Impact stale-version writes failed closed through the real command boundary.
   direct Task persistence mutation, duplicate Budget/Forecast successor
   algorithm, nested transaction, or temporary delete-later scaffold.
 
-R6C remains open. R6C-E completion evidence follows; R6C-F through R6C-H and
-R6D-R6G remained untouched during the Financial Change stage.
+R6C-E completion evidence follows. R6C-F through R6C-H had not started at this
+historical checkpoint, and R6D-R6G remained untouched.
 
 ## R6C-E Financial Setup Governance Command UX
 
-**Status: COMPLETE.** R6C remains open. The next stage is R6C-F Integrated
-Governance Hardening; it was not started as part of R6C-E.
+**Status: COMPLETE.** R6C-F Integrated Governance Hardening was not started as
+part of R6C-E; its completed record follows below.
 
 ### R6C-E Command Inventory And Boundaries
 
@@ -907,8 +907,8 @@ Accounting integration, R6C-F, R6D, R6E, R6F, or R6G work was started.
 
 ## R6C-F Integrated Governance Hardening
 
-**Status: COMPLETE.** R6C remains open for R6C-G cleanup and R6C-H final
-closure only. R6C-F added no Finance product feature and did not start R6D-R6G.
+**Status: COMPLETE.** At R6C-F closure, R6C-G cleanup and R6C-H final validation
+remained. R6C-F added no Finance product feature and did not start R6D-R6G.
 
 ### Integrated Architecture
 
@@ -1093,9 +1093,8 @@ closure remained; R6D-R6G were not started.
 
 ## R6C-G Pre-Release Cleanup And Architecture Closure
 
-**Status: COMPLETE.** R6C remains open for R6C-H final validation and closure
-only. R6C-G added no Finance product capability and did not start R6C-H or
-R6D-R6G.
+**Status: COMPLETE.** At R6C-G closure, only R6C-H final validation remained.
+R6C-G added no Finance product capability and did not start R6D-R6G.
 
 ### Forward-Only Production Architecture
 
@@ -1209,6 +1208,99 @@ Verification evidence:
 - standalone `qmllint` and optional `ruff` remain unavailable in `pmenv` and
   were not installed.
 
-The repository PostgreSQL 16 compose container remains healthy and running for
-R6C-H. R6C-G has no blocker. R6C itself is not closed: R6C-H is the only
-remaining stage. This stage stops here; no commit was created.
+The repository PostgreSQL 16 compose container remained healthy and running for
+R6C-H. R6C-G had no blocker. No commit was created by that stage.
+
+## R6C-H Broad Regression And Final Closure
+
+**Status: COMPLETE. R6C CLOSED.** The final gate implemented no new Finance
+product capability and did not begin R6D, R6E, R6F, R6G, or R6H scope.
+
+### Closure Remediation
+
+The first broad PM run exposed one genuine production defect: the
+Financial Change approval dependency factory created its transaction-bound
+`TaskService` without the same-session Enterprise Audit service. Governed
+Schedule Impact application therefore failed closed before writing. The
+factory now injects the already-created audit service, and an architecture
+assertion proves both task participant and audit authority use the supplied
+approval Session.
+
+The same run exposed stale tests that still modeled ambient Session commits,
+retired service constructor arguments, an old tenant-context contract, and an
+obsolete family-level `project_id` boundary argument. Their fixtures now model
+the canonical UoW/scope contracts. Two asynchronous Finance Loader tests now
+use bounded event-loop waits instead of assuming a fixed number of immediate
+iterations. No production compatibility path was restored for an old test.
+
+### Final Architecture Decision
+
+Budget, Forecast, Financial Change, and Financial Setup each retain one
+production path:
+
+`QML -> controller -> presenter -> typed desktop command ->
+ProjectManagementFinancialsDesktopApi -> FinanceGovernanceCommandBoundary ->
+fresh operation-scoped Finance UoW -> transaction-neutral authority -> one
+outward commit -> typed post-commit invalidation -> authoritative R6B Reader`.
+
+Platform Approval remains the only approval authority. Approval apply/reject
+participants use the caller-supplied locked decision Session, perform no
+independent commit, and preserve self-decision denial. Financial Change
+continues to delegate Budget, Forecast, and Scheduling mutations to their
+owning authorities; it performs no direct Task ORM mutation. R6B Readers remain
+read-only. Budget/Forecast `begin_nested()` scopes remain only for translating
+database uniqueness races inside the caller-owned transaction; they neither
+commit nor establish another transaction authority.
+
+Approved Budget authority, approved-history immutability, exact Decimal line
+summation, Forecast source/as-of/Manual ETC/Risk semantics, ETC/EAC/VAC
+definitions, project currency enforcement, Setup lifecycle/restrictions, and
+typed targeted invalidation all remain unchanged. Project, ProjectResource,
+TaskAssignment, TimeEntry, Procurement, Scheduling, Rate, Actual, Commitment,
+EVM, Billing, and Accounting ownership boundaries were not broadened.
+
+### Final Verification Evidence
+
+- Full PM regression after remediation: `1968 passed, 1 skipped`.
+- Focused audit-participant, assignment-UoW, and Finance Loader remediation:
+  `16 passed`, followed by all five accounting/manual-actual viewport cases at
+  `5 passed`.
+- Platform Approval, P8, and shared dialog regression: `128 passed`.
+- Current standalone P8 canonicalization file: `25 passed`; its present
+  collection has 25 tests, all green. Earlier `31 passed` records above are
+  retained as accurate point-in-time suite evidence.
+- SQLite fresh migration/downgrade and Finance migration regression: `4 passed`.
+- Fresh PostgreSQL Alembic-to-head plus runtime-role/RLS/concurrency suite:
+  `9 passed` through non-owner `app_runtime`.
+- The PostgreSQL fixture recreated `public` under `r5h_migrator`; runtime tests
+  used `app_runtime` with `NOSUPERUSER`, `NOBYPASSRLS`, and no protected-table
+  ownership. Parent/child foreign-scope writes were denied, legal scoped writes
+  succeeded, stale writes failed closed, and approval decisions serialized.
+- The `d8e1f4a7b2c3` Boolean correction passed fresh SQLite and PostgreSQL paths
+  and its repository-supported downgrade check. No separate ORM/schema parity
+  guard was found; fresh Alembic plus ORM-backed integration suites passed.
+- Python compilation and `git diff --check`: PASS.
+- Repository QML runtime/component and five-viewport checks passed within the
+  full PM suite. Standalone `qmllint` and optional `ruff` remain unavailable in
+  `pmenv`; neither result is claimed or fabricated.
+- Final static searches found one outward R6C commit owner, no Finance service
+  or approval-participant commit, no superseded R6C API/builder/presenter/QML/DI
+  path, no retired Finance process-local signal, no direct Financial Change
+  `TaskORM` mutation, and no authoritative QML money arithmetic.
+
+All failures observed during R6C-H were inspected and resolved. The production
+audit-wiring failure was an R6C correctness regression; the remaining failures
+were stale test-contract or bounded asynchronous-wait defects. No blocker,
+created file, deleted file, or superseded R6C compatibility architecture
+remains. Nothing was committed by R6C-H.
+
+### Deferred Work Preserved
+
+- R6D: Cost, Commitment, Actual, and Rate write modernization.
+- R6E: Decimal EVM, Variance, and Cost Phasing remediation.
+- R6F: Billing Preparation writes, projected commercial revenue, and profitability.
+- R6G: Durable Accounting handoff, outbox, worker, and adapters.
+- R6H: Release-scale certification, exhaustive RLS, and final Finance hardening.
+
+The PostgreSQL test container is intentionally left running for subsequent
+approved phases. R6C-H stops here; R6D has not started and no commit was made.

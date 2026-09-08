@@ -23,6 +23,36 @@ class _FakeRepo:
     def update(self, item) -> None:
         self._items[item.id] = item
 
+    def update_response_status_with_version_check(self, item, *, expected_version):
+        assert item.version == expected_version
+        self.update(item)
+        return item
+
+
+class _FakeAuditService:
+    def record(self, **_kwargs) -> None:
+        return None
+
+
+class _FakeTaskUnitOfWork:
+    def __init__(self, owner) -> None:
+        self._owner = owner
+        self.assignments = owner._assignment_repo
+        self._enterprise_audit_service = _FakeAuditService()
+        self._activity_service = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        return None
+
+    def record_event(self, _event) -> None:
+        return None
+
+    def commit(self) -> None:
+        self._owner._uow_commit_calls += 1
+
 
 class _FakeSession:
     def __init__(self) -> None:
@@ -38,8 +68,16 @@ class _FakeSession:
 
 class _FakeAssignmentResponseService(TaskAssignmentMixin):
     def __init__(self, **attrs) -> None:
+        self._uow_commit_calls = 0
         for key, value in attrs.items():
             setattr(self, key, value)
+
+    def _active_task_scope(self, *, operation_label: str):
+        del operation_label
+        return SimpleNamespace(tenant_id="tenant-1", organization_id="org-1")
+
+    def _task_uow(self):
+        return _FakeTaskUnitOfWork(self)
 
 
 def _make_fake_self(*, principal_user_id: str, assignment, task, resource, employee):
@@ -85,7 +123,8 @@ def test_accept_assignment_sets_status_and_timestamp():
 
     assert result.response_status == "accepted"
     assert result.responded_at is not None
-    assert fake_self._session.commit_calls == 1
+    assert fake_self._uow_commit_calls == 1
+    assert fake_self._session.commit_calls == 0
 
 
 def test_decline_assignment_sets_status_and_timestamp():

@@ -30,10 +30,8 @@ _BudgetEvent = (
     | BudgetRemoved
 )
 
-# Every current Budget fact stales both destinations -- the legacy `budgets_changed` signal never
-# differentiated by fact type either (its one consumer in `financials_refresh_mixin.py` and its one
-# consumer in `project_domain_event_binder.py` both reacted to every emission uniformly), so this
-# uniform mapping is source-preserving, not an invented fan-out.
+# Every Budget fact invalidates both projections because Planning and the
+# Project summary derive from the same authoritative Budget state.
 _SCOPE_CODES = (BUDGET_PLANNING_SCOPE_CODE, BUDGET_PROJECT_SUMMARY_SCOPE_CODE)
 
 

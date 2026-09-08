@@ -93,6 +93,7 @@ def build_financial_change_approval_deps(
         approval_service=None,
         module_catalog_service=module_catalog_service,
         tenant_context_service=tenant_context_service,
+        enterprise_audit_service=enterprise_audit_service,
     )
     clock = SystemClock()
     budget_authority = BudgetService(
