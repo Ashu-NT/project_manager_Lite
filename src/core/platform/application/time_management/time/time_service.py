@@ -45,14 +45,15 @@ class TimeService(
         employee_repo: EmployeeRepository | None,
         time_entry_repo: TimeEntryRepository | None,
         timesheet_period_repo: TimesheetPeriodRepository | None,
+        *,
+        transactional_dispatcher: TransactionalEventDispatcher,
+        post_commit_bus: PostCommitEventPublisher,
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: Any = None,
         module_catalog_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
         scope_organization_resolver: Callable[[str, str], str | None] | None = None,
         approved_time_outbox_service: IntegrationOutboxService | None = None,
-        transactional_dispatcher: TransactionalEventDispatcher | None = None,
-        post_commit_bus: PostCommitEventPublisher | None = None,
     ) -> None:
         self._session: Session = session
         self._work_allocation_repo: WorkAllocationRepository = assignment_repo

@@ -15,52 +15,32 @@ from src.core.platform.contract.repositories.time_management.time.contracts impo
 from src.core.platform.domain.time_management.time import TimeEntry
 
 
-class _PlainSessionCommitScope:
-    """Fallback used only when a `TimeService` instance was constructed without
-    a transactional dispatcher / post-commit bus (lightweight test doubles) --
-    behaves like the pre-P45B-CLOSURE raw-session path, no event dispatch.
-    Production construction (`project_registry.py`) always wires both, so
-    real callers always get `_CanonicalTimeEntryUnitOfWork` below."""
-
-    def __init__(self, session) -> None:
-        self._session = session
-
-    def record_event(self, event) -> None:
-        return None
-
-    def commit(self) -> None:
-        self._session.commit()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc, tb) -> None:
-        if exc_type is not None:
-            self._session.rollback()
-        return None
-
-
 def _time_entry_unit_of_work(service):
     """One physical transaction for a TimeEntry mutation and its
     TaskAssignment-side side-effect: a bare, canonical `SqlAlchemyUnitOfWorkBase`
     wrapping TimeService's own already-shared Session (same precedent as
     Project's `delete_project` and Timesheet's own `_persist_timesheet_
-    transition`) when a transactional dispatcher/post-commit bus are wired,
-    else the plain-session fallback above. `uow.record_event(...)` stages the
-    typed fact PRECOMMIT; transactional (FAIL_FAST) handlers run inside
-    `uow.commit()` before the physical `session.commit()`, and postcommit
-    delivery happens only after that commit actually succeeds -- no manual
-    post-commit publish call remains anywhere in this module."""
-    if service._transactional_dispatcher is not None and service._post_commit_bus is not None:
-        from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
-
-        return SqlAlchemyUnitOfWorkBase(
-            session=service._session,
-            transactional_dispatcher=service._transactional_dispatcher,
-            post_commit_bus=service._post_commit_bus,
-            context=DomainEventContext(correlation_id=generate_id()),
+    transition`). `uow.record_event(...)` stages the typed fact PRECOMMIT;
+    transactional (FAIL_FAST) handlers run inside `uow.commit()` before the
+    physical `session.commit()`, and postcommit delivery happens only after
+    that commit actually succeeds -- no manual post-commit publish call
+    remains anywhere in this module, and no degraded no-event fallback path
+    exists: a `TimeService` built without both dependencies wired fails loudly
+    here rather than silently mutating without its canonical DomainEvent
+    lifecycle (mirrors `PortfolioService._require_uow_factory`'s convention)."""
+    if service._transactional_dispatcher is None or service._post_commit_bus is None:
+        raise RuntimeError(
+            "TimeService is missing its transactional dispatcher / post-commit bus -- "
+            "TimeEntry mutations require both to be wired; there is no degraded fallback."
         )
-    return _PlainSessionCommitScope(service._session)
+    from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
+
+    return SqlAlchemyUnitOfWorkBase(
+        session=service._session,
+        transactional_dispatcher=service._transactional_dispatcher,
+        post_commit_bus=service._post_commit_bus,
+        context=DomainEventContext(correlation_id=generate_id()),
+    )
 
 
 def _stage_task_assignment_hours_audit_and_record_event(
