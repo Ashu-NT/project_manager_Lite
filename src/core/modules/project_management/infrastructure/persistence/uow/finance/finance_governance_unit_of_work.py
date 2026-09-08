@@ -14,6 +14,7 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.cost_entries.cost_entry import SqlAlchemyProjectCostEntryRepository
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.financial_changes.financial_change import SqlAlchemyFinancialChangeRepository
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.forecasts.forecast import SqlAlchemyProjectForecastRepository
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.invoicing.billing import SqlAlchemyProjectBillingRepository
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.planned_costs.planned_cost import SqlAlchemyProjectPlannedCostVersionRepository
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_cards import SqlAlchemyProjectRateCardRepository
 from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
@@ -55,11 +56,12 @@ class SqlAlchemyFinanceGovernanceUnitOfWork(SqlAlchemyUnitOfWorkBase, FinanceGov
         self.register_entries = SqlAlchemyRegisterEntryRepository(session)
         self.approvals = SqlAlchemyApprovalRepository(session)
         self.rate_cards = SqlAlchemyProjectRateCardRepository(session)
+        self.billing = SqlAlchemyProjectBillingRepository(session)
         scoped = (
             self.projects, self.tasks, self.budgets, self.forecasts, self.changes,
             self.profiles, self.cost_codes, self.planned_costs, self.assignments,
             self.project_resources, self.commitments, self.cost_entries,
-            self.register_entries, self.approvals, self.rate_cards,
+            self.register_entries, self.approvals, self.rate_cards, self.billing,
         )
         for repository in scoped:
             repository._tenant_context_service = tenant_context_service

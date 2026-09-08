@@ -13,12 +13,15 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from src.core.modules.project_management.application.financials.budgets.budget_events import (
+    BudgetStatusChangeType,
+    BudgetStatusChanged,
+)
 from src.core.modules.project_management.domain.financials.budget import BudgetStatus
 from src.core.modules.project_management.infrastructure.approval.budget_apply_participant import (
     BudgetApprovalParticipant,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.contract.models.approval.contracts import ApprovalPostCommitEvent
 from src.core.platform.domain.approval import ApprovalRequest
 from src.infra.composition.approval_apply_dependencies.budget import build_budget_approval_deps
 from src.infra.persistence.orm.base import Base
@@ -95,8 +98,16 @@ def test_participant_apply_approves_budget_on_the_supplied_session(services, ses
     approved = deps.budget_service._budget_repo.get(budget.id)
     assert approved.status == BudgetStatus.APPROVED
     assert approved.approved_by == services["user_session"].principal.user_id
-    assert result.post_commit_events == (
-        ApprovalPostCommitEvent("budgets_changed", project.id),
+    assert result.post_commit_events == ()
+    assert result.domain_events == (
+        BudgetStatusChanged(
+            tenant_id=approved.tenant_id,
+            organization_id=approved.organization_id,
+            project_id=approved.project_id,
+            budget_id=approved.id,
+            change_type=BudgetStatusChangeType.APPROVED,
+            occurred_at=approved.approved_at,
+        ),
     )
 
 

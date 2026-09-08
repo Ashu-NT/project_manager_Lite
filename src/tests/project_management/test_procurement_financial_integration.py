@@ -25,14 +25,13 @@ from src.core.modules.project_management.infrastructure.persistence.orm.cost_ent
 from src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox import (
     ProjectFinanceInboxORM,
 )
-from src.core.modules.project_management.application.financials.invalidation import (
-    FinanceInvalidationScope,
-)
 from src.core.modules.project_management.application.financials.commitments.commitment_events import (
     CommitmentLineChanged,
     CommitmentMatchChanged,
 )
-from src.core.shared.events.domain_events import domain_events
+from src.core.modules.project_management.application.financials.cost.entries.cost_entry_events import (
+    CostEntryRecorded,
+)
 from src.core.platform.domain.master_data.party import PartyType
 from src.core.platform.integration import InboxProcessingStatus, OutboxDeliveryStatus
 from src.tests.ui_runtime_helpers import login_as
@@ -174,13 +173,13 @@ def test_sent_po_partial_receipt_and_cancellation_update_project_finance(service
     )
     purchasing = services["inventory_purchasing_service"]
     commitment_scopes: list[object] = []
-    actual_scopes: list[FinanceInvalidationScope] = []
+    actual_events: list[object] = []
 
     def capture_commitment(event: object, _context: object) -> None:
         commitment_scopes.append(event)
 
-    def capture_actual(scope: FinanceInvalidationScope) -> None:
-        actual_scopes.append(scope)
+    def capture_actual(event: object, _context: object) -> None:
+        actual_events.append(event)
 
     post_commit_bus = services["procurement_financial_dispatcher"]._post_commit_bus
     line_subscription = post_commit_bus.subscribe(
@@ -189,7 +188,7 @@ def test_sent_po_partial_receipt_and_cancellation_update_project_finance(service
     match_subscription = post_commit_bus.subscribe(
         CommitmentMatchChanged, capture_commitment
     )
-    domain_events.cost_entries_changed.connect(capture_actual)
+    cost_entry_subscription = post_commit_bus.subscribe(CostEntryRecorded, capture_actual)
     try:
         sent = purchasing.send_purchase_order(purchase_order.id)
 
@@ -228,7 +227,7 @@ def test_sent_po_partial_receipt_and_cancellation_update_project_finance(service
     finally:
         line_subscription.dispose()
         match_subscription.dispose()
-        domain_events.cost_entries_changed.disconnect(capture_actual)
+        cost_entry_subscription.dispose()
     session.expire_all()
     commitment = session.execute(select(ProjectCommitmentLineORM)).scalar_one()
     balance = services["inventory_stock_service"].get_balance_for_stock_position(
@@ -251,9 +250,9 @@ def test_sent_po_partial_receipt_and_cancellation_update_project_finance(service
     # Send, receipt-state update, receipt matching, and cancellation are four
     # distinct committed Procurement projections affecting commitment reads.
     assert len(commitment_scopes) == 4
-    assert len(actual_scopes) == 1
+    assert len(actual_events) == 1
     assert all(scope.project_id == project.id for scope in commitment_scopes)
-    assert actual_scopes[0].project_id == project.id
+    assert actual_events[0].project_id == project.id
 
 
 def test_purchase_order_send_rolls_back_when_outbox_write_fails(
@@ -425,12 +424,22 @@ def test_receipt_and_stock_changes_roll_back_when_outbox_write_fails(
 
 
 def test_commitment_transactional_handler_runs_before_the_dispatcher_commits(services) -> None:
+    """P36-FIX2: the transactional handler must receive the actual canonical `UnitOfWork`
+    instance that owns this transaction -- never `ProcurementFinancialDispatcher` itself.
+    `ProcurementFinancialDispatcher` is not a `UnitOfWork` (no `record_event`/`commit`/
+    `__enter__`/`__exit__`); passing it as the handler's `uow` argument would be duck-typed
+    impersonation, not the canonical architecture. The handler instead receives a real
+    `SqlAlchemyUnitOfWorkBase` bound to the dispatcher's own session -- proven both by identity
+    (not the dispatcher) and by shape (implements the full `UnitOfWork` protocol)."""
+    from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
+
     dispatcher = services["procurement_financial_dispatcher"]
     seen = []
+    received_uows = []
 
-    def _observe(event, _uow) -> None:
+    def _observe(event, uow) -> None:
         seen.append(event)
-        assert _uow is dispatcher, "the dispatcher forwards itself as the transaction owner"
+        received_uows.append(uow)
 
     subscription = dispatcher._transactional_dispatcher.subscribe(
         CommitmentLineChanged, _observe
@@ -443,6 +452,14 @@ def test_commitment_transactional_handler_runs_before_the_dispatcher_commits(ser
 
     assert len(seen) == 1
     assert seen[0].change_type.value == "CREATED"
+    assert len(received_uows) == 1
+    handler_uow = received_uows[0]
+    assert handler_uow is not dispatcher, "must not be the dispatcher impersonating a UoW"
+    assert isinstance(handler_uow, SqlAlchemyUnitOfWorkBase)
+    assert hasattr(handler_uow, "record_event") and hasattr(handler_uow, "commit")
+    assert handler_uow._session is dispatcher._session, (
+        "the UoW wraps the dispatcher's own session -- one transaction owner, not a second one"
+    )
 
 
 def test_commitment_transactional_handler_failure_rolls_back_and_yields_zero_postcommit_event(

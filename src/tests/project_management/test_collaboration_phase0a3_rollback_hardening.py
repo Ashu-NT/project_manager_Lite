@@ -1,17 +1,15 @@
 """Phase 0A.3 tests — Collaboration rollback hardening
 (docs/pm_modernization/CQRS/project_management_cqrs_existing_state_audit.md, §18 Phase 0A.3).
 
-Mirrors Phase 0A.2 (Portfolio) exactly, applied to `collaboration_service.py`'s write methods and
-the `collaboration_changed` event instead of `portfolio_changed`: before this phase, every
-Collaboration command method committed with no `try/except` at all. This phase wraps each
-method's mutate+commit step in `try/except Exception: session.rollback(); raise`, matching the
-same established pattern used elsewhere in this module.
-
-`post_comment` gets the full required-tests matrix (it is this capability's one clean "create"
-write); the remaining 7 methods (`mark_task_mentions_read`, `edit_comment`, `delete_comment`,
-`react_to_comment`, `remove_reaction`, `touch_task_presence`, `clear_task_presence`) each get at
-least a forced-repository-failure rollback test, following the same coverage shape Phase 0A.2 used
-for Portfolio's update/delete methods.
+P44B converged all 6 durable `TaskComment` command methods onto a canonical
+`CollaborationUnitOfWork` (fresh session per transaction, atomic mutation + EnterpriseAudit +
+typed DomainEvent + single commit) and deleted `collaboration_changed` -- the durable sections
+below are rewritten accordingly: rollback is now proved via the repository CLASS (since each
+command opens its own fresh session/repo instance, unlike the old shared-session repo instance)
+and via ViewInvalidation hints (replacing the deleted legacy Signal's "zero emitted" assertions).
+`touch_task_presence`/`clear_task_presence` are untouched by P44B (P44A already converged presence
+onto its own, deliberately UoW-less, ViewInvalidation-only transport) -- their sections below are
+unchanged from the original phase.
 """
 
 from __future__ import annotations
@@ -19,6 +17,13 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 
 import pytest
+
+from src.core.modules.project_management.application.collaboration.event_handlers.view_invalidation import (
+    TASK_COMMENT_CATEGORY,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.collaboration.collaboration import (
+    SqlAlchemyTaskCommentRepository,
+)
 
 
 class _Boom(RuntimeError):
@@ -41,6 +46,23 @@ def _make_task(services):
     return task
 
 
+def _spy_hints(services):
+    hints: list = []
+
+    class _AnyOrgFilter:
+        def matches(self, scope) -> bool:
+            return True
+
+    services["platform_view_invalidation_channel"].subscribe(
+        _AnyOrgFilter(), lambda hint: hints.append(hint)
+    )
+    return hints
+
+
+def _comment_hints(hints):
+    return [h for h in hints if h.category == TASK_COMMENT_CATEGORY]
+
+
 # ---------------------------------------------------------------------------
 # post_comment — the full required-tests matrix.
 # ---------------------------------------------------------------------------
@@ -49,60 +71,39 @@ def _make_task(services):
 def test_post_comment_repository_failure_rolls_back_with_no_partial_row(services, monkeypatch):
     collaboration = services["collaboration_service"]
     task = _make_task(services)
-    monkeypatch.setattr(collaboration._comment_repo, "add", _boom)
-
-    with pytest.raises(_Boom):
-        collaboration.post_comment(task_id=task.id, body="Hello")
-
-    assert collaboration._comment_repo.list_by_task(task.id) == []
-
-
-def test_post_comment_commit_failure_rolls_back_with_no_partial_row(services, monkeypatch):
-    collaboration = services["collaboration_service"]
-    task = _make_task(services)
-    monkeypatch.setattr(services["session"], "commit", _boom)
+    hints = _spy_hints(services)
+    monkeypatch.setattr(SqlAlchemyTaskCommentRepository, "add", _boom)
 
     with pytest.raises(_Boom):
         collaboration.post_comment(task_id=task.id, body="Hello")
 
     monkeypatch.undo()
     assert collaboration._comment_repo.list_by_task(task.id) == []
+    assert _comment_hints(hints) == []
 
 
-def test_no_collaboration_changed_event_after_post_comment_repository_failure(services, monkeypatch):
-    from src.core.shared.events.domain_events import domain_events
+def test_post_comment_commit_failure_rolls_back_with_no_partial_row(services, monkeypatch):
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
 
     collaboration = services["collaboration_service"]
     task = _make_task(services)
-    emitted: list[str] = []
-    domain_events.collaboration_changed.connect(emitted.append)
-    monkeypatch.setattr(collaboration._comment_repo, "add", _boom)
+    hints = _spy_hints(services)
+    monkeypatch.setattr(EnterpriseAuditService, "record", _boom)
 
     with pytest.raises(_Boom):
         collaboration.post_comment(task_id=task.id, body="Hello")
 
-    assert emitted == []
-
-
-def test_no_collaboration_changed_event_after_post_comment_commit_failure(services, monkeypatch):
-    from src.core.shared.events.domain_events import domain_events
-
-    collaboration = services["collaboration_service"]
-    task = _make_task(services)
-    emitted: list[str] = []
-    domain_events.collaboration_changed.connect(emitted.append)
-    monkeypatch.setattr(services["session"], "commit", _boom)
-
-    with pytest.raises(_Boom):
-        collaboration.post_comment(task_id=task.id, body="Hello")
-
-    assert emitted == []
+    monkeypatch.undo()
+    assert collaboration._comment_repo.list_by_task(task.id) == []
+    assert _comment_hints(hints) == []
 
 
 def test_session_remains_usable_after_post_comment_repository_failure(services, monkeypatch):
     collaboration = services["collaboration_service"]
     task = _make_task(services)
-    monkeypatch.setattr(collaboration._comment_repo, "add", _boom)
+    monkeypatch.setattr(SqlAlchemyTaskCommentRepository, "add", _boom)
     with pytest.raises(_Boom):
         collaboration.post_comment(task_id=task.id, body="Hello")
     monkeypatch.undo()
@@ -113,34 +114,17 @@ def test_session_remains_usable_after_post_comment_repository_failure(services, 
     assert [c.id for c in collaboration._comment_repo.list_by_task(task.id)] == [created.id]
 
 
-def test_session_remains_usable_after_post_comment_commit_failure(services, monkeypatch):
+def test_post_comment_successful_write_produces_a_durable_hint(services):
     collaboration = services["collaboration_service"]
     task = _make_task(services)
-    monkeypatch.setattr(services["session"], "commit", _boom)
-    with pytest.raises(_Boom):
-        collaboration.post_comment(task_id=task.id, body="Hello")
-    monkeypatch.undo()
-
-    created = collaboration.post_comment(task_id=task.id, body="Hello again")
-
-    assert created is not None
-    assert [c.id for c in collaboration._comment_repo.list_by_task(task.id)] == [created.id]
-
-
-def test_post_comment_successful_write_is_unaffected_by_the_rollback_wrapper(services):
-    from src.core.shared.events.domain_events import domain_events
-
-    collaboration = services["collaboration_service"]
-    task = _make_task(services)
-    emitted: list[str] = []
-    domain_events.collaboration_changed.connect(emitted.append)
+    hints = _spy_hints(services)
 
     created = collaboration.post_comment(task_id=task.id, body="Hello")
 
     assert created is not None
     assert created.body == "Hello"
     assert [c.id for c in collaboration._comment_repo.list_by_task(task.id)] == [created.id]
-    assert emitted == [task.id]
+    assert len(_comment_hints(hints)) == 2, "task-scoped + org-wide workspace target"
 
 
 # ---------------------------------------------------------------------------
@@ -150,16 +134,13 @@ def test_post_comment_successful_write_is_unaffected_by_the_rollback_wrapper(ser
 
 
 def test_mark_task_mentions_read_rolls_back_on_repository_failure(services, monkeypatch):
-    from src.core.shared.events.domain_events import domain_events
-
     collaboration = services["collaboration_service"]
     task = _make_task(services)
     principal = services["user_session"].principal
     mention_username = principal.username
     comment = collaboration.post_comment(task_id=task.id, body=f"Hey @{mention_username}")
-    emitted: list[str] = []
-    domain_events.collaboration_changed.connect(emitted.append)
-    monkeypatch.setattr(collaboration._comment_repo, "update", _boom)
+    hints = _spy_hints(services)
+    monkeypatch.setattr(SqlAlchemyTaskCommentRepository, "update", _boom)
 
     with pytest.raises(_Boom):
         collaboration.mark_task_mentions_read(task.id)
@@ -167,18 +148,22 @@ def test_mark_task_mentions_read_rolls_back_on_repository_failure(services, monk
     monkeypatch.undo()
     reloaded = collaboration._comment_repo.get(comment.id)
     assert reloaded.read_by_user_ids == []
-    assert emitted == []
+    assert _comment_hints(hints) == []
 
 
 def test_mark_task_mentions_read_rolls_back_on_commit_failure_and_session_stays_usable(
     services, monkeypatch
 ):
+    from src.core.platform.application.history.audit.enterprise_audit_service import (
+        EnterpriseAuditService,
+    )
+
     collaboration = services["collaboration_service"]
     task = _make_task(services)
     principal = services["user_session"].principal
     mention_username = principal.username
     comment = collaboration.post_comment(task_id=task.id, body=f"Hey @{mention_username}")
-    monkeypatch.setattr(services["session"], "commit", _boom)
+    monkeypatch.setattr(EnterpriseAuditService, "record", _boom)
 
     with pytest.raises(_Boom):
         collaboration.mark_task_mentions_read(task.id)
@@ -202,7 +187,7 @@ def test_edit_comment_rolls_back_on_repository_failure(services, monkeypatch):
     collaboration = services["collaboration_service"]
     task = _make_task(services)
     comment = collaboration.post_comment(task_id=task.id, body="Original body")
-    monkeypatch.setattr(collaboration._comment_repo, "update", _boom)
+    monkeypatch.setattr(SqlAlchemyTaskCommentRepository, "update", _boom)
 
     with pytest.raises(_Boom):
         collaboration.edit_comment(comment.id, "Changed body")
@@ -216,7 +201,7 @@ def test_delete_comment_rolls_back_on_repository_failure(services, monkeypatch):
     collaboration = services["collaboration_service"]
     task = _make_task(services)
     comment = collaboration.post_comment(task_id=task.id, body="Do not delete me")
-    monkeypatch.setattr(collaboration._comment_repo, "update", _boom)
+    monkeypatch.setattr(SqlAlchemyTaskCommentRepository, "update", _boom)
 
     with pytest.raises(_Boom):
         collaboration.delete_comment(comment.id)
@@ -230,7 +215,7 @@ def test_react_to_comment_rolls_back_on_repository_failure(services, monkeypatch
     collaboration = services["collaboration_service"]
     task = _make_task(services)
     comment = collaboration.post_comment(task_id=task.id, body="React to me")
-    monkeypatch.setattr(collaboration._comment_repo, "update", _boom)
+    monkeypatch.setattr(SqlAlchemyTaskCommentRepository, "update", _boom)
 
     with pytest.raises(_Boom):
         collaboration.react_to_comment(comment.id, "👍")
@@ -245,7 +230,7 @@ def test_remove_reaction_rolls_back_on_repository_failure(services, monkeypatch)
     task = _make_task(services)
     comment = collaboration.post_comment(task_id=task.id, body="Unreact from me")
     collaboration.react_to_comment(comment.id, "👍")
-    monkeypatch.setattr(collaboration._comment_repo, "update", _boom)
+    monkeypatch.setattr(SqlAlchemyTaskCommentRepository, "update", _boom)
 
     with pytest.raises(_Boom):
         collaboration.remove_reaction(comment.id, "👍")

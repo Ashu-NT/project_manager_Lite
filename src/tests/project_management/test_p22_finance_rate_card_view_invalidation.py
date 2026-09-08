@@ -631,7 +631,7 @@ def test_rate_card_adapter_dispatches_org_vs_project_list_hints_to_distinct_sign
     from src.core.shared.events.view_invalidation import OrganizationScope as _OrgScope
     from src.core.shared.events.view_invalidation import ResourceScope as _ResScope
     from src.core.shared.events.view_invalidation import ViewInvalidationHint as _Hint
-    from src.ui_qml.platform.adapters.rate_card_view_invalidation_adapter import (
+    from src.ui_qml.modules.project_management.adapters.financials.rate_card_view_invalidation_adapter import (
         RateCardViewInvalidationAdapter,
     )
 

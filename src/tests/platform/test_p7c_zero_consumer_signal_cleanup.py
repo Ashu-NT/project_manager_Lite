@@ -6,9 +6,13 @@ import inspect
 
 from src.core.shared.events.domain_events import domain_events
 
-_ACTIVE_FINANCE_SIGNALS = (
-    "cost_entries_changed",
-)
+# P39: `billing_preparations_changed` (the last still-legacy Finance signal) is now deleted --
+# Finance has ZERO legacy Signal fields left (see `test_p8_platform_event_architecture_
+# canonicalization.py::test_zero_finance_legacy_signal_fields_remain` for the permanent guard).
+# This tuple is deliberately empty rather than removed -- the loop below stays a meaningful,
+# reusable "any remaining active Finance signal must have a real producer+consumer" check for a
+# future Finance-owned signal, without needing rewriting to reintroduce it.
+_ACTIVE_FINANCE_SIGNALS: tuple[str, ...] = ()
 
 
 def _strip_strings_and_comments(source: str) -> str:
@@ -117,10 +121,6 @@ def test_every_remaining_approval_post_commit_event_signal_name_exists_and_has_a
 
 
 def test_emit_signal_safely_still_exists_with_real_remaining_callers():
-    """§9: not removed -- `budget_apply_participant.py`/`task_apply_participant.py`/
-    `baseline_apply_participant.py`/`billing_preparation_apply_participant.py`/
-    `financial_change_apply_participant.py` (partially) and the two Inventory procurement
-    participants still return legitimate `ApprovalPostCommitEvent` values."""
     import src.core.platform.application.approval.approval_service as approval_service_module
 
     source = inspect.getsource(approval_service_module)
@@ -133,15 +133,32 @@ def test_emit_signal_safely_still_exists_with_real_remaining_callers():
 # ---------------------------------------------------------------------------
 
 
-def test_project_cost_apply_participant_emits_scoped_post_commit_events():
+def test_project_cost_apply_participant_emits_typed_status_changed_events():
     from src.core.modules.project_management.infrastructure.approval.project_cost_apply_participant import (
         ProjectCostApprovalParticipant,
     )
+    from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
+        ProjectCostEntryService,
+    )
 
-    for method in (ProjectCostApprovalParticipant.apply, ProjectCostApprovalParticipant.reject):
-        source = inspect.getsource(method)
-        assert '"cost_entries_changed"' in source
-        assert "invalidation_scope(entry)" in source
+    apply_source = inspect.getsource(ProjectCostApprovalParticipant.apply)
+    assert "_apply_approval_decision(" in apply_source
+    assert "ApprovalHandlerResult(domain_events=(event,))" in apply_source
+    assert '"cost_entries_changed"' not in apply_source
+
+    reject_source = inspect.getsource(ProjectCostApprovalParticipant.reject)
+    assert "_apply_rejection_decision(" in reject_source
+    assert "ApprovalHandlerResult(domain_events=(event,))" in reject_source
+    assert '"cost_entries_changed"' not in reject_source
+
+    approval_decision_source = inspect.getsource(
+        ProjectCostEntryService._apply_approval_decision
+    )
+    assert "CostEntryStatusChangeType.APPROVED" in approval_decision_source
+    rejection_decision_source = inspect.getsource(
+        ProjectCostEntryService._apply_rejection_decision
+    )
+    assert "CostEntryStatusChangeType.REJECTED" in rejection_decision_source
 
 
 def test_financial_change_apply_participant_emits_typed_change_and_forecast_events():
@@ -154,19 +171,26 @@ def test_financial_change_apply_participant_emits_typed_change_and_forecast_even
     assert "FinancialChangeEventType.APPLIED" in apply_source
     assert "ForecastVersionChanged(" in apply_source
     assert "ForecastVersionChangeType.APPROVED" in apply_source
-    assert "budgets_changed" in apply_source
+    assert "budget_events" in apply_source
     assert "tasks_changed" in apply_source
+    assert "budgets_changed" not in apply_source
 
     reject_source = inspect.getsource(FinancialChangeApprovalParticipant.reject)
     assert "FinancialChangeChanged(" in reject_source
     assert "FinancialChangeEventType.REJECTED" in reject_source
 
 
-def test_real_budget_approval_still_emits_its_own_real_signal(services):
-    """Approval regression: a real budget approval still produces the legitimate
-    `budgets_changed` post-commit output -- proves the apply-participant edits did not disturb
-    the signals that DO have real consumers."""
+def test_real_budget_approval_still_emits_its_own_real_view_invalidation(services):
+    """Approval regression (P38B): a real budget approval no longer emits any legacy Signal --
+    `budgets_changed` is deleted -- but still produces the legitimate typed
+    `BudgetStatusChanged(APPROVED)` post-commit ViewInvalidation output, proving the
+    apply-participant edits did not disturb the real consumer, only its mechanism."""
     from decimal import Decimal
+
+    from src.core.modules.project_management.application.financials.budgets.event_handlers.view_invalidation import (
+        BUDGET_CATEGORY,
+        BUDGET_PLANNING_SCOPE_CODE,
+    )
 
     _login(services, "admin", "ChangeMe123!")
     project = services["project_service"].create_project(
@@ -184,12 +208,22 @@ def test_real_budget_approval_still_emits_its_own_real_signal(services):
     budget = budgets.get_budget(budget.id)
     budget = budgets.submit_budget(budget.id, "admin", expected_version=budget.row_version)
 
-    budgets_calls = []
-    domain_events.budgets_changed.connect(lambda project_id: budgets_calls.append(project_id))
+    hints = []
+
+    class _AnyOrgFilter:
+        def matches(self, scope) -> bool:
+            return True
+
+    services["platform_view_invalidation_channel"].subscribe(
+        _AnyOrgFilter(), lambda hint: hints.append(hint)
+    )
 
     budgets.approve_budget(budget.id, approved_by="admin", expected_version=budget.row_version)
 
-    assert budgets_calls == [project.id]
+    budget_hints = [
+        h for h in hints if h.category == BUDGET_CATEGORY and h.scope_code == BUDGET_PLANNING_SCOPE_CODE
+    ]
+    assert [h.entity_id for h in budget_hints] == [project.id]
 
 
 # ---------------------------------------------------------------------------
@@ -209,27 +243,39 @@ def test_no_commit_and_emit_helper_remains_anywhere():
 
 
 def test_procurement_financial_dispatcher_emits_scoped_post_commit_hints():
-    """P36: Commitment fully modernized -- the dispatcher now publishes typed
-    `commitment_events` (`CommitmentLineChanged`/`CommitmentMatchChanged`) through the canonical
-    post-commit bus instead of the retired `commitments_changed` legacy signal.
-    `cost_entries_changed` remains untouched (Cost Entry is not yet modernized)."""
     import src.infra.integration.procurement_financial_dispatcher as module
 
     source = inspect.getsource(module)
-    assert "FinanceInvalidationScope" in source
-    assert "self._post_commit_bus.publish(event, context)" in source
+    assert "SqlAlchemyUnitOfWorkBase" in source
     assert "consumption.commitment_events" in source
-    assert "cost_entries_changed.emit(scope)" in source
-    assert source.index("self._session.commit()") < source.index("self._emit_refresh(")
+    assert "consumption.cost_entry_events" in source
+    assert "uow.record_event(event)" in source
+    assert "uow.commit()" in source
+    assert "FinanceInvalidationScope" not in source, (
+        "the legacy Finance-signal payload type has no remaining use in this file"
+    )
+    assert "cost_entries_changed" not in source
+    assert "self._transactional_dispatcher.dispatch(" not in source, (
+        "the dispatcher must not directly invoke the transactional dispatcher -- "
+        "that is the canonical UoW's own responsibility during commit()"
+    )
+    assert "self._post_commit_bus.publish(" not in source, (
+        "the dispatcher must not directly publish DomainEvents post-commit -- "
+        "that is the canonical UoW's own responsibility during commit()"
+    )
 
 
-def test_approved_time_dispatcher_emits_scoped_post_commit_hint():
+def test_approved_time_dispatcher_uses_canonical_unit_of_work():
     import src.infra.integration.approved_time_dispatcher as module
 
     source = inspect.getsource(module)
-    assert "FinanceInvalidationScope" in source
-    assert "cost_entries_changed.emit" in source
-    assert source.index("self._session.commit()") < source.index("self._emit_refresh(")
+    assert "SqlAlchemyUnitOfWorkBase" in source
+    assert "uow.record_event(event)" in source
+    assert "uow.commit()" in source
+    assert "FinanceInvalidationScope" not in source
+    assert "cost_entries_changed" not in source
+    assert "self._transactional_dispatcher.dispatch(" not in source
+    assert "self._post_commit_bus.publish(" not in source
 
 
 # ---------------------------------------------------------------------------

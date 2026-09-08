@@ -48,6 +48,13 @@ Index("idx_portfolio_scoring_tenant", PortfolioScoringTemplateORM.tenant_id)
 Index("idx_portfolio_scoring_active", PortfolioScoringTemplateORM.is_active)
 Index("idx_portfolio_scoring_org_active", PortfolioScoringTemplateORM.organization_id, PortfolioScoringTemplateORM.is_active)
 Index("idx_portfolio_scoring_updated", PortfolioScoringTemplateORM.updated_at)
+Index(
+    "uq_portfolio_scoring_one_active_per_org",
+    PortfolioScoringTemplateORM.organization_id,
+    unique=True,
+    postgresql_where=PortfolioScoringTemplateORM.is_active.is_(True),
+    sqlite_where=PortfolioScoringTemplateORM.is_active.is_(True),
+)
 
 
 class PortfolioIntakeItemORM(Base):

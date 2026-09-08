@@ -1918,19 +1918,1725 @@ failure set (enterprise calendar/shift patterns, party/site domain validation, p
 structure, `inventory_procurement` module-entitlement/import tests) remain, none touched by this
 phase's diff.
 
+### P36-FIX / P36-FIX2 — Canonical Event Lifecycle for the Procurement Commitment Producer (VERIFICATION + FIX)
+
+Two follow-up passes closed a real architectural gap P36's own report under-described. **P36-FIX**
+traced the exact Procurement-driven Commitment flow and found `ProcurementFinancialDispatcher`
+constructed `CommitmentLineChanged`/`CommitmentMatchChanged` precommit but never staged them into
+any canonical event lifecycle — they sat as bare return values, hand-carried across the commit
+boundary, then manually published post-commit. Fixed by having the dispatcher call
+`self._transactional_dispatcher.dispatch(event, self)` immediately before its own commit — but
+**P36-FIX2** found this passed the dispatcher itself as the handler's `uow` argument: real
+duck-typed `UnitOfWork` impersonation (`ProcurementFinancialDispatcher` has none of `record_event`/
+`commit`/`__enter__`/`__exit__`). The corrected, final design: `ProcurementFinancialDispatcher`
+wraps its own already-owned `self._session` in a real `SqlAlchemyUnitOfWorkBase` for the scope of
+one delivery (`uow._session is self._session` — no second transaction, no fresh session; a
+fresh-session-per-delivery alternative was evaluated and rejected because `commitment_service`/
+`cost_entry_service`/`inbox_service`/`outbox_service` are composition-root singletons shared
+across call sites, and splitting the session would break the existing atomicity between
+inbox-delivery-state and the Commitment mutation). `uow.record_event(event)` + `uow.commit()`
+replace every hand-rolled piece of `_drain_and_dispatch()`/postcommit-publish the dispatcher used
+to reproduce manually. Full platform suite re-run before/after: identical 23-failed/1599-passed/
+12-error totals — zero regressions from either pass.
+
+### P37 — Finance Cost Entry Full Modernization + P8 Architecture Budget Restored (DIRECT FULL MODERNIZATION)
+
+The last legacy Finance signal. Source reconfirmed `ProjectCostEntry` is a genuine hybrid: a
+mutable draft/lifecycle aggregate (DRAFT → SUBMITTED → APPROVED → POSTED, or SUBMITTED → DRAFT via
+`reject()`) with a true immutable-ledger correction concept for POSTED entries (`reverse` never
+mutates the original's financial facts — it flips `status` to REVERSED and records a brand-new,
+sign-flipped reversal entry). Five typed events
+(`application/financials/cost/entries/cost_entry_events.py`) reflect that split rather than a
+CRUD-shaped `CostEntryCreated/Updated/Deleted` or a single catch-all `CostEntryChanged`:
+`CostEntryRecorded` (a new entry now exists — manual create arrives DRAFT; both integration
+sources, Approved Time and Procurement receipt accrual, arrive already POSTED, since those two
+paths advance draft→submit→approve→post synchronously in one command and the intermediate
+transitions are internal plumbing, not independent facts — `status` lets ViewInvalidation decide),
+`CostEntryUpdated` (genuine mutable-CRUD draft edit), `CostEntryStatusChanged` (`change_type:
+SUBMITTED | APPROVED | REJECTED | POSTED` — one class, since `submit`/`approve`/`reject`/`post`
+are literally the same kind of fact, a status-field transition, differentiated only by the
+resulting state, mirroring the already-accepted `CommitmentLineChanged`/`FinancialChangeChanged`
+enum-in-one-class precedent rather than four near-identical classes), `CostEntryReversed` (a
+posted entry was reversed and a new reversal entry recorded — both the manual `reverse` command
+and the correction-of-a-prior-revision branch inside `apply_approved_time_source`), and
+`CostEntryRemoved` (draft deleted).
+
+**Transaction ownership.** Eight direct commands (`create_manual_entry`, `update_draft`,
+`delete_draft`, `submit`, `approve`, `reject`, `post`, `reverse`) converge onto
+`FinanceGovernanceUnitOfWork` via a new `FinanceGovernanceCommandBoundary.cost_entry()` (direct
+structural copy of `commitment()`), wrapped in an 8th `FinanceGovernedServicePort` family. Unlike
+Commitment, every mutation except `create_manual_entry` resolves `project_id` identically (`self.
+_read_service.get_entry(args[0]).project_id`) — `create_manual_entry` already passes `project_id`
+as an explicit kwarg, so it's caught by the existing generic shortcut with no family-specific
+branch needed. `_apply_approval_decision`/`_apply_rejection_decision` (the shared private helpers
+behind both the direct `approve()`/`reject()` and the Approval participant) construct and return
+`(entry, event)` — mirroring `ProjectCommitmentService._create_match`'s exact dual-path shape from
+P36: `record_event` is called when wired (the governed path), and the returned event is used
+directly by the participant (whose fresh per-transaction `ProjectCostEntryService` instance has no
+`record_event` wired). Cost Entry's own commit-without-rollback characteristic was less severe
+than Commitment's — the old `_commit()` already wrapped `self._session.commit()` in try/except/
+rollback — but it was still a raw, uncanonical Session with a post-commit legacy-signal emit; that
+raw `_commit()` method is deleted entirely.
+
+**Approval path.** `ProjectCostApprovalParticipant.apply`/`reject` no longer return
+`ApprovalPostCommitEvent("cost_entries_changed", ...)` — they forward the typed
+`CostEntryStatusChanged` the shared decision helpers already built, via
+`ApprovalHandlerResult(domain_events=(event,))`, recorded precommit by `ApprovalService`'s own
+pre-existing canonical machinery (the exact seam `FinancialChangeApprovalParticipant` established
+in P19) — no new participant-side event construction was needed.
+
+**Integration dispatchers.** `apply_approved_time_source`/`apply_procurement_receipt_source` no
+longer commit or emit — they construct and *return* their typed event(s) (0–2, since a correction
+produces both a `CostEntryReversed` for the superseded entry and a `CostEntryRecorded` for the new
+one). `ApprovedTimeFinancialDispatcher` gained the exact `SqlAlchemyUnitOfWorkBase`-wrapping shape
+P36-FIX2 established for `ProcurementFinancialDispatcher` (a new capability for this dispatcher,
+which never had it before) — proven by a dedicated precommit-timing/real-UoW-identity test
+mirroring P36-FIX2's own. `ProcurementFinancialDispatcher`'s `_consume_under_unit_of_work` now
+records both `consumption.commitment_events` and the new `consumption.cost_entry_events` into the
+SAME one UoW per delivery (a receipt can genuinely produce both a Commitment match fact and a Cost
+Entry recorded fact) — its `_emit_refresh` method, whose entire remaining job after P36-FIX2 was
+the `cost_entries_changed` emit, is now fully dead and deleted outright.
+
+**ViewInvalidation — two targets, not one, source-justified.** `finance_snapshot_statements.py`
+confirms only `status IN ('posted', 'reversed')` entries count toward actual-cost aggregates, so
+`cost_entry_list` (every fact — the "Costs" tab shows drafts too) and `cost_entry_actuals` (only
+POSTED-affecting facts: `CostEntryRecorded` when `status=POSTED`, `CostEntryStatusChanged(POSTED)`,
+`CostEntryReversed`) are genuinely distinct staleness surfaces. `on_cost_entry_list_stale`
+invalidates only `"costs"`; `on_cost_entry_actuals_stale` invalidates `"overview"`/`"performance"`/
+`"commercial"` (not `"costs"` again — already covered by the paired list hint every posted fact
+also emits) — together reproducing the legacy signal's own exact 4-destination fan-out
+(`overview`/`costs`/`performance`/`commercial` — confirmed NOT including `"planning"`, unlike
+Commitment's 5).
+
+**Legacy retirement.** `cost_entries_changed` deleted from `DomainEvents`, added to
+`_DELETED_BRIDGE_NAMES`. `test_r6b_finance_invalidation.py`'s remaining cases and
+`test_p7_legacy_bridge_removal.py`'s "unrelated signal" example moved onto `budgets_changed` (the
+next still-legacy Finance signal); `budgets_changed`/`billing_preparations_changed` are the two
+signals `test_p7c_zero_consumer_signal_cleanup.py`'s `_ACTIVE_FINANCE_SIGNALS` now names.
+
+**Regression battery.** Existing `test_project_cost_entries.py` (8 tests) and
+`test_project_cost_apply_participant.py` (5 tests) — full CRUD/lifecycle/concurrency/immutability
+coverage — pass unmodified in behavior; `test_approved_time_labor_integration.py` (11 tests, 2
+adapted to the typed-event/post-commit-bus path, 2 new precommit-timing/rollback proofs added) and
+`test_procurement_financial_integration.py` (9 tests, 1 adapted) both pass; a new
+`test_p37_finance_cost_entry_full_modernization.py` (21 tests) covers the two-target
+ViewInvalidation handler (mapping + dedupe), every direct command's exact hint set, the
+audit-failure rollback/session-reusability proof, the pre-existing optimistic-concurrency guard,
+and both controller consumer reactions. Full broad Finance-area PM suite: 556 passed (only the
+same pre-existing, unrelated `test_financials_mutation_error_boundary.py` harness bug remains,
+confirmed untouched by this diff). **P8 guard suite: all 29 tests green** — the milestone this
+phase exists to reach.
+
+**P37-FIX (verification, no new phase number).** A full-platform-suite re-run surfaced one real
+regression `test_phase_b_session_permissions.py::test_governance_permissions_are_split_between_
+request_and_decide` caught: routing Cost Entry's `approve()` through the newly-governed
+`FinanceGovernedServicePort` meant `_project_id()` resolved the project id via the
+permission-checked public `get_entry()` (requires `finance.read`) *before* `approve()`'s own
+correct permission check (`approval.request`/`project_cost.approve`) ever ran — silently
+demanding an extra permission the command never required. Fixed by resolving via the unchecked
+private `_require_entry()` instead (the `cost_entry` family's `_project_id()` branch), matching
+the more careful precedent Commitment's own `reverse_match` branch already used (raw repo access,
+not a permission-checked accessor) rather than the less-careful one `match_cost_entry`'s branch
+and every Budget line-mutation branch still use — flagged as latent, pre-existing architectural
+debt in those other families (not touched; out of P37's scope) in the P38A audit below. Full
+platform suite before/after this fix: identical 19-failed/1602-1603-passed/12-error totals (the
+19 pre-existing baseline, now that P8's own 4 are green) — confirmed zero other regressions.
+
+### P38A — Finance Remaining Re-Evaluation: Budget vs Billing Preparation (AUDIT + SEQUENCING ONLY)
+
+No production code changed. Confirmed the two remaining Finance legacy signals from source:
+`budgets_changed`, `billing_preparations_changed` — matches expectation exactly, no stale-roadmap
+surprise.
+
+**Budget.** Producers (3): `command_boundary.py`'s `_emit_budget` (the `budget()` governance
+boundary's post-commit `invalidation` callback — the direct/governed-command producer, OWNER);
+`budget_apply_participant.py`'s `apply`/`reject` (`ApprovalPostCommitEvent`, OWNER); and, critically,
+`financial_change_apply_participant.py`'s `apply()` (`if change.applied_budget_id:
+ApprovalPostCommitEvent("budgets_changed", ...)`, CROSS-CAPABILITY — a REAL, already
+transaction-safe cross-capability edge, not incidental). Consumers (2, both genuine):
+`financials_refresh_mixin.py`'s `_budgets_changed` (`overview`/`planning`/`performance`, OWNER) and
+`project_domain_event_binder.py` (Projects workspace, blanket `_request_domain_refresh()`,
+CROSS-CAPABILITY/REAL SUMMARY). Twelve real operations, ALL twelve already routed through
+`FinanceGovernedServicePort(family="budget")` → `FinanceGovernanceCommandBoundary.budget()` →
+`FinanceGovernanceUnitOfWork` — **Budget's direct-command transaction convergence is already
+100% complete**, the only Finance capability found in this state before its own typed-event work
+began. Lifecycle: explicit `_ALLOWED_TRANSITIONS` state machine on `ProjectBudget`
+(`DRAFT→SUBMITTED→{APPROVED,REJECTED}`, `APPROVED→{SUPERSEDED,CLOSED}`), plus child `BudgetLine`
+rows; both carry `row_version` (optimistic concurrency, `expected_version`/
+`expected_budget_version`/`expected_line_version` checked on every mutation) and `ProjectBudget`
+additionally carries an immutable `revision` (version lineage). Audit: atomic
+(`record_audit_entry(..., commit=False, fail_closed=True)`) on every mutation, same established
+pattern as every already-modernized family. Concurrency: SAFE — optimistic version checks plus two
+DB-level partial-unique constraints (`uq_pf_budgets_one_open_per_project`,
+`uq_pf_budgets_one_approved_per_project`) translated to named `ConcurrencyError`/`BusinessRuleError`
+codes, not raw `IntegrityError` leaks.
+
+**The Financial Change coupling, rechecked (P38A's central question).** `financial_change_service.
+_apply_budget_successor` calls `self._budget_authority._apply_approved_financial_change(...)` — a
+purpose-built `BudgetService` method (not ad-hoc repo poking) that creates a new approved
+`ProjectBudget` successor version and supersedes the prior one. `build_financial_change_approval_
+deps` constructs `budget_authority = BudgetService(session=session, ...)` bound to the *same*
+session as `financial_change_service` — i.e., this is a category **C** edge (real persisted
+cross-capability mutation) that is **already running inside the correct, single, canonical
+transaction** (`ApprovalService`'s own UoW for the `financial_change.apply` decision). Financial
+Change's own facts are already typed (`FinancialChangeChanged`); what remains untyped is the
+**Budget-side** fact this call produces. This directly answers P38A's key question: **Financial
+Change modernization did not remove Budget's complexity by shrinking the coupling — it removed the
+coupling's *ambiguity*.** The edge is clean, well-defined, and already transaction-safe; the
+remaining work is entirely on Budget's own side (give Budget a typed vocabulary; have
+`financial_change_apply_participant.apply()` gain one more `if change.applied_budget_id:` branch
+constructing that event, exactly mirroring the `ForecastVersionChanged` branch already there for
+`applied_forecast_id` — no `BudgetService` changes needed for this specific edge, since the caller
+already has everything it needs from `ApprovedFinancialSuccessorResult`).
+
+**Approval readiness: READY.** `BudgetApprovalParticipant.apply`/`reject` are the exact
+pre-modernization shape every other participant had before its own phase (fresh session-bound
+`BudgetService`, `approval_service=None`, calls the already-existing `_apply_approval_decision`/
+`_apply_rejection_decision`) — trivially convertible to `ApprovalHandlerResult(domain_events=(...))`
+with zero `ApprovalService` changes, the identical P19 seam every prior phase reused.
+
+**Transaction readiness: effort LOW (essentially zero)** — already fully governed. **Audit
+readiness: ATOMIC**, no gap. **Proposed facts** (source-supported, not mechanical CRUD):
+`BudgetVersionCreated` (`create_budget`/`create_successor`, and the Financial-Change-driven
+successor — one shape, three producers, mirroring Commitment's `CommitmentLineChanged(CREATED)`
+precedent), `BudgetLineChanged` (`add_line`/`update_line`/`delete_line` — one class + operation
+enum, mirroring `CostEntryStatusChanged`'s "same kind of fact" reasoning), `BudgetStatusChanged`
+(`change_type: SUBMITTED|APPROVED|REJECTED|SUPERSEDED|CLOSED` — one class, five near-identical
+status transitions, same reasoning as Cost Entry's own status-transition event).
+**ViewInvalidation**: one project-scoped `budget_list`/`budget_detail`-equivalent target for the
+Financials-workspace consumer (source shows list+detail always queried together, no independent
+detail cache — matching every prior single-target precedent) *plus* a second, narrower hint for
+the Projects-workspace consumer (currently a blanket refresh; a typed event lets it narrow to
+exactly what it needs, an improvement over today's behavior, not merely parity). **`budgets_changed`
+deletable in one phase: YES — HIGH confidence.** No blocker identified. **Budget direct full
+modernization ready: YES.**
+
+**Billing Preparation — two genuinely distinct aggregates, not a category error.**
+`ProjectBillingProfile` (+ child `ProjectBillingScheduleLine`) in `billing_profile_service.py`:
+commercial-terms/contract header and a fixed-price milestone schedule — 4-state lifecycle
+(`DRAFT→ACTIVE→{ON_HOLD,CLOSED}`), 4 operations (`create_profile`, `activate_profile`,
+`add_schedule_line`, `mark_schedule_line_ready`), all raw `self._session.commit()` via one shared
+`_persist()` helper (try/except/rollback around commit — same "safer than Commitment's old bug,
+but still uncanonical" shape Cost Entry had before P37), zero governance, zero Approval
+involvement. `ProjectBillingPreparation` (+ `ProjectBillingPreparationLine`/
+`ProjectBillingSourceLock`/`ProjectBillingExternalEvent`) in `preparation_service.py`: the
+per-period invoice-evidence assembly, external-accounting-delivery, and reconciliation workflow —
+a much richer 9-state lifecycle (`DRAFT→SUBMITTED→APPROVED→DELIVERY_PENDING→DELIVERED→
+ACKNOWLEDGED→RECONCILED`, plus `REJECTED`/`CANCELLED`), 9 operations. **Why they share one
+signal: category B** (related but semantically distinct business capabilities that both happen to
+affect the same "commercial" Financials-tab UI destination) — not a shared read model (C) and not
+pure legacy fan-out convenience (D); a future modernization should use genuinely distinct
+DomainEvent families per aggregate even though today's one UI target can keep receiving both.
+
+**Billing transaction readiness is uneven, not absent.** `submit_preparation` already owns a
+bespoke, purpose-built canonical UoW (`BillingPreparationSubmissionUnitOfWorkFactory` —
+`billing`+`approvals` repos, `uow.record_event`, `uow.commit()`; narrower than
+`FinanceGovernanceUnitOfWork`, not currently exposing a `billing` accessor there) — the *only*
+Finance operation found across Budget+Billing that is transaction-canonical but still emits a
+legacy signal post-commit (a PARTIAL state, closer to done than "raw"). Every other Preparation
+operation (`create_preparation`, all three `add_*_source` methods via `_reserve`/`_write`,
+`request_delivery`, `record_external_outcome`) and all four Profile operations are raw-Session,
+try/except/rollback-around-commit — the same shape Cost Entry had before P37, times two aggregates
+instead of one. Approval readiness: READY for the same reason as Budget (participant is the
+identical pre-modernization shape, and per its own docstring `_apply_approval_decision`/
+`_apply_rejection_decision` have exactly one caller each in the whole codebase — no direct,
+non-governed approve/reject path exists at all for Preparation, simpler than Budget's dual path).
+Audit: ATOMIC on every operation in both aggregates, no gap. Concurrency: SAFE — `row_version` on
+every aggregate/line/lock, `expected_row_version`/`expected_version` checked throughout, plus a
+real idempotency key on preparation creation and a DB-level source-reservation uniqueness
+constraint (`BILLING_SOURCE_ALREADY_RESERVED`) preventing the same billable source from being
+double-prepared.
+
+**Proposed facts, kept separate by aggregate** (never a `BillingPreparationsChanged` catch-all):
+Profile — `BillingProfileActivated`, `BillingScheduleLineChanged` (add/ready, one class + enum).
+Preparation — `BillingPreparationCreated`, `BillingPreparationLineAdded` (three source types, one
+fact), `BillingPreparationStatusChanged` (submitted/approved/rejected — mirrors Budget's/Cost
+Entry's own status-transition shape), `BillingPreparationDeliveryRequested`,
+`BillingPreparationExternalOutcomeRecorded` (delivered/acknowledged/reconciled — the
+external-accounting-boundary facts, genuinely distinct from the internal-approval facts above).
+**ViewInvalidation**: both aggregates currently stale the *same* single `"commercial"` Financials
+destination (one genuine consumer, LOW consumer complexity — the lowest of any Finance capability
+audited) — source shows no independent per-aggregate read model, so one shared project-scoped
+target remains correct even once the DomainEvent vocabulary is split by aggregate.
+**`billing_preparations_changed` deletable in one phase: MEDIUM confidence** — both aggregates
+*can* be modernized together (neither is individually blocked, and their combined producer/consumer
+surface is smaller than Budget's), but real transaction-convergence work (adding a `billing`
+accessor to whichever UoW is chosen, or extending the bespoke submission UoW to cover the other
+eight operations) is required across two aggregates rather than zero, roughly doubling Cost Entry's
+own already-substantial P37 implementation surface. **Billing direct full modernization ready:
+YES, but at meaningfully higher implementation cost than Budget** — not blocked, not requiring a
+dedicated audit phase, just larger.
+
+**Reflective legacy mechanisms, recomputed.** `ApprovalPostCommitEvent(...)` remaining production
+call sites (5, all genuinely still needed, none touched): `baseline_apply_participant.py`,
+`billing_preparation_apply_participant.py`, `budget_apply_participant.py`,
+`financial_change_apply_participant.py` (its `tasks_changed`/PM-coupling branch, plus the
+`budgets_changed` branch this audit examined), `task_apply_participant.py`.
+`ApprovalService._emit_signal_safely` remains, required by those 5. `FinanceGovernedServicePort.
+__getattr__` reflective *command routing* is explicitly **not** legacy-event-publication
+machinery — it is the current canonical mechanism, now used by 9 families (`financial_setup`,
+`budget`, `forecast_version`, `forecast_generation`, `financial_change`, `rate_card`,
+`planned_cost`, `commitment`, `cost_entry`); no explicit typed port methods exist (fully
+`__getattr__`-dynamic), no permission enforcement of its own (delegated to each wrapped service's
+own `require_permission`/`require_project_permission` calls), a per-instance `mutations`
+frozenset acts as the command allowlist. Neither Budget nor Billing modernization requires
+changing it — confirmed by tracing exactly how a 9th/10th/11th family would be added (a new
+`family=` branch in `_project_id()`, following the pattern already used 8 times).
+**Architectural debt noted, not fixed**: `_project_id()`'s `budget`/`match_cost_entry` branches
+resolve via permission-checked public accessors (`get_budget`/`get_line`) the same way P37's now-
+fixed `cost_entry` branch originally did — a latent, currently-unexercised risk of the exact same
+silent-extra-permission bug, left as-is (out of P38A's audit-only scope; worth a one-line fix
+alongside whichever phase next touches that branch).
+
+**Cross-capability graph (remaining capabilities only).** Budget ← Financial Change (C, one edge,
+already transaction-safe, typed on the Financial-Change side already). Billing Profile: zero
+mutation edges to/from any other Finance capability (fully self-contained). Billing Preparation →
+Cost Entry (A, reference-only: `add_cost_plus_source` reads a POSTED `ProjectCostEntry` row, never
+writes it) and → Approved Time/`ApprovedTimeLaborPosting` (A, reference-only, via
+`labor_posting_repo`). No edges touch Commitment, Planned Cost, or Forecast for either remaining
+capability.
+
+**Comparison scorecard.**
+
+| | Budget | Billing Preparation |
+|---|---|---|
+| Semantic clarity | HIGH — explicit state machine | HIGH — two distinct, now-named aggregates |
+| Transaction readiness | READY (100% already governed) | PARTIAL (1 of 13 ops canonical; rest raw) |
+| Approval readiness | READY | READY |
+| Audit readiness | ATOMIC, no gap | ATOMIC, no gap |
+| Concurrency safety | SAFE | SAFE |
+| Cross-capability coupling | LOW (1 edge, already safe) | LOW (2 reference-only edges) |
+| Consumer complexity | MEDIUM (2 genuine consumers) | LOW (1 genuine consumer) |
+| UI precision | MEDIUM (2 targets to design) | LOW (1 shared target, already precise) |
+| Test readiness | HIGH (2215 test lines) | MEDIUM-HIGH (1276 test lines) |
+| One-phase deletion confidence | HIGH | MEDIUM |
+| Correctness gap closed by modernizing | Cleaner FinancialChange↔Budget event, narrower Projects-workspace refresh | None material (already atomic/safe) |
+
+**Selected: Budget.** Per the priority order: (1) one-phase deletion — Budget HIGH vs Billing
+MEDIUM; (2) semantic clarity — both HIGH, tie; (3) approval/cross-capability canonical — both
+READY, tie; (4) transaction-convergence effort — Budget LOW (already done) vs Billing MEDIUM-HIGH
+(real work across two aggregates) — **Budget wins decisively here**, and this criterion alone
+would be enough given every earlier criterion is a tie or near-tie. Not chosen "because listed
+first" — chosen because it is, uniquely among every Finance capability audited across this entire
+engagement, the one whose transaction convergence was already complete before its own
+event-modernization phase began.
+
+**Recommended P38B: Finance Budget Full Modernization — DIRECT FULL MODERNIZATION.** This audit
+itself resolved every semantic and architectural question a dedicated Budget audit would have
+existed to answer (the P34A-era open question — Financial Change coupling — is now closed).
+**Expected following Finance phase: Billing Preparation** (both aggregates together, since neither
+is individually blocked and splitting would only duplicate the same shared-target ViewInvalidation
+design work twice) — likely still DIRECT FULL MODERNIZATION given no blocker was found, just a
+larger implementation surface than Budget, closer in size to P37 doubled.
+
+**Finance completion projection.** Current Finance legacy count: 2. After Budget: 1
+(`billing_preparations_changed` only). After Billing: 0 — **these are confirmed, source-derived,
+the true last two Finance legacy fields** (no other Finance-owned field exists in current
+`DomainEvents`).
+
+**Overall legacy projection.** Current overall count: 9 (source-derived, unchanged by this
+audit-only pass). If both remaining Finance phases complete with no concurrent changes: 7,
+consisting of PM 6 (`project_changed`, `tasks_changed`, `timesheet_periods_changed`,
+`collaboration_changed`, `portfolio_changed`, `register_changed`) + Auth 1 (`auth_changed`) — this
+is the current, source-confirmed landscape, not an assumption.
+
+**Baseline regression debt.** The 19 pre-existing platform-suite failures/errors (enterprise
+calendar/shift patterns, party/site/department domain validation, platform persistence structure,
+access scopes, org desktop API, qml admin catalog, repository tenant hardening, auth registration
+audit atomicity, approval-events submission-count assertions) do not touch Budget, Billing
+Preparation, or their dependencies (Financial Change, Cost Entry, Approved Time) — none block
+trustworthy characterization of either capability. Carried forward as unrelated baseline debt, not
+fixed here.
+
+### P38B — Finance Budget Full Modernization (DIRECT FULL MODERNIZATION)
+
+Reconfirmed P38A's audit against current source before editing: 12 operations
+(`create_budget`, `create_successor`, `submit_budget`, `approve_budget`, `reject_budget`,
+`close_budget`, `update_budget_header`, `delete_budget`, `add_line`, `update_line`, `delete_line`
+all already `FinanceGovernedServicePort(family="budget")`-routed — the brief's own "12 operations"
+list additionally named `reject_budget_approval`, which does not exist in source under any name;
+source wins, the operation list is the 12 above). `_emit_budget` confirmed as the sole direct
+producer (3 producer mechanisms unchanged from P38A: `_emit_budget`, `BudgetApprovalParticipant`,
+`financial_change_apply_participant.apply()`); 2 genuine consumers unchanged (Financials workspace,
+Projects workspace blanket refresh).
+
+**Final event vocabulary — five classes, not three, after checking header-update and delete
+semantics against P38A's candidate three (§7-§9 of the brief).** `BudgetVersionCreated`
+(`create_budget`/`create_successor`, plus the Financial-Change-driven successor — `status` field
+distinguishes a normal DRAFT creation from the Financial-Change path's already-APPROVED one, since
+that path never persists an intermediate DRAFT/SUBMITTED row; `predecessor_budget_id` carries
+lineage when present). `BudgetProfileUpdated` — `update_budget_header`'s name/notes edit is a
+genuine fourth fact, not a status transition and not a line mutation; forcing it into
+`BudgetStatusChanged` or a generic `BudgetChanged` would have hidden real semantics to preserve an
+arbitrary three-class count. `BudgetLineChanged` (`add_line`/`update_line`/`delete_line` — one
+class + `change_type` enum, mirroring `CostEntryStatusChanged`'s "same kind of fact" reasoning).
+`BudgetStatusChanged` (`change_type: SUBMITTED|APPROVED|REJECTED|SUPERSEDED|CLOSED`). `BudgetRemoved`
+— `delete_budget`'s hard delete of a DRAFT is a genuine fifth fact (aggregate-level, not per-line:
+source confirms `delete_budget` calls one repository `delete()`, no per-line cascade events are
+warranted since no individual-line business meaning attaches to a whole-aggregate delete).
+
+**Successor/supersession multi-fact behavior — confirmed, not assumed.** Direct source reading of
+`create_successor` proved it does **not** touch the predecessor at all — supersession is an
+approval-time fact, not a creation-time one, contradicting the brief's own §25 hypothesis (a
+dedicated regression test, `test_create_successor_alone_does_not_supersede_the_predecessor`, proves
+this). The real two-fact case is `_apply_approval_decision`: when a competing approved budget
+already exists for the project, approving a successor emits **both**
+`BudgetStatusChanged(previous, SUPERSEDED)` **and** `BudgetStatusChanged(this budget, APPROVED)` —
+one fact per actually-mutated `ProjectBudget` row, in the same transaction, both recorded precommit
+(`test_approving_a_successor_supersedes_the_previous_approved_version`).
+
+**Direct-command transaction ownership — unchanged, now recording typed events instead of a
+post-commit signal.** `BudgetService` gained `record_event: Callable[[object], None] | None = None`
+(the exact Cost Entry/Commitment constructor shape); every direct mutation calls
+`self._record_event(event)` guarded by `is not None`, wired to `uow.record_event` only for the
+governed `budget_operations` instance `build_finance_governance_operations` constructs (the
+approval-participant's own fresh `BudgetService`, built by `build_budget_approval_deps`, is
+deliberately never given `record_event` — same established dual-use-service pattern Cost Entry's
+`_apply_approval_decision`/`_apply_rejection_decision` already established: the shared decision
+helpers build and return `(budget, events)`/`(budget, event)`, called-but-discarded on the direct
+path since the events are already recorded via `record_event` there, and taken and returned via
+`ApprovalHandlerResult(domain_events=...)` on the participant path where `record_event` is None).
+`command_boundary.py::_emit_budget` and `budget()`'s `invalidation=` callback are deleted outright
+— once Budget was the *last* family still passing a non-None `invalidation`, the whole
+`invalidation` parameter on `_execute` became dead code and was removed too (not left as an
+always-None-invoked no-op).
+
+**Cross-capability path — Financial Change → Budget, both typed facts now coexist in one
+`ApprovalHandlerResult`.** `BudgetService._apply_approved_financial_change` now builds and returns
+`(successor-created, base-superseded)` typed events via a new `domain_events` field added to the
+shared `ApprovedFinancialSuccessorResult` dataclass (default `()`, so Forecast's identical-shaped
+call site is unaffected). `FinancialChangeService._apply_budget_successor`/`_apply_approval_decision`
+thread that tuple upward; `FinancialChangeApprovalParticipant.apply()` no longer conditionally
+builds `ApprovalPostCommitEvent("budgets_changed", ...)` — it appends the returned Budget
+`domain_events` tuple onto its own `FinancialChangeChanged`(+`ForecastVersionChanged`) tuple, so one
+ApprovalService transaction can legitimately record a Financial Change fact and one-or-two Budget
+facts together
+(`test_financial_change_application_produces_budget_and_financial_change_facts_together`).
+
+**Permission-order bug — fixed for Budget, exactly the P37-FIX pattern.**
+`FinanceGovernanceCommandBoundary._project_id()`'s `budget` branch called the permission-checked
+public `get_budget()` to resolve a target budget's project_id before the actual command's own
+permission check ever ran — silently requiring `finance.read` first. Fixed by switching to the
+private, unchecked `_require_budget()` (all three sub-branches: `add_line`, `update_line`/
+`delete_line`, and the bare-`args[0]` fallback used by every other budget-family command).
+Commitment's `match_cost_entry` branch, flagged with the identical bug pattern in the P38A audit,
+remains deliberately untouched — out of scope, not part of Budget's own family. Regression proof:
+`test_add_line_permission_check_is_not_masked_by_project_id_resolution` (a viewer, lacking both
+`finance.read` and `budget.manage`, is now rejected on `budget.manage` — the actual missing command
+permission — not on `finance.read`).
+
+**Approval path.** `BudgetApprovalParticipant.apply`/`reject` no longer return
+`ApprovalPostCommitEvent("budgets_changed", ...)` — they forward the typed event(s) the shared
+decision helpers already built, via `ApprovalHandlerResult(domain_events=events)`/
+`ApprovalHandlerResult(domain_events=(event,))`, recorded precommit by `ApprovalService`'s own
+pre-existing canonical machinery — the identical P19 seam every prior phase reused, no
+`ApprovalService` changes.
+
+**ViewInvalidation — two targets, uniformly mapped, source-preserving.** `budget_planning`
+(Financials workspace — `overview`/`planning`/`performance`, reproducing the legacy signal's own
+exact 3-destination fan-out) and `budget_project_summary` (Projects workspace). Every current
+Budget fact stales both targets — the legacy `budgets_changed` signal never differentiated by fact
+type for either of its two consumers either, so this uniform mapping is source-preserving, not an
+invented fan-out (unlike Cost Entry's genuinely distinct two-target split, which was justified by a
+real `status IN (...)` SQL filter Budget has no equivalent of). The Projects-workspace consumer is
+a real behavior *improvement*, not just a mechanism swap: the old `project_domain_event_binder.py`
+blanket-subscribed `budgets_changed` with **zero project-id filtering at all** (`_on_domain_event`
+ignored its payload entirely, refreshing the whole workspace for *any* project's budget change);
+the new `on_budget_project_summary_stale` is genuinely project-scoped, matching the Financials
+consumer's own established `_selected_project_id` equality check.
+
+**Legacy retirement.** `budgets_changed` deleted from `DomainEvents`, added to
+`_DELETED_BRIDGE_NAMES`. `test_p7_legacy_bridge_removal.py`'s "unrelated signal" example and
+`test_r6b_finance_invalidation.py`'s parametrized case moved onto `billing_preparations_changed`
+(the one remaining Finance legacy signal); `test_p7c_zero_consumer_signal_cleanup.py`'s
+`_ACTIVE_FINANCE_SIGNALS` now names only `billing_preparations_changed`.
+`test_r6c_finance_governance_command_boundary.py`'s two `budget()`-invalidation-specific tests
+(which tested the now-deleted `invalidation=` callback) were replaced with equivalent
+`post_commit_actions`-failure-isolation proofs — `budget()` itself no longer has any post-commit
+mechanism of its own to test.
+
+**Regression battery.** New `test_p38b_finance_budget_full_modernization.py` (22 tests) covers the
+ViewInvalidation handler's uniform two-target mapping + dedupe, every direct command's exact hint
+set, the successor/supersession two-fact case, the create-successor-does-not-supersede proof, the
+governed-approval-participant path, the Financial-Change cross-capability path, the permission-order
+regression, the audit-failure rollback/session-reusability proof, the pre-existing
+optimistic-concurrency guard, and the Financials-workspace consumer reaction. `test_project_finance_
+budgets.py`, `test_r6c_finance_governance_command_boundary.py`, `test_r6b_finance_invalidation.py`,
+`test_r42_approved_budget_read_correctness.py` (Projects-workspace consumer rewritten onto
+`on_budget_project_summary_stale`, plus a new non-selected-project-is-ignored proof),
+`approval/test_budget_apply_participant.py`, `approval/test_financial_change_apply_participant.py`
+all pass, adapted where they asserted on the deleted signal/mechanism. Platform suite:
+`test_p7_legacy_bridge_removal.py`, `test_p7b_dead_signal_cleanup.py`,
+`test_p7c_zero_consumer_signal_cleanup.py`, `test_p8_platform_event_architecture_canonicalization.py`,
+`test_phase_b_session_permissions.py`, `test_approval_service_unit_of_work_cutover.py` all pass
+unmodified in intent (adapted only where they referenced `budgets_changed` directly). Full
+project_management-area suite green; full platform suite carries forward the same 19 pre-existing
+failures/12 errors, none newly introduced.
+
+### P39 — Finance Billing Full Modernization + Eliminate Final Finance Legacy Signal (DIRECT FULL MODERNIZATION)
+
+**The final Finance legacy signal, eliminated.** Reconfirmed P38A's audit against current source:
+7 legacy producer sites (`billing_profile_service.py`'s shared `_persist` helper; `preparation_
+service.py`'s shared `_write` helper, `submit_preparation`'s own explicit emit, and the
+conditional emits inside `_apply_approval_decision`/`_apply_rejection_decision`;
+`billing_preparation_apply_participant.py`'s `apply`/`reject` `ApprovalPostCommitEvent` sites — 5
+in the two services + 2 in the participant = 7, exactly matching P38A's expectation) and 1
+genuine consumer (`financials_refresh_mixin.py`'s `_billing_changed` → `"commercial"`).
+
+**Two genuinely distinct aggregate families, kept distinct — never merged, never a catch-all.**
+Confirmed via source: `ProjectBillingProfile`/`ProjectBillingScheduleLine` (Billing Profile) and
+`ProjectBillingPreparation`/`ProjectBillingPreparationLine` (Billing Preparation) are separate
+aggregate roots with separate lifecycles. `ProjectBillingSourceLock` is infrastructure (prevents
+the same billable source being reserved twice — confirmed by its `BILLING_SOURCE_ALREADY_
+RESERVED` IntegrityError translation), not an independent business fact — no `SourceLockCreated`
+event. `ProjectBillingExternalEvent` IS a genuine business fact (the external accounting system's
+response), not merely a dedupe row — it gets its own typed event.
+
+**Final event vocabulary — nine classes across two families, none a `BillingChanged`/
+`BillingPreparationChanged` catch-all.** Profile: `BillingProfileCreated`, `BillingProfileActivated`
+(the ONLY currently-reachable Profile status transition — `place_on_hold`/`close` exist as domain
+methods with no service-layer command, so ON_HOLD/CLOSED are correctly unrepresented),
+`BillingScheduleLineAdded`, `BillingScheduleLineMarkedReady` (likewise the only reachable
+schedule-line transition — `mark_billed`/`cancel` have no command). Preparation:
+`BillingPreparationCreated`, `BillingPreparationLineAdded` (`add_fixed_price_source`/
+`add_approved_time_source`/`add_cost_plus_source` — one class + the reused domain
+`BillableSourceType` enum, not a duplicate), `BillingPreparationStatusChanged` (`SUBMITTED`/
+`APPROVED`/`REJECTED`/`DELIVERY_PENDING`/`DELIVERED`/`ACKNOWLEDGED`/`RECONCILED` — `CANCELLED` has
+no command and is unrepresented), `BillingPreparationExternalOutcomeRecorded`. A separate
+`BillingPreparationDeliveryRequested` fact (P38A's own candidate) was explicitly investigated and
+found unnecessary: `request_delivery` persists nothing beyond the status transition itself (its
+in-memory delivery payload is returned to the caller, never written to an outbox or given an
+allocated external identifier) — confirmed by direct source reading, not assumed.
+`record_external_outcome(DELIVERY_ACCEPTED)` transitions status twice in one call (`mark_delivered`
+then `acknowledge`, both persisted) — both are recorded as two separate `BillingPreparationStatus
+Changed` facts alongside the one `BillingPreparationExternalOutcomeRecorded` fact, mirroring
+Budget's approve/supersede two-fact precedent (P38B).
+
+**Transaction architecture — no mega-UoW; the existing canonical `FinanceGovernanceUnitOfWork` is
+broadened by exactly one accessor.** Both services already shared ONE `ProjectBillingRepository`
+covering every Profile/Preparation/Line/Lock/ExternalEvent operation — so `FinanceGovernanceUnit
+OfWork` gained a single `billing: ProjectBillingRepository` accessor (the same repository, not a
+new one), and BOTH families converge onto it via two new `FinanceGovernanceCommandBoundary`
+methods (`billing_profile()`, `billing_preparation()`) and two new `FinanceGovernedServicePort`
+families — the identical shape every other Finance capability already uses, not a special case.
+The bespoke `BillingPreparationSubmissionUnitOfWork`/`SqlAlchemyBillingPreparationSubmissionUnitOf
+WorkFactory` (previously owning only `submit_preparation`) is **retired entirely — both files
+deleted, no compatibility alias** — its narrow `billing`+`approvals` repo set was already a strict
+subset of what `FinanceGovernanceUnitOfWork` provides, so broadening it would have meant
+maintaining a second, near-duplicate governance UoW rather than reusing the one 9 other families
+already share.
+
+**`submit_preparation` — governed convergence without adding a permission requirement.**
+`ProjectBillingPreparationService` gained the standard `record_event` constructor param plus an
+`_approval_repo`/`_approval_requested_staged` pair (wired post-construction by composition,
+mirroring `FinancialChangeService`'s identical two attributes). `submit_preparation` now calls the
+transaction-agnostic `request_approval_using(...)` helper directly (never `ApprovalService.request_
+change(...)`, which would have added a new `"approval.request"` permission requirement on top of
+the existing `"finance.manage"` check — a real behavior change P39 deliberately avoided, even
+though Financial Change's own `submit_change` independently chose to require both). Both the
+preparation update and the `ApprovalRequest` now share the ONE governance UoW transaction.
+
+**Approval path.** `BillingPreparationApprovalParticipant.apply`/`reject` no longer return
+`ApprovalPostCommitEvent("billing_preparations_changed", ...)` — `_apply_approval_decision`/
+`_apply_rejection_decision` dropped their `commit: bool` flag entirely (transaction ownership is
+now always the caller's), unconditionally build their typed `BillingPreparationStatusChanged` fact,
+and return `(preparation, event)` — the participant forwards it via `ApprovalHandlerResult(domain_
+events=(event,))`, the identical P19 seam every prior phase reused.
+
+**ViewInvalidation — one shared target, uniformly mapped, by design.** `billing_commercial` is the
+only target either family maps to — P38A found no independent per-family cached UI projection, so
+a single shared target is correct even with two fully distinct DomainEvent vocabularies (DomainEvents
+describe what happened; ViewInvalidation describes what became stale — deliberately not the same
+design axis). Every current Billing fact from either family stales it, reproducing the legacy
+signal's own single `"commercial"` destination exactly.
+
+**Permission-order bug — checked for both new families, fixed where it existed.**
+`FinanceGovernanceCommandBoundary._project_id()`'s new `billing_profile`/`billing_preparation`
+branches resolve via the private, unchecked `_require_schedule_line`/`_require_preparation`
+accessors (never a permission-checked public getter) — the P37-FIX/P38B pattern applied
+proactively this time, not discovered as a regression after the fact.
+
+**Legacy retirement.** `billing_preparations_changed` deleted from `DomainEvents`, added to
+`_DELETED_BRIDGE_NAMES`. **Finance module event modernization is now complete: zero Finance-owned
+legacy Signal fields remain anywhere in `DomainEvents`** — a new permanent architecture guard,
+`test_zero_finance_legacy_signal_fields_remain` (`test_p8_platform_event_architecture_
+canonicalization.py`), asserts this explicitly by known-name-set (not a fragile prefix heuristic,
+since Finance signal names never shared a common prefix) so a future reintroduction — the exact
+`cost_entries_changed`/`commitments_changed` post-freeze archaeology this document already
+documents once — would be caught immediately. `test_r6b_finance_invalidation.py`'s remaining
+cases and `test_p7_legacy_bridge_removal.py`'s "unrelated signal" example — both previously
+standing in on a Finance signal — moved onto PM-owned `tasks_changed`/`auth_changed` respectively,
+since no Finance signal remains to stand in at all.
+
+**Regression battery.** New `test_p39_finance_billing_full_modernization.py` (19 tests) covers the
+single-target ViewInvalidation mapping + dedupe, both families' full direct-command producer paths,
+idempotent-replay proofs (create/source-reservation/external-outcome), the governed-approval-
+participant path (approve and reject), the two-status-fact `DELIVERY_ACCEPTED` case, the
+permission-order regression for both new families, the audit-failure rollback/session-reusability
+proof, the pre-existing optimistic-concurrency guard, and the Financials-workspace consumer
+reaction. `test_billing_preparation_apply_participant.py` (adapted: fresh-UoW spy repointed to the
+governance UoW factory, `post_commit_events`/`ApprovalPostCommitEvent` assertions replaced with
+typed `domain_events`), `test_project_finance_billing_command_surface.py`,
+`test_project_billing_preparation_foundation.py`, `test_r6b_billing_reader.py`,
+`test_project_finance_profitability_projection.py` all pass unmodified in behavior. Platform
+suite: `test_p7_legacy_bridge_removal.py`, `test_p7b_dead_signal_cleanup.py`,
+`test_p7c_zero_consumer_signal_cleanup.py`, `test_p8_platform_event_architecture_
+canonicalization.py`, `test_phase_b_session_permissions.py`,
+`test_approval_service_unit_of_work_cutover.py`, `test_p6_view_invalidation_adapter_
+consolidation.py` all pass. `test_approval_events.py`'s billing "exactly one approval requested"
+assertion now joins its 6 already-broken siblings (Requisition/PurchaseOrder/Financial Change/
+Budget approve/Budget reject/Budget ordering) — the same pre-existing, precedented "submission-
+count assertions became stale once typed events were added" baseline debt every prior modernizing
+phase (P19, P28B, P29, P38B) already left unfixed for its own capability; not fixed here either,
+for consistency. 379 targeted tests pass across every touched file; zero new regressions found.
+
+### P39-CLEANUP — Repair Stale Approval Submission-Count Tests Before PM Modernization (TEST/ARCHITECTURE CHARACTERIZATION CLEANUP ONLY)
+
+**Test-only cleanup; zero production code touched.** The 7 stale `test_approval_events.py`
+"submission-count" failures P39 carried forward as baseline debt were repaired at their real root
+cause rather than left as accepted debt indefinitely, since PM modernization (the next track) will
+keep adding typed events to these same submit/approve/reject transactions, making the naked
+`len(recorded) == N` pattern permanently brittle. Each of the 4 "submit" tests
+(Requisition/PurchaseOrder/Financial Change/Billing Preparation) now filters `recorded` by
+`isinstance(..., ApprovalRequested)` — durable regardless of how many other typed facts a
+modernized capability's own submission records alongside it — and separately asserts the
+capability's own companion event (`InventoryRequisitionSubmitted`/`InventoryPurchaseOrderSubmitted`/
+`FinancialChangeChanged`/`BillingPreparationStatusChanged`) explicitly, turning a silent count into
+two positive characterizations. The two Budget decision tests (approve/reject) got the identical
+treatment against `ApprovalApproved`/`ApprovalRejected` plus an explicit `BudgetStatusChanged`
+assertion.
+
+**A genuine test-assumption error, found and corrected — not a production bug.** The ordering test
+(`test_approve_and_apply_orders_target_event_before_approval_approved`) asserted `[target
+event(s)..., ApprovalApproved]` as the committed order; direct reading of `ApprovalService.
+approve_and_apply`'s source (unchanged, never touched) proves the real, always-been-this-way order
+is the OPPOSITE — `uow.record_event(ApprovalApproved(...))` runs before the `for domain_event in
+handler_result.domain_events` loop. The test had apparently never been exercised against a real
+2+-event scenario until Budget's own modernization (P38B) gave it one. Renamed to `test_approve_
+and_apply_records_approval_approved_before_the_target_event` and corrected to match verified
+production behavior.
+
+**A stale capability-classification error, also found and corrected.** `baseline_apply_participant.py`
+was being carried forward across P38A/P38B/P39's own reports as a "remaining legacy `ApprovalPostCommitEvent`
+site" — re-reading its current source during this cleanup found it was already fully modernized at
+P23 (`ApprovalHandlerResult(domain_events=(ProjectBaselineCreated(...),))`), long before this
+Finance-modernization arc began; the docstring's own `ApprovalPostCommitEvent("baseline_changed", ...)`
+mention is historical prose describing what it used to do, not live code. **The real, source-verified
+remaining legacy `ApprovalPostCommitEvent` production baseline is exactly two files** — `financial_
+change_apply_participant.py` (its schedule-impact branch only) and `task_apply_participant.py` (all
+five Task-family decisions) — both publishing only `tasks_changed`, never a Finance name. A new
+source-inspection test (`test_only_the_known_legacy_participant_files_construct_approval_post_
+commit_event`) recomputes this set from `*_apply_participant.py` source on every run rather than
+asserting a fixed list, so a future capability's own modernization phase deleting its site needs no
+edits here. A companion test proves neither remaining legacy site ever names a Finance-owned legacy
+signal. A third, parametrized test positively characterizes all 7 already-modernized approval
+capabilities (Baseline, Cost Entry, Budget, Billing Preparation, Forecast, and — for the two
+Inventory/Procurement families, whose participant files delegate to an already-public service
+method — Purchase Requisition/Purchase Order's own decide-path source files) as `domain_events`-only,
+zero `ApprovalPostCommitEvent`.
+
+**Approval test baseline is now trustworthy: `test_approval_events.py` is fully green (36/36)** —
+any future failure in this file represents a real production mismatch, not historical count drift.
+This matters directly for the next modernization track: PM's own remaining `ApprovalPostCommitEvent`
+sites (Task family, and Financial Change's schedule-impact branch) will be removed capability-by-
+capability, and this file's new characterization tests will track that shrinkage automatically
+rather than needing hand-edited counts each time.
+
+### P40A — Project Management Remaining Legacy Signal Re-Rank (AUDIT + SEQUENCING ONLY)
+
+Re-audited all six remaining PM legacy Signals from current source (not carried forward from P17/
+P34A, which predate every Finance/Inventory phase and are demonstrably stale in places — see the
+Project and Task corrections below). Six parallel read-only research passes, one per capability,
+each independently re-deriving producers/consumers/facts/transaction readiness/concurrency/audit
+from source.
+
+**Producer/consumer/transaction matrix (concise):**
+
+| Capability | Producers | Consumer files | Transaction owner | Audit | Concurrency |
+|---|---|---|---|---|---|
+| Timesheet (`timesheet_periods_changed`) | 1 site (1 private helper, 6 callers) | 5 | Raw Session, no UoW | ATOMIC | `version` on both `TimesheetPeriod`/`TimeEntry`, real CAS |
+| Register (`register_changed`) | 3 sites, 1 file | 3 | Raw Session, no UoW | ACTIVITY-ONLY, non-atomic (2-commit split) | `version` on update only; delete unguarded |
+| Portfolio (`portfolio_changed`) | 8 sites, 4 files (4 sub-aggregates) | 3 | Raw Session, no UoW; 1 nested mid-op commit hazard | NONE (3 of 4 sub-aggregates), ACTIVITY-ONLY+non-atomic (dependencies) | `version` on Intake only; Scenario/Template/Dependency unguarded |
+| Project (`project_changed`) | 7 sites + 1 confirmed live gap (`set_status` never emits) | 12 (10 PM + 2 platform) | Raw Session, no UoW | NONE on Project itself (only its embedded FinancialProfile) | Real CAS via repo (`update_with_version_check`); `delete_project` unguarded |
+| Collaboration (`collaboration_changed`) | 8 sites (6 durable comment ops + 2 presence, same Signal) | 3 | Raw Session, no UoW; already rollback-hardened (Phase 0A.3) | ATOMIC (durable ops) | `version` on `TaskComment`; none on `TaskPresence` (correctly, it's ephemeral) |
+| Task (`tasks_changed`) | 22 direct + 6 `ApprovalPostCommitEvent` = 28 sites, 2 module boundaries | 10 (8 blind full-refresh) | Raw Session, no UoW anywhere | NONE anywhere in Task's own module | `version` on 3 of 3 aggregates but inconsistently checked; `move_task` blind-overwrites siblings; several assignment ops have zero check |
+
+**Distinct-fact decomposition (recomputed from source, not from field-groupings):**
+- **Timesheet**: 1 fact family — `TimesheetPeriod` state transition (submit/approve/reject/lock/
+  unlock/reopen-for-correction), either one `TimesheetPeriodTransitioned{change_type}` or 6 named
+  classes. `TimeEntry` mutations are NOT part of this Signal (they emit `tasks_changed` only).
+- **Register**: 3 facts — `RegisterEntryCreated`/`Updated`/`Deleted`. One aggregate (`RegisterEntry`
+  with a `RISK|ISSUE|CHANGE` discriminator field), not several unrelated types — the module path
+  name (`application/risk/`) is misleading, confirmed a single class.
+- **Portfolio**: 8 facts across 4 independent sub-aggregates (no `Portfolio` entity exists at all —
+  "Portfolio" is a pure organizational grouping): `PortfolioScoringTemplateCreated/Activated`,
+  `PortfolioScenarioCreated/Updated`, `PortfolioIntakeItemCreated/Updated`,
+  `PortfolioProjectDependencyCreated/Removed`.
+- **Project**: 3 facts source-supported today — `ProjectCreated` (bundled with a same-transaction
+  `ProjectFinancialProfileCreated`), `ProjectProfileUpdated` (name/code/dates/client/site/dept/
+  manager — `update_project`'s own diff does not currently separate status from these), and a
+  materially separate `ProjectStatusChanged` (only `set_status` triggers it — own permission check,
+  own activity action, and the one with the live no-emit gap). `ProjectRemoved` (`delete_project`,
+  cascades Task/Dependency/Assignment/TimeEntry deletes in the same transaction) is a 4th. No
+  evidence for `ProjectOwnershipChanged`/`ProjectDatesChanged` as separate facts — both P34A
+  candidates were disproven by reading `update_project`'s actual diff fields.
+- **Collaboration**: 6 durable facts, all on `TaskComment` — `TaskCommentPosted/Edited/Deleted/
+  ReactionAdded/ReactionRemoved`, plus a read-receipt fact (`mark_task_mentions_read`) whose
+  DomainEvent-worthiness is a genuine open design question (inbox state vs. business fact). The 2
+  presence producers (`touch_task_presence`/`clear_task_presence`) are NOT durable facts — see
+  below.
+- **Task**: 8 facts across 3 independently-versioned aggregates + one bulk operation —
+  `TaskCreated/Updated`, `TaskMoved`, `TaskDeleted`, `TaskProgressChanged`,
+  `TaskSchedulingConstraintChanged`, `SchedulingLevelingApplied` (project-wide, fingerprint-keyed,
+  not per-entity), `TaskDependencyChanged{change_type}` (own aggregate), `TaskAssignmentChanged
+  {change_type}` (own aggregate). The Financial-Change-driven schedule application reuses fact
+  #1/#2's fields but is NOT a 9th Task-owned fact — see cross-capability edges below.
+
+**Cross-capability graph (only real category-C persisted-mutation edges reported):**
+- Timesheet → Finance: **C, already canonical on the Finance side.** Period approval enqueues an
+  outbox event inside the same atomic commit; an async dispatcher (`ApprovedTimeFinancialDispatcher`,
+  the identical `SqlAlchemyUnitOfWorkBase` shape Cost Entry/Commitment use) later creates/mutates
+  `ProjectCostEntry`/`ApprovedTimeLaborPosting` in its own canonical transaction. Timesheet's own
+  modernization does not need to touch or re-solve this boundary.
+- Register → Project: A only (existence-check read, never a write).
+- Portfolio → Project: A only (all 4 sub-aggregates store project ids as plain references; the
+  dependency repo's own "scope" check is read-only). Project → Portfolio: **zero coupling found** —
+  no Project code references "portfolio" at all. This is a clean, one-directional, read-only edge in
+  both audited directions — no Project/Portfolio sequencing constraint exists.
+- Project → its own sub-capabilities: **C** — `create_project` creates a `ProjectFinancialProfile`
+  in the same transaction; `delete_project` cascades hard-deletes across Task/Dependency/
+  Assignment/TimeEntry in the same transaction. No evidence of Project mutating Budget or
+  Portfolio-membership directly.
+- Task ← Financial Change: **C, real, already-wired.** `FinancialChangeService._apply_schedule_
+  changes` calls `TaskService._apply_approved_schedule_changes`, which writes `Task.start_date`/
+  `end_date`/`duration_days` directly, inside Financial Change's own transaction. The only producer
+  for this edge today is `financial_change_apply_participant.py`'s `ApprovalPostCommitEvent(
+  "tasks_changed", ...)` sole remaining site. Finance's own canonical facts (`FinancialChangeChanged`
+  etc.) do not replace this Task-owned fact — the Task side still needs its own typed event, and
+  that requires touching Financial Change's participant, not just Task's own module.
+- Task ← Timesheets (Platform): **C, real, unguarded.** `TaskTimeEntryMixin`/`timesheet_support.py`
+  write `TaskAssignment.hours_logged` directly (same `AssignmentRepository` instance shared with
+  TaskService) with **no version check** — a genuine, currently-live blind-overwrite risk against
+  Task's own version-checked assignment-hours mutations.
+
+**Collaboration transport finding (the key P40A discovery for this capability).** Presence
+(`touch_task_presence`/`clear_task_presence`) is not a separate mechanism — it fires the exact same
+`domain_events.collaboration_changed` Signal as durable comment facts, driven by a 30-second
+`runtimeHeartbeat` QTimer while any task is open. All 3 UI consumers do a blind full-workspace
+rebuild on every emission, payload-blind — meaning idle presence keepalive traffic currently costs
+the same UI-wide refresh as an actual comment post, continuously, for as long as a task view stays
+open. `DomainEvent`/`ViewInvalidationChannel` are built for durable, versioned, auditable facts;
+presence has none of those properties and cannot become one without violating that model. No
+ephemeral-presence transport exists anywhere else in the codebase to reuse — one must be designed.
+**This makes Collaboration the one PM capability that genuinely needs a dedicated audit/transport-
+split phase before implementation**, not because its own facts are unclear (they're the clearest of
+any capability audited — 6 operations, 1 aggregate) but because the ephemeral half requires a design
+decision this document's own architecture (typed DomainEvents = durable facts only) does not yet
+have an answer for.
+
+**Task strategic-value finding.** Task's own modernization phase would eliminate 5 of the current 6
+production `ApprovalPostCommitEvent` sites (all of `task_apply_participant.py`), but **not** the 6th
+(`financial_change_apply_participant.py`'s schedule-impact branch) — that site is owned by Financial
+Change's own participant, not Task's module, and requires an explicit, separate (small) touch-up
+regardless of how thoroughly Task's own capability is modernized. No other audited PM capability
+(Timesheet/Register/Portfolio/Project/Collaboration) has any `ApprovalPostCommitEvent`/`_emit_signal_
+safely` integration at all — Task is the *only* lever on the shared legacy-approval-infrastructure
+count.
+
+**Scorecard.**
+
+| | Timesheet | Register | Portfolio | Project | Collaboration | Task |
+|---|---|---|---|---|---|---|
+| Distinct-fact complexity | LOW | LOW | MEDIUM (4 sub-aggregates) | MEDIUM | LOW (durable) / N/A (ephemeral) | HIGH (3 aggregates + bulk op) |
+| Transaction readiness | HIGH (LOW effort) | HIGH (LOW effort) | MEDIUM (nested-commit hazard) | MEDIUM | HIGH for durable portion | LOW (HIGH effort, no UoW exists, 3 aggregates) |
+| Audit readiness | READY (already atomic) | PARTIAL (2-commit split) | BLOCKED (3 of 4 sub-aggregates: none) | BLOCKED (none on Project itself) | READY (already atomic+rollback-hardened) | BLOCKED (none anywhere) |
+| Concurrency safety | SAFE | PARTIAL (delete unguarded) | PARTIAL (1 of 4 sub-aggregates guarded) | PARTIAL (delete unguarded) | SAFE (durable); N/A (ephemeral, correctly unguarded) | PARTIAL (inconsistent; real blind-overwrite risk in `move_task` and cross-capability Timesheets edge) |
+| Cross-capability coupling | LOW (1 edge, already canonical) | NONE | LOW (1 edge, reference-only both directions) | LOW (2 edges, both self-contained) | NONE (durable) | HIGH (2 real edges, one requires touching another module) |
+| Consumer fan-out | MEDIUM (5) | LOW (3) | LOW (3) | HIGH (12) | LOW (3, but high-frequency) | HIGH (10, 8 blind) |
+| UI precision needed | LOW (ResourceScope, project-scoped) | LOW (ResourceScope, project-scoped) | LOW (likely OrganizationScope — Portfolio artifacts aren't per-project) | MEDIUM (12 destinations to re-map, 2 of them incidental/platform-external) | MEDIUM (durable: ResourceScope/task; ephemeral: needs an entirely new non-DomainEvent mechanism) | HIGH (10 destinations, mostly blind, need real per-fact mapping) |
+| Correctness/audit debt closed | LOW (little to close) | MEDIUM (fixes real 2-commit gap) | MEDIUM-HIGH (fixes real audit gaps + nested-commit hazard + TOCTOU race) | MEDIUM (fixes `set_status` no-emit gap + adds missing audit) | LOW for durable (already hardened) | HIGH (fixes multiple real blind-overwrite risks) but requires building new infra to do it |
+| Test readiness | Not separately re-verified this phase (existing PM test suites presumed present; no gap found) | Same | Same | Same | Same (Phase 0A.3 rollback-hardening tests already exist) | Same |
+| One-phase deletion confidence | HIGH | HIGH | HIGH | MEDIUM | LOW (whole-signal); HIGH (durable-only, post-split) | LOW (MEDIUM if Financial-Change touch-up is explicitly included) |
+| Strategic cleanup value | NONE (no approval-bridge involvement) | NONE | NONE | NONE | NONE | HIGH (only lever on `ApprovalPostCommitEvent`/`_emit_signal_safely`) |
+
+**Ranking (priority order: 1-deletable-in-one-phase, 2-semantic-clarity, 3-transaction-readiness,
+4-cross-capability-canonical, 5-consumer-precision, 6-correctness-debt-closed, 7-test-readiness,
+8-removes-shared-legacy-infra, 9-smaller-surface-wins-ties).** Timesheet, Register, and Portfolio
+all score HIGH on priority 1 — Timesheet and Register additionally tie on priority-3 (LOW effort,
+vs. Portfolio's MEDIUM effort from its nested-commit hazard and 4-sub-aggregate surface). Between
+Timesheet and Register: Timesheet has the single smallest producer surface (1 call site) of any PM
+capability audited (priority 9), while Register closes more real correctness debt (priority 6, its
+2-commit audit split). Given priorities 1-5 are an exact tie between them, Timesheet is placed first
+purely on surface-size (priority 9 only breaks a tie that persists through priority 6-8 as well,
+since neither touches the approval bridge). Project (MEDIUM confidence, a confirmed live bug, and
+the widest "normal" consumer fan-out at 12) ranks 4th — its facts and edges are now fully
+characterized by this audit, so no separate audit-first phase is needed despite the wider surface.
+Collaboration ranks 5th, needing its own short audit/transport-split phase before implementation (not
+because of unclear facts, but an unresolved ephemeral-transport design question this document's own
+model doesn't yet answer). Task ranks last on every ease-based priority (1-5) despite scoring highest
+on priority 8 (strategic legacy-infrastructure value) — priorities 1-5 are weighted above priority 8
+by design, and Task loses on all five.
+
+**Direct-implementation readiness.** Timesheet, Register, Portfolio, and Project: **DIRECT FULL
+MODERNIZATION** — each capability's facts, transaction shape, and cross-capability edges are now
+fully characterized by this audit; no further discovery work is needed before implementation.
+Collaboration: **CAPABILITY-SPECIFIC AUDIT FIRST** (a short transport-split design phase — decide and
+build the ephemeral-presence mechanism, cut presence over to it, leave `collaboration_changed`
+comment-only — before a normal modernization phase converts the now-cleanly-durable comment
+operations). Task: **CAPABILITY-SPECIFIC AUDIT FIRST** — not because its facts are unclear (this
+audit already enumerated all 8), but because its scale (28 producer sites across 2 module
+boundaries, 3 independently-versioned aggregates, a new UoW to build from scratch, and mandatory
+coordination with Financial Change's own participant) warrants a dedicated implementation-planning
+pass, the same way Billing Preparation's 2-aggregate, 13-operation surface warranted P38A before
+P39 — Task's surface is larger still.
+
+**Recommended next three, in order:**
+1. **Timesheet** — smallest producer surface of any remaining PM capability (1 call site), already-
+   atomic audit, already-correct concurrency, zero approval-subsystem entanglement, Finance boundary
+   already fully canonical and async-decoupled. DIRECT FULL MODERNIZATION.
+2. **Register** — single cohesive aggregate, 3 producers in one file, 3 coarse consumers, zero
+   cross-capability mutation; closes a real audit-atomicity gap. DIRECT FULL MODERNIZATION.
+3. **Portfolio** — 4 independent sub-aggregates but each individually simple; zero Project coupling
+   in either direction (no Project/Portfolio sequencing constraint); closes real audit gaps (3 of 4
+   sub-aggregates currently have none) and a nested-commit hazard. DIRECT FULL MODERNIZATION.
+
+**Tentative full PM sequence** (first three are the recommendation above; the rest are *tentative*,
+subject to re-ranking after each phase per this document's own standing caution):
+1. Timesheet
+2. Register
+3. Portfolio
+4. Project *(tentative)*
+5. Collaboration — audit/transport-split phase, then implementation *(tentative)*
+6. Task — dedicated audit-first phase, then implementation; remains last *(tentative)*
+
+**Should Task remain last: YES.** Both factors were weighed explicitly, not just complexity: Task
+has the highest semantic complexity (3 independently-versioned aggregates + a bulk fingerprint
+operation), the highest transaction-convergence effort (no UoW exists at all, must be built from
+scratch, unlike every Finance phase which extended an existing one), the widest blind-refresh
+consumer fan-out (10, 8 of them untargeted), and a mandatory cross-module coordination point
+(Financial Change's participant) that no other PM capability has. Its strategic value (the only
+capability that can shrink the shared `ApprovalPostCommitEvent` count) is real but does not
+outweigh five ease-based priorities it loses on. Modernizing Timesheet/Register/Portfolio/Project/
+Collaboration first will shrink Task's own eventual blast radius indirectly: several of Task's own
+10 consumer files (`dashboard_refresh_mixin.py`, `control_workspace_controller.py`, `portfolio/
+domain_event_binder.py`, `collaboration/domain_event_binder.py`, `timesheets/domain_event_binder.py`)
+currently blanket-refresh on *multiple* legacy signals including `tasks_changed` — once those other
+signals are retired and those binders are rewired to typed `ViewInvalidationHint`s for their *own*
+capability, Task's own eventual cutover only has to reason about what's left in each binder, not the
+current tangle of five-or-more legacy signals sharing one blanket-refresh call.
+
+**Legacy Signal countdown.** Current: 7 (Finance 0, PM 6, Auth 1). If Timesheet → Register →
+Portfolio → Project → Collaboration → Task retire one-by-one as tentatively sequenced: after PM, 1
+(Auth only). Then Auth (P26A, still deferred): 0. Not hardcoded as a roadmap guarantee — current
+source remains authoritative at each future phase's own start, per this document's repeated
+caution.
+
+**Approval-infrastructure projection.** Current production `ApprovalPostCommitEvent` sites: exactly
+2 files (`financial_change_apply_participant.py`'s schedule-impact branch, `task_apply_participant.py`'s
+5 decisions), all publishing `tasks_changed` only — reconfirmed unchanged from P39-CLEANUP (this
+audit touched no production code). Timesheet/Register/Portfolio/Project/Collaboration modernization
+will not reduce this count (none of them have any approval-subsystem integration). Only Task's own
+phase reduces it, and only to 1 (not 0) unless that phase's scope explicitly includes the small
+Financial-Change-side touch-up — recommended to fold that touch-up into Task's phase so
+`ApprovalPostCommitEvent`/`ApprovalService._emit_signal_safely` become fully production-dead at the
+end of PM modernization, with no compatibility shell left behind.
+
+**Auth remains AUDITED / DEFERRED** — not re-audited this phase, per the brief's own explicit
+instruction; P26A remains authoritative. Auth becomes the final legacy capability once PM reaches
+zero.
+
+### P40B — Project Management Timesheet Full Modernization
+
+DIRECT FULL MODERNIZATION, per P40A's selection. Reconfirmed the exact current surface before
+implementing (source wins over the brief's own P40A-carried-forward numbers, unchanged here):
+`timesheet_periods_changed` had exactly 1 producer site — `TimesheetPeriodsMixin._emit_timesheet_
+period_events` (`timesheet_periods.py`), called only from `_persist_timesheet_transition`, itself
+called by all 6 period-transition commands (`submit`/`approve`/`reject`/`lock`/`unlock`/`reopen_
+for_correction`) — and 5 consumer files (Timesheets workspace, Resource-scoped personal Timesheets
+controller, Task workspace, Resource inspector's assignments tab, Collaboration workspace).
+`TimeEntry` add/update/delete were confirmed NOT part of this signal (they already published
+`tasks_changed` only) and are untouched — this phase's scope is the `TimesheetPeriod` aggregate
+alone.
+
+**Aggregate boundary confirmed**: `TimesheetPeriod` (own identity, `resource_id`, `organization_id`,
+`status`, `version`) is the sole root in scope; `TimeEntry` is a sibling aggregate under the same
+`TimeService`, not a child of `TimesheetPeriod`, and was already excluded per the point above.
+Concurrency was already real CAS via a `WHERE status = expected_status AND version = expected_
+version` conditional UPDATE (`SqlAlchemyTimesheetPeriodRepository.transition`) — preserved
+unchanged; this phase did not touch it.
+
+**Event vocabulary**: one shared-family event, `TimesheetPeriodStatusChanged(change_type:
+TimesheetPeriodStatusChangeType)` — `SUBMITTED`/`APPROVED`/`REJECTED`/`LOCKED`/`UNLOCKED`/
+`REOPENED_FOR_CORRECTION` — mirroring `BudgetStatusChanged`'s precedent, not six near-identical
+classes or one generic `TimesheetChanged`. Payload: `tenant_id`, `organization_id` (sourced from
+`_tenant_context_service.require_active_scope_ids(...)`, the same source `_enqueue_approved_time_
+events` already used — not `period.organization_id`, which the fixture data leaves unset), `period_
+id`, `resource_id`, `change_type`, `project_ids: tuple[str, ...]` (every distinct project referenced
+by the period's own entries at transition time), `occurred_at`. No ORM, Session, UI destination, or
+full-DTO snapshot in the payload; no `schema_version` (matches every prior phase's convention).
+
+**Transaction convergence — adapter, not a new named-repository UoW.** `TimeService` (Platform-
+owned, `src/core/platform/application/time_management/time/`, shared by every PM Timesheet
+workflow via `TimesheetService(GuardMixin, TimeService)`) already held one long-lived, request-
+scoped `Session` directly, injected once at composition (`project_registry.py`), shared with every
+other PM service in that request — not the per-command-fresh-session shape Resource/Employee/
+Budget's own UoWs use. Rather than build a first-ever `TimesheetUnitOfWork` with its own fresh
+session (which would have split the period-transition write from the Approved Time outbox enqueue
+that must stay in the SAME transaction for atomicity), `_persist_timesheet_transition` wraps its
+existing `self._session` directly with the generic `SqlAlchemyUnitOfWorkBase` — exactly the shape
+`ApprovedTimeFinancialDispatcher` (this same subsystem's own Approved Time → Cost Entry dispatcher)
+already uses in production against this identical shared session. `Session.close()` (called inside
+`UnitOfWork.commit()`) only ends the current transaction and expires identity-mapped objects — it
+does not invalidate the Python `Session` object for further reuse by other services later in the
+same request — so this is safe and precedented, not a novel risk. `TimeService` gained two new
+optional constructor params, `transactional_dispatcher`/`post_commit_bus`, wired from `project_
+registry.py`'s existing `platform_services.platform_transactional_dispatcher`/`platform_post_
+commit_bus`. The manual `try/except: session.rollback()` block is gone — `SqlAlchemyUnitOfWorkBase`'s
+own context-manager `__exit__` now owns rollback-on-exception, matching every other converged
+capability's shape.
+
+**Enterprise audit preserved unchanged** (still `record_audit_entry(self, ...)`, since `self._
+enterprise_audit_service` was already correctly scoped to the same shared session — no divergence
+introduced). **Approved Time outbox enqueue preserved unchanged and still atomic** with the period
+transition (same session, same UoW, same commit).
+
+**ViewInvalidation: one event, three targets, source-preserving fan-out.** The legacy signal
+reached exactly three consumer families, uniformly, with zero scoping. `TIMESHEET_WORKSPACE_SCOPE_
+CODE` (`OrganizationScope` — any reviewer or team-scoped viewer needs every resource's periods, not
+just one) serves both Timesheet workspaces (personal + review queue). `TIMESHEET_RESOURCE_SCOPE_
+CODE` (`ResourceScope`, entity=resource) serves the Resource inspector's assignments tab, filtered
+to the selected resource. `TIMESHEET_PROJECT_SCOPE_CODE` (`ResourceScope`, entity=project, one hint
+per `event.project_ids` entry) serves the Task workspace, filtered to the selected project — this is
+a genuine precision gain over the legacy signal's total lack of scoping (Task workspace no longer
+refreshes for periods with zero entries in its own project). **Collaboration's identical
+subscription was investigated and found INCIDENTAL**: `selectedPeriodKey` there is an unrelated
+comment-date filter (grouping comments by "today"/"this week"), not timesheet-period data of any
+kind — dropped with no replacement, per the standing consumer-precision discipline (P40A/P39's own
+"remove incidental subscriptions" rule).
+
+**Consumer cutover**: `TimesheetViewInvalidationAdapter` (new, `src/ui_qml/modules/project_
+management/adapters/timesheets/`) wired into `context.py` at all four call sites (`_get_timesheets_
+workspace`, `_get_review_queue_workspace`, `_get_resources_workspace`, `_get_tasks_workspace`).
+Both Timesheet workspaces connect `timesheetWorkspaceStale` straight to their existing `_request_
+domain_refresh()` (unchanged blanket-refresh behavior, now organization-scoped instead of global).
+Resources gained `onTimesheetResourceStale` (delegates to a new `on_timesheet_resource_stale`
+binder helper, filtered by `controller._selected_resource_id`). Tasks gained `onTimesheetProjectStale`
+(delegates to a new `on_timesheet_project_stale` binder helper, filtered by `controller._selected_
+project_id`). All five legacy `domain_events.timesheet_periods_changed` subscriptions removed; the
+four still-relevant binder files keep their other, unrelated legacy-signal subscriptions untouched.
+
+**Finance boundary unaffected, confirmed by re-reading source, not by memory of P40A's own
+characterization.** Approved Time → Cost Entry remains category D (async, integration-outbox-
+driven): `approve_timesheet_period` still enqueues `ApprovedTimeEntryEventPayload` rows in the same
+transaction as the status change (unchanged code, `timesheet_financial_events.py`); `ApprovedTime
+FinancialDispatcher` still consumes them under its own separate `SqlAlchemyUnitOfWorkBase`
+transaction, producing Cost Entry's own already-canonical typed events. No `cost_entries_changed`
+reintroduced; no cross-module DomainEvent standing in for Cost Entry's own fact. Proved end to end,
+unmodified, by the pre-existing `test_approved_time_labor_integration.py` (11/11 passing against
+the now-modernized transition path — submit → approve → lock → unlock → reopen-for-correction →
+resubmit → approve, with real Cost Entry posting/reversal/correction consequences).
+
+**Regression battery**: `test_time_domain_validation.py` (3, extended with real `TransactionalEvent
+Dispatcher`/`PostCommitEventPublisher`/`TenantContextService` fakes and new event-content
+assertions), `test_p8_platform_event_architecture_canonicalization.py` (31, `timesheet_periods_
+changed` added to the deleted-name zero-reference guard), `test_qml_domain_event_bridges_pm.py` (5,
+one test's dead emit line removed, one retired with a pointer comment mirroring the Resources/
+Settings retirement precedent, one's assertion corrected for the dropped Collaboration
+subscription), `test_approved_time_labor_integration.py` (11), `test_r5h_time_entry_concurrency_
+atomicity.py` + `test_r5f1_resource_timesheets.py` (10), `test_shared_collaboration_import_and_
+timesheets.py` + `test_workspace_database_pagination.py` + `test_assignment_time_task_detail_r43.py`
++ `test_approved_time_work_allocation_n_plus_one.py` (44), new `test_p40b_timesheet_period_full_
+modernization.py` (14: ViewInvalidation handler mapping/dedupe/no-project-ids/multi-project unit
+tests, real submit/approve/reject producer-path tests, a stale-version rollback-produces-zero-hints
+test, and a characterization test proving the remaining `ApprovalPostCommitEvent` sites are
+unchanged from P39-CLEANUP). All green. One pre-existing, unrelated failure confirmed via `git
+stash` (`test_repository_tenant_hardening_time_governance.py::test_time_and_governance_
+repositories_scope_cross_organization_data` calls `TimeEntryRepository.delete()` without the
+`expected_version` it has always required — a `TimeEntry`-side test bug, out of this phase's
+`TimesheetPeriod`-only scope, present identically before this phase started).
+
+**Legacy Signal count: 6 (7 minus one deletion) — first PM capability to reach zero, first
+retirement of any kind since Finance completed at P39.** `timesheet_periods_changed` rejoins the
+historical P8 frozen allowlist's deleted-name set; the frozen baseline itself is unchanged (P40B is
+ordinary further retirement of a pre-freeze, frozen-allowlisted signal, not a violation fix).
+Remaining PM legacy signals: `project_changed`, `tasks_changed`, `register_changed`, `collaboration_
+changed`, `portfolio_changed`. **Register and Portfolio remain next, unchanged from P40A's
+sequence** — nothing discovered this phase touches either capability's own facts, transaction
+shape, or cross-capability edges.
+
+### P41 — Project Management Register Full Modernization
+
+DIRECT FULL MODERNIZATION, per P40A's selection. Reconfirmed the exact current surface before
+implementing: `register_changed` had exactly 3 producer sites, all in `register_lifecycle.py`
+(`create_entry`/`update_entry`/`delete_entry`), and 3 consumer files (Register's own workspace,
+PM Dashboard's register widget, Platform's Control workspace). `RegisterEntry` is confirmed one
+cohesive aggregate with a `RISK`/`ISSUE`/`CHANGE` discriminator field (`entry_type`), not three
+separate aggregates — matching P40A's own finding exactly, so one shared-family DomainEvent, not
+three per-type classes.
+
+**The two-commit bug, reconfirmed and fixed.** Every mutation committed the business write FIRST
+(`self._session.commit()`), THEN called `record_activity(self, ...)` with its default `commit=True`
+— a SECOND, independent commit. Worse: Register had **no enterprise audit at all** before this
+phase — only the lighter-weight Activity feed, `ACTIVITY-ONLY` exactly as P40A classified it. Both
+gaps are now closed in one converged transaction: business mutation → enterprise audit (new) →
+Activity feed (preserved, now `commit=False`, staged on the same UoW) → `uow.record_event(...)` →
+one `uow.commit()`.
+
+**Canonical UoW: a new, narrow `RegisterUnitOfWork`.** No existing PM UoW already owned the
+Register repository (unlike Timesheet, where reusing the shared session was possible because the
+only other participant, the Approved Time outbox, already lived on that same session). Register's
+`RegisterService` shared the same long-lived PM session as everything else with no compensating
+constraint forcing it to stay there, so the architecturally cleaner and more consistent choice —
+matching Resource's and Employee's own precedent exactly — was a first-class, single-repo
+`RegisterUnitOfWork` (`entries: RegisterEntryRepository`, `_enterprise_audit_service`,
+`_activity_service`), built via `SqlAlchemyRegisterUnitOfWorkFactory` on its own fresh
+`sessionmaker`-backed session per command, RLS-configured via `configure_session_rls_context`. Named
+accessor only — no generic repository bag, no `repository_for`/`resolve`/`container.get`.
+`RegisterService` gained `_uow_factory`/`_require_uow_factory`/`_new_context`, mirroring
+`ResourceService`'s own base-class shape exactly. `_resolve_entry_code`'s uniqueness check now
+reads through the UoW-scoped repository when one is supplied (not the outer, differently-scoped
+`_register_repo`), closing the same race window Resource's own code-uniqueness check was already
+built to avoid.
+
+**Event vocabulary**: one shared-family event, `RegisterEntryChanged(change_type:
+RegisterEntryChangeType)` — `CREATED`/`UPDATED`/`REMOVED` — mirroring `BudgetStatusChanged`'s/
+`TimesheetPeriodStatusChanged`'s precedent. Payload: `tenant_id`/`organization_id` (from
+`_tenant_context_service`, since `RegisterEntry` itself carries no tenant/org fields),
+`project_id`, `register_entry_id`, `entry_type`, `change_type`, `occurred_at`. No ORM/Session/UI
+destinations/DTOs/schema_version.
+
+**ViewInvalidation: one event, two targets, source-preserving.** The legacy signal reached two
+consumer families uniformly: Register's own workspace (`REGISTER_WORKSPACE_SCOPE_CODE`,
+`OrganizationScope` — its project filter defaults to "all", so it needs org-wide reactivity, not
+just the mutated project) and Dashboard's register widget (`REGISTER_PROJECT_SCOPE_CODE`,
+`ResourceScope`, project-scoped — the dashboard is always exactly one project). **Control
+workspace's third subscription was investigated and could NOT be cut over**: it shows a generic
+approval-queue/audit-feed, not register-specific data, and — the deciding factor — Control lives
+under `ui_qml/platform/`, and `test_platform_does_not_import_business_modules.py` forbids
+Platform-layer QML from importing a `project_management`-owned module (which a typed
+`RegisterViewInvalidationAdapter` subscription would require). Dropped with no replacement; the two
+now-affected characterization tests (`test_control_workspace_still_reacts_to_its_remaining_real_
+signals`, `test_platform_control_workspace_refreshes_on_control_events`) were repointed to Control's
+other remaining legacy signal (`tasks_changed`) rather than deleted, since Control itself still has
+real un-migrated subscriptions to prove.
+
+**Regression battery**: new `test_p41_register_full_modernization.py` (14: ViewInvalidation
+handler mapping/dedupe, real create/update/delete producer-path tests, a stale-version zero-write
+test, a duplicate-code-rejection test, the mandatory audit-failure-rolls-back-the-mutation
+regression proving the two-commit bug is fixed by asserting `list_entries` returns empty — not a
+commit-count assertion, a transactional-handler-failure test using the real shared
+`platform_transactional_dispatcher`, a cross-project-ownership rejection test, and the standing
+approval-bridge-unaffected characterization), `test_register_entry_domain_validation.py` (5, its
+fake-service harness extended with a fake UoW factory/tenant-context-service — the same fix shape
+`test_time_domain_validation.py` needed at P40B), `test_project_management_desktop_api_register.py`
++ `test_qml_project_management_presenters_register.py` (3), `test_p8_platform_event_architecture_
+canonicalization.py` (31, `register_changed` added to the deleted-name zero-reference guard),
+`test_p7_legacy_bridge_removal.py` + `test_p7b_dead_signal_cleanup.py` + `test_qml_domain_event_
+bridges_pm.py` (three pre-existing tests repointed from the now-deleted `register_changed` to a
+still-live signal each binder already subscribes to, per the established P33-CLEANUP/P36/P37/P38B/
+P39 swap precedent), P40B's own Timesheet regressions (25, reconfirmed unaffected). All green.
+
+**Legacy Signal count: 5 (6 minus one deletion) — second PM capability to reach zero.**
+`register_changed` rejoins the historical P8 frozen allowlist's deleted-name set; the frozen
+baseline itself is unchanged. Remaining PM legacy signals: `project_changed`, `tasks_changed`,
+`collaboration_changed`, `portfolio_changed`. **Portfolio remains next, unchanged from P40A's
+sequence** — nothing discovered this phase touches Portfolio's own facts, transaction shape, or
+cross-capability edges.
+
+**P41-FIX — Control workspace's Register reaction restored without a Platform→PM dependency.**
+Re-traced Control's source and confirmed the dependency is GENUINE, not incidental: its "Recent
+Audit Feed" calls `audit_api.list_recent(...)` with no module filter — a generic, cross-entity-
+type projection — and P41 gave Register real enterprise audit for the first time, so Register
+rows now genuinely belong in that feed. Also found the specific test cited as the blocking guard,
+`test_platform_does_not_import_business_modules.py`, only scans `src/core/platform/` (the Python
+core layer) — it never covered `src/ui_qml/platform/` (the QML controller layer) at all, so the
+original P41 removal wasn't actually forced by a green test going red; it was a conservative
+default. The underlying architectural principle (Platform owns no business-module implementation)
+still fully applies at the QML layer even without an automated guard enforcing it there, so the
+fix was built to the same standard anyway, not to the letter of the (inapplicable) test.
+
+**Cross-layer contract**: `ProjectManagementWorkspaceCatalog` gained a public `registerWorkspaceStale`
+Signal, fed by a new, eagerly-constructed `RegisterViewInvalidationAdapter` instance (independent of
+the two lazy ones already wired to the Register workspace and Dashboard, since Control's reaction
+must not depend on the Register workspace UI ever having been opened) forwarding
+`REGISTER_WORKSPACE_SCOPE_CODE` (org-wide) hints. `PlatformControlWorkspaceController` gained one
+generic, Register-ignorant slot, `onExternalViewStale`, calling its own existing
+`_request_domain_refresh()`. The composition root, `shell/app.py::main()` — already the place
+`tenantSwitched`/`organizationSwitched`/`organizationsChanged` cross-catalog wiring lives — connects
+`pm_workspace_catalog.registerWorkspaceStale` to `platform_workspace_catalog.controlWorkspace.
+onExternalViewStale`, the exact same dependency-inversion shape already established there for
+Platform→PM wiring, now used in the PM→Platform direction for the first time. Neither catalog
+imports the other's implementation module.
+
+**Regression**: new `test_p41_fix_control_workspace_register_reaction.py` (7 tests — Control's
+genuine dependency proved from source; zero PM import from the Platform controller; zero raw
+`RegisterEntryChanged`/`register_changed` reference; real end-to-end create/update/delete →
+Control refresh; a Budget-category mutation proven NOT to fire the new signal, isolating it from
+Control's own separate, legitimate `project_changed`/`tasks_changed` legacy subscriptions). The
+three P41-repointed characterization tests were re-examined against their own original purpose
+(each was already proving "Control/Register-workspace-binder still reacts to a *surviving* legacy
+signal," never specifically "reacts to Register") and found not to be masking anything; their
+docstrings now cross-reference the new dedicated test file. All previously-green suites remain
+green.
+
+### P42 — Project Management Portfolio Full Modernization
+
+DIRECT FULL MODERNIZATION, per P40A's selection. Reconfirmed the exact current surface: `portfolio_
+changed` had exactly 8 producer sites (`create_intake_item`/`update_intake_item`, `create_scenario`/
+`update_scenario`, `create_scoring_template`/`activate_scoring_template`, `create_project_dependency`/
+`remove_project_dependency`) and 3 consumer files. Confirmed the four sub-aggregate families P40A
+found — **Intake** (`PortfolioIntakeItem`, versioned, real CAS), **Scenario** (`PortfolioScenario`,
+unversioned, was blind-overwrite), **ScoringTemplate** (`PortfolioScoringTemplate`, unversioned, was
+blind-overwrite), **ProjectDependency** (`PortfolioProjectDependency`, immutable — no update command
+exists) — each keeps its own DomainEvent vocabulary, never collapsed into one `PortfolioChanged`.
+
+**The nested-commit hazard, reconfirmed and fixed.** `portfolio_support.py`'s `_ensure_scoring_
+templates()` — a lazy-bootstrap helper called from BOTH Intake commands (`_resolve_scoring_
+template`) and Template commands themselves — called `self._session.commit()` internally, twice,
+as a side effect of what looked like a read. A command could bootstrap-create or reactivate a
+scoring template (committed immediately, durably) and then fail its OWN actual operation (e.g. a
+duplicate-name `ValidationError` raised right after) — the bootstrap write survived a failure the
+user's real request never got past. Fixed by making every scoring-template helper (`_ensure_
+scoring_templates`, `_active_scoring_template`, `_resolve_scoring_template`, `_deactivate_other_
+templates`) transaction-neutral: they now take an explicit `templates_repo` (the caller's own
+UoW-scoped repository) and an `events: list` accumulator they append genuine facts to, never
+commit, never own a session.
+
+**Canonical UoW: one `PortfolioUnitOfWork` owning all four named repositories** (`intake`,
+`scenarios`, `scoring_templates`, `dependencies`), mirroring `DocumentUnitOfWork`'s established
+"one capability, several sub-aggregate repos" shape — not a mega-UoW, since Portfolio genuinely is
+one capability (one workspace, one set of tabs) even though most single commands only touch one
+repository. `activate_scoring_template` is the one command that genuinely mutates two rows in the
+same repository within one transaction (the newly-activated template and the previously-active
+one) — now provably atomic: a forced failure on the second write rolls back the first too (proved
+by a dedicated multi-row atomicity test, not merely asserted).
+
+**Enterprise audit added where none existed.** Intake, Scenario, and ScoringTemplate had zero audit
+of any kind before this phase (not even the lighter Activity feed); Dependency had Activity feed
+only. All four now get real, atomic enterprise audit alongside their DomainEvent, matching
+Register's own P41 precedent for a capability that had none.
+
+**Event vocabulary**: `PortfolioIntakeItemChanged`/`PortfolioScenarioChanged`/`PortfolioProject
+DependencyChanged` (each `change_type`-differentiated, mirroring the shared-family precedent) and
+`PortfolioScoringTemplateChanged` (`CREATED`/`ACTIVATED`/`DEACTIVATED` — activation's own secondary
+mutation gets its own fact, per the "do not hide a genuine second mutation behind one event" rule,
+mirroring Budget's approve/supersede precedent).
+
+**ViewInvalidation: one category, one target.** No `Portfolio` entity exists at all (P40A: pure
+organizational grouping) — all four sub-aggregate fact families genuinely stale the one org-wide
+Portfolio workspace uniformly, exactly like the legacy signal's own real consumer. `PORTFOLIO_
+WORKSPACE_SCOPE_CODE` (`OrganizationScope`) is the only target; no per-screen targets were invented
+without a source-confirmed distinct projection. **Two of the three legacy consumers were found
+INCIDENTAL, not genuine, and dropped with no replacement** — PM Dashboard's own "portfolio" KPI
+(`DashboardPortfolioMixin.get_portfolio_data`) is entirely derived from Project/Task/Resource/Cost
+data, never reads any of the four real sub-aggregates; the Projects workspace displays no
+Portfolio-derived data anywhere (confirmed by source inspection — no other file in that workspace's
+controllers/presenters mentions "portfolio" at all). Both were carried-over fan-out from the
+pre-modernization era, exactly what P40A's own §27 anticipated finding. Only Portfolio's own
+workspace was a genuine consumer.
+
+**Regression**: new `test_p42_portfolio_full_modernization.py` (10), rewritten `test_portfolio_
+phase0a2_rollback_hardening.py` (33 — repository-class-level and `EnterpriseAuditService`-level
+failure injection replacing the old `services["session"].commit()` patch, which no longer reaches
+the new per-command UoW session; a dedicated multi-row atomicity test for `activate_scoring_
+template`), `test_portfolio_domain_validation.py` (7, fake-service harness extended with a fake
+UoW factory/tenant-scope, the same fix shape P41/P40B needed), `test_pm_r3_4_portfolio_ia_tabs.py`
+(3 — caught and fixed a real bug: the two scoring-template QUERY methods still called the old
+zero-arg helper signature; fixed via a new read-side `_scoring_templates_with_bootstrap()` that
+only opens a UoW when the rare lazy-bootstrap write is actually needed, never for the common
+already-bootstrapped read), the full remaining Portfolio-adjacent suite (40), `test_p8_platform_
+event_architecture_canonicalization.py` (31, `portfolio_changed` added to the deleted-name guard),
+`test_p7_legacy_bridge_removal.py`/`test_p7b_dead_signal_cleanup.py`/`test_qml_domain_event_
+bridges_pm.py` (characterization tests repointed to Portfolio's remaining `project_changed`/
+`tasks_changed` subscriptions, preserving each test's own original "still reacts to a surviving
+signal" intent), P40B/P41/P41-FIX regressions (51, reconfirmed unaffected). All green.
+
+**Legacy Signal count: 4 (5 minus one deletion) — third PM capability to reach zero, and the
+first phase to also close out two carried-over incidental consumers in the same pass.**
+`portfolio_changed` rejoins the historical P8 frozen allowlist's deleted-name set; the frozen
+baseline itself is unchanged. Remaining PM legacy signals: `project_changed`, `tasks_changed`,
+`collaboration_changed`. **Project remains next, unchanged from P40A's tentative sequence** —
+nothing discovered this phase materially changes Project's own facts, transaction shape, or
+cross-capability edges (Portfolio→Project remains reference-only in both directions, reconfirmed).
+
+**P42-FIX — Scoring-template lazy bootstrap verified canonical; a real audit gap found and
+closed.** Traced every caller of `_ensure_scoring_templates`/`_scoring_templates_with_bootstrap`:
+2 QUERY callers (`list_scoring_templates`, `get_active_scoring_template`) and 4 COMMAND call
+paths (all already inside their own `PortfolioUnitOfWork`). Classified the bootstrap default
+template as **REAL DOMAIN MUTATION**, not technical seeding — it is the exact same
+`PortfolioScoringTemplate` entity a user creates directly, shows up indistinguishable from a
+user-created row in the Templates tab, and can later be activated/deactivated through the normal
+commands.
+
+**Real gap found: the bootstrap path recorded a typed `PortfolioScoringTemplateChanged` event but
+never called enterprise audit.** `_ensure_scoring_templates`/`_deactivate_other_templates` mutated
+rows and appended DomainEvents, but only the COMMAND methods' own top-level `record_audit_entry`
+calls covered the row the user explicitly asked for — never the bootstrap default created as a
+side effect (reachable from `create_intake_item` too, not just the two query methods). A dedicated
+test (monkeypatching `EnterpriseAuditService.record` and asserting the whole bootstrap call raises)
+caught this directly: it didn't raise, because audit was never invoked for that row. Fixed by
+moving `record_audit_entry` calls inside the shared helpers themselves (`_ensure_scoring_templates`
+for create/reactivate, `_deactivate_other_templates` for deactivate) so every caller — command or
+query — gets complete, atomic audit coverage for every scoring-template row it touches, with zero
+double-auditing (the helpers only ever touch rows distinct from whatever the command's own
+top-level audit call already covers). Helper signatures changed from a bare `templates_repo`
+parameter to the full `uow` (needed for `_enterprise_audit_service` access) — `activate_scoring_
+template`'s one pre-UoW existence check no longer routes through `_resolve_scoring_template`
+(which now requires a `uow`) and instead does a direct, simpler `_scoring_template_repo.get(...)`
++ `NotFoundError`, since that read-only check never needed bootstrap capability anyway.
+
+**Write-on-read: RETAINED, deliberately, with justification recorded in the code itself.**
+Eliminating it was investigated and rejected: Portfolio has no `Portfolio` entity and no "create
+Portfolio" command to hook an explicit bootstrap into (P40A), and returning an unpersisted,
+in-memory-only default from the query would mint a fresh `generate_id()` every call — a later
+`activate_scoring_template(that_id)` or intake creation defaulting to it would 404, a worse
+regression than today's behavior. The write only happens ONCE per organization (`_scoring_
+templates_with_bootstrap`'s own `if templates and any(active): return templates` guard short-
+circuits every call after the first to a plain read, proved by a dedicated repeated-read test).
+Query methods are correspondingly **NOT fully mutation-free** — the rare first-open case remains
+an exception, proved safe (atomic, fully audited/evented) rather than hidden.
+
+**Concurrent first-bootstrap race: characterized, not fixed.** `PortfolioScoringTemplateORM` has
+no unique constraint on `(organization_id, name)` or `(organization_id, is_active)` — only plain
+indexes (confirmed by reading the ORM's own `__table_args__`). Two genuinely concurrent sessions
+racing the empty-organization bootstrap can both create an active "Balanced PMO" default,
+producing two active rows — reproduced directly with two real, independently-committing
+`PortfolioUnitOfWork` instances in a test, not merely asserted. This is **pre-existing debt**, not
+introduced by P42's UoW convergence (the same list-then-create-if-empty shape existed before,
+guarded only by a raw self-commit) — left unfixed, matching the standing "characterize, don't
+schema-migrate" precedent (PO-line receiving concurrency, Register delete, Project delete). Also
+discovered and recorded precisely: activating one of the two duplicates is a true no-op (both are
+already active, correct §20 no-op semantics) and does NOT self-heal the race by itself; creating
+(or activating) any other template does, since `_deactivate_other_templates` deactivates every
+currently-active row in one pass.
+
+**Regression**: new `test_p42_fix_portfolio_scoring_template_bootstrap.py` (7 — existing-template
+read is mutation-free; first bootstrap via each query method creates exactly one atomically-
+audited default with exactly one ViewInvalidation target and is itself idempotent on a second
+read; audit-failure and repository-failure bootstrap rollback leave zero partial state; the
+concurrent-race characterization proving both the duplicate outcome and its true recovery path),
+`test_portfolio_phase0a2_rollback_hardening.py`'s own `_template_case` fixture repointed to the
+new `uow=` signature, full Portfolio regression suite (212 total across this run) reconfirmed
+green.
+
+**Legacy Signal count: unchanged at 4.** `portfolio_changed` remains deleted; no field-level
+change in this phase. **Project remains next, unchanged.**
+
+**P42-FIX2 — Concurrent first-bootstrap race closed with a real database constraint, not just
+characterized.** P42-FIX had proven the race (two concurrent sessions, two active default rows,
+no DB constraint preventing it) and left it as recorded debt. P42-FIX2 first proved "at most one
+active `PortfolioScoringTemplate` per organization" is a genuine domain invariant, not a
+convenience assumption: `_deactivate_other_templates`'s "deactivate every currently-active row"
+loop only makes sense defending against duplicates; `get_active_scoring_template()`'s singular
+return type assumes exactly one; and — the deepest evidence — `create_intake_item`/
+`update_intake_item` derive an intake item's scoring WEIGHTS deterministically from "the" active
+template, so two simultaneously-active rows would make a core prioritization calculation silently
+arbitrary, not merely cosmetic.
+
+**Enforcement: a real partial unique index, both dialects, both layers.** Added
+`uq_portfolio_scoring_one_active_per_org` — `UNIQUE(organization_id) WHERE is_active` — to both
+`PortfolioScoringTemplateORM` (`postgresql_where=`/`sqlite_where=`, mirroring the Budget module's
+own proven `uq_pf_budgets_one_approved_per_project` shape) and a new Alembic migration
+(`d8e1f4a7b2c3`, chained after `c3f6a1b8d9e0`). One deliberate deviation from the Budget
+precedent: scoped by `organization_id` alone, not `tenant_id + organization_id` — `tenant_id` is
+nullable on this table, and a composite unique index over a nullable column would not enforce
+uniqueness across NULL-tenant rows (SQL's `NULL <> NULL`). The migration also deterministically
+normalizes any pre-existing duplicate-active rows before creating the index (a raw-SQL
+window-function update, keep the most-recently-updated active row per organization, tie-broken by
+id — the same ordering the application's own reads already implicitly favor), so it cannot fail
+outright on data that predates the invariant; proved by a dedicated migration test that seeds two
+dirty active rows and asserts exactly the newer one survives.
+
+**Idempotent bootstrap made concurrency-safe: the loser gets zero durable side effects, not a
+crash.** `_scoring_templates_with_bootstrap()` now wraps its bootstrap `UnitOfWork` block in
+`try/except IntegrityError`: on a lost race, the UoW's own `__exit__` has already rolled back and
+closed the poisoned transaction, and the except branch performs one more plain read on the
+existing (un-poisoned) repository, returning the winner's canonical, already-committed state —
+zero new rows, zero audit, zero events, zero ViewInvalidation for the loser. Proved with a real
+two-independent-`PortfolioUnitOfWork` test (both stage their own default before either commits;
+the second commit raises `IntegrityError` for real, not simulated) and a second, deterministic
+test that forces the exact catch-and-recover path via monkeypatched commit failure.
+
+**Explicit commands map the same conflict to `ConcurrencyError`, never silently retry.**
+`activate_scoring_template`, `create_scoring_template` (its `activate=True` path can also set
+`is_active=True` directly), and `create_intake_item` (which resolves and can implicitly bootstrap
+the active template inside its own transaction) each wrap their commit in
+`try/except IntegrityError as exc: raise ConcurrencyError(..., code="PORTFOLIO_TEMPLATE_
+ACTIVATION_CONFLICT") from exc` — the project's own established concurrency-exception convention,
+not a raw SQLAlchemy leak, and not a retry loop. `create_scoring_template`'s duplicate-name check
+was also simplified from a bootstrap-triggering `_ensure_scoring_templates(...)` call to a plain
+`uow.scoring_templates.list()`, removing an unnecessary collision surface on a fresh organization.
+`_resolve_scoring_template`/`_active_scoring_template` (in-transaction, bootstrap-capable) are
+retained for `create_intake_item`'s use; a separate `_active_scoring_template_resolved()` (built
+on the catch-and-recover `_scoring_templates_with_bootstrap()`) now backs the pure-read
+`get_active_scoring_template()` query path — two call shapes for two different safety contracts,
+not one over-generalized helper.
+
+**Cross-organization independence preserved.** The constraint is scoped by `organization_id`, not
+global — two different organizations can each have their own active default template
+simultaneously, proved directly against two real organizations via `organization_service.
+create_organization`/`enable_organization`, not a fake harness.
+
+**Regression**: new/updated tests in `test_p42_fix_portfolio_scoring_template_bootstrap.py` (12 —
+the P42-FIX "recorded debt" characterization test rewritten as an "invariant enforced" proof;
+added: idempotent-bootstrap recovery, explicit `activate`/`create(activate=True)` conflict
+mapping, cross-org independence, a raw-insert-bypassing-application-code architecture guarantee)
+and new `test_p42_fix2_portfolio_scoring_template_migration.py` (2 — fresh-baseline index
+presence/uniqueness/downgrade, dirty-data deterministic normalization), full Portfolio regression
+suite (82 across this run, including `test_portfolio_phase0a2_rollback_hardening.py` and
+`test_pm_r3_4_portfolio_ia_tabs.py`) plus Register/Timesheet/P7/P8/architecture-guard regressions
+(63) reconfirmed green.
+
+**Legacy Signal count: unchanged at 4.** No field-level change in this phase — this closes
+concurrency debt recorded by P42-FIX, it does not touch the event/legacy-signal ledger. **Project
+remains next, unchanged.**
+
+**P43 — PM Project full modernization, and the P40A-discovered silent `set_status` notification
+gap closed.** Reconfirmed the current surface from source, not P40A's approximate count: 7
+non-test `project_changed` producer sites (3 real Project mutations in `lifecycle.py` —
+`create_project`/`update_project`/`delete_project` — plus 4 `ProjectResource`-assignment sites in
+`project_resource_commands.py`, a different aggregate that merely carries `project_id`), and
+`set_status` confirmed as a real, committed Project mutation that emitted **zero**
+`project_changed` at all — the exact live correctness gap P40A flagged. 11 real (non-test)
+consumer subscription sites found, reclassified against current source: **10 genuine** (Projects
+workspace = OWNER; Dashboard and Portfolio = REAL SUMMARY; Register, Resources, Tasks,
+Collaboration, Financials, Scheduling, Platform Access = CROSS-CAPABILITY READ MODEL, each proved
+by tracing an actual query/selector that reads `Project.name`/`status`/dates/code) and **1
+INCIDENTAL** (Platform Control — its own `build_overview`/`build_approval_queue`/
+`build_audit_feed` never dereference a single Project field, confirmed by source; removed with no
+replacement).
+
+**Aggregate structure, reconfirmed.** `Project` (`domain/projects/project.py`) — plain
+`@validated_dataclass`, no `tenant_id` field (ORM-only), `organization_id`, `version` (real
+optimistic-concurrency field), `status: ProjectStatus` (`PLANNED`/`ACTIVE`/`ON_HOLD`/`COMPLETED`,
+no enum-level or service-level transition graph — any value to any value was, and remains, valid;
+no invented `archive`/`reopen`/`cancel` transitions). No `Project.set_status()` domain method —
+status mutation was, and remains, a plain service-layer field assignment (`project.status =
+status`), now inside `ProjectUnitOfWork`. Confirmed Task/Resource/Budget/Portfolio/Register are
+NOT Project-owned children (reference-only or read-model edges); the one genuine same-transaction
+child is `ProjectFinancialProfile`, created atomically alongside every new Project.
+
+**Event vocabulary — 4 classes, no generic `ProjectChanged`.** `ProjectCreated`,
+`ProjectProfileUpdated`, `ProjectStatusChanged` (carries `status: ProjectStatus`), `ProjectRemoved`
+(`application/projects/project_events.py`) — matching P40A's own audited decomposition exactly;
+`ProjectOwnershipChanged`/`ProjectDatesChanged` reconfirmed NOT distinct (ownership/dates are
+ordinary profile fields changed through the same cohesive `update_project` operation).
+`update_project` additionally emits `ProjectStatusChanged` alongside `ProjectProfileUpdated` when
+its own optional `status` argument actually changes the value — a genuine second fact, not hidden
+behind one event (mirrors Budget's approve/supersede precedent). A same-transaction
+`ProjectFinancialProfileCreated` was added to Finance's own `configuration_events.py` (alongside
+its existing `Updated`/`Transitioned` siblings) and folded into Finance's existing
+`build_financial_profile_view_invalidation_handler` — `create_project` was the one Project-lifecycle
+side effect Finance's own event modernization had never covered, since it's not a standalone
+Finance command.
+
+**Canonical transaction ownership: new `ProjectUnitOfWork`.** No Project-specific or PM-wide UoW
+existed before this phase (`create_project`/`update_project`/`set_status`/`delete_project` all ran
+on a raw, shared `Session` with direct `self._session.commit()`/`.rollback()`). Added
+`ProjectUnitOfWork` (`contracts/uow/projects/` + matching infra, fresh session per transaction,
+mirroring the Register/Portfolio precedent) with two named accessors — `projects` and
+`financial_profiles` — the latter so `create_project`'s atomic `ProjectFinancialProfile` write
+participates in the exact same transaction, not a parallel raw-session write. `create_project`/
+`update_project`/`set_status` all converged onto it: mutation + enterprise audit (`commit=False,
+fail_closed=True`) + typed `DomainEvent`, one `uow.commit()`. `delete_project` is the one
+deliberate exception, mirroring P40B Timesheet's own precedent exactly: its Task/Dependency/
+Assignment/TimeEntry cascade is cross-capability cleanup (Task stays out of P43's scope per the
+brief), so it stays on the existing shared session via a bare `SqlAlchemyUnitOfWorkBase` wrapper
+around that same session, giving it typed-event capability while its cascade participates in the
+identical transaction as the Project row's own deletion.
+
+**A real cross-cutting correctness bug found and fixed during this phase, not merely inherited.**
+The established `record_activity(uow, ...)` call shape (used verbatim by Register/P41) leaves
+`commit` at its own default of `True`, which makes `ActivityService.record()` issue an early,
+independent `session.commit()` *before* the same UoW's later `_drain_and_dispatch()`/event-commit
+runs — meaning a transactional-handler failure occurring afterward cannot roll back the
+already-committed mutation. A dedicated transactional-handler-failure regression test for Project
+caught this directly (the project persisted despite the "rollback"). Fixed by passing
+`commit=False` explicitly on every `record_activity`/`record_activity`-via-bare-wrapper call in
+both `lifecycle.py` and `project_resource_commands.py`, folding the Activity-feed write into the
+same atomic commit as the audit entry and the DomainEvent. Register's own equivalent call sites
+were deliberately left untouched (out of P43's scope; its own tests happen not to observe the gap
+due to a stale-session read masking it, not because the gap doesn't exist there too) — recorded
+here as a known, narrowly-scoped follow-up, not silently fixed project-wide.
+
+**`set_status` gap closed exactly as specified — no legacy intermediate step.** `set_status` now
+runs inside `ProjectUnitOfWork`: mutation, atomic enterprise audit (previously **zero** audit
+coverage — the weakest path of any Project command), a typed `ProjectStatusChanged`, and precise
+ViewInvalidation, all in one transaction. Gained an optional `expected_version` parameter (parity
+with `update_project`'s existing explicit pre-check) for symmetry and testability; the DB-level
+`update_with_version_check` CAS already protected it implicitly before this phase (via the
+just-fetched `project.version`), so this was a real gap in caller-visible staleness reporting and
+audit, not a silent-corruption gap — confirmed by a genuine two-read/two-write concurrency test
+(the second writer gets `ConcurrencyError`, final persisted status reflects only the winner).
+
+**Concurrency preserved, not broadened.** `update_project`'s explicit `expected_version` check plus
+the repository's own `update_with_version_check` CAS are unchanged. `delete_project` remains
+genuinely unguarded (a plain filtered `DELETE`, no version predicate) — this is pre-existing debt,
+not introduced or worsened by P43's transaction convergence, and out of scope to fix here (matching
+the standing "characterize, don't schema-migrate" precedent).
+
+**ViewInvalidation: two targets, not one per screen.** `PROJECT_LIST_SCOPE_CODE` (`OrganizationScope`
+— Project collection/selector staleness) and `PROJECT_DETAIL_SCOPE_CODE` (`ResourceScope`, exact
+project) — `ProjectCreated` maps to the list target only (no existing detail view for a
+not-yet-created Project); `ProjectProfileUpdated`/`ProjectStatusChanged`/`ProjectRemoved` map to
+both. The 4 `ProjectResource`-assignment sites needed their own minimal fact
+(`ProjectResourceAssignmentChanged`, `application/resources/project_resource_events.py` — a real
+`resources`-module fact, not a Project field change) since they never touch the Project entity at
+all; it reuses Project's own detail-only target rather than inventing a parallel Resource
+ViewInvalidation category for one narrow fact.
+
+**Consumer cutover: 10 genuine consumers re-wired, 1 incidental removed, zero blanket-fan-out
+carried over unexamined.** One `ProjectViewInvalidationAdapter` (list+detail signals), wired per
+consumer in `context.py`: 7 blanket-refresh consumers (Projects, Dashboard, Portfolio, Register,
+Tasks, Collaboration, Scheduling) via a `_wire_project_stale` helper mirroring the established
+`_wire_resource_list_stale` pattern; Resources kept its existing surgical `_reload_if_loaded`
+scoping (now triggered by the adapter instead of the legacy Signal); Financials kept its existing
+project-scoped, lazy-per-destination `_finance_event_matches`/`_invalidate_destinations` logic
+(extracted into a public `onProjectStale` method). Platform Access's genuine but narrow dependency
+(the "Project" scope-target selector) is preserved through composition-root Signal/Slot wiring —
+`ProjectManagementWorkspaceCatalog.projectDirectoryStale` re-exposes the list-target hint,
+`shell/app.py::main()` connects it to `PlatformAdminAccessWorkspaceController.onExternalViewStale`
+— mirroring P41-FIX's Register→Control precedent exactly, never a Platform→PM import. Platform
+Control's subscription was removed with no replacement (INCIDENTAL, proved from source).
+
+**Regression**: new `test_p43_project_full_modernization.py` (21 — ViewInvalidation handler unit
+tests for all 4 event types + the resource-assignment fact, dedupe, real create/set_status/update/
+delete producer paths with atomic-audit proofs, the mandatory `set_status` gap-closure test
+asserting actual persisted status + real hint delivery, audit-failure rollback for both `create`
+and the previously-weakest `set_status` path, the newly-discovered transactional-handler-failure
+regression, two-session concurrency for both `update_project` and `set_status`, duplicate-name and
+cross-reference rejection, the Approval bridge isolation check reused verbatim), full existing
+Project/Resources/Register/Portfolio/Timesheet/Finance-financial-setup suites (over 300 across
+this run) plus the P7/P7B/P8/architecture-guard/domain-event-wiring suites (130, several rewritten
+in place: `test_domain_event_wiring.py`'s two `project_changed`-Signal tests now assert the typed
+events/hints directly; `test_p7_legacy_bridge_removal.py`'s Register direct-wiring proof and its
+"unrelated PM signal" example both repointed off the deleted field; `test_p7b_dead_signal_cleanup.
+py`'s Financials/Portfolio/Scheduling coalescing proofs repointed to the new adapter/remaining
+signal) all green.
+
+**Legacy Signal count: 3 (4 minus one deletion) — fourth Project Management capability to reach
+zero.** `project_changed` rejoins the historical P8 frozen allowlist's deleted-name set (added to
+`_DELETED_BRIDGE_NAMES` in `test_p8_platform_event_architecture_canonicalization.py`); the frozen
+baseline itself is unchanged. Remaining PM legacy signals: `tasks_changed`, `collaboration_changed`.
+Approval's `ApprovalPostCommitEvent`/`_emit_signal_safely` baseline reconfirmed unchanged (still
+exactly `financial_change_apply_participant.py` + `task_apply_participant.py`) — Task remains
+responsible for its eventual retirement. **Collaboration is next, per P40A's tentative sequence —
+its own dedicated durable-vs-ephemeral transport split first, not generic DomainEvents; Task
+remains last** (dedicated audit first, final PM legacy modernization).
+
+**P44A — Collaboration durable/ephemeral transport split (category-error correction, not full
+modernization).** Reconfirmed the current `collaboration_changed` surface from source: 8
+non-test producers, not P40A's approximate count — 6 **DURABLE** (`post_comment`,
+`mark_task_mentions_read`, `edit_comment`, `delete_comment`, `react_to_comment`,
+`remove_reaction`, all in `collaboration_comments.py`, all mutating the single `TaskComment`
+aggregate, all on a raw shared `Session` with **zero** EnterpriseAudit and **zero** Activity-feed
+coverage) and 2 **EPHEMERAL** (`touch_task_presence`/`clear_task_presence`, `collaboration_
+presence.py`, upserting/deleting a TTL-windowed `TaskPresence` row keyed `(task_id, username)`,
+also on a raw shared session, also with zero audit — correctly, since presence is not business
+history). 3 consumers: Collaboration workspace (durable-only need), Dashboard (durable-only need,
+specifically the activity feed), Tasks workspace (**both** — the one consumer with a real,
+pre-existing dependency on presence data). Confirmed `touch_task_presence`/`clear_task_presence`
+are the *only* two presence operations that exist — no typing/heartbeat/viewing/cleanup-job
+methods were found anywhere in the codebase; TTL (default 900s, `PM_TASK_PRESENCE_TTL_SECONDS`) is
+enforced purely by a query-time `last_seen_at >= now - ttl` filter, never a scheduled sweep.
+
+**The category error, confirmed and now removed.** Before this phase: `touch_task_presence`/
+`clear_task_presence` → `collaboration_changed.emit(task_id)` → Tasks workspace's blanket
+`_request_domain_refresh()` → a full workspace rebuild (durable comments + everything else)
+on *every single presence keepalive tick* (the heartbeat re-touches presence roughly every 30s
+while any task detail panel is open). This was pure amplification: Task workspace's own presence
+display was never actually driven by this refresh path in the first place — it already
+self-updates via `beginTaskPresence`/`endTaskPresence`'s own slot flow and an independent
+30-second heartbeat poll (`PMCollaborationController._on_runtime_heartbeat`) that rebuilds only
+the presence collection. The full-workspace rebuild was pure waste, not a real dependency.
+
+**Presence transport: a direct, scoped `ViewInvalidationHint` notify — no DomainEvent, no
+handler, no dispatcher.** `TaskPresence` is genuinely a persisted, TTL-windowed read model
+(`list_task_presence`/`list_active_presence`), so a real projection *does* become stale on
+touch/clear — this is a legitimate ViewInvalidation use, not an abuse of it (per this project's own
+"ViewInvalidation means a persisted/read-model projection became stale" principle) — while
+remaining strictly forbidden from ever becoming a `DomainEvent`: no `uow.record_event(...)`, no
+`TransactionalEventDispatcher`, no `PostCommitEventPublisher`, no audit-trail/business-history
+implication. `touch_task_presence`/`clear_task_presence` now call `notify_task_presence_stale(...)`
+(`application/collaboration/event_handlers/view_invalidation.py`, new — `TASK_PRESENCE_CATEGORY`/
+`TASK_PRESENCE_SCOPE_CODE`, PM-owned vocabulary, generic `ViewInvalidationHint`/`ResourceScope`
+transport shape owned by shared/platform) directly, synchronously, after their own commit
+succeeds — no new capability UnitOfWork was introduced for this (source doesn't warrant one for a
+blind TTL upsert/delete with no version field and no audit). A new `TaskPresenceViewInvalidation
+Adapter` (QML) and one `onTaskPresenceStale`/`refresh_presence_for_task` hook were wired into Tasks
+workspace's *existing* presence-rebuild code path (the same logic `_on_runtime_heartbeat` already
+used) — giving genuine, tested value: the calling user's own presence indicator now updates
+immediately on touch/clear instead of waiting up to 30s for the next heartbeat tick, with zero
+effect on the durable comment thread.
+
+**Ephemeral legacy publication fully removed; durable publication fully preserved.**
+`collaboration_changed`/`tasks_changed` producer count for presence: 0 (both `touch_task_presence`
+and `clear_task_presence` — confirmed by a source-level architecture-guard test, not just a
+runtime probe). All 6 durable producers still emit `collaboration_changed` exactly as before —
+proved by rerunning them end to end. A 10-touch presence storm test asserts the *durable* signal
+count directly (must stay 0), not merely the lightweight hint count (which legitimately fires once
+per touch — no coalescing was added, since none was required to satisfy the correctness goal and
+none exists as an established precedent to reuse). Presence remains unaudited by design (a
+dedicated test asserts zero new `AuditEntryORM` rows across a touch+clear pair) — this is expected
+for ephemeral coordination state, not a newly-introduced or automatically-assumed gap.
+
+**Multi-user/same-user semantics reconfirmed unchanged.** Presence is keyed `(task_id, username)`,
+not `(task_id, user_id)` and with no session/client id — two different users can be simultaneously
+present on the same task (proved with two real, independently-authenticated `UserSessionContext`s),
+and one user's touch/clear can never affect another user's row. Same-user, multi-tab/multi-session
+collapse to one row (last-write-wins on `activity`/`last_seen_at`) is pre-existing, unaffected
+behavior — recorded as known debt for a future phase to reconsider if ever needed, not touched here
+since the transport split doesn't require it.
+
+**`collaboration_changed` intentionally remains — this phase's job was category separation, not
+Signal deletion.** All remaining producers of `collaboration_changed` are now durable-only (the 6
+`TaskComment` operations); no premature field deletion was made. **P44B readiness, audited now so
+it can be DIRECT FULL MODERNIZATION**: one aggregate root, `TaskComment` (no separate
+`Discussion`/`Reaction`/`Mention` entities — replies are `parent_comment_id` self-references,
+reactions are an embedded `dict[emoji, [user_id]]` field, mentions are plain string-list fields);
+`version: int` with real storage-layer CAS (`update_with_version_check`) on every `_comment_repo.
+update()` call regardless of caller-supplied `expected_revision` (only `edit_comment`/
+`delete_comment` pass one explicitly today — `react_to_comment`/`remove_reaction`/`mark_task_
+mentions_read` blind-read-modify-write, protected only by the storage-layer CAS, a candidate for
+P44B to reconsider, not fixed here); **zero EnterpriseAudit, zero Activity-feed coverage on any
+durable Collaboration operation** — the biggest audit gap of any PM capability audited so far, a
+mandatory P44B fix; **no `CollaborationUnitOfWork` exists** (raw shared session throughout,
+matching presence) — P44B's first task is converging all 6 durable operations onto one; zero
+cross-capability persisted mutations (Task/Project referenced by id only, read-time join only,
+never mutated). Candidate P44B DomainEvents: a shared-family `CollaborationCommentChanged(change_
+type=CREATED|UPDATED|REMOVED|REACTED|UNREACTED|MENTIONS_READ)` (mirroring `RegisterEntryChanged`'s
+precedent — one cohesive aggregate, several operation kinds) is the leading candidate over 6
+separate classes, to be finalized in P44B. Candidate ViewInvalidation targets: a per-task scope
+(`SqlAlchemyTaskCommentRepository.list_by_task`) and a per-project/workspace scope
+(`SqlAlchemyCollaborationWorkspaceReader.read_comment_page`, already a real paginated/filterable
+read-model) — mirroring Register's dual-target (`REGISTER_PROJECT_SCOPE_CODE`/`REGISTER_WORKSPACE_
+SCOPE_CODE`) shape closely. **P44B can delete `collaboration_changed` in one direct
+full-modernization phase: YES** — no blocker identified.
+
+**Read-only check performed, not fixed (§45 of the brief): Register's `record_activity(commit=
+True)` early-commit pattern, flagged as a P43 discovery, is a STALE OBSERVATION for Register
+specifically** — `register_lifecycle.py`'s three mutation methods already pass `commit=False`
+explicitly at every `record_activity(uow, ...)` call site; P41's own UoW conversion never had the
+bug P43 found and fixed in Project's files. No Register production changes were made in P44A.
+
+**Regression**: new `test_p44a_collaboration_presence_transport_split.py` (15 — ephemeral
+producers confirmed to emit zero `collaboration_changed`/zero `tasks_changed`, a source-level
+architecture guard against reintroducing either, the scoped presence-hint proof for touch and
+clear, a 10-touch storm asserting zero durable-signal amplification, all 6 durable producers
+reconfirmed still firing `collaboration_changed`, presence proved un-audited by design, two-user
+concurrent-presence proof, the Approval-bridge and Signal-still-exists baseline checks), full
+existing Collaboration/Presence/Task suites (33) plus Project/Register/Portfolio/Timesheet/P7/P7B/
+P8/architecture-guard/Finance-financial-setup regressions (277 total across this run) all green.
+
+**Legacy Signal count: unchanged at 3.** No field deleted — architecture category separation is
+this phase's milestone, not a Signal-count reduction (per the brief's own explicit instruction not
+to force deletion). Remaining PM legacy signals: `tasks_changed`, `collaboration_changed` (now
+durable-only). **P44B is next: direct full modernization of durable Collaboration. Task remains
+last.**
+
+**P44B — Durable `TaskComment` full modernization; `collaboration_changed` deleted.** Reconfirmed
+the exact remaining surface from source, not P44A's own truncated summary: 6 durable operations,
+all in `collaboration_comments.py` — `post_comment`, `mark_task_mentions_read`, `edit_comment`,
+`delete_comment`, `react_to_comment`, `remove_reaction` — one aggregate, `TaskComment`, no separate
+`Discussion`/`Reaction`/`Mention` entities (replies are `parent_comment_id` self-references,
+reactions an embedded `dict[emoji, [user_id]]`, mentions plain string-list fields on the comment
+itself). 3 consumers reconfirmed: Collaboration workspace, Dashboard (activity feed only), Tasks
+workspace (both durable comments and presence, kept intentionally separate).
+
+**Event vocabulary — three semantically distinct families, not one catch-all.** `TaskCommentChanged
+(change_type=CREATED|EDITED|REMOVED)` — a shared family mirroring `RegisterEntryChanged`'s
+precedent, since create/edit/(soft-)delete are genuinely the same kind of fact (the comment itself
+changed); `TaskCommentReactionChanged(change_type=ADDED|REMOVED)` — a distinct business fact,
+since a reaction changing doesn't mean the comment's own content/existence changed;
+`TaskCommentReadStateChanged` — a distinct read-receipt fact, no `change_type` (marking is
+one-directional in the current domain). Mentions have no separate event — confirmed source-only
+mutated as part of create/edit, never independently (brief's own §8 "option A"). Payloads carry
+only `tenant_id/organization_id/project_id/task_id/comment_id/occurred_at` plus `change_type`
+where applicable — no comment body, no full reactions/mentions list, no ORM/session/DTO.
+
+**A real latent bug found and fixed while converging `post_comment` onto the canonical UoW.**
+`post_comment`'s interaction with `DocumentIntegrationService.register_entity_attachments` (itself
+always on its own separate, fresh `DocumentUnitOfWork` — confirmed by reading its source, never the
+Collaboration session) meant the *old* code's `else: self._session.commit()` branch was skipped
+entirely whenever attachments were present, silently leaving the comment row **uncommitted** on
+the shared session. Fixed as a natural consequence of UoW conversion: the comment's own atomic
+transaction (mutation + audit + `TaskCommentChanged`) now *always* commits first, unconditionally,
+before the pre-existing (unchanged, still-separate) document-attachment/link calls run afterward —
+strictly safer than before, not merely equivalent.
+
+**Canonical transaction ownership: new `CollaborationUnitOfWork`.** No Collaboration UoW existed
+before this phase (all 6 durable operations *and* both presence operations ran on one raw shared
+`Session`, confirmed identically for `TaskComment` as it was for Presence in P44A). Added
+`CollaborationUnitOfWork` (`contracts/uow/collaboration/` + matching infra, fresh session per
+transaction, one named accessor `comments: TaskCommentRepository`, mirroring the Register/Project/
+Portfolio precedent exactly) — no `_activity_service` was added, since Collaboration never had one
+in the first place: the "activity feed" shown by Collaboration workspace/Dashboard is not the
+generic `ActivityService`/`ActivityEntry` mechanism at all, it is `TaskComment` rows themselves,
+read through `SqlAlchemyCollaborationWorkspaceReader.read_comment_page` — confirmed by source, so
+adding a parallel Activity-feed write would have been a duplicate, invented mechanism, not a real
+gap (brief's own §19 guidance followed precisely).
+
+**Enterprise audit added where none existed at all — the largest audit gap found in any PM
+capability so far.** All 6 durable operations now record `record_audit_entry(uow, ..., commit=
+False, fail_closed=True)` atomically alongside their mutation and typed event, inside the same
+`uow.commit()`. Presence (P44A) remains deliberately un-audited — confirmed still correct and
+unchanged by this phase.
+
+**Concurrency preserved exactly, not weakened.** `SqlAlchemyTaskCommentRepository.update()`'s
+always-on `update_with_version_check` CAS is unchanged; `edit_comment`/`delete_comment`'s optional
+caller-supplied `expected_revision` pre-check is unchanged. Proved with a real two-independent-
+read/two-independent-write concurrency test for `edit_comment` (the second writer gets
+`ConcurrencyError`, final persisted body reflects only the winner) — the same shape already
+established for Register/Project. `react_to_comment`/`remove_reaction`/`mark_task_mentions_read`
+confirmed to have **no** caller-supplied `expected_revision` guard in source (unchanged, not a
+regression) — protected only by the storage-layer CAS.
+
+**No-op semantics reconfirmed and preserved exactly, not invented.** `mark_task_mentions_read`'s
+existing "already read" guard and `delete_comment`'s existing "already deleted" guard are true,
+source-established no-ops: zero write, zero audit, zero event, zero ViewInvalidation, proved
+directly. `react_to_comment`/`remove_reaction` are confirmed to have **no** such guard in source
+(repeating the same reaction still writes/audits/emits every time) — this pre-existing behavior
+was preserved as-is, not "fixed" into a new idempotency behavior the domain never asked for; the
+final reactor *set* is still data-level idempotent (one entry, not duplicated), just not
+event-level idempotent.
+
+**ViewInvalidation: two scope codes, mapped by actual business meaning, not uniformly.**
+`TASK_COMMENT_SCOPE_CODE` (`ResourceScope`, exact task) fires for every one of the three event
+families; `COLLABORATION_WORKSPACE_SCOPE_CODE` (`OrganizationScope`, org-wide) fires *only* for
+`TaskCommentChanged` (create/edit/remove — content that genuinely appears in cross-project "recent
+activity"), deliberately excluding `TaskCommentReactionChanged`/`TaskCommentReadStateChanged`
+(neither is displayed anywhere at the workspace/dashboard level per source inspection — brief's own
+§37/§38 guidance against unproven broad fan-out, applied directly rather than uniformly mapping
+every event to every target the way the legacy Signal did).
+
+**Consumer cutover: all 3 real consumers, zero incidental, zero blanket fan-out on
+reactions/read-state.** New `TaskCommentViewInvalidationAdapter` (two signals:
+`taskCommentsStale`/`collaborationWorkspaceStale`), wired per consumer in `context.py`: Tasks
+workspace gets a narrow `onTaskCommentsStale(task_id)` (refreshes only when the stale task matches
+the currently selected one, mirroring the established `onTimesheetProjectStale`/`onRegisterProjectStale`
+pattern) *in addition to* its own separate, pre-existing `onTaskPresenceStale` (P44A) — genuinely
+two independent inputs, never merged back together, exactly as the brief required. Collaboration
+workspace and Dashboard each get a blanket-refresh connection to `collaborationWorkspaceStale`
+only (never `taskCommentsStale`, and never the presence adapter — Dashboard heartbeat-refreshing
+was explicitly forbidden and confirmed absent).
+
+**Regression**: new `test_p44b_collaboration_comment_full_modernization.py` (25 — ViewInvalidation
+handler unit tests for all three event families + dedupe, real create/edit/delete/react/unreact/
+mark-read producer paths with atomic-audit proofs, both source-established no-ops proved zero-effect,
+the reaction-repeat-is-not-a-no-op characterization preserving exact current behavior, mandatory
+audit-failure and transactional-handler-failure rollback, real two-session `edit_comment`
+concurrency, cross-reference rejection, the legacy-deletion and Approval-bridge baseline checks),
+`test_collaboration_phase0a3_rollback_hardening.py` rewritten in place for all 6 durable methods
+(repository-class-level and `EnterpriseAuditService`-level failure injection replacing the old
+shared-session/legacy-Signal assertions; presence sections entirely unchanged, still passing),
+`test_p44a_collaboration_presence_transport_split.py` updated (4 tests repointed from the now-
+deleted legacy Signal to the durable-hint-count equivalent), `test_qml_domain_event_bridges_pm.py`
+and `test_p8_platform_event_architecture_canonicalization.py` repointed off the deleted field, full
+existing Collaboration/Presence/Project/Register/Portfolio/Timesheet suites plus P7/P7B/P8/
+architecture-guard/Finance-financial-setup regressions (297 total across this run) all green.
+
+**Legacy Signal count: 2 (3 minus one deletion) — Collaboration reaches zero legacy Signal
+fields.** `collaboration_changed` rejoins the historical P8 frozen allowlist's deleted-name set
+(added to `_DELETED_BRIDGE_NAMES`); the frozen baseline itself is unchanged. **`tasks_changed` is
+now the sole remaining PM legacy Signal — Task is the final PM legacy modernization phase.**
+Approval's `ApprovalPostCommitEvent`/`_emit_signal_safely` baseline reconfirmed unchanged (still
+exactly `financial_change_apply_participant.py` + `task_apply_participant.py`, both emitting
+`tasks_changed`) — Task itself remains responsible for that mechanism's eventual retirement.
+
+**P44B-FIX — TaskComment attachment/linked-document boundary: a real Category-C cross-capability
+mutation, correcting P44B's own report.** P44B's narrative above described the `post_comment` →
+`DocumentIntegrationService` interaction only as a two-commit ordering bug (comment silently
+uncommitted) and, having fixed that ordering, characterized the resulting shape as merely
+"pre-existing (unchanged, still-separate) document-attachment/link calls" — implying Collaboration
+had zero cross-capability persisted mutations, echoing the audit-era scorecard's own "Cross-
+capability coupling: NONE (durable)" verdict for this capability. Re-tracing `post_comment`'s
+attachment/`linked_document_ids` path end-to-end from current source (not from that summary) found
+this was never accurate: `DocumentIntegrationService.register_entity_attachments`/
+`link_existing_document` persist real `Document`/`DocumentLink` rows, each with its own
+EnterpriseAudit entry and `DocumentCreated`/`DocumentReferenceLinked` typed event, via a *separate*
+`DocumentUnitOfWork` transaction — a genuine, if conditional (only when attachments or
+`linked_document_ids` are supplied), Category-C persisted cross-capability mutation edge:
+**`Collaboration TaskComment → Document/DocumentLink`**. Classified as business-atomic (not
+intentionally split): `post_comment`'s API returns one `TaskComment` or raises, with no structured
+partial-success/warning-reporting shape anywhere that would signal a deliberate non-atomic design,
+and the two-transaction shape was the same accidental "compose two independently-committed
+services" root cause already found (and only half-fixed) once before in this exact method during
+P44B itself. Left as two separate transactions, a Document-side failure after the comment's own
+UoW had already committed would silently leave a durable `TaskComment` behind while the caller
+observes a raised exception with no way to know the comment already persisted — a real retry-
+duplication hazard, not a hypothetical one.
+
+**Fix — one physical transaction, narrowest-boundary shape (mirrors `ProjectUnitOfWork.
+financial_profiles`'s exact P43 precedent), zero duplicated Document business logic.**
+`DocumentIntegrationService.register_entity_attachments`/`link_existing_document`'s method bodies
+were extracted into new, transaction-neutral module-level functions —
+`register_entity_attachments_in_uow`/`link_existing_document_in_uow` (`document_integration_
+service.py`) — that mutate/flush/audit/`record_event` on a caller-supplied `uow` but never call
+`commit()`/`rollback()`/publish postcommit themselves. `DocumentIntegrationService`'s own public
+methods now delegate to these same functions inside their own fresh `DocumentUnitOfWork` (zero
+behavior change for their existing standalone callers elsewhere in the app — reverified by the
+full pre-existing P16/Inventory-Procurement Document regression suite, 124 tests, unchanged and
+green). `CollaborationUnitOfWork` gained three new named accessors — `documents`/`links`/
+`structures` (Platform's own `DocumentRepository`/`DocumentLinkRepository`/
+`DocumentStructureRepository`, bound to Collaboration's own per-transaction session) — the second
+precedent (after `ProjectUnitOfWork.financial_profiles`) for a capability UoW holding another
+capability's repository for a genuinely atomic need, not a generic repository bag or a mega-UoW.
+`post_comment` now calls `register_entity_attachments_in_uow`/`link_existing_document_in_uow`
+directly inside its own `CollaborationUnitOfWork` block, ending in one `uow.commit()` — comment +
+comment audit + `TaskCommentChanged` + any new `Document`/`DocumentLink` rows + their own audit +
+their own `DocumentCreated`/`DocumentReferenceLinked` events all now share one physical transaction
+and one FAIL_FAST/rollback boundary. **Document capability still owns its own fact** — no
+Collaboration-owned "AttachmentCreated"/"DocumentLinked" event was invented; P16's existing typed
+vocabulary is reused verbatim, exactly as this document's own "one canonical event family, not a
+catch-all" principle requires when a *different* capability's fact is genuinely involved.
+
+**Regression**: new `test_p44b_fix_collaboration_attachment_transaction_boundary.py` (7 tests —
+success path with both an attachment and a `linked_document_ids` entry proving one Document +
+two DocumentLink rows + both capabilities' audits + both capabilities' typed postcommit hints in
+one transaction; a no-attachment path proving zero Document-capability touch at all; Document-
+registration failure *after* the comment was already staged in the same transaction rolling back
+the comment too — the exact scenario the old two-transaction shape could not protect against;
+comment-persistence failure preventing any Document-side work from ever running; a transactional-
+handler failure on `TaskCommentChanged` rolling back a comment posted with both an attachment and a
+linked document; a physical-commit failure persisting neither capability; a retry-after-failure
+characterization proving a failed attempt leaves nothing durable, so retrying produces exactly one
+final comment + one final document, never a duplicate). Full existing Collaboration/P44A/P44B/
+Tasks-workspace/Dashboard/P7/P7C/P8/Finance-invalidation/P16-Document/Inventory-Procurement
+regression suites re-run unmodified and green (`test_task_comment_domain_validation.py`'s 11
+pre-existing failures reconfirmed unrelated — a `_FakeTenantContextService` test-fixture gap
+against `require_active_scope_ids`, a call already present in P44B's own committed HEAD, byte-for-
+byte unchanged by this fix). Presence (P44A) reconfirmed completely untouched — its own suite
+passes unmodified. `collaboration_changed` remains deleted; `tasks_changed` remains unexpanded and
+is not emitted by any comment/attachment path.
+
+**Cross-capability graph correction.** The pre-implementation audit scorecard's "Cross-capability
+coupling: NONE (durable)" verdict for Collaboration (§ audit table above) is superseded for the
+attachment/linked-document path only: it is now **LOW (1 conditional edge, canonical)** —
+`Collaboration TaskComment → Document/DocumentLink`, Category C, atomic, single transaction,
+Document owns its own fact. The other 5 durable operations (`mark_task_mentions_read`,
+`edit_comment`, `delete_comment`, `react_to_comment`, `remove_reaction`) and presence remain
+exactly as P44A/P44B described — zero cross-capability coupling.
+
 ## 4. Current State
 
-**Legacy Signal count: 10 as of P36** (source-derived from
+**Legacy Signal count: 2 as of P44B** (source-derived from
 `src/core/shared/events/domain_events.py`, re-verified against current source when this document
-was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Down from 11 at
-P35-CLEANUP — `commitments_changed` is now deleted.
+was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Down from 3 at
+P43 — `collaboration_changed` is now deleted, the fifth Project Management capability to reach
+zero, and Collaboration's own legacy surface is fully closed (durable modernized in P44B, ephemeral
+presence transport-split in P44A). `tasks_changed` remains the sole PM legacy Signal, pending
+Task's own dedicated-audit-first modernization.
+**Finance module event modernization is complete: zero Finance-owned legacy Signal fields
+remain.** The P8 architecture budget (`current ⊆ frozen`) remains restored with zero exceptions
+(P37 was the last post-freeze *violation*; P38B/P39/P40B/P41/P42/P43/P44A/P44B are ordinary
+further retirement of pre-freeze, frozen-allowlisted signals, not violation fixes).
 
 | Area | Count |
 |---|---|
 | Platform | 0 |
 | Auth/Security | 1 |
-| Project Management | 6 |
-| Finance | 3 |
+| Project Management | 1 |
+| Finance | 0 |
 | Inventory/Procurement | 0 |
 
 > **This is a snapshot, not a fact.** Recompute the count directly from
@@ -1954,27 +3660,72 @@ exists yet on that surface.
 
 **Planned Cost is DONE (P35, see §3)** — `planned_costs_changed` is deleted, the first of P34A's
 Finance-first trio complete. `financial_changes_changed` is ALSO now gone (retired independently,
-outside this document's tracked sequence — see the P35-CLEANUP entry). **Commitment is now DONE
-too (P36, see §3)** — `commitments_changed` is deleted; the commit-without-rollback bug in
-`commitment_service.py`'s old `_commit()` is fixed via convergence onto
-`FinanceGovernanceUnitOfWork`. **`cost_entries_changed` is next and last of the Finance-first
-trio**, as DIRECT FULL MODERNIZATION (no dedicated audit-first phase needed): it already has an
-unused, fully-wired canonical `FinanceGovernanceUnitOfWork` repo accessor and the same proven
-precommit-conversion pattern P22's Rate Card, P35's Planned Cost, and P36's Commitment already
-demonstrated on the exact same class. **Correction from P35-CLEANUP, re-confirmed at P36**:
-`cost_entries_changed` has 3 producers — `cost_entry_service.py` direct, plus
-`ProcurementFinancialDispatcher` and `ApprovedTimeFinancialDispatcher` — re-scope the producer
-surface from current source before implementing, not from P34A's original "single producer"
-characterization; P36 confirmed `ProcurementFinancialDispatcher`'s own commit/rollback handling is
-already correct, so the same "leave the dispatcher-embedded transaction alone, converge only the
-UI-facing direct path, change only the producer's return contract" shape applies again here.
-`budgets_changed` remains transaction-canonical but is deliberately sequenced
-after the trio — P34A found it genuinely coupled to PM's `tasks_changed` through one Approval
-participant (`financial_change_apply_participant.py::apply()`, which still conditionally emits both
-legacy signals even though its own `financial_changes_changed` is now typed), which needs its own
-deliberate resolution rather than being forced by finishing Budget in isolation. Per this document's
-own repeated caution, re-run prioritization from current source before committing further —
-concurrent development elsewhere may have changed readiness since P34A.
+outside this document's tracked sequence — see the P35-CLEANUP entry). **Commitment is DONE (P36,
+P36-FIX, P36-FIX2, see §3)** — `commitments_changed` is deleted; the commit-without-rollback bug is
+fixed via convergence onto `FinanceGovernanceUnitOfWork`; the Procurement-driven producer path's
+event lifecycle is fully canonical (real `SqlAlchemyUnitOfWorkBase`, no dispatcher-as-UoW
+impersonation). **Cost Entry is now DONE too (P37, see §3)** — `cost_entries_changed` is deleted,
+completing P34A's Finance-first trio. This was the **last post-P8-freeze legacy-Signal violation**
+— the P8 architecture budget (`current ⊆ frozen`) is now restored with zero exceptions; the P8
+guard suite is fully green. **No Finance capability with a post-freeze legacy-Signal violation
+remains.** **Budget is DONE (P38B, see §3)** — `budgets_changed` is deleted. The Financial-Change
+coupling P38A found (one Approval-participant edge, already transaction-safe) is now typed on
+both sides: `financial_change_apply_participant.apply()` returns the Budget-side
+`BudgetVersionCreated`/`BudgetStatusChanged` facts alongside its own `FinancialChangeChanged`(+
+`ForecastVersionChanged`), in the same `ApprovalHandlerResult.domain_events` tuple. **Billing
+Profile and Billing Preparation are now DONE too (P39, see §3)** — `billing_preparations_changed`
+is deleted, both aggregate families modernized together (kept as genuinely distinct DomainEvent
+vocabularies, sharing one `billing_commercial` ViewInvalidation target and one broadened
+`FinanceGovernanceUnitOfWork` — the bespoke `BillingPreparationSubmissionUnitOfWork` is retired
+entirely). **This was the last Finance legacy signal — Finance module event modernization is now
+100% complete**, verified by a new permanent architecture guard
+(`test_zero_finance_legacy_signal_fields_remain`). **No Finance capability of any kind remains for
+this document to prioritize.** Attention on the Finance track ends here; remaining modernization
+work is entirely Project Management and Auth/Security, per §6.
+
+**PM re-audited and re-sequenced (P40A, AUDIT + SEQUENCING ONLY — see §3's P40A entry, no code
+changed).** All six remaining PM legacy Signals were re-audited from current source. Next three
+targets selected, in order: Timesheet → Register → Portfolio (all rated DIRECT FULL
+MODERNIZATION — smallest producer surfaces, already-atomic or near-atomic transactions, zero
+approval-subsystem entanglement, and (Portfolio) zero coupling with Project in either direction).
+Tentative full sequence after that: Project, then Collaboration (needs its own short audit/
+transport-split phase first — presence and durable comments currently share one Signal and
+presence needs a non-`DomainEvent` mechanism), then Task last (highest strategic value — the only
+capability touching the shared `ApprovalPostCommitEvent` legacy bridge — but worst-in-class on
+every ease dimension: no UoW exists yet, 3 independently-versioned aggregates, 28 producer sites
+across 2 module boundaries, and a required coordination point with Financial Change's own
+participant). Full reasoning, matrices, and scorecard in §3's P40A entry.
+
+**Timesheet is now DONE (P40B, see §3)** — `timesheet_periods_changed` is deleted, the first of
+P40A's PM sequence complete and the first PM capability of any kind to reach zero legacy Signal
+involvement. Converged onto a bare `SqlAlchemyUnitOfWorkBase` wrapping `TimeService`'s own
+already-shared session (no new named-repository UoW — none was architecturally required), one
+shared-family `TimesheetPeriodStatusChanged` event, and three ViewInvalidation targets (workspace/
+resource/project) replacing the legacy signal's unscoped fan-out to the same three consumer
+families.
+
+**Register is now DONE too (P41, see §3)** — `register_changed` is deleted, the second PM
+capability to reach zero. Fixed the real two-commit business-mutation/audit split P40A found (and
+added enterprise audit, which Register never had before this phase — only the lighter Activity
+feed) by converging onto a new, narrow `RegisterUnitOfWork` (unlike Timesheet, no existing session
+constraint favored reuse, so this followed Resource's/Employee's own fresh-session-per-command
+precedent instead). One shared-family `RegisterEntryChanged` event and two ViewInvalidation
+targets (workspace/project). Platform's Control workspace subscription could not be cut over to a
+typed hint (a real Platform/PM layering guard forbids it) and was dropped with no replacement.
+That guard turned out (P41-FIX) to not actually cover the QML layer at all, but the composition-
+root Signal/Slot pattern already used for Platform→PM wiring restored the real dependency PM→
+Platform for the first time, with neither side importing the other's implementation.
+
+**Portfolio is now DONE too (P42, see §3)** — `portfolio_changed` is deleted, the third PM
+capability to reach zero. Fixed the real nested/self-owned commit hazard P40A found
+(`_ensure_scoring_templates()`'s own internal `session.commit()` calls, triggered as a side effect
+from Intake commands too) by converging all four sub-aggregates (Intake, Scenario, ScoringTemplate,
+ProjectDependency) onto one `PortfolioUnitOfWork`, mirroring `DocumentUnitOfWork`'s established
+one-capability-several-repos shape. Added enterprise audit to three of the four sub-aggregates,
+which had none before. Two of Portfolio's three legacy consumers (PM Dashboard, Projects workspace)
+turned out to be incidental — neither ever read any of the four real sub-aggregates — and were
+dropped with no replacement; only Portfolio's own workspace was genuine. **Project remains next,
+unchanged from P40A's tentative sequence.**
 
 **A pre-existing, explicitly-not-fixed note carried forward by P33**: `PurchaseOrderLineORM` has no
 `version` column and its repository performs a blind field overwrite on `update()` — confirmed real
@@ -2009,12 +3760,20 @@ number assigned yet — see the remaining capability groups below.
 
 Remaining capability groups, not yet assigned rigid phase numbers:
 
-- **Project Management**: Task Lifecycle (highly overloaded - split into ~9 real facts before
-  any typed-event design), Project Lifecycle, Timesheet Period, Collaboration
-  Comment (+ Collaboration Presence, which needs a non-`DomainEvent` mechanism, not a migration
-  target), Portfolio (Template/Scenario/Intake/Dependency), Risk Register.
-- **Finance**: Project Cost Entry (last of the Finance-first trio — see §5), Project Budget,
-  Billing Preparation. (Financial Change, Project Commitment, and Planned Cost are DONE — see §3/§5.)
+- **Project Management** (re-sequenced by P40A, AUDIT + SEQUENCING ONLY, see §3/§5 — tentative
+  past the first three): **1. Timesheet Period — DONE (P40B, see §3)**, **2. Risk Register — DONE
+  (P41, see §3)**, **3. Portfolio — DONE (P42, see §3)** (Template/Scenario/Intake/Dependency).
+  Then (tentative) **4. Project Lifecycle**, **5. Collaboration Comment** (needs its own short
+  audit/transport-split phase first — Collaboration Presence needs a non-`DomainEvent` mechanism,
+  not a migration target), **6. Task Lifecycle last** (highly overloaded — 8 real facts across 3
+  aggregates + a bulk operation, requires a dedicated audit-first phase and coordination with
+  Financial Change's participant before implementation, despite being the only capability that
+  would shrink the shared `ApprovalPostCommitEvent` legacy-bridge count).
+- **Finance — MODULE COMPLETE (P39, see §3/§5)**: every Finance capability (Financial Setup, Rate
+  Card, Forecast, Planned Cost, Project Commitment, Project Cost Entry, Project Budget, Billing
+  Profile, Billing Preparation) is fully modernized onto typed DomainEvents. Zero Finance-owned
+  legacy Signal fields remain — `dataclasses.fields(DomainEvents)` carries none. **No further
+  Finance phase is needed.**
 - **Inventory/Procurement — ALL NINE CAPABILITIES DONE, MODULE COMPLETE**: **Purchase Order — DONE
   (P28B/P28B-FIX, see §3)**, **Requisition — DONE (P29/P29-FIX, see §3)**, **Reservation — DONE
   (P30B/P30B-FIX, see §3)**, **Stock Balance — DONE (P31A/P31B, see §3)**, **Cycle Count — DONE
@@ -2072,11 +3831,24 @@ document** - each is addressed when its owning capability's phase is implemented
   facts — `CommitmentLineChanged` (`CREATED`/`REVISED`) and `CommitmentMatchChanged`
   (`MATCHED`/`REVERSED`) — replace the signal, both routed through one `commitment_list`
   (`ResourceScope`, project-scoped) target, matching the legacy signal's own 5-destination fan-out.
-  The second producer P35-CLEANUP found (`ProcurementFinancialDispatcher`) was NOT converged onto
-  the UoW — its own commit/rollback was already correct — only its two Procurement-inbox-facing
-  methods' *return contract* changed (typed event instead of entity), so the dispatcher publishes
-  through the canonical post-commit bus instead of the legacy signal, field deleted (ADR-005
-  §26.32). Next: `cost_entries_changed`, the last of the trio.
+  The second producer P35-CLEANUP found (`ProcurementFinancialDispatcher`) was NOT converged onto a
+  *second* UoW — its own commit/rollback was already correct — only its two Procurement-inbox-facing
+  methods' *return contract* changed (typed event instead of entity); field deleted (ADR-005
+  §26.32). **P36-FIX/P36-FIX2 correction**: the initial fix had the dispatcher manually call
+  `transactional_dispatcher.dispatch(event, self)` — real `UnitOfWork` impersonation. Final design:
+  the dispatcher wraps its own already-owned session in a real `SqlAlchemyUnitOfWorkBase` per
+  delivery (`uow.record_event(...)` + `uow.commit()`), one canonical transaction, no impersonation.
+- ~~`cost_entries_changed`~~ **RESOLVED by P37 — third and LAST of P34A's Finance-first trio, and
+  the last post-P8-freeze legacy-Signal violation** - eight direct commands converge onto
+  `FinanceGovernanceUnitOfWork` via `FinanceGovernanceCommandBoundary.cost_entry()`. Five typed
+  facts (`CostEntryRecorded`/`Updated`/`StatusChanged`/`Reversed`/`Removed`) replace the signal,
+  routed through two targets (`cost_entry_list` for every fact, `cost_entry_actuals` only for
+  POSTED-affecting facts — source-confirmed via `finance_snapshot_statements.py`'s `status IN
+  ('posted','reversed')` filter). The Approval path uses `ApprovalHandlerResult.domain_events`
+  (P19's canonical seam), no legacy bridge. Both integration dispatchers
+  (`ProcurementFinancialDispatcher`, `ApprovedTimeFinancialDispatcher`) now record Cost Entry
+  events into the same canonical per-delivery UoW P36-FIX2 established; field deleted (ADR-005
+  §26.33). `current ⊆ frozen` restored — P8 guard suite fully green.
 - ~~`inventory_receipts_changed`~~ **RESOLVED by P33 — Inventory/Procurement's LAST legacy Signal,
   module now COMPLETE** - the one producer (`post_receipt`) now records a single typed
   `InventoryReceiptPosted` fact ("a Receipt was posted") alongside the pre-existing
@@ -2153,9 +3925,9 @@ document** - each is addressed when its owning capability's phase is implemented
   ADR-005 §26.16) rather than replacing it, since every other Approval participant still reports
   through the legacy Signal-name bridge.
 - Remaining raw process-lifetime Sessions - Auth (all 10 producer files, on one shared Session),
-  most of PM and Inventory/Procurement, and part of Finance (`cost_entries_changed` - notably,
-  already has an unused canonical UoW repo declared for it, same as `commitments_changed` did
-  before P36).
+  most of PM and Inventory/Procurement. Finance has none left with a legacy-Signal-carrying
+  producer on one — `budgets_changed`/`billing_preparations_changed` (Budget, Billing Preparation)
+  remain raw-Session in places but are pre-freeze/frozen-allowlisted, not violations.
 - ~~Orphan Resource typed events before P18~~ **RESOLVED by P18A** -
   `ResourceMasterChanged`/`ResourceCapabilityChanged` now dispatch through the canonical
   post-commit bus (bespoke `Signal[T]` transport deleted); still zero real UI subscribers until

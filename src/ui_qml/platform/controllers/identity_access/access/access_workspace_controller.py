@@ -234,10 +234,12 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
 
     def _bind_domain_events(self) -> None:
 
-        self._subscribe_domain_signal(domain_events.project_changed, self._on_domain_event)
         self._subscribe_domain_signal(domain_events.auth_changed, self._on_auth_changed)
 
     def _on_domain_event(self, _payload: object) -> None:
+        self._request_domain_refresh()
+
+    def onExternalViewStale(self, _hint: str = "") -> None:
         self._request_domain_refresh()
 
     def _on_auth_changed(self, _payload: object) -> None:

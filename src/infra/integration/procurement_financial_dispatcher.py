@@ -6,9 +6,6 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.application.financials.invalidation import (
-    FinanceInvalidationScope,
-)
 from src.core.modules.project_management.application.financials.procurement_consumer import (
     ProcurementFinancialConsumer,
 )
@@ -23,7 +20,6 @@ from src.core.shared.events.domain_event_publisher import (
     PostCommitEventPublisher,
     TransactionalEventDispatcher,
 )
-from src.core.shared.events.domain_events import domain_events
 from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
 
 
@@ -62,18 +58,10 @@ class ProcurementFinancialDispatcher:
         for record in claimed:
             try:
                 decision = self._inbox_service.begin_delivery(record.envelope)
-                consumption = None
                 if decision.disposition is InboxDeliveryDisposition.READY:
-                    consumption = self._consume_under_unit_of_work(record.envelope, decision)
+                    self._consume_under_unit_of_work(record.envelope, decision)
                 else:
                     self._session.commit()
-                if consumption is not None:
-                    self._emit_refresh(
-                        consumption,
-                        tenant_id=record.envelope.tenant_id,
-                        organization_id=str(record.envelope.organization_id),
-                        event_id=record.envelope.event_id,
-                    )
                 if decision.disposition is InboxDeliveryDisposition.QUARANTINED:
                     self._outbox_service.mark_failed(
                         record.id,
@@ -118,15 +106,11 @@ class ProcurementFinancialDispatcher:
                 )
         return published
 
-    def _consume_under_unit_of_work(self, envelope, decision):
-        """The Commitment/CostEntry mutation, inbox `mark_processed`, and each returned
-        Commitment DomainEvent all happen inside ONE canonical `UnitOfWork`'s transaction --
-        `SqlAlchemyUnitOfWorkBase` bound to this dispatcher's own already-owned `self._session`
-        (`uow._session is self._session`; no second, independent transaction or Session is
-        introduced). `uow.commit()` runs the exact same drain -> precommit transactional-dispatch
-        -> `self._session.commit()` -> postcommit-publish lifecycle every canonical UoW in this
-        codebase already runs -- this dispatcher no longer hand-rolls any piece of it, and no
-        longer impersonates a `UnitOfWork` by passing itself to a handler."""
+    def _consume_under_unit_of_work(self, envelope, decision) -> None:
+        """Both Commitment and Cost Entry DomainEvents produced by one Procurement delivery are
+        recorded into, and published by, the SAME canonical `UnitOfWork` -- one transaction, one
+        event lifecycle, for the whole delivery (a receipt can genuinely produce both a Commitment
+        match fact and a Cost Entry recorded fact from a single envelope)."""
         with SqlAlchemyUnitOfWorkBase(
             session=self._session,
             transactional_dispatcher=self._transactional_dispatcher,
@@ -137,36 +121,9 @@ class ProcurementFinancialDispatcher:
             self._inbox_service.mark_processed(decision.receipt.id)
             for event in consumption.commitment_events:
                 uow.record_event(event)
+            for event in consumption.cost_entry_events:
+                uow.record_event(event)
             uow.commit()
-        return consumption
-
-    def _emit_refresh(
-        self,
-        consumption,
-        *,
-        tenant_id: str,
-        organization_id: str,
-        event_id: str,
-    ) -> None:
-        """Commitment DomainEvents are no longer published here -- `_consume_under_unit_of_work`'s
-        `uow.commit()` already delivered them to `platform_post_commit_bus` as part of the
-        canonical UoW lifecycle, strictly after that same commit succeeded. The only remaining
-        responsibility here is the still-legacy `cost_entries_changed` Signal (Cost Entry is not
-        yet modernized), unchanged and untouched by this fix."""
-        if not consumption.cost_entry_changed:
-            return
-        scope = FinanceInvalidationScope(
-            tenant_id=str(tenant_id),
-            organization_id=organization_id,
-            project_id=str(consumption.project_id),
-        )
-        try:
-            domain_events.cost_entries_changed.emit(scope)
-        except Exception:
-            # Refresh is process-local and follows the durable inbox commit.
-            logger.exception(
-                "Procurement Finance refresh hint failed event_id=%s", event_id
-            )
 
 
 __all__ = ["ProcurementFinancialDispatcher"]

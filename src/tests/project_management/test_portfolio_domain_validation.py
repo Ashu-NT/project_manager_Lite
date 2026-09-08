@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date
 from types import SimpleNamespace
 
 import pytest
+
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
 
 from src.core.modules.project_management.application.portfolio.commands.portfolio_intake import (
     PortfolioIntakeCommandMixin,
@@ -38,13 +42,47 @@ class _FakeSession:
     def rollback(self) -> None:
         return None
 
+    def close(self) -> None:
+        return None
+
+
+@dataclass
+class _FakeActiveScope:
+    tenant_id: str
+    organization_id: str
+
 
 class _FakeTenantContext:
-    def __init__(self, organization_id: str = "org-1") -> None:
+    def __init__(self, organization_id: str = "org-1", tenant_id: str = "tenant-1") -> None:
         self.organization_id = organization_id
+        self.tenant_id = tenant_id
 
     def require_active_organization_id(self, *, operation_label: str) -> str:
         return self.organization_id
+
+    def require_active_scope_ids(self, *, operation_label: str) -> _FakeActiveScope:
+        del operation_label
+        return _FakeActiveScope(tenant_id=self.tenant_id, organization_id=self.organization_id)
+
+
+class _FakeEnterpriseAuditService:
+    def record(self, **kwargs) -> None:
+        return None
+
+
+class _FakeActivityService:
+    def record(self, **kwargs) -> None:
+        return None
+
+
+class _FakeTransactionalDispatcher:
+    def dispatch(self, event, uow) -> None:
+        return None
+
+
+class _FakePostCommitBus:
+    def publish(self, event, context) -> None:
+        return None
 
 
 class _FakeProjectRepo:
@@ -142,6 +180,42 @@ class _FakeDependencyRepo:
         self._dependencies.pop(dependency_id, None)
 
 
+class _FakePortfolioUnitOfWork(SqlAlchemyUnitOfWorkBase):
+    def __init__(self, *, session, transactional_dispatcher, post_commit_bus, context, repos) -> None:
+        super().__init__(
+            session=session,
+            transactional_dispatcher=transactional_dispatcher,
+            post_commit_bus=post_commit_bus,
+            context=context,
+        )
+        self.intake = repos["intake"]
+        self.scenarios = repos["scenarios"]
+        self.scoring_templates = repos["scoring_templates"]
+        self.dependencies = repos["dependencies"]
+        self._enterprise_audit_service = _FakeEnterpriseAuditService()
+        self._activity_service = _FakeActivityService()
+
+
+class _FakePortfolioUnitOfWorkFactory:
+    """Shares the SAME fake repo instances the harness's own `_intake_repo`/etc. attributes
+    read from -- a real `SqlAlchemyPortfolioUnitOfWorkFactory` opens a fresh Session per
+    transaction bound to the same database, so both views see the same committed rows; this
+    fake reproduces that by sharing the repo objects directly instead."""
+
+    def __init__(self, *, session, repos) -> None:
+        self._session = session
+        self._repos = repos
+
+    def create(self, *, context: DomainEventContext) -> _FakePortfolioUnitOfWork:
+        return _FakePortfolioUnitOfWork(
+            session=self._session,
+            transactional_dispatcher=_FakeTransactionalDispatcher(),
+            post_commit_bus=_FakePostCommitBus(),
+            context=context,
+            repos=self._repos,
+        )
+
+
 class _PortfolioHarness(
     PortfolioIntakeCommandMixin,
     PortfolioDependencyCommandMixin,
@@ -163,6 +237,23 @@ class _PortfolioHarness(
         self._project_repo = _FakeProjectRepo(project_ids=project_ids)
         self._tenant_context_service = _FakeTenantContext()
         self._user_session = object()
+        self._uow_factory = _FakePortfolioUnitOfWorkFactory(
+            session=self._session,
+            repos={
+                "intake": self._intake_repo,
+                "scenarios": self._scenario_repo,
+                "scoring_templates": self._scoring_template_repo,
+                "dependencies": self._dependency_repo,
+            },
+        )
+
+    def _require_uow_factory(self) -> _FakePortfolioUnitOfWorkFactory:
+        return self._uow_factory
+
+    def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
+        from src.core.platform.common.ids import generate_id
+
+        return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
 
 
 def _make_service(

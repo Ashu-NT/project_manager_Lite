@@ -5,6 +5,14 @@ from datetime import datetime
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class ProjectFinancialProfileCreated:
+    tenant_id: str
+    organization_id: str
+    project_id: str
+    occurred_at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ProjectFinancialProfileUpdated:
     tenant_id: str
     organization_id: str
@@ -72,6 +80,7 @@ class ProjectCostCodeRestrictionRemoved:
 
 
 __all__ = [
+    "ProjectFinancialProfileCreated",
     "ProjectFinancialProfileUpdated",
     "ProjectFinancialProfileTransitioned",
     "CostCodeCreated",

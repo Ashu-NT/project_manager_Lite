@@ -6,7 +6,11 @@ from decimal import Decimal
 from src.core.modules.project_management.domain.portfolio import PortfolioScenario
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import NotFoundError
-from src.core.shared.events.domain_events import domain_events
+from src.core.shared.audit import record_audit_entry
+from src.core.modules.project_management.application.portfolio.portfolio_events import (
+    PortfolioScenarioChangeType,
+    PortfolioScenarioChanged,
+)
 
 
 class PortfolioScenarioCommandMixin:
@@ -22,6 +26,7 @@ class PortfolioScenarioCommandMixin:
     ) -> PortfolioScenario:
         require_permission(self._user_session, "portfolio.manage", operation_label="create portfolio scenario")
         organization_id = self._active_portfolio_organization_id(operation_label="create portfolio scenario")
+        scope = self._active_portfolio_scope(operation_label="create portfolio scenario")
         scenario = PortfolioScenario.create(
             organization_id=organization_id,
             name=name,
@@ -36,18 +41,36 @@ class PortfolioScenarioCommandMixin:
             project_ids=self._validate_project_ids(scenario.project_ids),
             intake_item_ids=self._validate_intake_ids(scenario.intake_item_ids),
         )
-        try:
-            self._scenario_repo.add(scenario)
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.portfolio_changed.emit(scenario.id)
+        with self._require_uow_factory().create(context=self._new_context()) as uow:
+            uow.scenarios.add(scenario)
+            record_audit_entry(
+                uow,
+                operation="create",
+                entity_type="portfolio_scenario",
+                entity_id=scenario.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={"action": "portfolio.scenario.create", "name": scenario.name},
+                commit=False,
+                fail_closed=True,
+            )
+            uow.record_event(
+                PortfolioScenarioChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    scenario_id=scenario.id,
+                    change_type=PortfolioScenarioChangeType.CREATED,
+                    occurred_at=self._utc_now(),
+                )
+            )
+            uow.commit()
         return scenario
 
     def update_scenario(self, scenario_id: str, **changes) -> PortfolioScenario:
         require_permission(self._user_session, "portfolio.manage", operation_label="update portfolio scenario")
         self._active_portfolio_organization_id(operation_label="update portfolio scenario")
+        scope = self._active_portfolio_scope(operation_label="update portfolio scenario")
         scenario = self._scenario_repo.get(scenario_id)
         if scenario is None:
             raise NotFoundError("Portfolio scenario not found.", code="PORTFOLIO_SCENARIO_NOT_FOUND")
@@ -83,13 +106,30 @@ class PortfolioScenarioCommandMixin:
                 candidate,
                 intake_item_ids=self._validate_intake_ids(candidate.intake_item_ids),
             )
-        try:
-            self._scenario_repo.update(candidate)
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.portfolio_changed.emit(candidate.id)
+        with self._require_uow_factory().create(context=self._new_context()) as uow:
+            uow.scenarios.update(candidate)
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="portfolio_scenario",
+                entity_id=candidate.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={"action": "portfolio.scenario.update", "name": candidate.name},
+                commit=False,
+                fail_closed=True,
+            )
+            uow.record_event(
+                PortfolioScenarioChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    scenario_id=candidate.id,
+                    change_type=PortfolioScenarioChangeType.UPDATED,
+                    occurred_at=self._utc_now(),
+                )
+            )
+            uow.commit()
         return candidate
 
 

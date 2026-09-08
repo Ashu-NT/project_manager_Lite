@@ -206,13 +206,14 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
     def _bind_domain_events(self) -> None:
 
         for signal in (
-            domain_events.project_changed,
             domain_events.tasks_changed,
-            domain_events.register_changed,
         ):
             self._subscribe_domain_signal(signal, self._on_domain_event)
 
     def _on_domain_event(self, _payload: object) -> None:
+        self._request_domain_refresh()
+
+    def onExternalViewStale(self, _hint: str = "") -> None:
         self._request_domain_refresh()
 
     def _apply_request_action(

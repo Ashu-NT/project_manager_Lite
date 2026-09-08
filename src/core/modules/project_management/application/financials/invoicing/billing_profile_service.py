@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
 
@@ -9,6 +10,12 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.modules.project_management.application.financials.invoicing.billing_events import (
+    BillingProfileActivated,
+    BillingProfileCreated,
+    BillingScheduleLineAdded,
+    BillingScheduleLineMarkedReady,
+)
 from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import ProjectBillingRepository
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import ProjectFinancialProfileRepository
 from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
@@ -22,7 +29,6 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.shared.audit import record_audit_entry
-from src.core.shared.events.domain_events import domain_events
 
 
 class ProjectBillingProfileService(ProjectManagementModuleGuardMixin):
@@ -40,6 +46,7 @@ class ProjectBillingProfileService(ProjectManagementModuleGuardMixin):
         user_session=None,
         enterprise_audit_service=None,
         module_catalog_service=None,
+        record_event: Callable[[object], None] | None = None,
     ) -> None:
         self._session = session
         self._billing_repo = billing_repo
@@ -50,6 +57,7 @@ class ProjectBillingProfileService(ProjectManagementModuleGuardMixin):
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
+        self._record_event = record_event
 
     def get_profile(self, project_id: str) -> ProjectBillingProfile | None:
         self._require(project_id, "finance.read", "view project billing profile")
@@ -101,7 +109,16 @@ class ProjectBillingProfileService(ProjectManagementModuleGuardMixin):
             created_by=actor_id,
             created_at=self._clock.now(),
         )
-        return self._persist("create", profile, lambda: self._billing_repo.add_profile(profile))
+        event = BillingProfileCreated(
+            tenant_id=profile.tenant_id,
+            organization_id=profile.organization_id,
+            project_id=profile.project_id,
+            billing_profile_id=profile.id,
+            occurred_at=profile.created_at,
+        )
+        return self._persist(
+            "create", profile, lambda: self._billing_repo.add_profile(profile), event
+        )
 
     def activate_profile(
         self, project_id: str, *, expected_row_version: int
@@ -114,13 +131,22 @@ class ProjectBillingProfileService(ProjectManagementModuleGuardMixin):
                 "Billing and Project financial currencies must match.",
                 code="BILLING_PROFILE_CURRENCY_MISMATCH",
             )
-        profile.activate(actor_id=self._actor_id(), occurred_at=self._clock.now())
+        now = self._clock.now()
+        profile.activate(actor_id=self._actor_id(), occurred_at=now)
+        event = BillingProfileActivated(
+            tenant_id=profile.tenant_id,
+            organization_id=profile.organization_id,
+            project_id=profile.project_id,
+            billing_profile_id=profile.id,
+            occurred_at=now,
+        )
         return self._persist(
             "activate",
             profile,
             lambda: self._billing_repo.update_profile(
                 profile, expected_row_version=expected_row_version
             ),
+            event,
         )
 
     def add_schedule_line(
@@ -155,8 +181,16 @@ class ProjectBillingProfileService(ProjectManagementModuleGuardMixin):
             created_by=actor_id,
             created_at=self._clock.now(),
         )
+        event = BillingScheduleLineAdded(
+            tenant_id=line.tenant_id,
+            organization_id=line.organization_id,
+            project_id=line.project_id,
+            billing_profile_id=line.billing_profile_id,
+            schedule_line_id=line.id,
+            occurred_at=line.created_at,
+        )
         return self._persist(
-            "schedule_line.create", line, lambda: self._billing_repo.add_schedule_line(line)
+            "schedule_line.create", line, lambda: self._billing_repo.add_schedule_line(line), event
         )
 
     def mark_schedule_line_ready(
@@ -164,13 +198,23 @@ class ProjectBillingProfileService(ProjectManagementModuleGuardMixin):
     ) -> ProjectBillingScheduleLine:
         line = self._require_schedule_line(line_id)
         self._require(line.project_id, "finance.manage", "mark billing schedule line ready")
-        line.mark_ready(actor_id=self._actor_id(), occurred_at=self._clock.now())
+        now = self._clock.now()
+        line.mark_ready(actor_id=self._actor_id(), occurred_at=now)
+        event = BillingScheduleLineMarkedReady(
+            tenant_id=line.tenant_id,
+            organization_id=line.organization_id,
+            project_id=line.project_id,
+            billing_profile_id=line.billing_profile_id,
+            schedule_line_id=line.id,
+            occurred_at=now,
+        )
         return self._persist(
             "schedule_line.ready",
             line,
             lambda: self._billing_repo.update_schedule_line(
                 line, expected_row_version=expected_row_version
             ),
+            event,
         )
 
     def _require_billable_financial_profile(self, project_id: str):
@@ -218,32 +262,29 @@ class ProjectBillingProfileService(ProjectManagementModuleGuardMixin):
             )
         return str(actor_id)
 
-    def _persist(self, operation: str, entity, write):
-        try:
-            write()
-            self._billing_repo.flush()
-            record_audit_entry(
-                self,
-                operation=f"project_billing.{operation}",
-                entity_type=type(entity).__name__,
-                entity_id=entity.id,
-                entity_parent_id=entity.project_id,
-                module="project_management",
-                old_value=None,
-                new_value=json.dumps({"project_id": entity.project_id}, sort_keys=True),
-                workspace_id=entity.project_id,
-                source="application",
-                severity="high",
-                compliance_tag="financial",
-                metadata={"action": operation},
-                commit=False,
-                fail_closed=True,
-            )
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.billing_preparations_changed.emit(entity.project_id)
+    def _persist(self, operation: str, entity, write, event: object):
+        write()
+        self._billing_repo.flush()
+        record_audit_entry(
+            self,
+            operation=f"project_billing.{operation}",
+            entity_type=type(entity).__name__,
+            entity_id=entity.id,
+            entity_parent_id=entity.project_id,
+            module="project_management",
+            old_value=None,
+            new_value=json.dumps({"project_id": entity.project_id}, sort_keys=True),
+            workspace_id=entity.project_id,
+            source="application",
+            severity="high",
+            compliance_tag="financial",
+            metadata={"action": operation},
+            commit=False,
+            fail_closed=True,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
+        self._session.flush()
         return entity
 
 

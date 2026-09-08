@@ -29,8 +29,10 @@ from .resource_table_models import ResourceTableModels, create_resource_table_mo
 from .resource_state_setters import ResourceStateSettersMixin
 from .resource_domain_event_binder import (
     bind_resource_domain_events,
+    on_project_stale,
     on_resource_capabilities_stale,
     on_resource_list_stale,
+    on_timesheet_resource_stale,
 )
 from .resource_selection_handler import (
     activate_resource,
@@ -737,6 +739,12 @@ class ProjectManagementResourcesWorkspaceController(
 
     def onResourceCapabilitiesStale(self, resource_id: str) -> None:
         on_resource_capabilities_stale(self, resource_id)
+
+    def onTimesheetResourceStale(self, resource_id: str) -> None:
+        on_timesheet_resource_stale(self, resource_id)
+
+    def onProjectStale(self, project_id: str) -> None:
+        on_project_stale(self, project_id)
 
     @Slot(str)
     def setResourceProjectsSearch(self, value: str) -> None:

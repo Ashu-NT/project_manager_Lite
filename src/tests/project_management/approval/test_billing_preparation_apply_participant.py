@@ -23,8 +23,11 @@ from src.core.modules.project_management.domain.financials.configuration import 
 from src.core.modules.project_management.infrastructure.approval.billing_preparation_apply_participant import (
     BillingPreparationApprovalParticipant,
 )
+from src.core.modules.project_management.application.financials.invoicing.billing_events import (
+    BillingPreparationStatusChangeType,
+    BillingPreparationStatusChanged,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.contract.models.approval.contracts import ApprovalPostCommitEvent
 from src.infra.composition.approval_apply_dependencies.billing_preparation import (
     build_billing_preparation_approval_deps,
 )
@@ -120,10 +123,10 @@ def _deps(services, session):
 def test_submit_preparation_uses_a_fresh_uow_session_shared_by_the_approval_request(
     services, monkeypatch
 ):
-    """Approval-P1: `submit_preparation` is converged onto
-    `BillingPreparationSubmissionUnitOfWork` -- a genuinely fresh Session per call, distinct
-    from the shared legacy Session, with the preparation update and the Approval request sharing
-    that one Session/transaction."""
+    """P39: `submit_preparation` converged onto `FinanceGovernanceUnitOfWork` (the bespoke
+    `BillingPreparationSubmissionUnitOfWork` is retired) -- a genuinely fresh Session per call,
+    distinct from the shared legacy Session, with the preparation update and the Approval request
+    sharing that one Session/transaction."""
     _login(services, "admin", "ChangeMe123!")
     project = _setup_billable_project(services, suffix="UOW")
     billing_profile_service = services["billing_profile_service"]
@@ -155,17 +158,16 @@ def test_submit_preparation_uses_a_fresh_uow_session_shared_by_the_approval_requ
     )
     preparation = billing_preparation_service.get_preparation(preparation.id)
 
+    uow_factory = services["finance_governance_commands"]._uow_factory
     seen_uows = []
-    original_create = type(billing_preparation_service._submission_uow_factory).create
+    original_create = type(uow_factory).create
 
     def _spy_create(self, *, context):
         uow = original_create(self, context=context)
         seen_uows.append(uow)
         return uow
 
-    monkeypatch.setattr(
-        type(billing_preparation_service._submission_uow_factory), "create", _spy_create
-    )
+    monkeypatch.setattr(type(uow_factory), "create", _spy_create)
     submitted = billing_preparation_service.submit_preparation(
         preparation.id, expected_row_version=preparation.row_version
     )
@@ -253,8 +255,16 @@ def test_participant_apply_approves_preparation_on_the_supplied_session(services
     approved = deps.billing_preparation_service._billing_repo.get_preparation(preparation.id)
     assert approved.status == BillingPreparationStatus.APPROVED
     assert approved.approved_by == services["user_session"].principal.user_id
-    assert result.post_commit_events == (
-        ApprovalPostCommitEvent("billing_preparations_changed", project.id),
+    assert result.post_commit_events == ()
+    assert result.domain_events == (
+        BillingPreparationStatusChanged(
+            tenant_id=approved.tenant_id,
+            organization_id=approved.organization_id,
+            project_id=approved.project_id,
+            billing_preparation_id=approved.id,
+            change_type=BillingPreparationStatusChangeType.APPROVED,
+            occurred_at=approved.approved_at,
+        ),
     )
 
 
@@ -268,8 +278,16 @@ def test_participant_reject_rejects_preparation_on_the_supplied_session(services
     rejected = deps.billing_preparation_service._billing_repo.get_preparation(preparation.id)
     assert rejected.status == BillingPreparationStatus.REJECTED
     assert rejected.rejected_by == services["user_session"].principal.user_id
-    assert result.post_commit_events == (
-        ApprovalPostCommitEvent("billing_preparations_changed", project.id),
+    assert result.post_commit_events == ()
+    assert result.domain_events == (
+        BillingPreparationStatusChanged(
+            tenant_id=rejected.tenant_id,
+            organization_id=rejected.organization_id,
+            project_id=rejected.project_id,
+            billing_preparation_id=rejected.id,
+            change_type=BillingPreparationStatusChangeType.REJECTED,
+            occurred_at=rejected.rejected_at,
+        ),
     )
 
 

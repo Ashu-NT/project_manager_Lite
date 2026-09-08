@@ -7,6 +7,7 @@ from src.core.modules.project_management.application.financials.configuration_ev
     CostCodeProfileUpdated,
     ProjectCostCodeRestrictionAdded,
     ProjectCostCodeRestrictionRemoved,
+    ProjectFinancialProfileCreated,
     ProjectFinancialProfileTransitioned,
     ProjectFinancialProfileUpdated,
 )
@@ -47,7 +48,8 @@ def build_financial_profile_view_invalidation_handler(channel: ViewInvalidationC
 
     def handle_financial_profile_event(
         event: (
-            ProjectFinancialProfileUpdated
+            ProjectFinancialProfileCreated
+            | ProjectFinancialProfileUpdated
             | ProjectFinancialProfileTransitioned
             | CostCodeCreated
             | CostCodeProfileUpdated
@@ -63,7 +65,12 @@ def build_financial_profile_view_invalidation_handler(channel: ViewInvalidationC
             notified_targets.clear()
 
         is_profile = isinstance(
-            event, (ProjectFinancialProfileUpdated, ProjectFinancialProfileTransitioned)
+            event,
+            (
+                ProjectFinancialProfileCreated,
+                ProjectFinancialProfileUpdated,
+                ProjectFinancialProfileTransitioned,
+            ),
         )
         is_restriction = isinstance(
             event, (ProjectCostCodeRestrictionAdded, ProjectCostCodeRestrictionRemoved)

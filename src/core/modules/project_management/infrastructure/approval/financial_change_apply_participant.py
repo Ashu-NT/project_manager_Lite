@@ -43,14 +43,12 @@ class FinancialChangeApprovalParticipant:
         applied_by = require_financial_decision_actor(
             deps.financial_change_service._user_session
         )
-        change = deps.financial_change_service._apply_approval_decision(
+        change, budget_events = deps.financial_change_service._apply_approval_decision(
             change_id=request.payload["change_id"],
             approval_request_id=request.id,
             applied_by=applied_by,
         )
         events: list[ApprovalPostCommitEvent] = []
-        if change.applied_budget_id:
-            events.append(ApprovalPostCommitEvent("budgets_changed", change.project_id))
         if change.applied_schedule_count:
             events.append(ApprovalPostCommitEvent("tasks_changed", change.project_id))
         effects = []
@@ -82,6 +80,7 @@ class FinancialChangeApprovalParticipant:
                     occurred_at=change.applied_at or datetime.now(timezone.utc),
                 ),
             )
+        domain_events += budget_events
         return ApprovalHandlerResult(
             post_commit_events=tuple(events), domain_events=domain_events
         )

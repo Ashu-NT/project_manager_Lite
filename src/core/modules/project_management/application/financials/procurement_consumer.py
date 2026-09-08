@@ -35,7 +35,7 @@ from src.core.shared.events.domain_event import DomainEvent
 class ProcurementFinancialConsumption:
     project_id: str
     commitment_events: tuple[DomainEvent, ...] = ()
-    cost_entry_changed: bool = False
+    cost_entry_events: tuple[DomainEvent, ...] = ()
 
 
 class ProcurementFinancialConsumer:
@@ -132,7 +132,9 @@ class ProcurementFinancialConsumer:
             unit_cost=payload.unit_cost,
             task_id=task_id,
         )
-        entry = self._cost_entry_service.apply_procurement_receipt_source(source)
+        entry, cost_entry_events = self._cost_entry_service.apply_procurement_receipt_source(
+            source
+        )
         event = self._commitment_service.apply_procurement_receipt_match(
             purchase_order_id=payload.purchase_order_id,
             purchase_order_line_id=payload.purchase_order_line_id,
@@ -143,7 +145,7 @@ class ProcurementFinancialConsumer:
         return ProcurementFinancialConsumption(
             project_id=project_id,
             commitment_events=(event,) if event is not None else (),
-            cost_entry_changed=True,
+            cost_entry_events=cost_entry_events,
         )
 
     def _resolve_project(

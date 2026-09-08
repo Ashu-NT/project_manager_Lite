@@ -52,19 +52,4 @@ class CollaborationDocumentQueryMixin:
             )
         return normalized
 
-    def _link_existing_comment_documents(self, *, comment_id: str, document_ids: Iterable[str]) -> None:
-        if self._document_integration_service is None:
-            return
-        for document_id in document_ids:
-            self._document_integration_service.link_existing_document(
-                required_permission="collaboration.manage",
-                operation_label="link shared document to task collaboration",
-                module_code="project_management",
-                entity_type="task_comment",
-                entity_id=comment_id,
-                document_id=document_id,
-                link_role="reference",
-            )
-
-
 __all__ = ["CollaborationDocumentQueryMixin"]

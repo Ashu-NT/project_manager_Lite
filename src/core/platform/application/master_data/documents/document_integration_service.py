@@ -50,6 +50,185 @@ def _build_document_code(*, module_code: str, entity_type: str) -> str:
     return f"{prefix}-{uuid4().hex[:12].upper()}"
 
 
+def register_entity_attachments_in_uow(
+    *,
+    uow: Any,
+    organization: Organization,
+    module_code: str,
+    entity_type: str,
+    entity_id: str,
+    attachments: list[str] | None,
+    clock: Clock,
+    document_type: DocumentType | str | None = None,
+    document_structure_id: str | None = None,
+    business_version_label: str = "",
+    revision: str = "",
+    source_system: str = "",
+    link_role: str = "attachment",
+    uploaded_by_user_id: str | None = None,
+    notes: str = "",
+) -> list[Document]:
+
+    tokens = [normalize_optional_text(item) for item in (attachments or []) if normalize_optional_text(item)]
+    if not tokens:
+        return []
+    normalized_module = normalize_document_module_code(module_code)
+    normalized_entity_type = normalize_document_entity_type(entity_type)
+    normalized_entity_id = normalize_document_entity_id(entity_id)
+    normalized_role = normalize_document_link_role(link_role)
+    resolved_type = coerce_document_type(document_type)
+    structure = resolve_structure_for_context(
+        document_structure_id, organization=organization, structure_repo=uow.structures
+    )
+    created: list[Document] = []
+    for token in tokens:
+        now = clock.now()
+        document = Document.create(
+            organization_id=organization.id,
+            document_code=_build_document_code(
+                module_code=normalized_module,
+                entity_type=normalized_entity_type,
+            ),
+            title=infer_title(token),
+            document_type=resolved_type,
+            document_structure_id=structure.id if structure is not None else None,
+            storage_kind=infer_storage_kind(token),
+            storage_uri=token,
+            file_name=infer_file_name(token),
+            mime_type=infer_mime_type(token),
+            source_system=normalize_optional_text(source_system) or normalized_module,
+            uploaded_at=now,
+            uploaded_by_user_id=uploaded_by_user_id,
+            business_version_label=normalize_optional_text(business_version_label or revision),
+            notes=normalize_optional_text(notes),
+        )
+        uow.documents.add(document)
+        uow._session.flush()
+        link = DocumentLink.create(
+            organization_id=organization.id,
+            document_id=document.id,
+            module_code=normalized_module,
+            entity_type=normalized_entity_type,
+            entity_id=normalized_entity_id,
+            link_role=normalized_role,
+        )
+        uow.links.add(link)
+        created.append(document)
+        record_audit_entry(
+            uow,
+            operation="create",
+            entity_type="document",
+            entity_id=document.id,
+            module="platform",
+            severity="low",
+            metadata={
+                "action": "document.linked_attachment.create",
+                "module_code": normalized_module,
+                "entity_type": normalized_entity_type,
+                "entity_id": normalized_entity_id,
+                "link_role": normalized_role,
+                "storage_kind": document.storage_kind.value,
+                "storage_uri": document.storage_uri,
+                "document_structure_id": document.document_structure_id,
+            },
+            commit=False,
+            fail_closed=True,
+        )
+        uow.record_event(
+            DocumentCreated(
+                tenant_id=organization.tenant_id,
+                organization_id=organization.id,
+                document_id=document.id,
+                occurred_at=now,
+            )
+        )
+        uow.record_event(
+            DocumentReferenceLinked(
+                tenant_id=organization.tenant_id,
+                organization_id=organization.id,
+                document_id=document.id,
+                module_code=normalized_module,
+                entity_type=normalized_entity_type,
+                entity_id=normalized_entity_id,
+                link_role=normalized_role,
+                occurred_at=now,
+            )
+        )
+    return created
+
+
+def link_existing_document_in_uow(
+    *,
+    uow: Any,
+    organization: Organization,
+    module_code: str,
+    entity_type: str,
+    entity_id: str,
+    document_id: str,
+    clock: Clock,
+    link_role: str = "reference",
+) -> DocumentLink:
+    """Transaction-neutral core of `link_existing_document` -- see `register_entity_attachments_
+    in_uow`'s docstring for the same never-commits/never-rolls-back/never-publishes contract."""
+    document = uow.documents.get(document_id)
+    if document is None or document.organization_id != organization.id:
+        raise NotFoundError("Document not found in the active organization.", code="DOCUMENT_NOT_FOUND")
+    if not document.is_active:
+        raise ValidationError("Document must be active before it can be linked.", code="DOCUMENT_INACTIVE")
+    normalized_module = normalize_document_module_code(module_code)
+    normalized_entity_type = normalize_document_entity_type(entity_type)
+    normalized_entity_id = normalize_document_entity_id(entity_id)
+    normalized_role = normalize_document_link_role(link_role)
+    link = DocumentLink.create(
+        organization_id=organization.id,
+        document_id=document.id,
+        module_code=normalized_module,
+        entity_type=normalized_entity_type,
+        entity_id=normalized_entity_id,
+        link_role=normalized_role,
+    )
+    existing = uow.links.find_existing(
+        document_id=link.document_id,
+        module_code=link.module_code,
+        entity_type=link.entity_type,
+        entity_id=link.entity_id,
+        link_role=link.link_role,
+    )
+    if existing is not None:
+        raise ValidationError("Document link already exists.", code="DOCUMENT_LINK_EXISTS")
+    uow.links.add(link)
+    record_audit_entry(
+        uow,
+        operation="update",
+        entity_type="document",
+        entity_id=document.id,
+        module="platform",
+        severity="low",
+        metadata={
+            "action": "document.link_existing",
+            "module_code": normalized_module,
+            "entity_type": normalized_entity_type,
+            "entity_id": normalized_entity_id,
+            "link_role": normalized_role,
+        },
+        commit=False,
+        fail_closed=True,
+    )
+    uow.record_event(
+        DocumentReferenceLinked(
+            tenant_id=organization.tenant_id,
+            organization_id=organization.id,
+            document_id=document.id,
+            module_code=normalized_module,
+            entity_type=normalized_entity_type,
+            entity_id=normalized_entity_id,
+            link_role=normalized_role,
+            occurred_at=clock.now(),
+        )
+    )
+    return link
+
+
 class DocumentIntegrationService:
     """Shared document plumbing for business modules after module-level auth has passed."""
 
@@ -104,91 +283,26 @@ class DocumentIntegrationService:
         if not tokens:
             return []
         organization = self._active_organization()
-        normalized_module = normalize_document_module_code(module_code)
-        normalized_entity_type = normalize_document_entity_type(entity_type)
-        normalized_entity_id = normalize_document_entity_id(entity_id)
-        normalized_role = normalize_document_link_role(link_role)
-        resolved_type = coerce_document_type(document_type)
         principal = self._user_session.principal if self._user_session is not None else None
         uploader = uploaded_by_user_id or getattr(principal, "user_id", None)
-        created: list[Document] = []
         with self._uow_factory.create(context=self._new_context()) as uow:
-            structure = resolve_structure_for_context(
-                document_structure_id, organization=organization, structure_repo=uow.structures
+            created = register_entity_attachments_in_uow(
+                uow=uow,
+                organization=organization,
+                module_code=module_code,
+                entity_type=entity_type,
+                entity_id=entity_id,
+                attachments=tokens,
+                clock=self._clock,
+                document_type=document_type,
+                document_structure_id=document_structure_id,
+                business_version_label=business_version_label,
+                revision=revision,
+                source_system=source_system,
+                link_role=link_role,
+                uploaded_by_user_id=uploader,
+                notes=notes,
             )
-            for token in tokens:
-                now = self._clock.now()
-                document = Document.create(
-                    organization_id=organization.id,
-                    document_code=_build_document_code(
-                        module_code=normalized_module,
-                        entity_type=normalized_entity_type,
-                    ),
-                    title=infer_title(token),
-                    document_type=resolved_type,
-                    document_structure_id=structure.id if structure is not None else None,
-                    storage_kind=infer_storage_kind(token),
-                    storage_uri=token,
-                    file_name=infer_file_name(token),
-                    mime_type=infer_mime_type(token),
-                    source_system=normalize_optional_text(source_system) or normalized_module,
-                    uploaded_at=now,
-                    uploaded_by_user_id=uploader,
-                    business_version_label=normalize_optional_text(business_version_label or revision),
-                    notes=normalize_optional_text(notes),
-                )
-                uow.documents.add(document)
-                uow._session.flush()
-                link = DocumentLink.create(
-                    organization_id=organization.id,
-                    document_id=document.id,
-                    module_code=normalized_module,
-                    entity_type=normalized_entity_type,
-                    entity_id=normalized_entity_id,
-                    link_role=normalized_role,
-                )
-                uow.links.add(link)
-                created.append(document)
-                record_audit_entry(
-                    uow,
-                    operation="create",
-                    entity_type="document",
-                    entity_id=document.id,
-                    module="platform",
-                    severity="low",
-                    metadata={
-                        "action": "document.linked_attachment.create",
-                        "module_code": normalized_module,
-                        "entity_type": normalized_entity_type,
-                        "entity_id": normalized_entity_id,
-                        "link_role": normalized_role,
-                        "storage_kind": document.storage_kind.value,
-                        "storage_uri": document.storage_uri,
-                        "document_structure_id": document.document_structure_id,
-                    },
-                    commit=False,
-                    fail_closed=True,
-                )
-                uow.record_event(
-                    DocumentCreated(
-                        tenant_id=organization.tenant_id,
-                        organization_id=organization.id,
-                        document_id=document.id,
-                        occurred_at=now,
-                    )
-                )
-                uow.record_event(
-                    DocumentReferenceLinked(
-                        tenant_id=organization.tenant_id,
-                        organization_id=organization.id,
-                        document_id=document.id,
-                        module_code=normalized_module,
-                        entity_type=normalized_entity_type,
-                        entity_id=normalized_entity_id,
-                        link_role=normalized_role,
-                        occurred_at=now,
-                    )
-                )
             uow.commit()
         return created
 
@@ -245,58 +359,16 @@ class DocumentIntegrationService:
         require_permission(self._user_session, required_permission, operation_label=operation_label)
         organization = self._active_organization()
         with self._uow_factory.create(context=self._new_context()) as uow:
-            document = uow.documents.get(document_id)
-            if document is None or document.organization_id != organization.id:
-                raise NotFoundError("Document not found in the active organization.", code="DOCUMENT_NOT_FOUND")
-            if not document.is_active:
-                raise ValidationError("Document must be active before it can be linked.", code="DOCUMENT_INACTIVE")
-            link = DocumentLink.create(
-                organization_id=organization.id,
-                document_id=document.id,
-                module_code=module_code,
-                entity_type=entity_type,
-                entity_id=entity_id,
-                link_role=link_role,
-            )
-            existing = uow.links.find_existing(
-                document_id=link.document_id,
-                module_code=link.module_code,
-                entity_type=link.entity_type,
-                entity_id=link.entity_id,
-                link_role=link.link_role,
-            )
-            if existing is not None:
-                raise ValidationError("Document link already exists.", code="DOCUMENT_LINK_EXISTS")
             try:
-                uow.links.add(link)
-                record_audit_entry(
-                    uow,
-                    operation="update",
-                    entity_type="document",
-                    entity_id=document.id,
-                    module="platform",
-                    severity="low",
-                    metadata={
-                        "action": "document.link_existing",
-                        "module_code": link.module_code,
-                        "entity_type": link.entity_type,
-                        "entity_id": link.entity_id,
-                        "link_role": link.link_role,
-                    },
-                    commit=False,
-                    fail_closed=True,
-                )
-                uow.record_event(
-                    DocumentReferenceLinked(
-                        tenant_id=organization.tenant_id,
-                        organization_id=organization.id,
-                        document_id=document.id,
-                        module_code=link.module_code,
-                        entity_type=link.entity_type,
-                        entity_id=link.entity_id,
-                        link_role=link.link_role,
-                        occurred_at=self._clock.now(),
-                    )
+                link = link_existing_document_in_uow(
+                    uow=uow,
+                    organization=organization,
+                    module_code=module_code,
+                    entity_type=entity_type,
+                    entity_id=entity_id,
+                    document_id=document_id,
+                    clock=self._clock,
+                    link_role=link_role,
                 )
                 uow.commit()
             except IntegrityError as exc:

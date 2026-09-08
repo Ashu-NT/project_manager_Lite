@@ -7,13 +7,21 @@ import pytest
 
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.application.time_management.time.time_service import TimeService
+from src.core.platform.application.time_management.time.timesheet_events import (
+    TimesheetPeriodStatusChangeType,
+    TimesheetPeriodStatusChanged,
+)
 from src.core.platform.domain.time_management.time import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
+from src.core.shared.events.domain_event import DomainEvent
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.persistence.unit_of_work import UnitOfWork
 
 
 class _FakeSession:
     def __init__(self) -> None:
         self.commit_calls = 0
         self.flush_calls = 0
+        self.close_calls = 0
 
     def commit(self) -> None:
         self.commit_calls += 1
@@ -23,6 +31,40 @@ class _FakeSession:
 
     def flush(self) -> None:
         self.flush_calls += 1
+
+    def close(self) -> None:
+        self.close_calls += 1
+
+
+class _FakeTransactionalDispatcher:
+    def __init__(self) -> None:
+        self.dispatched: list[DomainEvent] = []
+
+    def dispatch(self, event: DomainEvent, uow: UnitOfWork) -> None:
+        self.dispatched.append(event)
+
+
+class _FakePostCommitBus:
+    def __init__(self) -> None:
+        self.published: list[DomainEvent] = []
+
+    def publish(self, event: DomainEvent, context: DomainEventContext) -> None:
+        self.published.append(event)
+
+
+@dataclass
+class _FakeActiveScope:
+    tenant_id: str
+    organization_id: str
+
+
+class _FakeTenantContextService:
+    def __init__(self, *, tenant_id: str = "tenant-1", organization_id: str = "org-1") -> None:
+        self._scope = _FakeActiveScope(tenant_id=tenant_id, organization_id=organization_id)
+
+    def require_active_scope_ids(self, *, operation_label: str) -> _FakeActiveScope:
+        del operation_label
+        return self._scope
 
 
 @dataclass
@@ -231,6 +273,9 @@ def _make_time_service(monkeypatch: pytest.MonkeyPatch) -> tuple[TimeService, _F
         time_entry_repo=_FakeTimeEntryRepo(),
         timesheet_period_repo=_FakeTimesheetPeriodRepo(),
         user_session=_FakeUserSession(),
+        tenant_context_service=_FakeTenantContextService(),
+        transactional_dispatcher=_FakeTransactionalDispatcher(),
+        post_commit_bus=_FakePostCommitBus(),
     )
     return service, allocation
 
@@ -369,3 +414,14 @@ def test_time_service_uses_entity_validation_for_entries_and_periods(monkeypatch
     assert approved.decided_by_username == "ada"
     assert approved.decision_note == "Approved"
     assert approved.locked_at is None
+
+    published = service._post_commit_bus.published
+    status_changes = [event for event in published if isinstance(event, TimesheetPeriodStatusChanged)]
+    assert [event.change_type for event in status_changes] == [
+        TimesheetPeriodStatusChangeType.SUBMITTED,
+        TimesheetPeriodStatusChangeType.APPROVED,
+    ]
+    assert all(event.period_id == submitted.period_id for event in status_changes)
+    assert all(event.resource_id == "resource-1" for event in status_changes)
+    assert all(event.tenant_id == "tenant-1" and event.organization_id == "org-1" for event in status_changes)
+    assert status_changes[0].project_ids == ("project-1",)

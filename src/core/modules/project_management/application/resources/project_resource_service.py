@@ -43,6 +43,8 @@ class ProjectResourceService(
         task_repo: TaskRepository | None = None,
         assignment_repo: AssignmentRepository | None = None,
         financial_profile_repo: ProjectFinancialProfileRepository | None = None,
+        transactional_dispatcher=None,
+        post_commit_bus=None,
     ):
         self._project_resource_repo: ProjectResourceRepository = project_resource_repo
         self._resource_repo: ResourceRepository = resource_repo
@@ -57,6 +59,8 @@ class ProjectResourceService(
         self._task_repo: TaskRepository | None = task_repo
         self._assignment_repo: AssignmentRepository | None = assignment_repo
         self._financial_profile_repo = financial_profile_repo
+        self._transactional_dispatcher = transactional_dispatcher
+        self._post_commit_bus = post_commit_bus
 
 
 __all__ = ["ProjectResourceService"]

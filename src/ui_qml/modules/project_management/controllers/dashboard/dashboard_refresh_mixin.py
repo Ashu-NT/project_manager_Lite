@@ -179,16 +179,19 @@ class DashboardRefreshMixin:
             self._request_domain_refresh()
 
         for signal in (
-            domain_events.project_changed,
             domain_events.tasks_changed,
-            domain_events.register_changed,
-            domain_events.portfolio_changed,
-            domain_events.collaboration_changed,
         ):
             self._subscribe_domain_signal(signal, _on_domain_event)
 
     def onProjectBaselineStale(self, project_id: str) -> None:
         on_project_baseline_stale(self, project_id)
+
+    def onCollaborationWorkspaceStale(self, _task_id: str) -> None:
+        self._request_domain_refresh()
+
+    def onRegisterProjectStale(self, project_id: str) -> None:
+        if str(project_id or "") == self._selected_project_id:
+            self._request_domain_refresh()
 
 
 __all__ = ["DashboardRefreshMixin"]

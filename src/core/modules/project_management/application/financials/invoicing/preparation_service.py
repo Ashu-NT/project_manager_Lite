@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
 
@@ -10,6 +11,13 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.modules.project_management.application.financials.invoicing.billing_events import (
+    BillingPreparationCreated,
+    BillingPreparationExternalOutcomeRecorded,
+    BillingPreparationLineAdded,
+    BillingPreparationStatusChangeType,
+    BillingPreparationStatusChanged,
+)
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import RateCardResolver
 from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import ProjectBillingRepository
 from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import ProjectCostEntryRepository
@@ -35,9 +43,6 @@ from src.core.modules.project_management.gateway.billing.accounting_billing impo
     BillingPreparationLinePayload,
     ProjectBillingPreparationPayload,
 )
-from src.core.modules.project_management.contracts.uow.finance.billing_preparation_submission_unit_of_work import (
-    BillingPreparationSubmissionUnitOfWorkFactory,
-)
 from src.core.platform.application.approval.approval_mutation_participant import (
     request_approval_using,
 )
@@ -46,12 +51,9 @@ from src.core.platform.application.finance.financial_period_service import Finan
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.common.ids import generate_id
 from src.core.platform.finance import DecimalQuantity, Money
 from src.core.platform.integration.canonical_json import canonical_json_sha256
 from src.core.shared.audit import record_audit_entry
-from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 
 
 class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
@@ -70,10 +72,10 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         approval_service: ApprovalService,
         tenant_context_service: TenantContextService,
         clock: Clock,
-        submission_uow_factory: BillingPreparationSubmissionUnitOfWorkFactory | None = None,
         user_session=None,
         enterprise_audit_service=None,
         module_catalog_service=None,
+        record_event: Callable[[object], None] | None = None,
     ) -> None:
         self._session = session
         self._billing_repo = billing_repo
@@ -85,15 +87,18 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         self._approval_service = approval_service
         self._tenant_context_service = tenant_context_service
         self._clock = clock
-        # Approval-P1: `submit_preparation`'s own canonical transaction owner -- the
-        # preparation's submit transition, the governed `ApprovalRequest`, and both audit
-        # trails all commit atomically through this ONE fresh Session. This dependency is
-        # optional because approval-application composition never submits preparations;
-        # production submission composition always supplies it.
-        self._submission_uow_factory = submission_uow_factory
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
+        self._record_event = record_event
+        # P39: `_approval_repo`/`_approval_requested_staged` are wired post-construction by
+        # composition, only for the governed direct-command instance -- mirrors
+        # `FinancialChangeService`'s identical `_approval_repo`/`_approval_requested_staged`
+        # attributes (`build_finance_governance_operations`). None here means "not
+        # governed-composition-wired" (e.g. the approval-participant's own fresh instance, which
+        # never calls `submit_preparation`).
+        self._approval_repo = None
+        self._approval_requested_staged: Callable[[object], None] | None = None
 
     def get_preparation(self, preparation_id: str) -> ProjectBillingPreparation:
         preparation = self._require_preparation(preparation_id)
@@ -172,7 +177,16 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             created_by=self._actor_id(),
             created_at=self._clock.now(),
         )
-        return self._write("create", preparation, lambda: self._billing_repo.add_preparation(preparation))
+        event = BillingPreparationCreated(
+            tenant_id=preparation.tenant_id,
+            organization_id=preparation.organization_id,
+            project_id=preparation.project_id,
+            billing_preparation_id=preparation.id,
+            occurred_at=preparation.created_at,
+        )
+        return self._write(
+            "create", preparation, lambda: self._billing_repo.add_preparation(preparation), event
+        )
 
     def add_fixed_price_source(
         self, preparation_id: str, *, schedule_line_id: str, expected_row_version: int
@@ -308,68 +322,78 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         )
         return self._reserve(preparation, line, expected_row_version)
 
-    def _new_submission_context(self) -> DomainEventContext:
-        return DomainEventContext(correlation_id=generate_id())
-
     def submit_preparation(
         self, preparation_id: str, *, expected_row_version: int
     ) -> ProjectBillingPreparation:
-        if self._submission_uow_factory is None:
+        if self._approval_repo is None or self._record_event is None:
             raise BusinessRuleError(
-                "Billing preparation submission requires a configured transaction owner.",
-                code="BILLING_PREPARATION_SUBMISSION_UOW_REQUIRED",
+                "Billing preparation submission requires the Finance governance command boundary.",
+                code="BILLING_PREPARATION_COMMAND_BOUNDARY_REQUIRED",
             )
-        with self._submission_uow_factory.create(context=self._new_submission_context()) as uow:
-            preparation = uow.billing.get_preparation(preparation_id)
-            if preparation is None:
-                raise NotFoundError(
-                    "Billing preparation not found.", code="BILLING_PREPARATION_NOT_FOUND"
-                )
-            self._require(preparation.project_id, "finance.manage", "submit billing preparation")
-            if preparation.row_version != expected_row_version:
-                raise BusinessRuleError("Billing preparation changed.", code="STALE_WRITE")
-            now = self._clock.now()
-            principal = self._user_session.principal if self._user_session else None
-            request = request_approval_using(
-                approval_repo=uow.approvals,
-                enterprise_audit_service=uow._enterprise_audit_service,
-                clock=self._clock,
-                record_event=uow.record_event,
-                request_type="project_billing_preparation.approve",
-                entity_type="project_billing_preparation",
-                entity_id=preparation.id,
-                tenant_id=preparation.tenant_id,
-                organization_id=preparation.organization_id,
-                project_id=preparation.project_id,
-                payload={"preparation_id": preparation.id, "expected_version": expected_row_version},
-                requested_by_user_id=principal.user_id if principal else None,
-                requested_by_username=principal.username if principal else None,
-            )
-            preparation.submit(
-                submitted_by=self._actor_id(), submitted_at=now, approval_request_id=request.id
-            )
-            uow.billing.update_preparation(preparation, expected_row_version=expected_row_version)
-            self._audit_using(uow, "submit", preparation)
-            uow.commit()
-        self._approval_service.publish_requested(request)
-        domain_events.billing_preparations_changed.emit(preparation.project_id)
+        preparation = self._require_preparation(preparation_id)
+        self._require(preparation.project_id, "finance.manage", "submit billing preparation")
+        if preparation.row_version != expected_row_version:
+            raise BusinessRuleError("Billing preparation changed.", code="STALE_WRITE")
+        now = self._clock.now()
+        principal = self._user_session.principal if self._user_session else None
+        request = request_approval_using(
+            approval_repo=self._approval_repo,
+            enterprise_audit_service=self._enterprise_audit_service,
+            clock=self._clock,
+            record_event=self._record_event,
+            request_type="project_billing_preparation.approve",
+            entity_type="project_billing_preparation",
+            entity_id=preparation.id,
+            tenant_id=preparation.tenant_id,
+            organization_id=preparation.organization_id,
+            project_id=preparation.project_id,
+            payload={"preparation_id": preparation.id, "expected_version": expected_row_version},
+            requested_by_user_id=principal.user_id if principal else None,
+            requested_by_username=principal.username if principal else None,
+        )
+        preparation.submit(
+            submitted_by=self._actor_id(), submitted_at=now, approval_request_id=request.id
+        )
+        self._billing_repo.update_preparation(preparation, expected_row_version=expected_row_version)
+        self._audit("submit", preparation)
+        event = BillingPreparationStatusChanged(
+            tenant_id=preparation.tenant_id,
+            organization_id=preparation.organization_id,
+            project_id=preparation.project_id,
+            billing_preparation_id=preparation.id,
+            change_type=BillingPreparationStatusChangeType.SUBMITTED,
+            occurred_at=now,
+        )
+        self._record_event(event)
+        self._session.flush()
+        if self._approval_requested_staged is not None:
+            self._approval_requested_staged(request)
         return preparation
 
     def _apply_approval_decision(
-        self, preparation_id: str, *, approved_by: str, expected_version: int, commit: bool
-    ) -> ProjectBillingPreparation:
+        self, preparation_id: str, *, approved_by: str, expected_version: int
+    ) -> tuple[ProjectBillingPreparation, object]:
         preparation = self._require_preparation(preparation_id)
-        preparation.approve(approved_by=approved_by, approved_at=self._clock.now())
+        now = self._clock.now()
+        preparation.approve(approved_by=approved_by, approved_at=now)
         locks = self._billing_repo.list_source_locks(preparation.id)
         for lock in locks:
-            lock.finalize(occurred_at=self._clock.now())
+            lock.finalize(occurred_at=now)
             self._billing_repo.update_source_lock(lock)
         self._billing_repo.update_preparation(preparation, expected_row_version=expected_version)
         self._audit("approve", preparation)
-        if commit:
-            self._session.commit()
-            domain_events.billing_preparations_changed.emit(preparation.project_id)
-        return preparation
+        event = BillingPreparationStatusChanged(
+            tenant_id=preparation.tenant_id,
+            organization_id=preparation.organization_id,
+            project_id=preparation.project_id,
+            billing_preparation_id=preparation.id,
+            change_type=BillingPreparationStatusChangeType.APPROVED,
+            occurred_at=now,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
+        self._session.flush()
+        return preparation, event
 
     def _apply_rejection_decision(
         self,
@@ -378,8 +402,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         rejected_by: str,
         expected_version: int,
         notes: str,
-        commit: bool,
-    ) -> ProjectBillingPreparation:
+    ) -> tuple[ProjectBillingPreparation, object]:
         preparation = self._require_preparation(preparation_id)
         now = self._clock.now()
         preparation.reject(rejected_by=rejected_by, rejected_at=now, notes=notes)
@@ -388,10 +411,18 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             self._billing_repo.update_source_lock(lock)
         self._billing_repo.update_preparation(preparation, expected_row_version=expected_version)
         self._audit("reject", preparation)
-        if commit:
-            self._session.commit()
-            domain_events.billing_preparations_changed.emit(preparation.project_id)
-        return preparation
+        event = BillingPreparationStatusChanged(
+            tenant_id=preparation.tenant_id,
+            organization_id=preparation.organization_id,
+            project_id=preparation.project_id,
+            billing_preparation_id=preparation.id,
+            change_type=BillingPreparationStatusChangeType.REJECTED,
+            occurred_at=now,
+        )
+        if self._record_event is not None:
+            self._record_event(event)
+        self._session.flush()
+        return preparation, event
 
     def request_delivery(
         self, preparation_id: str, *, expected_row_version: int
@@ -399,13 +430,23 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         preparation = self._require_preparation(preparation_id)
         self._require(preparation.project_id, "finance.manage", "request accounting delivery")
         payload = self.build_delivery_payload(preparation.id)
-        preparation.request_delivery(occurred_at=self._clock.now())
+        now = self._clock.now()
+        preparation.request_delivery(occurred_at=now)
+        event = BillingPreparationStatusChanged(
+            tenant_id=preparation.tenant_id,
+            organization_id=preparation.organization_id,
+            project_id=preparation.project_id,
+            billing_preparation_id=preparation.id,
+            change_type=BillingPreparationStatusChangeType.DELIVERY_PENDING,
+            occurred_at=now,
+        )
         self._write(
             "request_delivery",
             preparation,
             lambda: self._billing_repo.update_preparation(
                 preparation, expected_row_version=expected_row_version
             ),
+            event,
         )
         return payload
 
@@ -507,11 +548,37 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             recorded_at=self._clock.now(),
         )
         expected = preparation.row_version
+        status_change_types: tuple[BillingPreparationStatusChangeType, ...] = ()
         if resolved_type is BillingExternalEventType.DELIVERY_ACCEPTED:
             preparation.mark_delivered(occurred_at=occurred_at)
             preparation.acknowledge(occurred_at=occurred_at)
+            status_change_types = (
+                BillingPreparationStatusChangeType.DELIVERED,
+                BillingPreparationStatusChangeType.ACKNOWLEDGED,
+            )
         elif resolved_type is BillingExternalEventType.RECONCILED:
             preparation.reconcile(occurred_at=occurred_at)
+            status_change_types = (BillingPreparationStatusChangeType.RECONCILED,)
+        outcome_event = BillingPreparationExternalOutcomeRecorded(
+            tenant_id=preparation.tenant_id,
+            organization_id=preparation.organization_id,
+            project_id=preparation.project_id,
+            billing_preparation_id=preparation.id,
+            external_event_id=event.id,
+            event_type=resolved_type,
+            occurred_at=occurred_at,
+        )
+        events: tuple[object, ...] = (outcome_event,) + tuple(
+            BillingPreparationStatusChanged(
+                tenant_id=preparation.tenant_id,
+                organization_id=preparation.organization_id,
+                project_id=preparation.project_id,
+                billing_preparation_id=preparation.id,
+                change_type=change_type,
+                occurred_at=occurred_at,
+            )
+            for change_type in status_change_types
+        )
         return self._write(
             "external_outcome",
             event,
@@ -521,6 +588,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
                     preparation, expected_row_version=expected
                 ) if preparation.row_version == expected else None,
             ),
+            events,
         )
 
     def _reserve(
@@ -542,10 +610,20 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             reserved_at=self._clock.now(),
         )
         current_lines = self._billing_repo.list_preparation_lines(preparation.id)
+        now = self._clock.now()
         preparation.replace_totals(
             line_count=len(current_lines) + 1,
             total_amount=sum((item.net_amount for item in current_lines), Decimal("0")) + line.net_amount,
-            occurred_at=self._clock.now(),
+            occurred_at=now,
+        )
+        event = BillingPreparationLineAdded(
+            tenant_id=line.tenant_id,
+            organization_id=line.organization_id,
+            project_id=line.project_id,
+            billing_preparation_id=line.preparation_id,
+            preparation_line_id=line.id,
+            source_type=line.source_type,
+            occurred_at=now,
         )
         try:
             return self._write(
@@ -557,6 +635,7 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
                         preparation, expected_row_version=expected_row_version
                     ),
                 ),
+                event,
             )
         except IntegrityError as exc:
             raise BusinessRuleError(
@@ -681,17 +760,14 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             fail_closed=True,
         )
 
-    def _write(self, operation: str, entity, write, *, emit: bool = True):
-        try:
-            write()
-            self._billing_repo.flush()
-            self._audit(operation, entity)
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        if emit:
-            domain_events.billing_preparations_changed.emit(entity.project_id)
+    def _write(self, operation: str, entity, write, events: object):
+        write()
+        self._billing_repo.flush()
+        self._audit(operation, entity)
+        if self._record_event is not None:
+            for event in (events if isinstance(events, tuple) else (events,)):
+                self._record_event(event)
+        self._session.flush()
         return entity
 
 

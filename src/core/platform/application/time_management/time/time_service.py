@@ -21,6 +21,10 @@ from src.core.platform.contract.repositories.time_management.time.contracts impo
     WorkOwnerRepository,
     WorkResourceRepository,
 )
+from src.core.shared.events.domain_event_publisher import (
+    PostCommitEventPublisher,
+    TransactionalEventDispatcher,
+)
 
 
 class TimeService(
@@ -47,6 +51,8 @@ class TimeService(
         tenant_context_service: TenantContextService | None = None,
         scope_organization_resolver: Callable[[str, str], str | None] | None = None,
         approved_time_outbox_service: IntegrationOutboxService | None = None,
+        transactional_dispatcher: TransactionalEventDispatcher | None = None,
+        post_commit_bus: PostCommitEventPublisher | None = None,
     ) -> None:
         self._session: Session = session
         self._work_allocation_repo: WorkAllocationRepository = assignment_repo
@@ -64,6 +70,8 @@ class TimeService(
         self._scope_organization_resolver = scope_organization_resolver
         self._approved_time_outbox_service = approved_time_outbox_service
         self._approved_time_dispatcher: Callable[[], None] | None = None
+        self._transactional_dispatcher = transactional_dispatcher
+        self._post_commit_bus = post_commit_bus
 
     def set_approved_time_dispatcher(self, dispatcher: Callable[[], None] | None) -> None:
         self._approved_time_dispatcher = dispatcher

@@ -19,7 +19,7 @@ from src.core.modules.project_management.application.resources.event_handlers.vi
 from src.core.modules.project_management.domain.enums import WorkerType
 from src.core.shared.events.view_invalidation import OrganizationScope, ResourceScope
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
-from src.ui_qml.platform.adapters.resource_view_invalidation_adapter import (
+from src.ui_qml.modules.project_management.adapters.resources.resource_view_invalidation_adapter import (
     ResourceViewInvalidationAdapter,
 )
 

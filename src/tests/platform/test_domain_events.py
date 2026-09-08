@@ -5,15 +5,15 @@ from src.core.shared.events.signal import Signal
 def test_domain_event_signal_connect_emit_disconnect():
     seen: list[str] = []
 
-    def _handler(project_id: str) -> None:
-        seen.append(project_id)
+    def _handler(task_id: str) -> None:
+        seen.append(task_id)
 
-    domain_events.project_changed.connect(_handler)
-    domain_events.project_changed.emit("p-1")
-    domain_events.project_changed.disconnect(_handler)
-    domain_events.project_changed.emit("p-2")
+    domain_events.tasks_changed.connect(_handler)
+    domain_events.tasks_changed.emit("t-1")
+    domain_events.tasks_changed.disconnect(_handler)
+    domain_events.tasks_changed.emit("t-2")
 
-    assert seen == ["p-1"]
+    assert seen == ["t-1"]
 
 
 def test_signal_emit_prunes_deleted_qt_like_callbacks():

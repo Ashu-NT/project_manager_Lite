@@ -632,36 +632,18 @@ class FinancialsRefreshMixin:
         if self._active_destination in destinations:
             self._request_domain_refresh()
 
-    def _bind_domain_events(self) -> None:
-        def _projects_changed(payload: object) -> None:
-            self._shell_loaded = False
-            if self._finance_event_matches(payload):
-                self._invalidate_destinations(*self._finance_destinations)
+    def onProjectStale(self, project_id: str) -> None:
+        self._shell_loaded = False
+        if self._finance_event_matches(project_id):
+            self._invalidate_destinations(*self._finance_destinations)
 
+    def _bind_domain_events(self) -> None:
         def _tasks_changed(payload: object) -> None:
             if self._finance_event_matches(payload):
                 self._invalidate_destinations("planning", "costs", "performance")
 
-        def _budgets_changed(payload: object) -> None:
-            if self._finance_event_matches(payload):
-                self._invalidate_destinations("overview", "planning", "performance")
-
-        def _billing_changed(payload: object) -> None:
-            if self._finance_event_matches(payload):
-                self._invalidate_destinations("commercial")
-
-        def _cost_entries_changed(payload: object) -> None:
-            if self._finance_event_matches(payload):
-                self._invalidate_destinations(
-                    "overview", "costs", "performance", "commercial"
-                )
-
         subscriptions = (
-            (domain_events.project_changed, _projects_changed),
             (domain_events.tasks_changed, _tasks_changed),
-            (domain_events.budgets_changed, _budgets_changed),
-            (domain_events.billing_preparations_changed, _billing_changed),
-            (domain_events.cost_entries_changed, _cost_entries_changed),
         )
         for signal, callback in subscriptions:
             self._subscribe_domain_signal(signal, callback)

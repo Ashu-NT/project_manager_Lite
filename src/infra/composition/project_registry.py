@@ -9,9 +9,6 @@ from time import perf_counter
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.platform.access import ScopedRolePolicy
-from src.core.modules.project_management.infrastructure.persistence.uow.finance.billing_preparation_submission_unit_of_work import (
-    SqlAlchemyBillingPreparationSubmissionUnitOfWorkFactory,
-)
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
 )
@@ -21,6 +18,59 @@ from src.core.modules.project_management.infrastructure.persistence.uow.resource
 from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
     build_resource_capabilities_view_invalidation_handler,
     build_resource_list_view_invalidation_handler,
+)
+from src.core.platform.application.time_management.time.event_handlers.view_invalidation import (
+    build_timesheet_view_invalidation_handler,
+)
+from src.core.platform.application.time_management.time.timesheet_events import (
+    TimesheetPeriodStatusChanged,
+)
+from src.core.modules.project_management.application.risk.event_handlers.view_invalidation import (
+    build_register_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.risk.register_events import (
+    RegisterEntryChanged,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.register.register_unit_of_work import (
+    SqlAlchemyRegisterUnitOfWorkFactory,
+)
+from src.core.modules.project_management.application.projects.event_handlers.view_invalidation import (
+    build_project_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.projects.project_events import (
+    ProjectCreated,
+    ProjectProfileUpdated,
+    ProjectRemoved,
+    ProjectStatusChanged,
+)
+from src.core.modules.project_management.application.resources.project_resource_events import (
+    ProjectResourceAssignmentChanged,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.projects.project_unit_of_work import (
+    SqlAlchemyProjectUnitOfWorkFactory,
+)
+from src.core.modules.project_management.application.collaboration.event_handlers.view_invalidation import (
+    build_task_comment_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.collaboration.collaboration_events import (
+    TaskCommentChanged,
+    TaskCommentReactionChanged,
+    TaskCommentReadStateChanged,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.collaboration.collaboration_unit_of_work import (
+    SqlAlchemyCollaborationUnitOfWorkFactory,
+)
+from src.core.modules.project_management.application.portfolio.event_handlers.view_invalidation import (
+    build_portfolio_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.portfolio.portfolio_events import (
+    PortfolioIntakeItemChanged,
+    PortfolioProjectDependencyChanged,
+    PortfolioScenarioChanged,
+    PortfolioScoringTemplateChanged,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.portfolio.portfolio_unit_of_work import (
+    SqlAlchemyPortfolioUnitOfWorkFactory,
 )
 from src.core.modules.project_management.application.resources.resource_capability_events import (
     ResourceCapabilityChanged,
@@ -55,6 +105,39 @@ from src.core.modules.project_management.application.financials.commitments.comm
     CommitmentLineChanged,
     CommitmentMatchChanged,
 )
+from src.core.modules.project_management.application.financials.cost.entries.event_handlers.view_invalidation import (
+    build_cost_entry_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.cost.entries.cost_entry_events import (
+    CostEntryRecorded,
+    CostEntryRemoved,
+    CostEntryReversed,
+    CostEntryStatusChanged,
+    CostEntryUpdated,
+)
+from src.core.modules.project_management.application.financials.budgets.event_handlers.view_invalidation import (
+    build_budget_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.budgets.budget_events import (
+    BudgetLineChanged,
+    BudgetProfileUpdated,
+    BudgetRemoved,
+    BudgetStatusChanged,
+    BudgetVersionCreated,
+)
+from src.core.modules.project_management.application.financials.invoicing.event_handlers.view_invalidation import (
+    build_billing_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.invoicing.billing_events import (
+    BillingPreparationCreated,
+    BillingPreparationExternalOutcomeRecorded,
+    BillingPreparationLineAdded,
+    BillingPreparationStatusChanged,
+    BillingProfileActivated,
+    BillingProfileCreated,
+    BillingScheduleLineAdded,
+    BillingScheduleLineMarkedReady,
+)
 from src.core.modules.project_management.application.financials.event_handlers.view_invalidation import (
     build_financial_profile_view_invalidation_handler,
 )
@@ -65,6 +148,7 @@ from src.core.modules.project_management.application.financials.configuration_ev
     CostCodeProfileUpdated,
     ProjectCostCodeRestrictionAdded,
     ProjectCostCodeRestrictionRemoved,
+    ProjectFinancialProfileCreated,
     ProjectFinancialProfileTransitioned,
     ProjectFinancialProfileUpdated,
 )
@@ -343,6 +427,27 @@ def build_project_management_service_bundle(
     logger.debug("Project Management core services build begin")
     # GlobalCalendarShim is the enterprise-backed calendar. Used everywhere WorkCalendarEngine was.
     work_calendar_engine = platform_services.global_calendar_shim
+    project_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
+    project_uow_factory = SqlAlchemyProjectUnitOfWorkFactory(
+        session_factory=project_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
+    _project_view_invalidation_handler = build_project_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _project_event_type in (
+        ProjectCreated,
+        ProjectProfileUpdated,
+        ProjectStatusChanged,
+        ProjectRemoved,
+        ProjectResourceAssignmentChanged,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _project_event_type, _project_view_invalidation_handler
+        )
     project_service = ProjectService(
         session,
         repositories.project_repo,
@@ -350,13 +455,15 @@ def build_project_management_service_bundle(
         repositories.dependency_repo,
         repositories.assignment_repo,
         repositories.time_entry_repo,
-        repositories.project_financial_profile_repo,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         project_catalog_reader=SqlAlchemyProjectCatalogReader(session=session),
+        uow_factory=project_uow_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
     )
 
     def _time_scope_organization_id(scope_type: str, scope_id: str) -> str | None:
@@ -388,8 +495,16 @@ def build_project_management_service_bundle(
         approved_time_outbox_service=approved_time_outbox_service,
         timesheet_workspace_reader=SqlAlchemyTimesheetWorkspaceReader(session=session),
         timesheet_review_reader=SqlAlchemyTimesheetReviewReader(session=session),
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
     )
     time_service: TimeService = timesheet_service
+    platform_services.platform_post_commit_bus.subscribe(
+        TimesheetPeriodStatusChanged,
+        build_timesheet_view_invalidation_handler(
+            platform_services.platform_view_invalidation_channel
+        ),
+    )
     project_resource_service = ProjectResourceService(
         project_resource_repo=repositories.project_resource_repo,
         resource_repo=repositories.resource_repo,
@@ -402,6 +517,22 @@ def build_project_management_service_bundle(
         task_repo=repositories.task_repo,
         assignment_repo=repositories.assignment_repo,
         financial_profile_repo=repositories.project_financial_profile_repo,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+    )
+    register_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
+    register_uow_factory = SqlAlchemyRegisterUnitOfWorkFactory(
+        session_factory=register_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
+    platform_services.platform_post_commit_bus.subscribe(
+        RegisterEntryChanged,
+        build_register_view_invalidation_handler(
+            platform_services.platform_view_invalidation_channel
+        ),
     )
     register_service = RegisterService(
         session=session,
@@ -412,6 +543,7 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         register_catalog_reader=SqlAlchemyRegisterCatalogReader(session=session),
+        uow_factory=register_uow_factory,
     )
     # Build enterprise calendar adapter here so it can be injected into SchedulingEngine.
     # Instantiated before scheduling_engine so we pass it in during construction.
@@ -714,10 +846,53 @@ def build_project_management_service_bundle(
         platform_services.platform_post_commit_bus.subscribe(
             _commitment_event_type, _commitment_view_invalidation_handler
         )
+    _cost_entry_view_invalidation_handler = build_cost_entry_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _cost_entry_event_type in (
+        CostEntryRecorded,
+        CostEntryUpdated,
+        CostEntryStatusChanged,
+        CostEntryReversed,
+        CostEntryRemoved,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _cost_entry_event_type, _cost_entry_view_invalidation_handler
+        )
+    _budget_view_invalidation_handler = build_budget_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _budget_event_type in (
+        BudgetVersionCreated,
+        BudgetProfileUpdated,
+        BudgetLineChanged,
+        BudgetStatusChanged,
+        BudgetRemoved,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _budget_event_type, _budget_view_invalidation_handler
+        )
+    _billing_view_invalidation_handler = build_billing_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _billing_event_type in (
+        BillingProfileCreated,
+        BillingProfileActivated,
+        BillingScheduleLineAdded,
+        BillingScheduleLineMarkedReady,
+        BillingPreparationCreated,
+        BillingPreparationLineAdded,
+        BillingPreparationStatusChanged,
+        BillingPreparationExternalOutcomeRecorded,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _billing_event_type, _billing_view_invalidation_handler
+        )
     _financial_profile_view_invalidation_handler = build_financial_profile_view_invalidation_handler(
         platform_services.platform_view_invalidation_channel
     )
     for _financial_profile_event_type in (
+        ProjectFinancialProfileCreated,
         ProjectFinancialProfileUpdated,
         ProjectFinancialProfileTransitioned,
         CostCodeCreated,
@@ -776,6 +951,7 @@ def build_project_management_service_bundle(
             module_catalog_service=platform_services.module_catalog_service,
             tenant_context_service=platform_services.tenant_context_service,
             approval_service=platform_services.approval_service,
+            record_event=uow.record_event,
         )
         forecast_version_operations = ForecastVersionService(
             session=uow._session,
@@ -881,6 +1057,59 @@ def build_project_management_service_bundle(
             tenant_context_service=platform_services.tenant_context_service,
             record_event=uow.record_event,
         )
+        cost_entry_operations = ProjectCostEntryService(
+            session=uow._session,
+            entry_repo=uow.cost_entries,
+            project_repo=uow.projects,
+            financial_profile_repo=uow.profiles,
+            cost_code_repo=uow.cost_codes,
+            task_repo=uow.tasks,
+            resource_repo=repositories.resource_repo,
+            financial_period_service=platform_services.financial_period_service,
+            clock=system_clock,
+            user_session=platform_services.user_session,
+            enterprise_audit_service=uow._enterprise_audit_service,
+            module_catalog_service=platform_services.module_catalog_service,
+            tenant_context_service=platform_services.tenant_context_service,
+            approval_service=platform_services.approval_service,
+            rate_resolver=rate_card_resolver,
+            labor_posting_repo=repositories.approved_time_labor_posting_repo,
+            record_event=uow.record_event,
+        )
+        billing_profile_operations = ProjectBillingProfileService(
+            session=uow._session,
+            billing_repo=uow.billing,
+            financial_profile_repo=uow.profiles,
+            project_repo=uow.projects,
+            tenant_context_service=platform_services.tenant_context_service,
+            clock=system_clock,
+            user_session=platform_services.user_session,
+            enterprise_audit_service=uow._enterprise_audit_service,
+            module_catalog_service=platform_services.module_catalog_service,
+            record_event=uow.record_event,
+        )
+        billing_preparation_operations = ProjectBillingPreparationService(
+            session=uow._session,
+            billing_repo=uow.billing,
+            financial_profile_repo=uow.profiles,
+            cost_entry_repo=repositories.project_cost_entry_repo,
+            labor_posting_repo=repositories.approved_time_labor_posting_repo,
+            rate_resolver=rate_card_resolver,
+            financial_period_service=platform_services.financial_period_service,
+            approval_service=platform_services.approval_service,
+            tenant_context_service=platform_services.tenant_context_service,
+            clock=system_clock,
+            user_session=platform_services.user_session,
+            enterprise_audit_service=uow._enterprise_audit_service,
+            module_catalog_service=platform_services.module_catalog_service,
+            record_event=uow.record_event,
+        )
+        billing_preparation_operations._approval_repo = uow.approvals
+        billing_preparation_operations._approval_requested_staged = lambda request: (
+            post_commit_actions.append(
+                lambda: platform_services.approval_service.publish_requested(request)
+            )
+        )
         return FinanceGovernanceOperations(
             budgets=budget_operations,
             forecast_versions=forecast_version_operations,
@@ -890,6 +1119,9 @@ def build_project_management_service_bundle(
             rate_cards=rate_card_operations,
             planned_costs=planned_cost_operations,
             commitments=commitment_operations,
+            cost_entries=cost_entry_operations,
+            billing_profiles=billing_profile_operations,
+            billing_preparations=billing_preparation_operations,
             post_commit_actions=post_commit_actions,
         )
 
@@ -1003,6 +1235,23 @@ def build_project_management_service_bundle(
             {"ingest_procurement_source", "match_cost_entry", "reverse_match"}
         ),
     )
+    cost_entry_service = FinanceGovernedServicePort(
+        read_service=cost_entry_service,
+        boundary=finance_governance_commands,
+        family="cost_entry",
+        mutations=frozenset(
+            {
+                "create_manual_entry",
+                "update_draft",
+                "delete_draft",
+                "submit",
+                "approve",
+                "reject",
+                "post",
+                "reverse",
+            }
+        ),
+    )
     billing_profile_service = ProjectBillingProfileService(
         session=session,
         billing_repo=repositories.project_billing_repo,
@@ -1013,16 +1262,6 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,
-    )
-    billing_preparation_submission_uow_session_factory = sessionmaker(
-        bind=platform_services.session.bind, future=True
-    )
-    billing_preparation_submission_uow_factory = SqlAlchemyBillingPreparationSubmissionUnitOfWorkFactory(
-        session_factory=billing_preparation_submission_uow_session_factory,
-        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
-        post_commit_bus=platform_services.platform_post_commit_bus,
-        tenant_context_service=platform_services.tenant_context_service,
-        user_session=platform_services.user_session,
     )
     billing_preparation_service = ProjectBillingPreparationService(
         session=session,
@@ -1035,11 +1274,58 @@ def build_project_management_service_bundle(
         approval_service=platform_services.approval_service,
         tenant_context_service=platform_services.tenant_context_service,
         clock=system_clock,
-        submission_uow_factory=billing_preparation_submission_uow_factory,
         user_session=platform_services.user_session,
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,
     )
+    billing_profile_service = FinanceGovernedServicePort(
+        read_service=billing_profile_service,
+        boundary=finance_governance_commands,
+        family="billing_profile",
+        mutations=frozenset(
+            {
+                "create_profile",
+                "activate_profile",
+                "add_schedule_line",
+                "mark_schedule_line_ready",
+            }
+        ),
+    )
+    billing_preparation_service = FinanceGovernedServicePort(
+        read_service=billing_preparation_service,
+        boundary=finance_governance_commands,
+        family="billing_preparation",
+        mutations=frozenset(
+            {
+                "create_preparation",
+                "add_fixed_price_source",
+                "add_approved_time_source",
+                "add_cost_plus_source",
+                "submit_preparation",
+                "request_delivery",
+                "record_external_outcome",
+            }
+        ),
+    )
+    collaboration_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
+    collaboration_uow_factory = SqlAlchemyCollaborationUnitOfWorkFactory(
+        session_factory=collaboration_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
+    _task_comment_view_invalidation_handler = build_task_comment_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _task_comment_event_type in (
+        TaskCommentChanged,
+        TaskCommentReactionChanged,
+        TaskCommentReadStateChanged,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _task_comment_event_type, _task_comment_view_invalidation_handler
+        )
     collaboration_service = CollaborationService(
         session=session,
         comment_repo=repositories.task_comment_repo,
@@ -1055,7 +1341,30 @@ def build_project_management_service_bundle(
         role_repo=repositories.role_repo,
         role_binding_repo=repositories.role_binding_repo,
         notification_service=platform_services.notification_service,
+        view_invalidation_channel=platform_services.platform_view_invalidation_channel,
+        uow_factory=collaboration_uow_factory,
     )
+    portfolio_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
+    portfolio_uow_factory = SqlAlchemyPortfolioUnitOfWorkFactory(
+        session_factory=portfolio_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
+    _portfolio_view_invalidation_handler = build_portfolio_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _portfolio_event_type in (
+        PortfolioIntakeItemChanged,
+        PortfolioScenarioChanged,
+        PortfolioScoringTemplateChanged,
+        PortfolioProjectDependencyChanged,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _portfolio_event_type,
+            _portfolio_view_invalidation_handler,
+        )
     portfolio_service = PortfolioService(
         session=session,
         intake_repo=repositories.portfolio_intake_repo,
@@ -1073,6 +1382,7 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         project_catalog_reader=SqlAlchemyProjectCatalogReader(session=session),
+        uow_factory=portfolio_uow_factory,
     )
     baseline_uow_factory = SqlAlchemyBaselineUnitOfWorkFactory(
         session=session,
@@ -1223,15 +1533,6 @@ def _register_project_management_approval_handlers(
     calendar_assignment_service=None,
     financial_period_service=None,
 ) -> None:
-    """P4 Step 2 (ADR-005 Section 24, Round 7/8): every request type below is now backed by a
-    module-owned, session-parameterized approval transaction participant, whose bound
-    apply/reject method is registered directly, alongside a `dependencies_factory(session)`
-    closure over this call site's ambient collaborators. `ApprovalService` itself now calls
-    `dependencies_factory(uow_session)` once per `approve_and_apply`/`reject` call, against its
-    own fresh `PlatformUnitOfWork` Session -- never a Session fixed at composition time.
-    See src/core/modules/project_management/infrastructure/approval/ and
-    src/infra/composition/approval_apply_dependencies/ for each family's participant/deps-factory.
-    """
     baseline_participant = BaselineApprovalParticipant()
     approval_service.register_apply_handler(
         "baseline.create",

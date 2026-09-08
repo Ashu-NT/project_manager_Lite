@@ -10,7 +10,7 @@ from src.core.shared.events.view_invalidation import (
     TenantWide,
     ViewInvalidationHint,
 )
-from src.ui_qml.platform.adapters.scoped_view_invalidation_subscription import (
+from src.ui_qml.shared.adapters.scoped_view_invalidation_subscription import (
     ScopedViewInvalidationSubscription,
 )
 
@@ -187,7 +187,7 @@ def _imported_module_names(module) -> set[str]:
 
 
 def test_shared_helper_has_no_qt_dependency():
-    import src.ui_qml.platform.adapters.scoped_view_invalidation_subscription as helper_module
+    import src.ui_qml.shared.adapters.scoped_view_invalidation_subscription as helper_module
 
     imports = _imported_module_names(helper_module)
     for forbidden in ("PySide6", "QtCore", "QtQml"):
@@ -195,7 +195,7 @@ def test_shared_helper_has_no_qt_dependency():
 
 
 def test_shared_helper_has_no_domain_event_or_capability_vocabulary_imports():
-    import src.ui_qml.platform.adapters.scoped_view_invalidation_subscription as helper_module
+    import src.ui_qml.shared.adapters.scoped_view_invalidation_subscription as helper_module
 
     imports = _imported_module_names(helper_module)
     for forbidden in (
@@ -211,7 +211,7 @@ def test_shared_helper_has_no_domain_event_or_capability_vocabulary_imports():
 
 
 def test_shared_helper_has_no_repository_or_sqlalchemy_imports():
-    import src.ui_qml.platform.adapters.scoped_view_invalidation_subscription as helper_module
+    import src.ui_qml.shared.adapters.scoped_view_invalidation_subscription as helper_module
 
     imports = _imported_module_names(helper_module)
     for forbidden in ("sqlalchemy", "repository", "repositories", "orm"):
@@ -221,7 +221,7 @@ def test_shared_helper_has_no_repository_or_sqlalchemy_imports():
 def test_shared_helper_never_sees_a_tenant_or_organization_id_string():
     """The helper's public API is `replace_filter(filter: ScopeFilter | None)`/`dispose()` --
     it takes an already-authoritative ScopeFilter, never tenant_id/organization_id parameters."""
-    import src.ui_qml.platform.adapters.scoped_view_invalidation_subscription as helper_module
+    import src.ui_qml.shared.adapters.scoped_view_invalidation_subscription as helper_module
 
     params = inspect.signature(helper_module.ScopedViewInvalidationSubscription.replace_filter).parameters
     assert set(params) == {"self", "filter"}
@@ -254,7 +254,7 @@ def test_no_legacy_signal_reintroduced_in_any_adapter_or_the_shared_helper():
     import importlib
 
     modules = list(_ADAPTER_MODULES) + [
-        "src.ui_qml.platform.adapters.scoped_view_invalidation_subscription"
+        "src.ui_qml.shared.adapters.scoped_view_invalidation_subscription"
     ]
     for module_name in modules:
         module = importlib.import_module(module_name)
@@ -333,6 +333,6 @@ def test_view_invalidation_hint_contract_unchanged_by_p6():
 def test_shared_helper_lives_outside_core_shared_and_platform_application():
     """§37: the helper is Qt/UI-boundary infrastructure, replaceable by a future web transport --
     it must never migrate into core/shared or Platform application code."""
-    import src.ui_qml.platform.adapters.scoped_view_invalidation_subscription as helper_module
+    import src.ui_qml.shared.adapters.scoped_view_invalidation_subscription as helper_module
 
     assert helper_module.__name__.startswith("src.ui_qml.")

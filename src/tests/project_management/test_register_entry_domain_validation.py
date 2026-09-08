@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date
 from types import SimpleNamespace
 
@@ -13,6 +14,8 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryType,
 )
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
 
 
 class _FakeSession:
@@ -21,6 +24,41 @@ class _FakeSession:
 
     def rollback(self) -> None:
         return None
+
+    def close(self) -> None:
+        return None
+
+
+class _FakeEnterpriseAuditService:
+    def record(self, **kwargs) -> None:
+        return None
+
+
+class _FakeActivityService:
+    def record(self, **kwargs) -> None:
+        return None
+
+
+class _FakeTransactionalDispatcher:
+    def dispatch(self, event, uow) -> None:
+        return None
+
+
+class _FakePostCommitBus:
+    def publish(self, event, context) -> None:
+        return None
+
+
+@dataclass
+class _FakeActiveScope:
+    tenant_id: str
+    organization_id: str
+
+
+class _FakeTenantContextService:
+    def require_active_scope_ids(self, *, operation_label: str) -> _FakeActiveScope:
+        del operation_label
+        return _FakeActiveScope(tenant_id="tenant-1", organization_id="org-1")
 
 
 class _FakeProjectRepo:
@@ -71,6 +109,39 @@ class _FakeRegisterRepo:
         ]
 
 
+class _FakeRegisterUnitOfWork(SqlAlchemyUnitOfWorkBase):
+    def __init__(self, *, session, transactional_dispatcher, post_commit_bus, context, entries) -> None:
+        super().__init__(
+            session=session,
+            transactional_dispatcher=transactional_dispatcher,
+            post_commit_bus=post_commit_bus,
+            context=context,
+        )
+        self.entries = entries
+        self._enterprise_audit_service = _FakeEnterpriseAuditService()
+        self._activity_service = _FakeActivityService()
+
+
+class _FakeRegisterUnitOfWorkFactory:
+    """Shares the SAME `_FakeRegisterRepo`/`_FakeSession` instances the service's own
+    `_register_repo` reads from -- a real `SqlAlchemyRegisterUnitOfWorkFactory` opens a fresh
+    Session per transaction bound to the same database, so both views see the same committed
+    rows; this fake reproduces that by sharing the repo object directly instead."""
+
+    def __init__(self, *, session, entries) -> None:
+        self._session = session
+        self._entries = entries
+
+    def create(self, *, context: DomainEventContext) -> _FakeRegisterUnitOfWork:
+        return _FakeRegisterUnitOfWork(
+            session=self._session,
+            transactional_dispatcher=_FakeTransactionalDispatcher(),
+            post_commit_bus=_FakePostCommitBus(),
+            context=context,
+            entries=self._entries,
+        )
+
+
 def _make_service(monkeypatch: pytest.MonkeyPatch, *, project_ids: list[str] | None = None) -> RegisterService:
     monkeypatch.setattr(
         "src.core.modules.project_management.application.risk.commands.register_lifecycle.require_permission",
@@ -92,11 +163,15 @@ def _make_service(monkeypatch: pytest.MonkeyPatch, *, project_ids: list[str] | N
         "src.core.modules.project_management.application.risk.queries.register_query.filter_project_rows",
         lambda rows, *args, **kwargs: list(rows),
     )
+    session = _FakeSession()
+    register_repo = _FakeRegisterRepo()
     return RegisterService(
-        session=_FakeSession(),
+        session=session,
         project_repo=_FakeProjectRepo(project_ids or ["proj-1"]),
-        register_repo=_FakeRegisterRepo(),
+        register_repo=register_repo,
         user_session=object(),
+        tenant_context_service=_FakeTenantContextService(),
+        uow_factory=_FakeRegisterUnitOfWorkFactory(session=session, entries=register_repo),
     )
 
 
