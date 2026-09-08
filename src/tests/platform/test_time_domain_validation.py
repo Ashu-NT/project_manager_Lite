@@ -377,6 +377,7 @@ def test_time_service_uses_entity_validation_for_entries_and_periods(monkeypatch
     assert entry.scope_id == "project-1"
     assert entry.department_name == "Engineering"
     assert entry.site_name == "Berlin Hub"
+    allocation = service._work_allocation_repo.get("alloc-1")
     assert allocation.hours_logged == 4.0
 
     updated = service.update_time_entry(
@@ -388,6 +389,7 @@ def test_time_service_uses_entity_validation_for_entries_and_periods(monkeypatch
 
     assert updated.hours == 5.5
     assert updated.note == "Revised work"
+    allocation = service._work_allocation_repo.get("alloc-1")
     assert allocation.hours_logged == 5.5
 
     submitted = service.submit_timesheet_period(

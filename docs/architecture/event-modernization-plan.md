@@ -4491,28 +4491,161 @@ consumer side has not yet been cut over," not "PM reached zero legacy Signals."
 README and ADR-005 were not updated in this pass, consistent with PM not yet reaching zero legacy
 Signals — updating either to claim PM completion would be inaccurate given the above.
 
+### P45B-CLOSURE — Complete Task ViewInvalidation Cutover + Cross-Capability Lifecycle Fixes + PM Zero Legacy (DIRECT FULL MODERNIZATION, COMPLETE)
+
+**Closes every item P45B left open. `tasks_changed` is now field-deleted from `DomainEvents` —
+PM reaches zero legacy Signals, the sixth and final PM capability to do so. Overall legacy Signal
+count is now 1 (`auth_changed` only).**
+
+**All 10 QML consumers cut over, zero left subscribed to `tasks_changed`**: a new
+`TaskViewInvalidationAdapter(QObject)` (`ui_qml/modules/project_management/adapters/tasks/
+task_view_invalidation_adapter.py`) exposes the 8 signals (`taskListStale`, `taskProfileStale`,
+`taskDetailStale`, `taskScheduleStale`, `taskAssignmentsForTaskStale`,
+`taskAssignmentsForResourceStale`, `taskDependenciesStale`, `dashboardTaskMetricsStale`), one
+instance wired per workspace in `context.py`'s factory methods, each connected only to the exact
+signals that workspace's own consumer previously used the blanket `tasks_changed` subscription for
+— Tasks (list/detail/schedule/assignments-for-task/dependencies), Dashboard
+(dashboardTaskMetricsStale), Collaboration (taskProfileStale only — name/identity facts), Scheduling
+(taskScheduleStale), Portfolio (taskListStale + taskDependenciesStale), Resources
+(taskAssignmentsForResourceStale), Financials (taskScheduleStale), Timesheets/
+`ProjectManagementResourceTimesheetsController` (taskProfileStale), Review Queue/
+`ProjectManagementTimesheetsWorkspaceController` (taskProfileStale — a distinct instance from
+Timesheets, its own adapter), and Platform Control (taskListStale + taskScheduleStale +
+taskDependenciesStale, re-emitted through a new `taskWorkspaceActivityStale` catalog signal
+connected cross-catalog in `shell/app.py`, mirroring the existing P41-FIX Signal/Slot precedent — no
+cross-import either direction). Every one of the 10 old `domain_events.tasks_changed` subscriptions
+and binder call sites was deleted, not left dormant.
+
+**TimeEntry → TaskAssignment lifecycle corrected to be precommit-canonical**: the P45B pass had
+manually called `_post_commit_bus.publish(...)` *after* `self._session.commit()` succeeded — real
+postcommit-manual dispatch, not the canonical UoW-driven precommit/postcommit split every other
+capability uses. Fixed with `_time_entry_unit_of_work(service)` (`timesheet_entries.py`): a bare
+`SqlAlchemyUnitOfWorkBase` wrapping `TimeService`'s own already-shared session (falling back to a
+`_PlainSessionCommitScope` no-dispatch shim only for test doubles built without a transactional
+dispatcher/post-commit bus wired — production construction always wires both). All 3 TimeEntry
+mutation methods (`add_work_entry`/`update_time_entry`/`delete_time_entry`) now do
+`with _time_entry_unit_of_work(self) as uow: ...; uow.commit()`, staging the TaskAssignment-side
+EnterpriseAudit entry and `TaskAssignmentChanged(HOURS_LOGGED_CHANGED)` fact precommit via
+`_stage_task_assignment_hours_audit_and_record_event`, in the SAME physical transaction as the
+TimeEntry write and the CAS-protected `_sync_work_allocation_hours_from_entries` update — proved by
+a new transactional-handler-failure regression (§ below) that rolls back all three together.
+
+**Approval passthrough reviewed and confirmed to be a real canonical helper, not a shim**:
+`task_unit_of_work_scope.py`'s dual-mode class was renamed `PassthroughTaskUnitOfWork` →
+`TaskParticipantUnitOfWork` and its docstring rewritten to state its real, permanent architectural
+role plainly (the participant-scoped counterpart to `SqlAlchemyTaskUnitOfWork`, used wherever the
+caller — an approval participant, Project's cascade-delete, TimeEntry — already owns the physical
+transaction; `commit()` is a deliberate no-op by design, not an interim compatibility shim, and both
+modes are permanent, not one legacy and one canonical).
+
+**`CASCADE_RECALCULATED` wired for real, not deleted**: `schedule_sync.py`'s
+`_sync_project_schedule` now diffs each sibling Task's schedule fields before/after
+`SchedulingEngine.recalculate_project_schedule` runs (confined entirely to this thin wrapper —
+`SchedulingEngine` itself untouched, per the shared-consumer caution both P45A and P45B-CLOSURE
+carried forward) and returns the genuinely-changed sibling task_ids; a new module-level
+`emit_cascade_schedule_changed(uow, *, scope, project_id, changed_task_ids)` helper (lazy
+`task_events` import, same circular-import precedent as elsewhere) records one
+`TaskScheduleChanged(CASCADE_RECALCULATED)` per actual change. Wired into both call sites that
+already had a same-transaction `primary_task_ids` exclusion set for the same purpose
+(`dependency.py`'s three decision paths, `approved_schedule_change.py`) — no invented call sites.
+
+**Timesheet Class-B replacement — mapped onto the existing Task target, no invented event**: the
+legacy `timesheet_periods_changed`/`tasks_changed` dual re-emission this transition used to trigger
+staled the Task workspace's `task_list` projection (time totals shown per task) — a genuine
+Class-B dependency (a Timesheet fact affecting a Task-owned projection), not a Task mutation.
+`build_timesheet_view_invalidation_handler`'s existing per-project loop now also emits a
+`category="task", scope_code="task_list"` hint for each referenced project (lazy import of Task's
+own view_invalidation constants) — one extra target per project, not a fifth Timesheet target and
+not a fabricated `TaskDomainEvent`. Proved end-to-end with real services
+(`test_p45b_closure_regression.py::test_submit_timesheet_period_stales_only_the_referenced_project_task_list`
+and `::test_submit_timesheet_period_records_zero_real_task_domain_event`): submitting a period stales
+exactly the referenced project's `task_list` target, never an unrelated project's, and zero real
+typed Task DomainEvent is dispatched to do it.
+
+**`tasks_changed` deleted outright — no alias, no compatibility bridge**: removed from
+`DomainEvents` in `src/core/shared/events/domain_events.py`, which now carries exactly one field,
+`auth_changed`. A permanent architecture guard,
+`test_zero_pm_legacy_signal_fields_remain` (`test_p8_platform_event_architecture_canonicalization.py`,
+mirroring Finance's own `test_zero_finance_legacy_signal_fields_remain`), asserts
+`_KNOWN_PM_SIGNAL_NAMES ∩ dataclasses.fields(domain_events) == ∅`, with a companion
+`test_a_hypothetical_pm_signal_reintroduction_would_fail_the_zero_legacy_guard` proving the guard
+actually fails if a PM-prefixed field is reintroduced (not a vacuously-true assertion).
+`_DELETED_BRIDGE_NAMES` gained `"tasks_changed"`; the FROZEN_LEGACY_SIGNAL_ALLOWLIST (historical
+record) is unchanged, per the standing rule that it never shrinks.
+
+**Approval legacy machinery retirement re-verified after this pass's further changes**: zero
+remaining `ApprovalPostCommitEvent(` construction sites and zero remaining
+`ApprovalService._emit_signal_safely`/`_emit_handler_events` call sites, confirmed by the same
+exhaustive-grep-based guards P45B already added
+(`test_p7c_zero_consumer_signal_cleanup.py::test_zero_remaining_approval_post_commit_event_sites_after_task_modernization`),
+unaffected by this pass's further TimeEntry/CASCADE_RECALCULATED/consumer-cutover work.
+
+**Regression battery**: every pre-existing Task/TimeEntry/Timesheet/approval/PM-consumer test file
+touched by this closure pass was re-run to green, plus the full P40B–P44b full-modernization suites,
+`test_domain_events.py`, `test_domain_event_wiring.py`, `test_p7_legacy_bridge_removal.py`,
+`test_p44a_collaboration_presence_transport_split.py`, `test_p44b_collaboration_comment_full_
+modernization.py`, `test_r6b_finance_invalidation.py`, `test_qml_domain_event_bridges_pm.py`,
+inventory_procurement's approval suite + `test_p29_requisition_full_modernization.py` (unaffected,
+confirmed still green — no cross-module coupling), and
+`test_project_management_desktop_api_timesheets_integration.py`/
+`test_shared_collaboration_import_and_timesheets.py`. Real regressions found and fixed, all
+source-verified (not stale-test rubber-stamping): (1) `test_time_domain_validation.py`'s
+`test_time_service_uses_entity_validation_for_entries_and_periods` asserted its fake
+`WorkAllocation`'s `hours_logged` mutated in place — true under the OLD blind-write implementation,
+false now that `_sync_work_allocation_hours_from_entries` uses `dataclasses.replace` to build a new
+CAS candidate (matching the real, non-frozen `TaskAssignment` domain object's own field, just no
+longer mutated through a stale reference) — fixed by re-fetching the allocation from its repo after
+each call instead of asserting on the original pre-call reference. (2) Four `test_p7b_dead_signal_
+cleanup.py` sites still called `domain_events.tasks_changed.emit(...)` directly (only one of five
+had been caught in the initial P45B pass) — all four rewritten to emit through the real
+`TaskViewInvalidationAdapter` signals instead. Several rewritten consumer tests needed
+`controller._selected_project_id` set to match the emitted target explicitly (Scheduling, one QML
+bridge test) — a scoping precondition, not a design defect. The two pre-existing
+`test_task_wbs_architecture.py` failures (migration-squash, mapper-refactor drift — carried forward
+unchanged since P45A-FINAL-CLOSURE item 14) remain, confirmed still unrelated to this pass.
+
+**New mandatory regression coverage added** (`test_p45b_closure_regression.py`, 13 new tests; the
+existing `test_p40b_timesheet_period_full_modernization.py::test_every_change_type_maps_to_
+workspace_resource_and_project_targets` already covered the Class-B mapping at the unit-handler
+level and needed no change): a transactional-handler-failure rollback
+proof for `add_work_entry`/`update_time_entry` (TaskAssignmentChanged handler raises → TimeEntry
+write, hours-sync CAS write, and EnterpriseAudit entry all roll back together, zero ViewInvalidation
+hint, service remains usable for the next call); the Timesheet Class-B end-to-end proof described
+above; explicit per-consumer coverage for the five Task ViewInvalidation consumers that had no prior
+dedicated test (Dashboard, Resources including its resource-id scoping guard, Timesheets, Review
+Queue, Portfolio's `taskDependenciesStale`) — the other five (Tasks, Collaboration, Scheduling,
+Financials, Platform Control) already had coverage from the initial P45B pass and P7B; and a
+producerless-legacy-consumer regression proving `not hasattr(domain_events, "tasks_changed")` module-
+wide plus a real, typed Task mutation still reaching its genuine QML consumer purely through
+ViewInvalidation.
+
+**Documentation updated to match**: this entry; ADR-005's ledger; README's event-modernization
+status now states PM = zero legacy Signals (Auth/Security explicitly NOT marked modernized — its own
+audit, P26A, remains AUDITED / DEFERRED, unchanged by this phase).
+
+**P45B FULLY CLOSED — PM TASK MODERNIZED, PM LEGACY SIGNALS ZERO**
+
 ## 4. Current State
 
-**Legacy Signal count: 2 as of P44B** (source-derived from
+**Legacy Signal count: 1, as of P45B-CLOSURE** (source-derived from
 `src/core/shared/events/domain_events.py`, re-verified against current source when this document
-was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Down from 3 at
-P43 — `collaboration_changed` is now deleted, the fifth Project Management capability to reach
-zero, and Collaboration's own legacy surface is fully closed (durable modernized in P44B, ephemeral
-presence transport-split in P44A). `tasks_changed` remains the sole PM legacy Signal, pending
-Task's own dedicated-audit-first modernization.
+was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Down from 2 at
+P44B — `tasks_changed` is now deleted, the sixth and final Project Management capability to reach
+zero. **Project Management module event modernization is complete: zero PM-owned legacy Signal
+fields remain**, verified by a permanent architecture guard
+(`test_zero_pm_legacy_signal_fields_remain`), mirroring Finance's own.
 **Finance module event modernization is complete: zero Finance-owned legacy Signal fields
 remain.** The P8 architecture budget (`current ⊆ frozen`) remains restored with zero exceptions
-(P37 was the last post-freeze *violation*; P38B/P39/P40B/P41/P42/P43/P44A/P44B are ordinary
-further retirement of pre-freeze, frozen-allowlisted signals, not violation fixes).
-**`tasks_changed` now has a complete source-derived audit and implementation-ready design (P45A,
-AUDIT + ARCHITECTURE DESIGN ONLY — see §3's P45A entry). No code changed by P45A; P45B (ONE PHASE,
-direct full modernization) is ready to be scheduled.**
+(P37 was the last post-freeze *violation*; P38B/P39/P40B/P41/P42/P43/P44A/P44B/P45B/P45B-CLOSURE are
+ordinary further retirement of pre-freeze, frozen-allowlisted signals, not violation fixes).
+**Only `auth_changed` remains** — owned by Auth/Security's Credential & Session surface, which
+remains AUDITED / DEFERRED (P26A, see §3) pending its own canonical UoW.
 
 | Area | Count |
 |---|---|
 | Platform | 0 |
 | Auth/Security | 1 |
-| Project Management | 1 |
+| Project Management | 0 |
 | Finance | 0 |
 | Inventory/Procurement | 0 |
 
@@ -4606,14 +4739,15 @@ dropped with no replacement; only Portfolio's own workspace was genuine.
 **Project is now DONE (P43, see §3)** — `project_changed` is deleted, the fourth PM capability to
 reach zero. **Collaboration is now DONE (P44A + P44B + P44B-FIX, see §3)** — `collaboration_changed`
 is deleted, the fifth PM capability to reach zero, after the durable/ephemeral transport split P44A
-found was necessary first. **Task's own dedicated audit-first phase is now done (P45A, AUDIT +
-ARCHITECTURE DESIGN ONLY, see §3)** — full source-derived producer/consumer matrices, the three
-confirmed aggregate families, transaction/concurrency/audit findings, the cross-capability graph
-(including a newly-confirmed Project→Task cascade-delete edge and a corrected TimeEntry→Task
-edge), the final Task DomainEvent vocabulary, UoW design, ViewInvalidation targets, and consumer
-cutover plan are all recorded in §3's P45A entry. **P45B (ONE PHASE, direct full modernization) is
-ready to be scheduled — it is the last PM capability, and will also retire the shared
-`ApprovalPostCommitEvent`/`_emit_signal_safely` legacy approval bridge entirely.**
+found was necessary first. **Task is now DONE too (P45A audit + P45B implementation +
+P45B-CLOSURE, see §3)** — `tasks_changed` is deleted, the sixth and final PM capability to reach
+zero, and the shared `ApprovalPostCommitEvent`/`ApprovalService._emit_signal_safely` legacy approval
+bridge is retired entirely (zero remaining construction/call sites, confirmed by exhaustive grep).
+**Project Management module event modernization is now 100% complete — zero PM-owned legacy Signal
+fields remain, verified by `test_zero_pm_legacy_signal_fields_remain`. No Project Management
+capability of any kind remains for this document to prioritize.** The only remaining module of any
+kind still on a legacy Signal is Auth/Security (`auth_changed`, Credential & Session, AUDITED /
+DEFERRED per P26A) — see §6.
 
 **A pre-existing, explicitly-not-fixed note carried forward by P33**: `PurchaseOrderLineORM` has no
 `version` column and its repository performs a blind field overwrite on `update()` — confirmed real

@@ -91,7 +91,9 @@ def test_pm_dashboard_no_longer_reacts_to_costs_changed_because_it_no_longer_exi
 
 def test_pm_financials_workspace_coalesces_scoped_finance_invalidations(services, qapp):
     """P43: was `domain_events.project_changed.emit(...)` (deleted -- Project fully modernized
-    onto typed DomainEvents + `ProjectViewInvalidationAdapter`)."""
+    onto typed DomainEvents + `ProjectViewInvalidationAdapter`). P45B: `tasks_changed` is also
+    deleted -- Financials' remaining Task dependency is now delivered via
+    `_financials_task_view_invalidation_adapter.taskScheduleStale`."""
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.financialsWorkspace
     project_id = _unique("p7b-finance-project")
@@ -100,7 +102,7 @@ def test_pm_financials_workspace_coalesces_scoped_finance_invalidations(services
     controller.refresh = lambda: refresh_calls.append("refresh")
 
     pm_catalog._financials_project_view_invalidation_adapter.projectDetailStale.emit(project_id)
-    domain_events.tasks_changed.emit(project_id)
+    pm_catalog._financials_task_view_invalidation_adapter.taskScheduleStale.emit(project_id)
 
     qapp.processEvents()
 
@@ -112,15 +114,15 @@ def test_pm_portfolio_workspace_still_reacts_to_its_remaining_real_signals(servi
     `project_changed` -- also deleted (Project fully modernized). This test's own purpose was
     always "Portfolio workspace still reacts to at least one of its surviving legacy Signal
     subscriptions," not specifically its own capability's typed facts (proved separately, end to
-    end with real services, by `test_p42_portfolio_full_modernization.py`) -- so repointing to
-    `tasks_changed`, Portfolio's one remaining legacy subscription, preserves that intent
-    exactly."""
+    end with real services, by `test_p42_portfolio_full_modernization.py`) -- P45B deleted
+    `tasks_changed` too, so repointing to `taskListStale` (Portfolio's one remaining Task
+    dependency, via `_portfolio_task_view_invalidation_adapter`) preserves that intent exactly."""
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.portfolioWorkspace
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.tasks_changed.emit(_unique("p7b-portfolio"))
+    pm_catalog._portfolio_task_view_invalidation_adapter.taskListStale.emit(_unique("p7b-portfolio"))
     from PySide6.QtWidgets import QApplication
 
     QApplication.processEvents()
@@ -129,13 +131,18 @@ def test_pm_portfolio_workspace_still_reacts_to_its_remaining_real_signals(servi
 
 
 def test_control_workspace_still_reacts_to_its_remaining_real_signals(services):
+    """P45B: `tasks_changed` is deleted -- Platform Control's real dependency is now delivered
+    via `ProjectManagementWorkspaceCatalog.taskWorkspaceActivityStale`, connected in `app.py` to
+    this same generic `onExternalViewStale` slot (neither side imports the other's
+    implementation). Calling the slot directly proves the property without full app-level
+    cross-catalog wiring in this unit test."""
     catalog = _catalog(services)
     controller = catalog.controlWorkspace
     controller.ensureLoaded()
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.tasks_changed.emit(_unique("p7b-tasks"))
+    controller.onExternalViewStale(_unique("p7b-tasks"))
 
     assert refresh_calls == ["refresh"]
 
@@ -164,16 +171,22 @@ def test_pm_resources_workspace_still_reacts_to_resources(services):
 
 def test_pm_scheduling_workspace_still_reacts_to_its_remaining_real_signals(services):
     """P43: was `domain_events.project_changed.emit(...)` (deleted -- Project fully modernized
-    onto typed DomainEvents + `ProjectViewInvalidationAdapter`)."""
+    onto typed DomainEvents + `ProjectViewInvalidationAdapter`). P45B: `tasks_changed` is also
+    deleted -- Scheduling's remaining Task dependency is now delivered via
+    `_scheduling_task_view_invalidation_adapter.taskScheduleStale`."""
     pm_catalog = _pm_catalog(services)
     controller = pm_catalog.schedulingWorkspace
+    scheduling_project_id = _unique("p7b-sched-project")
+    controller._selected_project_id = scheduling_project_id
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
     pm_catalog._scheduling_project_view_invalidation_adapter.projectListStale.emit(
         _unique("p7b-sched-project")
     )
-    domain_events.tasks_changed.emit(_unique("p7b-sched-tasks"))
+    pm_catalog._scheduling_task_view_invalidation_adapter.taskScheduleStale.emit(
+        scheduling_project_id
+    )
     services["resource_service"].create_resource(name=_unique("p7b-sched-resource"))
 
     assert refresh_calls == ["refresh"] * 3

@@ -57,17 +57,25 @@ def _event(*, change_type, project_ids=("project-1",)) -> TimesheetPeriodStatusC
     list(TimesheetPeriodStatusChangeType),
 )
 def test_every_change_type_maps_to_workspace_resource_and_project_targets(change_type):
+    """P45B-CLOSURE item 8/9: this transition's per-project loop now ALSO emits a `task_list`
+    hint (category `"task"`, not `TIMESHEET_CATEGORY`) -- the Class-B replacement for the
+    removed legacy `tasks_changed` re-emission, mapped directly onto the existing Task
+    ViewInvalidation target instead of inventing a fake Task DomainEvent."""
     channel = _fake_channel()
     handler = build_timesheet_view_invalidation_handler(channel)
     handler(_event(change_type=change_type), DomainEventContext(correlation_id="c1"))
 
-    scope_codes = {hint.scope_code for hint in channel.notified}
+    timesheet_hints = [h for h in channel.notified if h.category == TIMESHEET_CATEGORY]
+    scope_codes = {hint.scope_code for hint in timesheet_hints}
     assert scope_codes == {
         TIMESHEET_WORKSPACE_SCOPE_CODE,
         TIMESHEET_RESOURCE_SCOPE_CODE,
         TIMESHEET_PROJECT_SCOPE_CODE,
     }
-    assert all(hint.category == TIMESHEET_CATEGORY for hint in channel.notified)
+
+    task_hints = [h for h in channel.notified if h.category == "task"]
+    assert {h.scope_code for h in task_hints} == {"task_list"}
+    assert {h.entity_id for h in task_hints} == {"project-1"}
 
 
 def test_no_project_ids_omits_the_project_target():
@@ -96,15 +104,17 @@ def test_multiple_projects_each_produce_their_own_target():
 
 
 def test_dedupe_by_target_within_one_transaction():
+    """P45B-CLOSURE item 8/9: four distinct targets now (the three Timesheet ones plus the
+    Class-B `task_list` replacement for the removed legacy `tasks_changed` re-emission)."""
     channel = _fake_channel()
     handler = build_timesheet_view_invalidation_handler(channel)
     event = _event(change_type=TimesheetPeriodStatusChangeType.LOCKED)
     handler(event, DomainEventContext(correlation_id="same-tx"))
     handler(event, DomainEventContext(correlation_id="same-tx"))
-    assert len(channel.notified) == 3, "three distinct targets, each coalesced within one tx"
+    assert len(channel.notified) == 4, "four distinct targets, each coalesced within one tx"
 
     handler(event, DomainEventContext(correlation_id="next-tx"))
-    assert len(channel.notified) == 6, "a new transaction is never coalesced with the previous one"
+    assert len(channel.notified) == 8, "a new transaction is never coalesced with the previous one"
 
 
 # ---------------------------------------------------------------------------

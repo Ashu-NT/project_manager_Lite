@@ -159,19 +159,22 @@ for the live, detailed roadmap):
 
 Fully modernized (typed `DomainEvent`s + scoped `ViewInvalidation`, legacy `Signal` deleted):
 Organization, Tenant Membership, Module Entitlements, Role Binding / Scoped Access, Approval,
-Employee, Department, Site, Party, Document, DocumentStructure, DocumentLink, Project Resource,
-PM Baseline Approval — **all of Inventory/Procurement** (Item Catalog + Item Category, Storeroom +
-Storage Location, Reorder Policy, Purchase Order, Requisition, Reservation, Stock Balance, Cycle
-Count, Goods Receipt) — and **all of Finance** (Financial Setup, Rate Card, Forecast, Planned
-Cost, Project Commitment, Project Cost Entry, Project Budget, Billing Profile, Billing
-Preparation).
+Employee, Department, Site, Party, Document, DocumentStructure, DocumentLink, Project Resource —
+**all of Inventory/Procurement** (Item Catalog + Item Category, Storeroom + Storage Location,
+Reorder Policy, Purchase Order, Requisition, Reservation, Stock Balance, Cycle Count, Goods
+Receipt) — **all of Finance** (Financial Setup, Rate Card, Forecast, Planned Cost, Project
+Commitment, Project Cost Entry, Project Budget, Billing Profile, Billing Preparation) — and
+**all of Project Management** (PM Baseline Approval, Timesheet, Register, Portfolio, Project,
+Collaboration, and — as of P45B/P45B-CLOSURE — Task, the module's last remaining capability;
+Task's modernization also retired the shared `ApprovalPostCommitEvent` legacy approval-bridge
+mechanism entirely).
 
-**Finance and Inventory/Procurement are both fully modernized modules — zero legacy `Signal`
-fields remain in either.** No next capability has been chosen yet for the remaining modules -
-re-run prioritization from current source before committing to one.
+**Finance, Inventory/Procurement, and Project Management are all fully modernized modules — zero
+legacy `Signal` fields remain in any of the three.** No next capability has been chosen yet for
+the remaining module - re-run prioritization from current source before committing to one.
 
-Remaining major areas still on legacy `Signal`s: Project Management (all but Resource/Baseline
-Approval), Auth / Security.
+Remaining area still on legacy `Signal`s: Auth / Security (Credential & Session remains AUDITED /
+DEFERRED, not yet modernized).
 
 **References:** [`docs/architecture_decisions/ADR-005-domain-events.md`](docs/architecture_decisions/ADR-005-domain-events.md)
 (architectural decisions and rationale) and

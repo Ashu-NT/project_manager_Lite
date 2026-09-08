@@ -3902,6 +3902,39 @@ vocabulary is reused verbatim. See `docs/architecture/event-modernization-plan.m
 entry for the full regression-test inventory (7 new tests plus the full pre-existing suite,
 green).
 
+**P45A/P45B/P45B-CLOSURE: Task modernized — `tasks_changed` deleted, PM reaches zero legacy
+Signals.** P45A (audit-only) produced a full source-derived producer/consumer matrix, three
+confirmed aggregate families (Task/TaskAssignment/TaskDependency), and an implementation-ready
+design, including the corrected TimeEntry→TaskAssignment cross-capability classification (Category
+C, not B — TimeEntry genuinely mutates TaskAssignment's `hours_logged`, so it needed the same CAS
+treatment as any other cross-capability write) and the Project→Task cascade-delete edge. P45B
+implemented the backend: `TaskUnitOfWork`/`SqlAlchemyTaskUnitOfWork` (three named repositories,
+mirroring `PortfolioUnitOfWork`'s precedent), all 9 direct mutation methods converted off raw-session
+commit + Signal emission, `Task.delete`/`TaskAssignment`'s 3 previously-blind write paths gained CAS,
+enterprise audit added everywhere it was missing, and the shared `ApprovalPostCommitEvent`/
+`ApprovalService._emit_signal_safely` legacy approval bridge — the one this ADR's §23 always flagged
+as the last cross-cutting compatibility mechanism — deleted outright with zero remaining
+construction/call sites. The 9-member `TaskEvent` vocabulary (`TaskCreated`, `TaskProfileUpdated`,
+`TaskHierarchyChanged`, `TaskStatusChanged`, `TaskProgressChanged`, `TaskScheduleChanged`,
+`TaskRemoved`, `TaskAssignmentChanged`, `TaskDependencyChanged`) and its 8-target ViewInvalidation
+mapping were built in this pass but left with QML cutover deliberately deferred as an explicit,
+disclosed scope reduction. **P45B-CLOSURE finished it**: all 10 QML consumers cut over to
+`TaskViewInvalidationAdapter` (Tasks, Dashboard, Collaboration, Scheduling, Portfolio, Resources,
+Financials, Timesheets, Review Queue, Platform Control — the last via the same cross-catalog Signal/
+Slot composition-root pattern this ADR's §22 P41-FIX entry established, no cross-import either
+direction); `tasks_changed` field-deleted with a permanent `test_zero_pm_legacy_signal_fields_remain`
+guard (mirroring Finance's own); the TimeEntry lifecycle corrected from a manual postcommit-publish
+call to the canonical UoW-driven precommit/postcommit split every other capability already used;
+`CASCADE_RECALCULATED` wired for real via before/after diffing confined to `schedule_sync.py`
+(§9/§12's shared-consumer caution honored — `SchedulingEngine` itself untouched); the Timesheet
+Class-B dependency mapped directly onto the existing `task_list` ViewInvalidation target rather than
+inventing a fake Task event; and the passthrough-vs-canonical UoW split reviewed and confirmed to be
+a real, permanent architectural distinction (renamed `PassthroughTaskUnitOfWork` →
+`TaskParticipantUnitOfWork`), not a temporary shim. **PM legacy Signal count: 0. Overall legacy Signal
+count: 1 (`auth_changed`).** Auth/Security's own audit (P26A) remains AUDITED / DEFERRED, unchanged
+by this work. Full detail, regression-test inventory, and the exact source citations are in
+`docs/architecture/event-modernization-plan.md`'s P45A/P45A-FINAL-CLOSURE/P45B/P45B-CLOSURE entries.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant
