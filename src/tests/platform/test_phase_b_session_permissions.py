@@ -115,7 +115,7 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
         ts.create_task(project_id=project.id, name="Forbidden task")
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        ts.set_assignment_allocation(assignment.id, 40.0)
+        ts.set_assignment_allocation(assignment.id, 40.0, expected_version=assignment.version)
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
         ts.set_assignment_hours(assignment.id, 2.0)
