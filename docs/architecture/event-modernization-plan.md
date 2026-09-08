@@ -5590,6 +5590,119 @@ revealing a need to split it.
 
 **P46A FULLY CLOSED — FINAL AUTH IMPLEMENTATION ARCHITECTURE UNAMBIGUOUS**
 
+### P46B — Final Application Legacy Capability: Auth/Security Full Modernization + Delete `auth_changed` + Delete Legacy DomainEvents Infrastructure (COMPLETE)
+
+**Implemented, in one phase, exactly the P46A/P46A-FINAL-CLOSURE end-state design.** `UserAccount`
+remains the durable aggregate (real `version`/`update_with_version_check` CAS, unchanged);
+`AuthSession` remains technical session infrastructure — zero new events, zero new CAS added to it
+(P46A-FINAL-CLOSURE's own correction of P46A's earlier over-broad claim, reconfirmed correct here).
+15 new event dataclasses landed in `src/core/platform/domain/security/auth/events.py`
+(`UserAccountCreated`, `UserAccountProfileUpdated`, `UserAccountStatusChanged`, `AccountLocked`,
+`AccountUnlocked`, `AuthenticationFailureRecorded`, `PasswordChanged`, `MfaStatusChanged`,
+`FederatedIdentityLinked`, `UserSessionPolicyChanged`, `UserSessionsRevoked`, `CustomRoleCreated`,
+`CustomRoleUpdated`, `CustomRoleRetired`, `RolePolicyReconciled`), plus `TenantMembershipProvisioned`
+(deliberately distinct from `TenantMembershipActivated` — a system-provisioned registration fact,
+not a user-initiated invitation-acceptance fact) and reuse of the existing
+`RoleBindingAssigned`/`RoleBindingRevoked` vocabulary for every role-binding mutation Auth/Security
+itself performs (registration's role grants, custom-role retirement's per-binding revocations).
+
+**UnitOfWork convergence — a disclosed simplification versus the brief's literal
+`AccountSecurityUnitOfWork` prose**: rather than a new named-accessor UoW class, every Auth service
+(`AuthService`, `TenantRoleAdministrationService`, `RolePolicyReconciliationService`) now uses a
+shared `auth_unit_of_work()` helper (`application/security/auth/unit_of_work.py`) that wraps the
+service's own already-injected repositories in a bare `SqlAlchemyUnitOfWorkBase` — the same
+lightweight pattern already established elsewhere in this document (e.g. `delete_project`'s own
+precedent). `transactional_dispatcher`/`post_commit_bus` are now REQUIRED constructor parameters on
+all three services (no optional/degraded fallback). Every raw `session.commit()`/`rollback()` in
+the Auth module is gone — all 19 former `auth_changed.emit(...)` producer sites (registration,
+bootstrap, password/MFA/federated-identity mutation, session policy/revocation, lockout/unlock,
+custom-role CRUD/retirement, role-policy reconciliation) now record a typed event inside a real UoW
+and commit exactly once.
+
+**The two MUST-FIX security/correctness gaps P46A/P46A-FINAL-CLOSURE flagged are fixed**: (1)
+`register_failed_login`'s generic `except Exception: ... return` silent swallow is deleted outright
+— replaced with exactly one bounded retry on `ConcurrencyError` specifically (reload the user,
+reapply the increment, retry once), every other exception propagates, a failed attempt is never
+silently discarded. (2) Custom-Role retirement's `revoke_active_for_role` bulk-SQL bypass (zero
+per-row facts) is replaced with a loop over `revoke_role_binding_using(...)` per binding, under one
+transaction, recording `CustomRoleRetired` + N × `RoleBindingRevoked`. Fail-closed audit policy for
+login success is preserved unchanged (`AUTH_AUDIT_UNAVAILABLE` still re-raised on any audit
+failure). `AccountUnlocked` is recorded only when a prior lockout/failed-attempt state genuinely
+existed — not on every routine login — matching the no-event-for-no-change rule already established
+elsewhere in this document.
+
+**Registration is now one physical transaction**: `UserAccountCreated` + (tenant-scoped only)
+`TenantMembershipProvisioned` + N × `RoleBindingAssigned` (via the existing, shared
+`create_role_binding_using` mechanics — `role_binding_mutation_participant.py`'s `tenant_id` hint
+widened from `str` to `str | None` to accommodate the pre-existing, legitimate platform-scope
+calling pattern). **Bootstrap keeps its proven-intentional two-transaction split** (policy-catalog
+seeding, then admin-provisioning-or-repair) — self-repair now records `AccountUnlocked`-shaped
+facts only for the actual change made, never a blanket signal.
+
+**Ephemeral session-transport**: `UserSessionContext` gained `principal_changed_listener`/
+`active_scope_changed_listener` — process-local, synchronous, never persisted, never a
+`DomainEvent`, distinct from the pre-existing `context_listener` persistence-write-back hook.
+
+**ViewInvalidation**: two new non-overlapping targets — `account_security` (11 UserAccount-owned
+event types; `build_account_security_view_invalidation_handler`,
+`application/security/auth/event_handlers/view_invalidation.py`) and `authorization_context` (the 4
+custom-role/role-policy event types; `build_authorization_context_view_invalidation_handler`,
+extending the pre-existing RoleBinding mapper file without touching its own untouched
+`ROLE_BINDING_CATEGORY` target). Both scope `TenantScope(tenant_id)` when present, else
+`PlatformScope()`. Two new QML adapters (`AccountSecurityViewInvalidationAdapter`,
+`AuthorizationContextViewInvalidationAdapter`) mirror the pre-existing
+`RoleBindingViewInvalidationAdapter` template exactly.
+
+**Both `auth_changed` consumers cut over and the legacy binder deleted**: the Admin Access
+workspace controller (`access_workspace_controller.py`) lost its `_bind_domain_events`/
+`_on_auth_changed` methods entirely, gaining a new guarded public
+`refresh_after_account_security_change()` reacting to both new targets. The Admin Console's
+composite `admin_console/domain_event_binder.py` — the coarse 9-subview refresher this document's
+own P5/P7 entries described as "real, non-compatibility, still-required responsibility" while
+`auth_changed` was the last capability standing — is deleted outright now that nothing subscribes
+to a legacy signal at all; the Admin Console instead reacts to the pre-existing narrow
+`refresh_users` target (membership) and the new `refresh_after_account_security_change` (everything
+else `auth_changed` used to cover).
+
+**`auth_changed` deleted; `DomainEvents`/`domain_events`/`Signal` deleted outright, not merely
+emptied** (the PRE-RELEASE CONVERGENCE RULE's "no empty compatibility shells" applied to the
+dataclass itself, not just its fields). `src/core/shared/events/domain_events.py` and
+`src/core/shared/events/signal.py` no longer exist; `src/core/shared/events/__init__.py` no longer
+exports either. `_subscribe_domain_signal`/`_domain_event_subscriptions`/
+`_disconnect_domain_event_subscriptions` — the generic legacy-signal subscription-tracking
+mechanism on both `PlatformWorkspaceControllerBase` and `ProjectManagementWorkspaceControllerBase`,
+confirmed zero callers once `auth_changed` was the last thing using it — deleted outright, along
+with the now-dead `DomainSignal`/`Callable`/`Any` imports supporting it.
+`src/tests/conftest.py`'s `reset_test_domain_events` autouse fixture (a permanent no-op since the
+class had zero fields) is deleted. Roughly 40 test files across Platform/PM/Inventory, spanning
+every prior phase back through P7, imported the legacy singleton for a standalone
+`hasattr(domain_events, "<historical field>")` regression guard proving THEIR OWN phase's field had
+been deleted — each fixed: the standalone check removed (with a short pointer comment where no
+stronger companion test already existed; several files already carried an independent
+production-source-string scan proving the same thing, which was kept as the surviving guard).
+Discovered and fixed one genuinely pre-existing, unrelated collection failure while sweeping this
+list: `test_r42_approved_budget_read_correctness.py` still imported/called
+`bind_project_domain_events`, a function `project_domain_event_binder.py` no longer defines (removed
+in an earlier, already-committed phase) — the stale import/call was dead weight even before P46B
+and is now removed.
+
+**New regression tests**: concurrent failed-login/lockout race (bounded-retry-then-succeed, proving
+no attempt is silently lost), audit-failure-during-failed-login (fail-closed preserved),
+registration-rollback (IntegrityError aborts the whole one-transaction registration, zero partial
+rows), registration event completeness (`UserAccountCreated` + `TenantMembershipProvisioned` + N ×
+`RoleBindingAssigned`, exactly), bootstrap self-heal + event completeness (repair path records
+exactly the fact for the actual change), role-retirement N-binding revocation + rollback,
+`account_security`/`authorization_context` ViewInvalidation precision tests (each target reacts to
+exactly its own event family, never the other's), session-transport tests
+(`principalChanged`/`activeScopeChanged` fire on login/logout-equivalent/tenant-switch only),
+consumer-precision tests for both Admin Access and Admin Console, cross-tenant/cross-org isolation,
+a permanent zero-`auth_changed`-in-source guard, and an application-wide zero-legacy-Signal guard —
+structural (`hasattr(src.core.shared.events, "DomainEvents")` is `False`) with a
+hypothetical-reintroduction-fails-the-guard proof, mirroring every prior module's own pattern.
+
+**P46B READY FOR REVIEW — APPLICATION ZERO LEGACY SIGNALS, LEGACY DomainEvents INFRASTRUCTURE
+RETIRED**
+
 ## 4. Current State
 
 **Legacy Signal count: 1, as of P45B-CLOSURE** (source-derived from
