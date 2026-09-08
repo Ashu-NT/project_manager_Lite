@@ -124,7 +124,6 @@ class ProjectManagementDashboardWorkspaceController(
         self._sections: DashboardObjectList = []
         self._raw_operational_tables: DashboardObjectList = []
         self._attention_items: DashboardObjectList = []
-        self._bind_domain_events()
 
     @Property("QVariantMap", notify=overviewChanged)
     def overview(self) -> DashboardMap: return self._overview

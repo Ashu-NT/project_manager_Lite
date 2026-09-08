@@ -16,7 +16,7 @@ from src.ui_qml.modules.project_management.presenters import (
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 from .activity_log_service import ActivityLogService
-from .domain_event_binder import bind_scheduling_domain_events
+from .domain_event_binder import on_task_schedule_stale
 from .filter_service import filter_rows
 from .gantt_list_model import GanttListModel
 from .gantt_baseline_actions import (
@@ -248,8 +248,10 @@ class ProjectManagementSchedulingWorkspaceController(
         self._leveling_move_rows: list[dict[str, object]] = []
         self._active_panel_id = "overview"
         restore_gantt_view_preferences(self)
-        bind_scheduling_domain_events(self)
         self.refresh()
+
+    def onTaskScheduleStale(self, project_id: str) -> None:
+        on_task_schedule_stale(self, project_id)
 
     # ── Overview / option properties ──────────────────────────────────
 

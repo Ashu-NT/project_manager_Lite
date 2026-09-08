@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from time import perf_counter
 
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.project_management.controllers.common.baseline_domain_event_binder import (
     on_project_baseline_stale,
 )
@@ -173,15 +172,8 @@ class DashboardRefreshMixin:
             return
         super()._request_domain_refresh()
 
-    def _bind_domain_events(self) -> None:
-
-        def _on_domain_event(_payload: object) -> None:
-            self._request_domain_refresh()
-
-        for signal in (
-            domain_events.tasks_changed,
-        ):
-            self._subscribe_domain_signal(signal, _on_domain_event)
+    def onTaskMetricsStale(self, _organization_id: str) -> None:
+        self._request_domain_refresh()
 
     def onProjectBaselineStale(self, project_id: str) -> None:
         on_project_baseline_stale(self, project_id)

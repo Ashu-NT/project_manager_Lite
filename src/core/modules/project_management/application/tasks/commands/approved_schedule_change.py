@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import datetime, timezone
 
+from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
+    emit_cascade_schedule_changed,
+)
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskScheduleChangeType,
     TaskScheduleChanged,
@@ -46,10 +49,13 @@ class ApprovedScheduleChangeMixin:
         project_id = candidates[0][0].project_id
         scope = self._active_task_scope(operation_label="apply financial change schedule")
 
+        primary_task_ids = frozenset(candidate.id for _, candidate in candidates)
         with self._task_uow() as uow:
             for _, candidate in candidates:
                 uow.tasks.update(candidate)
-            self._sync_project_schedule(project_id, commit=False)
+            cascade_ids = self._sync_project_schedule(
+                project_id, commit=False, exclude_task_ids=primary_task_ids
+            )
 
             results: list[AppliedTaskScheduleChange] = []
             for change, candidate in candidates:
@@ -116,6 +122,9 @@ class ApprovedScheduleChangeMixin:
                         finish_date=applied.end_date,
                     )
                 )
+            emit_cascade_schedule_changed(
+                uow, scope=scope, project_id=project_id, changed_task_ids=cascade_ids
+            )
             uow.commit()
             return results
 

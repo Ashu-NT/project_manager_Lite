@@ -4,6 +4,9 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
+    emit_cascade_schedule_changed,
+)
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskDependencyChangeType,
     TaskDependencyChanged,
@@ -202,7 +205,11 @@ class TaskDependencyMixin:
         scope = self._active_task_scope(operation_label="add dependency")
         with self._task_uow() as uow:
             uow.dependencies.add(dependency)
-            self._sync_project_schedule(predecessor.project_id, commit=False)
+            cascade_ids = self._sync_project_schedule(
+                predecessor.project_id,
+                commit=False,
+                exclude_task_ids=frozenset({dependency.predecessor_task_id, dependency.successor_task_id}),
+            )
             record_audit_entry(
                 uow,
                 operation="create",
@@ -245,6 +252,9 @@ class TaskDependencyMixin:
                     change_type=TaskDependencyChangeType.ADDED,
                     occurred_at=datetime.now(timezone.utc),
                 )
+            )
+            emit_cascade_schedule_changed(
+                uow, scope=scope, project_id=predecessor.project_id, changed_task_ids=cascade_ids
             )
             uow.commit()
         return dependency
@@ -306,7 +316,11 @@ class TaskDependencyMixin:
         scope = self._active_task_scope(operation_label="remove dependency")
         with self._task_uow() as uow:
             uow.dependencies.delete(dependency_id, expected_version=dependency.version)
-            self._sync_project_schedule(project_id, commit=False)
+            cascade_ids = self._sync_project_schedule(
+                project_id,
+                commit=False,
+                exclude_task_ids=frozenset({dependency.predecessor_task_id, dependency.successor_task_id}),
+            )
             record_audit_entry(
                 uow,
                 operation="delete",
@@ -348,6 +362,9 @@ class TaskDependencyMixin:
                         change_type=TaskDependencyChangeType.REMOVED,
                         occurred_at=datetime.now(timezone.utc),
                     )
+                )
+                emit_cascade_schedule_changed(
+                    uow, scope=scope, project_id=project_id, changed_task_ids=cascade_ids
                 )
             uow.commit()
 
@@ -517,8 +534,15 @@ class TaskDependencyMixin:
         scope = self._active_task_scope(operation_label="update dependency")
         with self._task_uow() as uow:
             uow.dependencies.update(candidate)
+            cascade_ids: list[str] = []
             if project_id:
-                self._sync_project_schedule(project_id, commit=False)
+                cascade_ids = self._sync_project_schedule(
+                    project_id,
+                    commit=False,
+                    exclude_task_ids=frozenset(
+                        {candidate.predecessor_task_id, candidate.successor_task_id}
+                    ),
+                )
             record_audit_entry(
                 uow,
                 operation="update",
@@ -562,6 +586,9 @@ class TaskDependencyMixin:
                         change_type=TaskDependencyChangeType.UPDATED,
                         occurred_at=datetime.now(timezone.utc),
                     )
+                )
+                emit_cascade_schedule_changed(
+                    uow, scope=scope, project_id=project_id, changed_task_ids=cascade_ids
                 )
             uow.commit()
         return candidate

@@ -65,6 +65,9 @@ from src.ui_qml.modules.project_management.adapters.collaboration.task_presence_
 from src.ui_qml.modules.project_management.adapters.collaboration.task_comment_view_invalidation_adapter import (
     TaskCommentViewInvalidationAdapter,
 )
+from src.ui_qml.modules.project_management.adapters.tasks.task_view_invalidation_adapter import (
+    TaskViewInvalidationAdapter,
+)
 from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import (
     TenantSwitcherPresenter,
 )
@@ -379,6 +382,16 @@ class ProjectManagementWorkspaceCatalog(QObject):
             self._resources_project_view_invalidation_adapter.projectDetailStale.connect(
                 self._resources_workspace.onProjectStale
             )
+
+            self._resources_task_view_invalidation_adapter = TaskViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._resources_task_view_invalidation_adapter.taskAssignmentsForResourceStale.connect(
+                self._resources_workspace.onTaskAssignmentsForResourceStale
+            )
         return self._resources_workspace
 
     def _get_register_workspace(self) -> ProjectManagementRegisterWorkspaceController:
@@ -591,6 +604,18 @@ class ProjectManagementWorkspaceCatalog(QObject):
             self._portfolio_project_view_invalidation_adapter = self._wire_project_stale(
                 self._portfolio_workspace
             )
+            self._portfolio_task_view_invalidation_adapter = TaskViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._portfolio_task_view_invalidation_adapter.taskListStale.connect(
+                self._portfolio_workspace.onTaskListStale
+            )
+            self._portfolio_task_view_invalidation_adapter.taskDependenciesStale.connect(
+                self._portfolio_workspace.onTaskDependenciesStale
+            )
         return self._portfolio_workspace
 
     def _get_scheduling_workspace(self) -> ProjectManagementSchedulingWorkspaceController:
@@ -615,6 +640,15 @@ class ProjectManagementWorkspaceCatalog(QObject):
             )
             self._scheduling_project_view_invalidation_adapter = self._wire_project_stale(
                 self._scheduling_workspace
+            )
+            self._scheduling_task_view_invalidation_adapter = TaskViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._scheduling_task_view_invalidation_adapter.taskScheduleStale.connect(
+                self._scheduling_workspace.onTaskScheduleStale
             )
         return self._scheduling_workspace
 
@@ -667,6 +701,28 @@ class ProjectManagementWorkspaceCatalog(QObject):
             self._tasks_comment_view_invalidation_adapter.taskCommentsStale.connect(
                 self._tasks_workspace.onTaskCommentsStale
             )
+
+            self._tasks_task_view_invalidation_adapter = TaskViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._tasks_task_view_invalidation_adapter.taskListStale.connect(
+                self._tasks_workspace.onTaskListStale
+            )
+            self._tasks_task_view_invalidation_adapter.taskDetailStale.connect(
+                self._tasks_workspace.onTaskDetailStale
+            )
+            self._tasks_task_view_invalidation_adapter.taskScheduleStale.connect(
+                self._tasks_workspace.onTaskScheduleStale
+            )
+            self._tasks_task_view_invalidation_adapter.taskAssignmentsForTaskStale.connect(
+                self._tasks_workspace.onTaskAssignmentsForTaskStale
+            )
+            self._tasks_task_view_invalidation_adapter.taskDependenciesStale.connect(
+                self._tasks_workspace.onTaskDependenciesStale
+            )
         return self._tasks_workspace
 
     def _get_dashboard_workspace(self) -> ProjectManagementDashboardWorkspaceController:
@@ -711,6 +767,16 @@ class ProjectManagementWorkspaceCatalog(QObject):
             self._dashboard_comment_view_invalidation_adapter.collaborationWorkspaceStale.connect(
                 self._dashboard_workspace.onCollaborationWorkspaceStale
             )
+
+            self._dashboard_task_view_invalidation_adapter = TaskViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._dashboard_task_view_invalidation_adapter.dashboardTaskMetricsStale.connect(
+                self._dashboard_workspace.onTaskMetricsStale
+            )
         return self._dashboard_workspace
 
     def _get_collaboration_workspace(self) -> ProjectManagementCollaborationWorkspaceController:
@@ -744,6 +810,16 @@ class ProjectManagementWorkspaceCatalog(QObject):
             )
             self._collaboration_comment_view_invalidation_adapter.collaborationWorkspaceStale.connect(
                 lambda _task_id: self._collaboration_workspace._request_domain_refresh()
+            )
+
+            self._collaboration_task_view_invalidation_adapter = TaskViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._collaboration_task_view_invalidation_adapter.taskProfileStale.connect(
+                self._collaboration_workspace.onTaskProfileStale
             )
         return self._collaboration_workspace
 

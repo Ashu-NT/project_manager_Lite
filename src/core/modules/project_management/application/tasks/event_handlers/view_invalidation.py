@@ -22,6 +22,7 @@ TASK_CATEGORY = "task"
 TASK_MODULE_CODE = "project_management"
 
 TASK_LIST_SCOPE_CODE = "task_list"
+TASK_PROFILE_SCOPE_CODE = "task_profile"
 TASK_DETAIL_SCOPE_CODE = "task_detail"
 TASK_SCHEDULE_SCOPE_CODE = "task_schedule"
 TASK_ASSIGNMENTS_SCOPE_CODE = "task_assignments"
@@ -108,6 +109,13 @@ def build_task_view_invalidation_handler(channel: ViewInvalidationChannel):
         _notify(DASHBOARD_TASK_METRICS_SCOPE_CODE, "organization", organization_id, event)
         if isinstance(event, (TaskHierarchyChanged, TaskScheduleChanged, TaskRemoved)):
             _notify(TASK_SCHEDULE_SCOPE_CODE, "project", project_id, event)
+        if isinstance(event, (TaskCreated, TaskProfileUpdated, TaskRemoved)):
+            # Narrower than task_list: only facts that change a task's own
+            # displayed name/identity/existence -- Collaboration's inbox/
+            # mentions/activity-feed row titles read exactly this (P45A
+            # proved `Task.name` via a live join), never progress/status/
+            # schedule/assignment/dependency facts.
+            _notify(TASK_PROFILE_SCOPE_CODE, "project", project_id, event)
 
     return handle_task_event
 
@@ -117,6 +125,7 @@ __all__ = [
     "TASK_CATEGORY",
     "TASK_MODULE_CODE",
     "TASK_LIST_SCOPE_CODE",
+    "TASK_PROFILE_SCOPE_CODE",
     "TASK_DETAIL_SCOPE_CODE",
     "TASK_SCHEDULE_SCOPE_CODE",
     "TASK_ASSIGNMENTS_SCOPE_CODE",

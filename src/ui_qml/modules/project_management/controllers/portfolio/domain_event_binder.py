@@ -5,20 +5,21 @@ from typing import Callable
 
 from PySide6.QtCore import QCoreApplication
 
-from src.core.shared.events.domain_events import domain_events
-
 logger = logging.getLogger(__name__)
 
 
-def bind_portfolio_domain_events(controller: object) -> None:
-
-    def _on_domain_event(_payload: object) -> None:
-        controller._request_domain_refresh()
-
-    for signal in (
-        domain_events.tasks_changed,
-    ):
-        controller._subscribe_domain_signal(signal, _on_domain_event)
+def on_task_metrics_stale(controller: object, _project_id: str) -> None:
+    """Portfolio Executive/heatmap computes real per-project critical/late
+    task counts from Task status/schedule/dependency/removal facts (P45A) --
+    `taskListStale` already covers Created/StatusChanged/ScheduleChanged/
+    HierarchyChanged/Removed; `taskDependenciesStale` covers the one fact
+    `taskListStale` doesn't (a dependency add/update/remove can move a task
+    in or out of "late" without the task's own row changing). Neither
+    TaskProfileUpdated-only nor TaskProgressChanged-only changes reach here
+    via a distinct signal, so this remains a modest over-trigger versus a
+    theoretical maximally-precise mapping -- still a real, disclosed
+    improvement over the previous blanket-every-Task-fact refresh."""
+    controller._request_domain_refresh()
 
 
 def portfolio_request_domain_refresh(
@@ -40,4 +41,4 @@ def portfolio_request_domain_refresh(
     controller._domain_refresh_timer.start(0)
 
 
-__all__ = ["bind_portfolio_domain_events", "portfolio_request_domain_refresh"]
+__all__ = ["on_task_metrics_stale", "portfolio_request_domain_refresh"]

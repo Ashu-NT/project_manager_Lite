@@ -28,10 +28,10 @@ from .resource_state import (
 from .resource_table_models import ResourceTableModels, create_resource_table_models
 from .resource_state_setters import ResourceStateSettersMixin
 from .resource_domain_event_binder import (
-    bind_resource_domain_events,
     on_project_stale,
     on_resource_capabilities_stale,
     on_resource_list_stale,
+    on_task_assignments_for_resource_stale,
     on_timesheet_resource_stale,
 )
 from .resource_selection_handler import (
@@ -222,8 +222,10 @@ class ProjectManagementResourcesWorkspaceController(
         self._resource_activity_total = 0
         self._resource_availability: dict[str, object] = default_resource_availability()
 
-        bind_resource_domain_events(self)
         self.refresh()
+
+    def onTaskAssignmentsForResourceStale(self, resource_id: str) -> None:
+        on_task_assignments_for_resource_stale(self, resource_id)
 
     def _clear_resource_projects(self) -> None:
         self._resource_projects = default_resource_context_page()

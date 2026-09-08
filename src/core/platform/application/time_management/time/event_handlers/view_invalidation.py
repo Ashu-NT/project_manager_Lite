@@ -103,14 +103,38 @@ def build_timesheet_view_invalidation_handler(channel: ViewInvalidationChannel):
                 entity_id=project_id,
             )
             project_target = _resource_scope_target(TIMESHEET_PROJECT_SCOPE_CODE, project_scope)
-            if project_target in notified_resource_targets:
+            if project_target not in notified_resource_targets:
+                notified_resource_targets.add(project_target)
+                channel.notify(
+                    ViewInvalidationHint(
+                        scope=project_scope,
+                        category=TIMESHEET_CATEGORY,
+                        scope_code=TIMESHEET_PROJECT_SCOPE_CODE,
+                        entity_type=TIMESHEET_PROJECT_ENTITY_TYPE,
+                        entity_id=project_id,
+                    )
+                )
+
+            # P45B-CLOSURE item 8/9: the legacy `tasks_changed` re-emission this
+            # transition used to trigger was staling the Task workspace's own
+            # task_list (time totals shown per task), not the Timesheet
+            # workspace above -- a genuine Class-B dependency, not a Task
+            # mutation. Map it directly onto the existing Task `task_list`
+            # target instead of inventing a fake Task DomainEvent.
+            from src.core.modules.project_management.application.tasks.event_handlers.view_invalidation import (
+                TASK_CATEGORY,
+                TASK_LIST_SCOPE_CODE,
+            )
+
+            task_list_target = _resource_scope_target(f"{TASK_CATEGORY}:{TASK_LIST_SCOPE_CODE}", project_scope)
+            if task_list_target in notified_resource_targets:
                 continue
-            notified_resource_targets.add(project_target)
+            notified_resource_targets.add(task_list_target)
             channel.notify(
                 ViewInvalidationHint(
                     scope=project_scope,
-                    category=TIMESHEET_CATEGORY,
-                    scope_code=TIMESHEET_PROJECT_SCOPE_CODE,
+                    category=TASK_CATEGORY,
+                    scope_code=TASK_LIST_SCOPE_CODE,
                     entity_type=TIMESHEET_PROJECT_ENTITY_TYPE,
                     entity_id=project_id,
                 )

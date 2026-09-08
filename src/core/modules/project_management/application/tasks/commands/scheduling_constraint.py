@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import date, datetime, timezone
 
+from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
+    emit_cascade_schedule_changed,
+)
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskScheduleChangeType,
     TaskScheduleChanged,
@@ -144,7 +147,9 @@ class TaskSchedulingConstraintMixin:
             # -- if recalculation raises, the UoW context manager rolls
             # back the constraint write too; there is no separate
             # constraint scheduler.
-            self._sync_project_schedule(candidate.project_id, commit=False)
+            cascade_ids = self._sync_project_schedule(
+                candidate.project_id, commit=False, exclude_task_ids=frozenset({candidate.id})
+            )
             record_audit_entry(
                 uow,
                 operation="update",
@@ -182,6 +187,9 @@ class TaskSchedulingConstraintMixin:
                     change_type=TaskScheduleChangeType.CONSTRAINT_UPDATED,
                     occurred_at=datetime.now(timezone.utc),
                 )
+            )
+            emit_cascade_schedule_changed(
+                uow, scope=scope, project_id=candidate.project_id, changed_task_ids=cascade_ids
             )
             uow.commit()
         return self._task_repo.get(task_id)

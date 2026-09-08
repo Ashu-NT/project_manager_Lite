@@ -362,7 +362,6 @@ class ProjectManagementFinancialsWorkspaceController(
         self._refresh_generation = 0
         self._loaded_destination_keys: set[tuple[str, str, str]] = set()
         self._invalidated_destinations: set[str] = set(FINANCE_DESTINATIONS)
-        self._bind_domain_events()
         self.refresh()
 
     @Property("QVariantMap", notify=overviewChanged)

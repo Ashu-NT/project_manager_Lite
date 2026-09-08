@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import date, datetime, timezone
 
+from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
+    emit_cascade_schedule_changed,
+)
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskScheduleChangeType,
     TaskScheduleChanged,
@@ -198,7 +201,12 @@ class ResourceLevelingApplyMixin:
                     )
                 )
 
-            self._sync_project_schedule(project_id, commit=False)
+            cascade_ids = self._sync_project_schedule(
+                project_id, commit=False, exclude_task_ids=frozenset(updated_ids)
+            )
+            emit_cascade_schedule_changed(
+                uow, scope=scope, project_id=project_id, changed_task_ids=cascade_ids
+            )
             uow.commit()
 
         return [self._task_repo.get(task_id) for task_id in updated_ids]

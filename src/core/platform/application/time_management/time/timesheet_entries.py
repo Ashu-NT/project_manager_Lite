@@ -15,23 +15,73 @@ from src.core.platform.contract.repositories.time_management.time.contracts impo
 from src.core.platform.domain.time_management.time import TimeEntry
 
 
-def _stage_task_assignment_hours_audit_and_build_event(
-    service, *, work_allocation, project_id: str | None
-):
-    """Stages the TaskAssignment-side EnterpriseAudit entry (commit=False --
-    part of the SAME physical transaction TimeEntry's own mutation is about to
-    commit) and returns the `TaskAssignmentChanged(HOURS_LOGGED_CHANGED)` fact
-    to publish AFTER that commit succeeds. Imports `task_events` lazily --
-    `application.tasks`' package `__init__` eagerly imports `TaskService`,
-    which (via `TaskTimeEntryMixin`) imports `TimesheetService`, which imports
-    this very module at the top of `TimeService`'s own MRO -- a module-level
-    import here would be circular."""
-    if work_allocation is None or service._tenant_context_service is None:
+class _PlainSessionCommitScope:
+    """Fallback used only when a `TimeService` instance was constructed without
+    a transactional dispatcher / post-commit bus (lightweight test doubles) --
+    behaves like the pre-P45B-CLOSURE raw-session path, no event dispatch.
+    Production construction (`project_registry.py`) always wires both, so
+    real callers always get `_CanonicalTimeEntryUnitOfWork` below."""
+
+    def __init__(self, session) -> None:
+        self._session = session
+
+    def record_event(self, event) -> None:
         return None
+
+    def commit(self) -> None:
+        self._session.commit()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        if exc_type is not None:
+            self._session.rollback()
+        return None
+
+
+def _time_entry_unit_of_work(service):
+    """One physical transaction for a TimeEntry mutation and its
+    TaskAssignment-side side-effect: a bare, canonical `SqlAlchemyUnitOfWorkBase`
+    wrapping TimeService's own already-shared Session (same precedent as
+    Project's `delete_project` and Timesheet's own `_persist_timesheet_
+    transition`) when a transactional dispatcher/post-commit bus are wired,
+    else the plain-session fallback above. `uow.record_event(...)` stages the
+    typed fact PRECOMMIT; transactional (FAIL_FAST) handlers run inside
+    `uow.commit()` before the physical `session.commit()`, and postcommit
+    delivery happens only after that commit actually succeeds -- no manual
+    post-commit publish call remains anywhere in this module."""
+    if service._transactional_dispatcher is not None and service._post_commit_bus is not None:
+        from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
+
+        return SqlAlchemyUnitOfWorkBase(
+            session=service._session,
+            transactional_dispatcher=service._transactional_dispatcher,
+            post_commit_bus=service._post_commit_bus,
+            context=DomainEventContext(correlation_id=generate_id()),
+        )
+    return _PlainSessionCommitScope(service._session)
+
+
+def _stage_task_assignment_hours_audit_and_record_event(
+    service, uow, *, work_allocation, project_id: str | None
+) -> None:
+    """Stages the TaskAssignment-side EnterpriseAudit entry and records its
+    `TaskAssignmentChanged(HOURS_LOGGED_CHANGED)` fact on `uow` -- both
+    PRECOMMIT, inside the SAME physical transaction as the TimeEntry mutation
+    and the `_sync_work_allocation_hours_from_entries` CAS write that already
+    ran before this call. Imports `task_events` lazily -- `application.tasks`'
+    package `__init__` eagerly imports `TaskService`, which (via
+    `TaskTimeEntryMixin`) imports `TimesheetService`, which imports this very
+    module at the top of `TimeService`'s own MRO -- a module-level import here
+    would be circular."""
+    if work_allocation is None or service._tenant_context_service is None:
+        return
     from src.core.modules.project_management.application.tasks.task_events import (
         TaskAssignmentChangeType,
         TaskAssignmentChanged,
     )
+
     scope = service._tenant_context_service.require_active_scope_ids(
         operation_label="sync task assignment hours from time entries"
     )
@@ -50,24 +100,18 @@ def _stage_task_assignment_hours_audit_and_build_event(
         commit=False,
         fail_closed=True,
     )
-    return TaskAssignmentChanged(
-        tenant_id=scope.tenant_id,
-        organization_id=scope.organization_id,
-        project_id=project_id or "",
-        task_id=getattr(work_allocation, "task_id", "") or "",
-        assignment_id=work_allocation.id,
-        resource_id=getattr(work_allocation, "resource_id", "") or "",
-        change_type=TaskAssignmentChangeType.HOURS_LOGGED_CHANGED,
-        occurred_at=datetime.now(timezone.utc),
+    uow.record_event(
+        TaskAssignmentChanged(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id or "",
+            task_id=getattr(work_allocation, "task_id", "") or "",
+            assignment_id=work_allocation.id,
+            resource_id=getattr(work_allocation, "resource_id", "") or "",
+            change_type=TaskAssignmentChangeType.HOURS_LOGGED_CHANGED,
+            occurred_at=datetime.now(timezone.utc),
+        )
     )
-
-
-def _publish_task_assignment_event(service, event) -> None:
-    """Post-commit only -- call after the surrounding `self._session.commit()`
-    has actually succeeded."""
-    if event is None or service._post_commit_bus is None:
-        return
-    service._post_commit_bus.publish(event, DomainEventContext(correlation_id=generate_id()))
 
 
 class TimesheetEntriesMixin:
@@ -153,13 +197,13 @@ class TimesheetEntriesMixin:
         )
         seeded_entry = None
         project_id = self._resolve_entry_project_id(work_allocation=work_allocation, work_owner=work_owner)
-        try:
+        with _time_entry_unit_of_work(self) as uow:
             seeded_entry = self._seed_legacy_hours_entry(work_allocation, work_owner, resource)
             self._time_entry_repo.add(entry)
             self._session.flush()
             updated_allocation = self._sync_work_allocation_hours_from_entries(work_allocation.id)
-            assignment_event = _stage_task_assignment_hours_audit_and_build_event(
-                self, work_allocation=updated_allocation, project_id=project_id
+            _stage_task_assignment_hours_audit_and_record_event(
+                self, uow, work_allocation=updated_allocation, project_id=project_id
             )
             if seeded_entry is not None:
                 record_audit_entry(
@@ -204,11 +248,7 @@ class TimesheetEntriesMixin:
                 fail_closed=True,
             )
             self._session.flush()
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        _publish_task_assignment_event(self, assignment_event)
+            uow.commit()
         return entry
 
     def add_time_entry(
@@ -265,12 +305,12 @@ class TimesheetEntriesMixin:
             work_allocation=work_allocation,
             work_owner=work_owner,
         )
-        try:
+        with _time_entry_unit_of_work(self) as uow:
             self._time_entry_repo.update(entry, expected_version=expected_version)  # type: ignore[union-attr]
             self._session.flush()
             updated_allocation = self._sync_work_allocation_hours_from_entries(entry.work_allocation_id)
-            assignment_event = _stage_task_assignment_hours_audit_and_build_event(
-                self, work_allocation=updated_allocation, project_id=project_id
+            _stage_task_assignment_hours_audit_and_record_event(
+                self, uow, work_allocation=updated_allocation, project_id=project_id
             )
             record_audit_entry(
                 self,
@@ -293,11 +333,7 @@ class TimesheetEntriesMixin:
                 fail_closed=True,
             )
             self._session.flush()
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        _publish_task_assignment_event(self, assignment_event)
+            uow.commit()
         return entry
 
     def delete_time_entry(self, entry_id: str, *, expected_version: int) -> None:
@@ -317,12 +353,12 @@ class TimesheetEntriesMixin:
             work_allocation=work_allocation,
             work_owner=work_owner,
         )
-        try:
+        with _time_entry_unit_of_work(self) as uow:
             self._time_entry_repo.delete(entry.id, expected_version=expected_version)  # type: ignore[union-attr]
             self._session.flush()
             updated_allocation = self._sync_work_allocation_hours_from_entries(entry.work_allocation_id)
-            assignment_event = _stage_task_assignment_hours_audit_and_build_event(
-                self, work_allocation=updated_allocation, project_id=project_id
+            _stage_task_assignment_hours_audit_and_record_event(
+                self, uow, work_allocation=updated_allocation, project_id=project_id
             )
             record_audit_entry(
                 self,
@@ -345,11 +381,7 @@ class TimesheetEntriesMixin:
                 fail_closed=True,
             )
             self._session.flush()
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        _publish_task_assignment_event(self, assignment_event)
+            uow.commit()
 
 
 __all__ = ["TimesheetEntriesMixin"]

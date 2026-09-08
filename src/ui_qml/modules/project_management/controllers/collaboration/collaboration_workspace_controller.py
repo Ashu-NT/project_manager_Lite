@@ -16,7 +16,6 @@ from . import filter_handler as _fh
 from . import mutation_handler as _mut
 from . import selection_handler as _sel
 from . import state_setters as _setters
-from .domain_event_binder import bind_collaboration_domain_events
 from .panel_filter_service import CollaborationPanelFilterService
 from .refresh_service import refresh_collaboration_workspace
 from .state import (
@@ -82,7 +81,6 @@ class ProjectManagementCollaborationWorkspaceController(
         self._mentions_page_size = 25
         self._selected_item_detail: dict[str, object] = default_selected_item_detail()
         self._panel_item_index: dict[str, dict[str, dict[str, object]]] = {}
-        bind_collaboration_domain_events(self)
         self.refresh()
 
     # Overview
@@ -247,7 +245,11 @@ class ProjectManagementCollaborationWorkspaceController(
 
     # ── Domain event handler ──────────────────────────────────────────
 
-    def _on_domain_event(self, _payload: object) -> None:
+    def onTaskProfileStale(self, _project_id: str) -> None:
+        """Narrow, per P45A: inbox/mentions/activity-feed row titles read
+        `Task.name` via a live join -- only name/identity/existence facts
+        (TaskCreated/TaskProfileUpdated/TaskRemoved) affect what's displayed
+        here, never progress/status/schedule/assignment/dependency."""
         self._request_domain_refresh()
 
     def refresh_approvals(self) -> None:

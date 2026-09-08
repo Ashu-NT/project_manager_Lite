@@ -35,7 +35,14 @@ from . import task_filter_actions as _filter
 from . import task_mutation_facade as _mut
 from . import task_pagination_actions as _pag
 from . import task_time_selection_actions as _time_sel
-from .task_domain_event_binder import bind_task_domain_events, on_timesheet_project_stale
+from .task_domain_event_binder import (
+    on_task_assignments_for_task_stale,
+    on_task_dependencies_stale,
+    on_task_detail_stale,
+    on_task_list_stale,
+    on_task_schedule_stale,
+    on_timesheet_project_stale,
+)
 from .task_export_handler import export_tasks
 from .task_lazy_section_loader import (
     load_selected_task_activity,
@@ -174,7 +181,6 @@ class ProjectManagementTasksWorkspaceController(
         self._task_activity_table_model = DynamicTableModel(self)
         # ── Sub-controllers ────────────────────────────────────────────
         create_subcontrollers(self)
-        bind_task_domain_events(self)
         self.refresh()
 
     def onTimesheetProjectStale(self, project_id: str) -> None:
@@ -186,6 +192,21 @@ class ProjectManagementTasksWorkspaceController(
     def onTaskCommentsStale(self, task_id: str) -> None:
         if str(task_id or "") == self._selected_task_id:
             self._request_domain_refresh()
+
+    def onTaskListStale(self, project_id: str) -> None:
+        on_task_list_stale(self, project_id)
+
+    def onTaskDetailStale(self, task_id: str) -> None:
+        on_task_detail_stale(self, task_id)
+
+    def onTaskScheduleStale(self, project_id: str) -> None:
+        on_task_schedule_stale(self, project_id)
+
+    def onTaskAssignmentsForTaskStale(self, task_id: str) -> None:
+        on_task_assignments_for_task_stale(self, task_id)
+
+    def onTaskDependenciesStale(self, project_id: str) -> None:
+        on_task_dependencies_stale(self, project_id)
 
     # ── Sub-controller access properties ─────────────────────────────
 

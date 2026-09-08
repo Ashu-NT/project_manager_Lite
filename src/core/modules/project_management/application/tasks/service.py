@@ -177,14 +177,24 @@ class TaskService(
         return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
 
     def _task_uow(self, context: DomainEventContext | None = None):
+        """Direct desktop-API commands (the normal, long-lived `TaskService`
+        instance, always constructed with a `task_uow_factory`) get a real
+        `SqlAlchemyTaskUnitOfWork` -- own commit, own precommit/postcommit
+        dispatch. A participant-scoped `TaskService` (approval participants,
+        Project's cascade-delete transaction, TimeEntry's transaction --
+        constructed with `task_uow_factory=None`) gets
+        `TaskParticipantUnitOfWork` instead: the canonical, permanent
+        transaction-boundary-delegating counterpart (not a legacy shim -- see
+        its own docstring), since that caller already owns the physical
+        transaction."""
         from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
-            PassthroughTaskUnitOfWork,
+            TaskParticipantUnitOfWork,
         )
 
         if self._task_uow_factory is not None:
             return self._task_uow_factory.create(context=context or self._new_context())
         self._pending_task_events = []
-        return PassthroughTaskUnitOfWork(
+        return TaskParticipantUnitOfWork(
             tasks=self._task_repo,
             assignments=self._assignment_repo,
             dependencies=self._dependency_repo,
