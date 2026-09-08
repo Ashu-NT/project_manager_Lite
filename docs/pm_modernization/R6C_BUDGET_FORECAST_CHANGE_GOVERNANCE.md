@@ -2,8 +2,8 @@
 
 ## 1. Status
 
-**R6C IN PROGRESS.** R6A and R6B are closed. R6C-A through R6C-F are
-complete. R6C-G and R6C-H remain open. This document records the verified
+**R6C IN PROGRESS.** R6A and R6B are closed. R6C-A through R6C-G are
+complete. R6C-H remains open. This document records the verified
 R6C starting state and is the execution ledger for the forward-only write
 cutover. R6C must not be marked closed until every blocking exit gate is green.
 
@@ -897,10 +897,8 @@ and `NOBYPASSRLS`.
 - R6C-A/B/C/D plus R6B Setup read regression: all `68` non-P8 tests passed.
 - Live PostgreSQL R6C governance/RLS/concurrency suite: `8 passed`.
 - Shared dialog regression across PM, Platform, and Inventory: `51 passed`.
-- P8 remains `26 passed, 4 failed`. Reconciliation now shows all four failures
-  are the pre-existing Cost-owned `cost_entries_changed` legacy signal; no
-  Commitment failure remains. R6C-E did not modify or allowlist it. Its removal
-  remains an R6D Cost cutover responsibility.
+- This was the R6C-E point-in-time P8 result. R6C-G re-ran the current suite at
+  `31 passed`; no retired Finance process-local signal or P8 debt remains.
 
 Python compilation passes. Repository QML runtime/static component tests pass.
 Standalone `qmllint` and optional `ruff` remain unavailable in `pmenv` and were
@@ -1081,10 +1079,8 @@ green.
 - R6B destination/read/bounded-query/invalidation regression: `99 passed`.
 - Architecture/module/read-write guards: `45 passed`.
 - PostgreSQL runtime-role/RLS/concurrency matrix: `9 passed`.
-- P8 currently reports `25 passed, 4 failed`. All four failures are the same
-  pre-existing Cost-owned `cost_entries_changed` producer/allowlist mismatch,
-  untouched by R6C and assigned to R6D. No R6C-owned P8 failure remains; no dead
-  signal was restored to satisfy the frozen allowlist.
+- This was the R6C-F point-in-time P8 result. R6C-G confirms the current P8
+  suite is fully green at `31 passed`; no dead signal was restored.
 - Runtime QML tests cover all required viewports, including 1024x640, and shared
   `EntityDialog` focus return across Finance and existing PM/Platform/Inventory
   consumers. Standalone `qmllint` and optional `ruff` remain unavailable in
@@ -1092,5 +1088,127 @@ green.
 - Targeted Python compilation and `git diff --check` pass. No files were
   committed.
 
-R6C-F has no blocker. R6C-G cleanup and R6C-H broad final closure remain. This
-stage stops here: R6C-G, R6D, R6E, R6F, and R6G were not started.
+R6C-F had no blocker. At its closure, R6C-G cleanup and R6C-H broad final
+closure remained; R6D-R6G were not started.
+
+## R6C-G Pre-Release Cleanup And Architecture Closure
+
+**Status: COMPLETE.** R6C remains open for R6C-H final validation and closure
+only. R6C-G added no Finance product capability and did not start R6C-H or
+R6D-R6G.
+
+### Forward-Only Production Architecture
+
+The final R6C path is singular:
+
+`Financial QML -> Financials controller -> Financials presenter -> typed
+desktop command -> ProjectManagementFinancialsDesktopApi ->
+FinanceGovernanceCommandBoundary -> transaction-neutral service/domain -> fresh
+FinanceGovernanceUnitOfWork -> one commit -> typed post-commit invalidation ->
+authoritative R6B Reader refresh`.
+
+`FinanceGovernanceCommandBoundary` remains the sole outward R6C transaction
+owner. Its family methods now accept only the command callable. The unused
+`project_id` routing parameter and `FinanceGovernedServicePort._project_id()`
+pre-read shim were deleted. Each command service resolves, scopes, and
+authorizes its own aggregate inside the fresh operation UoW; the governed port
+does not inspect private repositories or perform permission-masking reads.
+
+The desktop runtime resolver no longer imports, resolves, stores, or exposes
+unused direct `ForecastVersionService` and `FinancialChangeService`
+dependencies. Active internal module consumers continue to receive the
+canonical `FinanceGovernedServicePort`, while the desktop facade receives only
+the composed governance boundary and current read authorities.
+
+The redundant QML `openCreateCostCodeDialog()` alias and its test-only consumer
+were removed. The single active entry point is
+`openCostCodeDialog("create", null)`; there is no second dialog, controller slot,
+presenter command, route, or capability source.
+
+### Inventory Classification
+
+Current authoritative production code retained:
+
+- Typed Finance desktop command DTOs and the QML-to-presenter map conversion at
+  the UI boundary. `QVariantMap` is a QML transport shape, not a second domain
+  command authority.
+- One `FinanceGovernanceCommandBoundary`, one fresh UoW factory, and governed
+  internal service ports. The ports are active module command boundaries, not
+  compatibility adapters.
+- One immutable R6B Reader/query architecture and one active controller,
+  presenter, QML workspace, dialog host, and destination path per Finance
+  concept.
+- One Platform Approval apply registration and one reject registration for each
+  of `budget.approve`, `forecast.approve`, and `financial_change.apply`.
+- Direct Budget/Forecast decision methods where the current server governance
+  policy explicitly permits direct decisions. These are distinct current
+  semantics, not compatibility with Platform Approval.
+- Budget/Forecast `begin_nested()` blocks used only to translate database
+  uniqueness conflicts inside the caller-owned transaction. They neither
+  commit nor establish a second authority.
+- Project approved-budget read projections, which display Finance-owned truth
+  and do not restore a mutable Project Budget field or Project write command.
+- Current Cost/Commitment transaction behavior and the float-based
+  `EarnedValueCalculator`, which are later R6D/R6E authoritative replacement
+  scopes rather than R6C compatibility paths.
+
+Superseded production/test artifacts deleted or migrated:
+
+- ignored family-level `project_id` boundary parameters and every caller that
+  supplied them;
+- private aggregate/repository pre-reads performed by the governed service
+  proxy solely to manufacture that ignored routing value;
+- unused Forecast/Financial Change write-service fields in the desktop runtime
+  resolver;
+- redundant Create Cost Code QML alias and the test preserving it;
+- fake boundaries and permission-order descriptions preserving the retired
+  parameter/pre-read contract.
+
+Repository-wide targeted searches found no R6C compatibility API, old builder,
+aggregate-read fallback, duplicate presenter/controller/dialog, deprecated
+Finance destination, temporary delete-later scaffold, Financial Change
+submission UoW, direct Financial Change `TaskORM` mutation, local QML Finance
+formula, or active `budgets_changed`, `forecasts_changed`,
+`financial_changes_changed`, or `financial_setup_changed` signal. Current typed
+events have one scoped invalidation-handler chain and controller event bindings
+remain tenant/organization/project checked and correlation deduplicated.
+
+### Fresh-Schema Correction
+
+The live PostgreSQL gate exposed one unrelated but blocking fresh-lineage defect
+in migration `d8e1f4a7b2c3`: raw SQLite Boolean literals were used while
+deduplicating active Portfolio scoring templates. The migration now uses a
+typed SQLAlchemy update and windowed keeper subquery, producing correct Boolean
+predicates on both PostgreSQL and SQLite without changing the invariant or
+creating a compatibility branch. Fresh Alembic upgrade now reaches head.
+
+### Architecture Guards And Verification
+
+`test_r6c_g_architecture_closure.py` now prevents reintroduction of:
+
+- family routing metadata or proxy pre-read identity resolution;
+- multiple outward boundary commits;
+- unused direct Forecast/Financial Change desktop-runtime write dependencies;
+- untyped R6C desktop command entry points;
+- duplicate R6C approval participant registrations;
+- retired process-local Finance signals;
+- Financial Change submission UoW/direct Task ORM coupling; and
+- the retired Cost Code dialog alias.
+
+Verification evidence:
+
+- focused R6C command, UX-contract, approval, invalidation, Reader regression,
+  architecture, and SQLite session-handoff suite: `190 passed, 1 skipped`;
+- focused Budget/Billing permission-order regressions: `4 passed`;
+- P8 event architecture canonicalization: `31 passed`;
+- cross-dialect Portfolio migration regression: `2 passed`;
+- fresh Alembic plus live PostgreSQL R6C runtime-role/RLS/concurrency suite:
+  `9 passed` through non-owner `app_runtime`;
+- targeted Python compilation passes;
+- QML dialog-host coverage passes in the focused suite;
+- standalone `qmllint` and optional `ruff` remain unavailable in `pmenv` and
+  were not installed.
+
+The repository PostgreSQL 16 compose container remains healthy and running for
+R6C-H. R6C-G has no blocker. R6C itself is not closed: R6C-H is the only
+remaining stage. This stage stops here; no commit was created.

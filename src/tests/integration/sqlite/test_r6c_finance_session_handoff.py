@@ -28,7 +28,6 @@ def test_budget_command_uses_fresh_uow_after_shared_session_reads(tmp_path) -> N
         boundary = services["finance_governance_commands"]
         budget = boundary.budget(
             lambda service: service.create_budget(project.id, "Draft", "XAF"),
-            project_id=project.id,
         )
 
         services["finance_workspace_query"].get_budget_workspace(

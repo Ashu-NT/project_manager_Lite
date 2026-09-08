@@ -18,28 +18,35 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-
     connection = op.get_bind()
-    connection.execute(
-        sa.text(
-            """
-            UPDATE portfolio_scoring_templates
-            SET is_active = 0
-            WHERE is_active = 1
-              AND id NOT IN (
-                  SELECT keeper.id FROM (
-                      SELECT t.id,
-                             ROW_NUMBER() OVER (
-                                 PARTITION BY t.organization_id
-                                 ORDER BY t.updated_at DESC, t.id ASC
-                             ) AS rn
-                      FROM portfolio_scoring_templates t
-                      WHERE t.is_active = 1
-                  ) AS keeper
-                  WHERE keeper.rn = 1
-              )
-            """
+    templates = sa.table(
+        "portfolio_scoring_templates",
+        sa.column("id", sa.String()),
+        sa.column("organization_id", sa.String()),
+        sa.column("updated_at", sa.DateTime(timezone=True)),
+        sa.column("is_active", sa.Boolean()),
+    )
+    ranked = (
+        sa.select(
+            templates.c.id,
+            sa.func.row_number()
+            .over(
+                partition_by=templates.c.organization_id,
+                order_by=(templates.c.updated_at.desc(), templates.c.id.asc()),
+            )
+            .label("rn"),
         )
+        .where(templates.c.is_active.is_(True))
+        .subquery("ranked_active_portfolio_scoring_templates")
+    )
+    keeper_ids = sa.select(ranked.c.id).where(ranked.c.rn == 1)
+    connection.execute(
+        sa.update(templates)
+        .where(
+            templates.c.is_active.is_(True),
+            templates.c.id.not_in(keeper_ids),
+        )
+        .values(is_active=False)
     )
 
     with op.batch_alter_table("portfolio_scoring_templates", schema=None) as batch_op:

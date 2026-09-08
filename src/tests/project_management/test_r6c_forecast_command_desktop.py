@@ -30,8 +30,7 @@ class _Boundary:
         self.generated = None
         self.versioned = None
 
-    def forecast_generation(self, command, *, project_id):
-        self.generated = (command, project_id)
+    def forecast_generation(self, command):
         return command(self)
 
     def generate_draft(self, project_id, **kwargs):
@@ -45,7 +44,7 @@ class _Boundary:
             )
         )
 
-    def forecast_version(self, command, *, project_id=None):
+    def forecast_version(self, command):
         return command(self)
 
     def submit_forecast(self, forecast_id, **kwargs):

@@ -36,10 +36,6 @@ Item {
         root._openSetupDialog(costCodeEditorDialog)
     }
 
-    function openCreateCostCodeDialog() {
-        root.openCostCodeDialog("create", null)
-    }
-
     function openFinancialProfileDialog(profile) {
         financialProfileEditorDialog.profile = profile || null
         financialProfileEditorDialog.errorMessage = ""

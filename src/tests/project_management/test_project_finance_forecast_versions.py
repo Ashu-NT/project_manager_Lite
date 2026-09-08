@@ -203,9 +203,7 @@ def _generate_through_boundary(
             **command_options,
         )
 
-    return services["finance_governance_commands"].forecast_generation(
-        operation, project_id=project.id
-    )
+    return services["finance_governance_commands"].forecast_generation(operation)
 
 
 def test_forecast_domain_lifecycle_is_explicit_and_immutable_after_submit() -> None:
