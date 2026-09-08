@@ -40,6 +40,10 @@ if TYPE_CHECKING:
     from src.core.platform.contract.repositories.history.audit.contracts import AuditRepository
     from src.core.platform.contract.repositories.tenant.tenancy.contracts import UserTenantMembershipRepository
     from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+    from src.core.shared.events.domain_event_publisher import (
+        PostCommitEventPublisher,
+        TransactionalEventDispatcher,
+    )
 
     from src.core.platform.application.security.authorization.roles.role_governance_service import RoleGovernanceService
 
@@ -67,8 +71,16 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         ] | None = None,
         allow_platform_customer_context: bool = False,
         overview_rollup_reader: PlatformOverviewRollupReader | None = None,
+        *,
+        transactional_dispatcher: "TransactionalEventDispatcher",
+        post_commit_bus: "PostCommitEventPublisher",
     ):
+        from src.infra.time.system_clock import SystemClock
+
         self._session: Session = session
+        self._transactional_dispatcher = transactional_dispatcher
+        self._post_commit_bus = post_commit_bus
+        self._clock = SystemClock()
         self._user_repo: UserRepository = user_repo
         self._role_repo: RoleRepository = role_repo
         self._permission_repo: PermissionRepository = permission_repo
@@ -103,6 +115,20 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
             else None
         )
         self._role_governance_service: RoleGovernanceService | None = None
+
+    def _uow(self):
+        from src.core.platform.application.security.auth.unit_of_work import auth_unit_of_work
+
+        return auth_unit_of_work(
+            session=self._session,
+            transactional_dispatcher=self._transactional_dispatcher,
+            post_commit_bus=self._post_commit_bus,
+        )
+
+    def _active_tenant_id_for_event(self) -> str | None:
+        if self._tenant_context_service is None:
+            return None
+        return str(self._tenant_context_service.get_active_tenant_id() or "").strip() or None
 
     def register_canonical_scope_tenant_resolver(
         self,

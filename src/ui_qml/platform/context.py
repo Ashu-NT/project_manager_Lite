@@ -38,6 +38,12 @@ from src.ui_qml.platform.adapters.organization_view_invalidation_adapter import 
 from src.ui_qml.platform.adapters.role_binding_view_invalidation_adapter import (
     RoleBindingViewInvalidationAdapter,
 )
+from src.ui_qml.platform.adapters.authorization_context_view_invalidation_adapter import (
+    AuthorizationContextViewInvalidationAdapter,
+)
+from src.ui_qml.platform.adapters.account_security_view_invalidation_adapter import (
+    AccountSecurityViewInvalidationAdapter,
+)
 from src.ui_qml.platform.adapters.tenant_membership_view_invalidation_adapter import (
     TenantMembershipViewInvalidationAdapter,
 )
@@ -242,6 +248,28 @@ class PlatformWorkspaceCatalog(QObject):
         self._tenant_membership_view_invalidation_adapter.membershipDataStale.connect(
             self._admin_workspace.refresh_users
         )
+        self._account_security_view_invalidation_adapter = AccountSecurityViewInvalidationAdapter(
+            channel=view_invalidation_channel,
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+            parent=self,
+        )
+        self._account_security_view_invalidation_adapter.accountSecurityStale.connect(
+            self._admin_access_workspace.refresh_after_account_security_change
+        )
+        self._account_security_view_invalidation_adapter.accountSecurityStale.connect(
+            self._admin_workspace.refresh_users
+        )
+
+        self._authorization_context_view_invalidation_adapter = AuthorizationContextViewInvalidationAdapter(
+            channel=view_invalidation_channel,
+            tenant_id=self._tenant_switcher.activeTenantId,
+            parent=self,
+        )
+        self._authorization_context_view_invalidation_adapter.authorizationContextStale.connect(
+            self._admin_access_workspace.refresh_after_account_security_change
+        )
+
         self._tenant_membership_view_invalidation_adapter.membershipDataStale.connect(
             self._admin_access_workspace.refresh_security_users
         )
@@ -505,6 +533,13 @@ class PlatformWorkspaceCatalog(QObject):
         self._role_binding_view_invalidation_adapter.set_active_scope(
             tenant_id=self._tenant_switcher.activeTenantId,
             organization_id=self._active_organization_id(),
+        )
+        self._account_security_view_invalidation_adapter.set_active_scope(
+            tenant_id=self._tenant_switcher.activeTenantId,
+            organization_id=self._active_organization_id(),
+        )
+        self._authorization_context_view_invalidation_adapter.set_active_scope(
+            tenant_id=self._tenant_switcher.activeTenantId,
         )
         self._approval_view_invalidation_adapter.set_active_scope(
             tenant_id=self._tenant_switcher.activeTenantId,

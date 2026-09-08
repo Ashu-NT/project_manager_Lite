@@ -61,6 +61,8 @@ def _customer_auth_service(
             security_audit_repo=auth._security_audit_repo,
             user_tenant_repo=auth._user_tenant_repo,
             tenant_context_service=services["tenant_context_service"],
+            transactional_dispatcher=auth._transactional_dispatcher,
+            post_commit_bus=auth._post_commit_bus,
         ),
         actor,
         tenant_id,

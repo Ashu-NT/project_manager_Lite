@@ -7,7 +7,6 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.platform.presenters.identity_access.access.access_workspace_presenter import PlatformAccessWorkspacePresenter
 
 from src.ui_qml.platform.controllers.common import (
@@ -61,7 +60,6 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
         self._security_users_table_model = DynamicTableModel(self)
         self._scope_grants: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._security_users: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
-        self._bind_domain_events()
 
     @Property("QVariantList", notify=scopeTypeOptionsChanged)
     def scopeTypeOptions(self) -> list[dict[str, object]]:
@@ -232,20 +230,11 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
     def _is_accessible(self) -> bool:
         return self._has_permission(WORKSPACE_PERMISSIONS["access"])
 
-    def _bind_domain_events(self) -> None:
-
-        self._subscribe_domain_signal(domain_events.auth_changed, self._on_auth_changed)
-
     def _on_domain_event(self, _payload: object) -> None:
         self._request_domain_refresh()
 
     def onExternalViewStale(self, _hint: str = "") -> None:
         self._request_domain_refresh()
-
-    def _on_auth_changed(self, _payload: object) -> None:
-        if not self._loaded or self._is_loading or self._is_busy:
-            return
-        self._refresh_after_security_change()
 
     def refresh_role_bindings(self) -> None:
 
@@ -256,13 +245,22 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
 
     def refresh_security_users(self) -> None:
         """Narrow reaction to the tenant-membership ViewInvalidation target (P5D-3 direct
-        cutover) -- unlike `_on_auth_changed`'s coarse legacy signal (still wired, for the
-        several other, non-membership `auth_changed` producers: password/MFA/session/custom-role
-        changes), this only ever fires for a real membership transition."""
+        cutover) -- unlike `refresh_after_account_security_change`'s `account_security`/
+        `authorization_context` targets (password/MFA/session/custom-role/role-policy changes),
+        this only ever fires for a real membership transition."""
         if not self._loaded or self._is_loading or self._is_busy:
             return
         self._refresh_security_users()
         self._refresh_empty_state()
+
+    def refresh_after_account_security_change(self) -> None:
+        """P46B direct cutover: reacts to the `account_security`/`authorization_context`
+        ViewInvalidation targets (replacing the legacy `auth_changed` Signal, which covered
+        password/MFA/session/custom-role/role-policy changes for users visible in this
+        workspace)."""
+        if not self._loaded or self._is_loading or self._is_busy:
+            return
+        self._refresh_after_security_change()
 
     def _refresh_after_access_change(self) -> None:
         self._refresh_scope_grants()

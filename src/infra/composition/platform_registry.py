@@ -123,7 +123,29 @@ from src.core.platform.domain.tenant.modules.events import (
     ModuleLifecycleTransitioned,
 )
 from src.core.platform.application.security.authorization.roles.event_handlers.view_invalidation import (
+    build_authorization_context_view_invalidation_handler,
     build_role_binding_view_invalidation_handler,
+)
+from src.core.platform.application.security.auth.event_handlers.view_invalidation import (
+    build_account_security_view_invalidation_handler,
+)
+from src.core.platform.domain.security.auth.events import (
+    AccountLocked,
+    AccountUnlocked,
+    AuthenticationFailureRecorded,
+    CustomRoleCreated,
+    CustomRoleRetired,
+    CustomRoleUpdated,
+    FederatedIdentityLinked,
+    MfaStatusChanged,
+    PasswordChanged,
+    RolePolicyReconciled,
+    TenantMembershipProvisioned,
+    UserAccountCreated,
+    UserAccountProfileUpdated,
+    UserAccountStatusChanged,
+    UserSessionPolicyChanged,
+    UserSessionsRevoked,
 )
 from src.core.platform.application.tenant.tenancy.event_handlers.view_invalidation import (
     build_tenant_membership_view_invalidation_handler,
@@ -465,9 +487,49 @@ def build_platform_service_bundle(
         TenantMembershipSuspended,
         TenantMembershipReactivated,
         TenantMembershipRemoved,
+        TenantMembershipProvisioned,
     ):
         platform_post_commit_bus.subscribe(
             _tenant_membership_event_type, _tenant_membership_view_invalidation_handler
+        )
+
+    # P46B: direct Qt cutover for Auth/Security, mirroring the RoleBinding/TenantMembership
+    # precedent above -- no legacy `auth_changed` bridge. `account_security` collapses every
+    # UserAccount-owned fact onto one target; `authorization_context` collapses the four
+    # Role-owned facts (CustomRole create/update/retire, system role-policy reconciliation) onto
+    # a second, non-overlapping target -- RoleBinding grant/revoke stays under its own existing
+    # `role_binding` category above, never duplicated here.
+    _account_security_view_invalidation_handler = build_account_security_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _account_security_event_type in (
+        UserAccountCreated,
+        UserAccountProfileUpdated,
+        UserAccountStatusChanged,
+        AccountLocked,
+        AccountUnlocked,
+        AuthenticationFailureRecorded,
+        PasswordChanged,
+        MfaStatusChanged,
+        FederatedIdentityLinked,
+        UserSessionPolicyChanged,
+        UserSessionsRevoked,
+    ):
+        platform_post_commit_bus.subscribe(
+            _account_security_event_type, _account_security_view_invalidation_handler
+        )
+
+    _authorization_context_view_invalidation_handler = build_authorization_context_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _authorization_context_event_type in (
+        CustomRoleCreated,
+        CustomRoleUpdated,
+        CustomRoleRetired,
+        RolePolicyReconciled,
+    ):
+        platform_post_commit_bus.subscribe(
+            _authorization_context_event_type, _authorization_context_view_invalidation_handler
         )
 
     # Approval-P3: direct Qt cutover for Approval, mirroring the Organization/Module
@@ -596,6 +658,8 @@ def build_platform_service_bundle(
             security_configuration.tenancy_mode
             is TenancyMode.LOCAL_SINGLE_TENANT
         ),
+        transactional_dispatcher=platform_transactional_dispatcher,
+        post_commit_bus=platform_post_commit_bus,
     )
     tenant_context_service.set_principal_rebuilder(
         auth_service.rebuild_current_principal_for_context
@@ -949,6 +1013,8 @@ def build_platform_service_bundle(
         audit_repo=repositories.audit_entry_repo,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
+        transactional_dispatcher=platform_transactional_dispatcher,
+        post_commit_bus=platform_post_commit_bus,
     )
     employee_headcount_reader = SqlAlchemyEmployeeHeadcountReader(session)
     employee_uow_session_factory = sessionmaker(bind=session.bind, future=True)

@@ -48,6 +48,8 @@ def _reconciliation_service(services) -> RolePolicyReconciliationService:
         ),
         user_session=services["user_session"],
         role_binding_repo=SqlAlchemyRoleBindingRepository(services["session"]),
+        transactional_dispatcher=auth._transactional_dispatcher,
+        post_commit_bus=auth._post_commit_bus,
     )
 
 

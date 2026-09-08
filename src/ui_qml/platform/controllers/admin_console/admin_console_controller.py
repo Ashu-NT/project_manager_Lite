@@ -115,7 +115,6 @@ from src.ui_qml.platform.controllers.identity_access.users.actions import (
 )
 from src.ui_qml.platform.controllers.common import PlatformWorkspaceControllerBase
 
-from .domain_event_binder import bind_domain_events
 from .entity_code_dispatch import generate_entity_code
 from .refresh_coordinator import do_refresh, refresh_overview
 from .signal_binder import bind_child_signals
@@ -185,7 +184,6 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
             self,
         )
         self._bind_child_signals()
-        self._bind_domain_events()
         self.refresh()
 
     # ── Properties ───────────────────────────────────────────────────────
@@ -540,9 +538,6 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
 
     def _bind_child_signals(self) -> None:
         bind_child_signals(self)
-
-    def _bind_domain_events(self) -> None:
-        bind_domain_events(self)
 
 
 __all__ = ["PlatformAdminWorkspaceController"]

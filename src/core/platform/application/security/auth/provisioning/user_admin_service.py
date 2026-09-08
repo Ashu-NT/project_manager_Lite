@@ -5,9 +5,13 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 
-from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission, require_permission
 from src.core.platform.domain.security.auth import Role, UserAccount, normalize_auth_username
+from src.core.platform.domain.security.auth.events import (
+    AccountUnlocked,
+    UserAccountProfileUpdated,
+    UserAccountStatusChanged,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 
 from src.core.platform.application.security.auth.session.session_service import refresh_current_session_if_user
@@ -127,7 +131,7 @@ def set_user_active(service: AuthService, user_id: str, is_active: bool) -> User
     previous_is_active = user.is_active
     user.is_active = bool(is_active)
     user.updated_at = datetime.now(timezone.utc)
-    try:
+    with service._uow() as uow:
         service._user_repo.update(user)
         add_atomic_security_audit(
             service,
@@ -140,11 +144,16 @@ def set_user_active(service: AuthService, user_id: str, is_active: bool) -> User
             old_value=str(previous_is_active),
             new_value=str(user.is_active),
         )
-        service._session.commit()
-    except Exception:
-        service._session.rollback()
-        raise
-    domain_events.auth_changed.emit(user.id)
+        if user.is_active != previous_is_active:
+            uow.record_event(
+                UserAccountStatusChanged(
+                    user_id=user.id,
+                    tenant_id=service._active_tenant_id_for_event(),
+                    is_active=user.is_active,
+                    occurred_at=user.updated_at,
+                )
+            )
+        uow.commit()
     refresh_current_session_if_user(service, user.id)
     return user
 
@@ -172,29 +181,41 @@ def update_user_profile(
         user.email = email
     user.updated_at = datetime.now(timezone.utc)
     try:
-        service._user_repo.update(user)
-        add_atomic_security_audit(
-            service,
-            operation="update",
-            entity_type="user",
-            entity_id=user.id,
-            action="user.update_profile",
-            severity="low",
-            field="profile",
-        )
-        service._session.commit()
+        with service._uow() as uow:
+            service._user_repo.update(user)
+            add_atomic_security_audit(
+                service,
+                operation="update",
+                entity_type="user",
+                entity_id=user.id,
+                action="user.update_profile",
+                severity="low",
+                field="profile",
+            )
+            uow.record_event(
+                UserAccountProfileUpdated(
+                    user_id=user.id,
+                    tenant_id=service._active_tenant_id_for_event(),
+                    changed_fields=tuple(
+                        name
+                        for name, value in (
+                            ("username", username),
+                            ("display_name", display_name),
+                            ("email", email),
+                        )
+                        if value is not None
+                    ),
+                    occurred_at=user.updated_at,
+                )
+            )
+            uow.commit()
     except IntegrityError as exc:
-        service._session.rollback()
         if "username" in str(exc).lower():
             raise ValidationError("Username already exists.", code="USERNAME_EXISTS") from exc
         raise ValidationError(
             "Failed to update user due to data conflict.",
             code="USER_UPDATE_CONFLICT",
         ) from exc
-    except Exception:
-        service._session.rollback()
-        raise
-    domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
     return user
 
@@ -208,10 +229,11 @@ def unlock_user_account(service: AuthService, user_id: str) -> UserAccount:
     _enforce_user_tenant_boundary(service, user_id, "unlock account")
     user = service._require_user(user_id)
     previous_failed_attempts = user.failed_login_attempts
+    previous_locked_until = user.locked_until
     user.failed_login_attempts = 0
     user.locked_until = None
     user.updated_at = datetime.now(timezone.utc)
-    try:
+    with service._uow() as uow:
         service._user_repo.update(user)
         add_atomic_security_audit(
             service,
@@ -225,11 +247,15 @@ def unlock_user_account(service: AuthService, user_id: str) -> UserAccount:
                 "previous_failed_login_attempts": previous_failed_attempts,
             },
         )
-        service._session.commit()
-    except Exception:
-        service._session.rollback()
-        raise
-    domain_events.auth_changed.emit(user.id)
+        if previous_failed_attempts > 0 or previous_locked_until is not None:
+            uow.record_event(
+                AccountUnlocked(
+                    user_id=user.id,
+                    tenant_id=service._active_tenant_id_for_event(),
+                    occurred_at=user.updated_at,
+                )
+            )
+        uow.commit()
     refresh_current_session_if_user(service, user.id)
     return user
 

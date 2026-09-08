@@ -617,6 +617,8 @@ def _make_tenant_caller_session(services, *, tenant_id: str):
         tenant_context_service=viewer_tenant_context_service,
         role_binding_repo=auth._role_binding_repo,
         overview_rollup_reader=auth._overview_rollup_reader,
+        transactional_dispatcher=auth._transactional_dispatcher,
+        post_commit_bus=auth._post_commit_bus,
     ), viewer.id
 
 
@@ -690,6 +692,8 @@ def test_service_tenant_caller_requires_permission(services):
         role_permission_repo=auth._role_permission_repo,
         user_session=no_perms_session,
         overview_rollup_reader=auth._overview_rollup_reader,
+        transactional_dispatcher=auth._transactional_dispatcher,
+        post_commit_bus=auth._post_commit_bus,
     )
 
     with pytest.raises(BusinessRuleError):

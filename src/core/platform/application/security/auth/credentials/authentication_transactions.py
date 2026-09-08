@@ -4,13 +4,17 @@ import logging
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
-from src.core.shared.events.domain_events import domain_events
 from src.core.platform.domain.security.auth import AuthSession
+from src.core.platform.domain.security.auth.events import (
+    AccountLocked,
+    AccountUnlocked,
+    AuthenticationFailureRecorded,
+)
 from src.core.platform.domain.security.auth.login_security_policy import (
     login_lockout_minutes,
     login_lockout_threshold,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
 
 from src.core.platform.application.security.auth.audit.audit_recorder import add_atomic_auth_event
 from src.core.platform.application.security.auth.session.session_service import refresh_current_session_if_user
@@ -178,6 +182,8 @@ def complete_successful_authentication(
     auth_method: str,
     device_label: str | None,
 ) -> None:
+    previous_failed_attempts = user.failed_login_attempts
+    previous_locked_until = user.locked_until
     try:
         last_active_tenant_id, last_active_organization_id = (
             _resolve_last_active_context(service, user)
@@ -203,36 +209,44 @@ def complete_successful_authentication(
             service._auth_session_repo.add(auth_session)
         else:
             user.active_session_id = None
-        service._user_repo.update(user)
-        add_atomic_auth_event(
-            service,
-            action="auth.login.success",
-            username=user.username,
-            user_id=user.id,
-            outcome="success",
-            tenant_id=last_active_tenant_id,
-            organization_id=last_active_organization_id,
-            entity_id=user.active_session_id,
-            details={
-                "result": "ok",
-                "auth_method": auth_method,
-                "identity_provider": str(
-                    getattr(user, "identity_provider", "") or ""
-                ),
-                "device_label": str(
-                    getattr(user, "last_login_device_label", "") or ""
-                ),
-                "session_expires_at": (
-                    user.session_expires_at.isoformat()
-                    if user.session_expires_at
-                    else ""
-                ),
-                "target_user_id": user.id,
-            },
-        )
-        service._session.commit()
+        with service._uow() as uow:
+            service._user_repo.update(user)
+            add_atomic_auth_event(
+                service,
+                action="auth.login.success",
+                username=user.username,
+                user_id=user.id,
+                outcome="success",
+                tenant_id=last_active_tenant_id,
+                organization_id=last_active_organization_id,
+                entity_id=user.active_session_id,
+                details={
+                    "result": "ok",
+                    "auth_method": auth_method,
+                    "identity_provider": str(
+                        getattr(user, "identity_provider", "") or ""
+                    ),
+                    "device_label": str(
+                        getattr(user, "last_login_device_label", "") or ""
+                    ),
+                    "session_expires_at": (
+                        user.session_expires_at.isoformat()
+                        if user.session_expires_at
+                        else ""
+                    ),
+                    "target_user_id": user.id,
+                },
+            )
+            if previous_failed_attempts > 0 or previous_locked_until is not None:
+                uow.record_event(
+                    AccountUnlocked(
+                        user_id=user.id,
+                        tenant_id=last_active_tenant_id,
+                        occurred_at=occurred_at,
+                    )
+                )
+            uow.commit()
     except Exception as exc:
-        service._session.rollback()
         logger.exception(
             "Successful authentication rolled back because audit persistence "
             "failed user_id=%s",
@@ -242,7 +256,6 @@ def complete_successful_authentication(
             "Authentication could not be completed securely. Please try again.",
             code="AUTH_AUDIT_UNAVAILABLE",
         ) from exc
-    domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
 
 
@@ -255,47 +268,96 @@ def register_failed_login(
     reason: str = "invalid_credentials",
     auth_method: str = "password",
 ) -> None:
-    try:
-        tenant_id, organization_id = _resolve_last_active_context(service, user)
-        user.failed_login_attempts = (
-            int(getattr(user, "failed_login_attempts", 0) or 0) + 1
+    """Records this failed attempt against the account's durable lockout state, atomically
+    with its own required audit entry. Two concurrent failed logins against the same account
+    race on `UserAccount`'s real CAS (`update_with_version_check`); the loser gets exactly one
+    bounded retry -- reload the latest state, reapply THIS attempt's increment against it, retry
+    the commit once. A second conflict (or any other failure) propagates as a canonical security
+    failure -- this attempt's state and audit are never silently discarded, unlike the prior
+    bare-except-and-return behavior every other Auth mutation function in this module never
+    had."""
+    tenant_id, organization_id = _resolve_last_active_context(service, user)
+    max_attempts = 2
+    for attempt_number in range(1, max_attempts + 1):
+        if attempt_number > 1:
+            reloaded = service._user_repo.get(user.id)
+            if reloaded is None:
+                raise BusinessRuleError(
+                    "The account no longer exists.",
+                    code="AUTH_USER_NOT_FOUND",
+                )
+            user = reloaded
+        previous_failed_attempts = int(getattr(user, "failed_login_attempts", 0) or 0)
+        user.failed_login_attempts = previous_failed_attempts + 1
+        threshold = login_lockout_threshold()
+        crosses_threshold = (
+            previous_failed_attempts < threshold
+            and user.failed_login_attempts >= threshold
         )
-        if user.failed_login_attempts >= login_lockout_threshold():
+        if user.failed_login_attempts >= threshold:
             user.locked_until = occurred_at + timedelta(
                 minutes=login_lockout_minutes()
             )
         user.updated_at = occurred_at
-        service._user_repo.update(user)
-        add_atomic_auth_event(
-            service,
-            action="auth.login.failed",
-            username=username,
-            user_id=user.id,
-            outcome="denied",
-            tenant_id=tenant_id,
-            organization_id=organization_id,
-            details={
-                "reason": reason,
-                "auth_method": auth_method,
-                "failed_attempts": user.failed_login_attempts,
-                "locked_until": (
-                    user.locked_until.isoformat()
-                    if user.locked_until is not None
-                    else ""
-                ),
-            },
-        )
-        service._session.commit()
-    except Exception:
-        service._session.rollback()
-        logger.exception(
-            "Authentication failure state and audit persistence rolled back "
-            "user_id=%s reason=%s",
-            user.id,
-            reason,
-        )
-        return
-    domain_events.auth_changed.emit(user.id)
+        try:
+            with service._uow() as uow:
+                service._user_repo.update(user)
+                add_atomic_auth_event(
+                    service,
+                    action="auth.login.failed",
+                    username=username,
+                    user_id=user.id,
+                    outcome="denied",
+                    tenant_id=tenant_id,
+                    organization_id=organization_id,
+                    details={
+                        "reason": reason,
+                        "auth_method": auth_method,
+                        "failed_attempts": user.failed_login_attempts,
+                        "locked_until": (
+                            user.locked_until.isoformat()
+                            if user.locked_until is not None
+                            else ""
+                        ),
+                    },
+                )
+                if crosses_threshold and user.locked_until is not None:
+                    uow.record_event(
+                        AccountLocked(
+                            user_id=user.id,
+                            tenant_id=tenant_id,
+                            locked_until=user.locked_until,
+                            failed_attempts=user.failed_login_attempts,
+                            occurred_at=occurred_at,
+                        )
+                    )
+                else:
+                    uow.record_event(
+                        AuthenticationFailureRecorded(
+                            user_id=user.id,
+                            tenant_id=tenant_id,
+                            failed_attempts=user.failed_login_attempts,
+                            occurred_at=occurred_at,
+                        )
+                    )
+                uow.commit()
+            break
+        except ConcurrencyError:
+            if attempt_number >= max_attempts:
+                logger.exception(
+                    "Authentication failure state could not be persisted after a "
+                    "concurrent-write retry user_id=%s reason=%s",
+                    user.id,
+                    reason,
+                )
+                raise
+            logger.info(
+                "Authentication failure state retrying after a concurrent write "
+                "user_id=%s reason=%s",
+                user.id,
+                reason,
+            )
+            continue
     if user.locked_until is not None:
         logger.warning(
             "User '%s' locked out until %s after %s failed attempts.",

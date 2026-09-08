@@ -24,6 +24,11 @@ class _FailingPlatformAuditWriter:
 
 
 def _build_auth_service(session) -> tuple[AuthService, RepositoryBundle]:
+    from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+    from src.infra.events.in_process_transactional_event_dispatcher import (
+        InProcessTransactionalEventDispatcher,
+    )
+
     repositories = build_repository_bundle(session)
     return (
         AuthService(
@@ -35,6 +40,8 @@ def _build_auth_service(session) -> tuple[AuthService, RepositoryBundle]:
             role_binding_repo=repositories.role_binding_repo,
             auth_session_repo=repositories.auth_session_repo,
             user_tenant_repo=repositories.user_tenant_repo,
+            transactional_dispatcher=InProcessTransactionalEventDispatcher(),
+            post_commit_bus=InProcessPostCommitEventBus(),
         ),
         repositories,
     )

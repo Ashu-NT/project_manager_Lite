@@ -77,16 +77,22 @@ def test_tenant_membership_service_still_emits_no_auth_changed():
     assert "auth_changed" not in source
 
 
-def test_exactly_two_production_auth_changed_subscribers_remain():
-    """Structural re-confirmation of the full consumer inventory -- both are retained (for the
-    22 other, non-RoleBinding/non-membership producers), neither was touched by this closeout."""
+def test_zero_auth_changed_subscribers_remain():
+    """P46B: `auth_changed` and every consumer of it are deleted outright -- the admin console's
+    own legacy binder module (`admin_console/domain_event_binder.py`) no longer exists at all,
+    and the access workspace controller no longer references `domain_events` in any form. Both
+    now react to the canonical `account_security`/`authorization_context` ViewInvalidation
+    targets instead (see `context.py`'s composition wiring)."""
+    import importlib
     import inspect
 
-    import src.ui_qml.platform.controllers.admin_console.domain_event_binder as binder_module
     import src.ui_qml.platform.controllers.identity_access.access.access_workspace_controller as access_module
 
-    assert "domain_events.auth_changed" in inspect.getsource(binder_module)
-    assert "domain_events.auth_changed" in inspect.getsource(access_module)
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module(
+            "src.ui_qml.platform.controllers.admin_console.domain_event_binder"
+        )
+    assert "domain_events" not in inspect.getsource(access_module)
 
 
 # ---------------------------------------------------------------------------

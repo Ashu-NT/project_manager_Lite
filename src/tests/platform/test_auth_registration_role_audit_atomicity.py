@@ -13,6 +13,9 @@ from src.core.platform.domain.security.authorization.roles import (
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
     AuditEntryORM,
 )
+from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
+    SqlAlchemyAuditRepository,
+)
 from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
 from src.core.platform.domain.tenant.tenancy.tenant import Tenant
 from src.infra.composition.repositories import (
@@ -79,6 +82,11 @@ def _register_tenant_identity(services, username: str):
 def _build_bootstrap_auth(
     session,
 ) -> tuple[AuthService, RepositoryBundle]:
+    from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+    from src.infra.events.in_process_transactional_event_dispatcher import (
+        InProcessTransactionalEventDispatcher,
+    )
+
     repositories = build_repository_bundle(session)
     auth = AuthService(
         session=session,
@@ -88,6 +96,8 @@ def _build_bootstrap_auth(
         role_permission_repo=repositories.role_permission_repo,
         role_binding_repo=repositories.role_binding_repo,
         security_audit_repo=repositories.audit_entry_repo,
+        transactional_dispatcher=InProcessTransactionalEventDispatcher(),
+        post_commit_bus=InProcessPostCommitEventBus(),
     )
     return auth, repositories
 
@@ -136,13 +146,22 @@ def test_canonical_role_assignment_rolls_back_when_security_audit_fails(
     services,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # P5D-1/RoleGovernance convergence: `assign_role`/`revoke_role` now delegate to
+    # `RoleGovernanceService`, which opens its own `RoleGovernanceUnitOfWork` (a fresh
+    # `SqlAlchemyAuditRepository` instance per call, not `AuthService._security_audit_repo`) --
+    # fail-injection must target the repository CLASS so it reaches whichever instance the UoW
+    # constructs, matching this codebase's own established rollback-hardening pattern.
     auth = services["auth_service"]
     target = _register_tenant_identity(
         services,
         "atomic-role-assignment-target",
     )
     role = auth._require_role_by_name("planner")
-    _fail_tenant_audit(services, monkeypatch)
+
+    def _raise(*_args, **_kwargs) -> None:
+        raise RuntimeError("tenant security audit unavailable")
+
+    monkeypatch.setattr(SqlAlchemyAuditRepository, "add_for_tenant", _raise)
 
     with pytest.raises(RuntimeError, match="tenant security audit unavailable"):
         auth.assign_role(target.id, role.name)
@@ -161,6 +180,8 @@ def test_canonical_role_revocation_rolls_back_when_security_audit_fails(
     services,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # Same retarget as the assignment test above -- `revoke_role` also delegates to
+    # `RoleGovernanceService.revoke_role_binding`, not `AuthService._security_audit_repo`.
     auth = services["auth_service"]
     target = _register_tenant_identity(
         services,
@@ -168,7 +189,11 @@ def test_canonical_role_revocation_rolls_back_when_security_audit_fails(
     )
     role = auth._require_role_by_name("planner")
     auth.assign_role(target.id, role.name)
-    _fail_tenant_audit(services, monkeypatch)
+
+    def _raise(*_args, **_kwargs) -> None:
+        raise RuntimeError("tenant security audit unavailable")
+
+    monkeypatch.setattr(SqlAlchemyAuditRepository, "add_for_tenant", _raise)
 
     with pytest.raises(RuntimeError, match="tenant security audit unavailable"):
         auth.revoke_role(target.id, role.name)
@@ -325,6 +350,13 @@ def test_bootstrap_role_repair_rolls_back_when_system_audit_fails(
 
 
 def test_idempotent_canonical_role_operations_do_not_emit_audit(services) -> None:
+    # P46B: registration's own RoleBinding grant now records its own canonical
+    # `auth.role.binding.assigned` audit entry (via `create_role_binding_using`, the same
+    # shared mechanics `RoleGovernanceService.assign_role` uses) -- a real, disclosed
+    # improvement over the prior raw `role_binding_repo.add(...)` with no per-binding audit at
+    # all. This test's own intent -- that the SUBSEQUENT, genuinely idempotent `assign_role`/
+    # `revoke_role` calls below do not emit a SECOND audit entry -- is unaffected: exactly one
+    # `auth.role.binding.assigned` audit is expected (from registration itself), not zero.
     auth = services["auth_service"]
     tenant_id = services["tenant_context_service"].get_active_tenant_id()
     target = auth.register_user(
@@ -334,14 +366,25 @@ def test_idempotent_canonical_role_operations_do_not_emit_audit(services) -> Non
         tenant_id=tenant_id,
     )
 
+    assigned_before_idempotent_calls = len(
+        _matching_target_audits(
+            services,
+            target_user_id=target.id,
+            action="auth.role.binding.assigned",
+        )
+    )
+    assert assigned_before_idempotent_calls == 1
+
     auth.assign_role(target.id, "viewer")
     auth.revoke_role(target.id, "planner")
 
-    assert _matching_target_audits(
-        services,
-        target_user_id=target.id,
-        action="auth.role.binding.assigned",
-    ) == []
+    assert len(
+        _matching_target_audits(
+            services,
+            target_user_id=target.id,
+            action="auth.role.binding.assigned",
+        )
+    ) == assigned_before_idempotent_calls
     assert _matching_target_audits(
         services,
         target_user_id=target.id,

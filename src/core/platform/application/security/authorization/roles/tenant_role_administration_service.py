@@ -31,6 +31,7 @@ from src.core.platform.domain.security.authorization.roles import ROLE_SCOPE_TEN
 from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
     DEFAULT_ROLE_PERMISSIONS,
 )
+from src.core.platform.domain.security.authorization.roles import RoleBindingTenantScope
 from src.core.platform.domain.security.authorization.enforcement.sod import SeparationOfDutiesPolicy
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
@@ -43,7 +44,15 @@ from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
     UserTenantMembershipRepository,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
-from src.core.shared.events.domain_events import domain_events
+from src.core.platform.domain.security.auth.events import (
+    CustomRoleCreated,
+    CustomRoleRetired,
+    CustomRoleUpdated,
+)
+from src.core.platform.application.security.auth.unit_of_work import auth_unit_of_work
+from src.core.platform.application.security.authorization.roles.role_binding_mutation_participant import (
+    revoke_role_binding_using,
+)
 
 from src.core.platform.application.security.authorization.roles.role_scope_policy import is_platform_role
 
@@ -77,7 +86,11 @@ class TenantRoleAdministrationService:
         user_session: UserSessionContext,
         tenant_context_service: TenantContextService,
         sod_policy: SeparationOfDutiesPolicy | None = None,
+        transactional_dispatcher,
+        post_commit_bus,
     ) -> None:
+        from src.infra.time.system_clock import SystemClock
+
         self._session = session
         self._role_repo = role_repo
         self._role_binding_repo = role_binding_repo
@@ -90,6 +103,16 @@ class TenantRoleAdministrationService:
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
         self._sod_policy = sod_policy or SeparationOfDutiesPolicy()
+        self._transactional_dispatcher = transactional_dispatcher
+        self._post_commit_bus = post_commit_bus
+        self._clock = SystemClock()
+
+    def _uow(self):
+        return auth_unit_of_work(
+            session=self._session,
+            transactional_dispatcher=self._transactional_dispatcher,
+            post_commit_bus=self._post_commit_bus,
+        )
 
     def list_custom_roles(self) -> list[Role]:
         _, tenant_id = self._require_role_administrator(
@@ -129,36 +152,41 @@ class TenantRoleAdministrationService:
         permissions = self._validate_permissions(permission_codes)
 
         try:
-            self._role_repo.add(role)
-            for permission in permissions.values():
-                self._role_permission_repo.add(
-                    RolePermissionBinding.create(
+            with self._uow() as uow:
+                self._role_repo.add(role)
+                for permission in permissions.values():
+                    self._role_permission_repo.add(
+                        RolePermissionBinding.create(
+                            role_id=role.id,
+                            permission_id=permission.id,
+                        )
+                    )
+                self._record_audit(
+                    actor=actor,
+                    tenant_id=tenant_id,
+                    role=role,
+                    operation="create",
+                    action="auth.custom_role.created",
+                    metadata={
+                        "permission_codes": sorted(permissions),
+                        "policy_version": role.policy_version,
+                        "is_assignable": role.is_assignable,
+                    },
+                )
+                uow.record_event(
+                    CustomRoleCreated(
                         role_id=role.id,
-                        permission_id=permission.id,
+                        tenant_id=tenant_id,
+                        policy_version=role.policy_version,
+                        occurred_at=datetime.now(timezone.utc),
                     )
                 )
-            self._record_audit(
-                actor=actor,
-                tenant_id=tenant_id,
-                role=role,
-                operation="create",
-                action="auth.custom_role.created",
-                metadata={
-                    "permission_codes": sorted(permissions),
-                    "policy_version": role.policy_version,
-                    "is_assignable": role.is_assignable,
-                },
-            )
-            self._session.commit()
+                uow.commit()
         except IntegrityError as exc:
-            self._session.rollback()
             raise BusinessRuleError(
                 "A custom role with this name already exists in the tenant.",
                 code="CUSTOM_ROLE_NAME_CONFLICT",
             ) from exc
-        except Exception:
-            self._session.rollback()
-            raise
         return role
 
     def update_custom_role(
@@ -213,7 +241,7 @@ class TenantRoleAdministrationService:
             if updated_codes != previous_codes
             else set()
         )
-        try:
+        with self._uow() as uow:
             if not self._role_repo.update_custom(
                 candidate,
                 expected_policy_version=expected_version,
@@ -251,13 +279,15 @@ class TenantRoleAdministrationService:
                     "revoked_session_count": revoked_session_count,
                 },
             )
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-
-        for user_id in affected_user_ids:
-            domain_events.auth_changed.emit(user_id)
+            uow.record_event(
+                CustomRoleUpdated(
+                    role_id=candidate.id,
+                    tenant_id=tenant_id,
+                    policy_version=candidate.policy_version,
+                    occurred_at=candidate.updated_at,
+                )
+            )
+            uow.commit()
         return candidate
 
     def retire_custom_role(
@@ -293,7 +323,7 @@ class TenantRoleAdministrationService:
             current.id,
             tenant_id=tenant_id,
         )
-        try:
+        with self._uow() as uow:
             if not self._role_repo.update_custom(
                 retired,
                 expected_policy_version=expected_version,
@@ -302,13 +332,29 @@ class TenantRoleAdministrationService:
                     "The custom role was updated by another administrator.",
                     code="CUSTOM_ROLE_STALE",
                 )
-            revoked_binding_count = (
-                self._role_binding_repo.revoke_active_for_role(
-                    current.id,
-                    tenant_id,
-                    revoked_at=retired_at,
-                )
+            # Replaces the prior direct bulk-SQL `revoke_active_for_role` bypass (which updated
+            # rows with only a bulk count in the audit metadata, no per-binding audit/event
+            # evidence at all) with the same canonical, transaction-neutral per-binding function
+            # `RoleGovernanceService.revoke_role_binding` and `TenantMembershipService`'s own
+            # cascade already use -- one real `RoleBindingRevoked` fact per binding actually
+            # revoked, not a fabricated bulk event.
+            active_bindings = self._role_binding_repo.list_active_for_role(
+                current.id,
+                tenant_id=tenant_id,
             )
+            for binding in active_bindings:
+                revoke_role_binding_using(
+                    role_bindings_repo=self._role_binding_repo,
+                    audit_repo=self._audit_repo,
+                    clock=self._clock,
+                    record_event=uow.record_event,
+                    binding=binding,
+                    domain_scope=RoleBindingTenantScope(tenant_id=tenant_id),
+                    actor=actor,
+                    audit_action="auth.custom_role.binding_revoked",
+                    audit_metadata_extra={"role_retirement": True},
+                )
+            revoked_binding_count = len(active_bindings)
             revoked_session_count = self._revoke_tenant_sessions(
                 affected_user_ids,
                 tenant_id=tenant_id,
@@ -327,13 +373,15 @@ class TenantRoleAdministrationService:
                     "revoked_session_count": revoked_session_count,
                 },
             )
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-
-        for user_id in affected_user_ids:
-            domain_events.auth_changed.emit(user_id)
+            uow.record_event(
+                CustomRoleRetired(
+                    role_id=retired.id,
+                    tenant_id=tenant_id,
+                    policy_version=retired.policy_version,
+                    occurred_at=retired_at,
+                )
+            )
+            uow.commit()
         return retired
 
     def _require_role_administrator(self, *, operation_label: str):

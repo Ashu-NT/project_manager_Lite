@@ -3,9 +3,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.domain.security.auth.credentials.passwords import hash_password, verify_password
+from src.core.platform.domain.security.auth.events import PasswordChangeType, PasswordChanged
 from src.core.platform.common.exceptions import ValidationError
 
 from src.core.platform.application.security.auth.session.session_service import refresh_current_session_if_user, revoke_all_persisted_sessions
@@ -43,8 +43,8 @@ def change_password(service: AuthService, user_id: str, current_password: str, n
         service,
         user,
         action="password.change",
+        change_type=PasswordChangeType.CHANGED,
     )
-    domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
 
 
@@ -64,8 +64,8 @@ def force_user_password_reset(service: AuthService, user_id: str) -> None:
         service,
         user,
         action="password.force_reset",
+        change_type=PasswordChangeType.FORCE_RESET_REQUIRED,
     )
-    domain_events.auth_changed.emit(user.id)
 
 
 def reset_user_password(service: AuthService, user_id: str, new_password: str) -> UserAccount:
@@ -88,8 +88,8 @@ def reset_user_password(service: AuthService, user_id: str, new_password: str) -
         service,
         user,
         action="password.reset",
+        change_type=PasswordChangeType.RESET,
     )
-    domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
     return user
 
@@ -99,8 +99,10 @@ def _persist_password_mutation(
     user: UserAccount,
     *,
     action: str,
+    change_type: PasswordChangeType,
 ) -> None:
-    try:
+    occurred_at = user.updated_at or datetime.now(timezone.utc)
+    with service._uow() as uow:
         service._user_repo.update(user)
         add_atomic_security_audit(
             service,
@@ -111,10 +113,15 @@ def _persist_password_mutation(
             severity="high",
             field="password",
         )
-        service._session.commit()
-    except Exception:
-        service._session.rollback()
-        raise
+        uow.record_event(
+            PasswordChanged(
+                user_id=user.id,
+                tenant_id=service._active_tenant_id_for_event(),
+                change_type=change_type,
+                occurred_at=occurred_at,
+            )
+        )
+        uow.commit()
 
 
 __all__ = ["change_password", "force_user_password_reset", "reset_user_password"]

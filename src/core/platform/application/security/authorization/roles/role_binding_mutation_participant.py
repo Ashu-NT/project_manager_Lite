@@ -111,7 +111,7 @@ def create_role_binding_using(
     record_event: Callable[[object], None],
     principal_id: str,
     role_id: str,
-    tenant_id: str,
+    tenant_id: str | None,
     scope_type: str,
     scope_id: str | None,
     domain_scope: RoleBindingScope,

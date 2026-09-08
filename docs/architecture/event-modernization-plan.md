@@ -5152,6 +5152,444 @@ transition that isn't really an invitation acceptance.
 
 **P46A READY FOR REVIEW — FINAL AUTH MODERNIZATION ARCHITECTURE DESIGNED**
 
+### P46A-FINAL-CLOSURE — Resolve AuthSession, Login, Bootstrap, and Membership Provisioning Before Final Implementation (COMPLETE)
+
+**All six P46A research forks reconfirmed terminal** (5 from the initial P46A pass, all COMPLETED
+with material findings already incorporated above; the test-baseline fork's own two direct-write
+excursions — one test-only regression fix, one addition to this document — were disclosed,
+independently verified correct, and left in place). No fork remained running when this closure
+began.
+
+**Test baseline, final classification**: 468 tests. Initially 465 passed/3 failed; currently
+**466 passed / 2 failed** — one of the three initial failures was fixed test-only during the
+original P46A pass (disclosed then), and this closure pass made NO further test changes (per its
+own "Tests: NO" restriction), so the remaining two stay red on purpose, not by oversight. Directly
+re-run and reconfirmed at the start of this closure pass: `python -m pytest test_auth_registration_
+role_audit_atomicity.py test_phase_b_session_permissions.py -q` → 2 failed, 16 passed. All three
+original failures reclassified precisely: (1) and (2) `test_auth_registration_role_audit_
+atomicity.py`'s `test_canonical_role_assignment_rolls_back_when_security_audit_fails`/`test_
+canonical_role_revocation_rolls_back_when_security_audit_fails` — **STALE TEST, still failing,
+correctly not touched this pass** (a production defect it is not): both monkeypatch
+`AuthService._security_audit_repo.add_for_tenant` to raise and expect `assign_role`/`revoke_role_
+binding` to propagate it, but both delegate to `RoleGovernanceService.assign_role`/`revoke_role_
+binding` (confirmed below), which never touches `_security_audit_repo` at all — its own `uow.audit`/
+`uow.commit()` inside the real `RoleGovernanceUnitOfWork` already makes this atomic, just via a
+different, superseded-by-modernization mechanism than the test assumes. Retargeting these two tests'
+mock is itself listed as a required P46B test-debt item below, not fixed here. (3) `test_phase_b_
+session_permissions.py::test_viewer_cannot_manage_resources_costs_tasks_or_assignments` — **a real
+regression in the TEST caused by unrelated, already-completed production hardening, not a current
+production defect**: this session's own earlier P45B work made `set_assignment_allocation`'s
+`expected_version` a required keyword-only argument; this pre-existing, unrelated test file (never
+in any P45B/P45B-CLOSURE/P45B-FINAL-CLEANUP regression batch, since it is an Auth/permissions test
+that incidentally also exercises Task-service calls) called it without one, so a `TypeError` fired
+before the permission check the test actually meant to exercise could even run. This one WAS fixed
+test-only in the original P46A pass (added `expected_version=assignment.version`); confirmed green
+both then and in this closure pass's own re-run above, zero other callers of `set_assignment_
+allocation` affected.
+
+**Login success — exact durable write matrix** (`complete_successful_authentication`,
+`authentication_transactions.py:173-246`), classified per-write, not as one generic statement:
+
+| Write | Class | Repository | Transaction owner | Audit | `auth_changed` |
+|---|---|---|---|---|---|
+| `failed_login_attempts = 0` | A — durable security state | `UserRepository` (CAS via `update_with_version_check`) | raw shared `Session`, manual commit | `add_atomic_auth_event` | after commit |
+| `locked_until = None` | A — durable security state | same | same | same | same |
+| `last_login_at`/`last_login_auth_method`/`last_login_device_label` | A — durable security state | same | same | same | same |
+| `session_expires_at` | A — durable security state (gates every future request) | same | same | same | same |
+| new `AuthSession` row + `active_session_id` | B — technical persisted session support (see AuthSession classification below) | `AuthSessionRepository.add` | same | same | same |
+| `add_atomic_auth_event(action="auth.login.success", ...)` | C — enterprise audit only | `AuditRepository` (via the auth-specific recorder) | same physical commit | — | — |
+
+All six writes commit in ONE physical transaction (raw shared `Session`, one `service._session.
+commit()`); a failure anywhere (including the audit write) rolls back all of them and re-raises
+`BusinessRuleError("AUTH_AUDIT_UNAVAILABLE")` — fail-closed, confirmed by direct re-read of the
+function body, not inferred.
+
+**`UserLoggedIn` durable DomainEvent: NO.** The Class-A writes above (lockout reset, last-login,
+session-expiry) are already covered by the proposed `UserAccountStatusChanged`-family facts (a
+lockout-reset and successful-login are the same underlying "authentication succeeded" business
+fact, not a separate "logged in" concept needing its own event); the Class-B `AuthSession` row is
+technical infrastructure, not a business fact (see below); the Class-C audit write already records
+the activity durably via the mandatory, fail-closed `add_atomic_auth_event` mechanism, with no
+downstream transactional business handler needing a further typed fact to react to. Division of
+responsibility, confirmed exact: **EnterpriseAudit-equivalent (`add_atomic_auth_event`)** owns the
+permanent, queryable historical record of every login attempt (success or failure) as raw activity
+data; **durable account/security DomainEvents** own only the business-meaningful STATE
+TRANSITIONS a login success causes (lockout cleared, failed-counter reset — these are the same
+transition `AccountUnlocked`/`AuthenticationFailureRecorded`'s own inverse already covers, not a
+new event); **the ephemeral `UserSessionContext` notification channel** owns telling the UI a new
+principal/session now exists, entirely separate from both.
+
+**`AuthSession` classification: B — TECHNICAL PERSISTED SESSION INFRASTRUCTURE, not a domain
+security aggregate.** Proven, not assumed, from the actual class definition
+(`domain/security/auth/session.py:71-154`): it carries **no independent business invariant** of
+its own — every field either mirrors `UserAccount` (`session_revision`, checked for equality
+against `UserAccount.session_revision` in `validate_session_principal` — the ACTUAL security gate
+lives on `UserAccount`, not here) or is pure bookkeeping (`device_label`, `last_active_tenant_id`/
+`last_active_organization_id` for "resume where you left off" convenience, `last_validated_at` a
+heartbeat timestamp). It has **no `version` field at all** — a genuine domain aggregate in this
+codebase always has one (see `UserAccount.version`, `Role.policy_version`, `RoleBinding.version`);
+its total absence here is itself evidence this was always meant as a derived record, not an
+aggregate. Its lifecycle is entirely reactive (created on login, mutated only by revoke/touch
+operations that other services initiate), it has no independent commands of its own initiative,
+and its only downstream consumer is the session-validation check itself plus a "list your active
+sessions" read query — no business rule anywhere depends on its historical row content once
+superseded. **Conclusion: AuthSession does not get its own DomainEvent vocabulary.** The
+SECURITY-relevant transition (revoking sessions) is already correctly represented by the proposed
+`UserSessionsRevoked`/`UserSessionPolicyChanged` facts, which are owned by `UserAccount` (the real
+aggregate), not by AuthSession.
+
+**AuthSession operation matrix** (every persisted mutation, current source):
+
+| Operation | File/function | Version/CAS? | Stale-write result | Classification |
+|---|---|---|---|---|
+| Create session | `authentication_transactions.py::complete_successful_authentication` | N/A (new row, unique id) | N/A | SAFE |
+| Revoke all persisted sessions | `session_service.py::revoke_all_persisted_sessions` | No — blind full-row `.update()`, skips already-`revoked_at`-set rows | `revoked_at` only ever transitions `None → timestamp`, never reverses | BLIND BUT INTENTIONALLY MONOTONIC — safe |
+| Revoke one session | `session_service.py::revoke_session` | No — same blind `.update()` | Same monotonic transition | BLIND BUT INTENTIONALLY MONOTONIC — safe |
+| Revoke tenant-scoped sessions (role/membership cascades) | `tenant_role_administration_service.py::_revoke_tenant_sessions`, `tenant_membership_service.py::_revoke_affected_sessions`, `role_policy_reconciliation_service.py::_invalidate_affected_users` | No — same blind `.update()` | Same monotonic transition | BLIND BUT INTENTIONALLY MONOTONIC — safe |
+| Validation heartbeat | `session_service.py::_touch_session_validation` → repo `touch_validation` | No — but a narrow, single-column `UPDATE`, never touches `revoked_at` | Throttled (60s), last-write-wins on an informational timestamp only | BLIND BUT INTENTIONALLY LAST-WRITE-WINS — safe (not a security gate) |
+| Context persistence (resume tenant/org) | `session_service.py::persist_session_context` → repo `persist_context` | No — narrow, single-purpose `UPDATE`, never touches `revoked_at`/`session_revision` | Last-write-wins on a resume-convenience field only, self-correcting next login | BLIND BUT INTENTIONALLY LAST-WRITE-WINS — safe |
+
+**Exact AuthSession concurrency fix list: NONE are P46B MUST-FIX.** The one genuine, source-
+confirmed risk (not previously this precise) is narrower than "AuthSession has no CAS" implied:
+`SqlAlchemyAuthSessionRepository.update()` (`infrastructure/persistence/repositories/security/
+auth/auth.py:152-167`) is a **full-row blind overwrite** from a read-then-mutate-then-write Python
+object — so a revoke's write (reading the row, then writing ALL fields back) COULD, in a narrow
+race window, clobber a concurrently-landed `touch_validation`/`persist_context` write to
+`last_validated_at`/`last_active_tenant_id` (both of which use their own narrow, column-only
+`UPDATE`s and are themselves never at risk from each other). This can only ever lose an
+informational/convenience field — `revoked_at` and `session_revision` are never written by
+`touch_validation`/`persist_context`, so a security gate can never be silently reversed by this
+race. **Per the brief's own instruction not to add versioning mechanically to monotonic/safe
+operations: no version field is being added to `AuthSession` in P46B.** If ever revisited, the
+correct minimal fix would be narrowing `revoke`'s own write to a column-only `UPDATE` (matching
+`touch_validation`/`persist_context`'s own already-safe shape) rather than adding CAS — deferred,
+not blocking, no observed defect.
+
+**Failed-login silent swallow — exact mechanism** (`authentication_transactions.py::register_
+failed_login`, lines 249-306): the swallowed exception is **generic `Exception`** — a bare
+`except Exception:` at line 289, not narrowed to `ConcurrencyError`/`IntegrityError`/
+`StaleDataError` specifically. It catches whatever `service._user_repo.update(user)`'s CAS check
+raises (a `ConcurrencyError`, confirmed real via `update_with_version_check`) AND any other failure
+in the same block (including the mandatory, fail-closed `add_atomic_auth_event` audit write, which
+itself raises `BusinessRuleError` if unavailable) — rolls back, logs, and **returns silently, with
+no re-raise of any kind**. Security consequence for two concurrent failed logins against the same
+account: the CAS at the storage layer guarantees the row itself is never corrupted (no lost
+update in the database), but the LOSING request's entire failed-attempt increment — its
+contribution toward the lockout threshold, AND its own audit row — **both vanish together**
+(same transaction, same rollback) with **zero signal to the caller that this happened** and
+**zero retry**. Concretely: yes, one failed attempt can disappear; yes, threshold-crossing can be
+missed (if the winning attempt alone doesn't cross the threshold, a legitimate 5th-attempt lockout
+could be delayed to a 6th or later attempt purely due to unlucky timing, not attacker skill); no,
+lockout cannot be permanently bypassed (the next successfully-persisted failed attempt still
+counts correctly, since each write always reads the CURRENT `failed_login_attempts` off a fresh
+read at call time — the loss is of one increment's worth of delay, not of the accumulated total in
+any way that could be exploited beyond a small, timing-dependent lockout delay); the losing
+attempt's audit row is silently lost too, exactly like its state (not asymmetrically — both share
+the identical fate, which is architecturally consistent even though the SILENCE itself is the
+defect).
+
+**Final failed-login concurrency design (P46B MUST-FIX #1)**: reload-reapply-retry, bounded.
+On a `ConcurrencyError` (and only that — not on audit unavailability, which must continue to
+propagate as `BusinessRuleError`, never silently retried past a genuinely unavailable audit
+backend): re-fetch the current `UserAccount` row, reapply THIS failed attempt's increment logic
+(re-run the `failed_login_attempts += 1`/threshold-check against the freshly-read state, not the
+stale in-memory copy), retry the commit. **Exact retry bound: one retry (two total attempts)** —
+matching this codebase's own existing precedent for optimistic-concurrency retry elsewhere (a
+single reload-and-reapply is sufficient for a two-way race under this access pattern; an unbounded
+retry loop is unnecessary and risks masking a genuinely broken audit backend as a concurrency
+loop). If the retry itself also raises (a second, unlikely-but-possible conflict, or the audit
+write failing for a real reason), **propagate the canonical security failure** — never silently
+discard a second time. Final invariant (item 10, reconciled): **no recorded authentication
+attempt — winning or losing — ever silently disappears from both security state and its required
+audit at once because of a stale-write race.** Winning attempt today: state persists, audit
+persists, together, atomically (already correct). Losing attempt today: state and audit BOTH
+vanish together, silently (the defect). After the fix: the losing attempt's state and audit both
+persist too, via the bounded retry — no attempt is ever lost, no password/credential material is
+newly introduced into any audit record by this fix (unchanged from today: only `field`/`old_value`/
+`new_value` labels, never secrets).
+
+**Bootstrap two-commit classification: B — a real, disclosed partial-commit risk, but a NARROW
+one, not the severe kind.** `bootstrap_policy_catalog` (role/permission-DEFINITION seeding —
+`ensure_auth_policy_definitions`, idempotent by construction: it only ever inserts definitions that
+don't yet exist, confirmed by re-reading `default_seed_service.py`'s `ensure_auth_policy_
+definitions`, which checks existence before each insert) commits separately and BEFORE
+`bootstrap_defaults` (admin account + role-binding provisioning) even begins. **Bootstrap
+self-healing: YES for the policy-catalog half (proven — reconciliation and idempotent re-insert
+guards make a second run of `bootstrap_policy_catalog` alone a safe no-op for anything already
+present), and YES for `bootstrap_defaults` itself as a whole** — re-read confirms it is genuinely
+idempotent on the steady state (`admin is not None` and the role binding already exists →
+`authority_changed` stays `False`, zero writes) AND self-repairing on the one partial state that
+CAN occur (admin exists but its role binding is missing — the explicit repair branch). The only
+state a crash between the two commits can leave is "policy definitions exist, admin does not yet" —
+and the VERY NEXT application startup re-runs both `bootstrap_policy_catalog` (no-op, already
+seeded) then `bootstrap_defaults` (creates the still-missing admin, since `admin is None` is still
+true) — **deterministically converging to the correct final state on the next run, with no
+duplicate-insert risk (uniqueness constraints on policy definitions and the admin username both
+guard against a double-write even under a race) and no partial-account/partial-binding residue
+possible at any point in that convergence.** **Final bootstrap transaction plan: TWO INDEPENDENT,
+IDEMPOTENT TRANSACTIONS may stay as-is** — not a P46B MUST-FIX, because self-healing is proven, not
+assumed; converging them into one transaction would be a purely cosmetic simplification, not a
+correctness fix. (Downgraded from P46A's own earlier, more cautious "P46B should consider" framing,
+now that self-healing has been traced and proven rather than merely inferred from the commit
+boundaries alone.)
+
+**Direct Membership provisioning semantics: A — SYSTEM-PROVISIONED MEMBERSHIP, a legitimate,
+separate, first-class aggregate state — not equivalent to an accepted invitation, and not
+architecturally wrong.** Confirmed from the aggregate itself
+(`domain/tenant/tenancy/user_tenant_membership.py:281`): `UserTenantMembership.create(...)` is an
+ALREADY-EXISTING, separate constructor from `.invite(...)`, producing a membership with `status=
+MEMBERSHIP_STATUS_ACTIVE` directly — this is not a bypass or a hack, it is a recognized,
+first-class aggregate creation path that simply has never had its own typed fact. `Tenant
+MembershipActivated` (`tenant_membership_service.py:283-313`, `_accept_membership`) is anchored
+explicitly and only to the `invited → active` aggregate transition (`membership.accept_
+invitation()`), and its own docstring states it is "never emitted for reinvite/issue_invitation" —
+reusing it for a direct-create would misrepresent a transition that never actually happened
+(no invitation was ever extended or accepted). **Final Membership typed fact: introduce a new,
+honest fact — `TenantMembershipProvisioned`** (system/admin-direct grant, no invitation flow
+involved) — option B from the brief's own menu, not A (reusing `Activated` would be dishonest,
+per the aggregate's own anchoring) and not C (direct creation is not architecturally wrong; it is
+a real, pre-existing, first-class constructor). Do not route registration/bootstrap through a
+fabricated invite-then-accept round-trip for a real feature (admin-direct account creation with
+immediate access) that has no actual invitation in it.
+
+**Membership transaction participant/UoW design**: the exact existing infrastructure already
+fits this need with zero new UoW classes required. `TenantMembershipUnitOfWork`/
+`TenantMembershipUnitOfWorkFactory` (`contract/uow/tenant_membership_unit_of_work.py:21-36`)
+already expose named accessors for **`memberships`, `users`, `tenants`, `roles`, `role_bindings`,
+`auth_sessions`, `audit`, `session`** — i.e., every repository registration/bootstrap actually
+needs (User creation via `uow.users`, Membership via `uow.memberships`, RoleBinding via `uow.
+role_bindings` + the shared `create_role_binding_using` participant function) already lives behind
+ONE existing, purpose-built protocol. **Final design: registration/bootstrap's `_create_user`
+should acquire a `TenantMembershipUnitOfWork` (via its existing factory) as its top-level
+transaction, construct the `UserAccount` via `uow.users.add(...)`, the `UserTenantMembership` via
+`UserTenantMembership.create(...)` + `uow.memberships.add(...)` + `uow.record_event(TenantMembership
+Provisioned(...))` (the new fact above), and each `RoleBinding` via the SAME shared, transaction-
+neutral `create_role_binding_using(role_bindings_repo=uow.role_bindings, audit_repo=uow.audit,
+clock=..., record_event=uow.record_event, ...)` function `RoleGovernanceService.assign_role` and
+`TenantMembershipService._ensure_default_role_bindings` already both reuse — never a new,
+Auth-owned RoleBinding-creation code path.** This is not a hypothetical shape: `_ensure_default_
+role_bindings` (`tenant_membership_service.py:787-816`) is the LIVE, working precedent for exactly
+this pattern (a non-admin-delegation, system-issued default grant reusing the canonical mechanics
+without the interactive-admin delegation/SoD checks) — registration/bootstrap's RoleBinding
+creation should call the identical shared function the identical way. **RoleGovernanceService does
+NOT own Membership** (confirmed: `RoleGovernanceUnitOfWork` has no `memberships` accessor at all,
+by design — its own transactions never touch TenantMembership) — the `TenantMembershipUnitOfWork`
+above is the correct, already-existing home for the combined write, not a new "mega-UoW."
+
+**RoleGovernance UoW — exact, fully resolved (no more "reuse-or-confirm")**: class
+`RoleGovernanceUnitOfWork`/`RoleGovernanceUnitOfWorkFactory`
+(`contract/uow/role_governance_unit_of_work.py`), constructed via `self._uow_factory.create(
+context=self._new_context())` inside `RoleGovernanceService` (`authorization/roles/role_
+governance_service.py`). Named accessors used today: `.roles`, `.tenants`, `.memberships`, `.users`,
+`.role_bindings`, `.role_delegation_policies`, `.permissions`, `.role_permissions`, `.audit`,
+`.session`, `.record_event`, `.commit()`. Current callers: `RoleGovernanceService.assign_role`/
+`revoke_role_binding`/`create_delegation_policy`/`revoke_delegation_policy` — all four already
+canonical, real, atomic, typed-event-recording. The two identity/audit/event mechanics functions
+`create_role_binding_using`/`revoke_role_binding_using` (`role_binding_mutation_participant.py`)
+are transaction-neutral (accept `record_event`/`audit_repo`/`role_bindings_repo` as parameters,
+never open or commit a transaction themselves) and are ALREADY reused verbatim by
+`TenantMembershipService`'s own membership-acceptance default-grant and membership-removal
+cascade — confirming this is the established, correct, DRY pattern for every RoleBinding mutation
+site in the entire codebase, not something P46B needs to invent.
+
+**Registration final transaction**: physical transaction owner = a `TenantMembershipUnitOfWork`
+instance (replacing today's raw shared `Session` + `begin_nested()` savepoint). Account
+participant: `uow.users.add(UserAccount.create(...))`. Membership participant: `uow.memberships.
+add(UserTenantMembership.create(...))` + `uow.record_event(TenantMembershipProvisioned(...))`.
+RoleBinding participant: one `create_role_binding_using(...)` call per assigned role (never a loop
+that only writes rows without recording facts) — for N roles assigned at registration, N real
+`RoleBindingAssigned` facts, one per genuine binding, exactly mirroring `_ensure_default_role_
+bindings`'s own one-binding-one-fact shape. EnterpriseAudit: the existing `add_atomic_security_
+audit`/`add_atomic_system_security_audit` calls continue, now inside the same UoW's `session`.
+Typed events: `UserAccountCreated` + `TenantMembershipProvisioned` (only when tenant-scoped) + N ×
+`RoleBindingAssigned`. One commit. No postcommit repair.
+
+**Role retirement final transaction**: `retire_custom_role` should call `revoke_role_binding_
+using(...)` once per binding returned by iterating `role_binding_repo.list_active_for_role(role_id,
+tenant_id)` (mirroring `_revoke_active_role_bindings_for_membership_removal`'s own loop shape
+exactly) INSTEAD of the current single bulk `revoke_active_for_role(...)` SQL statement — same
+transaction as the Role's own `update_custom(..., expected_policy_version=...)` CAS-checked status
+change, same `_revoke_tenant_sessions` session-invalidation call, **one physical commit** (this
+does not change — only the RoleBinding revocation mechanism changes, from one bulk `UPDATE` to N
+calls to the existing per-binding function within the same already-open transaction). Role
+retirement events: `CustomRoleRetired` (new, on the `Role` aggregate) + N × `RoleBindingRevoked`
+(existing event, reused via the existing function) — never a bulk-count-only audit substitute for
+real per-row facts. This exact anti-pattern (a direct bulk-SQL bypass of the canonical per-binding
+path, audited only by a count) was **already found and fixed once before**, for membership removal
+(`_revoke_active_role_bindings_for_membership_removal`'s own docstring: "Replaces the pre-P5D-1
+direct bulk-SQL `revoke_active_for_principal_tenant` bypass, which updated rows with no audit/
+event evidence at all") — custom-Role retirement's `revoke_active_for_role` is the same anti-
+pattern recurring in a sibling code path that P5D-1 never reached, not a novel design question.
+
+**Final producer classification — SITE-BY-SITE RE-VERIFICATION, not operation-level inference**:
+every one of the 19 sites was re-read function-body-in-full (not just the emit line) and checked
+for any typed-event construction in that exact call path. **Result: unchanged at 19/0/0/0** — this
+was a genuine re-verification, not an assumption carried forward: `authentication_transactions.py`
+(2 sites), `federated_identity_service.py` (1), `mfa_service.py` (3), `password_service.py` (3),
+`bootstrap_service.py` (1 — its RoleBinding self-repair calls raw `role_binding_repo.add(...)`,
+never `create_role_binding_using`), `registration_service.py` (1 — `_assign_roles_for_user` calls
+raw `role_binding_repo.add(...)`, same gap), `user_admin_service.py` (3),
+`session_service.py` (2), `role_policy_reconciliation_service.py` (1), `tenant_role_administration_
+service.py` (2 — `retire_custom_role` calls raw `role_binding_repo.revoke_active_for_role(...)`,
+never `revoke_role_binding_using`) — none constructs or records any typed DomainEvent anywhere in
+its own function body or its own direct callees. **No site qualifies for Class B**: the only two
+sites that COULD have plausibly delegated into the already-typed RoleBinding mutation path
+(bootstrap's repair branch, and custom-Role retirement) both confirmed to bypass it entirely via
+raw repository calls instead — which is precisely WHY they are P46B MUST-FIXES, not evidence of
+existing coverage.
+
+**Final durable Auth/Security event list** (exact, with owning aggregate/triggers/payload):
+
+| Event | Owning aggregate | Triggering operations | Minimal payload |
+|---|---|---|---|
+| `UserAccountCreated` | `UserAccount` | `_create_user` (registration/bootstrap) | `user_id`, `tenant_id` (if any), `account_type` |
+| `UserAccountProfileUpdated` | `UserAccount` | `update_user_profile` | `user_id`, changed field names (never values beyond username/display_name/email) |
+| `UserAccountStatusChanged` | `UserAccount` | `set_user_active` | `user_id`, `is_active` |
+| `AccountLocked` | `UserAccount` | `register_failed_login` (threshold crossed) | `user_id`, `locked_until` |
+| `AccountUnlocked` | `UserAccount` | `unlock_user_account`, OR `complete_successful_authentication` (lockout implicitly cleared) | `user_id` |
+| `AuthenticationFailureRecorded` | `UserAccount` | `register_failed_login` (below threshold) | `user_id`, `failed_attempts` (never the credential itself) |
+| `PasswordChanged` | `UserAccount` | `change_password`/`force_user_password_reset`/`reset_user_password`, `change_type` enum distinguishing them | `user_id`, `change_type` (never the password/hash) |
+| `MfaStatusChanged` | `UserAccount` | `provision_mfa_secret`/`enable_user_mfa`/`disable_user_mfa`, `change_type` enum | `user_id`, `change_type` (never the secret) |
+| `FederatedIdentityLinked` | `UserAccount` | `link_federated_identity` | `user_id`, `identity_provider` (never the subject/token) |
+| `UserSessionPolicyChanged` | `UserAccount` | `set_user_session_policy` | `user_id`, `session_timeout_minutes_override` |
+| `UserSessionsRevoked` | `UserAccount` | `revoke_user_sessions` | `user_id`, `scope="all"` |
+| `TenantMembershipProvisioned` | `UserTenantMembership` | `_create_user` (tenant-scoped registration/bootstrap) | `membership_id`, `tenant_id`, `user_id` |
+| `CustomRoleCreated`/`CustomRoleUpdated`/`CustomRoleRetired` | `Role` | `create_custom_role`/`update_custom_role`/`retire_custom_role` | `role_id`, `tenant_id`, policy version |
+| `RolePolicyReconciled` | system role-policy catalog | `RolePolicyReconciliationService.apply` | `policy_name`, `from_version`, `to_version` |
+| `RoleBindingAssigned`/`RoleBindingRevoked` (EXISTING, reused, never duplicated) | `RoleBinding` | registration/bootstrap grants, custom-Role retirement's per-binding revokes — routed through the SAME existing `create_role_binding_using`/`revoke_role_binding_using` functions | unchanged from current shape |
+
+**Events deliberately omitted, exact list + reason**: `UserLoggedIn` — not created (see the login
+write-matrix section above: already-proposed `UserAccount` facts + the mandatory audit mechanism +
+the ephemeral session channel together cover everything a login success does; no fourth mechanism
+needed). `UserLoggedOut` — not created (no logout function exists in current source at all; the
+closest operations, session revocation, are already covered by `UserSessionsRevoked`). `ActiveTenant
+Changed`/`ActiveOrganizationChanged` — not created (confirmed ephemeral, session-navigation-only,
+never durable business history — `set_active_tenant_id`/`set_active_organization_id` only ever
+invoke the in-memory `_notify_context_changed()` hook). `AuthSession`-created/refreshed events — not
+created (AuthSession is technical infrastructure, not a domain aggregate — see its classification
+above; its lifecycle facts are subsumed by the `UserAccount`-owned facts that actually matter).
+
+**Ephemeral session transport — exact design (unchanged from P46A, reconfirmed, not
+DomainEvent infrastructure)**: extend `UserSessionContext._context_listener`
+(`domain/security/auth/session.py:507-510`, already invoked from `set_principal`/`clear`/`set_
+active_tenant_id`/`set_active_organization_id`/the 30-second revalidation heartbeat) with a
+second, UI-facing listener alongside the existing persistence-only one
+(`AuthService.persist_session_context`) — both fire from the identical `_notify_context_changed()`
+call site, so no new trigger points are needed. Minimal vocabulary: **`principalChanged`**
+(identity itself replaced — new login, or invalidated/cleared), **`activeScopeChanged`** (tenant/
+org switch). Consumers: the two Auth QML controllers (see cutover below) plus, in principle, any
+future shell-level navigation reset — none currently exists beyond the two. Synchronous, in-process
+Qt-safe (the existing `_context_listener` callback already runs synchronously on the same thread
+that calls `set_principal`/`clear`/etc., which in this desktop-first architecture is always the UI
+thread). Not persisted (mirrors the existing listener's own nature — this is application state,
+never written to any table).
+
+**Admin Access workspace final cutover**: `_on_auth_changed` → **`account_security`
+ViewInvalidation target** (its own docstring already states its remaining scope is exactly the
+non-membership Class-A facts — password/MFA/session/custom-role — all of which now map cleanly
+onto `account_security`; its membership half is already separately, correctly cut over to a typed
+Membership ViewInvalidation target from a prior phase, P5D-3, unaffected by this work).
+
+**Admin Console final cutover**: the whole-workspace `_request_domain_refresh()` (today refreshing
+9 sub-views — organizations/calendars/sites/departments/employees/users/parties/documents/
+document-structures — for a `users`-only need) → narrowed to reload **only the `users` sub-view**,
+driven by the same `account_security` target. The other 8 sub-views' subscription to `auth_changed`
+is dropped entirely, with no replacement — they were never really dependent on it.
+
+**Final ViewInvalidation targets, exact meanings, no overlap**: **`account_security`** — per-user
+security posture (locked/active/failed-attempts/MFA-state/password-changed-at/session-policy);
+event families: `UserAccountStatusChanged`, `AccountLocked`, `AccountUnlocked`, `Authentication
+FailureRecorded`, `PasswordChanged`, `MfaStatusChanged`, `FederatedIdentityLinked`, `UserSession
+PolicyChanged`, `UserSessionsRevoked`. **`authorization_context`** — per-user CURRENT-PRINCIPAL
+permission-set staleness (does the viewing user's own effective permission set need
+re-evaluation); event families: `RoleBindingAssigned`/`RoleBindingRevoked` (when the affected
+principal is the current viewer), `CustomRoleUpdated`/`CustomRoleRetired`, `RolePolicyReconciled`.
+Membership/RoleBinding/Entitlement mutations for principals OTHER than the current viewer never
+target `authorization_context` at all — that target is deliberately narrow to the viewing user's
+own authority, never a blanket refresh; `account_security` never carries authorization-context
+facts (Membership/RoleBinding/Role/RolePolicy) and `authorization_context` never carries account
+facts (lockout/password/MFA/session) — the two targets partition the event families with no
+overlap.
+
+**`AccountSecurityUnitOfWork` — exact proposed design**: named repository accessors only —
+`.users` (`UserRepository`), `.auth_sessions` (`AuthSessionRepository`), `.audit`
+(`AuditRepository`/the existing auth-specific audit recorder wrapper), `.session`, `.record_event`,
+`.commit()` — mirroring `TenantMembershipUnitOfWork`'s own exact shape. **Explicitly does NOT
+include** `.memberships`, `.role_bindings`, `.roles`, or `.role_permissions` — those remain owned by
+`TenantMembershipUnitOfWork`/`RoleGovernanceUnitOfWork` respectively, never duplicated here. Used
+by: `complete_successful_authentication`, `register_failed_login` (with the bounded-retry fix),
+`persist_standalone_login_denial`, `link_federated_identity`, `provision_mfa_secret`/`enable_user_
+mfa`/`disable_user_mfa`, `change_password`/`force_user_password_reset`/`reset_user_password`,
+`set_user_active`/`update_user_profile`/`unlock_user_account`, `set_user_session_policy`/`revoke_
+user_sessions`/`revoke_session`. NOT used by: registration/bootstrap (uses `TenantMembership
+UnitOfWork` — needs `.memberships`/`.role_bindings` too), custom-Role administration/role-policy
+reconciliation (uses `RoleGovernanceUnitOfWork` or a close sibling — see below).
+
+**P46B mandatory fixes, final exact list**: (1) `register_failed_login`'s silent swallow → bounded
+reload-reapply-retry (one retry) on `ConcurrencyError` specifically, propagate everything else.
+(2) Registration/bootstrap's `UserAccount`/`TenantMembership`/`RoleBinding` typed-event
+completeness → converge onto `TenantMembershipUnitOfWork` + the new `TenantMembershipProvisioned`
+fact + the existing `create_role_binding_using` function. (3) Bootstrap's own `UserAccount`/
+`RoleBinding` completeness → same mechanism, reused by `bootstrap_defaults`'s repair branch too.
+(4) Custom-Role retirement's N `RoleBindingRevoked` facts → per-binding loop using `revoke_role_
+binding_using`, replacing the bulk-SQL `revoke_active_for_role` call. (5) Raw Auth manual-commit
+transaction convergence → `AccountSecurityUnitOfWork` for the credential/session/account-admin
+surface. (6) Account/session audit atomicity under the canonical UoW → carried forward
+automatically once (5) lands (already atomic today, just not yet UoW-shaped). (7) Transient
+`UserSessionContext` notification → extend `_context_listener` with `principalChanged`/
+`activeScopeChanged`. (8) Both `auth_changed` consumers cut over (Admin Access →
+`account_security`; Admin Console narrowed to `users`-only via the same target). (9) `auth_changed`
+deletion. (10) `DomainEvents`/`domain_events`/`Signal`/`_subscribe_domain_signal`/both Auth binder
+files/the `reset_test_domain_events` fixture deletion. (11) Application zero-legacy guard (below).
+**Explicitly NOT MUST-FIX** (confirmed safe/self-healing, not deferred out of caution): `AuthSession`
+CAS (no version field added — the one real risk only ever loses an informational field, never a
+security gate); bootstrap's two-commit shape (proven self-healing, may converge cosmetically but
+is not required to).
+
+**Required P46B tests, exact list**: concurrent failed-login threshold race (proving the bounded
+retry actually prevents a lost attempt); audit-failure-during-failed-login (confirming the
+distinction between a `ConcurrencyError` retry and a genuine audit-backend failure propagating
+correctly); registration rollback (a failure partway through `UserAccount`+`TenantMembership`+
+N×`RoleBinding` creation leaves zero rows, inside the new single `TenantMembershipUnitOfWork`
+transaction); registration Membership/RoleBinding event completeness (one `TenantMembership
+Provisioned` + exactly N `RoleBindingAssigned`, never zero, never a mismatched count); bootstrap's
+proven self-healing (a forced failure between the two commits, then a second `bootstrap_defaults`
+call converges to the correct final state with no duplicate/partial rows — this test proves what
+this closure pass argued from source, rather than leaving it argued-not-tested); role-retirement
+N-binding revocation (exactly N `RoleBindingRevoked` for N previously-active bindings, one
+`CustomRoleRetired`, one physical commit); `authorization_context` refresh (scoped to the affected
+principal only, never a blanket refresh for an unrelated viewer); `account_security` refresh (both
+consumers, including Admin Console's narrowed single-sub-view reload); `UserSessionContext`
+principal/session notification (`principalChanged`/`activeScopeChanged` fire on login/logout-
+equivalent/tenant-switch, and only then); Admin Console narrow refresh (the other 8 sub-views do
+NOT reload on an `account_security` hint); cross-tenant/cross-org isolation (unchanged behavior,
+reconfirmed); `auth_changed` producers/consumers = 0 (permanent guard); `DomainEvents` production-
+dead/deleted (permanent guard); application zero-legacy guard (below).
+
+**Application zero-legacy guard, exact design**: prefer asserting actual architecture over a
+hard-coded count alone, per the brief's own instruction. Two guards, not one: (1) a structural
+guard — `hasattr(src.core.shared.events, "DomainEvents")` must be `False` after P46B (the class
+itself is gone, not merely empty) — the strongest possible proof, since an empty-but-present class
+could silently regain a field later with no test ever noticing via a field-count check alone.
+(2) a defense-in-depth guard for the (deliberately unlikely, but proven-necessary-to-test)
+scenario where a future contributor reintroduces `DomainEvents` with a new legacy field before
+realizing the class was supposed to be gone: if the module import succeeds, assert `dataclasses.
+fields(DomainEvents) == ()`. Reintroduction-fails-the-guard proof (mirroring every prior module's
+own "hypothetical reintroduction" test): a test that monkeypatches a hypothetical legacy field back
+onto a stand-in class and asserts the guard's own assertion logic actually fails against it —
+proving the guard is not vacuously true, the same standing pattern this document has used for
+every zero-legacy guard since Finance's own.
+
+**P46B implementation shape: ONE PHASE, reconfirmed.** Nothing found in this closure pass changes
+the P46A conclusion — no genuine transport collision exists, every fix above composes cleanly
+within a single phase, and the two now-fully-resolved open questions (RoleGovernance UoW identity,
+Membership provisioning semantics) if anything REDUCE the implementation's uncertainty rather than
+revealing a need to split it.
+
+**P46A-FINAL-CLOSURE completed: YES.**
+
+**P46A FULLY CLOSED — FINAL AUTH IMPLEMENTATION ARCHITECTURE UNAMBIGUOUS**
+
 ## 4. Current State
 
 **Legacy Signal count: 1, as of P45B-CLOSURE** (source-derived from

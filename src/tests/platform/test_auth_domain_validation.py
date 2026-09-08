@@ -36,6 +36,9 @@ class _FakeSession:
     def flush(self) -> None:
         return None
 
+    def close(self) -> None:
+        return None
+
     def commit(self) -> None:
         self.commit_calls += 1
 
@@ -225,21 +228,10 @@ def _make_auth_service(monkeypatch: pytest.MonkeyPatch) -> AuthService:
         "src.core.platform.application.security.auth.credentials.authentication_service.verify_password",
         lambda raw_password, password_hash: password_hash == f"hash::{raw_password}",
     )
-    monkeypatch.setattr(
-        "src.core.platform.application.security.auth.credentials.authentication_transactions.domain_events.auth_changed.emit",
-        lambda *args, **kwargs: None,
-    )
-    monkeypatch.setattr(
-        "src.core.platform.application.security.auth.provisioning.registration_service.domain_events.auth_changed.emit",
-        lambda *args, **kwargs: None,
-    )
-    monkeypatch.setattr(
-        "src.core.platform.application.security.auth.provisioning.user_admin_service.domain_events.auth_changed.emit",
-        lambda *args, **kwargs: None,
-    )
-    monkeypatch.setattr(
-        "src.core.platform.application.security.auth.session.session_service.domain_events.auth_changed.emit",
-        lambda *args, **kwargs: None,
+
+    from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+    from src.infra.events.in_process_transactional_event_dispatcher import (
+        InProcessTransactionalEventDispatcher,
     )
 
     return AuthService(
@@ -253,6 +245,8 @@ def _make_auth_service(monkeypatch: pytest.MonkeyPatch) -> AuthService:
         enterprise_audit_service=None,
         sod_policy=None,
         user_tenant_repo=None,
+        transactional_dispatcher=InProcessTransactionalEventDispatcher(),
+        post_commit_bus=InProcessPostCommitEventBus(),
     )
 
 

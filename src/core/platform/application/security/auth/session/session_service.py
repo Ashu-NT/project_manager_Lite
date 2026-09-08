@@ -4,10 +4,10 @@ import logging
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission
 from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.domain.security.auth import AuthSession
+from src.core.platform.domain.security.auth.events import UserSessionPolicyChanged, UserSessionsRevoked
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import ValidationError
 
@@ -110,7 +110,7 @@ def set_user_session_policy(
     rotate_session_revision(user)
     user.session_expires_at = next_session_expiry(user.updated_at, user=user)
     revoke_all_persisted_sessions(service, user, revoked_at=user.updated_at)
-    try:
+    with service._uow() as uow:
         service._user_repo.update(user)
         add_atomic_security_audit(
             service,
@@ -135,11 +135,15 @@ def set_user_session_policy(
                 "session_revision": user.session_revision,
             },
         )
-        service._session.commit()
-    except Exception:
-        service._session.rollback()
-        raise
-    domain_events.auth_changed.emit(user.id)
+        uow.record_event(
+            UserSessionPolicyChanged(
+                user_id=user.id,
+                tenant_id=service._active_tenant_id_for_event(),
+                session_timeout_minutes_override=user.session_timeout_minutes_override,
+                occurred_at=user.updated_at,
+            )
+        )
+        uow.commit()
     refresh_current_session_if_user(service, user.id)
     return user
 
@@ -161,7 +165,7 @@ def revoke_user_sessions(service: AuthService, user_id: str, *, note: str = "") 
     user.session_expires_at = datetime.now(timezone.utc)
     user.updated_at = user.session_expires_at
     revoke_all_persisted_sessions(service, user, revoked_at=user.updated_at)
-    try:
+    with service._uow() as uow:
         service._user_repo.update(user)
         add_atomic_security_audit(
             service,
@@ -178,11 +182,15 @@ def revoke_user_sessions(service: AuthService, user_id: str, *, note: str = "") 
                 "note": note.strip(),
             },
         )
-        service._session.commit()
-    except Exception:
-        service._session.rollback()
-        raise
-    domain_events.auth_changed.emit(user.id)
+        uow.record_event(
+            UserSessionsRevoked(
+                user_id=user.id,
+                tenant_id=service._active_tenant_id_for_event(),
+                scope="all",
+                occurred_at=user.updated_at,
+            )
+        )
+        uow.commit()
     refresh_current_session_if_user(service, user.id)
     return user
 
@@ -267,7 +275,7 @@ def revoke_session(service: AuthService, session_id: str, *, note: str = "") -> 
     previous_revoked_at = auth_session.revoked_at
     auth_session.revoked_at = revoked_at
     auth_session.updated_at = revoked_at
-    try:
+    with service._uow() as uow:
         service._auth_session_repo.update(auth_session)
         add_atomic_security_audit(
             service,
@@ -289,10 +297,7 @@ def revoke_session(service: AuthService, session_id: str, *, note: str = "") -> 
                 "note": note.strip(),
             },
         )
-        service._session.commit()
-    except Exception:
-        service._session.rollback()
-        raise
+        uow.commit()
     refresh_current_session_if_user(service, auth_session.user_id)
     return auth_session
 
