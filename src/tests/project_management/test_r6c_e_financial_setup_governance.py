@@ -6,8 +6,9 @@ from textwrap import dedent
 from types import SimpleNamespace
 
 import pytest
-from PySide6.QtCore import QObject
+from PySide6.QtCore import QObject, Qt
 from PySide6.QtQml import QQmlComponent
+from PySide6.QtTest import QTest
 
 from src.core.modules.project_management.api.desktop.financials import (
     FinancialChangeCostCodeStatusCommand,
@@ -347,6 +348,52 @@ def test_setup_dialogs_fit_supported_viewports(
     assert 0 < float(dialog.property("height")) <= height
     assert dialog.findChild(QObject, "dialogSubmitButton") is not None
     assert dialog.findChild(QObject, "dialogCancelButton") is not None
+    window.deleteLater()
+    qapp.processEvents()
+
+
+@pytest.mark.parametrize("dialog_type", DIALOGS)
+def test_setup_dialogs_preserve_keyboard_escape_and_focus_return(
+    qapp, dialog_type: str
+) -> None:
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    component.setData(
+        dedent(
+            f"""
+            import QtQuick
+            import QtQuick.Controls
+            ApplicationWindow {{
+                width: 1024; height: 640; visible: true
+                readonly property var setupDialog: loader.item
+                Button {{ id: opener; objectName: "setupDialogOpener"; text: "Open" }}
+                Loader {{
+                    id: loader
+                    source: "{(DIALOG_ROOT / f'{dialog_type}.qml').as_uri()}"
+                    onLoaded: {{
+                        opener.forceActiveFocus()
+                        item.focusReturnTarget = opener
+                        item.open()
+                    }}
+                }}
+            }}
+            """
+        ).encode(),
+        "r6ce-dialog-keyboard.qml",
+    )
+    window = component.create()
+    assert window is not None, "\n".join(error.toString() for error in component.errors())
+    qapp.processEvents()
+    dialog = window.property("setupDialog")
+    opener = window.findChild(QObject, "setupDialogOpener")
+    assert dialog is not None and bool(dialog.property("visible"))
+    assert not bool(opener.property("activeFocus"))
+
+    QTest.keyClick(window, Qt.Key.Key_Escape)
+    qapp.processEvents()
+
+    assert not bool(dialog.property("visible"))
+    assert bool(opener.property("activeFocus"))
     window.deleteLater()
     qapp.processEvents()
 

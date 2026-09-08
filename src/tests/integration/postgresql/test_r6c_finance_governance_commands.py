@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 from decimal import Decimal
+from threading import Event, Thread
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
@@ -40,6 +42,10 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     FinancePageRequest,
 )
 from src.core.platform.common.exceptions import ConcurrencyError
+from src.core.platform.domain.approval import ApprovalStatus
+from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
+    SqlAlchemyApprovalRepository,
+)
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
 )
@@ -797,3 +803,78 @@ def test_forecast_child_tables_deny_foreign_scope_inserts(
     finally:
         session.rollback()
         session.close()
+
+
+def test_approval_decision_read_serializes_concurrent_runtime_transactions(
+    postgres_test_environment,
+) -> None:
+    request_id = f"r6cf-approval-{uuid4()}"
+    now = datetime.now(timezone.utc)
+    with postgres_test_environment.admin_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO approval_requests "
+                "(id, tenant_id, request_type, entity_type, entity_id, organization_id, "
+                "project_id, payload_json, status, requested_at) VALUES "
+                "(:id, :tenant, 'budget.approve', 'project_budget', 'budget-race', "
+                ":organization, :project, '{}', 'PENDING', :now)"
+            ),
+            {
+                "id": request_id,
+                "tenant": TENANT_A,
+                "organization": ORG_A,
+                "project": PROJECT_A,
+                "now": now,
+            },
+        )
+
+    first_session = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_A,
+        organization_id=ORG_A,
+    )
+    first_repo = SqlAlchemyApprovalRepository(first_session)
+    first_repo._tenant_context_service = _TenantContext(TENANT_A, ORG_A)
+    first_request = first_repo.get_for_update(request_id)
+    assert first_request is not None
+    assert first_request.status is ApprovalStatus.PENDING
+
+    second_started = Event()
+    second_finished = Event()
+    observed: list[ApprovalStatus] = []
+    failures: list[BaseException] = []
+
+    def load_after_first_decision() -> None:
+        second_session = postgres_test_environment.runtime_session(
+            tenant_id=TENANT_A,
+            organization_id=ORG_A,
+        )
+        second_repo = SqlAlchemyApprovalRepository(second_session)
+        second_repo._tenant_context_service = _TenantContext(TENANT_A, ORG_A)
+        try:
+            second_started.set()
+            second_request = second_repo.get_for_update(request_id)
+            assert second_request is not None
+            observed.append(second_request.status)
+        except BaseException as exc:  # pragma: no cover - surfaced in main thread
+            failures.append(exc)
+        finally:
+            second_session.rollback()
+            second_session.close()
+            second_finished.set()
+
+    contender = Thread(target=load_after_first_decision, daemon=True)
+    contender.start()
+    assert second_started.wait(timeout=2)
+    assert not second_finished.wait(timeout=0.2)
+
+    first_request.status = ApprovalStatus.REJECTED
+    first_request.decided_at = now
+    first_request.decided_by_user_id = "approver-a"
+    first_repo.update(first_request)
+    first_session.commit()
+    first_session.close()
+
+    assert second_finished.wait(timeout=5)
+    contender.join(timeout=1)
+    assert failures == []
+    assert observed == [ApprovalStatus.REJECTED]

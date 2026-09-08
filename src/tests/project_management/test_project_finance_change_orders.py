@@ -499,6 +499,157 @@ def test_approved_change_atomically_creates_budget_and_forecast_successors(
     assert impacts[forecast_impact.id].applied_reference_id
 
 
+def test_financial_change_requester_cannot_decide_own_request(
+    services,
+) -> None:
+    _login(services, "admin", "ChangeMe123!")
+    project, code, _budget, budget_line, *_ = _seed_approved_finance(services)
+    changes = services["financial_change_service"]
+    change = _draft_change(services, project)
+    changes.add_impact(
+        change.id,
+        impact_type=FinancialChangeImpactType.BUDGET,
+        description="Dual-permission requester proof",
+        amount=Decimal("10"),
+        cost_code_id=code.id,
+        target_line_id=budget_line.id,
+        expected_change_version=change.row_version,
+    )
+    change = changes.get_change(change.id)
+    change = changes.submit_change(
+        change.id,
+        submitted_by=services["user_session"].principal.user_id,
+        expected_version=change.row_version,
+    )
+    approval = services["approval_service"].list_pending(project_id=project.id)[0]
+
+    with pytest.raises(BusinessRuleError) as approve_error:
+        services["approval_service"].approve_and_apply(approval.id)
+    assert approve_error.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
+    with pytest.raises(BusinessRuleError) as reject_error:
+        services["approval_service"].reject(approval.id)
+    assert reject_error.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
+    assert changes.get_change(change.id).status is FinancialChangeStatus.PENDING_APPROVAL
+
+
+@pytest.mark.parametrize(
+    "moved_authorities",
+    (("budget",), ("forecast",), ("budget", "forecast")),
+    ids=("budget", "forecast", "both"),
+)
+def test_change_apply_fails_closed_when_approved_financial_base_moves(
+    services, moved_authorities: tuple[str, ...]
+) -> None:
+    _login(services, "admin", "ChangeMe123!")
+    project, code, budget, budget_line, forecast, forecast_line = (
+        _seed_approved_finance(services)
+    )
+    services["auth_service"].register_user(
+        "stale-base-requester", "StrongPass123", role_names=["planner"]
+    )
+    _login(services, "stale-base-requester", "StrongPass123")
+
+    changes = services["financial_change_service"]
+    change = _draft_change(services, project)
+    changes.add_impact(
+        change.id,
+        impact_type=FinancialChangeImpactType.BUDGET,
+        description="Budget base race",
+        amount=Decimal("10"),
+        cost_code_id=code.id,
+        target_line_id=budget_line.id,
+        expected_change_version=change.row_version,
+    )
+    change = changes.get_change(change.id)
+    changes.add_impact(
+        change.id,
+        impact_type=FinancialChangeImpactType.FORECAST,
+        description="Forecast base race",
+        amount=Decimal("5"),
+        cost_code_id=code.id,
+        target_line_id=forecast_line.id,
+        expected_change_version=change.row_version,
+    )
+    change = changes.get_change(change.id)
+    change = changes.submit_change(
+        change.id,
+        submitted_by=services["user_session"].principal.user_id,
+        expected_version=change.row_version,
+    )
+    approval = services["approval_service"].list_pending(project_id=project.id)[0]
+
+    _login(services, "admin", "ChangeMe123!")
+    if "budget" in moved_authorities:
+        budgets = services["budget_service"]
+        successor = budgets.create_successor(budget.id, name="New approved budget base")
+        successor = budgets.submit_budget(
+            successor.id,
+            submitted_by="admin",
+            expected_version=successor.row_version,
+        )
+        budgets.approve_budget(
+            successor.id,
+            approved_by="admin",
+            expected_version=successor.row_version,
+        )
+    if "forecast" in moved_authorities:
+        forecasts = services["forecast_version_service"]
+        successor = forecasts.create_forecast(
+            project.id,
+            name="New approved forecast base",
+            as_of_date=date(2026, 8, 12),
+            generation_mode=ForecastGenerationMode.MANUAL,
+            created_by="admin",
+        )
+        forecasts.add_line(
+            successor.id,
+            cost_code_id=code.id,
+            description="Replacement approved ETC",
+            amount=Decimal("70"),
+            source_kind=ForecastLineSourceKind.MANUAL,
+            source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
+            created_by="admin",
+            expected_forecast_version=successor.row_version,
+        )
+        successor = forecasts.get_forecast(successor.id)
+        successor = forecasts.submit_forecast(
+            successor.id,
+            submitted_by="admin",
+            expected_version=successor.row_version,
+        )
+        forecasts.approve_forecast(
+            successor.id,
+            approved_by="admin",
+            expected_version=successor.row_version,
+        )
+
+    budget_count = len(
+        services["budget_service"].list_budgets_for_project(project.id)
+    )
+    forecast_count = len(
+        services["forecast_version_service"].list_forecasts(project.id)
+    )
+
+    with pytest.raises(ConcurrencyError) as exc_info:
+        services["approval_service"].approve_and_apply(approval.id)
+
+    expected_code = (
+        "FINANCIAL_CHANGE_BUDGET_BASE_STALE"
+        if "budget" in moved_authorities
+        else "FINANCIAL_CHANGE_FORECAST_BASE_STALE"
+    )
+    assert exc_info.value.code == expected_code
+    assert changes.get_change(change.id).status is FinancialChangeStatus.PENDING_APPROVAL
+    assert len(services["budget_service"].list_budgets_for_project(project.id)) == budget_count
+    assert len(
+        services["forecast_version_service"].list_forecasts(project.id)
+    ) == forecast_count
+    assert any(
+        request.id == approval.id
+        for request in services["approval_service"].list_pending(project_id=project.id)
+    )
+
+
 def test_contract_placeholder_is_not_part_of_canonical_change_control() -> None:
     assert {item.value for item in FinancialChangeImpactType} == {
         "budget",

@@ -297,6 +297,13 @@ def test_explicit_budget_approval_request_always_uses_platform_approval(
     assert requester_row.can_approve is False
     assert requester_row.can_reject is False
 
+    with pytest.raises(BusinessRuleError) as approve_error:
+        services["approval_service"].approve_and_apply(result.approval_request_id)
+    assert approve_error.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
+    with pytest.raises(BusinessRuleError) as reject_error:
+        services["approval_service"].reject(result.approval_request_id)
+    assert reject_error.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
+
     services["auth_service"].register_user(
         "budget-reviewer", "StrongPass123", role_names=["approver"]
     )

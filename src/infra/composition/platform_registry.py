@@ -555,7 +555,6 @@ def build_platform_service_bundle(
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
         notification_service=notification_service,
-        role_repo=repositories.role_repo,
         role_permission_repo=repositories.role_permission_repo,
         permission_repo=repositories.permission_repo,
         role_binding_repo=repositories.role_binding_repo,

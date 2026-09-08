@@ -46,10 +46,7 @@ class FinancialsRefreshMixin:
             subsection,
         )
         self._set_is_loading(True)
-        if destination == "planning" and subsection == "forecast":
-            self._set_forecast_capabilities(
-                show=False, enabled=False, disabled_reason=""
-            )
+        self._reset_active_governance_state(destination, subsection)
         try:
             self._set_error_message("")
             self._set_feedback_message("")
@@ -575,6 +572,43 @@ class FinancialsRefreshMixin:
         self._set_billing_preparation_lines(default_collection())
         self._set_commercial_projection(default_detail())
         self._loaded_destination_keys.clear()
+
+    def _reset_active_governance_state(
+        self, destination: str, subsection: str
+    ) -> None:
+        """Fail closed while authority for the active governed surface reloads."""
+        if destination == "planning" and subsection == "budgets":
+            self._set_show_create_budget_version(False)
+            self._set_can_create_budget_version(False)
+            self._set_create_budget_version_disabled_reason("")
+            self._set_budget_versions(default_collection())
+            self._set_budget_lines(default_collection())
+            return
+        if destination == "planning" and subsection == "forecast":
+            self._set_forecast_capabilities(
+                show=False, enabled=False, disabled_reason=""
+            )
+            self._set_selected_forecast(default_detail())
+            self._set_forecast_versions(default_collection())
+            self._set_forecast_lines(default_collection())
+            return
+        if destination != "controls":
+            return
+        if subsection == "changes":
+            self._set_can_create_financial_change(False)
+            self._set_selected_change(default_detail())
+            self._set_financial_changes(default_collection())
+            self._set_financial_change_impacts(default_collection())
+            return
+        if subsection == "setup":
+            self._set_financial_profile(default_detail())
+            self._can_create_cost_code = False
+            self._can_manage_restrictions = False
+            self._setup_cost_codes = default_collection()
+            self._setup_restrictions = default_collection()
+            self._setup_cost_codes_table_model.set_rows([])
+            self._setup_restrictions_table_model.set_rows([])
+            self.setupChanged.emit()
 
     def _selected_project_label(self) -> str:
         return next(

@@ -16,6 +16,12 @@ Item {
         }
     }
 
+    function _openSetupDialog(dialog) {
+        const window = root.Window.window
+        dialog.focusReturnTarget = window ? window.activeFocusItem : null
+        dialog.open()
+    }
+
     function openCreateManualActualDialog() {
         editorDialog.commandId = root.workspaceController
             ? root.workspaceController.newFinancialCommandId() : ""
@@ -27,7 +33,7 @@ Item {
         costCodeEditorDialog.mode = String(mode || "create")
         costCodeEditorDialog.costCode = costCode || null
         costCodeEditorDialog.errorMessage = ""
-        costCodeEditorDialog.open()
+        root._openSetupDialog(costCodeEditorDialog)
     }
 
     function openCreateCostCodeDialog() {
@@ -37,7 +43,7 @@ Item {
     function openFinancialProfileDialog(profile) {
         financialProfileEditorDialog.profile = profile || null
         financialProfileEditorDialog.errorMessage = ""
-        financialProfileEditorDialog.open()
+        root._openSetupDialog(financialProfileEditorDialog)
     }
 
     function openFinancialSetupLifecycleDialog(action, profile, costCode, restriction) {
@@ -46,12 +52,12 @@ Item {
         financialSetupLifecycleDialog.costCode = costCode || null
         financialSetupLifecycleDialog.restriction = restriction || null
         financialSetupLifecycleDialog.errorMessage = ""
-        financialSetupLifecycleDialog.open()
+        root._openSetupDialog(financialSetupLifecycleDialog)
     }
 
     function openCostCodeRestrictionDialog() {
         costCodeRestrictionDialog.errorMessage = ""
-        costCodeRestrictionDialog.open()
+        root._openSetupDialog(costCodeRestrictionDialog)
     }
 
     function openBudgetVersionDialog(mode, budget) {
