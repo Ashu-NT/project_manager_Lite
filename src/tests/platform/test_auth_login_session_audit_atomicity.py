@@ -92,18 +92,24 @@ def test_successful_login_rolls_back_user_and_session_when_audit_fails(
     assert auth._auth_session_repo.list_by_user(target.id) == []
 
 
-def test_failed_login_preserves_denial_when_audit_fails(
+def test_failed_login_fails_closed_and_records_nothing_when_audit_fails(
     services,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """P46B: `register_failed_login`'s prior bare `except Exception: ... return` silently
+    swallowed an audit-write failure, so `authenticate()` always reached its own
+    `ValidationError(code="AUTH_FAILED")` regardless -- a genuinely failed attempt could go
+    completely unaudited with no trace. That silent swallow is deleted: any exception other than
+    a bounded `ConcurrencyError` retry now propagates immediately (fail-closed, matching the
+    successful-login audit policy), and the whole attempt rolls back rather than partially
+    persisting."""
     auth = services["auth_service"]
     target = auth.register_user("atomic-login-denial-target", _PASSWORD)
     _fail_tenant_audit(services, monkeypatch)
 
-    with pytest.raises(ValidationError) as exc_info:
+    with pytest.raises(RuntimeError, match="authentication audit unavailable"):
         auth.authenticate(target.username, "WrongPass123!")
 
-    assert exc_info.value.code == "AUTH_FAILED"
     persisted = auth._user_repo.get(target.id)
     assert persisted is not None
     assert persisted.failed_login_attempts == 0

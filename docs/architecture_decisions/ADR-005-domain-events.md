@@ -3935,6 +3935,39 @@ count: 1 (`auth_changed`).** Auth/Security's own audit (P26A) remains AUDITED / 
 by this work. Full detail, regression-test inventory, and the exact source citations are in
 `docs/architecture/event-modernization-plan.md`'s P45A/P45A-FINAL-CLOSURE/P45B/P45B-CLOSURE entries.
 
+**P46A/P46A-FINAL-CLOSURE/P46B: Auth/Security modernized — `auth_changed` deleted, the last
+application-wide legacy Signal, and the legacy `DomainEvents`/`domain_events`/`Signal`
+infrastructure itself retired outright.** P46A/P46A-FINAL-CLOSURE (audit + design only) re-derived
+the full producer/consumer inventory from current source (superseding the historical P26A audit),
+classified all 19 producer sites, confirmed `UserAccount` (not `AuthSession`) is the durable
+aggregate, and produced an implementation-ready 15-event vocabulary plus a ONE-PHASE P46B order.
+P46B implemented it: every Auth service (`AuthService`, `TenantRoleAdministrationService`,
+`RolePolicyReconciliationService`) converged onto a shared `auth_unit_of_work()` helper (a bare
+`SqlAlchemyUnitOfWorkBase` wrapping already-injected repositories — a disclosed simplification of
+the brief's literal `AccountSecurityUnitOfWork` prose, matching this ADR's own established
+lightweight-UoW precedent); `register_failed_login`'s generic exception swallow was replaced with
+exactly one bounded retry on `ConcurrencyError`, everything else propagating; Custom-Role
+retirement's bulk-SQL `revoke_active_for_role` bypass was replaced with per-binding
+`revoke_role_binding_using` calls under one transaction; registration became one physical
+transaction recording `UserAccountCreated` + `TenantMembershipProvisioned` + N ×
+`RoleBindingAssigned`; bootstrap kept its proven-intentional two-transaction split. Two new
+ViewInvalidation targets (`account_security`, `authorization_context`) and two new QML adapters
+were added, mirroring `RoleBindingViewInvalidationAdapter`'s own template; both `auth_changed`
+consumers were cut over, and the Admin Console's coarse `domain_event_binder.py` was deleted
+outright. `AuthSession` gained zero new events and zero new CAS, reconfirming P46A-FINAL-CLOSURE's
+own correction of P46A's earlier over-broad claim. **Application-wide legacy Signal count: 0.**
+`src/core/shared/events/domain_events.py`/`signal.py` no longer exist (§23's "Legacy Compatibility"
+section's own eventual end-state); `_subscribe_domain_signal` and its supporting
+subscription-tracking mechanism (confirmed zero callers) were deleted from both
+`PlatformWorkspaceControllerBase` and `ProjectManagementWorkspaceControllerBase`; `src/tests/
+conftest.py`'s `reset_test_domain_events` autouse fixture (a permanent no-op) was deleted. Roughly
+40 test files spanning every prior phase back through P7 lost their now-impossible
+`hasattr(domain_events, "<historical field>")` guards; each was fixed individually (see this ADR's
+own regression-test philosophy in §26) rather than left to fail at collection. Full detail, the
+exact event vocabulary, the UnitOfWork convergence rationale, the new regression-test inventory,
+and the source citations are in `docs/architecture/event-modernization-plan.md`'s P46A/
+P46A-FINAL-CLOSURE/P46B entries.
+
 ## Alternatives Rejected
 
 All alternatives rejected in earlier revisions remain rejected (recursive/depth-first re-entrant

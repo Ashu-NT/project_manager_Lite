@@ -148,8 +148,11 @@ Rules enforced by architecture-guard tests (`src/tests/architecture/`, `src/test
   collapsed into one wider hint.
 - Transactional handlers fail fast (roll back the whole transaction); post-commit handlers
   isolate failures and continue.
-- Legacy `Signal[str]` fields on `DomainEvents` are being retired capability-by-capability - see
-  status below.
+- Legacy `Signal[str]` fields on `DomainEvents` have been retired capability-by-capability, and
+  P46B deleted the legacy `DomainEvents`/`domain_events`/`Signal` infrastructure itself outright -
+  see status below. This is distinct from the canonical typed-`DomainEvent`/`UnitOfWork`/
+  `ViewInvalidation`/`IntegrationEvent` architecture described above, which is permanent and
+  unaffected.
 - No new generic legacy-event bridge, string-keyed router, service locator, or generic
   repository resolver may be introduced for event handling.
 
@@ -163,18 +166,19 @@ Employee, Department, Site, Party, Document, DocumentStructure, DocumentLink, Pr
 **all of Inventory/Procurement** (Item Catalog + Item Category, Storeroom + Storage Location,
 Reorder Policy, Purchase Order, Requisition, Reservation, Stock Balance, Cycle Count, Goods
 Receipt) — **all of Finance** (Financial Setup, Rate Card, Forecast, Planned Cost, Project
-Commitment, Project Cost Entry, Project Budget, Billing Profile, Billing Preparation) — and
-**all of Project Management** (PM Baseline Approval, Timesheet, Register, Portfolio, Project,
-Collaboration, and — as of P45B/P45B-CLOSURE — Task, the module's last remaining capability;
-Task's modernization also retired the shared `ApprovalPostCommitEvent` legacy approval-bridge
-mechanism entirely).
+Commitment, Project Cost Entry, Project Budget, Billing Profile, Billing Preparation) — **all of
+Project Management** (PM Baseline Approval, Timesheet, Register, Portfolio, Project, Collaboration,
+Task) — and, as of **P46B**, **all of Auth/Security** (Credential & Session, custom-Role
+administration, role-policy reconciliation — the application's last remaining capability with any
+legacy Signal involvement).
 
-**Finance, Inventory/Procurement, and Project Management are all fully modernized modules — zero
-legacy `Signal` fields remain in any of the three.** No next capability has been chosen yet for
-the remaining module - re-run prioritization from current source before committing to one.
-
-Remaining area still on legacy `Signal`s: Auth / Security (Credential & Session remains AUDITED /
-DEFERRED, not yet modernized).
+**The application has ZERO legacy Signal fields left in any module.** `src/core/shared/events/
+domain_events.py` and `src/core/shared/events/signal.py` no longer exist; `DomainEvents`/
+`domain_events`/`Signal` are deleted outright, not merely emptied. This does **not** mean
+authentication activity itself is a durable `DomainEvent` stream — `AuthSession` remains technical
+session infrastructure (no events, no CAS), and the *ephemeral* `UserSessionContext.
+principal_changed_listener`/`active_scope_changed_listener` notification pair is process-local,
+synchronous, and never persisted or dispatched as a `DomainEvent`.
 
 **References:** [`docs/architecture_decisions/ADR-005-domain-events.md`](docs/architecture_decisions/ADR-005-domain-events.md)
 (architectural decisions and rationale) and

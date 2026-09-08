@@ -5705,32 +5705,28 @@ RETIRED**
 
 ## 4. Current State
 
-**Legacy Signal count: 1, as of P45B-CLOSURE** (source-derived from
-`src/core/shared/events/domain_events.py`, re-verified against current source when this document
-was last updated — `dataclasses.fields(domain_events)`, not a manual field count). Down from 2 at
-P44B — `tasks_changed` is now deleted, the sixth and final Project Management capability to reach
-zero. **Project Management module event modernization is complete: zero PM-owned legacy Signal
-fields remain**, verified by a permanent architecture guard
-(`test_zero_pm_legacy_signal_fields_remain`), mirroring Finance's own.
-**Finance module event modernization is complete: zero Finance-owned legacy Signal fields
-remain.** The P8 architecture budget (`current ⊆ frozen`) remains restored with zero exceptions
-(P37 was the last post-freeze *violation*; P38B/P39/P40B/P41/P42/P43/P44A/P44B/P45B/P45B-CLOSURE are
-ordinary further retirement of pre-freeze, frozen-allowlisted signals, not violation fixes).
-**Only `auth_changed` remains** — owned by Auth/Security's Credential & Session surface, which
-remains AUDITED / DEFERRED (P26A, see §3) pending its own canonical UoW.
+**Legacy Signal count: 0, as of P46B.** `src/core/shared/events/domain_events.py` and
+`src/core/shared/events/signal.py` no longer exist as files — the legacy `DomainEvents` dataclass,
+the `domain_events` singleton, and the `Signal` primitive itself are all deleted outright, not
+merely emptied. `auth_changed` (the last surviving legacy Signal field, previously owned by
+Auth/Security's Credential & Session surface) was deleted in P46B, which fully implemented the
+P46A/P46A-FINAL-CLOSURE design in one phase. **Every module — Platform, Auth/Security, Project
+Management, Finance, Inventory/Procurement — has zero legacy Signal involvement.** This is now a
+structural guarantee (`hasattr(src.core.shared.events, "DomainEvents")` is `False`), not merely an
+empty-field count that could silently regain a field later.
 
 | Area | Count |
 |---|---|
 | Platform | 0 |
-| Auth/Security | 1 |
+| Auth/Security | 0 |
 | Project Management | 0 |
 | Finance | 0 |
 | Inventory/Procurement | 0 |
 
-> **This is a snapshot, not a fact.** Recompute the count directly from
-> `src/core/shared/events/domain_events.py` before relying on it - do not trust this table if it
-> is more than a few phases old. Concurrent development in any module can add or remove fields
-> between updates to this document.
+> **This is a snapshot, not a fact.** The legacy hub this table used to be recomputed from
+> (`src/core/shared/events/domain_events.py`) no longer exists at all — recompute by confirming
+> `hasattr(src.core.shared.events, "DomainEvents")` is `False` before relying on this table if it
+> is more than a few phases old, in case a future contributor reintroduces the class.
 
 ## 5. Current Priority
 
@@ -5842,6 +5838,17 @@ did not fix it, since doing so would require a schema migration unrelated to and
 with the Receipt DomainEvent/ViewInvalidation work that was this phase's actual goal. Flagged here
 as an explicit, unresolved architectural note for any future phase that touches PO-line receiving
 concurrency directly.
+
+**Auth/Security is now DONE too (P46A audit + P46A-FINAL-CLOSURE + P46B implementation, see §3)**
+— `auth_changed` is deleted, the application's last remaining module to reach zero legacy Signal
+involvement. **The application has zero legacy Signal fields left in any module, of any kind.
+`DomainEvents`/`domain_events`/`Signal` themselves are deleted outright.** There is no next
+capability for this document to prioritize — the event-modernization initiative this document has
+tracked since P0 is complete. A future contributor reintroducing any legacy Signal-shaped mechanism
+(a new `Signal[T]` field on a shared hub, a generic string-keyed router, an
+`AccountSecurityUnitOfWork`-shaped bypass of the canonical UoW pattern) would be a regression, not
+a continuation of this roadmap — see §9's Pre-Release Convergence Rule and the permanent
+architecture guards enumerated in §3's P46B entry.
 
 **P28B/P28B-FIX/P29/P29-FIX/P30B/P30B-FIX/P31A/P31B/P32A/P32B/P33's own explicit non-gaps, resolved rather than carried forward**: the
 Procurement-workspace-refresh-breadth note from P28B (full `_request_domain_refresh()` on either
