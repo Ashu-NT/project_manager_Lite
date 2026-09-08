@@ -1,25 +1,3 @@
-"""ADR-005 §12: the concrete, in-process `ViewInvalidationChannel`.
-
-Implements exactly the P1 contract's two methods -- `notify(hint)` and `subscribe(filter,
-handler)` -- with no per-filter-kind branching logic of its own. Routing is delegated entirely
-to `ScopeFilter.matches(hint.scope)`, the single source of truth for scope-matching semantics
-already defined in `src/core/shared/events/view_invalidation.py` (P1). This module never
-reimplements tenant/organization comparison logic itself.
-
-Transport-independent: no PySide6, no QML, no WebSocket/SSE. The Qt adapter (P6) and any future
-web adapter each build on this same channel without needing to reimplement scope matching.
-
-Failure isolation (ADR-005 §12, §16): one subscriber's exception is caught and logged,
-independently of the post-commit bus's own isolation -- a bad UI callback must never block a
-sibling subscriber's refresh. Only `Exception` is caught, never `BaseException`.
-
-Duplicate-subscription note (ADR-005 is silent on this for ViewInvalidationChannel): each
-`subscribe()` call creates an independent, identity-tracked registration -- disposing one
-subscription never affects another that happens to share an equal `(filter, handler)` pair.
-This mirrors the list-based (never deduplicated) registry the ADR's own transactional
-dispatcher and post-commit bus already use, applied consistently here.
-"""
-
 from __future__ import annotations
 
 import itertools

@@ -1,35 +1,3 @@
-"""ADR-005 §8: the concrete, in-process `PostCommitEventPublisher`.
-
-Queued, race-fixed, handler-snapshot-safe, ISOLATE_AND_CONTINUE, explicitly breadth-first.
-
-Breadth-first is a deliberate design choice (ADR-005 §8), not a preservation of the legacy
-`Signal` primitive's accidental depth-first-under-recursion behavior (pinned down by P0's
-characterization test). If a handler for event A re-entrantly calls `publish(eventB, ...)`,
-event B's handlers run only after ALL of event A's handlers have finished -- this falls out
-naturally from the queue+drain algorithm below, not from any special-casing.
-
-Race fix: the empty-queue check and the `_dispatching` flip to False happen in the SAME
-critical section. A `publish()` arriving between those two statements is impossible: it either
-completes its own append+check before that block runs (and the block then sees a non-empty
-queue and keeps looping), or it runs after the block has already flipped `_dispatching` to
-False (and correctly starts its own new drain).
-
-Handler-registry snapshot is taken under the same lock `subscribe()`/dispose() use -- a
-concurrent subscribe()/dispose() is never observed mid-iteration.
-
-ISOLATE_AND_CONTINUE: one handler's exception is caught and logged with enough context to
-diagnose it (event type, handler identity, correlation_id from the passed `DomainEventContext`,
-plus tenant_id/organization_id read defensively via getattr(), since a generic `DomainEvent`
-Protocol makes no promise those fields exist) -- it never propagates, and never blocks a sibling
-handler or a later event in the same drain. Only `Exception` is caught, never `BaseException` --
-process-control signals (`KeyboardInterrupt`, `SystemExit`) are not `Exception` subclasses and
-are never swallowed here.
-
-Deliberately transaction-neutral: no SQLAlchemy, no session, no commit/rollback. This bus does
-not know or care whether a database commit actually happened -- a future `UnitOfWork` (P3) is
-the only thing that calls `publish()`, and only after its own commit succeeds.
-"""
-
 from __future__ import annotations
 
 import logging

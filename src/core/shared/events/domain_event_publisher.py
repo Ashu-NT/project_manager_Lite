@@ -1,15 +1,3 @@
-"""ADR-005 §7 (Transactional Dispatch) and §8 (Post-Commit Publication) -- contracts only.
-
-No concrete implementation, no handler registry, no recursion/cycle logic here -- those are
-P2 (`src/infra/events/in_process_transactional_event_dispatcher.py`,
-`in_process_post_commit_event_bus.py`) and P3 (the UnitOfWork's own draining loop) concerns.
-
-Two genuinely different contracts, not one shared shape reused for both: a transactional
-handler needs the current `UnitOfWork` to safely touch another aggregate in the same
-transaction (FAIL_FAST -- a failure rolls back everything); a post-commit handler must not have
-it, since the transaction is already closed by the time it runs (ISOLATE_AND_CONTINUE -- one
-handler's failure never blocks another, or rolls back the already-committed business action).
-"""
 
 from __future__ import annotations
 
