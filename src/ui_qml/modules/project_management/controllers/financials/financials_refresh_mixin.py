@@ -5,7 +5,6 @@ from time import perf_counter
 
 from PySide6.QtCore import Qt
 
-from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.application.financials.invalidation import (
     FinanceInvalidationScope,
 )

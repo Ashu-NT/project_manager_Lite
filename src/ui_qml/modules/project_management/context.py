@@ -119,6 +119,7 @@ QML_IMPORT_MAJOR_VERSION = 1
 class ProjectManagementWorkspaceCatalog(QObject):
     registerWorkspaceStale = Signal(str)  # project_id (payload passthrough, org-wide fact)
     projectDirectoryStale = Signal(str)  # project_id (payload passthrough, org-wide fact)
+    taskWorkspaceActivityStale = Signal(str)  # project_id (payload passthrough, org-wide fact)
 
     def __init__(
         self,
@@ -241,6 +242,22 @@ class ProjectManagementWorkspaceCatalog(QObject):
         )
         self._control_register_view_invalidation_adapter.registerWorkspaceStale.connect(
             self.registerWorkspaceStale.emit
+        )
+
+        self._control_task_view_invalidation_adapter = TaskViewInvalidationAdapter(
+            channel=self._view_invalidation_channel,
+            tenant_id=self._active_tenant_id() or "",
+            organization_id=self._active_organization_id() or "",
+            parent=self,
+        )
+        self._control_task_view_invalidation_adapter.taskListStale.connect(
+            self.taskWorkspaceActivityStale.emit
+        )
+        self._control_task_view_invalidation_adapter.taskScheduleStale.connect(
+            self.taskWorkspaceActivityStale.emit
+        )
+        self._control_task_view_invalidation_adapter.taskDependenciesStale.connect(
+            self.taskWorkspaceActivityStale.emit
         )
         self._projects_project_view_invalidation_adapter: ProjectViewInvalidationAdapter | None = None
         self._register_project_view_invalidation_adapter: ProjectViewInvalidationAdapter | None = None
@@ -558,6 +575,16 @@ class ProjectManagementWorkspaceCatalog(QObject):
             self._financials_project_view_invalidation_adapter.projectDetailStale.connect(
                 self._financials_workspace.onProjectStale
             )
+
+            self._financials_task_view_invalidation_adapter = TaskViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._financials_task_view_invalidation_adapter.taskScheduleStale.connect(
+                self._financials_workspace.onTaskScheduleStale
+            )
         return self._financials_workspace
 
     def _wire_resource_list_stale(self, controller) -> ResourceViewInvalidationAdapter:
@@ -841,6 +868,15 @@ class ProjectManagementWorkspaceCatalog(QObject):
             self._timesheets_view_invalidation_adapter.timesheetWorkspaceStale.connect(
                 lambda _resource_id: self._timesheets_workspace._request_domain_refresh()
             )
+            self._timesheets_task_view_invalidation_adapter = TaskViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._timesheets_task_view_invalidation_adapter.taskProfileStale.connect(
+                self._timesheets_workspace.onTaskProfileStale
+            )
         return self._timesheets_workspace
 
     def _get_review_queue_workspace(self) -> ProjectManagementTimesheetsWorkspaceController:
@@ -862,6 +898,15 @@ class ProjectManagementWorkspaceCatalog(QObject):
             )
             self._review_queue_timesheet_view_invalidation_adapter.timesheetWorkspaceStale.connect(
                 lambda _resource_id: self._review_queue_workspace._request_domain_refresh()
+            )
+            self._review_queue_task_view_invalidation_adapter = TaskViewInvalidationAdapter(
+                channel=self._view_invalidation_channel,
+                tenant_id=self._active_tenant_id() or "",
+                organization_id=self._active_organization_id() or "",
+                parent=self,
+            )
+            self._review_queue_task_view_invalidation_adapter.taskProfileStale.connect(
+                self._review_queue_workspace.onTaskProfileStale
             )
         return self._review_queue_workspace
 
