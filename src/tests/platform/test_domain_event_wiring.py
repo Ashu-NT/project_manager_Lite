@@ -4,7 +4,8 @@ import pytest
 
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.modules.project_management.domain.enums import DependencyType
-from src.core.shared.events.domain_events import domain_events
+
+
 def _login_as(services, username: str, password: str) -> None:
     auth = services["auth_service"]
     user_session = services["user_session"]
@@ -69,7 +70,17 @@ def test_project_update_emits_typed_domain_event_and_view_invalidation(services)
     assert all(h.entity_id == project.id for h in project_hints)
 
 
-def test_task_create_dependency_assignment_emit_tasks_changed(services):
+def test_task_create_dependency_assignment_emit_typed_domain_events_and_view_invalidation(services):
+    """P45B: `tasks_changed` is deleted -- `create_task`/`add_dependency`/`assign_resource` now
+    record typed `TaskCreated`/`TaskDependencyChanged`/`TaskAssignmentChanged` DomainEvents,
+    delivered as `task_list`/`task_dependencies`/`task_assignments` ViewInvalidation hints."""
+    from src.core.modules.project_management.application.tasks.event_handlers.view_invalidation import (
+        TASK_ASSIGNMENTS_SCOPE_CODE,
+        TASK_CATEGORY,
+        TASK_DEPENDENCIES_SCOPE_CODE,
+        TASK_LIST_SCOPE_CODE,
+    )
+
     ps = services["project_service"]
     ts = services["task_service"]
     rs = services["resource_service"]
@@ -78,39 +89,58 @@ def test_task_create_dependency_assignment_emit_tasks_changed(services):
     t1 = ts.create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=2)
     t2 = ts.create_task(project.id, "Task B", start_date=date(2024, 1, 3), duration_days=2)
     resource = rs.create_resource("Event Dev", "Developer", hourly_rate=100.0)
-    seen: list[str] = []
 
-    def _on_tasks_changed(project_id: str) -> None:
-        seen.append(project_id)
+    class _AnyOrgFilter:
+        def matches(self, scope) -> bool:
+            return True
 
-    domain_events.tasks_changed.connect(_on_tasks_changed)
-    try:
-        t3 = ts.create_task(project.id, "Task C", start_date=date(2024, 1, 6), duration_days=1)
-        ts.add_dependency(t1.id, t2.id, DependencyType.FINISH_TO_START, lag_days=0)
-        ts.assign_resource(t3.id, resource.id, allocation_percent=50.0)
-    finally:
-        domain_events.tasks_changed.disconnect(_on_tasks_changed)
+    hints: list = []
+    services["platform_view_invalidation_channel"].subscribe(
+        _AnyOrgFilter(), lambda hint: hints.append(hint)
+    )
 
-    assert seen.count(project.id) >= 3
+    t3 = ts.create_task(project.id, "Task C", start_date=date(2024, 1, 6), duration_days=1)
+    ts.add_dependency(t1.id, t2.id, DependencyType.FINISH_TO_START, lag_days=0)
+    ts.assign_resource(t3.id, resource.id, allocation_percent=50.0)
+
+    task_hints = [h for h in hints if h.category == TASK_CATEGORY]
+    scope_codes = {h.scope_code for h in task_hints}
+    assert TASK_LIST_SCOPE_CODE in scope_codes
+    assert TASK_DEPENDENCIES_SCOPE_CODE in scope_codes
+    assert TASK_ASSIGNMENTS_SCOPE_CODE in scope_codes
 
 
-def test_task_update_emits_tasks_changed(services):
+def test_task_update_emits_typed_domain_event_and_view_invalidation(services):
+    """P45B: `tasks_changed` is deleted -- `update_task` now records a typed
+    `TaskProfileUpdated` DomainEvent, delivered as `task_list`/`task_detail` ViewInvalidation
+    hints for the exact project/task."""
+    from src.core.modules.project_management.application.tasks.event_handlers.view_invalidation import (
+        TASK_CATEGORY,
+        TASK_DETAIL_SCOPE_CODE,
+        TASK_LIST_SCOPE_CODE,
+    )
+
     ps = services["project_service"]
     ts = services["task_service"]
     project = ps.create_project("Event Task Update", "")
     task = ts.create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=2)
-    seen: list[str] = []
 
-    def _on_tasks_changed(project_id: str) -> None:
-        seen.append(project_id)
+    class _AnyOrgFilter:
+        def matches(self, scope) -> bool:
+            return True
 
-    domain_events.tasks_changed.connect(_on_tasks_changed)
-    try:
-        ts.update_task(task.id, name="Task A Updated")
-    finally:
-        domain_events.tasks_changed.disconnect(_on_tasks_changed)
+    hints: list = []
+    services["platform_view_invalidation_channel"].subscribe(
+        _AnyOrgFilter(), lambda hint: hints.append(hint)
+    )
 
-    assert seen == [project.id]
+    ts.update_task(task.id, name="Task A Updated")
+
+    task_hints = [h for h in hints if h.category == TASK_CATEGORY]
+    scope_codes = {h.scope_code for h in task_hints}
+    assert {TASK_LIST_SCOPE_CODE, TASK_DETAIL_SCOPE_CODE} <= scope_codes
+    assert any(h.entity_id == project.id for h in task_hints if h.scope_code == TASK_LIST_SCOPE_CODE)
+    assert any(h.entity_id == task.id for h in task_hints if h.scope_code == TASK_DETAIL_SCOPE_CODE)
 
 
 

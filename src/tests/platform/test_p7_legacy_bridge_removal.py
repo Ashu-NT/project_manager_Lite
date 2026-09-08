@@ -114,12 +114,12 @@ def test_all_still_unmodernized_signals_survive_with_real_direct_consumers():
     Resource (`ResourceMasterChanged`/`ResourceCapabilityChanged`, canonical ViewInvalidation),
     so it was actually deleted too; see `test_resources_changed_field_is_absent_from_domain_events`
     in `test_p18b_resource_view_invalidation.py` for the dedicated retirement proof.
-    `project_changed` is likewise deliberately absent (P43) -- Project is now fully modernized."""
+    `project_changed` is likewise deliberately absent (P43) -- Project is now fully modernized.
+    `tasks_changed` is likewise deliberately absent (P45B) -- Task is now fully modernized, the
+    last PM capability to reach zero legacy Signal involvement; `auth_changed` remains the sole
+    surviving un-bridged legacy field, AUDITED/DEFERRED."""
 
-    for signal_name in (
-        "auth_changed",
-        "tasks_changed",
-    ):
+    for signal_name in ("auth_changed",):
         assert hasattr(domain_events, signal_name), f"{signal_name} was deleted, not just un-bridged"
 
 
@@ -265,16 +265,18 @@ def test_inventory_dashboard_direct_wired_to_every_inventory_signal(services):
     assert refresh_calls == ["refresh", "refresh"]
 
 
-def test_inventory_dashboard_does_not_react_to_an_unrelated_pm_signal(services):
-    """P43: was `domain_events.project_changed.emit(...)` (deleted -- Project fully modernized
-    onto typed DomainEvents + ViewInvalidation, no legacy Signal left). `tasks_changed` is still
-    a genuinely unrelated, undeleted PM legacy signal, preserving the same isolation property."""
+def test_inventory_dashboard_does_not_react_to_an_unrelated_shared_master_signal(services):
+    """P43/P45B: was `domain_events.project_changed.emit(...)` then
+    `domain_events.tasks_changed.emit(...)` -- both since deleted (Project and Task are both
+    fully modernized onto typed DomainEvents + ViewInvalidation, zero PM legacy Signals remain).
+    `auth_changed` is a genuinely unrelated, undeleted shared-master signal, preserving the same
+    isolation property."""
     inventory_catalog = _inventory_catalog(services)
     controller = inventory_catalog.dashboardWorkspace
     refresh_calls = []
     controller.refresh = lambda: refresh_calls.append("refresh")
 
-    domain_events.tasks_changed.emit(_unique("p7a-unrelated-pm"))
+    domain_events.auth_changed.emit(_unique("p7a-unrelated-shared-master"))
 
     assert refresh_calls == []
 

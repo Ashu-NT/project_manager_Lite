@@ -60,15 +60,19 @@ def test_clear_task_presence_produces_zero_durable_comment_hints(services):
     assert _durable_comment_hints(hints) == []
 
 
-def test_touch_task_presence_does_not_emit_tasks_changed(services):
+def test_touch_task_presence_does_not_emit_a_task_view_invalidation_hint(services):
+    """Superseded by P45B: `tasks_changed` is deleted entirely, so there is no longer a legacy
+    Signal for presence to accidentally emit. The still-meaningful property is that presence
+    (ephemeral, ViewInvalidation-only per this phase's own design) never produces a Task-category
+    hint either -- that category is reserved for genuine Task aggregate mutations."""
+    from src.core.modules.project_management.application.tasks.event_handlers.view_invalidation import (
+        TASK_CATEGORY,
+    )
+
     _, task = _setup(services)
-    calls: list[str] = []
-    domain_events.tasks_changed.connect(calls.append)
-    try:
-        services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
-        assert calls == []
-    finally:
-        domain_events.tasks_changed.disconnect(calls.append)
+    hints = _spy_hints(services)
+    services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
+    assert [h for h in hints if h.category == TASK_CATEGORY] == []
 
 
 def test_presence_producers_source_never_names_collaboration_changed_or_tasks_changed():
@@ -245,6 +249,10 @@ def test_approval_post_commit_event_bridge_is_unaffected_by_collaboration_transp
     assert hits == set()
 
 
-def test_tasks_changed_still_exists_collaboration_changed_now_deleted():
+def test_collaboration_changed_deleted_tasks_changed_also_now_deleted_by_p45b():
+    """P44B deleted `collaboration_changed`; P45B went on to delete `tasks_changed` too (Task
+    was the last PM capability to reach zero legacy Signal involvement) -- `auth_changed` is
+    the sole remaining legacy Signal field, AUDITED/DEFERRED."""
     assert not hasattr(domain_events, "collaboration_changed")
-    assert hasattr(domain_events, "tasks_changed")
+    assert not hasattr(domain_events, "tasks_changed")
+    assert hasattr(domain_events, "auth_changed")

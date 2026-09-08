@@ -3,17 +3,20 @@ from src.core.shared.events.signal import Signal
 
 
 def test_domain_event_signal_connect_emit_disconnect():
+    """`auth_changed` stands in as the example field -- as of P45B, `tasks_changed` is
+    deleted (Task modernization completed) and `auth_changed` is the sole remaining
+    legacy Signal field on `DomainEvents`, AUDITED/DEFERRED."""
     seen: list[str] = []
 
-    def _handler(task_id: str) -> None:
-        seen.append(task_id)
+    def _handler(user_id: str) -> None:
+        seen.append(user_id)
 
-    domain_events.tasks_changed.connect(_handler)
-    domain_events.tasks_changed.emit("t-1")
-    domain_events.tasks_changed.disconnect(_handler)
-    domain_events.tasks_changed.emit("t-2")
+    domain_events.auth_changed.connect(_handler)
+    domain_events.auth_changed.emit("u-1")
+    domain_events.auth_changed.disconnect(_handler)
+    domain_events.auth_changed.emit("u-2")
 
-    assert seen == ["t-1"]
+    assert seen == ["u-1"]
 
 
 def test_signal_emit_prunes_deleted_qt_like_callbacks():

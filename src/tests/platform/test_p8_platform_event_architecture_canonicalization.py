@@ -65,6 +65,7 @@ _DELETED_BRIDGE_NAMES = (
     "portfolio_changed",
     "project_changed",
     "collaboration_changed",
+    "tasks_changed",
 )
 
 _KNOWN_FINANCE_SIGNAL_NAMES = frozenset(
@@ -117,10 +118,12 @@ def test_a_hypothetical_new_signal_name_would_fail_the_subset_check():
     assert not (hypothetical_current <= FROZEN_LEGACY_SIGNAL_ALLOWLIST)
 
 
-def test_a_hypothetical_deletion_still_passes_the_subset_check():
-    assert "tasks_changed" in _current_signal_names()
-    hypothetical_current = _current_signal_names() - {"tasks_changed"}
-    assert hypothetical_current <= FROZEN_LEGACY_SIGNAL_ALLOWLIST
+def test_tasks_changed_deletion_still_passes_the_subset_check():
+    """No longer hypothetical as of P45B: `tasks_changed` is genuinely deleted (Task
+    modernization's own producers/consumers both reached zero first) -- the subset
+    relationship holds with it gone, proving field deletion never needs a frozen-allowlist edit."""
+    assert "tasks_changed" not in _current_signal_names()
+    assert _current_signal_names() <= FROZEN_LEGACY_SIGNAL_ALLOWLIST
 
 
 # ---------------------------------------------------------------------------
@@ -142,6 +145,46 @@ def test_a_hypothetical_finance_signal_reintroduction_would_fail_the_zero_legacy
     hypothetical_current = _current_signal_names() | {"budgets_changed"}
     reintroduced = hypothetical_current & _KNOWN_FINANCE_SIGNAL_NAMES
     assert reintroduced == {"budgets_changed"}
+
+
+# ---------------------------------------------------------------------------
+# P45B: Project Management module event modernization is complete -- permanent
+# zero-legacy guard, independent of Auth's own AUDITED/DEFERRED status.
+# ---------------------------------------------------------------------------
+
+_KNOWN_PM_SIGNAL_NAMES = frozenset(
+    {
+        "tasks_changed",
+        "project_changed",
+        "timesheet_periods_changed",
+        "collaboration_changed",
+        "portfolio_changed",
+        "register_changed",
+    }
+)
+
+
+def test_zero_pm_legacy_signal_fields_remain():
+    """Task was the last PM capability to reach zero legacy Signal involvement (P45B) --
+    project_changed/timesheet_periods_changed/collaboration_changed/portfolio_changed/
+    register_changed/tasks_changed were each already or are now confirmed absent. This guard
+    is independent of Auth, which remains AUDITED/DEFERRED and is explicitly out of scope."""
+    current = _current_signal_names()
+    reintroduced = current & _KNOWN_PM_SIGNAL_NAMES
+    assert reintroduced == set(), (
+        f"PM-owned legacy Signal field(s) reintroduced: {reintroduced}"
+    )
+    assert current == {"auth_changed"}, (
+        f"expected only auth_changed to remain, found: {current}"
+    )
+
+
+def test_a_hypothetical_pm_signal_reintroduction_would_fail_the_zero_legacy_guard():
+    """Demonstrates the guard actually rejects PM-owned reintroduction, mirroring Finance's
+    own hypothetical-growth proof above."""
+    hypothetical_current = _current_signal_names() | {"tasks_changed"}
+    reintroduced = hypothetical_current & _KNOWN_PM_SIGNAL_NAMES
+    assert reintroduced == {"tasks_changed"}
 
 
 # ---------------------------------------------------------------------------

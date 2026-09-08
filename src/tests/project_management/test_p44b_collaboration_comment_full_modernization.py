@@ -391,10 +391,12 @@ def test_durable_comment_commands_source_never_names_collaboration_changed():
 
 
 def test_no_new_signal_field_introduced():
+    """P45B deleted `tasks_changed` too (Task was the last PM capability to reach zero legacy
+    Signal involvement) -- `auth_changed` is now the sole remaining field."""
     import dataclasses
 
     signal_names = {f.name for f in dataclasses.fields(domain_events)}
-    assert signal_names == {"tasks_changed", "auth_changed"}
+    assert signal_names == {"auth_changed"}
 
 
 # ---------------------------------------------------------------------------
