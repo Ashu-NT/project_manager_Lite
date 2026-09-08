@@ -1,6 +1,3 @@
-from src.core.platform.contract.models.approval.contracts import (
-    ApprovalHandlerResult,
-    ApprovalPostCommitEvent,
-)
+from src.core.platform.contract.models.approval.contracts import ApprovalHandlerResult
 
-__all__ = ["ApprovalHandlerResult", "ApprovalPostCommitEvent"]
+__all__ = ["ApprovalHandlerResult"]

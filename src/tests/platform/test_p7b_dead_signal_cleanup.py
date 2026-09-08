@@ -68,12 +68,14 @@ def test_costs_changed_and_calendars_changed_have_zero_production_references():
     assert hits == [], hits
 
 
-def test_approval_service_reflective_emission_mechanism_is_real_and_active():
+def test_approval_service_reflective_emission_mechanism_retired_by_task_modernization():
+    """Superseded by P45B: Task modernization was the reflective bridge's last remaining
+    production caller, so `_emit_signal_safely` is now deleted outright (see
+    test_p7c_zero_consumer_signal_cleanup.py's own updated assertion)."""
     import src.core.platform.application.approval.approval_service as approval_service_module
 
     source = inspect.getsource(approval_service_module)
-    assert "_emit_signal_safely" in source
-    assert "getattr(domain_events, signal_name" in source
+    assert "_emit_signal_safely" not in source
 
 
 # ---------------------------------------------------------------------------

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
+from src.core.platform.common.ids import generate_id
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import ValidationError
-from src.core.shared.events.domain_events import domain_events
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.platform.contract.repositories.time_management.time.contracts import (
     TimeEntryRepository,
     WorkAllocationRepository,
@@ -12,6 +13,61 @@ from src.core.platform.contract.repositories.time_management.time.contracts impo
     WorkResourceRepository,
 )
 from src.core.platform.domain.time_management.time import TimeEntry
+
+
+def _stage_task_assignment_hours_audit_and_build_event(
+    service, *, work_allocation, project_id: str | None
+):
+    """Stages the TaskAssignment-side EnterpriseAudit entry (commit=False --
+    part of the SAME physical transaction TimeEntry's own mutation is about to
+    commit) and returns the `TaskAssignmentChanged(HOURS_LOGGED_CHANGED)` fact
+    to publish AFTER that commit succeeds. Imports `task_events` lazily --
+    `application.tasks`' package `__init__` eagerly imports `TaskService`,
+    which (via `TaskTimeEntryMixin`) imports `TimesheetService`, which imports
+    this very module at the top of `TimeService`'s own MRO -- a module-level
+    import here would be circular."""
+    if work_allocation is None or service._tenant_context_service is None:
+        return None
+    from src.core.modules.project_management.application.tasks.task_events import (
+        TaskAssignmentChangeType,
+        TaskAssignmentChanged,
+    )
+    scope = service._tenant_context_service.require_active_scope_ids(
+        operation_label="sync task assignment hours from time entries"
+    )
+    record_audit_entry(
+        service,
+        operation="update",
+        entity_type="task_assignment",
+        entity_id=work_allocation.id,
+        module="project_management",
+        organization_id=scope.organization_id,
+        severity="low",
+        metadata={
+            "action": "assignment.hours_logged_from_time_entry",
+            "hours_logged": str(getattr(work_allocation, "hours_logged", "")),
+        },
+        commit=False,
+        fail_closed=True,
+    )
+    return TaskAssignmentChanged(
+        tenant_id=scope.tenant_id,
+        organization_id=scope.organization_id,
+        project_id=project_id or "",
+        task_id=getattr(work_allocation, "task_id", "") or "",
+        assignment_id=work_allocation.id,
+        resource_id=getattr(work_allocation, "resource_id", "") or "",
+        change_type=TaskAssignmentChangeType.HOURS_LOGGED_CHANGED,
+        occurred_at=datetime.now(timezone.utc),
+    )
+
+
+def _publish_task_assignment_event(service, event) -> None:
+    """Post-commit only -- call after the surrounding `self._session.commit()`
+    has actually succeeded."""
+    if event is None or service._post_commit_bus is None:
+        return
+    service._post_commit_bus.publish(event, DomainEventContext(correlation_id=generate_id()))
 
 
 class TimesheetEntriesMixin:
@@ -101,7 +157,10 @@ class TimesheetEntriesMixin:
             seeded_entry = self._seed_legacy_hours_entry(work_allocation, work_owner, resource)
             self._time_entry_repo.add(entry)
             self._session.flush()
-            self._sync_work_allocation_hours_from_entries(work_allocation.id)
+            updated_allocation = self._sync_work_allocation_hours_from_entries(work_allocation.id)
+            assignment_event = _stage_task_assignment_hours_audit_and_build_event(
+                self, work_allocation=updated_allocation, project_id=project_id
+            )
             if seeded_entry is not None:
                 record_audit_entry(
                     self,
@@ -149,8 +208,7 @@ class TimesheetEntriesMixin:
         except Exception:
             self._session.rollback()
             raise
-        if project_id:
-            domain_events.tasks_changed.emit(project_id)
+        _publish_task_assignment_event(self, assignment_event)
         return entry
 
     def add_time_entry(
@@ -210,7 +268,10 @@ class TimesheetEntriesMixin:
         try:
             self._time_entry_repo.update(entry, expected_version=expected_version)  # type: ignore[union-attr]
             self._session.flush()
-            self._sync_work_allocation_hours_from_entries(entry.work_allocation_id)
+            updated_allocation = self._sync_work_allocation_hours_from_entries(entry.work_allocation_id)
+            assignment_event = _stage_task_assignment_hours_audit_and_build_event(
+                self, work_allocation=updated_allocation, project_id=project_id
+            )
             record_audit_entry(
                 self,
                 operation="update",
@@ -236,8 +297,7 @@ class TimesheetEntriesMixin:
         except Exception:
             self._session.rollback()
             raise
-        if project_id:
-            domain_events.tasks_changed.emit(project_id)
+        _publish_task_assignment_event(self, assignment_event)
         return entry
 
     def delete_time_entry(self, entry_id: str, *, expected_version: int) -> None:
@@ -260,7 +320,10 @@ class TimesheetEntriesMixin:
         try:
             self._time_entry_repo.delete(entry.id, expected_version=expected_version)  # type: ignore[union-attr]
             self._session.flush()
-            self._sync_work_allocation_hours_from_entries(entry.work_allocation_id)
+            updated_allocation = self._sync_work_allocation_hours_from_entries(entry.work_allocation_id)
+            assignment_event = _stage_task_assignment_hours_audit_and_build_event(
+                self, work_allocation=updated_allocation, project_id=project_id
+            )
             record_audit_entry(
                 self,
                 operation="delete",
@@ -286,8 +349,7 @@ class TimesheetEntriesMixin:
         except Exception:
             self._session.rollback()
             raise
-        if project_id:
-            domain_events.tasks_changed.emit(project_id)
+        _publish_task_assignment_event(self, assignment_event)
 
 
 __all__ = ["TimesheetEntriesMixin"]

@@ -155,7 +155,6 @@ def test_participant_apply_approves_purchase_order_on_the_supplied_session(servi
     assert balance.on_hand_qty == pytest.approx(0.0)
 
  
-    assert result.post_commit_events == ()
 
     assert len(result.domain_events) == 2
     po_approved, requisition_sourcing = result.domain_events
@@ -192,7 +191,6 @@ def test_participant_reject_rejects_purchase_order_on_the_supplied_session(servi
     lines = deps.purchasing_service._purchase_order_line_repo.list_for_purchase_order(purchase_order.id)
     assert rejected.status.value == "REJECTED"
     assert [line.status.value for line in lines] == ["CANCELLED"]
-    assert result.post_commit_events == ()
     assert len(result.domain_events) == 1
     rejected_event = result.domain_events[0]
     assert isinstance(rejected_event, InventoryPurchaseOrderRejected)

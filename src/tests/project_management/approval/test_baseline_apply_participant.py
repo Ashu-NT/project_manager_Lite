@@ -96,7 +96,6 @@ def test_participant_apply_creates_baseline_on_the_supplied_session(services, se
     assert baseline.status == BaselineStatus.DRAFT
     tasks = deps.baseline_service._baselines.list_tasks(baseline.id)
     assert len(tasks) == 2
-    assert result.post_commit_events == ()
     assert len(result.domain_events) == 1
     event = result.domain_events[0]
     assert isinstance(event, ProjectBaselineCreated)

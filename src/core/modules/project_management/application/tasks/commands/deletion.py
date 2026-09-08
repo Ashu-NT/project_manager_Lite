@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.application.tasks.task_events import TaskRemoved
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     DependencyRepository,
@@ -18,7 +20,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository
 from src.core.shared.activity import record_activity
-from src.core.shared.events.domain_events import domain_events
+from src.core.shared.audit import record_audit_entry
 
 
 class TaskDeletionMixin:
@@ -90,7 +92,8 @@ class TaskDeletionMixin:
             (task.project_id, task.parent_task_id) for task in selected_tasks
         }
 
-        try:
+        scope = self._active_task_scope(operation_label="delete tasks")
+        with self._task_uow() as uow:
             for task in ordered_tasks:
                 assignments = self._assignment_repo.list_by_task(task.id)
                 if self._time_entry_repo is not None:
@@ -99,8 +102,21 @@ class TaskDeletionMixin:
                     self._session.flush()
                 self._dependency_repo.delete_for_task(task.id)
                 self._assignment_repo.delete_by_task(task.id)
+                uow.tasks.delete_with_version_check(task.id, expected_version=task.version)
+                record_audit_entry(
+                    uow,
+                    operation="delete",
+                    entity_type="task",
+                    entity_id=task.id,
+                    module="project_management",
+                    organization_id=scope.organization_id,
+                    severity="low",
+                    metadata={"action": "task.delete", "name": task.name},
+                    commit=False,
+                    fail_closed=True,
+                )
                 record_activity(
-                    self,
+                    uow,
                     action="task.delete",
                     entity_type="task",
                     entity_id=task.id,
@@ -109,7 +125,15 @@ class TaskDeletionMixin:
                     details={"name": task.name},
                     commit=False,
                 )
-                self._task_repo.delete(task.id)
+                uow.record_event(
+                    TaskRemoved(
+                        tenant_id=scope.tenant_id,
+                        organization_id=scope.organization_id,
+                        project_id=task.project_id,
+                        task_id=task.id,
+                        occurred_at=datetime.now(timezone.utc),
+                    )
+                )
 
             for project_id, parent_task_id in affected_sibling_groups:
                 remaining = sorted(
@@ -123,14 +147,9 @@ class TaskDeletionMixin:
                 )
                 for sort_order, task in enumerate(remaining):
                     if task.sort_order != sort_order:
-                        self._task_repo.update(replace(task, sort_order=sort_order))
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
+                        uow.tasks.update(replace(task, sort_order=sort_order))
+            uow.commit()
 
-        for project_id in project_ids:
-            domain_events.tasks_changed.emit(project_id)
         return existing_ids
 
 

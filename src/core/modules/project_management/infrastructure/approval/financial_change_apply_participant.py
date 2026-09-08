@@ -17,10 +17,7 @@ from src.core.modules.project_management.application.financials.financial_change
 from src.core.modules.project_management.infrastructure.approval._financial_decision_actor import (
     require_financial_decision_actor,
 )
-from src.core.platform.contract.models.approval.contracts import (
-    ApprovalHandlerResult,
-    ApprovalPostCommitEvent,
-)
+from src.core.platform.contract.models.approval.contracts import ApprovalHandlerResult
 from src.core.platform.domain.approval import ApprovalRequest
 
 
@@ -48,9 +45,6 @@ class FinancialChangeApprovalParticipant:
             approval_request_id=request.id,
             applied_by=applied_by,
         )
-        events: list[ApprovalPostCommitEvent] = []
-        if change.applied_schedule_count:
-            events.append(ApprovalPostCommitEvent("tasks_changed", change.project_id))
         effects = []
         if change.applied_budget_id:
             effects.append("budget")
@@ -81,9 +75,7 @@ class FinancialChangeApprovalParticipant:
                 ),
             )
         domain_events += budget_events
-        return ApprovalHandlerResult(
-            post_commit_events=tuple(events), domain_events=domain_events
-        )
+        return ApprovalHandlerResult(domain_events=domain_events)
 
     def reject(
         self, request: ApprovalRequest, deps: FinancialChangeApprovalDeps

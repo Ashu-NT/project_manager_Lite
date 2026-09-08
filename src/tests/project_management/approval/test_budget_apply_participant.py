@@ -98,7 +98,6 @@ def test_participant_apply_approves_budget_on_the_supplied_session(services, ses
     approved = deps.budget_service._budget_repo.get(budget.id)
     assert approved.status == BudgetStatus.APPROVED
     assert approved.approved_by == services["user_session"].principal.user_id
-    assert result.post_commit_events == ()
     assert result.domain_events == (
         BudgetStatusChanged(
             tenant_id=approved.tenant_id,

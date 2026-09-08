@@ -108,7 +108,6 @@ def test_participant_apply_approves_requisition_on_the_supplied_session(services
     assert approved.status.value == "APPROVED"
     assert approved.approved_at is not None
     assert [line.status.value for line in lines] == ["OPEN"]
-    assert result.post_commit_events == ()
     assert len(result.domain_events) == 1
     approved_event = result.domain_events[0]
     assert isinstance(approved_event, InventoryRequisitionApproved)
@@ -129,7 +128,6 @@ def test_participant_reject_rejects_requisition_on_the_supplied_session(services
     lines = deps.procurement_service._requisition_line_repo.list_for_requisition(requisition.id)
     assert rejected.status.value == "REJECTED"
     assert [line.status.value for line in lines] == ["REJECTED"]
-    assert result.post_commit_events == ()
     assert len(result.domain_events) == 1
     rejected_event = result.domain_events[0]
     assert isinstance(rejected_event, InventoryRequisitionRejected)

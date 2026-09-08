@@ -1,12 +1,3 @@
-"""Approval-P2: typed `ApprovalRequested`/`ApprovalApproved`/`ApprovalRejected` DomainEvents.
-
-Mirrors `test_role_binding_events.py`'s own structure (contract guards, Clock determinism,
-exactly-once recording, failure paths, cross-tenant/cross-org isolation, transactional/postcommit
-handler semantics, committed-order sequencing) -- the same proof shape, applied to Approval's
-five effective request-creation contexts (standalone `request_change` plus the four converged
-host workflows) and its two decision commands (`approve_and_apply`/`reject`).
-"""
-
 from __future__ import annotations
 
 import inspect
@@ -124,13 +115,6 @@ def _submitted_budget(services, session):
 
 
 def _request_budget_approval_as_a_different_user(services, budget):
-    """Requests as a fresh, non-admin user, then logs back in as admin (the eventual decider) --
-    avoids the self-decision rule, mirroring `test_approval_service_unit_of_work_cutover.py`.
-
-    P10A: a fresh login's active-organization auto-select is genuinely ambiguous once more than
-    one organization is enabled simultaneously (no longer "the one enabled org", unlike the
-    pre-P10A mutual-exclusion model) -- pin it explicitly to whatever was active immediately
-    before the switch rather than relying on that heuristic."""
     active_organization_id = services["tenant_context_service"].get_active_organization_id()
     _login_as_fresh_requester(services)
     if active_organization_id:
@@ -254,9 +238,6 @@ def test_no_approval_applied_or_changed_event_classes_exist():
 
 
 def test_approval_requested_has_exactly_one_recording_responsibility():
-    """§9/§11: the transaction-bound Approval request participant is the ONE semantic recording
-    boundary for `ApprovalRequested` -- no host service (procurement/purchasing/financial-change/
-    billing-preparation) or `ApprovalService` itself constructs it independently."""
     from pathlib import Path
 
     src_core = Path(__file__).resolve().parents[2] / "core"
@@ -848,13 +829,7 @@ def test_cross_org_decision_denial_emits_zero_approval_approved_or_rejected(serv
 
 
 def test_cross_tenant_decision_attempt_emits_zero_approval_events(tmp_path):
-    """§26: Tenant B cannot approve/reject Tenant A's Approval -- zero events, even if an invalid
-    command reaches a repository lookup. Uses two genuinely independent `TenantContextService`
-    fakes (never a shared one with a swapped `UserSessionContext`, which would still resolve
-    through the SAME factory-bound tenant context -- the exact pitfall Approval-P1A's own
-    cross-tenant test avoided) -- mirrors `test_platform_unit_of_work.py::
-    test_cross_tenant_context_cannot_read_another_tenants_approval_request`'s two-factory shape,
-    extended here to prove EVENT isolation, not just repository-read isolation."""
+
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
 
@@ -961,15 +936,7 @@ def test_cross_tenant_decision_attempt_emits_zero_approval_events(tmp_path):
 def test_approve_and_apply_records_approval_approved_before_the_target_event(
     services, session, monkeypatch
 ):
-    """§19/§44, corrected by P39-CLEANUP against verified current `ApprovalService.approve_and_
-    apply` source (not the test's own prior, unverified assumption): `uow.record_event(
-    ApprovalApproved(...))` is called BEFORE the `for domain_event in handler_result.domain_events:
-    uow.record_event(domain_event)` loop that records the apply participant's own target-capability
-    event(s) (`BudgetApprovalParticipant.apply()` here) -- so the real, committed order is
-    [ApprovalApproved, target event(s)...], not the reverse. This test previously asserted the
-    opposite order and had never been exercised against a real 2+-event scenario until Budget's own
-    modernization (P38B) gave it one -- production `ApprovalService` behavior is unchanged; only
-    this test's stale assumption is corrected."""
+
     _, budget = _submitted_budget(services, session)
     request = _request_budget_approval_as_a_different_user(services, budget)
     approvals = services["approval_service"]
@@ -1009,27 +976,13 @@ def test_sequence_of_two_standalone_requests_produces_events_in_committed_order(
     assert recorded[1].entity_id == entity_b
 
 
-# ---------------------------------------------------------------------------
-# P39-CLEANUP: approval participant modernization characterization.
-#
-# These replace brittle global "exactly N events recorded" counts (which go stale every time a
-# capability's own modernization adds one more typed event alongside the standard Approval one)
-# with durable, source-derived MODERNIZED/LEGACY capability-state assertions. Current source is
-# authoritative: `baseline_apply_participant.py` was found ALREADY modernized (P23) during this
-# cleanup -- it was NOT part of the "remaining legacy" set some earlier phase reports assumed.
-# ---------------------------------------------------------------------------
 
-_LEGACY_APPROVAL_PARTICIPANT_FILES = frozenset(
-    {
-        "financial_change_apply_participant.py",
-        "task_apply_participant.py",
-    }
-)
+_LEGACY_APPROVAL_PARTICIPANT_FILES = frozenset()
+"""Empty as of P45B: Task was the last capability whose approval participant
+constructed `ApprovalPostCommitEvent(...)` (task_apply_participant.py's 5
+decisions + financial_change_apply_participant.py's Task branch) -- both now
+report exclusively via `ApprovalHandlerResult.domain_events`."""
 
-# Exact file that constructs the `ApprovalHandlerResult` for each already-modernized capability's
-# approve/reject decision -- for the two Inventory/Procurement families this is a delegate service
-# file, not the participant file itself (`*_apply_participant.py` there just forwards to an
-# already-public service method; the same pattern documented in both files' own module docstrings).
 _MODERNIZED_APPROVAL_RESULT_SOURCES = {
     "Baseline": "core/modules/project_management/infrastructure/approval/baseline_apply_participant.py",
     "Cost Entry": "core/modules/project_management/infrastructure/approval/project_cost_apply_participant.py",
@@ -1038,6 +991,8 @@ _MODERNIZED_APPROVAL_RESULT_SOURCES = {
     "Forecast": "core/modules/project_management/infrastructure/approval/forecast_apply_participant.py",
     "Purchase Requisition (decide)": "core/modules/inventory_procurement/application/procurement/procurement_approval.py",
     "Purchase Order (decide)": "core/modules/inventory_procurement/application/procurement/purchasing_receiving.py",
+    "Task": "core/modules/project_management/infrastructure/approval/task_apply_participant.py",
+    "Financial Change": "core/modules/project_management/infrastructure/approval/financial_change_apply_participant.py",
 }
 
 _FINANCE_LEGACY_SIGNAL_NAMES = frozenset(
@@ -1078,11 +1033,15 @@ def test_only_the_known_legacy_participant_files_construct_approval_post_commit_
     assert legacy_files == set(_LEGACY_APPROVAL_PARTICIPANT_FILES)
 
 
-def test_remaining_legacy_approval_sites_all_publish_tasks_changed_never_a_finance_signal():
-    """Finance module event modernization is complete (P39) -- zero Finance-owned legacy Signal
-    names may appear as an `ApprovalPostCommitEvent` payload anywhere, including inside the two
-    still-legacy files above (their own remaining site is `tasks_changed`, a PM-owned name)."""
+def test_zero_approval_participant_files_construct_approval_post_commit_event():
+    """As of P45B, Task was the last capability whose approval participant still constructed
+    `ApprovalPostCommitEvent(...)` -- zero `*_apply_participant.py` files do so anymore, and
+    `"tasks_changed"` no longer appears as a construction-site payload in either file."""
     from pathlib import Path
+
+    for path in _approval_participant_files():
+        source = _strip_strings_and_comments(path.read_text(encoding="utf-8", errors="ignore"))
+        assert "ApprovalPostCommitEvent(" not in source, f"{path} still constructs the legacy bridge"
 
     src_core = Path(__file__).resolve().parents[2] / "core"
     for path in src_core.rglob("*.py"):
@@ -1091,18 +1050,6 @@ def test_remaining_legacy_approval_sites_all_publish_tasks_changed_never_a_finan
             continue
         for name in _FINANCE_LEGACY_SIGNAL_NAMES:
             assert f'"{name}"' not in source, f"{path} references Finance legacy signal {name!r}"
-
-    task_participant = next(
-        p for p in _approval_participant_files() if p.name == "task_apply_participant.py"
-    )
-    assert '"tasks_changed"' in task_participant.read_text(encoding="utf-8", errors="ignore")
-    financial_change_participant = next(
-        p for p in _approval_participant_files()
-        if p.name == "financial_change_apply_participant.py"
-    )
-    assert '"tasks_changed"' in financial_change_participant.read_text(
-        encoding="utf-8", errors="ignore"
-    )
 
 
 @pytest.mark.parametrize(

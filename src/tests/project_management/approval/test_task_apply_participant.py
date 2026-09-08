@@ -16,10 +16,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.core.modules.project_management.domain.enums import ConstraintType, DependencyType
+from src.core.modules.project_management.application.tasks.task_events import (
+    TaskDependencyChangeType,
+    TaskDependencyChanged,
+    TaskScheduleChangeType,
+    TaskScheduleChanged,
+)
 from src.core.modules.project_management.infrastructure.approval.task_apply_participant import (
     TaskApprovalParticipant,
 )
-from src.core.platform.contract.models.approval.contracts import ApprovalPostCommitEvent
 from src.core.platform.domain.approval import ApprovalRequest
 from src.infra.composition.approval_apply_dependencies.task import build_task_approval_deps
 from src.infra.persistence.orm.base import Base
@@ -121,9 +126,13 @@ def test_participant_apply_dependency_add_adds_dependency_on_the_supplied_sessio
     assert persisted[0].predecessor_task_id == a.id
     assert persisted[0].successor_task_id == b.id
     assert persisted[0].dependency_type == DependencyType.FINISH_TO_START
-    assert result.post_commit_events == (
-        ApprovalPostCommitEvent("tasks_changed", project.id),
-    )
+    assert len(result.domain_events) == 1
+    event = result.domain_events[0]
+    assert isinstance(event, TaskDependencyChanged)
+    assert event.project_id == project.id
+    assert event.predecessor_task_id == a.id
+    assert event.successor_task_id == b.id
+    assert event.change_type == TaskDependencyChangeType.ADDED
 
 
 def test_participant_apply_task_constraint_update_updates_task_on_the_supplied_session(services, session):
@@ -143,9 +152,12 @@ def test_participant_apply_task_constraint_update_updates_task_on_the_supplied_s
     assert updated.constraint_type is ConstraintType.MUST_START_ON
     assert updated.constraint_date == constraint_date
     assert updated.start_date == constraint_date
-    assert result.post_commit_events == (
-        ApprovalPostCommitEvent("tasks_changed", project.id),
-    )
+    assert len(result.domain_events) == 1
+    event = result.domain_events[0]
+    assert isinstance(event, TaskScheduleChanged)
+    assert event.project_id == project.id
+    assert event.task_id == task.id
+    assert event.change_type == TaskScheduleChangeType.CONSTRAINT_UPDATED
 
 
 def test_participant_never_calls_commit_or_rollback(services, session, monkeypatch):

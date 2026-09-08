@@ -38,10 +38,7 @@ from src.core.modules.project_management.api.desktop.common.constraint_presentat
 )
 from src.core.modules.project_management.application.tasks.service import TaskService
 from src.core.modules.project_management.domain.enums import DependencyType
-from src.core.platform.contract.models.approval.contracts import (
-    ApprovalHandlerResult,
-    ApprovalPostCommitEvent,
-)
+from src.core.platform.contract.models.approval.contracts import ApprovalHandlerResult
 from src.core.platform.domain.approval import ApprovalRequest
 
 
@@ -81,10 +78,9 @@ class TaskApprovalParticipant:
             successor_id=request.payload["successor_id"],
             dependency_type=_as_dependency_type(request.payload.get("dependency_type", "FS")),
             lag_days=int(request.payload.get("lag_days", 0) or 0),
-            commit=False,
         )
         return ApprovalHandlerResult(
-            post_commit_events=(ApprovalPostCommitEvent("tasks_changed", request.project_id or ""),)
+            domain_events=deps.task_service._take_pending_task_events()
         )
 
     def apply_dependency_remove(
@@ -92,10 +88,9 @@ class TaskApprovalParticipant:
     ) -> ApprovalHandlerResult:
         deps.task_service._apply_dependency_remove_decision(
             dependency_id=request.payload["dependency_id"],
-            commit=False,
         )
         return ApprovalHandlerResult(
-            post_commit_events=(ApprovalPostCommitEvent("tasks_changed", request.project_id or ""),)
+            domain_events=deps.task_service._take_pending_task_events()
         )
 
     def apply_dependency_update(
@@ -106,10 +101,9 @@ class TaskApprovalParticipant:
             dependency_type=_as_dependency_type(request.payload.get("dependency_type", "FS")),
             lag_days=int(request.payload.get("lag_days", 0) or 0),
             expected_version=request.payload.get("expected_version"),
-            commit=False,
         )
         return ApprovalHandlerResult(
-            post_commit_events=(ApprovalPostCommitEvent("tasks_changed", request.project_id or ""),)
+            domain_events=deps.task_service._take_pending_task_events()
         )
 
     def apply_task_constraint_update(
@@ -120,10 +114,9 @@ class TaskApprovalParticipant:
             constraint_type=coerce_constraint_type(request.payload.get("constraint_type")),
             constraint_date=_as_optional_date(request.payload.get("constraint_date")),
             expected_version=request.payload.get("expected_version"),
-            commit=False,
         )
         return ApprovalHandlerResult(
-            post_commit_events=(ApprovalPostCommitEvent("tasks_changed", request.project_id or ""),)
+            domain_events=deps.task_service._take_pending_task_events()
         )
 
     def apply_resource_leveling_plan(
@@ -133,10 +126,9 @@ class TaskApprovalParticipant:
             project_id=request.project_id,
             moves=request.payload["moves"],
             schedule_fingerprint=request.payload["schedule_fingerprint"],
-            commit=False,
         )
         return ApprovalHandlerResult(
-            post_commit_events=(ApprovalPostCommitEvent("tasks_changed", request.project_id or ""),)
+            domain_events=deps.task_service._take_pending_task_events()
         )
 
 

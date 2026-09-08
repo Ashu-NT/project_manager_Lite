@@ -37,6 +37,7 @@ from src.core.modules.project_management.application.projects.project_events imp
     ProjectRemoved,
     ProjectStatusChanged,
 )
+from src.core.modules.project_management.application.tasks.task_events import TaskRemoved
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
@@ -605,7 +606,21 @@ class ProjectLifecycleMixin:
                         self._time_entry_repo.delete_by_assignment(assignment.id)
                     self._session.flush()
                 self._assignment_repo.delete_by_task(task.id)
-                self._task_repo.delete(task.id)
+                self._task_repo.delete_with_version_check(task.id, expected_version=task.version)
+                # P45B item 9/33: one TaskRemoved per actually-deleted Task,
+                # same transaction as the Project delete -- Task is an
+                # independently versioned/audited aggregate, so its removal
+                # is its own fact even though Project's own command triggered
+                # it; never a synthetic project-level bulk fact.
+                uow.record_event(
+                    TaskRemoved(
+                        tenant_id=scope.tenant_id,
+                        organization_id=scope.organization_id,
+                        project_id=project_id,
+                        task_id=task.id,
+                        occurred_at=datetime.now(timezone.utc),
+                    )
+                )
 
             self._project_repo.delete(project_id)
             record_audit_entry(

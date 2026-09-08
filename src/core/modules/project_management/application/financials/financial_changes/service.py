@@ -568,7 +568,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         expected_version = change.row_version
         budget_id, budget_events = self._apply_budget_successor(change, impacts, applied_by, now)
         forecast_id = self._apply_forecast_successor(change, impacts, applied_by, now)
-        schedule_count = self._apply_schedule_changes(change, impacts, applied_by)
+        schedule_count, schedule_events = self._apply_schedule_changes(change, impacts, applied_by)
         change.apply(
                 applied_by=applied_by,
                 applied_at=now,
@@ -579,7 +579,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         self._change_repo.update(change, expected_row_version=expected_version)
         self._audit_change("apply", change)
         self._session.flush()
-        return change, budget_events
+        return change, budget_events + schedule_events
 
     def _apply_rejection_decision(
         self,
@@ -684,16 +684,17 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         change: FinancialChangeRequest,
         impacts: list[FinancialChangeImpact],
         actor: str,
-    ) -> int:
+    ) -> tuple[int, tuple[object, ...]]:
         relevant = [
             row for row in impacts if row.impact_type is FinancialChangeImpactType.SCHEDULE
         ]
         if not relevant:
-            return 0
+            return 0, ()
         commands = self._schedule_commands(change, relevant)
         applied = self._task_service._apply_approved_schedule_changes(
-            commands, actor_id=actor, commit=False
+            commands, actor_id=actor
         )
+        task_events = self._task_service._take_pending_task_events()
         occurred_at = self._clock.now()
         for result in applied:
             self._change_repo.update_impact_application(
@@ -702,7 +703,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
                 applied_reference_id=result.task_id,
             )
             self._audit_version("task", result.task_id, change, occurred_at)
-        return len(applied)
+        return len(applied), task_events
 
     @staticmethod
     def _schedule_commands(

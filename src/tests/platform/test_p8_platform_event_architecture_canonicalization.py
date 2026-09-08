@@ -478,17 +478,12 @@ def test_p6_helper_public_surface_unchanged():
 # ---------------------------------------------------------------------------
 
 
-def test_every_approval_post_commit_event_signal_name_is_allowlisted_and_has_a_ui_consumer():
+def test_zero_approval_post_commit_event_construction_sites_remain():
+    """Superseded by P45B: Task was the last capability whose approval participant
+    constructed `ApprovalPostCommitEvent(...)` -- zero production sites remain, so
+    `ApprovalPostCommitEvent` itself is production-dead (retained only as an inert,
+    unconstructed contract type pending a future cleanup pass)."""
     import ast
-
-    def _has_ui_consumer(signal_name: str) -> bool:
-        for path in glob.glob("src/ui_qml/**/*.py", recursive=True):
-            if "__pycache__" in path:
-                continue
-            with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-                if f"domain_events.{signal_name}" in fh.read():
-                    return True
-        return False
 
     signal_names_found = set()
     for path in _production_source_files():
@@ -511,8 +506,4 @@ def test_every_approval_post_commit_event_signal_name_is_allowlisted_and_has_a_u
             ):
                 signal_names_found.add(node.args[0].value)
 
-    assert signal_names_found
-    for signal_name in signal_names_found:
-        assert signal_name in FROZEN_LEGACY_SIGNAL_ALLOWLIST, signal_name
-        assert hasattr(domain_events, signal_name), signal_name
-        assert _has_ui_consumer(signal_name), f"emit-into-the-void: {signal_name}"
+    assert signal_names_found == set()

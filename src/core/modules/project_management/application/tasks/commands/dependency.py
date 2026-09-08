@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+from src.core.modules.project_management.application.tasks.task_events import (
+    TaskDependencyChangeType,
+    TaskDependencyChanged,
+)
 from src.core.modules.project_management.domain.tasks.task import TaskDependency
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.platform.domain.approval.policy import is_governance_required
 from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import is_admin_session, require_permission
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
@@ -14,7 +20,6 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.domain.enums import DependencyType
 
 if TYPE_CHECKING:
@@ -157,7 +162,6 @@ class TaskDependencyMixin:
             successor_id=successor_id,
             dependency_type=dependency_type,
             lag_days=lag_days,
-            commit=True,
         )
 
     def _apply_dependency_add_decision(
@@ -167,7 +171,6 @@ class TaskDependencyMixin:
         successor_id: str,
         dependency_type: DependencyType,
         lag_days: int,
-        commit: bool,
     ) -> TaskDependency:
         """Apply an add — either immediately (ungoverned path) or when an
         approved ``dependency.add`` request is finally applied. In the
@@ -196,11 +199,28 @@ class TaskDependencyMixin:
         if not diagnostic.is_valid:
             _raise_for_invalid_diagnostic(diagnostic)
         dependency = TaskDependency.create(predecessor_id, successor_id, dependency_type, lag_days)
-        try:
-            self._dependency_repo.add(dependency)
+        scope = self._active_task_scope(operation_label="add dependency")
+        with self._task_uow() as uow:
+            uow.dependencies.add(dependency)
             self._sync_project_schedule(predecessor.project_id, commit=False)
+            record_audit_entry(
+                uow,
+                operation="create",
+                entity_type="task_dependency",
+                entity_id=dependency.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={
+                    "action": "dependency.add",
+                    "predecessor_name": predecessor.name,
+                    "successor_name": successor.name,
+                },
+                commit=False,
+                fail_closed=True,
+            )
             record_activity(
-                self,
+                uow,
                 action="dependency.add",
                 entity_type="task_dependency",
                 entity_id=dependency.id,
@@ -214,16 +234,19 @@ class TaskDependencyMixin:
                 },
                 commit=False,
             )
-            if commit:
-                self._session.commit()
-            else:
-                self._session.flush()
-        except Exception as exc:
-            if commit:
-                self._session.rollback()
-            raise exc
-        if commit:
-            domain_events.tasks_changed.emit(predecessor.project_id)
+            uow.record_event(
+                TaskDependencyChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    project_id=predecessor.project_id,
+                    dependency_id=dependency.id,
+                    predecessor_task_id=dependency.predecessor_task_id,
+                    successor_task_id=dependency.successor_task_id,
+                    change_type=TaskDependencyChangeType.ADDED,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
         return dependency
 
     def remove_dependency(self, dep_id: str) -> None:
@@ -267,9 +290,9 @@ class TaskDependencyMixin:
                 f"Approval required for dependency removal. Request {request.id} created.",
                 code="APPROVAL_REQUIRED",
             )
-        self._apply_dependency_remove_decision(dependency_id=dep_id, commit=True)
+        self._apply_dependency_remove_decision(dependency_id=dep_id)
 
-    def _apply_dependency_remove_decision(self, *, dependency_id: str, commit: bool) -> None:
+    def _apply_dependency_remove_decision(self, *, dependency_id: str) -> None:
         # Fresh re-fetch: this may run immediately (ungoverned path) or much
         # later when an approved request is applied, so `dependency.version`
         # here is always the CURRENT version at apply time, not whatever it
@@ -280,11 +303,28 @@ class TaskDependencyMixin:
         predecessor = self._task_repo.get(dependency.predecessor_task_id)
         successor = self._task_repo.get(dependency.successor_task_id)
         project_id = predecessor.project_id if predecessor else (successor.project_id if successor else None)
-        try:
-            self._dependency_repo.delete(dependency_id, expected_version=dependency.version)
+        scope = self._active_task_scope(operation_label="remove dependency")
+        with self._task_uow() as uow:
+            uow.dependencies.delete(dependency_id, expected_version=dependency.version)
             self._sync_project_schedule(project_id, commit=False)
+            record_audit_entry(
+                uow,
+                operation="delete",
+                entity_type="task_dependency",
+                entity_id=dependency_id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={
+                    "action": "dependency.remove",
+                    "predecessor_name": predecessor.name if predecessor else None,
+                    "successor_name": successor.name if successor else None,
+                },
+                commit=False,
+                fail_closed=True,
+            )
             record_activity(
-                self,
+                uow,
                 action="dependency.remove",
                 entity_type="task_dependency",
                 entity_id=dependency_id,
@@ -296,16 +336,20 @@ class TaskDependencyMixin:
                 },
                 commit=False,
             )
-            if commit:
-                self._session.commit()
-            else:
-                self._session.flush()
-        except Exception as exc:
-            if commit:
-                self._session.rollback()
-            raise exc
-        if commit and project_id:
-            domain_events.tasks_changed.emit(project_id)
+            if project_id:
+                uow.record_event(
+                    TaskDependencyChanged(
+                        tenant_id=scope.tenant_id,
+                        organization_id=scope.organization_id,
+                        project_id=project_id,
+                        dependency_id=dependency_id,
+                        predecessor_task_id=dependency.predecessor_task_id,
+                        successor_task_id=dependency.successor_task_id,
+                        change_type=TaskDependencyChangeType.REMOVED,
+                        occurred_at=datetime.now(timezone.utc),
+                    )
+                )
+            uow.commit()
 
     def list_dependencies_for_task(self, task_id: str) -> list[TaskDependency]:
         require_permission(self._user_session, "task.read", operation_label="list task dependencies")
@@ -428,7 +472,6 @@ class TaskDependencyMixin:
             dependency_id=dep_id,
             dependency_type=resolved_type,
             lag_days=resolved_lag,
-            commit=True,
         )
 
     def _apply_dependency_update_decision(
@@ -437,7 +480,6 @@ class TaskDependencyMixin:
         dependency_id: str,
         dependency_type: DependencyType,
         lag_days: int,
-        commit: bool,
         expected_version: int | None = None,
     ) -> TaskDependency:
         """Apply an update -- either immediately (ungoverned path) or when
@@ -472,12 +514,29 @@ class TaskDependencyMixin:
             _raise_for_invalid_diagnostic(diagnostic)
 
         candidate = replace(dependency, dependency_type=dependency_type, lag_days=lag_days)
-        try:
-            self._dependency_repo.update(candidate)
+        scope = self._active_task_scope(operation_label="update dependency")
+        with self._task_uow() as uow:
+            uow.dependencies.update(candidate)
             if project_id:
                 self._sync_project_schedule(project_id, commit=False)
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="task_dependency",
+                entity_id=candidate.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={
+                    "action": "dependency.update",
+                    "predecessor_name": predecessor.name if predecessor else None,
+                    "successor_name": successor.name if successor else None,
+                },
+                commit=False,
+                fail_closed=True,
+            )
             record_activity(
-                self,
+                uow,
                 action="dependency.update",
                 entity_type="task_dependency",
                 entity_id=candidate.id,
@@ -491,16 +550,20 @@ class TaskDependencyMixin:
                 },
                 commit=False,
             )
-            if commit:
-                self._session.commit()
-            else:
-                self._session.flush()
-        except Exception as exc:
-            if commit:
-                self._session.rollback()
-            raise exc
-        if commit and project_id:
-            domain_events.tasks_changed.emit(project_id)
+            if project_id:
+                uow.record_event(
+                    TaskDependencyChanged(
+                        tenant_id=scope.tenant_id,
+                        organization_id=scope.organization_id,
+                        project_id=project_id,
+                        dependency_id=candidate.id,
+                        predecessor_task_id=candidate.predecessor_task_id,
+                        successor_task_id=candidate.successor_task_id,
+                        change_type=TaskDependencyChangeType.UPDATED,
+                        occurred_at=datetime.now(timezone.utc),
+                    )
+                )
+            uow.commit()
         return candidate
 
 

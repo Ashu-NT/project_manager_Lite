@@ -96,7 +96,6 @@ def test_participant_apply_approves_entry_on_the_supplied_session(services, sess
 
     approved = deps.cost_entry_service._entry_repo.get(entry.id)
     assert approved.status == ProjectCostEntryStatus.APPROVED
-    assert result.post_commit_events == ()
 
 
 def test_participant_never_calls_commit_or_rollback(services, session, monkeypatch):

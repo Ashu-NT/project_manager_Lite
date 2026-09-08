@@ -134,7 +134,6 @@ def test_participant_apply_applies_change_on_the_supplied_session_with_budget_on
     assert applied.applied_budget_id
     assert applied.applied_forecast_id is None
     assert not applied.applied_schedule_count
-    assert result.post_commit_events == ()
     change_event = next(
         event for event in result.domain_events if isinstance(event, FinancialChangeChanged)
     )
@@ -159,7 +158,6 @@ def test_participant_reject_rejects_change_on_the_supplied_session(services, ses
 
     rejected = deps.financial_change_service._change_repo.get(change.id)
     assert rejected.status is FinancialChangeStatus.REJECTED
-    assert result.post_commit_events == ()
     assert result.domain_events == (
         FinancialChangeChanged(
             tenant_id=rejected.tenant_id,

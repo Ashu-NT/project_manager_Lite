@@ -21,6 +21,12 @@ class WorkAllocationRepository(Protocol):
 
     def update(self, work_allocation: WorkAllocationRecord) -> None: ...
 
+    def update_hours_logged_with_version_check(
+        self, work_allocation: WorkAllocationRecord, *, expected_version: int
+    ) -> WorkAllocationRecord:
+        """CAS-protected write for the TimeEntry-driven `hours_logged` sync"""
+        ...
+
 
 class WorkOwnerRepository(Protocol):
     def get(self, owner_id: str) -> WorkOwnerRecord | None: ...

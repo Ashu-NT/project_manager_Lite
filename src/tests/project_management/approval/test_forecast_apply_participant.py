@@ -111,7 +111,6 @@ def test_participant_approves_on_supplied_session_and_returns_typed_event(
     approved = deps.forecast_service._forecast_repo.get(forecast.id)
     assert approved.status is ForecastStatus.APPROVED
     assert approved.approved_by == services["user_session"].principal.user_id
-    assert result.post_commit_events == ()
     assert result.domain_events == (
         ForecastVersionChanged(
             tenant_id=forecast.tenant_id,

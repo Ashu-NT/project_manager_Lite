@@ -11,6 +11,9 @@ from src.core.modules.project_management.infrastructure.approval.task_apply_part
     TaskApprovalDeps,
 )
 from src.core.platform.application.history.activity.activity_service import ActivityService
+from src.core.platform.application.history.audit.enterprise_audit_service import (
+    EnterpriseAuditService,
+)
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
     CalendarProtocol,
 )
@@ -37,6 +40,12 @@ def build_task_approval_deps(
     activity_service = ActivityService(
         session=session,
         activity_repo=bundle.activity_repo,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+    )
+    enterprise_audit_service = EnterpriseAuditService(
+        session=session,
+        audit_repo=bundle.audit_entry_repo,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
     )
@@ -72,6 +81,7 @@ def build_task_approval_deps(
         module_catalog_service=module_catalog_service,
         employee_repo=bundle.employee_repo,
         tenant_context_service=tenant_context_service,
+        enterprise_audit_service=enterprise_audit_service,
     )
     return TaskApprovalDeps(task_service=task_service)
 

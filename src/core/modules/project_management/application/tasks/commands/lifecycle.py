@@ -2,15 +2,21 @@ from __future__ import annotations
 
 import logging
 from dataclasses import replace
-from datetime import date
+from datetime import date, datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.application.tasks.task_events import (
+    TaskCreated,
+    TaskProfileUpdated,
+    TaskStatusChanged,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
@@ -18,7 +24,6 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 
@@ -85,25 +90,47 @@ class TaskLifecycleMixin:
             )
 
         self._validate_task_within_project_dates(project_id, task.start_date, task.end_date)
+        scope = self._active_task_scope(operation_label="create task")
 
         try:
             task = self._resequence_for_new_task(task)
-            self._task_repo.add(task)
-            self._session.commit()
-            record_activity(
-                self,
-                action="task.create",
-                entity_type="task",
-                entity_id=task.id,
-                module="project_management",
-                workspace_id=project_id,
-                details={"name": task.name},
-            )
+            with self._task_uow() as uow:
+                uow.tasks.add(task)
+                record_audit_entry(
+                    uow,
+                    operation="create",
+                    entity_type="task",
+                    entity_id=task.id,
+                    module="project_management",
+                    organization_id=scope.organization_id,
+                    severity="low",
+                    metadata={"action": "task.create", "name": task.name},
+                    commit=False,
+                    fail_closed=True,
+                )
+                record_activity(
+                    uow,
+                    action="task.create",
+                    entity_type="task",
+                    entity_id=task.id,
+                    module="project_management",
+                    workspace_id=project_id,
+                    details={"name": task.name},
+                    commit=False,
+                )
+                uow.record_event(
+                    TaskCreated(
+                        tenant_id=scope.tenant_id,
+                        organization_id=scope.organization_id,
+                        project_id=project_id,
+                        task_id=task.id,
+                        occurred_at=datetime.now(timezone.utc),
+                    )
+                )
+                uow.commit()
             logger.info("Created task %s - %s for project %s", task.id, task.name, project_id)
-            domain_events.tasks_changed.emit(project_id)
             return task
         except IntegrityError as exc:
-            self._session.rollback()
             if self._is_task_code_integrity_error(exc):
                 self._raise_task_code_duplicate(task.code, exc)
             if self._is_task_wbs_integrity_error(exc):
@@ -114,7 +141,6 @@ class TaskLifecycleMixin:
             logger.error("Error creating task: %s", exc)
             raise
         except Exception as exc:
-            self._session.rollback()
             logger.error("Error creating task: %s", exc)
             raise
 
@@ -206,28 +232,59 @@ class TaskLifecycleMixin:
             candidate.start_date,
             candidate.end_date,
         )
+        scope = self._active_task_scope(operation_label="update task")
 
         try:
-            self._task_repo.update(candidate)
-            self._session.commit()
-            record_activity(
-                self,
-                action="task.update",
-                entity_type="task",
-                entity_id=candidate.id,
-                module="project_management",
-                workspace_id=candidate.project_id,
-                details={"name": candidate.name, "status": candidate.status.value},
-            )
+            with self._task_uow() as uow:
+                uow.tasks.update(candidate)
+                record_audit_entry(
+                    uow,
+                    operation="update",
+                    entity_type="task",
+                    entity_id=candidate.id,
+                    module="project_management",
+                    organization_id=scope.organization_id,
+                    severity="low",
+                    metadata={"action": "task.update", "name": candidate.name},
+                    commit=False,
+                    fail_closed=True,
+                )
+                record_activity(
+                    uow,
+                    action="task.update",
+                    entity_type="task",
+                    entity_id=candidate.id,
+                    module="project_management",
+                    workspace_id=candidate.project_id,
+                    details={"name": candidate.name, "status": candidate.status.value},
+                    commit=False,
+                )
+                uow.record_event(
+                    TaskProfileUpdated(
+                        tenant_id=scope.tenant_id,
+                        organization_id=scope.organization_id,
+                        project_id=candidate.project_id,
+                        task_id=candidate.id,
+                        occurred_at=datetime.now(timezone.utc),
+                    )
+                )
+                if status is not None and status != task.status:
+                    uow.record_event(
+                        TaskStatusChanged(
+                            tenant_id=scope.tenant_id,
+                            organization_id=scope.organization_id,
+                            project_id=candidate.project_id,
+                            task_id=candidate.id,
+                            old_status=task.status.value,
+                            new_status=candidate.status.value,
+                            occurred_at=datetime.now(timezone.utc),
+                        )
+                    )
+                uow.commit()
         except IntegrityError as exc:
-            self._session.rollback()
             if self._is_task_code_integrity_error(exc):
                 self._raise_task_code_duplicate(candidate.code, exc)
             raise
-        except Exception as exc:
-            self._session.rollback()
-            raise exc
-        domain_events.tasks_changed.emit(candidate.project_id)
         return candidate
 
 __all__ = ["TaskLifecycleMixin"]

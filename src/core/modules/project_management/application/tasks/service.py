@@ -72,6 +72,14 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     TaskRepository,
 )
 from src.core.platform.application.history.activity.activity_service import ActivityService
+from src.core.platform.application.history.audit.enterprise_audit_service import (
+    EnterpriseAuditService,
+)
+from src.core.modules.project_management.contracts.uow.tasks.task_unit_of_work import (
+    TaskUnitOfWorkFactory,
+)
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.platform.common.ids import generate_id
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository, TimesheetPeriodRepository
@@ -128,6 +136,8 @@ class TaskService(
         tenant_context_service=None,
         task_workspace_reader: TaskWorkspaceReader | None = None,
         enterprise_resource_availability_service=None,
+        task_uow_factory: TaskUnitOfWorkFactory | None = None,
+        enterprise_audit_service: EnterpriseAuditService | None = None,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
@@ -150,15 +160,50 @@ class TaskService(
         self._assignment_skill_validator = assignment_skill_validator
         self._tenant_context_service = tenant_context_service
         self._task_workspace_reader = task_workspace_reader
-        # The authoritative calendar-based capacity source (docs §44) --
-        # TaskValidationMixin falls back to skipping the capacity check
-        # entirely (never to the old naive Mon-Fri/percent duplicate logic)
-        # when this isn't configured, e.g. in lightweight test construction.
         self._enterprise_resource_availability_service = enterprise_resource_availability_service
         policy = os.getenv("PM_OVERALLOCATION_POLICY", "warn").strip().lower()
         self._overallocation_policy: str = "strict" if policy == "strict" else "warn"
         self._last_overallocation_warning: str | None = None
         self._last_skill_violation_warning: str | None = None
+        self._task_uow_factory: TaskUnitOfWorkFactory | None = task_uow_factory
+        self._enterprise_audit_service: EnterpriseAuditService | None = enterprise_audit_service
+        # Sidecar for the passthrough (approval/cross-capability) UoW mode: the
+        # caller (e.g. task_apply_participant) owns commit/dispatch and must
+        # collect the typed fact(s) a mutation recorded via this list right
+        # after calling it -- see `application/tasks/task_unit_of_work_scope.py`.
+        self._pending_task_events: list = []
+
+    def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
+
+    def _task_uow(self, context: DomainEventContext | None = None):
+        from src.core.modules.project_management.application.tasks.task_unit_of_work_scope import (
+            PassthroughTaskUnitOfWork,
+        )
+
+        if self._task_uow_factory is not None:
+            return self._task_uow_factory.create(context=context or self._new_context())
+        self._pending_task_events = []
+        return PassthroughTaskUnitOfWork(
+            tasks=self._task_repo,
+            assignments=self._assignment_repo,
+            dependencies=self._dependency_repo,
+            enterprise_audit_service=self._enterprise_audit_service,
+            activity_service=self._activity_service,
+            collected_events=self._pending_task_events,
+        )
+
+    def _take_pending_task_events(self) -> tuple:
+        events = tuple(self._pending_task_events)
+        self._pending_task_events = []
+        return events
+
+    def _active_task_scope(self, *, operation_label: str):
+        if self._tenant_context_service is None:
+            raise RuntimeError("TaskService requires TenantContextService.")
+        return self._tenant_context_service.require_active_scope_ids(
+            operation_label=operation_label
+        )
 
     def consume_last_overallocation_warning(self) -> str | None:
         warning = self._last_overallocation_warning

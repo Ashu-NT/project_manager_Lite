@@ -183,22 +183,12 @@ def test_commit_failure_rolls_back_approval_decision_and_module_mutation_togethe
 
     monkeypatch.setattr(SqlAlchemyPlatformUnitOfWork, "commit", _fail_commit)
 
-    signals_emitted = []
-    monkeypatch.setattr(
-        type(approvals),
-        "_emit_signal_safely",
-        staticmethod(
-            lambda signal_name, payload: signals_emitted.append((signal_name, payload))
-        ),
-    )
-
     with pytest.raises(RuntimeError, match="simulated database commit failure"):
         approvals.approve_and_apply(request.id)
 
     uow = captured_uow["uow"]
     assert uow._committed is False, "commit() failing must never mark the UoW committed"
     assert uow._closed is True, "the UoW's own __exit__ must still roll back and close"
-    assert signals_emitted == [], "no post-commit signal may fire when commit fails"
 
     # The approval decision itself: confirmed via the SAME (already-closed) UoW's identity-map
     # state is not meaningful post-close, but the request's in-memory status object passed to

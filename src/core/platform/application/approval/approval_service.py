@@ -10,7 +10,6 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.uow.approval_unit_of_work import PlatformUnitOfWorkFactory
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.application.approval.approval_mutation_participant import (
     build_request_audit_details,
@@ -237,7 +236,6 @@ class ApprovalService:
             for domain_event in handler_result.domain_events:
                 uow.record_event(domain_event)
             uow.commit()
-        self._emit_handler_events(handler_result)
 
         self._notify_approval_decided(request, decided="rejected")
         return request
@@ -295,7 +293,6 @@ class ApprovalService:
             for domain_event in handler_result.domain_events:
                 uow.record_event(domain_event)
             uow.commit()
-        self._emit_handler_events(handler_result)
         self._notify_approval_decided(request, decided="approved")
         return request
 
@@ -338,25 +335,6 @@ class ApprovalService:
             )
         return result
 
-    @classmethod
-    def _emit_handler_events(cls, result: ApprovalHandlerResult) -> None:
-        for event in result.post_commit_events:
-            cls._emit_signal_safely(event.signal_name, event.payload)
-
-    @staticmethod
-    def _emit_signal_safely(signal_name: str, payload: object) -> None:
-        signal = getattr(domain_events, signal_name, None)
-        if signal is None:
-            logger.error("Approval post-commit signal is not registered: %s", signal_name)
-            return
-        try:
-            signal.emit(payload)
-        except Exception:
-            logger.exception(
-                "Approval post-commit signal failed signal=%s payload=%s",
-                signal_name,
-                payload,
-            )
 
     def _active_tenant_id(self) -> str | None:
         tenant_context = getattr(self, "_tenant_context_service", None)

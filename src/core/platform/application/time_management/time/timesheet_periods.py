@@ -7,7 +7,6 @@ from src.core.shared.audit import record_audit_entry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, ValidationError
 from src.core.platform.common.ids import generate_id
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.platform.application.time_management.time.timesheet_events import (
     TimesheetPeriodStatusChangeType,
@@ -339,8 +338,6 @@ class TimesheetPeriodsMixin:
             )
             uow.commit()
 
-        for project_id in project_ids:
-            domain_events.tasks_changed.emit(project_id)
         dispatcher = getattr(self, "_approved_time_dispatcher", None)
         if callable(dispatcher) and emitted_count:
             try:

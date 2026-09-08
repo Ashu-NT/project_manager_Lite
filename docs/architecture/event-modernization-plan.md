@@ -3617,6 +3617,748 @@ Document owns its own fact. The other 5 durable operations (`mark_task_mentions_
 `edit_comment`, `delete_comment`, `react_to_comment`, `remove_reaction`) and presence remain
 exactly as P44A/P44B described — zero cross-capability coupling.
 
+### P45A — Final PM Task Architecture Audit + End-State Design (AUDIT + ARCHITECTURE DESIGN ONLY)
+
+No production, test, README, or ADR file changed. `tasks_changed` NOT deleted. Legacy Signal count
+unchanged at 2 (`dataclasses.fields(DomainEvents)` re-verified by direct read and live
+introspection: exactly `tasks_changed: Signal[str]`, `auth_changed: Signal[str]`, nothing else —
+`src/core/shared/events/domain_events.py:6-9`). PM legacy = `tasks_changed` only. Auth legacy =
+`auth_changed`, unchanged, AUDITED / DEFERRED (P26A stands, not re-touched). This phase produces a
+complete source-derived audit and an implementation-ready P45B design; it does not implement any of
+it. Six parallel read/search/test-only research passes were run and cross-checked against each
+other and against direct source reads by the main agent; two direct contradictions between passes
+surfaced and were resolved by main-agent source verification (documented below) rather than
+averaged or left ambiguous.
+
+**Legacy state reconfirmation**: current = {`tasks_changed`, `auth_changed`}, frozen (P8 budget) ⊇
+current, retired ∩ current = ∅ — unchanged from every prior phase's own reconfirmation.
+
+**Producer matrix — 28 sites confirmed exactly (22 direct emits + 6 reflective
+`ApprovalPostCommitEvent` sites), matching the P40A/P34A raw count, but the historical "10 files"
+grouping undercounts the real file spread and the direct-site classification needed correction**:
+
+| # | File:line | Operation | Aggregate mutated | Txn owner | Audit | Concurrency | Class |
+|---|---|---|---|---|---|---|---|
+|1|`lifecycle.py:103`|`create_task`|Task (create)|raw shared Session|Activity-only|n/a|**A**|
+|2|`lifecycle.py:230`|`update_task`|Task (fields)|raw shared Session|Activity-only|CAS (`update_with_version_check`)|**A** — 2-commit bug|
+|3|`hierarchy.py:182`|`move_task`|Task, incl. siblings|raw shared Session|Activity-only (primary task only)|**CAS on every row, siblings included** (see resolution below)|**A**|
+|4|`progress.py:98`|`set_tasks_status` (bulk)|Task (status)|raw shared Session|Activity-only per task|no per-task expected_version param (relies on same-txn read)|**A**|
+|5|`progress.py:170`|`update_progress`|Task (progress/status)|raw shared Session|Activity-only|CAS|**A** — 2-commit bug|
+|6|`deletion.py:133`|`delete_tasks` (bulk)|Task (delete) + cascades TaskDependency/TaskAssignment/TimeEntry rows|raw shared Session|Activity-only per task|**Task.delete() has NO version check at all** (confirmed, see below); resequenced siblings ARE CAS'd via `update()`|**A**|
+|7|`scheduling_constraint.py:167`|`update_task_scheduling_constraint`|Task (constraint)|raw shared Session|Activity-only|CAS|**A**|
+|8|`resource_leveling_apply.py:183`|`apply_resource_leveling_plan` (bulk)|Task (`resource_leveling_not_before`), N rows|raw shared Session|Activity-only per task|whole-snapshot fingerprint + per-row CAS|**A**|
+|9|`dependency.py:226`|`add_dependency`|TaskDependency (create) + Task via schedule sync|raw shared Session|Activity-only|n/a|**A**|
+|10|`dependency.py:308`|`remove_dependency`|TaskDependency (delete, CAS) + Task via schedule sync|raw shared Session|Activity-only|CAS|**A**|
+|11|`dependency.py:503`|`update_dependency`|TaskDependency (update) + Task via schedule sync|raw shared Session|Activity-only|CAS via `update_with_version_check`|**A**|
+|12|`assignment.py:101`|`unassign_resource`|TaskAssignment (delete)|raw shared Session|Activity-only|**blind, no CAS**|**A** — LOST-UPDATE RISK|
+|13|`assignment.py:200`|`set_assignment_hours`|TaskAssignment (hours_logged)|raw shared Session|Activity-only|**blind, no CAS**|**A** — LOST-UPDATE RISK|
+|14|`assignment.py:253`|`set_assignment_allocation`|TaskAssignment (allocation_percent)|raw shared Session|Activity-only|CAS only if caller passes `expected_version`, else falls back to blind|**A**|
+|15|`assignment.py:333`|`update_assignment_planned_hours`|TaskAssignment + ProjectResource (cross-aggregate)|raw shared Session, one commit|Activity-only|CAS on both|**A**|
+|16|`assignment.py:474`|`assign_project_resource`/`assign_resource`|TaskAssignment (create)|raw shared Session|Activity-only|n/a|**A**|
+|17|`assignment.py:665`|`accept_assignment`|TaskAssignment (response_status)|raw shared Session|Activity-only|**blind, no CAS**; real no-op guard (same-state short-circuits, zero mutation/audit/event)|**A** — LOST-UPDATE RISK|
+|18|`assignment.py:703`|`decline_assignment`|TaskAssignment (response_status)|raw shared Session|Activity-only|**blind, no CAS**; real no-op guard|**A** — LOST-UPDATE RISK|
+|19|`timesheet_entries.py:153`|`add_work_entry`|**TaskAssignment.hours_logged** via `_sync_work_allocation_hours_from_entries` — see resolution below|raw shared Session (Timesheet's own)|EnterpriseAudit (Timesheet-side)|blind `AssignmentRepository.update()` (plain, unversioned)|**A** — corrected from an initial B misclassification, see below|
+|20|`timesheet_entries.py:240`|`update_time_entry`|same TaskAssignment field|raw shared Session|EnterpriseAudit (Timesheet-side)|CAS on TimeEntry itself, blind on the TaskAssignment write|**A** — corrected|
+|21|`timesheet_entries.py:290`|`delete_time_entry`|same TaskAssignment field|raw shared Session|EnterpriseAudit (Timesheet-side)|same|**A** — corrected|
+|22|`timesheet_periods.py:343`|approve/reject period transition|**TimesheetPeriod only** — own canonical UoW, own typed `TimesheetPeriodStatusChanged` event; `tasks_changed` emitted post-commit, per affected `project_id`, purely to stale Task-side project read models|named UoW (already modernized)|EnterpriseAudit|version/CAS via UoW|**B** — the one genuine read-model-only producer|
+|23-27|`task_apply_participant.py:87,98,112,126,139`|5 decisions (enumerated below)|TaskDependency ×3, Task (constraint) ×1, Task (bulk leveling) ×1|ApprovalService UoW|Activity-only (Task-side); none from the participant itself|CAS at the underlying `TaskService` methods|**A**|
+|28|`financial_change_apply_participant.py:53`|conditional on `applied_schedule_count`|Task (start/end/duration), N rows via `_apply_approved_schedule_changes`|ApprovalService UoW (same transaction as Financial Change)|**EnterpriseAudit** (`_audit_version`, Financial-Change-side) + Activity (Task-side) — the one Task-touching path already EnterpriseAudit'd|CAS (`task.version != change.expected_version` → `ConcurrencyError`)|**A**|
+
+**Two direct research-pass contradictions, resolved by main-agent direct source read (not
+averaged)**:
+
+1. *Producer-audit pass classified `timesheet_entries.py`'s 3 sites as Class B ("TimeEntry only, own
+   repo"); the cross-capability pass classified the same sites as Class C (real Task mutation).*
+   Resolved definitively by reading `timesheet_support.py:260-269` and the composition root: `_sync_
+   work_allocation_hours_from_entries` calls `self._work_allocation_repo.update(work_allocation)`,
+   and `project_registry.py:482-484` wires `TimesheetService(assignment_repo=repositories.
+   assignment_repo, ...)` — **the identical `SqlAlchemyAssignmentRepository` instance Task's own
+   commands use** (`time_service.py:58-59`: `self._work_allocation_repo = self._assignment_repo =
+   assignment_repo`). `hours_logged` is a field on `TaskAssignment` (`domain/tasks/task.py:246`).
+   **Verdict: true Task-aggregate mutation (reclassified A)**, going through the exact same plain,
+   unversioned `TaskAssignment.update()` blind-write path already flagged as a lost-update risk for
+   `unassign_resource`/`set_assignment_hours`/`accept_assignment`/`decline_assignment`. Only
+   `timesheet_periods.py:343` (site #22) is genuinely Class B — verified by direct read: it emits
+   `tasks_changed` in a loop **after** its own `uow.commit()`, touching zero Task/TaskAssignment/
+   TaskDependency rows.
+2. *Concurrency-audit pass rated `move_task`'s sibling writes SAFE (real per-row CAS); producer-audit
+   pass rated the same siblings a "confirmed LOST-UPDATE RISK, blind overwrite."* Resolved by reading
+   `hierarchy.py:127-157` and `deletion.py:114-126` directly against `SqlAlchemyTaskRepository.
+   update()` (`infrastructure/persistence/repositories/tasks/task.py:71-90`): sibling candidates are
+   built via `dataclasses.replace(sibling, ...)` from objects read earlier in the *same* transaction,
+   and every call to `self._task_repo.update(candidate)` — including sibling resequencing in both
+   `move_task` and `delete_tasks` — routes through `update_with_version_check(..., candidate.
+   version, ...)`, a real `UPDATE ... WHERE id=:id AND version=:expected` at the SQL layer. **Verdict:
+   `Task.update()` is genuinely CAS-protected for every caller, siblings included — the concurrency
+   pass was correct, and the historical "`move_task` blind-overwrites siblings" claim (carried since
+   P40A) is REFUTED.** A real, previously-uncharacterized gap was found in the same reading, however:
+   **`SqlAlchemyTaskRepository.delete()` (line 109-121) takes no `expected_version` parameter and
+   performs zero version check at all** — a tenant/org-scoped hard delete with no CAS whatsoever,
+   unlike `TaskDependency.delete()` (which requires `expected_version`, line 518). This is a genuine,
+   newly-confirmed concurrency gap on `delete_task`/`delete_tasks`, distinct from — and narrower
+   than — the disproven "siblings blind" claim.
+
+Also resolved directly (not left to a fork's unverified suspicion): the Financials workspace's
+`tasks_changed` consumer (`financials_refresh_mixin.py:606-628`) was flagged by the consumer-audit
+pass as possibly dead (expects a `FinanceInvalidationScope`-shaped payload that Task producers never
+emit — they always emit a bare `project_id` string). Direct read of `_finance_event_matches`
+(lines 617-628) shows a second branch handling exactly this case: `project_id = str(payload or "").
+strip(); return project_id == self._selected_project_id`. **Verdict: alive, not dead**, scoped by
+project_id (no tenant/org check on this fallback path, unlike the `FinanceInvalidationScope`
+branch used by Finance's own typed events) — acceptable precision since the Financials workspace
+always operates against one selected project.
+
+**Consumer matrix — 10 files, matching the historical count, composition now verified**:
+
+| Consumer | Classification | Scope precision | Task data genuinely read | Verdict |
+|---|---|---|---|---|
+| `TasksWorkspaceController` (task list) | OWNER | NONE — blanket `refresh()` | Yes | KEEP, narrow |
+| PM Dashboard (`dashboard_refresh_mixin.py`) | REAL SUMMARY | NONE — blanket | Yes (imprecisely) | KEEP, narrow |
+| Collaboration workspace | marginal / likely INCIDENTAL | NONE | Unconfirmed — P44B already proved TaskComment doesn't mutate Task; this is the reverse read and wasn't confirmed to do anything real | flagged for P45B confirmation before removal |
+| Scheduling workspace | OWNER-ADJACENT | NONE — blanket | Yes | KEEP, narrow |
+| Portfolio workspace | REAL SUMMARY (unconfirmed) | NONE | Unconfirmed | flagged for P45B confirmation |
+| Resource workspace | REAL SUMMARY | Partial — section-open check, not payload-scoped | Yes | KEEP, narrow |
+| Financials workspace | CROSS-CAPABILITY READ MODEL | project_id match (verified alive, see above) | Yes | KEEP |
+| Timesheets workspace | CROSS-CAPABILITY READ MODEL | NONE — blanket | Plausible | KEEP, narrow |
+| Resource-Timesheets controller | CROSS-CAPABILITY READ MODEL | NONE — blanket | Plausible | KEEP, narrow |
+| Platform Control workspace | REAL (approval-queue half) / vacuous (audit-feed half, zero Task audit rows exist yet) | NONE | Yes (approval half) | KEEP both — audit half becomes real once P45B adds EnterpriseAudit |
+
+**Newly-found gap, not previously documented**: the Task workspace's own detail sub-sections
+(assignments, dependencies, time, discussion/collaboration, skill requirements — each lazy-loaded
+per-task via `task_lazy_section_loader.py`) have **zero `tasks_changed` wiring at all**. Only the
+list view refreshes on the legacy signal. An open detail panel goes silently stale if e.g. an
+assignment changes while it's open. This must be fixed by the new `task_detail` ViewInvalidation
+target, not carried forward as-is.
+
+**Three Task aggregate families — historical claim CONFIRMED, all three in `domain/tasks/
+task.py`**: `Task` (line 28, own `id`, `project_id` ownership, `version`, no tenant/org field of its
+own — scoped transitively via Project), `TaskAssignment` (line 241, own `id`, `task_id`/
+`resource_id`/`project_resource_id`, own `version`), `TaskDependency` (line 366, own `id`,
+`predecessor_task_id`/`successor_task_id`, own `version`) — three separately-tabled, separately-
+versioned aggregates, not one aggregate with child entities. `TaskService` (`application/tasks/
+service.py:84`) is a single composed God-service spanning all three via mixins (`TaskLifecycleMixin`,
+`TaskProgressMixin`, `TaskHierarchyMixin`, `TaskDeletionMixin`, `TaskSchedulingConstraintMixin`,
+`ResourceLevelingApplyMixin`, `ApprovedScheduleChangeMixin`, plus assignment/dependency mixins) — one
+repository interface per aggregate (`TaskRepository`, `AssignmentRepository`, `DependencyRepository`,
+all in `contracts/repositories/tasks/task.py`).
+
+**Lifecycles**: Task — `TODO ⇄ IN_PROGRESS → DONE`, explicit reopen (`DONE → IN_PROGRESS`) gated by
+caller-supplied `reopen_percent_complete`; legality enforced ad hoc across `set_tasks_status`/
+`update_progress`, no centralized state-machine table. TaskAssignment — `pending → accepted` /
+`pending → declined`, both terminal (no path back to pending without a new assignment row).
+TaskDependency — no lifecycle, pure CRUD + `DependencyType` enum.
+
+**Persistence-support model — `schedule_fingerprint` reconfirmed Class A, stronger than the prior
+"fingerprint row" framing**: it is **not persisted anywhere** — a pure in-memory SHA-256 hash over
+every involved Task/TaskDependency/TaskAssignment `(id, version)` triple, recomputed fresh on every
+leveling preview/apply and compared to the value carried in the request payload
+(`schedule_fingerprint.py`). No fingerprint table, row, or migration exists. Technical staleness-
+detection support, not a business aggregate — zero ambiguity.
+
+**Bulk/fingerprint deep trace (`apply_resource_leveling_plan`)**: reads all leaf Tasks/Dependencies/
+Assignments in the project to recompute the fingerprint, mutates only `Task.resource_leveling_not_
+before` for tasks named in the proposal, one `tasks_changed.emit(project_id)` at the end (already
+deduped, not one per task). Idempotency is fingerprint-implied, not an explicit dedupe key: replaying
+an already-applied proposal recomputes a fingerprint against now-mutated state, which won't match
+the original, and hard-fails with `ConcurrencyError` rather than double-applying. Concurrency: a
+coarse whole-snapshot check up front plus real per-row CAS during the write loop — a narrow TOCTOU
+window between the two is still closed by the per-row CAS aborting the whole batch on any mismatch.
+
+**No-op semantics confirmed real for**: `accept_assignment`/`decline_assignment` (same-state →
+zero mutation/audit/event, `assignment.py:637-638,670-671`), `set_tasks_status` (per-task `if task.
+status == status: continue`, event only for distinct `project_id`s actually touched — a working
+precedent for ViewInvalidation dedup design). **No no-op guard exists for** `update_progress` or
+`update_task` — a field-identical resubmission still re-persists/re-audits/re-emits.
+
+**Producer reclassification (the central P45A deliverable) — final counts**: **27 of 28 sites are
+Class A (true Task-family persisted mutation)**; **1 is Class B** (`timesheet_periods.py:343`,
+read-model-only); **0 are Class C** (no incidental/dead producer found — the one suspected-dead
+consumer turned out alive, and no suspected-dead producer was found in this pass). This corrects
+both the historical assumption and an initial in-pass misclassification (§ resolution 1 above) that
+would have undercounted true producers as 24.
+
+**Transaction topology — 18 of 18 direct non-approval Task-command sites (excl. the 3 corrected
+Timesheet-wired sites and the approval/FC sites) run on Category A, one raw process-lifetime shared
+`Session`**: `TaskService.__init__` (`service.py:107-132`) takes a plain `Session` with no UoW/
+factory parameter; the composition root (`project_registry.py:573-596`) hands it the *same* session
+instance also given to `ProjectResourceService`/`TimesheetService`/`RegisterService`/`ResourceService`
+/Finance services at that call site — by contrast `ProjectService`/`ResourceService`/`RegisterService`
+each get a dedicated `*_uow_factory` off a fresh `sessionmaker` a few lines later in the same file.
+**Task has no canonical UoW of any kind — confirmed, not carried forward unverified.** 5 sites run
+under Category C (ApprovalService's own UoW, genuinely atomic). 1 site (Financial Change's schedule
+branch) is the same ApprovalService UoW reached through another capability's participant. The 3
+corrected Timesheet-wired TaskAssignment writes run under Category F (TimesheetService's own raw
+shared session — also process-lifetime, per `project_registry.py:482-483`, but a *different*
+capability's session object than Task's own, not truly "shared" with Task's transactions).
+
+**Early-commit / two-commit hazards — 2 confirmed, not blanket**: `lifecycle.py:207-227` (`update_
+task`) and `progress.py:150-166` (`update_progress`) both call `self._session.commit()` **then**
+`record_activity(...)` with no `commit=False` override, forcing `ActivityService.record`'s own
+default (`commit=True`) to issue a **second, separate** commit — if that second commit or the
+activity insert fails, the exception's `rollback()` is a no-op (the Task mutation already committed)
+yet the caller still sees a failure for an operation that actually succeeded. The correct pattern
+already exists in the same module for comparison: `dependency.py` (`add_dependency`), `hierarchy.py`
+(`move_task`), and `resource_leveling_apply.py` all call `record_activity(..., commit=False)` before
+a single trailing `self._session.commit()`. This is an inconsistency to fix, not a universal defect.
+
+**EnterpriseAudit gap — confirmed zero, not assumed**: `grep -r "EnterpriseAudit|record_audit_entry"
+src/core/modules/project_management/application/tasks` → no matches. `TaskService.__init__` has no
+`enterprise_audit_service` parameter at all, unlike `ProjectService`/`BudgetService`/
+`FinancialConfigurationService`/`RateCardService`, which each explicitly accept and wire one. Every
+Task-owned mutation records only `record_activity` (ActivityService — the activity feed, not an
+audit trail; silently no-ops if `_activity_service` is unwired). The single exception: Financial
+Change's schedule-impact path IS EnterpriseAudit'd, but from Financial Change's own service
+(`_audit_version`), not from Task's command layer — so "zero audit anywhere near Task" is
+overstated; "zero audit in Task's own command layer" is the precise, source-proven gap.
+
+**Concurrency by aggregate — final, resolved ratings**:
+- **Task: SAFE for `update()`** (real per-row CAS via `update_with_version_check`, including every
+  sibling-resequencing write in `move_task`/`delete_tasks`) — **but `delete()` is genuinely blind,
+  zero version check**, a real, newly-confirmed gap distinct from the disproven siblings claim.
+- **TaskAssignment: PARTIAL — real LOST-UPDATE RISK.** Plain `update()` (`task.py:259-276`) directly
+  mutates ORM row attributes with no CAS; `delete()` is likewise blind. Only `update_planned_hours_
+  with_version_check` and `update_allocation_with_version_check` are safe. Of assignment.py's 7
+  mutation call sites: 4 blind (`unassign_resource`, `set_assignment_hours`, `accept_assignment`,
+  `decline_assignment`), 1 safe (`update_assignment_planned_hours`), 1 conditionally safe
+  (`set_assignment_allocation`, safe only if caller supplies `expected_version`), plus the 3
+  Timesheet-wired `hours_logged` syncs (all blind, via the same plain `update()`).
+- **TaskDependency: SAFE.** Both `update()` and `delete()` route through `update_with_version_check`/
+  `delete_with_version_check` respectively — `delete()` requires an explicit `expected_version`
+  parameter, the strictest of the three aggregates.
+
+**Cross-capability mutation graph — proven edges only**:
+
+| Edge | Class | Evidence | Mutation owner | Txn owner |
+|---|---|---|---|---|
+| Project → Task | **C (real)** — newly confirmed, not previously documented | `projects/commands/lifecycle.py:599-608` `delete_project` cascades: deletes TaskDependency/TimeEntry/TaskAssignment/Task rows for every task in the project | `delete_project` | bare ad-hoc `SqlAlchemyUnitOfWorkBase`, not Task's own UoW, not a named `ProjectUnitOfWork` |
+| Financial Change → Task | **C (real)** | `financial_change_apply_participant.py` → `_apply_schedule_changes` → `TaskService._apply_approved_schedule_changes`; mutates `start_date`/`end_date`/`duration_days`; CAS-checked (`task.version != change.expected_version`); EnterpriseAudit'd from FC's side (`_audit_version`) + Activity from Task's side; **also cascades into `scheduler.recalculate_project_schedule` which can mutate sibling/dependent Task rows beyond the explicit change targets, with no separate version-check/audit at that layer** — flagged as an open question, not fixed here | `FinancialChangeService._apply_schedule_changes` | same ApprovalService UoW, single transaction |
+| TimeEntry → TaskAssignment | **C (real)** — corrected from an initial B misclassification, see resolution above | `_sync_work_allocation_hours_from_entries` mutates `TaskAssignment.hours_logged` via the same `assignment_repo` instance Task's own commands use | `TimesheetEntriesMixin.add/update/delete_time_entry` | raw shared Session (Timesheet's own, distinct object from Task's) |
+| Collaboration → Task | A (none) | Zero `task_repo.update/add/delete` calls anywhere under `application/collaboration/` — reconfirmed | n/a | n/a |
+| Resource → Task | A (reference only) | `project_resource_commands.py:359` only reads `hours_logged` as an unassign guard, never writes | n/a | n/a |
+| Baseline → Task | A (none) | Zero Task-repo references in `baseline_apply_participant.py` | n/a | n/a |
+| Forecast → Task | A (none) | Forecast's `_apply_forecast_successor` never touches `task_repo`; Task mutation is exclusive to the separate SCHEDULE-type impact path (the Financial Change edge above) | n/a | n/a |
+| Document → Task | A (none) | Zero `task_repo`/`DocumentLink` cross-references found anywhere under either module | n/a | n/a |
+
+**TimeEntry → Task classification: C, not B** — this corrects the P45A brief's own §35 hypothesis.
+TimeEntry's `tasks_changed` emission is not a legacy read-model shortcut; it accompanies a genuine,
+if currently blind-written, mutation of the Task-owned `TaskAssignment.hours_logged` field.
+
+**`task_apply_participant.py` — exact 5 decisions (verified, not assumed)**: `apply_dependency_add`
+(line 76), `apply_dependency_remove` (line 90), `apply_dependency_update` (line 101),
+`apply_task_constraint_update` (line 115), `apply_resource_leveling_plan` (line 129) — each a thin
+pass-through into `TaskService`'s own apply-time methods via a fresh, participant-scoped
+`TaskService(approval_service=None)`, each currently returning `ApprovalHandlerResult(post_commit_
+events=(ApprovalPostCommitEvent("tasks_changed", ...),))`.
+
+**`ApprovalPostCommitEvent` — exhaustive production inventory: exactly 6 sites, all PM, all
+`"tasks_changed"`** (the 5 above + `financial_change_apply_participant.py:53`, conditional on
+`applied_schedule_count`). No other capability constructs it in production —
+`billing_preparation_apply_participant.py`/`baseline_apply_participant.py` only mention it in
+docstrings describing their own prior modernization. `_emit_signal_safely`
+(`approval_service.py:348-361`) has exactly one call path (`_emit_handler_events`, called from
+`reject()`/`approve_and_apply()`), driven entirely by `post_commit_events`, which is populated
+exclusively by these same 6 sites.
+
+**§30/§31 answers, source-proven**: converting all 6 sites from `post_commit_events=` to
+`domain_events=` leaves `ApprovalPostCommitEvent` construction with **ZERO production callers —
+YES**. `ApprovalService._emit_signal_safely` becomes **production-dead — YES** (the method stays
+defined until explicitly deleted, but `_emit_handler_events`'s loop body becomes permanently
+unreachable once `post_commit_events` is always empty). Also deletable in the same pass: the
+`ApprovalPostCommitEvent` dataclass itself (`contracts.py:9`) and the `post_commit_events` field on
+`ApprovalHandlerResult` (`contracts.py:15-17`). One existing test currently encodes the opposite
+assumption and needs updating in P45B: `test_p7c_zero_consumer_signal_cleanup.py:123`
+(`test_emit_signal_safely_still_exists_with_real_remaining_callers`).
+
+**Test baseline**: 328 passed, 13 failed across the 15 non-QML Task-relevant suites. 11 failures are
+the previously-identified `test_task_comment_domain_validation.py` fixture gap
+(`_FakeTenantContextService` missing `require_active_scope_ids`, verified byte-for-byte — isolated
+to Collaboration/TaskComment fixtures, does not touch Task-proper code paths, does not affect
+confidence in this audit). **2 newly-found failures**, previously unreported, in
+`test_task_wbs_architecture.py`: a stale migration-file reference
+(`k9l0m1n2o3p4_add_task_owned_wbs.py` no longer exists on disk) and a stale mapper-source string
+assertion (the scheduling mapper's literal `"wbs": item.wbs_code or "-"` no longer appears verbatim)
+— genuine Task-adjacent architecture-guard staleness, not a production regression, recommended as a
+TEST-ONLY cleanup item before or during P45B, not a P45A blocker.
+
+**Concurrency coverage rating corrected from an initial LOW to MEDIUM** — the test-baseline research
+pass's own search missed a dedicated concurrency suite; verified directly by the main agent via
+`grep` across `src/tests/project_management/`: `dependency/test_dependency_concurrency_and_
+governance.py` (`test_concurrent_update_raises_instead_of_last_write_wins`, `test_update_with_stale_
+expected_version_raises_instead_of_overwriting`), `dependency/test_task_constraint_governance.py`
+(`test_stale_expected_version_is_rejected`) + `test_task_constraint_persistence.py` (repo-level
+stale-write rejection), `dependency/test_apply_resource_leveling_plan.py::TestApplyRejectsStaleness`
++ `test_apply_resource_leveling_plan_governance.py` + `test_schedule_fingerprint.py` (bulk/
+fingerprint staleness), and `test_assignment_time_task_detail_r43.py`
+(`test_set_assignment_allocation_stale_version_raises_concurrency_error`, `test_desktop_update_
+assignment_planned_hours_stale_project_resource_version_fails_safe`) — each covering exactly the
+operations already confirmed CAS-protected above (`TaskDependency` update/delete, the scheduling-
+constraint path, the leveling/fingerprint bulk path, `set_assignment_allocation`, `update_
+assignment_planned_hours`). **No test exists for the confirmed-blind paths** (`Task.delete()`,
+`unassign_resource`, `set_assignment_hours`, `accept_assignment`, `decline_assignment`, and the 3
+Timesheet-wired `hours_logged` syncs) — but that absence is consistent with, not contradictory to,
+those paths having no CAS to test in production; it does not indicate missing test *effort*, it
+correctly reflects a missing production *mechanism*. Revised coverage rating: lifecycle MEDIUM,
+audit LOW, **concurrency MEDIUM** (strong where CAS exists, absent only where production itself has
+none), approval MEDIUM-HIGH, cross-module writers LOW-MEDIUM, bulk/fingerprint MEDIUM, UI consumers
+untested this pass, ownership/cross-org LOW, failure rollback LOW.
+
+**Exact missing-test gaps for P45B** (source-checked, not merely asserted): no test exists that
+(1) exercises any of the 4 confirmed-blind `TaskAssignment` write paths or `Task.delete()` under
+concurrent modification — these will need a *new* CAS mechanism before they can be tested, so P45B
+must add both the mechanism and its regression test together; (2) asserts an `EnterpriseAudit`
+entry for any Task-owned mutation (confirmed zero via `grep -rn "record_audit_entry" src/tests/
+project_management --include="*task*"` — no matches; consistent with production's own zero
+EnterpriseAudit coverage in Task's command layer); (3) asserts atomic rollback-together behavior
+(mutation fails ⇒ audit/event also absent) for any Task command; (4) asserts cross-tenant/cross-org
+Task isolation; (5) exercises the Resource→Task, Baseline/Forecast→Task, or Document→Task edges
+(all three are Class A / reference-only per this phase's own cross-capability graph, so this gap is
+expected, not urgent); (6) exercises the TimeEntry→TaskAssignment edge's atomicity once it is
+converted to the transaction-neutral-participant pattern designed above.
+
+HEAD unchanged across all test runs performed during this phase (`cc0a8fc8` before and after each
+fork's own test execution — before drifting later in the session due to unrelated external
+automation, recorded separately in this phase's repository-state disclosure).
+
+**Final proposed Task DomainEvent vocabulary — 9 classes, no `TaskChanged` catch-all**:
+
+| Event | Owning aggregate | Triggering operations | Payload (minimal) | ViewInvalidation targets |
+|---|---|---|---|---|
+| `TaskCreated` | Task | `create_task` | task_id, project_id | task_list, dashboard_task_metrics |
+| `TaskProfileUpdated` | Task | `update_task` (non-status/schedule fields) | task_id, project_id | task_list, task_detail |
+| `TaskHierarchyChanged` | Task | `move_task`, `recode_task`, incl. sibling resequencing | task_id, project_id, affected_sibling_ids | task_list, task_detail, task_schedule |
+| `TaskStatusChanged` | Task | `set_status`/`set_tasks_status` (bulk-capable) | task_id(s), project_id, old/new status | task_list, task_detail, dashboard_task_metrics |
+| `TaskProgressChanged` | Task | `update_progress` | task_id, project_id, percent_complete, derived_status | task_list, task_detail, dashboard_task_metrics |
+| `TaskScheduleChanged` | Task | `update_task_scheduling_constraint`, `apply_resource_leveling_plan` (bulk), `_apply_approved_schedule_changes` (FC-driven), each with a distinct `change_type` (`CONSTRAINT_UPDATED`/`LEVELING_APPLIED`/`APPROVED_SCHEDULE_APPLIED`) | task_id(s), project_id, change_type, new dates/constraint | task_schedule, task_detail, dashboard_task_metrics |
+| `TaskRemoved` | Task | `delete_task`/`delete_tasks` (bulk-capable) | task_id(s), project_id | task_list, task_schedule, dashboard_task_metrics |
+| `TaskAssignmentChanged` | TaskAssignment | assign/unassign/set_hours/set_allocation/update_planned_hours/accept/decline, **plus TimeEntry-driven `HOURS_LOGGED_FROM_TIME_ENTRY`**, each a `change_type` | assignment_id, task_id, resource_id, change_type | task_assignments (task-scoped), task_assignments (resource-scoped), task_detail |
+| `TaskDependencyChanged` | TaskDependency | add/update/remove, each a `change_type` (`ADDED`/`UPDATED`/`REMOVED`) | dependency_id, predecessor/successor task_id, change_type | task_dependencies, task_schedule, task_detail |
+
+`TaskStatusChanged` and `TaskDependencyChanged` are kept as distinct classes per the brief's own
+explicit rule (§8-9) — they are different business facts even though both can occur near a schedule
+recalculation. `TaskAssignmentChanged`/`TaskDependencyChanged` use one class + `change_type` per the
+brief's own literal example, matching how `set_tasks_status`/dependency commands already collapse
+several sub-operations behind one signal today.
+
+**Bulk event semantics — Option C is source-correct, not chosen merely to avoid volume**: bulk
+operations (leveling apply, bulk status, bulk delete) emit **N individual per-task DomainEvents**
+(each task's status/schedule/removal is a real, independently auditable business fact — Financial
+Change or Baseline may need to react to a specific task), **not** a single synthetic bulk wrapper
+event (no such business concept exists in source beyond "N tasks each changed", mirroring the
+brief's own no-persisted-fingerprint finding). ViewInvalidation deduplicates by `correlation_id` +
+exact target/scope identity, so N `TaskScheduleChanged` events sharing one `project_id` still
+produce exactly one `task_schedule` hint — matching the existing legacy behavior's own single
+`tasks_changed.emit(project_id)` after the loop, just formalized at the new layer instead of
+accidentally achieved by the old signal's coarse per-project granularity.
+
+**Final UoW design — Option A, one `TaskUnitOfWork` with three named repository accessors**: `tasks`,
+`assignments`, `dependencies` (no `repository_for`/generic map/service locator), modeled directly on
+`PortfolioUnitOfWork`'s established one-capability-several-named-repos precedent (P42) and
+`DocumentUnitOfWork`. Justification: all three aggregates are mutated together routinely today
+(dependency add/remove syncs Task schedule rows; leveling apply reads Dependency/Assignment to
+mutate Task; `delete_tasks` cascades across all three plus TimeEntry in one call) — they are one
+natural consistency boundary, not three separate capabilities. Approval-path operations (the 5
+`task_apply_participant.py` decisions + Financial Change's schedule branch) continue under
+ApprovalService's own UoW, exactly as today — no second Task UoW is introduced there.
+
+**Cross-capability writer design (§54)**:
+- **TimeEntry → TaskAssignment**: keep TimeEntry owning its own transaction (its own raw session or
+  eventual UoW — out of this phase's scope to redesign Timesheet), but replace the direct borrowed-
+  repo write with a transaction-neutral Task-owned participant/command that constructs
+  `TaskAssignmentChanged(HOURS_LOGGED_FROM_TIME_ENTRY)` and is appended to TimeEntry's own event
+  batch — mirroring how Financial Change's participant already composes Task facts into
+  `ApprovalHandlerResult.domain_events` today. Same pattern, different (non-approval) call site.
+- **Project → Task (cascade delete)**: `delete_project` should call a transaction-neutral Task-
+  owned deletion participant (constructing `TaskRemoved` facts) still inside Project's own single
+  transaction/session — no second commit, no new Task UoW spun up mid-Project-transaction.
+- **Financial Change → Task**: unchanged, already correct — continues emitting Task facts via
+  `ApprovalHandlerResult.domain_events` inside ApprovalService's transaction once converted off
+  `post_commit_events=`.
+- **Resource/Baseline/Forecast/Document**: no Task DomainEvent needed — all four are Class A
+  (reference-only); each capability's own typed events (where they exist) are responsible for
+  staling their own Task-adjacent read models, not Task's vocabulary.
+
+**Final ViewInvalidation targets/scopes**: `task_list` (project-scoped, `ResourceScope(tenant_id,
+organization_id, module_code="project_management", entity_type="project", entity_id=project_id)`),
+`task_detail` (task-scoped, `entity_type="task", entity_id=task_id` — new, closes the detail-panel
+gap found above), `task_schedule` (project-scoped), `task_assignments` (both task-scoped and a
+resource-scoped variant for the Resource workspace's assignment/availability panels),
+`task_dependencies` (project-scoped, dependency-graph view), `dashboard_task_metrics` (coarse,
+count-only). No generic `task_workspace_changed` target.
+
+**Consumer cutover plan**: OWNER (task list) and Scheduling cut over to `task_list`/`task_schedule`
+with real task_id/project_id scoping (today both blanket-refresh). Dashboard cuts over to
+`dashboard_task_metrics`. Resource cuts over to the resource-scoped `task_assignments` variant.
+Financials keeps its existing (now-confirmed-alive) subscription, optionally upgraded to a typed
+`ViewInvalidationHint` payload for full tenant/org precision. Timesheets and Resource-Timesheets
+narrow from blanket to task-label-scoped targets. Platform Control keeps both halves — the
+approval-queue half is already real; the audit-feed half becomes real for the first time once P45B
+adds EnterpriseAudit to Task. Collaboration and Portfolio subscriptions are **not** auto-removed
+(per the brief's own caution against removing surviving subscriptions automatically) — P45B must
+first confirm their handler bodies do nothing real before dropping either. The Task workspace's own
+detail sub-sections (assignments/dependencies/time/discussion/skills) must gain `task_detail`
+wiring for the first time — a fix, not a migration.
+
+**Correctness fixes P45B must make (not deferrable)**: (1) the `update_task`/`update_progress`
+two-commit bug — converge activity recording under the same commit as the mutation, inside the new
+`TaskUnitOfWork`; (2) TaskAssignment's 4 blind-write paths (`unassign_resource`, `set_assignment_
+hours`, `accept_assignment`, `decline_assignment`) plus the 3 Timesheet-wired `hours_logged` syncs —
+extend real CAS coverage to all of them; (3) `Task.delete()`'s total absence of a version check —
+add `expected_version`, matching `TaskDependency.delete()`'s existing stricter contract; (4) zero
+EnterpriseAudit in Task's own command layer — add it, converging on the new UoW first per Register's/
+Portfolio's own precedent order; (5) the Task-detail-panel ViewInvalidation gap.
+
+**Debt that may be carried forward, not P45B-blocking**: the TaskComment fixture failures (unrelated
+Collaboration test debt); the 2 newly-found `test_task_wbs_architecture.py` staleness failures
+(recommend a TEST-ONLY cleanup, not required to start P45B); Financial Change's `_sync_project_
+schedule` cascade into sibling Task rows with no separate version-check/audit at that layer (an
+existing behavior, not a new regression — P45B should trace it fully but need not block on it).
+
+**Risk register, in order**: (1) cross-module transaction ownership for the TimeEntry→TaskAssignment
+edge — mitigate with the transaction-neutral-participant pattern + an atomicity characterization
+test; (2) approval conversion correctness for the 6 `ApprovalPostCommitEvent` sites — mitigate by
+extending the already-passing `test_task_apply_participant.py`/`test_financial_change_apply_
+participant.py` to assert typed events, and updating `test_p7c_zero_consumer_signal_cleanup.py`;
+(3) bulk event amplification — mitigate with correlation_id+target-identity ViewInvalidation dedup
+and a characterization test asserting one hint per project despite N events; (4) TaskAssignment lost
+updates — mitigate by closing all 4+3 blind-write paths, add concurrent-write regression tests
+(currently absent per the test-baseline pass); (5) audit atomicity when EnterpriseAudit is added for
+the first time — converge onto `TaskUnitOfWork` before adding audit, per Register's/Portfolio's own
+order; (6) incidental-consumer removal (Collaboration/Portfolio) — verify handler bodies first;
+(7) UI over-refresh persisting post-cutover — scope new targets properly from day one rather than
+porting blanket behavior forward; (8) legacy-helper deletion sequencing — delete
+`ApprovalPostCommitEvent`/`_emit_signal_safely` only after an architecture guard proves zero callers,
+per the existing `test_p7c`-style pattern.
+
+**P45B shape: ONE PHASE, direct full modernization.** None of §67's split criteria are met — the
+transaction boundary is naturally single (one `TaskUnitOfWork` covers all three aggregates), the
+approval conversion is mechanical (mirrors Budget's/Forecast's/Financial Change's own already-proven
+`post_commit_events=`→`domain_events=` migration), and only 3 real cross-capability edges exist
+(TimeEntry, Financial Change, Project-cascade), each with a precedent-following fix already used
+elsewhere in this codebase. No incompatible transaction boundaries, no migration dependency, and no
+unsafe consumer-cutover sequencing were found. Precedent: Portfolio (4 sub-aggregates) and Finance's
+Billing pair (2 aggregate families) were each done in one phase despite comparable or greater size.
+
+**PM zero-legacy projection**: after P45B — `tasks_changed` producers = 0, all genuine consumers cut
+over (incidental ones dropped only after confirmation), field deleted, approval bridge
+(`ApprovalPostCommitEvent`/`_emit_signal_safely`) retired with zero remaining callers. **PM legacy
+Signal count → 0**, the sixth PM capability (after Timesheet/Register/Portfolio/Project/
+Collaboration) and the fourth module overall (with Finance and Inventory/Procurement) to reach
+zero. **Overall remaining legacy Signal count → 1** (`auth_changed` only). A new permanent
+architecture guard, `test_zero_pm_legacy_signal_fields_remain`, should be added in P45B mirroring
+`test_zero_finance_legacy_signal_fields_remain`. Auth remains AUDITED / DEFERRED, unchanged, P26A
+still authoritative, not re-touched by this phase.
+
+**Final report**: P45A completed: YES. Legacy count: 2 (`tasks_changed`, `auth_changed`). PM legacy:
+`tasks_changed` (27 Class-A + 1 Class-B producer, 0 Class-C). Auth legacy: `auth_changed`,
+unchanged, AUDITED/DEFERRED. Three Task aggregate families confirmed: `Task`/`TaskAssignment`/
+`TaskDependency`. `ApprovalPostCommitEvent` and `_emit_signal_safely` both go production-dead: YES/
+YES. PM zero-legacy projected after P45B; overall projected legacy count after P45B: 1. P45B shape:
+ONE PHASE. Modernization plan updated: YES. README/ADR/production/tests: unchanged. Commits by this
+phase: NONE.
+
+**P45A READY FOR REVIEW — FINAL PM TASK MODERNIZATION ARCHITECTURE DESIGNED**
+
+### P45A-FINAL-CLOSURE — Resolving Remaining Task Architecture Ambiguities (SOURCE RE-VERIFICATION + PLAN-DOC CORRECTION ONLY)
+
+No production/test/README/ADR file changed. `tasks_changed` still not deleted, legacy count still 2.
+Every item below was re-verified directly against current source by the main agent (no new forks),
+closing four internal-consistency gaps in the P45A report so the design is implementation-ready
+with no remaining ambiguity.
+
+**1–2. TaskAssignment concurrency — reconciled row-by-row matrix.** The "7 vs 8" discrepancy is
+resolved: `assignment.py` has exactly 7 direct mutation call sites, and the TimeEntry-driven
+`hours_logged` sync is a genuinely distinct 8th operation (a different capability's writer, through
+the same repository) — the earlier report's "7" and its separate mention of the TimeEntry edge were
+both individually correct but never summed. **Total TaskAssignment mutation paths: 8.**
+
+| # | Operation | Method/file | Direct/Cross-cap | `expected_version` accepted? | Actually supplied? | Repository method | CAS? | Version bump? | Stale-write outcome | Classification |
+|---|---|---|---|---|---|---|---|---|---|---|
+|1|Create|`assign_project_resource` (`assignment.py:381,474`)|Direct|N/A (insert)|N/A|`assignment_repo.add()`|N/A|N/A (starts at 1)|No existing row to race; the resource-duplicate guard (line 421-426) is check-then-insert, not DB-unique-enforced — a separate duplicate-creation TOCTOU note, not a lost-update|**SAFE** (create)|
+|2|Remove|`unassign_resource` (`assignment.py:63,101`)|Direct|NO|N/A|`assignment_repo.delete()` — tenant/org-scoped only, no version param exists|NO|N/A (row deleted)|Deletes unconditionally even if the row was just changed by someone else|**BLIND / LOST-UPDATE RISK**|
+|3|Log hours (manual)|`set_assignment_hours` (`assignment.py:168,200`)|Direct|NO (no such parameter exists)|N/A|`assignment_repo.update()` (plain)|NO|NO|**Full-row blind overwrite** — the plain `update()` (`infrastructure/persistence/repositories/tasks/task.py:259-276`) writes ALL 7 mutable fields (`task_id`,`resource_id`,`allocation_percent`,`hours_logged`,`allocated_planned_hours`,`project_resource_id`,`response_status`,`responded_at`) from a stale in-memory snapshot, not just the field this method intends to change, and never touches `version`|**BLIND / LOST-UPDATE RISK**|
+|4|Set allocation|`set_assignment_allocation` (`assignment.py:203,253`)|Direct|YES, optional (`= None`)|Only if the QML payload includes `"version"` — mechanism confirmed end-to-end (`assignment_command_handler.py:31-36` → `TaskAssignmentAllocationCommand.expected_version` → `api.py:619` → `update_allocation_with_version_check`), but bypassable at any layer that omits it|`update()` (blind fallback) or `update_allocation_with_version_check` (CAS)|Conditional|Conditional|Safe when supplied; full blind overwrite (same as #3) when omitted|**CONDITIONALLY SAFE**|
+|5|Update planned hours|`update_assignment_planned_hours` (`assignment.py:256,333`)|Direct|YES, **required**, no default, for both TaskAssignment and ProjectResource|Always (mandatory keyword params, no fallback path exists)|`update_planned_hours_with_version_check` + `project_resource_repo.touch_version_with_check`|YES, both aggregates|YES|`ConcurrencyError`|**SAFE**|
+|6|Accept|`accept_assignment` (`assignment.py:635,665`)|Direct|NO|N/A|`update()` (plain)|NO|NO|Real no-op guard for same-state (`response_status=="accepted"` → return unchanged); the actual pending→accepted transition itself is a full-row blind overwrite, same as #3|**BLIND / LOST-UPDATE RISK**|
+|7|Decline|`decline_assignment` (`assignment.py:668,703`)|Direct|NO|N/A|`update()` (plain)|NO|NO|Same as #6|**BLIND / LOST-UPDATE RISK**|
+|8|Hours logged from TimeEntry|`_sync_work_allocation_hours_from_entries` (`timesheet_support.py:260-269`), called from `add_work_entry`/`update_time_entry`/`delete_time_entry` (`timesheet_entries.py:104,213,263`)|**Cross-capability**|NO|N/A|Same plain `update()` as #3/#6/#7 (identical repository instance)|NO|NO|Same full-row blind overwrite, triggered from an entirely different capability's transaction|**BLIND / LOST-UPDATE RISK**|
+
+**Exact totals: 8 total paths — SAFE: 2 (#1, #5) — CONDITIONALLY SAFE: 1 (#4) — BLIND: 5 (#2, #3,
+#6, #7, #8).** 2+1+5 = 8. ✓
+
+**P45B must-fix determination for every BLIND/CONDITIONALLY SAFE path**:
+
+| Operation | Current risk | P45B action |
+|---|---|---|
+| `unassign_resource` | BLIND | Add a `delete_with_version_check`-style method to `AssignmentRepository` (does not exist yet — `TaskDependency.delete()` already has this shape, reuse the pattern) and require `expected_version` on the command |
+| `set_assignment_hours` | BLIND | Add `expected_version` + reuse the existing `update_with_version_check` infrastructure (mirrors `update_allocation_with_version_check`'s own shape) |
+| `set_assignment_allocation` | CONDITIONALLY SAFE | Make `expected_version` **required**, removing the blind-fallback branch entirely — the CAS method already exists, only the optional bypass needs closing |
+| `accept_assignment` / `decline_assignment` | BLIND | Add `expected_version` + CAS. The existing same-state no-op guard does not cover this — the real race is a concurrent write to an *unrelated* field (e.g. `set_assignment_hours` running concurrently with `accept_assignment`), not a repeated accept/decline call, so idempotency-of-repetition does not excuse deferring this |
+| TimeEntry-driven hours sync | BLIND | Must fix as part of item 10's transaction-neutral-participant redesign — route through a new CAS-protected method rather than the plain `update()`, still inside TimeEntry's existing single commit |
+
+No path is deferred with a vague justification — every BLIND/CONDITIONALLY-SAFE path gets an exact
+mechanical fix, all reusing an already-established CAS pattern in this codebase.
+
+**3. Schedule fingerprint terminology — corrected.** `schedule_fingerprint` is an **OPTIMISTIC
+SNAPSHOT / PRECONDITION TOKEN, not a true idempotency key.** Bulk replay behavior: reapplying an
+already-applied leveling proposal recomputes a fresh fingerprint against the now-mutated database
+state, which will not match the fingerprint captured in the original request, so the replay
+**raises `ConcurrencyError` and performs zero mutation** — it does not detect "this exact request
+already succeeded" and return the prior result. Bulk duplicate-success behavior: **impossible** — a
+retried request either errors (fingerprint stale) or, if nothing changed since the first apply,
+would re-execute the same mutations again rather than short-circuiting to the previous outcome
+(there is no request-id/result cache). **Bulk idempotent: NO**, confirmed exactly as expected. P45A
+does not add an idempotency mechanism; P45B should preserve this precondition-token semantics as-is
+unless a product requirement for true replay-safe idempotency is raised separately.
+
+**4. Collaboration consumer — KEEP, resolved by reading the actual handler and its queries.**
+`domain_event_binder.py:6-10` subscribes only `tasks_changed`, routed to
+`ProjectManagementCollaborationWorkspaceController._on_domain_event` (line 250), which calls
+`_request_domain_refresh()` → `refresh_collaboration_workspace` (`refresh_service.py`), rebuilding
+`overview`/`inbox`/`context`/`panel_tabs`/`mentions`/`approvals`/`activity_feed` via
+`ProjectCollaborationWorkspacePresenter.build_workspace_state`. Three of those panels
+(`inbox_builder.py:28`, `mentions_builder.py:25`, `activity_builder.py:19`) set their row
+`title` from **`item.task_name`**, and the underlying read query performs a genuine live SQL join —
+confirmed directly, e.g. `sqlalchemy_workspace_reader.py:218`:
+`select(TaskPresenceORM, TaskORM.name, TaskORM.project_id, ProjectORM.name).join(TaskORM, ...)`. This
+is a real, if narrow, dependency: a `TaskProfileUpdated` (rename) is the only Task fact this
+workspace actually needs — status/schedule/assignment/dependency changes do not affect anything
+displayed here. **Collaboration `tasks_changed` consumer: KEEP.** Exact Task-derived state read:
+`Task.name`, joined live at query time (not denormalized/cached — so the underlying data is never
+actually stale in the database, only the already-rendered UI snapshot is, until the next refresh).
+Final Task ViewInvalidation target: narrow by **event type**, not scope — subscribe only to
+`TaskProfileUpdated` (project-scoped when a single project is selected via
+`selected_project_id != "all"`; when viewing "all accessible projects" it must still subscribe
+broadly across all of them, matching this workspace's own existing cross-project design, but the
+event-type narrowing alone already substantially cuts refresh volume against every other Task fact
+type that used to also trigger it under the legacy signal).
+
+**5. Portfolio consumer — KEEP, resolved by reading the presenter and query source.**
+`domain_event_binder.py` subscribes only `tasks_changed`, routed to
+`portfolio_request_domain_refresh` → a full workspace rebuild. Direct read of
+`application/portfolio/queries/portfolio_executive.py` confirms the Portfolio Executive/heatmap view
+reconstructs real `Task`/`TaskDependency` domain objects from a `HeatmapProjectFacts` read-model
+projection (lines 216-315: `select_leaf_tasks`, `_heatmap_domain_tasks`, `_heatmap_domain_dependencies`)
+to compute **`critical_tasks`**/**`late_tasks`** counts per project (lines 155-201), which the UI's
+`heatmap_mapper.py` displays as a per-project heatmap cell. This is genuine Task-derived state — this
+is Portfolio's own already-modernized aggregates (Template/Scenario/Intake/Dependency, per P42) being
+enriched with a cross-capability *read* of Task schedule/status/dependency state, not a Portfolio
+domain-state dependency, matching exactly the distinction the brief itself asked not to be confused.
+**Portfolio `tasks_changed` consumer: KEEP.** Exact Task-derived query: per-project critical-path/
+lateness counts computed from each project's leaf Tasks + Dependencies (status, dates, dependency
+graph). Stale projection: the Executive heatmap's `critical_tasks`/`late_tasks` cell per project.
+Final target/scope: project-scoped — Portfolio should subscribe to `TaskStatusChanged`,
+`TaskScheduleChanged`, `TaskDependencyChanged`, and `TaskProgressChanged` (the four facts that can
+move a task in or out of "late"/"critical"), each carrying `project_id`, and refresh only that
+project's heatmap cell in Portfolio's own `PortfolioUnitOfWork`-era ViewInvalidation, per the
+original brief's §50 pattern (map an existing/new typed event to the owning capability's own
+invalidation, not a shared generic target).
+
+**6. Final 10-consumer table — no unresolved rows**:
+
+| Consumer | Task-derived read model | Classification | Final action | ViewInvalidation target | Scope |
+|---|---|---|---|---|---|
+| `TasksWorkspaceController` (task list) | Task list rows themselves | OWNER | **KEEP** | `task_list` | project-scoped |
+| PM Dashboard | open/overdue/progress/assignment/schedule counts | REAL SUMMARY | **KEEP** | `dashboard_task_metrics` | tenant/org-scoped, narrowed by count-affecting event types |
+| Collaboration workspace | `Task.name` (inbox/mentions/activity-feed row titles) | CROSS-CAPABILITY READ MODEL | **KEEP** | `TaskProfileUpdated` only (event-type-narrowed) | project-scoped when filtered, else cross-project |
+| Scheduling workspace | Gantt/calendar dates, dependencies, constraints | OWNER-ADJACENT | **KEEP** | `task_schedule` | project-scoped |
+| Portfolio workspace (Executive/heatmap) | per-project critical/late task counts | REAL SUMMARY (cross-capability read) | **KEEP** | `TaskStatusChanged`/`TaskScheduleChanged`/`TaskDependencyChanged`/`TaskProgressChanged` | project-scoped |
+| Resource workspace | assignment/availability/activity panels | REAL SUMMARY | **KEEP** | `task_assignments` (resource-scoped variant) | resource-scoped |
+| Financials workspace | `planning`/`costs`/`performance` tabs, gated by selected project | CROSS-CAPABILITY READ MODEL (confirmed alive) | **KEEP** | `TaskScheduleChanged` (schedule impacts financial views) | project-scoped |
+| Timesheets workspace | task labels/names on timesheet entries | CROSS-CAPABILITY READ MODEL | **KEEP** | `TaskProfileUpdated` | project-scoped |
+| Resource-Timesheets controller | task labels on resource-scoped timesheet rows | CROSS-CAPABILITY READ MODEL | **KEEP** | `TaskProfileUpdated` | resource-scoped |
+| Platform Control workspace | approval-queue (Task-family decisions) + audit feed (currently vacuous, will populate once P45B adds EnterpriseAudit) | REAL (approval half) | **KEEP** | approval-queue target (existing) + a new audit-feed target once Task EnterpriseAudit exists | tenant/org-scoped |
+
+**Final consumer KEEP count: 10. REMOVE count: 0. Total: 10.** No consumer is dropped — every one of
+the ten resolves to a genuine, if sometimes narrow, Task-derived dependency once the actual handler
+body and its underlying queries are traced to source; none were incidental/dead.
+
+**7. Financial Change sibling rescheduling — resolved SAFE, not a lost-update risk.** Traced the full
+call chain: `_sync_project_schedule` (`schedule_sync.py:9-20`) → `SchedulingEngine.
+recalculate_project_schedule` (`scheduling_engine.py:109-235`). Sibling Task candidates come from
+`tasks_by_id`, built from `self._task_repo.list_by_project(project_id)` read at the **top of this
+same function call** (line 124); the write loop (lines 222-225) calls `self._task_repo.update(info.
+task)` for only the tasks whose `start_date`/`end_date` actually changed (a Phase-L1 optimization),
+and that `update()` call is the **exact same `SqlAlchemyTaskRepository.update()`** already confirmed
+to route through `update_with_version_check(..., candidate.version, ...)` for every caller,
+`move_task`/`delete_tasks` siblings included. **Answer: (B) — CAS happens via previously captured
+versions, read within this same call, exactly matching the already-confirmed-safe `move_task`/
+`delete_tasks` sibling pattern — not (C) nowhere.** Classification for sibling Tasks: **SAFE.** This
+resolves the open question the original P45A report flagged — it is not a lost-update bug and is
+**not** a mandatory P45B correctness fix; no change needed beyond what's already planned for
+`Task.update()` generally.
+
+**8. Financial Change Task event granularity — Option A, one `TaskScheduleChanged` per actually
+changed Task.** When one Financial Change approval mutates the primary Task plus N cascaded sibling
+Tasks (via `_sync_project_schedule`), P45B emits one `TaskScheduleChanged(APPROVED_SCHEDULE_APPLIED)`
+for the primary Task and one `TaskScheduleChanged(CASCADE_RECALCULATED)` for each sibling whose dates
+actually changed (matching the Phase-L1 "only write what changed" behavior already in source) — never
+a single synthetic bulk/project-level fact. Justification: each Task is an independently versioned,
+independently audited (post-P45B) aggregate whose dates genuinely changed as a discrete, auditable
+fact; a hypothetical downstream consumer scoped to one specific `task_id` needs its own signal, not
+an inference from a project-wide event. Event volume is explicitly not the deciding factor — per the
+already-established design, ViewInvalidation dedup by correlation_id + target identity collapses all
+of these into one `task_schedule`/`dashboard_task_metrics` UI hint per project regardless of how many
+individual Task facts were recorded.
+
+**9. Project → Task cascade delete — event ownership settled.** Traced `delete_project`
+(`projects/commands/lifecycle.py:578-610`): deletion happens via **explicit application-level
+repository calls** in a per-task loop (`dependency_repo.delete_for_task`, `time_entry_repo.
+delete_by_assignment`, `assignment_repo.delete_by_task`, `task_repo.delete(task.id)`), ordered
+children-first — **not** ORM cascade, **not** DB cascade. The whole operation (Project delete +
+every cascaded Task/TaskDependency/TaskAssignment/TimeEntry delete) already runs inside one
+`SqlAlchemyUnitOfWorkBase` `with` block (lines 593-610) — one physical transaction, one commit. **When
+deleting a Project containing N Tasks, P45B produces N `TaskRemoved` events** (one per task actually
+deleted), not one bulk removal fact and not zero — because Task is an independently versioned
+aggregate whose removal is architecturally significant in its own right (and will be independently
+EnterpriseAudit'd post-P45B), regardless of the Project-level trigger; a Baseline/Forecast/Document
+capability that references a specific `task_id` needs its own definite removal signal, not an
+inference from "some project was deleted." Transaction owner: the existing `SqlAlchemyUnitOfWorkBase`
+instance already wrapping `delete_project` — the Task-owned deletion participant (per the
+transaction-neutral design already decided) appends its N `TaskRemoved` facts into that same UoW
+before its one `with` block exits and commits. **No second transaction after Project's own commit.**
+
+**10. TimeEntry → TaskAssignment transaction plan — finalized, one physical transaction confirmed
+already true today, not just intended.** Current physical transaction owner: `self._session` in
+`TimesheetEntriesMixin` — confirmed via `src/infra/composition/project_registry.py:378`
+(`build_project_management_service_bundle(session: Session, ...)`, one function-scoped `session`
+parameter threaded through the entire PM service bundle) to be the **literal same `Session` object**
+also given to `TaskService` — not merely "the same kind of shared session," the identical instance.
+Direct read of `add_work_entry` (`timesheet_entries.py:64-154`) confirms the TimeEntry create, the
+`_sync_work_allocation_hours_from_entries` call (the TaskAssignment mutation), and both
+`record_audit_entry(..., commit=False)` calls all happen inside one `try` block, closed by a single
+`self._session.commit()` at line 148 — **this is already, today, one physical transaction covering
+both the TimeEntry and the TaskAssignment mutation**, not two. **Final design**: preserve this exact
+shape — TimeEntry's own transaction calls a transaction-neutral TaskAssignment-mutation method
+(replacing the current blind `work_allocation_repo.update()` with a new CAS-protected method, per
+item 2's fix for path #8), records a `TaskAssignmentChanged(HOURS_LOGGED_CHANGED)` fact and its
+EnterpriseAudit entry inside the same `try` block, and commits once — exactly matching
+`FinancialChangeApprovalParticipant`'s already-proven pattern of composing another capability's
+typed fact into one transaction it does not own a separate UoW for. **One physical transaction:
+YES** — both because it is already true in current source and because the finalized design
+deliberately preserves it; P45B must not introduce a second `TaskUnitOfWork` commit after
+TimeEntry's own commit.
+
+**11. TaskAssignment final event semantics — 8 change_type values, one per confirmed operation, no
+forced merge into a generic `UPDATED` and no further split needed**: `ASSIGNED` (`assign_project_
+resource`), `UNASSIGNED` (`unassign_resource`), `HOURS_CHANGED` (`set_assignment_hours` — manual
+entry), `ALLOCATION_CHANGED` (`set_assignment_allocation`), `PLANNED_HOURS_CHANGED` (`update_
+assignment_planned_hours`), `ACCEPTED` (`accept_assignment`), `DECLINED` (`decline_assignment`),
+`HOURS_LOGGED_CHANGED` (the TimeEntry-driven sync). `HOURS_CHANGED` and `HOURS_LOGGED_CHANGED` are
+kept **deliberately distinct**, not merged, even though both mutate the same `hours_logged` field:
+production itself treats them as mutually exclusive alternate paths gated by a business rule
+(`set_assignment_hours` explicitly refuses to run once any TimeEntry rows exist for that assignment,
+`assignment.py:172-176`) with different provenance and different consumers (manual capacity-planning
+UI vs. time-tracking-derived actuals) — collapsing them would lose exactly the distinction a future
+audit-trail reader needs. None of the 8 values are semantically overloaded enough to warrant further
+splitting; each maps to exactly one command and one UI affordance.
+
+**12. Final Task DomainEvent vocabulary — 9 classes confirmed, with `TaskScheduleChanged`'s
+`change_type` enum expanded from 3 to 4 values based on item 7/8's resolution** (a `CASCADE_
+RECALCULATED` value is required for sibling Tasks whose dates change purely as a downstream
+consequence of `_sync_project_schedule`, distinct from the task whose constraint/leveling/approval
+was the direct trigger):
+
+| Event | Owning aggregate | Operations | Minimal payload | change_type/status enum |
+|---|---|---|---|---|
+| `TaskCreated` | Task | `create_task` | task_id, project_id | — |
+| `TaskProfileUpdated` | Task | `update_task` (non-status/schedule fields) | task_id, project_id | — |
+| `TaskHierarchyChanged` | Task | `move_task`, `recode_task` (incl. sibling resequencing) | task_id, project_id, affected_sibling_ids | — |
+| `TaskStatusChanged` | Task | `set_status`/`set_tasks_status` (bulk-capable) | task_id(s), project_id, old/new status | — |
+| `TaskProgressChanged` | Task | `update_progress` | task_id, project_id, percent_complete, derived_status | — |
+| `TaskScheduleChanged` | Task | `update_task_scheduling_constraint`, `apply_resource_leveling_plan` (bulk), `_apply_approved_schedule_changes` (FC-driven), `_sync_project_schedule` cascade (bulk-capable) | task_id(s), project_id, change_type, new dates/constraint | `CONSTRAINT_UPDATED` \| `LEVELING_APPLIED` \| `APPROVED_SCHEDULE_APPLIED` \| `CASCADE_RECALCULATED` |
+| `TaskRemoved` | Task | `delete_task`/`delete_tasks` (direct, bulk-capable), Project cascade-delete (bulk-capable) | task_id(s), project_id | — |
+| `TaskAssignmentChanged` | TaskAssignment | all 8 operations from item 1 | assignment_id, task_id, resource_id, change_type | `ASSIGNED` \| `UNASSIGNED` \| `HOURS_CHANGED` \| `ALLOCATION_CHANGED` \| `PLANNED_HOURS_CHANGED` \| `ACCEPTED` \| `DECLINED` \| `HOURS_LOGGED_CHANGED` |
+| `TaskDependencyChanged` | TaskDependency | add/update/remove | dependency_id, predecessor/successor task_id, change_type | `ADDED` \| `UPDATED` \| `REMOVED` |
+
+Total remains **9 classes** — semantic analysis in items 1/7/8/11 refined enum values within
+existing classes but did not require adding or removing a class. No `TaskChanged` catch-all.
+
+**13. `task_detail` gap — fully characterized, implementation-ready.** Mutation operations affected:
+any of the 9 event classes above where `task_id` (or, for dependencies, `predecessor_task_id`/
+`successor_task_id`) matches the currently-open task's detail panel. Current consumer: **none** —
+`task_lazy_section_loader.py`'s sub-sections (assignments, dependencies, time, discussion/
+collaboration, skill requirements) load exactly once, on task selection, and have zero domain-event
+wiring of any kind (confirmed in the original P45A consumer audit). Stale data that remains today: if
+a task's detail panel is open and, from anywhere else in the app (or another user), its assignments/
+dependencies/status/schedule change, the open panel keeps showing the pre-change snapshot
+indefinitely until the user manually navigates away and re-selects the task. Why `tasks_changed`
+doesn't handle it: it is wired only to `TasksWorkspaceController`'s **list**-level blanket refresh —
+the detail sub-panels are an entirely separate lazy-load code path that was never connected to any
+domain event, legacy or otherwise. **Exact event mappings to `task_detail(task_id)`**:
+`TaskCreated`/`TaskProfileUpdated`/`TaskHierarchyChanged`/`TaskStatusChanged`/`TaskProgressChanged`/
+`TaskScheduleChanged`/`TaskRemoved` (own-task facts) → refresh the detail header/profile/schedule
+sub-tabs; `TaskAssignmentChanged(task_id=X)` → refresh X's assignments sub-tab;
+`TaskDependencyChanged(predecessor_task_id=X or successor_task_id=X)` → refresh X's dependencies
+sub-tab for **both** ends of the relationship. A permanent P45B regression test should open Task X's
+detail panel, fire each of the 9 event classes with `task_id=X` (or the dependency variant), and
+assert exactly one `task_detail(X)` ViewInvalidation hint plus the corresponding sub-tab reflecting
+new data on next read.
+
+**14. WBS architecture-guard failures — both confirmed STALE TEST, neither a production violation
+nor unrelated fixture debt.** (a) `test_task_wbs_migration_is_independent_and_reversible`
+(`src/tests/architecture/test_task_wbs_architecture.py:35-41`) asserts a standalone migration file
+`k9l0m1n2o3p4_add_task_owned_wbs.py` exists with a specific `revision`/`down_revision`/`downgrade()`/
+`_backfill_root_wbs` shape. Confirmed by direct search: the file is gone (only a stale `.pyc`
+remains), and `wbs_code`/the WBS constraints are now part of `f3c89cac079d_initial_schema.py` —
+confirmed by reading `orm/task.py`'s `wbs_code` constraints and grepping migrations for the column.
+**Old architecture expected**: an incremental, independently-reversible add-WBS migration. **Current
+canonical architecture**: WBS ownership was squashed into the single initial-schema migration at some
+point (permitted, even expected, by this document's own §9 Pre-Release Convergence Rule) — there is
+no separate incremental migration left to reverse. (b)
+`test_scheduling_uses_canonical_wbs_instead_of_synthetic_codes` (line 53-57) asserts the literal
+string `'"wbs": item.wbs_code or "-"'` exists in the scheduling mapper. Confirmed by direct read:
+`gantt_builder.py:452` now reads `wbs_code=str(getattr(task, "wbs_code", "") or "")` — same guarantee
+(a real, non-synthetic WBS code is used) expressed as a named keyword argument with an empty-string
+fallback instead of a dict-literal with a `"-"` fallback; the underlying intent (Task's own WBS code,
+never a synthetic `f"1.{row_index}"`-style code) is still fully satisfied, confirmed by the second,
+still-passing assertion in the same test (`'f"1.{row_index'` not in source`). **Both: STALE TEST.**
+Their continued failure does **not** make Task architecture regression interpretation ambiguous —
+both underlying behaviors were independently re-verified from source in this closure pass. Recommend
+a TEST-ONLY cleanup (update both assertions to match current source) before or during P45B for a
+clean regression baseline, but it is not a P45B blocker.
+
+**15. Final P45B mandatory correctness fixes** (exact, source-confirmed, no aesthetic-only items):
+zero EnterpriseAudit on any of Task's 18 direct command-layer operations; `update_task`'s and
+`update_progress`'s two-commit activity-recording bug; `Task.delete()`'s total absence of a version
+check; the 5 confirmed-BLIND TaskAssignment paths (`unassign_resource`, `set_assignment_hours`,
+`accept_assignment`, `decline_assignment`, the TimeEntry-driven hours sync) plus closing
+`set_assignment_allocation`'s optional-CAS bypass; the TimeEntry→TaskAssignment transaction
+atomicity conversion (item 10 — mechanical, not structural, since one physical transaction already
+exists); the `task_detail` ViewInvalidation gap (item 13); the typed-approval conversion of all 6
+`ApprovalPostCommitEvent` sites to `ApprovalHandlerResult.domain_events`. **Financial Change sibling
+rescheduling is explicitly NOT on this list** — item 7 proved it already SAFE, no fix required.
+
+**16. Final deferred debt** (each explained against transactional correctness/audit integrity/
+concurrency/event ownership/consumer correctness): TaskComment's `_FakeTenantContextService` fixture
+gap (11 failures) — pure test-double staleness in Collaboration's own fixtures, isolated from every
+Task-proper code path, threatens none of the five dimensions. The two WBS architecture-guard literal-
+string/filename assertions (item 14) — both proven stale-test, not a production gap, threatens none
+of the five dimensions (independently re-verified behavior is correct). The resource-duplicate
+check-then-insert TOCTOU in `assign_project_resource` (item 1, row #1's note) — a narrow, pre-existing
+duplicate-creation race, not a lost-update on already-persisted state, and not part of this phase's
+scope; safe to carry forward as documented debt, revisit only if a real double-assignment incident
+surfaces.
+
+**17. Final P45B shape: ONE PHASE, unchanged from the original P45A report.** None of §§1-16 surfaced
+an incompatible transaction boundary, a migration dependency, or an unsafe consumer-cutover sequence
+— every ambiguity resolved to a mechanical, precedent-following fix. **Implementation order**:
+1. create `TaskUnitOfWork` + named repositories (`tasks`/`assignments`/`dependencies`); 2. converge
+direct Task/Assignment/Dependency commands onto it; 3. add atomic EnterpriseAudit (converge onto the
+UoW first, audit inside the same transaction, per Register's/Portfolio's precedent); 4. fix the 5
+BLIND + 1 CONDITIONALLY-SAFE TaskAssignment paths and `Task.delete()`'s missing CAS; 5. add the 9
+Task-family DomainEvents with their finalized `change_type` enums; 6. canonicalize TimeEntry →
+TaskAssignment inside its existing one physical transaction (item 10); 7. canonicalize Project → Task
+cascade-deletion event ownership (N `TaskRemoved` facts, same transaction, item 9); 8. convert
+`task_apply_participant.py`'s 5 decisions off `ApprovalPostCommitEvent`; 9. convert Financial
+Change's Task branch, including the now-confirmed-safe sibling `TaskScheduleChanged(CASCADE_
+RECALCULATED)` facts (item 8); 10. add the Task ViewInvalidation adapter/mappings, including the new
+`task_detail` target (item 13); 11. cut all 10 consumers per the final table in item 6 — all KEEP,
+narrowed per their final targets/scopes; 12. remove all `tasks_changed` producers/consumers; 13.
+delete the `tasks_changed` field; 14. retire `ApprovalPostCommitEvent`/`_emit_signal_safely` after
+confirming zero remaining callers; 15. add the `test_zero_pm_legacy_signal_fields_remain` guard.
+
+**P45A FULLY CLOSED — TASK IMPLEMENTATION ARCHITECTURE UNAMBIGUOUS**
+
 ## 4. Current State
 
 **Legacy Signal count: 2 as of P44B** (source-derived from
@@ -3630,6 +4372,9 @@ Task's own dedicated-audit-first modernization.
 remain.** The P8 architecture budget (`current ⊆ frozen`) remains restored with zero exceptions
 (P37 was the last post-freeze *violation*; P38B/P39/P40B/P41/P42/P43/P44A/P44B are ordinary
 further retirement of pre-freeze, frozen-allowlisted signals, not violation fixes).
+**`tasks_changed` now has a complete source-derived audit and implementation-ready design (P45A,
+AUDIT + ARCHITECTURE DESIGN ONLY — see §3's P45A entry). No code changed by P45A; P45B (ONE PHASE,
+direct full modernization) is ready to be scheduled.**
 
 | Area | Count |
 |---|---|
@@ -3724,8 +4469,19 @@ ProjectDependency) onto one `PortfolioUnitOfWork`, mirroring `DocumentUnitOfWork
 one-capability-several-repos shape. Added enterprise audit to three of the four sub-aggregates,
 which had none before. Two of Portfolio's three legacy consumers (PM Dashboard, Projects workspace)
 turned out to be incidental — neither ever read any of the four real sub-aggregates — and were
-dropped with no replacement; only Portfolio's own workspace was genuine. **Project remains next,
-unchanged from P40A's tentative sequence.**
+dropped with no replacement; only Portfolio's own workspace was genuine.
+
+**Project is now DONE (P43, see §3)** — `project_changed` is deleted, the fourth PM capability to
+reach zero. **Collaboration is now DONE (P44A + P44B + P44B-FIX, see §3)** — `collaboration_changed`
+is deleted, the fifth PM capability to reach zero, after the durable/ephemeral transport split P44A
+found was necessary first. **Task's own dedicated audit-first phase is now done (P45A, AUDIT +
+ARCHITECTURE DESIGN ONLY, see §3)** — full source-derived producer/consumer matrices, the three
+confirmed aggregate families, transaction/concurrency/audit findings, the cross-capability graph
+(including a newly-confirmed Project→Task cascade-delete edge and a corrected TimeEntry→Task
+edge), the final Task DomainEvent vocabulary, UoW design, ViewInvalidation targets, and consumer
+cutover plan are all recorded in §3's P45A entry. **P45B (ONE PHASE, direct full modernization) is
+ready to be scheduled — it is the last PM capability, and will also retire the shared
+`ApprovalPostCommitEvent`/`_emit_signal_safely` legacy approval bridge entirely.**
 
 **A pre-existing, explicitly-not-fixed note carried forward by P33**: `PurchaseOrderLineORM` has no
 `version` column and its repository performs a blind field overwrite on `update()` — confirmed real
@@ -3762,13 +4518,16 @@ Remaining capability groups, not yet assigned rigid phase numbers:
 
 - **Project Management** (re-sequenced by P40A, AUDIT + SEQUENCING ONLY, see §3/§5 — tentative
   past the first three): **1. Timesheet Period — DONE (P40B, see §3)**, **2. Risk Register — DONE
-  (P41, see §3)**, **3. Portfolio — DONE (P42, see §3)** (Template/Scenario/Intake/Dependency).
-  Then (tentative) **4. Project Lifecycle**, **5. Collaboration Comment** (needs its own short
-  audit/transport-split phase first — Collaboration Presence needs a non-`DomainEvent` mechanism,
-  not a migration target), **6. Task Lifecycle last** (highly overloaded — 8 real facts across 3
-  aggregates + a bulk operation, requires a dedicated audit-first phase and coordination with
-  Financial Change's participant before implementation, despite being the only capability that
-  would shrink the shared `ApprovalPostCommitEvent` legacy-bridge count).
+  (P41, see §3)**, **3. Portfolio — DONE (P42, see §3)** (Template/Scenario/Intake/Dependency),
+  **4. Project Lifecycle — DONE (P43, see §3)**, **5. Collaboration Comment — DONE (P44A/P44B/
+  P44B-FIX, see §3)**. **6. Task Lifecycle — audit + end-state design DONE (P45A, AUDIT +
+  ARCHITECTURE DESIGN ONLY, see §3); implementation (P45B) not yet scheduled.** P45A confirmed the
+  historical characterization (9 real facts across the 3 confirmed aggregates — Task/
+  TaskAssignment/TaskDependency — plus corrected cross-capability edges) and produced an
+  implementation-ready design: one `TaskUnitOfWork`, 9 typed DomainEvents, final ViewInvalidation
+  targets, and a full consumer-cutover/approval-bridge-retirement plan. P45B is scoped as ONE
+  PHASE (not split) and will be the last PM capability and the phase that retires the shared
+  `ApprovalPostCommitEvent`/`_emit_signal_safely` legacy-bridge machinery entirely.
 - **Finance — MODULE COMPLETE (P39, see §3/§5)**: every Finance capability (Financial Setup, Rate
   Card, Forecast, Planned Cost, Project Commitment, Project Cost Entry, Project Budget, Billing
   Profile, Billing Preparation) is fully modernized onto typed DomainEvents. Zero Finance-owned

@@ -22,6 +22,10 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     AssignmentRepository,
     TaskRepository,
 )
+from src.core.modules.project_management.application.tasks.task_events import (
+    TaskAssignmentChangeType,
+    TaskAssignmentChanged,
+)
 from src.core.modules.project_management.domain.tasks.task import TaskAssignment
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
@@ -32,7 +36,7 @@ from src.core.platform.common.exceptions import (
     OperationNotPermittedError,
     ValidationError,
 )
-from src.core.shared.events.domain_events import domain_events
+from src.core.shared.audit import record_audit_entry
 from src.core.shared.notifications import safe_dispatch_notification
 
 
@@ -79,14 +83,28 @@ class TaskAssignmentMixin:
                 code="ASSIGNMENT_HAS_HISTORICAL_ACTUALS",
             )
         resource = self._resource_repo.get(assignment.resource_id)
-        try:
+        scope = self._active_task_scope(operation_label="remove assignment")
+        with self._task_uow() as uow:
             time_entry_repo = getattr(self, "_time_entry_repo", None)
             if time_entry_repo is not None:
                 time_entry_repo.delete_by_assignment(assignment.id)
-            self._assignment_repo.delete(assignment_id)
-            self._session.commit()
+            uow.assignments.delete_with_version_check(
+                assignment_id, expected_version=assignment.version
+            )
+            record_audit_entry(
+                uow,
+                operation="delete",
+                entity_type="task_assignment",
+                entity_id=assignment.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={"action": "assignment.remove", "resource_id": assignment.resource_id},
+                commit=False,
+                fail_closed=True,
+            )
             record_assignment_action(
-                self,
+                uow,
                 action="assignment.remove",
                 assignment_id=assignment.id,
                 resource_id=assignment.resource_id,
@@ -94,11 +112,21 @@ class TaskAssignmentMixin:
                 task_id=task.id,
                 task_name=task.name,
                 resource_name=resource.name if resource is not None else assignment.resource_id,
+                commit=False,
             )
-        except Exception as exc:
-            self._session.rollback()
-            raise exc
-        domain_events.tasks_changed.emit(task.project_id)
+            uow.record_event(
+                TaskAssignmentChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    project_id=task.project_id,
+                    task_id=task.id,
+                    assignment_id=assignment.id,
+                    resource_id=assignment.resource_id,
+                    change_type=TaskAssignmentChangeType.UNASSIGNED,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
 
     def list_assignments_for_task(self, task_id: str) -> list[TaskAssignment]:
         require_permission(self._user_session, "task.read", operation_label="list task assignments")
@@ -180,32 +208,56 @@ class TaskAssignmentMixin:
         self._require_manage("log assignment hours", project_id=task.project_id)
         candidate = replace(assignment, hours_logged=hours_logged)
         resource = self._resource_repo.get(assignment.resource_id)
-        try:
-            self._assignment_repo.update(candidate)
-            self._session.commit()
+        scope = self._active_task_scope(operation_label="log assignment hours")
+        with self._task_uow() as uow:
+            updated = uow.assignments.update_hours_logged_with_version_check(
+                candidate, expected_version=assignment.version
+            )
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="task_assignment",
+                entity_id=updated.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={"action": "assignment.log_hours", "hours_logged": str(updated.hours_logged)},
+                commit=False,
+                fail_closed=True,
+            )
             record_assignment_action(
-                self,
+                uow,
                 action="assignment.log_hours",
-                assignment_id=candidate.id,
-                resource_id=candidate.resource_id,
+                assignment_id=updated.id,
+                resource_id=updated.resource_id,
                 project_id=task.project_id,
                 task_id=task.id,
                 task_name=task.name,
-                resource_name=resource.name if resource is not None else candidate.resource_id,
-                extra={"hours_logged": candidate.hours_logged},
+                resource_name=resource.name if resource is not None else updated.resource_id,
+                extra={"hours_logged": updated.hours_logged},
+                commit=False,
             )
-        except Exception as exc:
-            self._session.rollback()
-            raise exc
-        domain_events.tasks_changed.emit(task.project_id)
-        return candidate
+            uow.record_event(
+                TaskAssignmentChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    project_id=task.project_id,
+                    task_id=task.id,
+                    assignment_id=updated.id,
+                    resource_id=updated.resource_id,
+                    change_type=TaskAssignmentChangeType.HOURS_CHANGED,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
+        return updated
 
     def set_assignment_allocation(
         self,
         assignment_id: str,
         allocation_percent: float,
         *,
-        expected_version: int | None = None,
+        expected_version: int,
     ) -> TaskAssignment:
         assignment = self._assignment_repo.get(assignment_id)
         if not assignment:
@@ -226,17 +278,28 @@ class TaskAssignmentMixin:
         )
 
         resource = self._resource_repo.get(assignment.resource_id)
-        try:
-            if expected_version is not None:
-                updated = self._assignment_repo.update_allocation_with_version_check(
-                    candidate, expected_version=expected_version
-                )
-            else:
-                self._assignment_repo.update(candidate)
-                updated = candidate
-            self._session.commit()
+        scope = self._active_task_scope(operation_label="set assignment allocation")
+        with self._task_uow() as uow:
+            updated = uow.assignments.update_allocation_with_version_check(
+                candidate, expected_version=expected_version
+            )
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="task_assignment",
+                entity_id=updated.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={
+                    "action": "assignment.set_allocation",
+                    "allocation_percent": updated.allocation_percent,
+                },
+                commit=False,
+                fail_closed=True,
+            )
             record_assignment_action(
-                self,
+                uow,
                 action="assignment.set_allocation",
                 assignment_id=updated.id,
                 resource_id=updated.resource_id,
@@ -245,12 +308,22 @@ class TaskAssignmentMixin:
                 task_name=task.name,
                 resource_name=resource.name if resource is not None else updated.resource_id,
                 extra={"allocation_percent": updated.allocation_percent},
+                commit=False,
             )
-        except Exception as exc:
-            self._session.rollback()
-            raise exc
+            uow.record_event(
+                TaskAssignmentChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    project_id=task.project_id,
+                    task_id=task.id,
+                    assignment_id=updated.id,
+                    resource_id=updated.resource_id,
+                    change_type=TaskAssignmentChangeType.ALLOCATION_CHANGED,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
 
-        domain_events.tasks_changed.emit(task.project_id)
         return updated
 
     def update_assignment_planned_hours(
@@ -303,17 +376,32 @@ class TaskAssignmentMixin:
 
         candidate = replace(assignment, allocated_planned_hours=proposed_hours)
         resource = self._resource_repo.get(assignment.resource_id)
-        try:
-            updated = self._assignment_repo.update_planned_hours_with_version_check(
+        scope = self._active_task_scope(operation_label="update assignment planned hours")
+        with self._task_uow() as uow:
+            updated = uow.assignments.update_planned_hours_with_version_check(
                 candidate, expected_version=expected_assignment_version
             )
             self._project_resource_repo.touch_version_with_check(
                 project_resource.id,
                 expected_version=expected_project_resource_version,
             )
-            self._session.commit()
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="task_assignment",
+                entity_id=updated.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={
+                    "action": "assignment.update_planned_hours",
+                    "allocated_planned_hours": str(updated.allocated_planned_hours),
+                },
+                commit=False,
+                fail_closed=True,
+            )
             record_assignment_action(
-                self,
+                uow,
                 action="assignment.update_planned_hours",
                 assignment_id=updated.id,
                 resource_id=updated.resource_id,
@@ -326,11 +414,21 @@ class TaskAssignmentMixin:
                     "project_resource_planned_hours": str(project_resource.planned_hours),
                     "allocated_total": str(proposed_total),
                 },
+                commit=False,
             )
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.tasks_changed.emit(task.project_id)
+            uow.record_event(
+                TaskAssignmentChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    project_id=task.project_id,
+                    task_id=task.id,
+                    assignment_id=updated.id,
+                    resource_id=updated.resource_id,
+                    change_type=TaskAssignmentChangeType.PLANNED_HOURS_CHANGED,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
         return updated
 
     def _check_planned_hours_envelope(
@@ -449,12 +547,24 @@ class TaskAssignmentMixin:
         )
         self._check_resource_skill_requirements(task=task, resource_id=project_resource.resource_id)
         resource = resource_for_check
+        scope = self._active_task_scope(operation_label="add assignment")
 
-        try:
-            self._assignment_repo.add(assignment)
-            self._session.commit()
+        with self._task_uow() as uow:
+            uow.assignments.add(assignment)
+            record_audit_entry(
+                uow,
+                operation="create",
+                entity_type="task_assignment",
+                entity_id=assignment.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={"action": "assignment.add", "resource_id": assignment.resource_id},
+                commit=False,
+                fail_closed=True,
+            )
             record_assignment_action(
-                self,
+                uow,
                 action="assignment.add",
                 assignment_id=assignment.id,
                 resource_id=assignment.resource_id,
@@ -466,12 +576,22 @@ class TaskAssignmentMixin:
                     "allocation_percent": assignment.allocation_percent,
                     "allocated_planned_hours": str(assignment.allocated_planned_hours),
                 },
+                commit=False,
             )
-        except Exception:
-            self._session.rollback()
-            raise
+            uow.record_event(
+                TaskAssignmentChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    project_id=task.project_id,
+                    task_id=task.id,
+                    assignment_id=assignment.id,
+                    resource_id=assignment.resource_id,
+                    change_type=TaskAssignmentChangeType.ASSIGNED,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
 
-        domain_events.tasks_changed.emit(task.project_id)
         self._notify_task_assigned(task=task, resource=resource)
         return assignment
 
@@ -646,24 +766,48 @@ class TaskAssignmentMixin:
             response_status="accepted",
             responded_at=datetime.now(timezone.utc),
         )
-        try:
-            self._assignment_repo.update(candidate)
-            self._session.commit()
+        scope = self._active_task_scope(operation_label="accept assignment")
+        with self._task_uow() as uow:
+            updated = uow.assignments.update_response_status_with_version_check(
+                candidate, expected_version=assignment.version
+            )
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="task_assignment",
+                entity_id=updated.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={"action": "assignment.accept"},
+                commit=False,
+                fail_closed=True,
+            )
             record_assignment_action(
-                self,
+                uow,
                 action="assignment.accept",
-                assignment_id=candidate.id,
-                resource_id=candidate.resource_id,
+                assignment_id=updated.id,
+                resource_id=updated.resource_id,
                 project_id=task.project_id,
                 task_id=task.id,
                 task_name=task.name,
-                resource_name=resource.name if resource is not None else candidate.resource_id,
+                resource_name=resource.name if resource is not None else updated.resource_id,
+                commit=False,
             )
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.tasks_changed.emit(task.project_id)
-        return candidate
+            uow.record_event(
+                TaskAssignmentChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    project_id=task.project_id,
+                    task_id=task.id,
+                    assignment_id=updated.id,
+                    resource_id=updated.resource_id,
+                    change_type=TaskAssignmentChangeType.ACCEPTED,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
+        return updated
 
     def decline_assignment(
         self,
@@ -683,25 +827,49 @@ class TaskAssignmentMixin:
             response_status="declined",
             responded_at=datetime.now(timezone.utc),
         )
-        try:
-            self._assignment_repo.update(candidate)
-            self._session.commit()
+        scope = self._active_task_scope(operation_label="decline assignment")
+        with self._task_uow() as uow:
+            updated = uow.assignments.update_response_status_with_version_check(
+                candidate, expected_version=assignment.version
+            )
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="task_assignment",
+                entity_id=updated.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={"action": "assignment.decline", "reason": reason},
+                commit=False,
+                fail_closed=True,
+            )
             record_assignment_action(
-                self,
+                uow,
                 action="assignment.decline",
-                assignment_id=candidate.id,
-                resource_id=candidate.resource_id,
+                assignment_id=updated.id,
+                resource_id=updated.resource_id,
                 project_id=task.project_id,
                 task_id=task.id,
                 task_name=task.name,
-                resource_name=resource.name if resource is not None else candidate.resource_id,
+                resource_name=resource.name if resource is not None else updated.resource_id,
                 extra={"reason": reason} if reason else None,
+                commit=False,
             )
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.tasks_changed.emit(task.project_id)
-        return candidate
+            uow.record_event(
+                TaskAssignmentChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    project_id=task.project_id,
+                    task_id=task.id,
+                    assignment_id=updated.id,
+                    resource_id=updated.resource_id,
+                    change_type=TaskAssignmentChangeType.DECLINED,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
+        return updated
 
     def _notify_task_assigned(self, *, task, resource) -> None:
         if resource is None or not getattr(resource, "employee_id", None):

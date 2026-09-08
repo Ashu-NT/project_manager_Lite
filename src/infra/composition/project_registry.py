@@ -15,6 +15,23 @@ from src.core.modules.project_management.infrastructure.persistence.uow.finance.
 from src.core.modules.project_management.infrastructure.persistence.uow.resources.resource_unit_of_work import (
     SqlAlchemyResourceUnitOfWorkFactory,
 )
+from src.core.modules.project_management.infrastructure.persistence.uow.tasks.task_unit_of_work import (
+    SqlAlchemyTaskUnitOfWorkFactory,
+)
+from src.core.modules.project_management.application.tasks.event_handlers.view_invalidation import (
+    build_task_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.tasks.task_events import (
+    TaskAssignmentChanged,
+    TaskCreated,
+    TaskDependencyChanged,
+    TaskHierarchyChanged,
+    TaskProfileUpdated,
+    TaskProgressChanged,
+    TaskRemoved,
+    TaskScheduleChanged,
+    TaskStatusChanged,
+)
 from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
     build_resource_capabilities_view_invalidation_handler,
     build_resource_list_view_invalidation_handler,
@@ -570,6 +587,32 @@ def build_project_management_service_bundle(
         resolver=platform_services.enterprise_calendar_resolver,
         resource_repo=repositories.resource_repo,
     )
+    task_uow_session_factory = sessionmaker(bind=platform_services.session.bind, future=True)
+    task_uow_factory = SqlAlchemyTaskUnitOfWorkFactory(
+        session_factory=task_uow_session_factory,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
+    _task_view_invalidation_handler = build_task_view_invalidation_handler(
+        platform_services.platform_view_invalidation_channel
+    )
+    for _task_event_type in (
+        TaskCreated,
+        TaskProfileUpdated,
+        TaskHierarchyChanged,
+        TaskStatusChanged,
+        TaskProgressChanged,
+        TaskScheduleChanged,
+        TaskRemoved,
+        TaskAssignmentChanged,
+        TaskDependencyChanged,
+    ):
+        platform_services.platform_post_commit_bus.subscribe(
+            _task_event_type,
+            _task_view_invalidation_handler,
+        )
     task_service = TaskService(
         session,
         repositories.task_repo,
@@ -593,6 +636,7 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         task_workspace_reader=SqlAlchemyTaskWorkspaceReader(session=session),
         enterprise_resource_availability_service=enterprise_resource_availability,
+        task_uow_factory=task_uow_factory,
     )
     # The resolver owns the effective-time source for immutable rate snapshots.
     system_clock = SystemClock()

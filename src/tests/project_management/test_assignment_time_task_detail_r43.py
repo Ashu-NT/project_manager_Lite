@@ -64,15 +64,19 @@ def test_set_assignment_allocation_stale_version_raises_concurrency_error(servic
     assert exc.value.code == "STALE_WRITE"
 
 
-def test_set_assignment_allocation_without_expected_version_still_works(services):
-    """Backward compatibility: callers that don't pass expected_version keep
-    the pre-existing plain-update behaviour (no caller should be silently
-    broken by adding concurrency protection)."""
+def test_set_assignment_allocation_requires_expected_version(services):
+    """P45B closed the blind-write fallback (P45A-FINAL-CLOSURE item 25):
+    `expected_version` is now a required keyword-only argument, not an
+    optional bypass -- every caller must supply the version it read."""
     ts = services["task_service"]
     _, _, _, assignment = _setup_assignment(services)
 
-    updated = ts.set_assignment_allocation(assignment.id, 65.0)
+    with pytest.raises(TypeError):
+        ts.set_assignment_allocation(assignment.id, 65.0)
 
+    updated = ts.set_assignment_allocation(
+        assignment.id, 65.0, expected_version=assignment.version
+    )
     assert updated.allocation_percent == 65.0
 
 

@@ -255,7 +255,6 @@ def test_participant_apply_approves_preparation_on_the_supplied_session(services
     approved = deps.billing_preparation_service._billing_repo.get_preparation(preparation.id)
     assert approved.status == BillingPreparationStatus.APPROVED
     assert approved.approved_by == services["user_session"].principal.user_id
-    assert result.post_commit_events == ()
     assert result.domain_events == (
         BillingPreparationStatusChanged(
             tenant_id=approved.tenant_id,
@@ -278,7 +277,6 @@ def test_participant_reject_rejects_preparation_on_the_supplied_session(services
     rejected = deps.billing_preparation_service._billing_repo.get_preparation(preparation.id)
     assert rejected.status == BillingPreparationStatus.REJECTED
     assert rejected.rejected_by == services["user_session"].principal.user_id
-    assert result.post_commit_events == ()
     assert result.domain_events == (
         BillingPreparationStatusChanged(
             tenant_id=rejected.tenant_id,

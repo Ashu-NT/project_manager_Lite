@@ -65,24 +65,10 @@ def test_finance_invalidation_signals_exist_with_producers_and_ui_consumer():
 # ---------------------------------------------------------------------------
 
 
-def test_every_remaining_approval_post_commit_event_signal_name_exists_and_has_a_ui_consumer():
+def test_zero_remaining_approval_post_commit_event_sites_after_task_modernization():
+    """Superseded by P45B: Task was the last capability whose approval participant
+    constructed `ApprovalPostCommitEvent(...)` -- zero production sites remain."""
     import ast
-
-    consumer_grep_cache: dict[str, bool] = {}
-
-    def _has_ui_consumer(signal_name: str) -> bool:
-        if signal_name in consumer_grep_cache:
-            return consumer_grep_cache[signal_name]
-        found = False
-        for path in glob.glob("src/ui_qml/**/*.py", recursive=True):
-            if "__pycache__" in path:
-                continue
-            with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-                if f"domain_events.{signal_name}" in fh.read():
-                    found = True
-                    break
-        consumer_grep_cache[signal_name] = found
-        return found
 
     signal_names_found = set()
     for path in _production_source_files():
@@ -105,27 +91,28 @@ def test_every_remaining_approval_post_commit_event_signal_name_exists_and_has_a
             ):
                 signal_names_found.add(node.args[0].value)
 
-    assert signal_names_found, "expected to find at least one ApprovalPostCommitEvent site"
-    for signal_name in signal_names_found:
-        assert hasattr(domain_events, signal_name), (
-            f"ApprovalPostCommitEvent references non-existent signal {signal_name!r}"
-        )
-        assert _has_ui_consumer(signal_name), (
-            f"ApprovalPostCommitEvent({signal_name!r}, ...) has no UI consumer -- emit-into-the-void"
+    assert signal_names_found == set(), (
+        f"expected zero ApprovalPostCommitEvent sites, found: {signal_names_found}"
         )
 
 
 # ---------------------------------------------------------------------------
-# 3. _emit_signal_safely remains -- real remaining callers confirmed
+# 3. _emit_signal_safely retired (P45B) -- Task modernization was its last
+#    remaining production caller (task_apply_participant.py's 5 decisions +
+#    financial_change_apply_participant.py's Task branch); zero callers
+#    remain, so the reflective legacy-signal dispatch bridge is now deleted
+#    outright, no compatibility shell, per this project's pre-release
+#    convergence rule.
 # ---------------------------------------------------------------------------
 
 
-def test_emit_signal_safely_still_exists_with_real_remaining_callers():
+def test_emit_signal_safely_removed_after_task_modernization():
     import src.core.platform.application.approval.approval_service as approval_service_module
 
     source = inspect.getsource(approval_service_module)
-    assert "_emit_signal_safely" in source
-    assert "getattr(domain_events, signal_name" in source
+    assert "_emit_signal_safely" not in source
+    assert "_emit_handler_events" not in source
+    assert not hasattr(approval_service_module.ApprovalService, "_emit_signal_safely")
 
 
 # ---------------------------------------------------------------------------
