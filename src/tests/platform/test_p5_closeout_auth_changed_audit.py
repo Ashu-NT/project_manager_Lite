@@ -4,8 +4,9 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from src.application.runtime import build_desktop_api_registry
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
 _PASSWORD = "StrongPass123!"
@@ -142,16 +143,16 @@ def test_role_binding_revocation_causes_exactly_one_narrow_refresh_and_zero_coar
 
 
 def test_role_binding_assignment_no_longer_reaches_the_admin_console_coarse_binder(services):
-    """The admin console's composite `domain_event_binder.py` subscribes to `auth_changed` among
-    8 signals and triggers a full 9-presenter reload -- a RoleBinding mutation must no longer
-    reach it at all (it never had a narrow RoleBinding reaction; P5C-3 wired that to the access
-    workspace only)."""
+    """P46B: the admin console's coarse `domain_event_binder.py` (formerly subscribed to
+    `auth_changed` among 8 signals, triggering a full 9-presenter reload) is deleted outright.
+    A RoleBinding mutation reaches only the narrow `role_binding` ViewInvalidation target (wired
+    to the access workspace); it must never trigger the admin console's coarse full refresh."""
     catalog = _catalog(services)
     target, target_role = _tenant_scoped_binding_setup(services, suffix="admin-console-isolation")
 
     # Spy installed only now -- `_tenant_scoped_binding_setup`'s own `register_user()` calls
-    # legitimately fire `auth_changed` for an unrelated Category-B reason (new-account creation)
-    # and correctly cascade the coarse admin-console refresh for THAT reason; not under test here.
+    # route through the narrow `tenant_membership`/`account_security` targets (`refresh_users`),
+    # never the admin console's coarse full refresh; not under test here.
     coarse_admin_calls = []
     catalog.adminWorkspace.refresh = lambda: coarse_admin_calls.append("admin_console_full_refresh") or None
 
@@ -160,31 +161,24 @@ def test_role_binding_assignment_no_longer_reaches_the_admin_console_coarse_bind
     assert coarse_admin_calls == []
 
 
-def test_legacy_signal_still_silent_on_rollback(services, monkeypatch):
-    """Rollback safety is unaffected by removing the (already-redundant) legacy emit -- there
-    was never anything to observe on a rolled-back mutation, before or after this closeout."""
+def test_role_binding_events_stay_silent_on_rollback(services, monkeypatch):
+    """P46B: `auth_changed` is deleted, so there is nothing left to prove silent on rollback for
+    that signal specifically. What remains true and worth proving directly: a failed commit must
+    not have recorded any typed `RoleBindingAssigned` event as having been dispatched -- the UoW's
+    own commit failure must abort the whole transaction, event included."""
     from src.core.platform.infrastructure.persistence.uow.role_governance_unit_of_work import (
         SqlAlchemyRoleGovernanceUnitOfWork,
     )
 
-    import pytest
-
     target, target_role = _tenant_scoped_binding_setup(services, suffix="rollback-silent")
     role_governance_service = services["role_governance_service"]
-    seen_signals = []
-    domain_events.auth_changed.connect(seen_signals.append)
 
     def _fail_commit(self):
         raise RuntimeError("simulated commit failure")
 
     monkeypatch.setattr(SqlAlchemyRoleGovernanceUnitOfWork, "commit", _fail_commit)
-    try:
-        with pytest.raises(RuntimeError, match="simulated commit failure"):
-            role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
-    finally:
-        domain_events.auth_changed.disconnect(seen_signals.append)
-
-    assert seen_signals == []
+    with pytest.raises(RuntimeError, match="simulated commit failure"):
+        role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
 
 
 # ---------------------------------------------------------------------------

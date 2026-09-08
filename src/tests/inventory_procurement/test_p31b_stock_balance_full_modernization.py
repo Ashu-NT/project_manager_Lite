@@ -30,7 +30,6 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.repositor
 )
 from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.platform.domain.master_data.party import PartyType
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.inventory_procurement.context import (
     InventoryProcurementWorkspaceCatalog,
 )
@@ -77,8 +76,8 @@ def _balance_hints(hints):
     return [h for h in hints if h.category == BALANCE_CATEGORY]
 
 
-def test_legacy_balance_signal_field_is_deleted():
-    assert not hasattr(domain_events, "inventory_balances_changed")
+# P46B: test_legacy_balance_signal_field_is_deleted removed -- domain_events module is deleted
+# outright (see docs/architecture/event-modernization-plan.md's P46B entry).
 
 
 # ---------------------------------------------------------------------------

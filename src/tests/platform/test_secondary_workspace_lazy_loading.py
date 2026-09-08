@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.platform.presenters.identity_access.access.access_workspace_presenter import (
     PlatformAccessWorkspacePresenter,
@@ -51,11 +50,14 @@ def _restricted_principal(original_principal):
 
 _CASES = [
     (
-
+        # P46B: was `domain_events.auth_changed` (a `Signal[str]`) -- Auth/Security is now fully
+        # modernized, so this reacts through the typed `account_security` ViewInvalidation target
+        # instead. Stored as a `catalog -> QSignal` getter (rather than a fixed object) since the
+        # adapter only exists once a `PlatformWorkspaceCatalog` is actually constructed.
         "adminAccessWorkspace",
         PlatformAccessWorkspacePresenter,
         "build_security_users",
-        domain_events.auth_changed,
+        lambda catalog: catalog._account_security_view_invalidation_adapter.accountSecurityStale,
         ("access.manage",),
     ),
     (
@@ -133,20 +135,21 @@ def test_domain_event_does_not_force_load_of_unvisited_workspace(services):
     registry = build_desktop_api_registry(services)
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
 
-    for attr, cls, name, signal, _ in _CASES:
-        if signal is None:
+    for attr, cls, name, signal_getter, _ in _CASES:
+        if signal_getter is None:
             continue
         controller = getattr(catalog, attr)
+        signal = signal_getter(catalog)
         counts, restore = _instrument(cls, name)
         try:
-            signal.emit("some-entity-id")
+            signal.emit()
             assert counts[name] == 0, f"{attr} was force-loaded by a domain event while unvisited"
             assert controller._loaded is False
 
             controller.ensureLoaded()
             assert counts[name] == 1
 
-            signal.emit("some-entity-id")
+            signal.emit()
             assert counts[name] == 2, f"{attr} did not react to invalidation once loaded"
         finally:
             restore()

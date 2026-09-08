@@ -6,7 +6,6 @@ from PySide6.QtWidgets import QApplication
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
-from src.core.shared.events.domain_events import domain_events
 from src.infra.composition.app_container import build_service_dict
 from src.infra.persistence.orm.base import Base
 from src.tests.path_rewrites import REPO_ROOT, resolve_repo_path
@@ -32,15 +31,6 @@ def _patched_is_dir(self: Path):
 Path.read_text = _patched_read_text
 Path.exists = _patched_exists
 Path.is_dir = _patched_is_dir
-
-
-@pytest.fixture(autouse=True)
-def reset_test_domain_events():
-    domain_events.reset()
-    try:
-        yield
-    finally:
-        domain_events.reset()
 
 
 @pytest.fixture(autouse=True)

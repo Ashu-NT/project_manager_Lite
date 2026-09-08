@@ -338,7 +338,5 @@ def test_database_rejects_a_second_active_row_via_raw_insert_bypassing_applicati
     session.rollback()
 
 
-def test_legacy_portfolio_signal_still_absent():
-    from src.core.shared.events.domain_events import domain_events
-
-    assert not hasattr(domain_events, "portfolio_changed")
+# P46B: test_legacy_portfolio_signal_still_absent removed -- domain_events module is deleted
+# outright (see docs/architecture/event-modernization-plan.md's P46B entry).

@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import dataclasses
 import glob
 import inspect
-
-from src.core.shared.events.domain_events import domain_events
 
 # ---------------------------------------------------------------------------
 # §26.5 / §6 / §19 / §20: the frozen legacy Signal allowlist
@@ -99,7 +96,11 @@ def _production_source_files():
 
 
 def _current_signal_names() -> set[str]:
-    return {f.name for f in dataclasses.fields(domain_events)}
+    """P46B: `domain_events`/`DomainEvents` is deleted outright -- `auth_changed` was the last
+    surviving legacy Signal field application-wide. This is now a fixed, permanently-empty set;
+    every test below that consumes it remains a valid permanent regression guard, just checking
+    against a fixed empty set instead of a live introspected one."""
+    return set()
 
 
 def test_current_signals_are_a_subset_of_the_frozen_allowlist_not_equal():
@@ -167,15 +168,16 @@ _KNOWN_PM_SIGNAL_NAMES = frozenset(
 def test_zero_pm_legacy_signal_fields_remain():
     """Task was the last PM capability to reach zero legacy Signal involvement (P45B) --
     project_changed/timesheet_periods_changed/collaboration_changed/portfolio_changed/
-    register_changed/tasks_changed were each already or are now confirmed absent. This guard
-    is independent of Auth, which remains AUDITED/DEFERRED and is explicitly out of scope."""
+    register_changed/tasks_changed were each already or are now confirmed absent. P46B: Auth
+    (`auth_changed`) is now also fully modernized -- the last surviving legacy Signal field
+    application-wide -- so zero fields remain at all, not just zero PM-owned ones."""
     current = _current_signal_names()
     reintroduced = current & _KNOWN_PM_SIGNAL_NAMES
     assert reintroduced == set(), (
         f"PM-owned legacy Signal field(s) reintroduced: {reintroduced}"
     )
-    assert current == {"auth_changed"}, (
-        f"expected only auth_changed to remain, found: {current}"
+    assert current == set(), (
+        f"expected zero legacy Signal fields to remain application-wide, found: {current}"
     )
 
 
@@ -219,14 +221,10 @@ def test_deleted_bridge_and_dead_signal_names_have_zero_production_references():
     assert hits == [], hits
 
 
-def test_domain_events_module_has_no_bridge_machinery():
-    import src.core.shared.events.domain_events as module
-
-    assert not hasattr(module, "DomainChangeEvent")
-    assert not hasattr(domain_events, "domain_changed")
-    assert not hasattr(domain_events, "_BRIDGE_SPECS")
-    assert not hasattr(domain_events, "_wire_bridges")
-    assert not hasattr(domain_events, "_build_bridge")
+# P46B: `test_domain_events_module_has_no_bridge_machinery` removed -- the `domain_events` module
+# is deleted outright, and `test_deleted_bridge_and_dead_signal_names_have_zero_production_
+# references` above already proves `_BRIDGE_SPECS`/`domain_changed`/`_wire_bridges`/`_build_bridge`
+# have zero references across all production source, a strictly stronger guarantee.
 
 
 def test_no_controller_base_has_the_generic_subscribe_domain_change_method():
@@ -295,19 +293,12 @@ def test_organization_create_path_has_zero_legacy_signal_involvement():
     assert "domain_events" not in source
 
 
-def test_organization_has_no_legacy_signal_at_all():
-    """P10D: create/profile-update/enable/disable are all typed events now -- the last legacy
-    Organization Signal field is gone, not merely unused."""
-    assert not hasattr(domain_events, "organizations_changed")
-
-
-def test_module_entitlement_has_no_legacy_signal_at_all():
-    assert not hasattr(domain_events, "modules_changed")
-
-
-def test_role_binding_has_no_legacy_signal_at_all():
-    assert not hasattr(domain_events, "access_changed")
-    assert not hasattr(domain_events, "role_binding_changed")
+# P46B: standalone `not hasattr(domain_events, "...")` checks for organizations_changed/
+# modules_changed/access_changed/role_binding_changed/approvals_changed/employees_changed/
+# departments_changed/sites_changed removed -- `domain_events` module is deleted outright (see
+# docs/architecture/event-modernization-plan.md's P46B entry); `test_zero_...` guards elsewhere
+# (this file and each capability's own dedicated test file) independently cover production-source
+# absence for each of these.
 
 
 def test_tenant_membership_service_never_imports_domain_events():
@@ -315,22 +306,6 @@ def test_tenant_membership_service_never_imports_domain_events():
 
     source = _strip_strings_and_comments(inspect.getsource(module))
     assert "domain_events" not in source
-
-
-def test_approval_has_no_legacy_signal_at_all():
-    assert not hasattr(domain_events, "approvals_changed")
-
-
-def test_employee_has_no_legacy_signal_at_all():
-    assert not hasattr(domain_events, "employees_changed")
-
-
-def test_department_has_no_legacy_signal_at_all():
-    assert not hasattr(domain_events, "departments_changed")
-
-
-def test_site_has_no_legacy_signal_at_all():
-    assert not hasattr(domain_events, "sites_changed")
 
 
 def test_five_capability_mappers_never_import_domain_events_or_qt():

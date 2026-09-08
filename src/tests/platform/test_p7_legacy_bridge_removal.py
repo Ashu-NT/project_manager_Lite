@@ -17,7 +17,6 @@ import ast
 import inspect
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.inventory_procurement.context import InventoryProcurementWorkspaceCatalog
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
@@ -65,28 +64,15 @@ def _strip_strings_and_comments(source: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def test_bridge_specs_no_longer_exists_at_all():
-    assert not hasattr(domain_events, "_BRIDGE_SPECS")
-    assert not hasattr(domain_events.__class__, "_BRIDGE_SPECS")
-
-
-def test_domain_changed_signal_no_longer_exists():
-    assert not hasattr(domain_events, "domain_changed")
-
-
-def test_shared_master_changed_signal_no_longer_exists():
-    assert not hasattr(domain_events, "shared_master_changed")
-
-
-def test_domain_change_event_class_no_longer_exists():
-    import src.core.shared.events.domain_events as domain_events_module
-
-    assert not hasattr(domain_events_module, "DomainChangeEvent")
-
-
-def test_wire_bridges_no_longer_exists():
-    assert not hasattr(domain_events, "_wire_bridges")
-    assert not hasattr(domain_events, "_build_bridge")
+# P46B: `test_bridge_specs_no_longer_exists_at_all`/`test_domain_changed_signal_no_longer_exists`/
+# `test_shared_master_changed_signal_no_longer_exists`/`test_domain_change_event_class_no_longer_
+# exists`/`test_wire_bridges_no_longer_exists` (standalone `hasattr(domain_events, ...)` checks)
+# removed -- `domain_events`/`DomainEvents` is deleted outright. `test_no_generic_bridge_registry_
+# exists_anywhere` below, and `test_deleted_bridge_and_dead_signal_names_have_zero_production_
+# references` in test_p8_platform_event_architecture_canonicalization.py, independently prove zero
+# production references for `_BRIDGE_SPECS`/`domain_changed`/`shared_master_changed`/
+# `DomainChangeEvent`/`_wire_bridges`/`_build_bridge` across all production source -- a strictly
+# stronger guarantee than a runtime `hasattr` check on one (now-deleted) object.
 
 
 def test_subscribe_domain_change_no_longer_exists_on_any_controller_base():
@@ -103,24 +89,11 @@ def test_subscribe_domain_change_no_longer_exists_on_any_controller_base():
         assert not hasattr(cls, "_subscribe_domain_change")
 
 
-def test_all_still_unmodernized_signals_survive_with_real_direct_consumers():
-    """`organizations_changed`/`employees_changed`/`departments_changed`/`sites_changed`/
-    `parties_changed`/`documents_changed` are deliberately absent from this list (P10D, P12B,
-    P13B, P14B, P15B, P16D): all six capabilities are now fully modernized (create/profile events
-    are typed), so their legacy signals were actually deleted, not merely left un-bridged like
-    the ones below. `inventory_items_changed`/`inventory_item_categories_changed` are likewise
-    deliberately absent -- P24 fully modernized Item Catalog + Item Category. `resources_changed`
-    is ALSO deliberately absent (P35-CLEANUP correction) -- P18A/P18B fully modernized Project
-    Resource (`ResourceMasterChanged`/`ResourceCapabilityChanged`, canonical ViewInvalidation),
-    so it was actually deleted too; see `test_resources_changed_field_is_absent_from_domain_events`
-    in `test_p18b_resource_view_invalidation.py` for the dedicated retirement proof.
-    `project_changed` is likewise deliberately absent (P43) -- Project is now fully modernized.
-    `tasks_changed` is likewise deliberately absent (P45B) -- Task is now fully modernized, the
-    last PM capability to reach zero legacy Signal involvement; `auth_changed` remains the sole
-    surviving un-bridged legacy field, AUDITED/DEFERRED."""
-
-    for signal_name in ("auth_changed",):
-        assert hasattr(domain_events, signal_name), f"{signal_name} was deleted, not just un-bridged"
+# P46B: `test_zero_legacy_signals_remain_on_domain_events` (this pass's own interim guard, added
+# when `DomainEvents` was emptied but not yet deleted) is superseded now that the module is deleted
+# outright -- see test_p8_platform_event_architecture_canonicalization.py's `_current_signal_
+# names`/`test_zero_pm_legacy_signal_fields_remain` for the permanent "zero legacy signals
+# application-wide" guard.
 
 
 # ---------------------------------------------------------------------------
@@ -149,23 +122,18 @@ def test_organization_creation_produces_exactly_the_typed_view_invalidation(serv
     assert typed_calls == ["typed"]
 
 
-def test_module_entitlement_has_no_legacy_signal_at_all():
-    """`modules_changed` was fully retired in P5B-3 -- not merely un-bridged, deleted entirely."""
-    assert not hasattr(domain_events, "modules_changed")
+# P46B: `test_module_entitlement_has_no_legacy_signal_at_all` (`modules_changed`, retired P5B-3)
+# and `test_role_binding_has_no_legacy_signal_at_all` (`access_changed`/`role_binding_changed`,
+# never existed for RoleBinding at all) removed -- both were standalone `hasattr(domain_events,
+# ...)` checks; `domain_events` is deleted outright.
 
 
-def test_role_binding_has_no_legacy_signal_at_all():
-    """RoleBinding never had its own module-level legacy signal (`access_changed` never existed
-    for it) -- it went straight from the pre-existing `auth_changed`-adjacent world to typed
-    events in P5C, with no intermediate bridge."""
-    assert not hasattr(domain_events, "access_changed")
-    assert not hasattr(domain_events, "role_binding_changed")
-
-
-def test_tenant_membership_mutation_never_emits_auth_changed(services):
+def test_tenant_membership_mutation_produces_exactly_the_typed_view_invalidation(services):
     """P5D: TenantMembership transitions collapse entirely into the typed
-    TenantMembership{Activated,Suspended,Reactivated,Removed} -> ViewInvalidation path -- no
-    `auth_changed` bridge was ever built for it."""
+    TenantMembership{Activated,Suspended,Reactivated,Removed} -> ViewInvalidation path.
+    P46B: `auth_changed` no longer exists at all (Auth/Security is itself now fully modernized),
+    so there is no legacy signal left to prove this doesn't also emit -- this now only proves the
+    positive: `accept_invitation` produces exactly the one typed `tenant_membership` invalidation."""
     from datetime import datetime, timedelta, timezone
 
     catalog = _catalog(services)
@@ -174,11 +142,6 @@ def test_tenant_membership_mutation_never_emits_auth_changed(services):
         lambda: typed_calls.append("typed")
     )
 
-    # register_user() and authenticate() are themselves registration/session operations -- both
-    # genuinely still-unmodernized `auth_changed` producers (confirmed: a successful login records
-    # last-login metadata and emits `auth_changed` -- correct, unrelated behavior) -- so both must
-    # run BEFORE the auth_changed probe is installed, to isolate what `accept_invitation` itself
-    # (the actual TenantMembership transition under test) does on its own.
     target = services["auth_service"].register_user(
         _unique("p7-membership-target"), "P7Membership123!", display_name="P7 Membership Target"
     )
@@ -189,18 +152,14 @@ def test_tenant_membership_mutation_never_emits_auth_changed(services):
     target_auth = services["auth_service"].authenticate(target.username, "P7Membership123!")
     services["user_session"].set_principal(services["auth_service"].build_principal(target_auth))
 
-    auth_calls = []
-    domain_events.auth_changed.connect(lambda user_id: auth_calls.append(user_id))
     services["tenant_membership_service"].accept_invitation(issued.token)
     services["user_session"].set_principal(admin_principal)
 
     assert typed_calls == ["typed"]
-    assert auth_calls == []
 
 
-def test_approval_has_no_legacy_signal_at_all():
-    """`approvals_changed` was fully deleted in Approval-P3 -- confirmed still gone."""
-    assert not hasattr(domain_events, "approvals_changed")
+# P46B: `test_approval_has_no_legacy_signal_at_all` (`approvals_changed`, deleted Approval-P3)
+# removed -- standalone `hasattr(domain_events, ...)` check; `domain_events` is deleted outright.
 
 
 # ---------------------------------------------------------------------------
@@ -222,31 +181,16 @@ def test_pm_register_workspace_direct_wired_to_project_stale_exactly_once(servic
     assert refresh_calls == ["refresh"]
 
 
-def test_pm_register_workspace_does_not_react_to_an_unrelated_signal(services):
-    """Direct wiring must not accidentally widen scope -- an unrelated other-module signal must
-    never reach a PM controller.
-
-    P33-CLEANUP: was `..._an_unrelated_inventory_signal`, emitting `inventory_balances_changed`
-    (deleted at P31B). Inventory/Procurement now has ZERO legacy Signal fields (P33) -- there is
-    no longer any Inventory signal left to use as the "unrelated" example, so this now uses a
-    still-legacy Finance signal instead, preserving the same cross-module-isolation property.
-
-    P36: was `commitments_changed` (deleted at P36 -- Commitment fully modernized onto typed
-    DomainEvents). P37: was `cost_entries_changed` (deleted at P37 -- Cost Entry fully modernized
-    onto typed DomainEvents, restoring the P8 architecture budget). P38B: was `budgets_changed`
-    (deleted at P38B -- Budget fully modernized onto typed DomainEvents). P39: was
-    `billing_preparations_changed` (deleted at P39 -- Billing Profile/Preparation fully
-    modernized onto typed DomainEvents; Finance now has ZERO legacy Signal fields left). No
-    Finance signal remains to stand in, so this now uses `auth_changed` (a genuinely different
-    module, Auth/Security) -- still proving the same cross-module-isolation property."""
-    pm_catalog = _pm_catalog(services)
-    controller = pm_catalog.registerWorkspace
-    refresh_calls = []
-    controller.refresh = lambda: refresh_calls.append("refresh")
-
-    domain_events.auth_changed.emit(_unique("p7a-unrelated-auth"))
-
-    assert refresh_calls == []
+# P46B: `test_pm_register_workspace_does_not_react_to_an_unrelated_signal` used `auth_changed` as
+# its "some other module's still-legacy signal" stand-in (P33/P36/P37/P38B/P39 had each already
+# retired the previous stand-in in turn). Auth/Security is now itself fully modernized -- there is
+# no legacy Signal field left anywhere in the application to construct this proof from at all
+# (see `test_zero_legacy_signals_remain_on_domain_events` above). The property it protected --
+# direct ViewInvalidation wiring never widens scope to an unrelated module -- is now a structural
+# guarantee of the ViewInvalidation channel's own scope/category filtering, not something a signal
+# emission can accidentally leak through; it stays covered by each adapter's own dedicated
+# scope-filter tests (e.g. this file's own precision tests below, and each capability's own
+# `event_handlers/view_invalidation.py` mapping tests).
 
 
 def test_inventory_dashboard_direct_wired_to_every_inventory_signal(services):
@@ -265,42 +209,26 @@ def test_inventory_dashboard_direct_wired_to_every_inventory_signal(services):
     assert refresh_calls == ["refresh", "refresh"]
 
 
-def test_inventory_dashboard_does_not_react_to_an_unrelated_shared_master_signal(services):
-    """P43/P45B: was `domain_events.project_changed.emit(...)` then
-    `domain_events.tasks_changed.emit(...)` -- both since deleted (Project and Task are both
-    fully modernized onto typed DomainEvents + ViewInvalidation, zero PM legacy Signals remain).
-    `auth_changed` is a genuinely unrelated, undeleted shared-master signal, preserving the same
-    isolation property."""
-    inventory_catalog = _inventory_catalog(services)
-    controller = inventory_catalog.dashboardWorkspace
-    refresh_calls = []
-    controller.refresh = lambda: refresh_calls.append("refresh")
-
-    domain_events.auth_changed.emit(_unique("p7a-unrelated-shared-master"))
-
-    assert refresh_calls == []
-
-
-def test_inventory_catalog_workspace_does_not_react_to_an_unrelated_shared_master_signal(services):
-    """`auth_changed` is a real shared-master signal, but NOT one the catalog workspace's own
-    binder ever subscribed to -- direct wiring must preserve that exact per-consumer scope, not
-    widen it."""
-    inventory_catalog = _inventory_catalog(services)
-    controller = inventory_catalog.catalogWorkspace
-    refresh_calls = []
-    controller.refresh = lambda: refresh_calls.append("refresh")
-
-    domain_events.auth_changed.emit(_unique("p7a-unrelated-auth"))
-
-    assert refresh_calls == []
+# P46B: `test_inventory_dashboard_does_not_react_to_an_unrelated_shared_master_signal` and
+# `test_inventory_catalog_workspace_does_not_react_to_an_unrelated_shared_master_signal` both used
+# `auth_changed` as the "genuinely unrelated shared-master signal" stand-in -- removed for the same
+# reason as the PM equivalent above: there is no legacy Signal field left anywhere to construct
+# this proof from, and the isolation property itself is now structural (ViewInvalidation scope/
+# category filtering), not something dependent on any one signal's continued existence.
 
 
 # ---------------------------------------------------------------------------
-# 3. Representative still-unmodernized capability: auth/password, direct-wired, narrow
+# 3. Auth/Security: fully modernized, direct-wired, narrow (P46B)
 # ---------------------------------------------------------------------------
 
 
-def test_password_reset_fires_auth_changed_and_only_the_narrow_access_workspace_reaction(services):
+def test_password_reset_produces_exactly_the_typed_account_security_invalidation(services):
+    """P46B: password reset (`force_password_reset`) is now fully modernized -- it records the
+    typed `PasswordChanged` event, mapped to the `account_security` ViewInvalidation category
+    (replacing the legacy `auth_changed` Signal this test previously exercised). Proves the same
+    isolation property as before: only the narrow `account_security` target reacts; the Access
+    workspace's own FULL refresh, and every other unrelated ViewInvalidation target, stay
+    untouched."""
     _login(services, "admin", "ChangeMe123!")
     catalog = _catalog(services)
     access = catalog.adminAccessWorkspace
@@ -315,6 +243,7 @@ def test_password_reset_fires_auth_changed_and_only_the_narrow_access_workspace_
     organization_calls = []
     module_entitlement_calls = []
     approval_calls = []
+    account_security_calls = []
     access.refresh = lambda: full_refresh_calls.append("refresh") or None
     catalog._role_binding_view_invalidation_adapter.roleBindingsStale.connect(
         lambda: role_binding_calls.append("stale")
@@ -328,68 +257,36 @@ def test_password_reset_fires_auth_changed_and_only_the_narrow_access_workspace_
     catalog._approval_view_invalidation_adapter.approvalsStale.connect(
         lambda: approval_calls.append("stale")
     )
-    auth_calls = []
-    domain_events.auth_changed.connect(lambda user_id: auth_calls.append(user_id))
+    catalog._account_security_view_invalidation_adapter.accountSecurityStale.connect(
+        lambda: account_security_calls.append("stale")
+    )
 
     result = access.forcePasswordReset(target.id)
 
     assert result["ok"] is True
-    assert auth_calls == [target.id], "the still-unmodernized password capability must still emit its signal"
-    assert full_refresh_calls == [], "auth_changed must never trigger the FULL Access workspace refresh"
+    assert account_security_calls == ["stale"], "PasswordChanged must reach the account_security target"
+    assert full_refresh_calls == [], "account_security invalidation must never trigger the FULL Access workspace refresh"
     assert role_binding_calls == []
     assert organization_calls == []
     assert module_entitlement_calls == []
     assert approval_calls == []
 
-    # Isolate `_on_auth_changed`'s OWN reaction (bypassing the mutation's own immediate
-    # self-refresh): a fresh auth_changed emission alone must still only hit the narrow path.
-    narrow_calls = []
-    access._refresh_after_security_change = lambda: narrow_calls.append("security") or None
-    domain_events.auth_changed.emit(target.id)
-    assert narrow_calls == ["security"]
-    assert full_refresh_calls == []
+
+# P46B: `test_admin_console_domain_event_binder_never_touches_the_generic_bridge` and
+# `test_admin_console_still_composite_refreshes_on_the_one_genuinely_unmodernized_signal` are
+# removed -- `admin_console/domain_event_binder.py` (the composite `auth_changed`-among-8-signals
+# coarse refresher) is deleted outright, not merely unused: the admin console now reacts to the
+# narrow `account_security` target (`refresh_after_account_security_change`) and the pre-existing
+# narrow `refresh_users` target, never a coarse full refresh. See
+# `test_zero_auth_changed_subscribers_remain` in test_p5_closeout_auth_changed_audit.py for the
+# module-deletion guard.
 
 
-# ---------------------------------------------------------------------------
-# 4. admin_console/domain_event_binder.py: real, non-compatibility, still-required responsibility
-# ---------------------------------------------------------------------------
-
-
-def test_admin_console_domain_event_binder_never_touches_the_generic_bridge():
-    import src.ui_qml.platform.controllers.admin_console.domain_event_binder as binder_module
-
-    source = _strip_strings_and_comments(inspect.getsource(binder_module))
-    for forbidden in ("_subscribe_domain_change", "domain_changed", "_BRIDGE_SPECS"):
-        assert forbidden not in source
-
-
-def test_admin_console_still_composite_refreshes_on_the_one_genuinely_unmodernized_signal(
-    services,
-):
-    catalog = _catalog(services)
-    admin = catalog.adminWorkspace
-    refresh_calls = []
-    admin.refresh = lambda: refresh_calls.append("refresh") or None
-
-    domain_events.auth_changed.emit(_unique("p7-admin-auth"))
-
-    assert refresh_calls == ["refresh"]
-
-
-# ---------------------------------------------------------------------------
-# 5. PM Dashboard: Approval-P3's removal stays removed
-# ---------------------------------------------------------------------------
-
-
-def test_pm_dashboard_still_does_not_react_to_unrelated_capability_events(services):
-    pm_catalog = _pm_catalog(services)
-    dashboard = pm_catalog.dashboardWorkspace
-    refresh_calls = []
-    dashboard.refresh = lambda: refresh_calls.append("refresh")
-
-    domain_events.auth_changed.emit(_unique("p7-dashboard-auth"))
-
-    assert refresh_calls == []
+# P46B: `test_pm_dashboard_still_does_not_react_to_unrelated_capability_events` used `auth_changed`
+# as its "unrelated capability event" vehicle -- removed for the same reason as the other
+# auth_changed-as-stand-in isolation tests above; there is no legacy Signal left to construct it
+# from, and the underlying isolation guarantee is structural (ViewInvalidation scope/category
+# filtering), covered by each capability's own dedicated tests.
 
 
 # ---------------------------------------------------------------------------
@@ -398,8 +295,8 @@ def test_pm_dashboard_still_does_not_react_to_unrelated_capability_events(servic
 
 
 def test_no_generic_bridge_registry_exists_anywhere():
-    """P7A: `_BRIDGE_SPECS` is gone entirely -- not even domain_events.py itself references it
-    any more."""
+    """P7A: `_BRIDGE_SPECS` is gone entirely. P46B: the legacy `domain_events.py` module it once
+    lived in is deleted outright."""
     import glob
 
     hits = []
@@ -505,9 +402,10 @@ def test_no_capability_mapper_imports_domain_events_or_qt():
 def test_no_wildcard_view_invalidation_listener_was_introduced():
     """No adapter (including admin_console/access) subscribes via `AllTenants`/
     `AnyOrganizationInTenant`, and no new "subscribe to everything, emit domain_changed" bridge
-    was built on top of ViewInvalidation."""
+    was built on top of ViewInvalidation. P46B: `admin_console/domain_event_binder.py` is deleted
+    outright, so it is no longer part of this module inventory at all."""
     modules = (
-        "src.ui_qml.platform.controllers.admin_console.domain_event_binder",
+        "src.ui_qml.platform.controllers.admin_console.admin_console_controller",
         "src.ui_qml.platform.controllers.identity_access.access.access_workspace_controller",
         "src.ui_qml.platform.context",
     )
@@ -524,7 +422,6 @@ def test_no_service_locator_or_string_capability_router_introduced():
     for module_name in (
         "src.ui_qml.platform.context",
         "src.ui_qml.modules.project_management.context",
-        "src.core.shared.events.domain_events",
     ):
         import importlib
 

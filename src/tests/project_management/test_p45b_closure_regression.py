@@ -29,7 +29,6 @@ from src.application.runtime import build_desktop_api_registry
 from src.core.modules.project_management.application.tasks.task_events import (
     TaskAssignmentChanged,
 )
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 
 
@@ -58,8 +57,8 @@ def _task_hints(hints):
 # ---------------------------------------------------------------------------
 
 
-def test_domain_events_has_no_tasks_changed_field():
-    assert not hasattr(domain_events, "tasks_changed")
+# P46B: test_domain_events_has_no_tasks_changed_field removed -- domain_events module is deleted
+# outright (see docs/architecture/event-modernization-plan.md's P46B entry).
 
 
 def test_task_mutation_succeeds_with_zero_tasks_changed_and_genuine_consumer_refreshes(services, monkeypatch, qapp):
@@ -76,7 +75,6 @@ def test_task_mutation_succeeds_with_zero_tasks_changed_and_genuine_consumer_ref
         project.id, "Producerless Regression Task", start_date=date(2026, 9, 1), duration_days=5
     )
 
-    assert not hasattr(domain_events, "tasks_changed")
     assert refresh_calls == ["refresh"]
 
 
@@ -327,4 +325,3 @@ def test_submit_timesheet_period_records_zero_real_task_domain_event(services, m
     services["timesheet_service"].submit_timesheet_period(resource.id, period_start=date(2026, 9, 1))
 
     assert seen == []
-    assert not hasattr(domain_events, "tasks_changed")

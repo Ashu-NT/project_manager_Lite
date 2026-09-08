@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
-from typing import Any
 
 from PySide6.QtCore import QCoreApplication, Property, QObject, QTimer, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.core.shared.events.signal import Signal as DomainSignal
 from src.infra.platform.app_settings import AppSettingsStore
 from src.ui_qml.modules.project_management.controllers.common.runtime_context import (
     resolve_active_organization_id_from_runtime_api,
@@ -53,10 +50,6 @@ class ProjectManagementWorkspaceControllerBase(QObject):
         self._domain_refresh_timer.timeout.connect(
             self._execute_scheduled_domain_refresh
         )
-        self._domain_event_subscriptions: list[
-            tuple[DomainSignal[Any], Callable[[Any], None]]
-        ] = []
-        self.destroyed.connect(self._disconnect_domain_event_subscriptions)
 
     def _diagnostic_context(self) -> dict[str, object]:
         return {
@@ -189,19 +182,6 @@ class ProjectManagementWorkspaceControllerBase(QObject):
         self._section_errors = {**self._section_errors, section: ""}
         self.sectionErrorsChanged.emit()
 
-    def _subscribe_domain_signal(
-        self,
-        signal: DomainSignal[Any],
-        callback: Callable[[Any], None],
-    ) -> None:
-        signal.connect(callback)
-        self._domain_event_subscriptions.append((signal, callback))
-        logger.debug(
-            "Domain signal subscribed context=%s subscription_count=%s",
-            self._diagnostic_context(),
-            len(self._domain_event_subscriptions),
-        )
-
     def _request_domain_refresh(self) -> None:
         self._pending_domain_refresh = True
         if self._is_loading or self._is_busy:
@@ -242,18 +222,5 @@ class ProjectManagementWorkspaceControllerBase(QObject):
         if callable(refresh):
             logger.debug("Domain refresh executing context=%s", self._diagnostic_context())
             refresh()
-
-    def _disconnect_domain_event_subscriptions(
-        self,
-        _object: QObject | None = None,
-    ) -> None:
-        for signal, callback in self._domain_event_subscriptions:
-            try:
-                signal.disconnect(callback)
-            except Exception:
-                logger.debug("Domain signal disconnect failed context=%s", self._diagnostic_context(), exc_info=True)
-        self._domain_event_subscriptions.clear()
-        logger.debug("Domain signal subscriptions cleared context=%s", self._diagnostic_context())
-
 
 __all__ = ["ProjectManagementWorkspaceControllerBase"]

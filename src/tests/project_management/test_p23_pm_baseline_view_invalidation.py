@@ -18,7 +18,6 @@ from src.core.modules.project_management.application.scheduling.baselines.event_
 )
 from src.core.platform.common.exceptions import ValidationError
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.events.view_invalidation import ExactResource, ResourceScope
 
 _COUNTER = {"n": 0}
@@ -310,8 +309,9 @@ def test_baseline_service_shared_session_survives_repeated_commits(services):
 # ---------------------------------------------------------------------------
 
 
-def test_baseline_changed_field_no_longer_exists():
-    assert not hasattr(domain_events, "baseline_changed")
+# P46B: test_baseline_changed_field_no_longer_exists removed -- domain_events module is deleted
+# outright (see docs/architecture/event-modernization-plan.md's P46B entry). The stronger,
+# independent source-string guard below remains.
 
 
 def test_baseline_changed_has_zero_production_references():

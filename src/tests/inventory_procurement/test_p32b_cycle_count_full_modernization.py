@@ -24,7 +24,6 @@ from src.core.modules.inventory_procurement.application.inventory.event_handlers
     CYCLE_COUNT_LIST_SCOPE_CODE,
 )
 from src.core.platform.common.exceptions import ConcurrencyError
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.inventory_procurement.context import (
     InventoryProcurementWorkspaceCatalog,
 )
@@ -68,8 +67,8 @@ def _cycle_count_hints(hints):
     return [h for h in hints if h.category == CYCLE_COUNT_CATEGORY]
 
 
-def test_legacy_cycle_count_signal_field_is_deleted():
-    assert not hasattr(domain_events, "inventory_cycle_counts_changed")
+# P46B: test_legacy_cycle_count_signal_field_is_deleted removed -- domain_events module is
+# deleted outright (see docs/architecture/event-modernization-plan.md's P46B entry).
 
 
 # ---------------------------------------------------------------------------

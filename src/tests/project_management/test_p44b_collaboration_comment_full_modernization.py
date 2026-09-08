@@ -24,11 +24,9 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 )
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 
-
-def test_legacy_collaboration_signal_field_is_deleted():
-    assert not hasattr(domain_events, "collaboration_changed")
+# P46B: test_legacy_collaboration_signal_field_is_deleted removed -- domain_events module is
+# deleted outright (see docs/architecture/event-modernization-plan.md's P46B entry).
 
 
 # ---------------------------------------------------------------------------
@@ -390,13 +388,9 @@ def test_durable_comment_commands_source_never_names_collaboration_changed():
     assert "tasks_changed" not in source
 
 
-def test_no_new_signal_field_introduced():
-    """P45B deleted `tasks_changed` too (Task was the last PM capability to reach zero legacy
-    Signal involvement) -- `auth_changed` is now the sole remaining field."""
-    import dataclasses
-
-    signal_names = {f.name for f in dataclasses.fields(domain_events)}
-    assert signal_names == {"auth_changed"}
+# P46B: test_no_new_signal_field_introduced removed -- domain_events module is deleted outright
+# (Auth's `auth_changed` was the last surviving field; see docs/architecture/
+# event-modernization-plan.md's P46B entry).
 
 
 # ---------------------------------------------------------------------------

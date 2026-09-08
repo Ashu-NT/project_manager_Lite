@@ -32,7 +32,6 @@ from src.core.modules.project_management.application.financials.planned_costs.pl
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.events.view_invalidation import ResourceScope
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 
@@ -106,8 +105,8 @@ def _allocate(services, ctx, hours: Decimal):
     return updated
 
 
-def test_legacy_planned_cost_signal_field_is_deleted():
-    assert not hasattr(domain_events, "planned_costs_changed")
+# P46B: test_legacy_planned_cost_signal_field_is_deleted removed -- domain_events module is
+# deleted outright (see docs/architecture/event-modernization-plan.md's P46B entry).
 
 
 # ---------------------------------------------------------------------------

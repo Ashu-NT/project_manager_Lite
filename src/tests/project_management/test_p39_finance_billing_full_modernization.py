@@ -34,7 +34,6 @@ from src.core.modules.project_management.domain.financials.billing_profile impor
 from src.core.modules.project_management.domain.financials.configuration import BillingMethod
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.events.view_invalidation import ResourceScope
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 
@@ -113,8 +112,8 @@ def _ready_schedule_line(services, project, *, amount=Decimal("24000")):
     return bp_profile, line
 
 
-def test_legacy_billing_signal_field_is_deleted():
-    assert not hasattr(domain_events, "billing_preparations_changed")
+# P46B: test_legacy_billing_signal_field_is_deleted removed -- domain_events module is deleted
+# outright (see docs/architecture/event-modernization-plan.md's P46B entry).
 
 
 # ---------------------------------------------------------------------------

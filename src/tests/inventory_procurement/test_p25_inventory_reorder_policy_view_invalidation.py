@@ -25,7 +25,6 @@ from src.core.modules.inventory_procurement.domain.inventory.foundation_events i
     InventoryReorderPolicyConfigured,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.events.view_invalidation import ExactOrganization, OrganizationScope
 
 _COUNTER = {"n": 0}
@@ -278,10 +277,6 @@ def test_inventory_workspace_reorder_policy_list_stale_triggers_full_refresh(ser
 # ---------------------------------------------------------------------------
 # Legacy signal fully retired
 # ---------------------------------------------------------------------------
-
-
-def test_inventory_reorder_policies_changed_field_no_longer_exists():
-    assert not hasattr(domain_events, "inventory_reorder_policies_changed")
 
 
 def test_inventory_reorder_policies_changed_has_zero_production_references():

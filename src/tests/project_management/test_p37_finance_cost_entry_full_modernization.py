@@ -25,7 +25,6 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
 )
 from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.events.view_invalidation import ResourceScope
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 
@@ -80,8 +79,8 @@ def _create_draft(services, project, cost_code, *, command_id="p37-manual-1", am
     )
 
 
-def test_legacy_cost_entry_signal_field_is_deleted():
-    assert not hasattr(domain_events, "cost_entries_changed")
+# P46B: test_legacy_cost_entry_signal_field_is_deleted removed -- domain_events module is deleted
+# outright (see docs/architecture/event-modernization-plan.md's P46B entry).
 
 
 # ---------------------------------------------------------------------------

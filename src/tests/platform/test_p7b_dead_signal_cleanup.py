@@ -4,7 +4,6 @@ import glob
 import inspect
 
 from src.application.runtime import build_desktop_api_registry
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
@@ -47,12 +46,10 @@ def _production_source_files():
 # ---------------------------------------------------------------------------
 
 
-def test_costs_changed_signal_no_longer_exists():
-    assert not hasattr(domain_events, "costs_changed")
-
-
-def test_calendars_changed_signal_no_longer_exists():
-    assert not hasattr(domain_events, "calendars_changed")
+# P46B: `test_costs_changed_signal_no_longer_exists`/`test_calendars_changed_signal_no_longer_
+# exists` (standalone `hasattr(domain_events, ...)` checks) removed -- `domain_events` module is
+# deleted outright; the stronger source-string guard below independently proves zero production
+# references for both names.
 
 
 def test_costs_changed_and_calendars_changed_have_zero_production_references():
@@ -81,12 +78,6 @@ def test_approval_service_reflective_emission_mechanism_retired_by_task_moderniz
 # ---------------------------------------------------------------------------
 # 3. Consumer subscriptions removed -- verified via real end-to-end refresh behavior
 # ---------------------------------------------------------------------------
-
-
-def test_pm_dashboard_no_longer_reacts_to_costs_changed_because_it_no_longer_exists(services):
-    _pm_catalog(services)
-    assert not hasattr(domain_events, "costs_changed")
-
 
 
 def test_pm_financials_workspace_coalesces_scoped_finance_invalidations(services, qapp):
@@ -147,15 +138,14 @@ def test_control_workspace_still_reacts_to_its_remaining_real_signals(services):
     assert refresh_calls == ["refresh"]
 
 
-def test_admin_console_still_reacts_to_its_remaining_signal(services):
-    catalog = _catalog(services)
-    admin = catalog.adminWorkspace
-    refresh_calls = []
-    admin.refresh = lambda: refresh_calls.append("refresh") or None
-
-    domain_events.auth_changed.emit(_unique("p7b-auth"))
-
-    assert refresh_calls == ["refresh"]
+# P46B: `test_admin_console_still_reacts_to_its_remaining_signal` used `domain_events.auth_changed`
+# as the admin console's one remaining legacy-signal dependency -- Auth/Security is now fully
+# modernized, `admin_console/domain_event_binder.py` (the coarse composite refresher this test
+# exercised) is deleted outright, and the admin console instead reacts to the narrow
+# `refresh_users`/`refresh_after_account_security_change` targets. See
+# `test_zero_auth_changed_subscribers_remain` in test_p5_closeout_auth_changed_audit.py and
+# `test_platform_admin_access_workspace_reacts_to_account_security_change_narrowly` in
+# test_qml_domain_event_bridges_pm.py for the current coverage.
 
 
 def test_pm_resources_workspace_still_reacts_to_resources(services):
@@ -197,46 +187,20 @@ def test_pm_scheduling_workspace_still_reacts_to_its_remaining_real_signals(serv
 # ---------------------------------------------------------------------------
 
 
-def test_no_new_business_domain_event_or_replacement_signal_introduced():
-    import dataclasses
-
-    signal_names = [f.name for f in dataclasses.fields(domain_events)]
-    assert "costs_changed" not in signal_names
-    assert "calendars_changed" not in signal_names
-
-    reference_counts = {name: 0 for name in signal_names}
-    for path in _production_source_files():
-        if path == "src/core/shared/events/domain_events.py":
-            continue
-        with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-            source = _strip_strings_and_comments(fh.read())
-        for name in signal_names:
-            if name in source:
-                reference_counts[name] += 1
-
-    orphaned = [name for name, count in reference_counts.items() if count == 0]
-    assert orphaned == [], orphaned
+# P46B: `test_no_new_business_domain_event_or_replacement_signal_introduced` (an orphan-detection
+# loop over `dataclasses.fields(domain_events)`) removed -- `domain_events` module is deleted
+# outright, and since it permanently carries zero fields (see test_p8_platform_event_architecture_
+# canonicalization.py's `_current_signal_names`), the "every current signal has a production
+# reference" invariant it checked is now vacuously and permanently true.
 
 
-def test_domain_event_binder_still_kept_unchanged_in_responsibility():
-    import src.ui_qml.platform.controllers.admin_console.domain_event_binder as binder_module
-
-    source = _strip_strings_and_comments(inspect.getsource(binder_module))
-    for forbidden in (
-        "_subscribe_domain_change", "domain_changed", "_BRIDGE_SPECS", "calendars_changed",
-        "organizations_changed", "employees_changed", "departments_changed", "sites_changed",
-        "parties_changed", "documents_changed",
-    ):
-        assert forbidden not in source
-    for still_present in (
-        "auth_changed",
-    ):
-        assert still_present in source
+# P46B: `test_domain_event_binder_still_kept_unchanged_in_responsibility` imported
+# `admin_console/domain_event_binder.py`, which is now deleted outright (it was 100%
+# `auth_changed`-specific composite-refresh coordination; see
+# test_p5_closeout_auth_changed_audit.py's `test_zero_auth_changed_subscribers_remain`).
 
 
 def test_organizations_changed_field_no_longer_exists():
-    assert not hasattr(domain_events, "organizations_changed")
-
     import src.core.platform.application.master_data.org.organization_service as org_service_module
 
     source = inspect.getsource(org_service_module)

@@ -8,7 +8,6 @@ from src.core.modules.project_management.application.collaboration.event_handler
     TASK_PRESENCE_CATEGORY,
     TASK_PRESENCE_SCOPE_CODE,
 )
-from src.core.shared.events.domain_events import domain_events
 
 
 def _spy_hints(services):
@@ -249,10 +248,10 @@ def test_approval_post_commit_event_bridge_is_unaffected_by_collaboration_transp
     assert hits == set()
 
 
-def test_collaboration_changed_deleted_tasks_changed_also_now_deleted_by_p45b():
-    """P44B deleted `collaboration_changed`; P45B went on to delete `tasks_changed` too (Task
-    was the last PM capability to reach zero legacy Signal involvement) -- `auth_changed` is
-    the sole remaining legacy Signal field, AUDITED/DEFERRED."""
-    assert not hasattr(domain_events, "collaboration_changed")
-    assert not hasattr(domain_events, "tasks_changed")
-    assert hasattr(domain_events, "auth_changed")
+# P46B: `test_collaboration_changed_and_tasks_changed_stay_deleted` is removed -- the legacy
+# `domain_events` module (`DomainEvents` dataclass + singleton) is deleted outright, not merely
+# emptied. `collaboration_changed`/`tasks_changed`/`auth_changed` (the last surviving legacy
+# Signal field application-wide) are proven permanently gone by
+# `test_zero_pm_legacy_signal_fields_remain` in
+# test_p8_platform_event_architecture_canonicalization.py, which no longer depends on the deleted
+# module either (it checks against a fixed empty set).

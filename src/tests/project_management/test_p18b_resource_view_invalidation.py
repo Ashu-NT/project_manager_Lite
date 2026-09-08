@@ -559,10 +559,10 @@ def test_resources_workspace_refreshes_once_from_employee_driven_resource_sync(s
 # ---------------------------------------------------------------------------
 
 
-def test_resources_changed_field_is_absent_from_domain_events():
-    from src.core.shared.events.domain_events import domain_events
-
-    assert not hasattr(domain_events, "resources_changed")
+# P46B: `test_resources_changed_field_is_absent_from_domain_events` (a standalone
+# `hasattr(domain_events, "resources_changed")` check) is removed -- `DomainEvents` itself is
+# deleted, so there is no module left to check a field's absence on. The stronger, independent
+# source-string guard below remains.
 
 
 def test_resources_changed_has_zero_production_references():

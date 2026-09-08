@@ -413,10 +413,6 @@ def test_session_organization_switch_produces_no_business_event(services):
 
 
 def test_organizations_changed_field_and_producers_are_fully_gone():
-    from src.core.shared.events.domain_events import domain_events
-
-    assert not hasattr(domain_events, "organizations_changed")
-
     import inspect
 
     import src.core.platform.application.master_data.org.organization_service as org_service_module

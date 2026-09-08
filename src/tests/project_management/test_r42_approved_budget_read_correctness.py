@@ -16,12 +16,10 @@ from src.core.modules.project_management.domain.financials.budget import BudgetS
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.project_management.controllers.common.workspace_controller_base import (
     ProjectManagementWorkspaceControllerBase,
 )
 from src.ui_qml.modules.project_management.controllers.projects.project_domain_event_binder import (
-    bind_project_domain_events,
     on_budget_project_summary_stale,
 )
 from src.ui_qml.modules.project_management.presenters.projects.projects_workspace_presenter import (
@@ -305,7 +303,6 @@ class _RefreshProbe(ProjectManagementWorkspaceControllerBase):
         super().__init__()
         self.refresh_count = 0
         self._selected_project_id = "project-kept"
-        bind_project_domain_events(self)
 
     def refresh(self) -> None:
         self.refresh_count += 1

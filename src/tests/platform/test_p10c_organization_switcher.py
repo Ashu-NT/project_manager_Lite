@@ -375,9 +375,28 @@ def test_independent_sessions_switch_organizations_without_affecting_each_other(
 
 
 def test_no_new_organization_or_legacy_signal_domain_event_was_introduced():
-    source = (_REPO_ROOT / "src/core/shared/events/domain_events.py").read_text(encoding="utf-8-sig")
-    for forbidden in ("OrganizationSelected", "OrganizationActivated", "ActiveOrganizationChanged"):
-        assert forbidden not in source, f"P10C must not introduce {forbidden}"
+    """P46B: `src/core/shared/events/domain_events.py` (the legacy `DomainEvents` dataclass +
+    `domain_events` singleton) is deleted outright -- there is no longer a legacy-signal hub for
+    a hypothetical new organization-switching field to be added to at all. Widened to a full
+    production-source scan for the same three hypothetical event names, so the guard survives the
+    module's deletion instead of depending on it."""
+    import glob
+    import re
+
+    hits = []
+    for path in glob.glob("src/**/*.py", recursive=True):
+        normalized = path.replace("\\", "/")
+        if "__pycache__" in normalized or "/tests/" in normalized:
+            continue
+        with open(path, "r", encoding="utf-8", errors="ignore") as fh:
+            source = fh.read()
+        for forbidden in ("OrganizationSelected", "OrganizationActivated", "ActiveOrganizationChanged"):
+            # Word-boundary on both sides (not just \b, which doesn't separate two letters) --
+            # excludes false positives like a docstring's `onOrganizationSelected` QML handler
+            # name, which is a different, pre-existing, unrelated identifier.
+            if re.search(rf"(?<![A-Za-z]){forbidden}(?![A-Za-z])", source):
+                hits.append((normalized, forbidden))
+    assert hits == [], f"P10C must not introduce: {hits}"
 
 
 def test_organization_switcher_controller_and_presenter_do_not_import_repositories_or_orm():

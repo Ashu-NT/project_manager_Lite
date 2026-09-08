@@ -307,9 +307,6 @@ def test_approve_and_apply_refreshes_control_workspace_exactly_once_no_legacy_si
 
     assert decided.status == ApprovalStatus.APPROVED
     assert refresh_calls == ["approvals"]
-    assert not hasattr(__import__(
-        "src.core.shared.events.domain_events", fromlist=["domain_events"]
-    ).domain_events, "approvals_changed")
 
 
 def test_reject_refreshes_control_workspace_exactly_once(services, session):

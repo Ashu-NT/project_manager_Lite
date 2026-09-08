@@ -25,7 +25,6 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.repositor
 from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.platform.domain.master_data.party import PartyType
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.events.view_invalidation import OrganizationScope, ResourceScope
 from src.tests.ui_runtime_helpers import login_as
 
@@ -86,8 +85,8 @@ def _procurement_context(services, suffix):
     return site, storeroom, item, supplier
 
 
-def test_legacy_purchase_order_signal_field_is_deleted():
-    assert not hasattr(domain_events, "inventory_purchase_orders_changed")
+# P46B: test_legacy_purchase_order_signal_field_is_deleted removed -- domain_events module is
+# deleted outright (see docs/architecture/event-modernization-plan.md's P46B entry).
 
 
 def test_requisition_line_sourcing_rejects_concurrent_stale_update(services, session):
@@ -442,12 +441,6 @@ def test_po_approval_sourcing_requisition_produces_requisition_list_and_detail_h
     assert {h.scope_code for h in req_hints} == {REQUISITION_LIST_SCOPE_CODE, REQUISITION_DETAIL_SCOPE_CODE}
     detail = next(h for h in req_hints if h.scope_code == REQUISITION_DETAIL_SCOPE_CODE)
     assert detail.scope.entity_id == requisition.id
-
-    assert not hasattr(domain_events, "inventory_requisitions_changed"), (
-        "P29 deleted this field entirely once Requisition's own remaining 7 producers converged "
-        "too -- at P28B time it was still present (only the PO-triggered emission was removed); "
-        "this assertion was updated by P29, superseding P28B's own version of this test"
-    )
 
 
 def test_concurrency_losing_po_approval_produces_zero_requisition_invalidation(

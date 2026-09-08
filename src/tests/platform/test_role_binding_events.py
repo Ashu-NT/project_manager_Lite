@@ -800,26 +800,20 @@ def test_current_principal_self_refresh_unaffected_by_a_broken_role_binding_even
 # ---------------------------------------------------------------------------
 
 
-def test_legacy_auth_changed_no_longer_fires_for_role_binding_mutations(services, monkeypatch):
+def test_only_the_typed_event_fires_for_role_binding_mutations(services, monkeypatch):
     """P5 closeout (2026-08-26): `assign_role`/`revoke_role_binding`'s own `auth_changed.emit(...)`
     calls were removed -- confirmed pure legacy duplicates of the already-implemented
     `RoleBindingAssigned`/`RoleBindingRevoked` -> ViewInvalidation -> narrow-consumer path, with
-    no independent responsibility. Only the typed event fires now."""
+    no independent responsibility. P46B: `auth_changed` itself is now deleted application-wide, so
+    there is nothing left to prove silent -- this now only proves the positive: exactly one typed
+    event fires."""
     target, target_role = _tenant_scoped_binding_setup(services, suffix="legacy-signal")
     role_governance_service = services["role_governance_service"]
     recorded = _spy_recorded_events(role_governance_service, monkeypatch)
 
-    from src.core.shared.events.domain_events import domain_events
-
-    seen_signals = []
-    domain_events.auth_changed.connect(seen_signals.append)
-    try:
-        role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
-    finally:
-        domain_events.auth_changed.disconnect(seen_signals.append)
+    role_governance_service.assign_role(target_user_id=target.id, role_id=target_role.id)
 
     assert len(recorded) == 1
-    assert seen_signals == []
 
 
 def test_delegation_policy_lifecycle_emits_no_role_binding_events(services, monkeypatch):

@@ -140,7 +140,5 @@ def test_control_does_not_refresh_from_an_unrelated_view_invalidation_category(s
     assert stale_calls == [project.id], "the same signal fires for an actual Register mutation"
 
 
-def test_legacy_register_signal_remains_absent_after_the_fix():
-    from src.core.shared.events.domain_events import domain_events
-
-    assert not hasattr(domain_events, "register_changed")
+# P46B: test_legacy_register_signal_remains_absent_after_the_fix removed -- domain_events module
+# is deleted outright (see docs/architecture/event-modernization-plan.md's P46B entry).

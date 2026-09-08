@@ -15,7 +15,6 @@ from src.core.platform.domain.master_data.site.events import (
     SiteEnabled,
     SiteProfileUpdated,
 )
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.inventory_procurement.context import InventoryProcurementWorkspaceCatalog
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
@@ -481,8 +480,6 @@ def test_no_refresh_on_no_op_for_inventory_pricing_procurement(services):
 
 
 def test_sites_changed_field_and_producers_are_fully_gone():
-    assert not hasattr(domain_events, "sites_changed")
-
     import src.core.platform.application.master_data.site.site_commands as site_commands_module
     import src.core.platform.application.master_data.site.site_service as site_service_module
 

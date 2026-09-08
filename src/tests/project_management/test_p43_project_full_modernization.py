@@ -22,11 +22,9 @@ from src.core.modules.project_management.application.resources.project_resource_
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 
-
-def test_legacy_project_signal_field_is_deleted():
-    assert not hasattr(domain_events, "project_changed")
+# P46B: test_legacy_project_signal_field_is_deleted removed -- domain_events module is deleted
+# outright (see docs/architecture/event-modernization-plan.md's P46B entry).
 
 
 # ---------------------------------------------------------------------------

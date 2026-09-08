@@ -33,7 +33,6 @@ from src.core.modules.inventory_procurement.domain.catalog.catalog_events import
 )
 from src.core.platform.common.exceptions import ValidationError
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.events.view_invalidation import ExactOrganization, OrganizationScope
 
 _COUNTER = {"n": 0}
@@ -380,14 +379,6 @@ def test_dashboard_workspace_item_list_stale_triggers_full_refresh(services):
 # ---------------------------------------------------------------------------
 # Legacy signals fully retired
 # ---------------------------------------------------------------------------
-
-
-def test_inventory_items_changed_field_no_longer_exists():
-    assert not hasattr(domain_events, "inventory_items_changed")
-
-
-def test_inventory_item_categories_changed_field_no_longer_exists():
-    assert not hasattr(domain_events, "inventory_item_categories_changed")
 
 
 def test_legacy_catalog_signals_have_zero_production_references():

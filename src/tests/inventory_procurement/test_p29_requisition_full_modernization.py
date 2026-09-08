@@ -35,7 +35,6 @@ from src.core.modules.inventory_procurement.domain.procurement.requisition_event
 from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.platform.domain.master_data.party import PartyType
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.events.view_invalidation import OrganizationScope, ResourceScope
 from src.tests.ui_runtime_helpers import login_as
 
@@ -99,10 +98,6 @@ def _requisition_hints(hints):
             REQUISITION_PENDING_APPROVAL_SCOPE_CODE,
         )
     ]
-
-
-def test_legacy_requisition_signal_field_is_deleted():
-    assert not hasattr(domain_events, "inventory_requisitions_changed")
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,5 @@
 from PySide6.QtWidgets import QApplication
 
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.project_management.context import (
     ProjectManagementWorkspaceCatalog,
 )
@@ -89,8 +88,13 @@ def test_platform_control_workspace_refreshes_on_control_events(monkeypatch) -> 
     assert refresh_calls == ["refresh"]
 
 
-def test_platform_admin_access_workspace_reacts_to_auth_changed_narrowly(monkeypatch) -> None:
-
+def test_platform_admin_access_workspace_reacts_to_account_security_change_narrowly(monkeypatch) -> None:
+    """P46B: was `domain_events.auth_changed.emit(...)` -- Auth/Security is now fully modernized,
+    so the access workspace reacts to the typed `account_security`/`authorization_context`
+    ViewInvalidation targets instead, wired via `AccountSecurityViewInvalidationAdapter`/
+    `AuthorizationContextViewInvalidationAdapter` in the composition root (`context.py`). Calling
+    the handler directly proves the same narrow-reaction property, matching this file's own
+    established pattern for every other capability above."""
     catalog = PlatformWorkspaceCatalog()
     controller = catalog.adminAccessWorkspace
     controller.ensureLoaded()
@@ -99,8 +103,7 @@ def test_platform_admin_access_workspace_reacts_to_auth_changed_narrowly(monkeyp
     monkeypatch.setattr(controller, "_refresh_after_security_change", lambda: narrow_calls.append("security"))
     monkeypatch.setattr(controller, "refresh", lambda: full_refresh_calls.append("refresh"))
 
-    domain_events.auth_changed.emit("user-1")
+    controller.refresh_after_account_security_change()
 
     assert narrow_calls == ["security"]
     assert full_refresh_calls == []
-    assert not hasattr(domain_events, "access_changed")

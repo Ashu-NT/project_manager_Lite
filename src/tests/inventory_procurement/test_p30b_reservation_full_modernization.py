@@ -34,7 +34,6 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.repositor
 )
 from src.application.runtime import build_desktop_api_registry
 from src.core.platform.common.exceptions import ConcurrencyError
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.inventory_procurement.context import (
     InventoryProcurementWorkspaceCatalog,
 )
@@ -93,8 +92,8 @@ def _reservation_hints(hints):
     ]
 
 
-def test_legacy_reservation_signal_field_is_deleted():
-    assert not hasattr(domain_events, "inventory_reservations_changed")
+# P46B: test_legacy_reservation_signal_field_is_deleted removed -- domain_events module is
+# deleted outright (see docs/architecture/event-modernization-plan.md's P46B entry).
 
 
 def test_create_reservation_produces_typed_event_list_and_open_count_hints(services):

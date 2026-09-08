@@ -15,7 +15,6 @@ from src.core.platform.domain.master_data.documents.events import (
 from src.core.platform.infrastructure.persistence.uow.document_unit_of_work import (
     SqlAlchemyDocumentUnitOfWork,
 )
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.inventory_procurement.context import InventoryProcurementWorkspaceCatalog
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
@@ -681,8 +680,6 @@ def test_all_real_business_callers_resolve_entity_org_scoped_before_linking():
 
 
 def test_documents_changed_field_and_producers_and_consumers_are_fully_gone():
-    assert not hasattr(domain_events, "documents_changed")
-
     import glob
 
     hits = []
@@ -718,12 +715,9 @@ def test_no_document_changed_or_document_updated_blanket_event():
     assert hits == [], hits
 
 
-def test_no_new_signal_added_to_domain_events():
-    import dataclasses
-
-    field_names = {f.name for f in dataclasses.fields(domain_events)}
-    assert "document_links_changed" not in field_names
-    assert "document_reference_changed" not in field_names
+# P46B: `test_no_new_signal_added_to_domain_events` removed -- `domain_events` module is deleted
+# outright; see test_p8_platform_event_architecture_canonicalization.py's permanent "zero legacy
+# signals application-wide" guard.
 
 
 def test_no_generic_entity_resolver_or_service_locator_introduced():

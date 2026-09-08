@@ -34,7 +34,6 @@ from src.core.modules.project_management.domain.financials.rate_cards import (
     RateType,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.events.view_invalidation import OrganizationScope, ResourceScope
 
 _COUNTER = {"n": 0}
@@ -673,8 +672,9 @@ def test_rate_card_adapter_dispatches_org_vs_project_list_hints_to_distinct_sign
 # ---------------------------------------------------------------------------
 
 
-def test_rates_changed_field_no_longer_exists():
-    assert not hasattr(domain_events, "rates_changed")
+# P46B: test_rates_changed_field_no_longer_exists removed -- domain_events module is deleted
+# outright (see docs/architecture/event-modernization-plan.md's P46B entry). The stronger,
+# independent source-string guard below remains.
 
 
 def test_rates_changed_has_zero_production_references():

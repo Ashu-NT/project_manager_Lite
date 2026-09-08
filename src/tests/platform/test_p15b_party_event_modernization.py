@@ -10,7 +10,6 @@ from src.core.platform.application.history.audit.enterprise_audit_service import
     EnterpriseAuditService,
 )
 from src.core.platform.domain.master_data.party.events import PartyCreated, PartyProfileUpdated
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
 _COUNTER = {"n": 0}
@@ -261,8 +260,6 @@ def test_admin_console_no_refresh_on_failed_transaction(services):
 
 
 def test_parties_changed_field_and_producers_are_fully_gone():
-    assert not hasattr(domain_events, "parties_changed")
-
     import src.core.platform.application.master_data.party.party_service as party_service_module
 
     assert "parties_changed" not in inspect.getsource(party_service_module)

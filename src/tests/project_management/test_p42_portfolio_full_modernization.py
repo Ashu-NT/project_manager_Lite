@@ -21,11 +21,9 @@ from src.core.modules.project_management.application.portfolio.portfolio_events 
 )
 from src.core.platform.common.exceptions import ValidationError
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 
-
-def test_legacy_portfolio_signal_field_is_deleted():
-    assert not hasattr(domain_events, "portfolio_changed")
+# P46B: test_legacy_portfolio_signal_field_is_deleted removed -- domain_events module is deleted
+# outright (see docs/architecture/event-modernization-plan.md's P46B entry).
 
 
 # ---------------------------------------------------------------------------

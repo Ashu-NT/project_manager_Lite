@@ -11,7 +11,6 @@ from src.core.platform.application.history.audit.enterprise_audit_service import
     EnterpriseAuditService,
 )
 from src.core.platform.domain.master_data.employee.events import EmployeeCreated, EmployeeProfileUpdated
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
@@ -198,8 +197,6 @@ def test_failed_employee_transaction_produces_zero_ui_refresh(services):
 
 
 def test_employees_changed_field_and_producers_are_fully_gone():
-    assert not hasattr(domain_events, "employees_changed")
-
     import src.core.platform.application.master_data.employee.employee_service as employee_service_module
 
     source = inspect.getsource(employee_service_module)

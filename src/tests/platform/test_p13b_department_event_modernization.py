@@ -10,7 +10,6 @@ from src.core.platform.application.history.audit.enterprise_audit_service import
     EnterpriseAuditService,
 )
 from src.core.platform.domain.master_data.department.events import DepartmentCreated, DepartmentProfileUpdated
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
 _COUNTER = {"n": 0}
@@ -383,8 +382,6 @@ def test_admin_console_no_refresh_on_cross_org_validation_failure(services):
 
 
 def test_departments_changed_field_and_producers_are_fully_gone():
-    assert not hasattr(domain_events, "departments_changed")
-
     import src.core.platform.application.master_data.department.department_commands as commands_module
 
     source = inspect.getsource(commands_module)

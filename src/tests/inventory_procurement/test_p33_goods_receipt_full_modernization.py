@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import dataclasses
 from uuid import uuid4
 
 import pytest
@@ -17,7 +16,6 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.repositor
     SqlAlchemyPurchaseOrderLineRepository,
 )
 from src.core.platform.domain.master_data.party import PartyType
-from src.core.shared.events.domain_events import DomainEvents, domain_events
 from src.ui_qml.modules.inventory_procurement.context import (
     InventoryProcurementWorkspaceCatalog,
 )
@@ -80,18 +78,11 @@ def _approved_po_ready_for_receipt(services, *, manager_username, approver_usern
     return site, storeroom, item, supplier, po, line
 
 
-def test_legacy_receipt_signal_field_is_deleted():
-    assert not hasattr(domain_events, "inventory_receipts_changed")
+# P46B: test_legacy_receipt_signal_field_is_deleted and test_zero_inventory_legacy_signal_fields_
+# remain removed -- domain_events module is deleted outright (see docs/architecture/event-
+# modernization-plan.md's P46B entry); the guarantee both proved is now absolute (there is no
+# DomainEvents class left at all to carry an inventory_* field on).
 
-
-def test_zero_inventory_legacy_signal_fields_remain():
-    """P33 §39/§43: after Receipt's own deletion, Inventory/Procurement has ZERO remaining legacy
-    Signal fields -- the entire capability's legacy surface (Item/Category, Storeroom/Location,
-    Reorder Policy, Purchase Order, Requisition, Reservation, Stock Balance, Cycle Count, Receipt)
-    is retired."""
-    names = {f.name for f in dataclasses.fields(DomainEvents)}
-    inventory_names = {n for n in names if n.startswith("inventory_")}
-    assert inventory_names == set(), inventory_names
 
 
 # ---------------------------------------------------------------------------

@@ -37,7 +37,6 @@ from src.core.modules.project_management.domain.financials.configuration import 
     FinancialProfileStatus,
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.events.view_invalidation import ResourceScope
 
 _COUNTER = {"n": 0}
@@ -361,8 +360,9 @@ def test_financials_controller_financial_profile_stale_invalidates_only_controls
 # ---------------------------------------------------------------------------
 
 
-def test_financial_setup_changed_field_no_longer_exists():
-    assert not hasattr(domain_events, "financial_setup_changed")
+# P46B: test_financial_setup_changed_field_no_longer_exists removed -- domain_events module is
+# deleted outright (see docs/architecture/event-modernization-plan.md's P46B entry). The
+# stronger, independent source-string guard below remains.
 
 
 def test_financial_setup_changed_has_zero_production_references():

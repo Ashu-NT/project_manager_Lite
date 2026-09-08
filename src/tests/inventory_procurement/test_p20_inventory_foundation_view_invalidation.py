@@ -34,7 +34,6 @@ from src.core.modules.inventory_procurement.domain.inventory.foundation_events i
 )
 from src.core.platform.domain.master_data.party import PartyType
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.events.view_invalidation import OrganizationScope
 from src.ui_qml.modules.inventory_procurement.context import (
     InventoryProcurementWorkspaceCatalog,
@@ -416,11 +415,6 @@ def test_real_pricing_workspace_refreshes_storeroom_options_only_on_storeroom_mu
 # ---------------------------------------------------------------------------
 # inventory_storerooms_changed / inventory_locations_changed fully retired
 # ---------------------------------------------------------------------------
-
-
-def test_legacy_inventory_foundation_signals_no_longer_exist():
-    assert not hasattr(domain_events, "inventory_storerooms_changed")
-    assert not hasattr(domain_events, "inventory_locations_changed")
 
 
 def test_legacy_inventory_foundation_signals_have_zero_production_references():

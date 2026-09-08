@@ -4,15 +4,13 @@ from __future__ import annotations
 import glob
 import inspect
 
-from src.core.shared.events.domain_events import domain_events
-
 # P39: `billing_preparations_changed` (the last still-legacy Finance signal) is now deleted --
 # Finance has ZERO legacy Signal fields left (see `test_p8_platform_event_architecture_
 # canonicalization.py::test_zero_finance_legacy_signal_fields_remain` for the permanent guard).
-# This tuple is deliberately empty rather than removed -- the loop below stays a meaningful,
-# reusable "any remaining active Finance signal must have a real producer+consumer" check for a
-# future Finance-owned signal, without needing rewriting to reintroduce it.
-_ACTIVE_FINANCE_SIGNALS: tuple[str, ...] = ()
+# P46B: `domain_events`/`DomainEvents` is deleted outright and the legacy Signal mechanism is gone
+# for good -- a future Finance signal can no longer be expressed as `domain_events.X.emit(...)` at
+# all, so the "reusable check for a future Finance-owned signal" this tuple/loop existed for is now
+# a moot premise; removed rather than kept as a permanently-dead placeholder.
 
 
 def _strip_strings_and_comments(source: str) -> str:
@@ -34,30 +32,6 @@ def _production_source_files():
 # ---------------------------------------------------------------------------
 # 1. Finance mutation hints exist only with producers and a targeted consumer
 # ---------------------------------------------------------------------------
-
-
-def test_finance_invalidation_signals_exist_with_producers_and_ui_consumer():
-    controller_source = inspect.getsource(
-        __import__(
-            "src.ui_qml.modules.project_management.controllers.financials.financials_refresh_mixin",
-            fromlist=["FinancialsRefreshMixin"],
-        ).FinancialsRefreshMixin
-    )
-    production_sources = {}
-    for path in _production_source_files():
-        with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-            production_sources[path] = _strip_strings_and_comments(fh.read())
-
-    for signal_name in _ACTIVE_FINANCE_SIGNALS:
-        assert hasattr(domain_events, signal_name), signal_name
-        assert f"domain_events.{signal_name}" in controller_source
-        producer_paths = [
-            path
-            for path, source in production_sources.items()
-            if "/application/financials/" in path
-            and f"domain_events.{signal_name}.emit" in source
-        ]
-        assert producer_paths, f"{signal_name} has no committed service producer"
 
 
 # ---------------------------------------------------------------------------
@@ -275,22 +249,11 @@ def test_approved_time_dispatcher_uses_canonical_unit_of_work():
 # ---------------------------------------------------------------------------
 
 
-def test_final_invariant_every_remaining_signal_has_a_production_reference():
-    import dataclasses
-
-    signal_names = [f.name for f in dataclasses.fields(domain_events)]
-    reference_counts = {name: 0 for name in signal_names}
-    for path in _production_source_files():
-        if path == "src/core/shared/events/domain_events.py":
-            continue
-        with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-            source = _strip_strings_and_comments(fh.read())
-        for name in signal_names:
-            if name in source:
-                reference_counts[name] += 1
-
-    orphaned = [name for name, count in reference_counts.items() if count == 0]
-    assert orphaned == [], orphaned
+# P46B: `test_final_invariant_every_remaining_signal_has_a_production_reference` (an orphan-
+# detection loop over `dataclasses.fields(domain_events)`) removed -- `domain_events` module is
+# deleted outright; see test_p8_platform_event_architecture_canonicalization.py's
+# `_current_signal_names`/`test_zero_pm_legacy_signal_fields_remain` for the permanent, stronger
+# "zero legacy signals application-wide" guard.
 
 
 def test_no_new_business_domain_event_or_replacement_signal_introduced():
