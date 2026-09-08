@@ -16,6 +16,11 @@ class ApprovalRepository(ABC):
     def get(self, request_id: str) -> ApprovalRequest | None: ...
 
     @abstractmethod
+    def get_for_update(self, request_id: str) -> ApprovalRequest | None:
+        """Lock one request for a decision inside the caller-owned transaction."""
+        ...
+
+    @abstractmethod
     def list_by_status(
         self,
         status: ApprovalStatus | None = None,

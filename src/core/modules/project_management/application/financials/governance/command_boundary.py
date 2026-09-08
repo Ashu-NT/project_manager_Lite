@@ -87,16 +87,12 @@ class FinanceGovernanceCommandBoundary:
     def budget(
         self,
         command: Callable[[BudgetService], T],
-        *,
-        project_id: str | None = None,
     ) -> T:
         return self._execute(lambda operations: command(operations.budgets))
 
     def forecast_version(
         self,
         command: Callable[[ForecastVersionService], T],
-        *,
-        project_id: str | None = None,
     ) -> T:
         return self._execute(
             lambda operations: command(operations.forecast_versions),
@@ -105,8 +101,6 @@ class FinanceGovernanceCommandBoundary:
     def forecast_generation(
         self,
         command: Callable[[ForecastGenerationService], T],
-        *,
-        project_id: str,
     ) -> T:
         return self._execute(
             lambda operations: command(operations.forecast_generation),
@@ -115,8 +109,6 @@ class FinanceGovernanceCommandBoundary:
     def financial_change(
         self,
         command: Callable[[FinancialChangeService], T],
-        *,
-        project_id: str | None = None,
     ) -> T:
         return self._execute(
             lambda operations: command(operations.financial_changes),
@@ -125,8 +117,6 @@ class FinanceGovernanceCommandBoundary:
     def planned_cost(
         self,
         command: Callable[[PlannedCostService], T],
-        *,
-        project_id: str | None = None,
     ) -> T:
         return self._execute(
             lambda operations: command(operations.planned_costs),
@@ -135,8 +125,6 @@ class FinanceGovernanceCommandBoundary:
     def commitment(
         self,
         command: Callable[[ProjectCommitmentService], T],
-        *,
-        project_id: str | None = None,
     ) -> T:
         return self._execute(
             lambda operations: command(operations.commitments),
@@ -145,8 +133,6 @@ class FinanceGovernanceCommandBoundary:
     def cost_entry(
         self,
         command: Callable[[ProjectCostEntryService], T],
-        *,
-        project_id: str | None = None,
     ) -> T:
         return self._execute(
             lambda operations: command(operations.cost_entries),
@@ -155,8 +141,6 @@ class FinanceGovernanceCommandBoundary:
     def financial_setup(
         self,
         command: Callable[[FinancialConfigurationService], T],
-        *,
-        project_id: str | None = None,
     ) -> T:
         return self._execute(
             lambda operations: command(operations.financial_setup),
@@ -165,8 +149,6 @@ class FinanceGovernanceCommandBoundary:
     def rate_card(
         self,
         command: Callable[[ProjectRateCardService], T],
-        *,
-        project_id: str | None = None,
     ) -> T:
         return self._execute(
             lambda operations: command(operations.rate_cards),
@@ -175,16 +157,12 @@ class FinanceGovernanceCommandBoundary:
     def billing_profile(
         self,
         command: Callable[[ProjectBillingProfileService], T],
-        *,
-        project_id: str | None = None,
     ) -> T:
         return self._execute(lambda operations: command(operations.billing_profiles))
 
     def billing_preparation(
         self,
         command: Callable[[ProjectBillingPreparationService], T],
-        *,
-        project_id: str | None = None,
     ) -> T:
         return self._execute(lambda operations: command(operations.billing_preparations))
 
@@ -210,8 +188,13 @@ class FinanceGovernanceCommandBoundary:
         except Exception:
             logger.exception("Finance governance post-commit reaction failed")
 
+
 class FinanceGovernedServicePort:
-    """Read delegation plus canonical command routing for one Finance service family."""
+    """Read delegation plus canonical command routing for one Finance service family.
+
+    Command services resolve and authorize their own scoped aggregates inside the fresh
+    operation UoW. The port deliberately performs no pre-read identity resolution.
+    """
 
     def __init__(
         self,
@@ -232,84 +215,10 @@ class FinanceGovernedServicePort:
             return attribute
 
         def governed(*args, **kwargs):
-            project_id = self._project_id(name, args, kwargs)
             executor = getattr(self._boundary, self._family)
-            command = lambda service: getattr(service, name)(*args, **kwargs)
-            if self._family == "forecast_generation":
-                return executor(command, project_id=project_id)
-            return executor(command, project_id=project_id or None)
+            return executor(lambda service: getattr(service, name)(*args, **kwargs))
 
         return governed
-
-    def _project_id(self, name: str, args: tuple, kwargs: dict) -> str:
-        explicit = kwargs.get("project_id") or kwargs.get("available_to_project_id")
-        if explicit:
-            return str(explicit)
-        if name in {
-            "create_budget", "create_forecast", "generate_draft", "create_change",
-            "calculate_snapshot", "create_profile", "activate_profile", "add_schedule_line",
-            "create_preparation",
-        }:
-            return str(args[0]) if args else ""
-        try:
-            if self._family == "budget":
-                # Deliberately `_require_budget` (unchecked) rather than the permission-checked
-                # `get_budget` -- resolving project_id here must not silently require
-                # "finance.read" before the actual command's own permission check runs (the
-                # P37-FIX regression, same bug pattern, fixed here for Budget at P38B).
-                if name in {"add_line"}:
-                    return str(self._read_service._require_budget(args[0]).project_id)
-                if name in {"update_line", "delete_line"}:
-                    line = self._read_service._require_line(args[0])
-                    return str(self._read_service._require_budget(line.budget_id).project_id)
-                return str(self._read_service._require_budget(args[0]).project_id)
-            if self._family == "forecast_version":
-                if name == "add_line":
-                    return str(self._read_service.get_forecast(args[0]).project_id)
-                if name in {"update_line", "delete_line"}:
-                    line = self._read_service._require_line(args[0])
-                    return str(self._read_service.get_forecast(line.forecast_id).project_id)
-                return str(self._read_service.get_forecast(args[0]).project_id)
-            if self._family == "financial_change":
-                if name in {"update_impact", "remove_impact"}:
-                    impact = self._read_service._require_impact(args[0])
-                    return str(
-                        self._read_service.get_change(
-                            impact.change_request_id
-                        ).project_id
-                    )
-                return str(self._read_service.get_change(args[0]).project_id)
-            if self._family == "commitment":
-                if name == "ingest_procurement_source":
-                    source = args[0] if args else kwargs.get("source")
-                    return str(source.reference.project_id)
-                if name == "match_cost_entry":
-                    return str(self._read_service.get_line(kwargs["line_id"]).project_id)
-                if name == "reverse_match":
-                    match = self._read_service._commitment_repo.get_match(
-                        kwargs["original_match_id"]
-                    )
-                    if match is None:
-                        return ""
-                    return str(
-                        self._read_service.get_line(match.commitment_line_id).project_id
-                    )
-            if self._family == "cost_entry":
-                return str(self._read_service._require_entry(args[0]).project_id)
-            if self._family == "billing_profile":
-                # mark_schedule_line_ready is the only mutation here not taking project_id
-                # directly -- resolved via the private, unchecked `_require_schedule_line`
-                # (never a permission-checked accessor -- see the P37-FIX/P38B precedent).
-                line = self._read_service._require_schedule_line(args[0])
-                return str(line.project_id)
-            if self._family == "billing_preparation":
-                # Every mutation here except create_preparation (caught by the generic
-                # args[0]-is-project_id shortcut above) takes preparation_id -- resolved via the
-                # private, unchecked `_require_preparation`.
-                return str(self._read_service._require_preparation(args[0]).project_id)
-        except (AttributeError, IndexError, KeyError, TypeError):
-            return ""
-        return ""
 
 
 __all__ = [

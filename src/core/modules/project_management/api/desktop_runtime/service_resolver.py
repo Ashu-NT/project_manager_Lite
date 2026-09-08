@@ -9,9 +9,7 @@ from src.core.modules.project_management.application.collaboration import (
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import (
-    FinancialChangeService,
     FinanceService,
-    ForecastVersionService,
     ProjectCommitmentService,
     ProjectBillingPreparationService,
     ProjectBillingProfileService,
@@ -70,8 +68,6 @@ class ProjectManagementDesktopRuntimeServices:
     finance_governance_commands: FinanceGovernanceCommandBoundary | None
     cost_entry_service: ProjectCostEntryService | None
     commitment_service: ProjectCommitmentService | None
-    forecast_version_service: ForecastVersionService | None
-    financial_change_service: FinancialChangeService | None
     billing_profile_service: ProjectBillingProfileService | None
     billing_preparation_service: ProjectBillingPreparationService | None
     baseline_service: BaselineService | None
@@ -103,8 +99,6 @@ def resolve_project_management_desktop_runtime_services(
     finance_governance_commands = services.get("finance_governance_commands")
     cost_entry_service = services.get("cost_entry_service")
     commitment_service = services.get("commitment_service")
-    forecast_version_service = services.get("forecast_version_service")
-    financial_change_service = services.get("financial_change_service")
     billing_profile_service = services.get("billing_profile_service")
     billing_preparation_service = services.get("billing_preparation_service")
     baseline_service = services.get("baseline_service")
@@ -189,16 +183,6 @@ def resolve_project_management_desktop_runtime_services(
         commitment_service=(
             commitment_service
             if isinstance(commitment_service, ProjectCommitmentService)
-            else None
-        ),
-        forecast_version_service=(
-            forecast_version_service
-            if isinstance(forecast_version_service, ForecastVersionService)
-            else None
-        ),
-        financial_change_service=(
-            financial_change_service
-            if isinstance(financial_change_service, FinancialChangeService)
             else None
         ),
         billing_profile_service=(

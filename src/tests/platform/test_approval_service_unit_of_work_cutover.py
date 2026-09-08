@@ -315,3 +315,25 @@ def test_apply_handler_missing_does_not_open_or_leak_a_session(services, session
     session.expire_all()
     still_pending = approvals.list_pending(project_id=budget.project_id)
     assert any(r.id == request.id for r in still_pending)
+
+
+def test_decision_load_uses_locking_repository_read(services):
+    approvals = services["approval_service"]
+    request = approvals.request_change(
+        request_type="baseline.create",
+        entity_type="project_baseline",
+        entity_id="locking-read-proof",
+        project_id=None,
+        payload={"name": "Locking read proof"},
+    )
+    repository = type("RepositorySpy", (), {})()
+    repository.get_for_update = lambda request_id: (
+        request if request_id == request.id else None
+    )
+    repository.get = lambda _request_id: pytest.fail(
+        "approval decisions must not use an unlocked read"
+    )
+
+    loaded = approvals._require_pending_using(repository, request.id)
+
+    assert loaded is request

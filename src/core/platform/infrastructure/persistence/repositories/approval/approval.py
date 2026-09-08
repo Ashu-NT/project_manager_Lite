@@ -57,6 +57,12 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
         obj.decision_note = request.decision_note
 
     def get(self, request_id: str) -> ApprovalRequest | None:
+        return self._get(request_id, for_update=False)
+
+    def get_for_update(self, request_id: str) -> ApprovalRequest | None:
+        return self._get(request_id, for_update=True)
+
+    def _get(self, request_id: str, *, for_update: bool) -> ApprovalRequest | None:
         ctx = self._context(operation_label="access approvals")
         stmt = (
             select(ApprovalRequestORM)
@@ -76,6 +82,8 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
                 ),
             )
         )
+        if for_update:
+            stmt = stmt.with_for_update(of=ApprovalRequestORM)
         obj = self.session.execute(stmt).scalar_one_or_none()
         return approval_from_orm(obj) if obj else None
 

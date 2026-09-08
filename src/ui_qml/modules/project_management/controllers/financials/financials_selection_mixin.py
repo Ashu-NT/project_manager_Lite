@@ -152,6 +152,7 @@ class FinancialsSelectionMixin:
         if value != self._selected_budget_id:
             self._set_selected_budget_id(value)
             self._budget_line_page = 1
+            self._set_budget_lines(default_collection())
             self.refresh()
 
     def _select_rate_card(self, rate_card_id: str) -> None:

@@ -413,6 +413,81 @@ def test_forecast_controller_filter_and_project_reset_rules(controller) -> None:
     assert controller._forecast_line_page == 1
 
 
+def test_governance_refresh_resets_privileged_state_before_authority_load(
+    controller,
+) -> None:
+    controller._workspace_loaded = True
+    controller._shell_loaded = True
+    controller._set_selected_project_id("project-a")
+    cases = (
+        ("planning", "budgets"),
+        ("planning", "forecast"),
+        ("controls", "changes"),
+        ("controls", "setup"),
+    )
+
+    for destination, subsection in cases:
+        controller._active_destination = destination
+        controller._active_subsection = subsection
+        controller._set_show_create_budget_version(False)
+        controller._set_can_create_budget_version(False)
+        controller._set_forecast_capabilities(
+            show=False, enabled=False, disabled_reason=""
+        )
+        controller._set_can_create_financial_change(False)
+        controller._can_create_cost_code = False
+        controller._can_manage_restrictions = False
+        if subsection == "budgets":
+            controller._set_show_create_budget_version(True)
+            controller._set_can_create_budget_version(True)
+        elif subsection == "forecast":
+            controller._set_forecast_capabilities(
+                show=True, enabled=True, disabled_reason=""
+            )
+        elif subsection == "changes":
+            controller._set_can_create_financial_change(True)
+        else:
+            controller._can_create_cost_code = True
+            controller._can_manage_restrictions = True
+
+        def assert_deny_safe_state(**_kwargs):
+            assert controller.showCreateBudgetVersion is False
+            assert controller.canCreateBudgetVersion is False
+            assert controller.showGenerateForecast is False
+            assert controller.canGenerateForecast is False
+            assert controller.canCreateFinancialChange is False
+            assert controller.canCreateCostCode is False
+            assert controller.canManageCostCodeRestrictions is False
+            raise RuntimeError("authority unavailable")
+
+        controller._financials_workspace_presenter.build_destination_state = MagicMock(
+            side_effect=assert_deny_safe_state
+        )
+        controller.refresh()
+
+        assert controller.errorMessage == "authority unavailable"
+
+
+def test_budget_parent_switch_clears_previous_line_capabilities(controller) -> None:
+    controller.refresh = MagicMock()
+    controller._set_selected_budget_id("budget-a")
+    controller._set_budget_lines(
+        {
+            "items": [{"id": "line-a", "canEdit": True, "canDelete": True}],
+            "page": 1,
+            "pageSize": 25,
+            "total": 1,
+            "totalPages": 1,
+        }
+    )
+
+    controller.selectBudgetVersion("budget-b")
+
+    assert controller.selectedBudgetId == "budget-b"
+    assert controller.budgetLines["items"] == []
+    controller.refresh.assert_called_once_with()
+
+
 def test_rate_controller_keeps_master_and_detail_state_independent(controller) -> None:
     controller.refresh = MagicMock()
     controller._rate_card_page = 4

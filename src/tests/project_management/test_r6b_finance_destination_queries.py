@@ -983,7 +983,7 @@ Window {
         interval: 0
         running: true
         repeat: false
-        onTriggered: host.openCreateCostCodeDialog()
+        onTriggered: host.openCostCodeDialog("create", null)
     }
 }
 """,

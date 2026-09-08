@@ -759,6 +759,12 @@ class SqlAlchemyRolePermissionRepository(RolePermissionRepository):
         stmt = select(RolePermissionORM.permission_id).where(RolePermissionORM.role_id == role_id)
         return list(self.session.execute(stmt).scalars().all())
 
+    def list_role_ids_for_permission(self, permission_id: str) -> list[str]:
+        stmt = select(RolePermissionORM.role_id).where(
+            RolePermissionORM.permission_id == permission_id
+        )
+        return list(self.session.execute(stmt).scalars().all())
+
 
 __all__ = [
     "SqlAlchemyAuthPolicyReconciliationRepository",

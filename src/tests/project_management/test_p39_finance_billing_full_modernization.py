@@ -501,12 +501,10 @@ def test_external_outcome_replay_produces_zero_hints(services):
 # ---------------------------------------------------------------------------
 
 
-def test_add_schedule_line_permission_check_is_not_masked_by_project_id_resolution(services):
-    """`_project_id()`'s `billing_profile` branch resolves via `create_profile`/`activate_profile`/
-    `add_schedule_line`'s own explicit `project_id` first-positional-arg (the generic shortcut) --
-    the only branch needing an accessor is `mark_schedule_line_ready`, resolved via the private
-    `_require_schedule_line`. A viewer (lacking `finance.manage`) must be rejected on the real
-    missing command permission, not a masking read-permission."""
+def test_add_schedule_line_reports_the_command_permission_without_a_boundary_pre_read(
+    services,
+):
+    """A viewer must be denied on `finance.manage`, not a masking read permission."""
     _login(services, "admin", "ChangeMe123!")
     _, project, _cost_code = _setup_billable_project(services)
     billing_profile_service = services["billing_profile_service"]
@@ -545,9 +543,7 @@ def test_mark_schedule_line_ready_permission_check_is_not_masked(services):
 
 
 def test_add_fixed_price_source_permission_check_is_not_masked(services):
-    """`_project_id()`'s `billing_preparation` branch resolves via the private, unchecked
-    `_require_preparation` -- must not require `finance.read` before `add_fixed_price_source`'s
-    own `finance.manage` check runs."""
+    """The command must check `finance.manage` without a boundary-owned pre-read."""
     _login(services, "admin", "ChangeMe123!")
     _, project, _cost_code = _setup_billable_project(services)
     _, line = _ready_schedule_line(services, project)

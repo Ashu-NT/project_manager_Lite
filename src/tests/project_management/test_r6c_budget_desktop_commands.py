@@ -49,10 +49,10 @@ class _BudgetService:
 class _Boundary:
     def __init__(self) -> None:
         self.service = _BudgetService()
-        self.project_ids: list[str | None] = []
+        self.command_count = 0
 
-    def budget(self, command, *, project_id=None):
-        self.project_ids.append(project_id)
+    def budget(self, command):
+        self.command_count += 1
         return command(self.service)
 
 
@@ -88,7 +88,9 @@ def test_typed_budget_commands_route_through_governance_boundary() -> None:
 
     assert line.budget_id == created.budget_id
     assert requested.approval_request_id == "approval-1"
-    assert boundary.project_ids == ["project-1", None, None]
+    assert boundary.command_count == 3
+    create_call = next(call for call in boundary.service.calls if call[0] == "create_budget")
+    assert create_call[1][0] == "project-1"
     add_call = next(call for call in boundary.service.calls if call[0] == "add_line")
     assert add_call[2]["amount"] == Decimal("1250.50")
     assert any(call[0] == "request_budget_approval" for call in boundary.service.calls)

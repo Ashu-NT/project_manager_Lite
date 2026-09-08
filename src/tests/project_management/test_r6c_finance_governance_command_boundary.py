@@ -123,6 +123,7 @@ def test_r6c_services_and_approval_participants_do_not_own_commit_or_rollback() 
         root / "application/financials/financial_changes/service.py",
         root / "application/financials/configuration_service.py",
         root / "infrastructure/approval/budget_apply_participant.py",
+        root / "infrastructure/approval/forecast_apply_participant.py",
         root / "infrastructure/approval/financial_change_apply_participant.py",
     )
     forbidden: list[str] = []
@@ -148,4 +149,3 @@ def test_production_composition_exposes_governed_ports(services) -> None:
         "financial_configuration_service",
     ):
         assert services[key]._boundary is boundary
-

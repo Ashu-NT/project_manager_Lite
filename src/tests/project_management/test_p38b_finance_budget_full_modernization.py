@@ -446,12 +446,8 @@ def test_financial_change_application_produces_budget_and_financial_change_facts
 # ---------------------------------------------------------------------------
 
 
-def test_add_line_permission_check_is_not_masked_by_project_id_resolution(services):
-    """`_project_id()`'s Budget branch must resolve the target budget's project_id without
-    requiring `finance.read` -- a viewer (who has neither `finance.read` nor `budget.manage`) must
-    be rejected on the actual missing command permission (`budget.manage`), not on the read
-    permission the boundary's own identity resolution used to require first (the exact P37-FIX
-    regression pattern, fixed here for Budget)."""
+def test_add_line_reports_the_command_permission_without_a_boundary_pre_read(services):
+    """A viewer must be denied on `budget.manage`, not a masking read permission."""
     _login(services, "admin", "ChangeMe123!")
     project, cost_code = _setup(services)
     budgets = services["budget_service"]

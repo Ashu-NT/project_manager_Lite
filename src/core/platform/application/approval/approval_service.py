@@ -43,7 +43,6 @@ class ApprovalService:
         enterprise_audit_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
         notification_service: Any = None,
-        role_repo: Any = None,
         role_permission_repo: Any = None,
         permission_repo: Any = None,
         role_binding_repo: Any = None,
@@ -56,7 +55,6 @@ class ApprovalService:
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
         self._notification_service = notification_service
-        self._role_repo = role_repo
         self._role_permission_repo = role_permission_repo
         self._permission_repo = permission_repo
         self._role_binding_repo = role_binding_repo
@@ -302,7 +300,7 @@ class ApprovalService:
         return request
 
     def _require_pending_using(self, approval_repo, request_id: str) -> ApprovalRequest:
-        request = approval_repo.get(request_id)
+        request = approval_repo.get_for_update(request_id)
         if request is None:
             raise NotFoundError("Approval request not found.", code="APPROVAL_NOT_FOUND")
         self._assert_project_in_active_organization_using(
@@ -369,7 +367,6 @@ class ApprovalService:
     def _list_users_with_permission(self, permission_code: str, *, tenant_id: str | None) -> set[str]:
         if (
             self._permission_repo is None
-            or self._role_repo is None
             or self._role_permission_repo is None
             or self._role_binding_repo is None
         ):
@@ -378,12 +375,19 @@ class ApprovalService:
         if permission is None:
             return set()
         user_ids: set[str] = set()
-        for role in self._role_repo.list_all():
-            if permission.id not in self._role_permission_repo.list_permission_ids(role.id):
-                continue
-            bindings = list(self._role_binding_repo.list_active_for_role_across_tenants(role.id))
+        role_ids = self._role_permission_repo.list_role_ids_for_permission(
+            permission.id
+        )
+        for role_id in role_ids:
+            bindings = list(
+                self._role_binding_repo.list_active_for_role_across_tenants(role_id)
+            )
             if tenant_id:
-                bindings.extend(self._role_binding_repo.list_active_for_role(role.id, tenant_id=tenant_id))
+                bindings.extend(
+                    self._role_binding_repo.list_active_for_role(
+                        role_id, tenant_id=tenant_id
+                    )
+                )
             for binding in bindings:
                 if binding.principal_type == ROLE_PRINCIPAL_USER:
                     user_ids.add(binding.principal_id)

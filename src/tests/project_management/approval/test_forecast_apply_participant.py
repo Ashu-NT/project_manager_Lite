@@ -202,6 +202,9 @@ def test_platform_approval_request_enforces_separation_of_duties(
     with pytest.raises(BusinessRuleError) as exc:
         services["approval_service"].approve_and_apply(result.approval_request_id)
     assert exc.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
+    with pytest.raises(BusinessRuleError) as reject_error:
+        services["approval_service"].reject(result.approval_request_id)
+    assert reject_error.value.code == "APPROVAL_SELF_DECISION_FORBIDDEN"
 
     services["auth_service"].register_user(
         "forecast-reviewer", "StrongPass123", role_names=["approver"]

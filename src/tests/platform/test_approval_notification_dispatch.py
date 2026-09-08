@@ -29,20 +29,19 @@ class _FakePermissionRepo:
         return SimpleNamespace(id=permission_id, code=code)
 
 
-class _FakeRoleRepo:
-    def __init__(self, roles: list[object]) -> None:
-        self._roles = roles
-
-    def list_all(self):
-        return list(self._roles)
-
-
 class _FakeRolePermissionRepo:
     def __init__(self, mapping: dict[str, list[str]]) -> None:
         self._mapping = mapping  # role_id -> [permission_id, ...]
 
     def list_permission_ids(self, role_id: str) -> list[str]:
         return list(self._mapping.get(role_id, []))
+
+    def list_role_ids_for_permission(self, permission_id: str) -> list[str]:
+        return [
+            role_id
+            for role_id, permission_ids in self._mapping.items()
+            if permission_id in permission_ids
+        ]
 
 
 class _FakeRoleBindingRepo:
@@ -75,8 +74,6 @@ def _binding(principal_id: str, principal_type: str = "user"):
 
 
 def _build_service(*, notification_service, tenant_id="tenant-1"):
-    role_approver = SimpleNamespace(id="role-approver", name="approver")
-    role_viewer = SimpleNamespace(id="role-viewer", name="viewer")
     return ApprovalService(
         session=SimpleNamespace(),
         approval_repo=SimpleNamespace(),
@@ -86,7 +83,6 @@ def _build_service(*, notification_service, tenant_id="tenant-1"):
         uow_factory=SimpleNamespace(),
         tenant_context_service=_FakeTenantContextService(tenant_id),
         notification_service=notification_service,
-        role_repo=_FakeRoleRepo([role_approver, role_viewer]),
         role_permission_repo=_FakeRolePermissionRepo(
             {"role-approver": ["perm-approval-decide"], "role-viewer": ["perm-project-read"]}
         ),

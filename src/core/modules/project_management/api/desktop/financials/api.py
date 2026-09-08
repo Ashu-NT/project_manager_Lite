@@ -489,7 +489,6 @@ class ProjectManagementFinancialsDesktopApi:
                 available_to_project_id=command.project_id,
                 **optional_fields,
             ),
-            project_id=command.project_id,
         )
         return FinancialCostCodeOptionDescriptor(
             value=cost_code.id,
@@ -511,7 +510,6 @@ class ProjectManagementFinancialsDesktopApi:
                 is_billable=command.is_billable,
                 default_cost_code_id=command.default_cost_code_id,
             ),
-            project_id=command.project_id,
         )
 
     def transition_financial_profile(
@@ -523,7 +521,6 @@ class ProjectManagementFinancialsDesktopApi:
                 target=command.target_status,
                 expected_version=command.expected_version,
             ),
-            project_id=command.project_id,
         )
 
     def update_cost_code(self, command: FinancialUpdateCostCodeCommand) -> None:
@@ -559,7 +556,6 @@ class ProjectManagementFinancialsDesktopApi:
                 project_id=command.project_id,
                 cost_code_id=command.cost_code_id,
             ),
-            project_id=command.project_id,
         )
 
     def remove_cost_code_restriction(
@@ -570,7 +566,6 @@ class ProjectManagementFinancialsDesktopApi:
                 project_id=command.project_id,
                 cost_code_id=command.cost_code_id,
             ),
-            project_id=command.project_id,
         )
 
     def list_cost_entries(
@@ -868,7 +863,6 @@ class ProjectManagementFinancialsDesktopApi:
                 ),
                 notes=command.notes,
             ),
-            project_id=command.project_id,
         )
         return self._forecast_mutation_dto(result.forecast)
 
@@ -1134,7 +1128,6 @@ class ProjectManagementFinancialsDesktopApi:
                 effective_date=self._command_date(command.effective_date, "Effective date"),
                 created_by=self._change_actor_id(service),
             ),
-            project_id=command.project_id,
         )
         return self._change_mutation_dto(change)
 
@@ -1462,7 +1455,6 @@ class ProjectManagementFinancialsDesktopApi:
                 command.name,
                 command.currency_code or None,
             ),
-            project_id=command.project_id,
         )
         return self._budget_mutation_dto(budget)
 

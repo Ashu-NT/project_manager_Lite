@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 from decimal import Decimal
+from threading import Event, Thread
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
@@ -40,6 +42,10 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     FinancePageRequest,
 )
 from src.core.platform.common.exceptions import ConcurrencyError
+from src.core.platform.domain.approval import ApprovalStatus
+from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
+    SqlAlchemyApprovalRepository,
+)
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
 )
@@ -265,6 +271,9 @@ def _boundary(postgres_test_environment, *, scope: _TenantContext):
             ),
             planned_costs=SimpleNamespace(),
             commitments=SimpleNamespace(),
+            cost_entries=SimpleNamespace(),
+            billing_profiles=SimpleNamespace(),
+            billing_preparations=SimpleNamespace(),
         )
 
     return FinanceGovernanceCommandBoundary(
@@ -282,8 +291,7 @@ def test_r6c_commands_use_app_runtime_and_preserve_rls_scope(postgres_test_envir
         lambda service: service.create_cost_code(code="R6C-RUNTIME", name="Runtime"),
     )
     budget = boundary.budget(
-        lambda service: service.create_budget(PROJECT_A, "R6C Budget"),
-        project_id=PROJECT_A,
+        lambda service: service.create_budget(PROJECT_A, "R6C Budget")
     )
     budget_line = boundary.budget(
         lambda service: service.add_line(
@@ -307,8 +315,7 @@ def test_r6c_commands_use_app_runtime_and_preserve_rls_scope(postgres_test_envir
                     amount=Decimal("75.25"),
                 ),
             ),
-        ),
-        project_id=PROJECT_A,
+        )
     )
     forecast = forecast_result.forecast
     change = boundary.financial_change(
@@ -318,8 +325,7 @@ def test_r6c_commands_use_app_runtime_and_preserve_rls_scope(postgres_test_envir
             reason="Runtime role proof",
             effective_date=date(2026, 9, 1),
             created_by="r6c-runtime-user",
-        ),
-        project_id=PROJECT_A,
+        )
     )
     impact = boundary.financial_change(
         lambda service: service.add_impact(
@@ -330,8 +336,7 @@ def test_r6c_commands_use_app_runtime_and_preserve_rls_scope(postgres_test_envir
             currency_code="USD",
             cost_code_id=setup.id,
             expected_change_version=change.row_version,
-        ),
-        project_id=PROJECT_A,
+        )
     )
 
     session = postgres_test_environment.runtime_session(
@@ -390,8 +395,7 @@ def test_r6c_e_setup_commands_and_child_rows_are_rls_scoped(postgres_test_enviro
         scope=_TenantContext(TENANT_A, ORG_A),
     )
     profile = boundary.financial_setup(
-        lambda service: service.get_profile(PROJECT_A),
-        project_id=PROJECT_A,
+        lambda service: service.get_profile(PROJECT_A)
     )
     updated = boundary.financial_setup(
         lambda service: service.configure_profile(
@@ -399,8 +403,7 @@ def test_r6c_e_setup_commands_and_child_rows_are_rls_scoped(postgres_test_enviro
             expected_version=profile.version,
             budget_control_mode="block",
             cost_code_policy="restricted",
-        ),
-        project_id=PROJECT_A,
+        )
     )
     cost_code = boundary.financial_setup(
         lambda service: service.create_cost_code(
@@ -412,8 +415,7 @@ def test_r6c_e_setup_commands_and_child_rows_are_rls_scoped(postgres_test_enviro
         lambda service: service.add_project_cost_code(
             project_id=PROJECT_A,
             cost_code_id=cost_code.id,
-        ),
-        project_id=PROJECT_A,
+        )
     )
 
     same_scope = postgres_test_environment.runtime_session(
@@ -542,8 +544,7 @@ def test_r6c_e_setup_commands_and_child_rows_are_rls_scoped(postgres_test_enviro
             PROJECT_A,
             expected_version=updated.version,
             cost_code_policy="all_active",
-        ),
-        project_id=PROJECT_A,
+        )
     )
 
 
@@ -658,8 +659,7 @@ def test_financial_change_request_and_impact_stale_writes_fail_closed(
             reason="Live stale-write proof",
             effective_date=date(2026, 9, 2),
             created_by="r6c-runtime-user",
-        ),
-        project_id=PROJECT_A,
+        )
     )
     updated = boundary.financial_change(
         lambda service: service.update_change(
@@ -797,3 +797,78 @@ def test_forecast_child_tables_deny_foreign_scope_inserts(
     finally:
         session.rollback()
         session.close()
+
+
+def test_approval_decision_read_serializes_concurrent_runtime_transactions(
+    postgres_test_environment,
+) -> None:
+    request_id = f"r6cf-approval-{uuid4()}"
+    now = datetime.now(timezone.utc)
+    with postgres_test_environment.admin_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO approval_requests "
+                "(id, tenant_id, request_type, entity_type, entity_id, organization_id, "
+                "project_id, payload_json, status, requested_at) VALUES "
+                "(:id, :tenant, 'budget.approve', 'project_budget', 'budget-race', "
+                ":organization, :project, '{}', 'PENDING', :now)"
+            ),
+            {
+                "id": request_id,
+                "tenant": TENANT_A,
+                "organization": ORG_A,
+                "project": PROJECT_A,
+                "now": now,
+            },
+        )
+
+    first_session = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_A,
+        organization_id=ORG_A,
+    )
+    first_repo = SqlAlchemyApprovalRepository(first_session)
+    first_repo._tenant_context_service = _TenantContext(TENANT_A, ORG_A)
+    first_request = first_repo.get_for_update(request_id)
+    assert first_request is not None
+    assert first_request.status is ApprovalStatus.PENDING
+
+    second_started = Event()
+    second_finished = Event()
+    observed: list[ApprovalStatus] = []
+    failures: list[BaseException] = []
+
+    def load_after_first_decision() -> None:
+        second_session = postgres_test_environment.runtime_session(
+            tenant_id=TENANT_A,
+            organization_id=ORG_A,
+        )
+        second_repo = SqlAlchemyApprovalRepository(second_session)
+        second_repo._tenant_context_service = _TenantContext(TENANT_A, ORG_A)
+        try:
+            second_started.set()
+            second_request = second_repo.get_for_update(request_id)
+            assert second_request is not None
+            observed.append(second_request.status)
+        except BaseException as exc:  # pragma: no cover - surfaced in main thread
+            failures.append(exc)
+        finally:
+            second_session.rollback()
+            second_session.close()
+            second_finished.set()
+
+    contender = Thread(target=load_after_first_decision, daemon=True)
+    contender.start()
+    assert second_started.wait(timeout=2)
+    assert not second_finished.wait(timeout=0.2)
+
+    first_request.status = ApprovalStatus.REJECTED
+    first_request.decided_at = now
+    first_request.decided_by_user_id = "approver-a"
+    first_repo.update(first_request)
+    first_session.commit()
+    first_session.close()
+
+    assert second_finished.wait(timeout=5)
+    contender.join(timeout=1)
+    assert failures == []
+    assert observed == [ApprovalStatus.REJECTED]

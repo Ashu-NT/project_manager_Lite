@@ -257,6 +257,9 @@ class RolePermissionRepository(ABC):
     @abstractmethod
     def list_permission_ids(self, role_id: str) -> list[str]: ...
 
+    @abstractmethod
+    def list_role_ids_for_permission(self, permission_id: str) -> list[str]: ...
+
 
 class AuthPolicyReconciliationRepository(ABC):
     @abstractmethod
