@@ -14,6 +14,7 @@ from src.core.platform.infrastructure.persistence.orm.time_management.time.time 
     TimeEntryORM,
     TimesheetPeriodORM,
 )
+from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 
 
@@ -228,7 +229,10 @@ def test_time_and_governance_repositories_scope_cross_organization_data(
         == []
     )
 
-    time_entry_repo.delete(seeded["time_entry_other"])
+    # Cross-org delete is rejected fail-closed (NotFoundError), not a silent no-op --
+    # the scoped delete query can't distinguish "doesn't exist" from "wrong tenant/org".
+    with pytest.raises(NotFoundError):
+        time_entry_repo.delete(seeded["time_entry_other"], expected_version=1)
     time_entry_repo.delete_by_work_allocation("allocation-other")
     session.flush()
     assert session.get(TimeEntryORM, seeded["time_entry_other"]) is not None

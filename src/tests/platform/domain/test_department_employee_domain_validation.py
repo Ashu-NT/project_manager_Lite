@@ -254,7 +254,6 @@ def test_department_dto_normalizes_and_validates_fields():
         name="  Operations  ",
         description="  Core team  ",
         site_id="  site-1  ",
-        default_location_id="  loc-1  ",
         parent_department_id="  parent-1  ",
         department_type="  operations  ",
         cost_center_code="  cc-100  ",
@@ -267,7 +266,6 @@ def test_department_dto_normalizes_and_validates_fields():
     assert department.name == "Operations"
     assert department.description == "Core team"
     assert department.site_id == "site-1"
-    assert department.default_location_id == "loc-1"
     assert department.parent_department_id == "parent-1"
     assert department.department_type == "operations"
     assert department.cost_center_code == "CC-100"

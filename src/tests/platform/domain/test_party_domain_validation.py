@@ -6,6 +6,7 @@ from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.platform.domain.master_data.party import Party, PartyType
+from src.infra.time.system_clock import SystemClock
 
 
 class _FakeSession:
@@ -122,6 +123,7 @@ def _make_service(monkeypatch: pytest.MonkeyPatch) -> PartyService:
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=_FakeTenantContext(_make_organization()),
         uow_factory=_FakePartyUnitOfWorkFactory(party_repo, enterprise_audit_service),
+        clock=SystemClock(),
     )
 
 
