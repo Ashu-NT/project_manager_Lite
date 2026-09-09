@@ -189,10 +189,8 @@ class TaskLifecycleMixin:
         next_is_milestone = task.is_milestone if is_milestone is None else is_milestone
         next_duration_days = task.duration_days if duration_days is None else duration_days
         if next_is_milestone:
-            # Milestones are zero-duration -- normalized here (not left to
-            # Task's own model validator) because end_date below is
-            # computed from next_duration_days BEFORE replace() runs, and
-            # must already agree with what the domain will settle on.
+            # Normalized here, not left to Task's validator: end_date below is computed
+            # from next_duration_days before replace() runs.
             next_duration_days = 0
         next_start_date = task.start_date if start_date is None else start_date
         next_end_date = task.end_date

@@ -119,9 +119,8 @@ def test_a_hypothetical_new_signal_name_would_fail_the_subset_check():
 
 
 def test_tasks_changed_deletion_still_passes_the_subset_check():
-    """No longer hypothetical as of P45B: `tasks_changed` is genuinely deleted (Task
-    modernization's own producers/consumers both reached zero first) -- the subset
-    relationship holds with it gone, proving field deletion never needs a frozen-allowlist edit."""
+    """`tasks_changed` is genuinely deleted -- the subset relationship holds with it gone,
+    proving field deletion never needs a frozen-allowlist edit."""
     assert "tasks_changed" not in _current_signal_names()
     assert _current_signal_names() <= FROZEN_LEGACY_SIGNAL_ALLOWLIST
 
@@ -192,7 +191,7 @@ def test_a_hypothetical_pm_signal_reintroduction_would_fail_the_zero_legacy_guar
 def test_every_current_signal_is_in_the_frozen_allowlist_no_silent_field_addition():
     for name in _current_signal_names():
         assert name in FROZEN_LEGACY_SIGNAL_ALLOWLIST, (
-            f"{name} is a new Signal field not in the frozen P8 allowlist"
+            f"{name} is a new Signal field not in the frozen allowlist"
         )
 
 
@@ -282,14 +281,6 @@ def test_organization_create_path_has_zero_legacy_signal_involvement():
     assert "domain_events" not in source
 
 
-# P46B: standalone `not hasattr(domain_events, "...")` checks for organizations_changed/
-# modules_changed/access_changed/role_binding_changed/approvals_changed/employees_changed/
-# departments_changed/sites_changed removed -- `domain_events` module is deleted outright (see
-# docs/architecture/event-modernization-plan.md's P46B entry); `test_zero_...` guards elsewhere
-# (this file and each capability's own dedicated test file) independently cover production-source
-# absence for each of these.
-
-
 def test_tenant_membership_service_never_imports_domain_events():
     import src.core.platform.application.tenant.tenancy.tenant_membership_service as module
 
@@ -339,7 +330,7 @@ def test_five_capability_adapters_never_import_domain_event_vocabulary():
 
 
 # ---------------------------------------------------------------------------
-# §26.1 / §24: DomainEvent / ViewInvalidationHint / IntegrationEventEnvelope stay distinct
+# DomainEvent / ViewInvalidationHint / IntegrationEventEnvelope stay distinct
 # ---------------------------------------------------------------------------
 
 
@@ -396,7 +387,7 @@ def test_notification_and_platform_event_remain_distinct_from_domain_event():
 
 
 # ---------------------------------------------------------------------------
-# §21 / §26.3: layering -- Platform domain/application stay free of Qt/business infra
+# Layering -- Platform domain/application stay free of Qt/business infra
 # ---------------------------------------------------------------------------
 
 
@@ -439,7 +430,7 @@ def test_the_five_view_invalidation_mapper_modules_import_no_ui_qml():
 
 
 # ---------------------------------------------------------------------------
-# §16: no generic ViewInvalidation subscriber (wildcard replacement for the deleted bridge)
+# No generic ViewInvalidation subscriber (wildcard replacement for the deleted bridge)
 # ---------------------------------------------------------------------------
 
 
@@ -461,7 +452,7 @@ def test_no_adapter_subscribes_via_all_tenants_or_any_organization_in_tenant():
 
 
 # ---------------------------------------------------------------------------
-# §18: P6 helper unchanged in responsibility
+# The scoped ViewInvalidation subscription helper's public surface stays unchanged
 # ---------------------------------------------------------------------------
 
 

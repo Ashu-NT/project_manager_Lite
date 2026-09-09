@@ -488,11 +488,6 @@ def test_financials_controller_reset_clears_forecast_capabilities_deny_safe(serv
 # ---------------------------------------------------------------------------
 
 
-# P46B: test_forecasts_changed_field_no_longer_exists removed -- domain_events module is deleted
-# outright (see docs/architecture/event-modernization-plan.md's P46B entry). The stronger,
-# independent source-string guard below remains.
-
-
 def test_forecasts_changed_has_zero_production_references():
     import glob
 

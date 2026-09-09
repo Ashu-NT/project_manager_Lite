@@ -52,7 +52,7 @@ def _strip_strings_and_comments(source: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# 1. P7A: the entire generic bridge mechanism is gone -- not merely 4 dead entries
+# 1. The entire generic bridge mechanism is gone -- not merely 4 dead entries
 # ---------------------------------------------------------------------------
 
 

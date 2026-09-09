@@ -87,10 +87,7 @@ class OrganizationService:
         return tenant_id
 
     def require_current_tenant_id(self, *, operation_label: str) -> str:
-        """Public accessor (P4C) for `PlatformRuntimeApplicationService.provision_organization`,
-        which needs the same tenant-resolution guard every Organization method uses internally
-        before it can call `_create_organization_using`/`_activate_organization_using` inside its
-        own provisioning UnitOfWork. Reuses the existing guard rather than duplicating it."""
+        """Public accessor for the tenant-resolution guard other Organization methods use internally."""
         return self._require_current_tenant_id(operation_label=operation_label)
 
     # ------------------------------------------------------------------
@@ -284,10 +281,7 @@ class OrganizationService:
             and self._user_session is not None
             and self._user_session.active_organization_id() == candidate.id
         ):
-            # P10C: disabling THIS session's own currently active organization (still possible
-            # through `update_organization`'s mixed profile+availability path, not only through
-            # `disable_organization`) must not leave the session pointed at it -- see
-            # `_set_organization_enabled`'s identical guard for the full rationale.
+            # Don't leave the session pointed at an organization it just disabled.
             self._user_session.set_active_organization_id(None)
         return candidate
 
@@ -295,8 +289,6 @@ class OrganizationService:
         return self._set_organization_enabled(organization_id, is_enabled=True, action="organization.enable")
 
     def disable_organization(self, organization_id: str) -> Organization:
-        """Availability mutation only -- flips `is_enabled` False for exactly this organization.
-        Symmetric with `enable_organization`; see its docstring."""
         return self._set_organization_enabled(organization_id, is_enabled=False, action="organization.disable")
 
     def _set_organization_enabled(

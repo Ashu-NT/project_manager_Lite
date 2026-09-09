@@ -71,22 +71,13 @@ class TenantMembershipService:
     """Authorized orchestration for tenant membership lifecycle changes.
 
     Each operation uses one fresh-session `TenantMembershipUnitOfWork` -- no shared
-    process-lifetime session, no inline commit/rollback. The RoleBinding mutations tied to
-    acceptance (default-role grant) and removal (cascade revoke) reuse
-    `role_binding_mutation_participant`'s shared mechanics atomically within this same UoW --
-    never a nested `RoleGovernanceService` call or a second transaction, and never subject to the
-    interactive-admin delegation/SoD checks `RoleGovernanceService.assign_role` enforces, since
-    these are system/lifecycle operations, not an admin delegating a role to someone else.
-
-    `suspend_member`/`reactivate_member` only transition membership status and (suspend only)
-    revoke the target's AuthSessions -- never touch RoleBinding rows or emit a RoleBinding event.
-
-    Each of `accept_invitation`/`suspend`/`reactivate`/`remove` records exactly one membership
-    fact (`TenantMembershipActivated`/`Suspended`/`Reactivated`/`Removed`), recorded before any
-    consequential RoleBinding mutation in the same command so committed event order matches
-    business-transition order -- safe since the UoW never publishes before `commit()` succeeds.
-    `issue_invitation`/`reinvite`/`revoke_invitation` record invitation-lifecycle facts, not
-    membership facts. `UserTenantMembership` itself records nothing; this service owns recording.
+    process-lifetime session, no inline commit/rollback. RoleBinding mutations tied to
+    acceptance and removal reuse `role_binding_mutation_participant`'s mechanics within
+    this same UoW, skipping `RoleGovernanceService.assign_role`'s interactive-admin
+    delegation/SoD checks since these are system/lifecycle operations, not an admin
+    delegating a role to someone else. Membership events are recorded before any
+    consequential RoleBinding mutation in the same command so committed event order
+    matches business-transition order.
     """
 
     def __init__(
@@ -273,17 +264,8 @@ class TenantMembershipService:
         self._require_active_tenant(uow.tenants, membership.tenant_id)
         accepted = membership.accept_invitation()
         uow.memberships.update(accepted)
-        # P5D-2A: recorded immediately after the membership transition itself -- the ACTUAL
-        # business-fact order is "membership becomes active" first, "a default role is granted
-        # as a consequence" second (`_ensure_default_role_bindings` runs strictly after this
-        # point in the code, never before). Recording here, before that call, makes the
-        # committed event order mirror real transition order rather than merely mirroring
-        # where the audit entry happens to be written. Safe because the canonical UoW never
-        # publishes anything until `uow.commit()` succeeds -- an early `record_event()` call is
-        # observationally identical to a late one for rollback purposes. Never emitted for
-        # `reinvite`/`issue_invitation`: `accept_invitation()` (the aggregate method this event
-        # anchors to) only ever fires on the invited -> active transition, regardless of how
-        # many times this membership was previously removed and reinvited.
+        # Recorded before the default-role grant so committed event order matches the
+        # real transition order (the UoW publishes only after commit succeeds).
         uow.record_event(
             TenantMembershipActivated(
                 membership_id=accepted.id,
@@ -324,19 +306,9 @@ class TenantMembershipService:
                 operation_label="revoke an invitation for",
             )
             membership = self._require_membership(uow.memberships, target.id, tenant_id)
-            # P5D-2 decision (documented, not inferred from `status == "removed""): invitation
-            # revocation is a distinct invitation-lifecycle fact, not a membership-removal fact,
-            # so it deliberately emits NO `TenantMembershipRemoved` (and no other membership
-            # event). Evidence: (1) the invited principal was never an active tenant member --
-            # every membership-facing guard (self-lockout, `is_active_member`, the last-admin
-            # count) gates on ACTIVE status, never INVITED; (2) the audit vocabulary already
-            # distinguishes the two facts ("invitation_revoked" vs "removed"); (3) the aggregate
-            # itself marks a different field (`revoked_at`, never set by `remove()`) and this
-            # command never calls `_revoke_affected_sessions` or touches RoleBinding rows at
-            # all, unlike `remove_member` -- there is nothing to invalidate because acceptance,
-            # the only path that ever creates a session/binding footprint, never happened. A
-            # separate `TenantInvitationRevoked` fact is deliberately NOT added either, per this
-            # phase's own scope: no concrete consumer needs it yet.
+            # Invitation revocation is an invitation-lifecycle fact, not a membership-removal
+            # fact: the invited principal was never an active member, so no
+            # TenantMembershipRemoved (or any other membership event) is emitted here.
             revoked = membership.revoke_invitation()
             uow.memberships.update(revoked)
             self._record_membership_audit(
@@ -392,9 +364,8 @@ class TenantMembershipService:
                     "invalidated_session_count": invalidated_sessions,
                 },
             )
-            # P5D-2: AuthSession invalidation above is a persistence/security side effect, not a
-            # separate membership event. Verified (P5D-1): suspension never touches RoleBinding
-            # rows, so this transition never emits a RoleBinding event either.
+            # AuthSession invalidation is a side effect, not a separate event; suspension
+            # never touches RoleBinding rows either.
             uow.record_event(
                 TenantMembershipSuspended(
                     membership_id=suspended.id,
@@ -433,8 +404,7 @@ class TenantMembershipService:
                 new_status=reactivated.status,
                 metadata={"target_user_id": target.id},
             )
-            # P5D-1 verified reactivation never touches RoleBinding rows -- zero RoleBinding
-            # events here, by the same evidence as suspend_member above.
+            # Reactivation never touches RoleBinding rows, so no RoleBinding event is emitted.
             uow.record_event(
                 TenantMembershipReactivated(
                     membership_id=reactivated.id,
@@ -464,12 +434,8 @@ class TenantMembershipService:
             now = self._clock.now()
             removed = membership.remove(removed_at=now)
             uow.memberships.update(removed)
-            # P5D-2A: recorded immediately after the membership transition itself -- the ACTUAL
-            # business-fact order is "membership is removed" first, "each active RoleBinding is
-            # revoked as a cascade consequence" second (the revocation loop runs strictly after
-            # this point in the code, never before). Recording here makes the committed event
-            # order mirror real transition order. Safe for the same reason as acceptance: the
-            # canonical UoW never publishes anything until `uow.commit()` succeeds.
+            # Recorded before the RoleBinding revocation cascade below so committed event
+            # order matches the real transition order.
             uow.record_event(
                 TenantMembershipRemoved(
                     membership_id=removed.id,
@@ -773,12 +739,9 @@ class TenantMembershipService:
         tenant_id: str,
         actor,
     ) -> None:
-        """Membership-driven default grant on self-service acceptance: a real business fact,
-        so it reuses the canonical `RoleBindingAssigned`-emitting mechanics (P5C event
-        vocabulary, never a new event name) -- but deliberately skips the interactive-admin
-        delegation-namespace/permission-snapshot checks `RoleGovernanceService.assign_role`
-        enforces, since this is a system-issued default grant, not an admin delegating a role
-        to someone else (P5D-1 item 17's explicit policy distinction)."""
+        """Grants the default role on self-service acceptance, skipping the interactive-admin
+        delegation/SoD checks `RoleGovernanceService.assign_role` enforces -- this is a
+        system-issued grant, not an admin delegating a role to someone else."""
         role = self._require_default_invitation_role(uow.roles, tenant_id)
         create_role_binding_using(
             role_bindings_repo=uow.role_bindings,
@@ -804,15 +767,11 @@ class TenantMembershipService:
         *,
         actor,
     ) -> int:
-        """Membership-removal cascade: revokes every genuinely active RoleBinding the target
-        holds in this tenant, one at a time, through the same canonical revoke mechanics
-        `RoleGovernanceService.revoke_role_binding` uses -- one real `RoleBindingRevoked` per
-        real transition, never a bulk-generated event for rows that were never truly active.
-        Replaces the pre-P5D-1 direct bulk-SQL `revoke_active_for_principal_tenant` bypass,
-        which updated rows with no audit/event evidence at all. Deliberately does not apply
-        interactive-admin delegation/SoD policy (same P5D-1 item 17 distinction as the default
-        grant above): this is a membership-lifecycle cascade, not an admin revoking someone
-        else's role by choice."""
+        """Revokes every active RoleBinding the target holds in this tenant, through the
+        same canonical revoke mechanics `RoleGovernanceService.revoke_role_binding` uses,
+        emitting one `RoleBindingRevoked` per binding. Skips interactive-admin delegation/SoD
+        policy: this is a membership-lifecycle cascade, not an admin revoking someone else's
+        role by choice."""
         revoked_count = 0
         for binding in uow.role_bindings.list_active_for_principal(target_user_id, tenant_id=tenant_id):
             domain_scope = resolve_domain_scope_for_binding(

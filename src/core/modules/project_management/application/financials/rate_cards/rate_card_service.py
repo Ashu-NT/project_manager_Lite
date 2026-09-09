@@ -320,7 +320,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         )
         return self._rate_card_repo.list_lines(rate_card_id, include_inactive=include_inactive)
 
-    # -- Overlap prevention (application layer — see plan rationale) ----
+    # -- Overlap prevention ----
 
     def _reject_overlap(
         self,
@@ -329,12 +329,9 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         *,
         excluding_line_id: str | None = None,
     ) -> None:
-        # Scoped to every card sharing the candidate's own project_id (not
-        # just this one card, and not the broader cross-tier resolution
-        # view either — an org-wide line and a project-specific line for
-        # the same role are legitimate coexisting precedence tiers, not a
-        # duplicate). Two project-scoped cards for the SAME project are
-        # the same tier and must not silently both define the same line.
+        # Scoped to every card sharing the candidate's project_id: an org-wide line and a
+        # project-specific line for the same role are legitimate coexisting precedence
+        # tiers, not a duplicate, but two project-scoped cards for the same project are.
         card = self._require_rate_card(rate_card_id)
         existing = self._rate_card_repo.list_lines_in_scope(project_id=card.project_id)
         for other in existing:

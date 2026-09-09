@@ -356,11 +356,6 @@ def test_financials_controller_financial_profile_stale_invalidates_only_controls
 # ---------------------------------------------------------------------------
 
 
-# P46B: test_financial_setup_changed_field_no_longer_exists removed -- domain_events module is
-# deleted outright (see docs/architecture/event-modernization-plan.md's P46B entry). The
-# stronger, independent source-string guard below remains.
-
-
 def test_financial_setup_changed_has_zero_production_references():
     import glob
 

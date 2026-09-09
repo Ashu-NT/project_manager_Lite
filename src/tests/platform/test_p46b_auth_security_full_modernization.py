@@ -1,8 +1,7 @@
 """Auth/Security: bounded-retry lockout race, fail-closed audit, registration/bootstrap/
 custom-role-retirement event completeness and rollback, `account_security`/`authorization_context`
 ViewInvalidation precision, ephemeral session-transport listeners, and the permanent
-zero-legacy-Signal application-wide guard. See ADR-005 and the event-modernization plan doc for
-design rationale."""
+zero-legacy-Signal application-wide guard."""
 
 from __future__ import annotations
 

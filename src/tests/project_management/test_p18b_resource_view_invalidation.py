@@ -556,16 +556,9 @@ def test_resources_workspace_refreshes_once_from_employee_driven_resource_sync(s
 # ---------------------------------------------------------------------------
 
 
-# P46B: `test_resources_changed_field_is_absent_from_domain_events` (a standalone
-# `hasattr(domain_events, "resources_changed")` check) is removed -- `DomainEvents` itself is
-# deleted, so there is no module left to check a field's absence on. The stronger, independent
-# source-string guard below remains.
-
-
 def test_resources_changed_has_zero_production_references():
     """Checks for actual usage (`domain_events.resources_changed`), not the bare substring --
-    several files carry deliberate retirement comments explaining the P18B removal (matching
-    this session's established convention, e.g. P16C's "superseded" comments), which would
+    several files carry deliberate retirement comments mentioning the field name, which would
     otherwise false-positive a blanket substring scan."""
     import glob
 

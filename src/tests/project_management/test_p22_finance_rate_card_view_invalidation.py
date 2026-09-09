@@ -667,11 +667,6 @@ def test_rate_card_adapter_dispatches_org_vs_project_list_hints_to_distinct_sign
 # ---------------------------------------------------------------------------
 
 
-# P46B: test_rates_changed_field_no_longer_exists removed -- domain_events module is deleted
-# outright (see docs/architecture/event-modernization-plan.md's P46B entry). The stronger,
-# independent source-string guard below remains.
-
-
 def test_rates_changed_has_zero_production_references():
     import glob
 

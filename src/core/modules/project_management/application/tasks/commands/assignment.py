@@ -142,12 +142,8 @@ class TaskAssignmentMixin:
         return self._assignment_repo.list_by_task(task_id)
 
     def get_task_time_summary(self, task_id: str) -> TaskTimeSummaryFact:
-        """Task-scoped (never resource-wide) planned/actual/remaining/
-        overrun totals for Task Detail -> Time -> Overview (docs §44 Time
-        redesign), plus the per-resource breakdown that explains them.
-        Reuses the existing envelope_policy.burn_status authority -- one
-        vocabulary for "how does actual compare to plan" across
-        ProjectResource and Task scopes."""
+        """Task-scoped (never resource-wide) planned/actual/remaining/overrun totals,
+        plus the per-resource breakdown that explains them."""
         assignments = self.list_assignments_for_task(task_id)
         resources_by_id = {
             r.id: r
@@ -334,7 +330,7 @@ class TaskAssignmentMixin:
         expected_assignment_version: int,
         expected_project_resource_version: int,
     ) -> TaskAssignment:
-        """Tactical WBS distribution of a ``ProjectResource.planned_hours envelope """
+        """Distributes a ProjectResource.planned_hours envelope across task assignments."""
         if not self._project_resource_repo:
             raise BusinessRuleError(
                 "Project resource repository is not configured.",
@@ -650,14 +646,10 @@ class TaskAssignmentMixin:
         proposed_allocation_percent: float = 100.0,
         exclude_assignment_id: str | None = None,
     ):
-        """Read-only authoritative capacity preview (docs §44) -- calls the
-        exact same `evaluate_task_assignment_capacity` authority
+        """Read-only capacity preview using the same authority
         `_check_resource_overallocation` uses at save time, so preview and
-        enforcement cannot disagree by construction (there is only one
-        implementation). This is advisory only: it does not raise on
-        over-capacity (that is enforcement's job at save time, gated by the
-        warn/strict policy) and is always re-evaluated fresh -- nothing
-        about a preview computed moments earlier is trusted as final."""
+        enforcement cannot disagree. Advisory only -- never raises on
+        over-capacity, and always re-evaluated fresh."""
         require_permission(self._user_session, "task.read", operation_label="preview assignment capacity")
         task = self._task_repo.get(task_id)
         if task is None:

@@ -139,9 +139,8 @@ def test_mapper_maps_resource_scope_to_organization_scope_using_the_events_own_o
 
 def test_mapper_maps_ownerless_resource_scope_to_tenant_scope_not_a_fabricated_organization():
     """A resource scope with `organization_id=None` (the resource genuinely has no owning
-    organization -- e.g. a `Project` created with none) must map to `TenantScope`, never an
-    invented `OrganizationScope` -- `organization_id=None` is never reinterpreted as
-    "tenant-wide" via a flat/untyped field the way ADR-005 §12 explicitly warns against."""
+    organization -- e.g. a `Project` created with none) must map to `TenantScope`, never a
+    fabricated `OrganizationScope`."""
     hints = []
 
     class _FakeChannel:
@@ -304,7 +303,7 @@ def test_no_invalidation_on_no_op_assign_or_revoke(services):
     refresh_calls = []
     catalog.adminAccessWorkspace.refresh_role_bindings = lambda: refresh_calls.append("refresh") or None
 
-    # Identical already-active grant -- a true no-op per P5C-1/P5C-2's own established rule.
+    # Identical already-active grant -- a true no-op.
     services["access_service"].assign_scope_grant(
         scope_type="storeroom", scope_id=storeroom.id, user_id=user.id, scope_role="editor"
     )

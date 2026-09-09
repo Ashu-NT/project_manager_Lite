@@ -165,8 +165,6 @@ def update_document_structure(
             is_active=structure.is_active if is_active is None else is_active,
             notes=structure.notes if notes is None else notes,
         )
-        # intentional pre-release behavior correction -- update_document_structure
-        # previously had no no-op guard at all and always wrote/audited/emitted.
         profile_changed = (
             updated.structure_code != structure.structure_code
             or updated.name != structure.name
@@ -415,8 +413,6 @@ def update_document(
         elif storage_uri is not None or storage_ref is not None or file_name is not None:
             if not updated.mime_type:
                 updated.mime_type = _infer_mime_type(updated.file_name or updated.storage_uri)
-        # P16B: intentional pre-release behavior correction -- update_document previously had
-        # no no-op guard at all and always wrote/audited/emitted.
         profile_changed = (
             updated.document_code != document.document_code
             or updated.title != document.title

@@ -97,10 +97,6 @@ def _allocate(services, ctx, hours: Decimal):
     return updated
 
 
-# P46B: test_legacy_planned_cost_signal_field_is_deleted removed -- domain_events module is
-# deleted outright (see docs/architecture/event-modernization-plan.md's P46B entry).
-
-
 # ---------------------------------------------------------------------------
 # ViewInvalidation handler: unit-level mapping/dedupe
 # ---------------------------------------------------------------------------

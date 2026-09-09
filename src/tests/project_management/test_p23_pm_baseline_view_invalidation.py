@@ -309,17 +309,11 @@ def test_baseline_service_shared_session_survives_repeated_commits(services):
 # ---------------------------------------------------------------------------
 
 
-# P46B: test_baseline_changed_field_no_longer_exists removed -- domain_events module is deleted
-# outright (see docs/architecture/event-modernization-plan.md's P46B entry). The stronger,
-# independent source-string guard below remains.
-
-
 def test_baseline_changed_has_zero_production_references():
     """Checks for actual usage (`domain_events.baseline_changed`) or the field declaration, not
     the bare substring -- `control_workspace_controller.py` carries a deliberate retirement
-    comment explaining the P23 removal (matching this session's established convention, e.g.
-    P18B's `resources_changed` retirement comments), which would otherwise false-positive a
-    blanket substring scan."""
+    comment mentioning the field name, which would otherwise false-positive a blanket
+    substring scan."""
     import glob
 
     hits = []
