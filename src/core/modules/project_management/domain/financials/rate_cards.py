@@ -56,6 +56,7 @@ class RateSelectionSnapshot:
     rate_card_id: str
     rate_line_id: str
     rate_card_version: int
+    rate_line_version: int
     origin: RateLineOrigin
     precedence_level: int
     effective_date: date
@@ -151,6 +152,19 @@ class ProjectRateCard:
     @property
     def is_organization_wide(self) -> bool:
         return self.project_id is None
+
+    def rename(self, name: str, *, changed_at: datetime | None = None) -> None:
+        if not self.is_active:
+            raise ValidationError(
+                "Inactive Rate Cards cannot be edited.",
+                code="RATE_CARD_INACTIVE",
+            )
+        self.name = normalize_required_text(
+            name,
+            message="Rate card name is required.",
+            code="RATE_CARD_NAME_REQUIRED",
+        )
+        self.updated_at = changed_at or _utc_now()
 
     @staticmethod
     def create(

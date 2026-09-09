@@ -364,6 +364,7 @@ class RateCardResolver:
             rate_card_id=line.rate_card_id,
             rate_line_id=line.id,
             rate_card_version=card_version,
+            rate_line_version=line.version,
             origin=line.origin,
             precedence_level=level,
             effective_date=as_of,

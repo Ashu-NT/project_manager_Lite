@@ -14,6 +14,7 @@ from src.core.modules.project_management.application.common.module_guard import 
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_events import (
     RateCardCreated,
     RateCardDeactivated,
+    RateCardUpdated,
     RateCardLineAdded,
     RateCardLineDeactivated,
     RateCardLineUpdated,
@@ -123,12 +124,8 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         return self._rate_card_repo.list(project_id=project_id, include_inactive=include_inactive)
 
     def deactivate_rate_card(self, rate_card_id: str, *, expected_version: int) -> ProjectRateCard:
-        require_permission(
-            self._user_session,
-            "finance.manage",
-            operation_label="deactivate rate card",
-        )
         current = self._require_rate_card(rate_card_id)
+        self._require_card_manage(current, "deactivate rate card")
         self._require_expected_version(current.version, expected_version, "Rate card")
         if not current.is_active:
             return current
@@ -144,6 +141,34 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
                 rate_card_id=candidate.id,
                 project_id=candidate.project_id,
                 occurred_at=now,
+            )
+        )
+        return candidate
+
+    def update_rate_card(
+        self,
+        rate_card_id: str,
+        *,
+        expected_version: int,
+        name: str,
+    ) -> ProjectRateCard:
+        current = self._require_rate_card(rate_card_id)
+        self._require_card_manage(current, "update rate card")
+        self._require_expected_version(current.version, expected_version, "Rate card")
+        candidate = replace(current)
+        candidate.rename(name)
+        if candidate.name == current.name:
+            return current
+        self._rate_card_repo.update(candidate)
+        self._record_card_audit("update", candidate, old=current)
+        self._session.flush()
+        self._emit(
+            RateCardUpdated(
+                tenant_id=candidate.tenant_id,
+                organization_id=candidate.organization_id,
+                rate_card_id=candidate.id,
+                project_id=candidate.project_id,
+                occurred_at=candidate.updated_at,
             )
         )
         return candidate
@@ -170,13 +195,13 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         overtime_multiplier: Decimal | None = None,
         weekend_multiplier: Decimal | None = None,
         holiday_multiplier: Decimal | None = None,
+        expected_card_version: int | None = None,
     ) -> RateCardLine:
-        require_permission(
-            self._user_session,
-            "finance.manage",
-            operation_label="create rate card line",
-        )
         card = self._require_rate_card(rate_card_id)
+        self._require_card_manage(card, "create rate card line")
+        self._require_active_card(card)
+        if expected_card_version is not None:
+            self._require_expected_version(card.version, expected_card_version, "Rate card")
         context = self._require_context("create rate card line")
         line = RateCardLine.create(
             tenant_id=context.tenant_id,
@@ -226,14 +251,14 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         overtime_multiplier: Decimal | None | object = _UNSET,
         weekend_multiplier: Decimal | None | object = _UNSET,
         holiday_multiplier: Decimal | None | object = _UNSET,
+        expected_card_version: int | None = None,
     ) -> RateCardLine:
-        require_permission(
-            self._user_session,
-            "finance.manage",
-            operation_label="update rate card line",
-        )
         current = self._require_line(line_id)
         card = self._require_rate_card(current.rate_card_id)
+        self._require_card_manage(card, "update rate card line")
+        self._require_active_card(card)
+        if expected_card_version is not None:
+            self._require_expected_version(card.version, expected_card_version, "Rate card")
         self._require_expected_version(current.version, expected_version, "Rate card line")
         candidate = replace(
             current,
@@ -263,6 +288,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
             return current
         now = datetime.now(timezone.utc)
         candidate = replace(candidate, updated_at=now)
+        self._protect_consumed_economics(current, candidate)
         self._reject_overlap(candidate.rate_card_id, candidate, excluding_line_id=candidate.id)
         self._rate_card_repo.update_line(candidate)
         self._record_line_audit("update", candidate, old=current)
@@ -279,14 +305,19 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         )
         return candidate
 
-    def deactivate_line(self, line_id: str, *, expected_version: int) -> RateCardLine:
-        require_permission(
-            self._user_session,
-            "finance.manage",
-            operation_label="deactivate rate card line",
-        )
+    def deactivate_line(
+        self,
+        line_id: str,
+        *,
+        expected_version: int,
+        expected_card_version: int | None = None,
+    ) -> RateCardLine:
         current = self._require_line(line_id)
         card = self._require_rate_card(current.rate_card_id)
+        self._require_card_manage(card, "deactivate rate card line")
+        self._require_active_card(card)
+        if expected_card_version is not None:
+            self._require_expected_version(card.version, expected_card_version, "Rate card")
         self._require_expected_version(current.version, expected_version, "Rate card line")
         if not current.is_active:
             return current
@@ -317,6 +348,11 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
             self._user_session,
             "finance.read",
             operation_label="list rate card lines",
+        )
+        require_permission(
+            self._user_session,
+            "finance.read_sensitive",
+            operation_label="list sensitive rate card lines",
         )
         return self._rate_card_repo.list_lines(rate_card_id, include_inactive=include_inactive)
 
@@ -396,6 +432,53 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         if line is None:
             raise NotFoundError("Rate card line not found.")
         return line
+
+    def _require_card_manage(self, card: ProjectRateCard, operation: str) -> None:
+        require_permission(self._user_session, "finance.manage", operation_label=operation)
+        if card.project_id:
+            self._require_project(card.project_id, "finance.manage", operation)
+
+    @staticmethod
+    def _require_active_card(card: ProjectRateCard) -> None:
+        if not card.is_active:
+            raise BusinessRuleError(
+                "Inactive Rate Cards cannot be changed.",
+                code="RATE_CARD_INACTIVE",
+            )
+
+    def _protect_consumed_economics(
+        self, current: RateCardLine, candidate: RateCardLine
+    ) -> None:
+        if not self._rate_card_repo.is_line_consumed(current.id):
+            return
+        immutable_fields = (
+            "rate_amount",
+            "rate_currency",
+            "rate_type",
+            "unit",
+            "resource_id",
+            "customer_party_id",
+            "contract_reference",
+            "role",
+            "skill_code",
+            "department_id",
+            "effective_from",
+            "overtime_multiplier",
+            "weekend_multiplier",
+            "holiday_multiplier",
+        )
+        if any(getattr(current, name) != getattr(candidate, name) for name in immutable_fields):
+            raise BusinessRuleError(
+                "This Rate Line has historical financial use. Its economic terms are "
+                "immutable; end-date it for the future and add a new Rate Line.",
+                code="RATE_CARD_LINE_HISTORICAL_IMMUTABLE",
+            )
+        if candidate.effective_to != current.effective_to:
+            if candidate.effective_to is None or candidate.effective_to < date.today():
+                raise BusinessRuleError(
+                    "A consumed Rate Line may only be end-dated today or in the future.",
+                    code="RATE_CARD_LINE_HISTORICAL_END_DATE_INVALID",
+                )
 
     def _require_context(self, operation: str):
         if self._tenant_context_service is None:

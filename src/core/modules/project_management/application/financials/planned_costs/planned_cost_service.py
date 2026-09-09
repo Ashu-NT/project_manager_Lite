@@ -339,6 +339,9 @@ class PlannedCostService(ProjectManagementModuleGuardMixin):
                     rate_card_id=snapshot.rate_card_id,
                     rate_line_id=snapshot.rate_line_id,
                     rate_card_version=snapshot.rate_card_version,
+                    rate_line_version=snapshot.rate_line_version,
+                    rate_modifier=(snapshot.modifier_applied.value if snapshot.modifier_applied else None),
+                    rate_modifier_multiplier=snapshot.modifier_multiplier,
                     created_at=now,
                 )
             )

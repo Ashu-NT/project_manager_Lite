@@ -38,6 +38,11 @@ class ProjectRateCardRepository(ABC):
     def update_line(self, line: RateCardLine) -> None: ...
 
     @abstractmethod
+    def is_line_consumed(self, line_id: str) -> bool:
+        """Return whether immutable financial evidence references this line."""
+        ...
+
+    @abstractmethod
     def list_lines(
         self,
         rate_card_id: str,

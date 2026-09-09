@@ -282,6 +282,9 @@ class ProjectPlannedCostLine:
     rate_card_id: str = ""
     rate_line_id: str = ""
     rate_card_version: int = 1
+    rate_line_version: int | None = None
+    rate_modifier: str | None = None
+    rate_modifier_multiplier: Decimal | None = None
     created_at: datetime = field(default_factory=_utc_now)
 
     @field_validator(
@@ -324,6 +327,38 @@ class ProjectPlannedCostLine:
             raise ValidationError(
                 "Planned-cost line rate_card_version must be positive.",
                 code="PLANNED_COST_LINE_RATE_CARD_VERSION_INVALID",
+            )
+        return resolved
+
+    @field_validator("rate_line_version", mode="before")
+    @classmethod
+    def _validate_rate_line_version(cls, value: object) -> int | None:
+        if value is None:
+            return None
+        resolved = int(value)
+        if resolved < 1:
+            raise ValidationError(
+                "Planned-cost line rate_line_version must be positive.",
+                code="PLANNED_COST_LINE_RATE_LINE_VERSION_INVALID",
+            )
+        return resolved
+
+    @field_validator("rate_modifier", mode="before")
+    @classmethod
+    def _normalize_rate_modifier(cls, value: object) -> str | None:
+        normalized = str(value or "").strip().lower()
+        return normalized or None
+
+    @field_validator("rate_modifier_multiplier", mode="before")
+    @classmethod
+    def _validate_modifier_multiplier(cls, value: object) -> Decimal | None:
+        if value is None:
+            return None
+        resolved = Decimal(str(value))
+        if resolved < 0:
+            raise ValidationError(
+                "Planned-cost rate modifier cannot be negative.",
+                code="PLANNED_COST_LINE_RATE_MODIFIER_INVALID",
             )
         return resolved
 

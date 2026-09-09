@@ -362,6 +362,9 @@ class ProjectBillingPreparationLine:
     rate_card_id: str | None = None
     rate_line_id: str | None = None
     rate_card_version: int | None = None
+    rate_line_version: int | None = None
+    rate_modifier: str | None = None
+    rate_modifier_multiplier: Decimal | None = None
     created_at: datetime = field(default_factory=_utc_now)
 
     @field_validator(
@@ -439,7 +442,7 @@ class ProjectBillingPreparationLine:
         currency.minor_unit_quantum()
         return currency.code
 
-    @field_validator("rate_card_version", mode="before")
+    @field_validator("rate_card_version", "rate_line_version", mode="before")
     @classmethod
     def _rate_version(cls, value: object) -> int | None:
         if value is None:
@@ -451,6 +454,25 @@ class ProjectBillingPreparationLine:
                 code="BILLING_LINE_RATE_VERSION_INVALID",
             )
         return version
+
+    @field_validator("rate_modifier", mode="before")
+    @classmethod
+    def _rate_modifier(cls, value: object) -> str | None:
+        normalized = str(value or "").strip().lower()
+        return normalized or None
+
+    @field_validator("rate_modifier_multiplier", mode="before")
+    @classmethod
+    def _rate_modifier_multiplier(cls, value: object) -> Decimal | None:
+        if value is None:
+            return None
+        multiplier = RATE_STORAGE.validate(value)
+        if multiplier < 0:
+            raise ValidationError(
+                "Billing rate modifier cannot be negative.",
+                code="BILLING_LINE_RATE_MODIFIER_INVALID",
+            )
+        return multiplier
 
     @field_validator("created_at", mode="before")
     @classmethod
@@ -466,6 +488,11 @@ class ProjectBillingPreparationLine:
             raise ValidationError(
                 "Billing rate-card snapshot fields must be supplied together.",
                 code="BILLING_LINE_RATE_SNAPSHOT_INCOMPLETE",
+            )
+        if self.rate_modifier_multiplier is not None and self.rate_modifier is None:
+            raise ValidationError(
+                "Billing rate modifier name is required with its multiplier.",
+                code="BILLING_LINE_RATE_MODIFIER_INCOMPLETE",
             )
         if self.source_type is BillableSourceType.APPROVED_TIME and not self.resource_id:
             raise ValidationError(

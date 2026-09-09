@@ -82,6 +82,7 @@ from src.core.modules.project_management.api.desktop.financials.models.configura
     FinancialConfigurationWorkspaceDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.rates import (
+    FinancialRateMutationDto,
     FinancialRateWorkspaceDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.changes import (
@@ -133,6 +134,14 @@ from src.core.modules.project_management.api.desktop.financials.commands.budgets
 from src.core.modules.project_management.api.desktop.financials.commands.forecasts import (
     FinancialGenerateForecastCommand,
     FinancialVersionedForecastCommand,
+)
+from src.core.modules.project_management.api.desktop.financials.commands.rates import (
+    FinancialAddRateLineCommand,
+    FinancialCreateRateCardCommand,
+    FinancialUpdateRateCardCommand,
+    FinancialUpdateRateLineCommand,
+    FinancialVersionedRateCardCommand,
+    FinancialVersionedRateLineCommand,
 )
 from src.core.modules.project_management.api.desktop.financials.commands.changes import (
     FinancialChangeImpactCommand,
@@ -955,6 +964,119 @@ class ProjectManagementFinancialsDesktopApi:
             line_effective_status=line_effective_status,
             as_of=as_of,
         )
+
+    def create_rate_card(
+        self, command: FinancialCreateRateCardCommand
+    ) -> FinancialRateMutationDto:
+        card = self._require_finance_governance_commands().rate_card(
+            lambda service: service.create_rate_card(
+                name=command.name, project_id=command.project_id
+            )
+        )
+        return FinancialRateMutationDto(rate_card_id=card.id, version=card.version)
+
+    def update_rate_card(
+        self, command: FinancialUpdateRateCardCommand
+    ) -> FinancialRateMutationDto:
+        card = self._require_finance_governance_commands().rate_card(
+            lambda service: service.update_rate_card(
+                command.rate_card_id,
+                expected_version=command.expected_version,
+                name=command.name,
+            )
+        )
+        return FinancialRateMutationDto(rate_card_id=card.id, version=card.version)
+
+    def deactivate_rate_card(
+        self, command: FinancialVersionedRateCardCommand
+    ) -> FinancialRateMutationDto:
+        card = self._require_finance_governance_commands().rate_card(
+            lambda service: service.deactivate_rate_card(
+                command.rate_card_id, expected_version=command.expected_version
+            )
+        )
+        return FinancialRateMutationDto(rate_card_id=card.id, version=card.version)
+
+    def add_rate_line(
+        self, command: FinancialAddRateLineCommand
+    ) -> FinancialRateMutationDto:
+        line = self._require_finance_governance_commands().rate_card(
+            lambda service: service.create_line(
+                command.rate_card_id,
+                expected_card_version=command.expected_card_version,
+                rate_type=command.rate_type,
+                unit=command.unit,
+                rate_amount=self._rate_decimal(command.rate_amount, "Rate amount"),
+                rate_currency=command.rate_currency,
+                resource_id=command.resource_id,
+                customer_party_id=command.customer_party_id,
+                contract_reference=command.contract_reference,
+                role=command.role,
+                skill_code=command.skill_code,
+                department_id=command.department_id,
+                effective_from=command.effective_from,
+                effective_to=command.effective_to,
+                overtime_multiplier=self._optional_rate_decimal(command.overtime_multiplier),
+                weekend_multiplier=self._optional_rate_decimal(command.weekend_multiplier),
+                holiday_multiplier=self._optional_rate_decimal(command.holiday_multiplier),
+            )
+        )
+        return FinancialRateMutationDto(
+            rate_card_id=line.rate_card_id, rate_line_id=line.id, version=line.version
+        )
+
+    def update_rate_line(
+        self, command: FinancialUpdateRateLineCommand
+    ) -> FinancialRateMutationDto:
+        line = self._require_finance_governance_commands().rate_card(
+            lambda service: service.update_line(
+                command.rate_line_id,
+                expected_version=command.expected_version,
+                expected_card_version=command.expected_card_version,
+                rate_amount=self._rate_decimal(command.rate_amount, "Rate amount"),
+                effective_from=command.effective_from,
+                effective_to=command.effective_to,
+                overtime_multiplier=self._optional_rate_decimal(command.overtime_multiplier),
+                weekend_multiplier=self._optional_rate_decimal(command.weekend_multiplier),
+                holiday_multiplier=self._optional_rate_decimal(command.holiday_multiplier),
+            )
+        )
+        return FinancialRateMutationDto(
+            rate_card_id=line.rate_card_id, rate_line_id=line.id, version=line.version
+        )
+
+    def deactivate_rate_line(
+        self, command: FinancialVersionedRateLineCommand
+    ) -> FinancialRateMutationDto:
+        line = self._require_finance_governance_commands().rate_card(
+            lambda service: service.deactivate_line(
+                command.rate_line_id,
+                expected_version=command.expected_version,
+                expected_card_version=command.expected_card_version,
+            )
+        )
+        return FinancialRateMutationDto(
+            rate_card_id=line.rate_card_id, rate_line_id=line.id, version=line.version
+        )
+
+    @staticmethod
+    def _rate_decimal(value: str, label: str) -> Decimal:
+        try:
+            amount = Decimal(str(value).strip())
+        except (InvalidOperation, ValueError) as exc:
+            raise ValidationError(
+                f"{label} must be a canonical decimal value.",
+                code="RATE_CARD_DECIMAL_INVALID",
+            ) from exc
+        if not amount.is_finite():
+            raise ValidationError(
+                f"{label} must be finite.", code="RATE_CARD_DECIMAL_INVALID"
+            )
+        return amount
+
+    @classmethod
+    def _optional_rate_decimal(cls, value: str | None) -> Decimal | None:
+        return None if value in (None, "") else cls._rate_decimal(value, "Rate modifier")
 
     def get_accounting_statuses(
         self,
