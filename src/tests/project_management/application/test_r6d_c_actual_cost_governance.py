@@ -21,8 +21,9 @@ from src.core.modules.project_management.contracts.financial_sources.reference i
 from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntry,
     ProjectCostEntryKind,
+    ProjectCostEntryStatus,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.finance import Money
 
 
@@ -161,6 +162,30 @@ def test_source_owned_entry_has_no_interactive_mutation_capability(services):
             entry, operation="edit"
         )
     assert source_error.value.code == "PROJECT_COST_ENTRY_SOURCE_OWNED"
+
+
+def test_actual_filters_are_server_owned_and_invalid_sources_fail_closed(services):
+    _organization, project, _cost_code, draft = _draft(services)
+    service = services["cost_entry_service"]
+
+    rows, total = service.list_for_project(
+        project.id,
+        status=ProjectCostEntryStatus.DRAFT,
+        source_module=FinancialSourceModule.PROJECT_MANAGEMENT,
+    )
+    assert total == 1
+    assert [row.id for row in rows] == [draft.id]
+
+    rows, total = service.list_for_project(
+        project.id,
+        source_module=FinancialSourceModule.PROCUREMENT,
+    )
+    assert rows == []
+    assert total == 0
+
+    with pytest.raises(ValidationError) as invalid:
+        service.list_for_project(project.id, source_module="future-module")
+    assert invalid.value.code == "PROJECT_COST_ENTRY_SOURCE_INVALID"
 
 
 def test_cost_service_is_transaction_neutral_and_uses_scoped_savepoints_only():

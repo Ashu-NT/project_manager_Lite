@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from datetime import date, datetime
 from decimal import Decimal
@@ -24,6 +23,9 @@ from src.core.modules.project_management.application.financials.cost.entries.cos
 from src.core.modules.project_management.application.financials.cost.entries.approval_result import (
     CostEntryApprovalOutcome,
     CostEntryApprovalResult,
+)
+from src.core.modules.project_management.application.financials.cost.entries.audit import (
+    record_project_cost_entry_audit,
 )
 from src.core.modules.project_management.application.financials.cost.entries.capabilities import (
     CostEntryActionCapabilities,
@@ -84,7 +86,6 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.platform.domain.approval.policy import is_governance_required
 from src.core.platform.finance import EXCHANGE_RATE_STORAGE, Money, MoneyPayload
-from src.core.shared.audit import record_audit_entry
 
 
 class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
@@ -1200,47 +1201,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         return str(actor_id)
 
     def _record_audit(self, operation: str, entry: ProjectCostEntry) -> None:
-        record_audit_entry(
-            self,
-                operation=f"project_cost_entry.{operation}",
-                entity_type="project_cost_entry",
-                entity_id=entry.id,
-                entity_parent_id=entry.project_id,
-                module="project_management",
-                old_value=None,
-                new_value=json.dumps({
-                    "status": entry.status.value,
-                    "entry_kind": entry.entry_kind.value,
-                    "amount": MoneyPayload.from_domain(entry.money).amount,
-                    "currency_code": entry.currency_code,
-                    "base_amount": (
-                        MoneyPayload.from_domain(entry.base_money).amount
-                        if entry.base_money is not None
-                        else None
-                    ),
-                    "base_currency_code": entry.base_currency_code,
-                    "transaction_date": entry.transaction_date.isoformat(),
-                    "posting_date": entry.posting_date.isoformat() if entry.posting_date else None,
-                    "financial_period_id": entry.financial_period_id,
-                    "cost_code_id": entry.cost_code_id,
-                    "task_id": entry.task_id,
-                    "resource_id": entry.resource_id,
-                    "source_module": entry.source_module.value,
-                    "source_type": entry.source_type.value,
-                    "source_id": entry.source_id,
-                    "source_revision": entry.source_revision,
-                    "reverses_entry_id": entry.reverses_entry_id,
-                    "reversed_by_entry_id": entry.reversed_by_entry_id,
-                    "row_version": entry.row_version,
-                }, sort_keys=True),
-                workspace_id=entry.project_id,
-                source="application",
-                severity="high",
-                compliance_tag="financial",
-                metadata={"action": operation},
-                commit=False,
-                fail_closed=True,
-        )
+        record_project_cost_entry_audit(self, operation=operation, entry=entry)
 
 
 __all__ = ["ProjectCostEntryService"]

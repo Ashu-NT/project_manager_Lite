@@ -19,12 +19,14 @@ from src.core.modules.project_management.contracts.repositories.projects.project
     ProjectResourceRepository,
 )
 from src.core.modules.project_management.contracts.repositories.register.register import RegisterEntryRepository
+from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     TaskRepository,
 )
 from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
 from src.core.platform.contract.repositories.approval.contracts import ApprovalRepository
+from src.core.platform.contract.repositories.finance import FinancialPeriodRepository
 from src.core.shared.persistence.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 
@@ -44,6 +46,8 @@ class FinanceGovernanceUnitOfWork(UnitOfWork, Protocol):
     commitments: ProjectCommitmentRepository
     cost_entries: ProjectCostEntryRepository
     register_entries: RegisterEntryRepository
+    resources: ResourceRepository
+    financial_periods: FinancialPeriodRepository
     approvals: ApprovalRepository
     rate_cards: ProjectRateCardRepository
     billing: ProjectBillingRepository

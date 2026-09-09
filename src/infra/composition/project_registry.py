@@ -9,6 +9,7 @@ from time import perf_counter
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.platform.access import ScopedRolePolicy
+from src.core.platform.application.finance.financial_period_service import FinancialPeriodService
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
 )
@@ -1110,8 +1111,14 @@ def build_project_management_service_bundle(
             financial_profile_repo=uow.profiles,
             cost_code_repo=uow.cost_codes,
             task_repo=uow.tasks,
-            resource_repo=repositories.resource_repo,
-            financial_period_service=platform_services.financial_period_service,
+            resource_repo=uow.resources,
+            financial_period_service=FinancialPeriodService(
+                session=uow._session,
+                period_repo=uow.financial_periods,
+                tenant_context_service=platform_services.tenant_context_service,
+                user_session=platform_services.user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+            ),
             clock=system_clock,
             user_session=platform_services.user_session,
             enterprise_audit_service=uow._enterprise_audit_service,

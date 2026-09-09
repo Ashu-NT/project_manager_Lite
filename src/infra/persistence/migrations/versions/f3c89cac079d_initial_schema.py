@@ -859,7 +859,9 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['employee_id'], ['employees.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['tenant_id'], ['tenants.id'], ondelete='RESTRICT'),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('tenant_id', 'organization_id', 'id', name='uq_resources_scoped_id'),
+    info={'rls_scope': 'tenant_organization'}
     )
     with op.batch_alter_table('resources', schema=None) as batch_op:
         batch_op.create_index('idx_resources_department', ['department_id'], unique=False)
@@ -2408,7 +2410,7 @@ def upgrade() -> None:
     sa.CheckConstraint('exchange_rate IS NULL OR exchange_rate > 0', name='ck_project_cost_entries_exchange_rate'),
     sa.CheckConstraint('version >= 1', name='ck_project_cost_entries_version'),
     sa.ForeignKeyConstraint(['project_id', 'task_id'], ['tasks.project_id', 'tasks.id'], name='fk_project_cost_entries_project_task', ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['resource_id'], ['resources.id'], ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['tenant_id', 'organization_id', 'resource_id'], ['resources.tenant_id', 'resources.organization_id', 'resources.id'], name='fk_project_cost_entries_scoped_resource', ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['tenant_id', 'organization_id', 'cost_code_id'], ['project_finance_cost_codes.tenant_id', 'project_finance_cost_codes.organization_id', 'project_finance_cost_codes.id'], name='fk_project_cost_entries_scoped_cost_code', ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['tenant_id', 'organization_id', 'financial_period_id'], ['financial_periods.tenant_id', 'financial_periods.organization_id', 'financial_periods.id'], name='fk_project_cost_entries_scoped_period', ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['tenant_id', 'organization_id', 'project_id', 'reversed_by_entry_id'], ['project_cost_entries.tenant_id', 'project_cost_entries.organization_id', 'project_cost_entries.project_id', 'project_cost_entries.id'], name='fk_project_cost_entries_scoped_reversed_by', ondelete='RESTRICT'),
@@ -2424,6 +2426,7 @@ def upgrade() -> None:
         batch_op.create_index('idx_project_cost_entries_period', ['tenant_id', 'organization_id', 'financial_period_id'], unique=False)
         batch_op.create_index('idx_project_cost_entries_project_posting', ['project_id', 'posting_date', 'id'], unique=False)
         batch_op.create_index('idx_project_cost_entries_scope_project', ['tenant_id', 'organization_id', 'project_id'], unique=False)
+        batch_op.create_index('idx_project_cost_entries_scope_filters', ['tenant_id', 'organization_id', 'project_id', 'status', 'source_module'], unique=False)
         batch_op.create_index('idx_project_cost_entries_source', ['tenant_id', 'organization_id', 'source_module', 'source_type', 'source_id'], unique=False)
         batch_op.create_index('uq_project_cost_entries_one_reversal', ['tenant_id', 'organization_id', 'reverses_entry_id'], unique=True, postgresql_where=sa.text('reverses_entry_id IS NOT NULL'), sqlite_where=sa.text('reverses_entry_id IS NOT NULL'))
 
@@ -3280,6 +3283,7 @@ def downgrade() -> None:
     with op.batch_alter_table('project_cost_entries', schema=None) as batch_op:
         batch_op.drop_index('uq_project_cost_entries_one_reversal', postgresql_where=sa.text('reverses_entry_id IS NOT NULL'), sqlite_where=sa.text('reverses_entry_id IS NOT NULL'))
         batch_op.drop_index('idx_project_cost_entries_source')
+        batch_op.drop_index('idx_project_cost_entries_scope_filters')
         batch_op.drop_index('idx_project_cost_entries_scope_project')
         batch_op.drop_index('idx_project_cost_entries_project_posting')
         batch_op.drop_index('idx_project_cost_entries_period')

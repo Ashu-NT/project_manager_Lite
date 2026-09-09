@@ -5,7 +5,16 @@ from __future__ import annotations
 from typing import Optional
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Enum as SAEnum, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import (
+    Boolean,
+    Enum as SAEnum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.modules.project_management.domain.enums import CostType, ResourceKind, WorkerType
@@ -19,6 +28,15 @@ from src.infra.persistence.db.financial_numeric import (
 
 class ResourceORM(Base):
     __tablename__ = "resources"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "organization_id",
+            "id",
+            name="uq_resources_scoped_id",
+        ),
+        {"info": {"rls_scope": "tenant_organization"}},
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     tenant_id: Mapped[str] = mapped_column(

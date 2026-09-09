@@ -22,6 +22,7 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyProjectResourceRepository,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.register.register import SqlAlchemyRegisterEntryRepository
+from src.core.modules.project_management.infrastructure.persistence.repositories.resources.resource import SqlAlchemyResourceRepository
 from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import (
     SqlAlchemyAssignmentRepository,
     SqlAlchemyTaskRepository,
@@ -29,6 +30,7 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
 from src.core.platform.infrastructure.persistence.repositories.approval.approval import SqlAlchemyApprovalRepository
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import SqlAlchemyAuditRepository
+from src.core.platform.infrastructure.persistence.repositories.finance import SqlAlchemyFinancialPeriodRepository
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_event_publisher import PostCommitEventPublisher, TransactionalEventDispatcher
 from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase, SqlAlchemyUnitOfWorkFactoryBase
@@ -54,6 +56,8 @@ class SqlAlchemyFinanceGovernanceUnitOfWork(SqlAlchemyUnitOfWorkBase, FinanceGov
         self.commitments = SqlAlchemyProjectCommitmentRepository(session)
         self.cost_entries = SqlAlchemyProjectCostEntryRepository(session)
         self.register_entries = SqlAlchemyRegisterEntryRepository(session)
+        self.resources = SqlAlchemyResourceRepository(session)
+        self.financial_periods = SqlAlchemyFinancialPeriodRepository(session)
         self.approvals = SqlAlchemyApprovalRepository(session)
         self.rate_cards = SqlAlchemyProjectRateCardRepository(session)
         self.billing = SqlAlchemyProjectBillingRepository(session)
@@ -61,7 +65,8 @@ class SqlAlchemyFinanceGovernanceUnitOfWork(SqlAlchemyUnitOfWorkBase, FinanceGov
             self.projects, self.tasks, self.budgets, self.forecasts, self.changes,
             self.profiles, self.cost_codes, self.planned_costs, self.assignments,
             self.project_resources, self.commitments, self.cost_entries,
-            self.register_entries, self.approvals, self.rate_cards, self.billing,
+            self.register_entries, self.resources, self.financial_periods,
+            self.approvals, self.rate_cards, self.billing,
         )
         for repository in scoped:
             repository._tenant_context_service = tenant_context_service
