@@ -32,6 +32,12 @@ from src.core.modules.project_management.api.desktop import (
     FinancialReverseActualCommand,
     FinancialUpdateActualDraftCommand,
     FinancialVersionedActualCommand,
+    FinancialAddRateLineCommand,
+    FinancialCreateRateCardCommand,
+    FinancialUpdateRateCardCommand,
+    FinancialUpdateRateLineCommand,
+    FinancialVersionedRateCardCommand,
+    FinancialVersionedRateLineCommand,
     ProjectManagementFinancialsDesktopApi,
 )
 from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
@@ -592,6 +598,115 @@ def reverse_actual(
     desktop_api.reverse_actual(command)
 
 
+def create_rate_card(desktop_api, payload: dict[str, Any]):
+    scope = optional_text(payload, "scope") or "project"
+    project_id = require_text(
+        payload, "projectId", "Select a project before creating a Rate Card."
+    )
+    return desktop_api.create_rate_card(
+        FinancialCreateRateCardCommand(
+            name=require_text(payload, "name", "Rate Card name is required."),
+            project_id=project_id if scope == "project" else None,
+        )
+    )
+
+
+def update_rate_card(desktop_api, payload: dict[str, Any]):
+    return desktop_api.update_rate_card(
+        FinancialUpdateRateCardCommand(
+            rate_card_id=require_text(payload, "rateCardId", "Select a Rate Card."),
+            expected_version=require_int(
+                payload, "version", "Rate Card version is required."
+            ),
+            name=require_text(payload, "name", "Rate Card name is required."),
+        )
+    )
+
+
+def deactivate_rate_card(desktop_api, payload: dict[str, Any]):
+    return desktop_api.deactivate_rate_card(
+        FinancialVersionedRateCardCommand(
+            rate_card_id=require_text(payload, "rateCardId", "Select a Rate Card."),
+            expected_version=require_int(
+                payload, "version", "Rate Card version is required."
+            ),
+        )
+    )
+
+
+def add_rate_line(desktop_api, payload: dict[str, Any]):
+    return desktop_api.add_rate_line(
+        FinancialAddRateLineCommand(
+            rate_card_id=require_text(payload, "rateCardId", "Select a Rate Card."),
+            expected_card_version=require_int(
+                payload, "cardVersion", "Rate Card version is required."
+            ),
+            rate_type=require_text(payload, "rateType", "Rate purpose is required."),
+            unit=require_text(payload, "unit", "Rate unit is required."),
+            rate_amount=format(
+                require_decimal(payload, "amount", "Rate amount must be a valid number."),
+                "f",
+            ),
+            rate_currency=require_text(payload, "currency", "Currency is required.").upper(),
+            resource_id=optional_text(payload, "resourceId"),
+            role=optional_text(payload, "role"),
+            skill_code=optional_text(payload, "skillCode"),
+            department_id=optional_text(payload, "departmentId"),
+            customer_party_id=optional_text(payload, "customerPartyId"),
+            contract_reference=optional_text(payload, "contractReference"),
+            effective_from=_optional_date(payload, "effectiveFrom"),
+            effective_to=_optional_date(payload, "effectiveTo"),
+            overtime_multiplier=_optional_decimal_text(payload, "overtimeMultiplier"),
+            weekend_multiplier=_optional_decimal_text(payload, "weekendMultiplier"),
+            holiday_multiplier=_optional_decimal_text(payload, "holidayMultiplier"),
+        )
+    )
+
+
+def update_rate_line(desktop_api, payload: dict[str, Any]):
+    return desktop_api.update_rate_line(
+        FinancialUpdateRateLineCommand(
+            rate_line_id=require_text(payload, "rateLineId", "Select a Rate Line."),
+            expected_version=require_int(
+                payload, "version", "Rate Line version is required."
+            ),
+            expected_card_version=require_int(
+                payload, "cardVersion", "Rate Card version is required."
+            ),
+            rate_amount=format(
+                require_decimal(payload, "amount", "Rate amount must be a valid number."),
+                "f",
+            ),
+            effective_from=_optional_date(payload, "effectiveFrom"),
+            effective_to=_optional_date(payload, "effectiveTo"),
+            overtime_multiplier=_optional_decimal_text(payload, "overtimeMultiplier"),
+            weekend_multiplier=_optional_decimal_text(payload, "weekendMultiplier"),
+            holiday_multiplier=_optional_decimal_text(payload, "holidayMultiplier"),
+        )
+    )
+
+
+def deactivate_rate_line(desktop_api, payload: dict[str, Any]):
+    return desktop_api.deactivate_rate_line(
+        FinancialVersionedRateLineCommand(
+            rate_line_id=require_text(payload, "rateLineId", "Select a Rate Line."),
+            expected_version=require_int(
+                payload, "version", "Rate Line version is required."
+            ),
+            expected_card_version=require_int(
+                payload, "cardVersion", "Rate Card version is required."
+            ),
+        )
+    )
+
+
+def _optional_decimal_text(payload: dict[str, Any], key: str) -> str | None:
+    value = optional_text(payload, key)
+    if value is None:
+        return None
+    return format(require_decimal(payload, key, f"{key} must be a valid number."), "f")
+
+
 __all__ = [
     "add_cost_code_restriction",
     "change_cost_code_status",
@@ -603,12 +718,16 @@ __all__ = [
     "create_budget_version",
     "create_cost_code",
     "create_manual_actual",
+    "create_rate_card",
+    "add_rate_line",
     "create_financial_change",
     "decide_budget_approval",
     "decide_forecast_approval",
     "decide_financial_change_approval",
     "delete_budget",
     "delete_budget_line",
+    "deactivate_rate_card",
+    "deactivate_rate_line",
     "generate_forecast",
     "post_actual",
     "remove_financial_change_impact",
@@ -628,4 +747,6 @@ __all__ = [
     "transition_financial_profile",
     "update_cost_code",
     "update_financial_profile",
+    "update_rate_card",
+    "update_rate_line",
 ]

@@ -182,6 +182,15 @@ class ProjectPlannedCostLineORM(Base):
         CheckConstraint(
             "rate_card_version >= 1", name="ck_pf_planned_cost_lines_rate_card_version"
         ),
+        CheckConstraint(
+            "rate_line_version IS NULL OR rate_line_version >= 1",
+            name="ck_planned_cost_rate_line_version",
+        ),
+        CheckConstraint(
+            "rate_modifier_multiplier IS NULL OR "
+            "(rate_modifier IS NOT NULL AND rate_modifier_multiplier >= 0)",
+            name="ck_planned_cost_rate_modifier",
+        ),
         {"info": {"rls_scope": "tenant_organization"}},
     )
 

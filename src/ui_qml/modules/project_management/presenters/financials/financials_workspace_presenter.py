@@ -16,6 +16,7 @@ from .command_handler import (
     add_cost_code_restriction,
     add_budget_line,
     add_financial_change_impact,
+    add_rate_line,
     approve_actual,
     close_budget,
     create_budget_successor,
@@ -23,12 +24,15 @@ from .command_handler import (
     create_cost_code,
     change_cost_code_status,
     create_manual_actual,
+    create_rate_card,
     create_financial_change,
     decide_budget_approval,
     decide_forecast_approval,
     decide_financial_change_approval,
     delete_budget,
     delete_budget_line,
+    deactivate_rate_card,
+    deactivate_rate_line,
     generate_forecast,
     post_actual,
     remove_financial_change_impact,
@@ -48,6 +52,8 @@ from .command_handler import (
     transition_financial_profile,
     update_cost_code,
     update_financial_profile,
+    update_rate_card,
+    update_rate_line,
 )
 from .destination_builder import build_destination_state, build_shell_state
 
@@ -234,6 +240,24 @@ class ProjectFinancialsWorkspacePresenter:
 
     def create_manual_actual(self, payload: dict[str, Any]) -> None:
         create_manual_actual(self._desktop_api, payload)
+
+    def create_rate_card(self, payload: dict[str, Any]):
+        return create_rate_card(self._desktop_api, payload)
+
+    def update_rate_card(self, payload: dict[str, Any]):
+        return update_rate_card(self._desktop_api, payload)
+
+    def deactivate_rate_card(self, payload: dict[str, Any]):
+        return deactivate_rate_card(self._desktop_api, payload)
+
+    def add_rate_line(self, payload: dict[str, Any]):
+        return add_rate_line(self._desktop_api, payload)
+
+    def update_rate_line(self, payload: dict[str, Any]):
+        return update_rate_line(self._desktop_api, payload)
+
+    def deactivate_rate_line(self, payload: dict[str, Any]):
+        return deactivate_rate_line(self._desktop_api, payload)
 
     def create_cost_code(self, payload: dict[str, Any]) -> None:
         create_cost_code(self._desktop_api, payload)

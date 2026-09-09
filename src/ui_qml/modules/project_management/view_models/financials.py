@@ -181,6 +181,7 @@ class FinancialsWorkspaceViewModel:
     rate_line_rate_type: str = ""
     rate_line_status: str = ""
     rate_line_effective_status: str = ""
+    can_create_rate_card: bool = False
     selected_planned_cost_version_id: str = ""
     planned_cost_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     planned_cost_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))

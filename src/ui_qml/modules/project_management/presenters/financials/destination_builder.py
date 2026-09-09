@@ -435,6 +435,7 @@ def build_destination_state(
             rate_line_rate_type=views["rate_line_rate_type"],
             rate_line_status=views["rate_line_status"],
             rate_line_effective_status=views["rate_line_effective_status"],
+            can_create_rate_card=views["can_create_rate_card"],
         )
 
     if destination == "performance":

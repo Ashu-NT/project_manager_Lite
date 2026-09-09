@@ -388,6 +388,9 @@ class FinancialsRefreshMixin:
                 self._set_rate_cards(
                     serialize_financials_collection_view_model(state.rate_cards)
                 )
+                if self._can_create_rate_card != state.can_create_rate_card:
+                    self._can_create_rate_card = state.can_create_rate_card
+                    self.rateCardsChanged.emit()
                 self._set_rate_lines(
                     serialize_financials_collection_view_model(state.rate_lines)
                 )
@@ -557,6 +560,7 @@ class FinancialsRefreshMixin:
         self._set_can_create_budget_version(False)
         self._set_create_budget_version_disabled_reason("")
         self._set_rate_cards(default_collection())
+        self._can_create_rate_card = False
         self._set_rate_lines(default_collection())
         self._set_selected_rate_card_id("")
         self._set_selected_rate_card(default_detail())
@@ -590,6 +594,13 @@ class FinancialsRefreshMixin:
             self._set_selected_forecast(default_detail())
             self._set_forecast_versions(default_collection())
             self._set_forecast_lines(default_collection())
+            return
+        if destination == "costs" and subsection == "rates":
+            self._can_create_rate_card = False
+            self._set_rate_cards(default_collection())
+            self._set_rate_lines(default_collection())
+            self._set_selected_rate_card(default_detail())
+            self.rateCardsChanged.emit()
             return
         if destination != "controls":
             return

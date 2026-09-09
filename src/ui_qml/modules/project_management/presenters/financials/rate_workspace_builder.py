@@ -20,8 +20,8 @@ def _record(item: FinancialRateTableRecordDto) -> FinancialsRecordViewModel:
         subtitle=item.subtitle,
         supporting_text=item.supporting_text,
         meta_text=item.meta_text,
-        can_primary_action=False,
-        can_secondary_action=False,
+        can_primary_action=bool(item.state.get("canEdit", False)),
+        can_secondary_action=bool(item.state.get("canDeactivate", False)),
         state=dict(item.state),
     )
 
@@ -40,6 +40,7 @@ def build_rate_workspace_views(source: FinancialRateWorkspaceDto) -> dict[str, o
                 FinancialsDetailFieldViewModel(label, value, supporting)
                 for label, value, supporting in detail.fields
             ),
+            state=dict(detail.state),
         ),
         "rate_cards": FinancialsCollectionViewModel(
             title="Rate Cards",
@@ -74,6 +75,7 @@ def build_rate_workspace_views(source: FinancialRateWorkspaceDto) -> dict[str, o
         "rate_line_rate_type": source.line_rate_type,
         "rate_line_status": source.line_status,
         "rate_line_effective_status": source.line_effective_status,
+        "can_create_rate_card": source.can_create_rate_card,
     }
 
 
