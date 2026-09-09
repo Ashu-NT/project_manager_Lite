@@ -25,6 +25,7 @@ Component {
     Property { name: "actualSortKey"; type: "QString"; isReadonly: true }
     Property { name: "actualSortDirection"; type: "int"; isReadonly: true }
     Property { name: "canCreateManualActual"; type: "bool"; isReadonly: true }
+    Property { name: "canCreateFinancialChange"; type: "bool"; isReadonly: true }
     Property { name: "actualStatus"; type: "QString"; isReadonly: true }
     Property { name: "actualSource"; type: "QString"; isReadonly: true }
     Property { name: "commitments"; type: "QVariantMap"; isReadonly: true }
