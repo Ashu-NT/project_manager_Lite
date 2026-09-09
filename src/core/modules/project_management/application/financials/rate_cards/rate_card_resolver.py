@@ -315,7 +315,7 @@ class RateCardResolver:
             if level is not None:
                 buckets.setdefault(level, []).append(candidate.line)
 
-        for level in (1, 2, 3, 4, 5, 6):
+        for level in (1, 2, 3, 4, 5):
             matches = buckets.get(level, [])
             if not matches:
                 continue

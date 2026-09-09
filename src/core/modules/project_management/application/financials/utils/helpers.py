@@ -12,17 +12,6 @@ def normalize_currency(value: str | None, fallback: str | None) -> str:
     return fb or "-"
 
 
-def resolve_rate(*, pr_rate: float | None, resource_rate: float | None) -> float:
-    if pr_rate is not None:
-        return float(pr_rate or 0.0)
-    return float(resource_rate or 0.0)
-
-
-def is_effectively_equal(lhs: float, rhs: float) -> bool:
-    tolerance = max(0.01, abs(lhs) * 1e-6)
-    return abs(lhs - rhs) <= tolerance
-
-
 def normalize_period(value: str) -> str:
     token = (value or "").strip().lower()
     if token in {"week", "weekly"}:
@@ -45,8 +34,6 @@ def period_bounds(anchor: date, period: str) -> tuple[str, date, date]:
 
 __all__ = [
     "normalize_currency",
-    "resolve_rate",
-    "is_effectively_equal",
     "normalize_period",
     "period_bounds",
 ]

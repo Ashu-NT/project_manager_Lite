@@ -2,9 +2,9 @@
 
 ## 1. Status
 
-**R6D-A: COMPLETE - characterization and implementation design only.**
+**R6D-A: COMPLETE. R6D-B: COMPLETE. R6D-C: NEXT.**
 
-R6C remains closed. No R6D production behavior was changed during R6D-A. No R6E, R6F, R6G, or R6H work was started. This document records the repository state inspected on 2026-09-08 and is the authority for starting R6D-B.
+R6C remains closed. R6D-B completed the governed Rate Card implementation on 2026-09-09. Actual Cost governance, approved-time worker hardening, Commitment hardening, and R6E-R6H have not started. This document remains the authority for continuing with R6D-C.
 
 ## 2. Scope
 
@@ -284,7 +284,7 @@ No index is added during characterization. Query plans must prove a need first.
 - Stale-page normalization can double list statement count.
 - `LaborCostEngine` loads project tasks, assignments, resources, and rates into memory; it is project-bounded but not page-bounded.
 - Full Finance snapshot/report paths can materialize large project collections and aggregate in Python.
-- Rate-line ambiguity and overlap are checked in application code; concurrent line writes need PostgreSQL race evidence.
+- Rate-line ambiguity is rejected by the canonical resolver. Equivalent overlap checks are serialized with a PostgreSQL transaction advisory lock before the scoped overlap query.
 - Integration throughput and lock contention at large approved-time/receipt batches are unmeasured.
 - Rate write UI must use paged selectors and must not preload resources, departments, skills, customers, or contracts.
 
@@ -297,30 +297,27 @@ R6D-F must still prove this under hostile PostgreSQL child writes and concurrent
 ## 38. P1 Findings
 
 1. `ProjectCostEntryService` performs direct session rollback inside an outward-owned transaction at two locations, violating transaction neutrality.
-2. Rate Lines can be updated in place without a formal successor/revision lifecycle; immutable postings survive, but historical rate-definition reconstruction is weaker than enterprise audit expectations.
-3. Approved labor evidence lacks distinct Rate Line version and applied modifier/multiplier fields.
-4. Actual QML actions are lifecycle-driven rather than fully permission/capability-driven, despite fail-closed backend checks.
-5. Direct self-approval remains possible when Platform governance is disabled and a user has cost-approval permission.
-6. Background workers use a hardcoded integration actor instead of a first-class auditable service principal.
-7. R6D child-table RLS and foreign-parent negative tests are not yet comprehensive.
-8. Current-rate float analytical labor cost can be mistaken for historical ledger actual; it must remain non-authoritative and be replaced in R6E.
+2. Actual QML actions are lifecycle-driven rather than fully permission/capability-driven, despite fail-closed backend checks.
+3. Direct self-approval remains possible when Platform governance is disabled and a user has cost-approval permission.
+4. Background workers use a hardcoded integration actor instead of a first-class auditable service principal.
+5. Non-Rate R6D child-table RLS and foreign-parent negative tests are not yet comprehensive.
+6. Current-rate float analytical labor cost can be mistaken for historical ledger actual; it must remain non-authoritative and be replaced in R6E.
+
+Resolved by R6D-B: consumed Rate Line economics are immutable, immutable posting evidence now includes Rate Line version and modifier evidence, and Rate Card/Rate Line RLS attacks have live PostgreSQL coverage.
 
 ## 39. P2 Findings
 
-1. Rate write desktop/controller/QML coverage is incomplete.
-2. Actual draft edit/delete exists in backend contracts but is not consistently exposed in QML.
-3. Actual and Commitment masters have limited server filters and no dedicated selected-detail query.
-4. Rate permissions are broad (`finance.manage`) rather than operation-specific.
-5. Rate cards lack a governed metadata/successor/reactivation design.
-6. Resolver iteration includes an unused precedence level beyond the five implemented classifiers.
-7. Stale-page list normalization may use four statements.
-8. Superseded float/resource-rate Finance helpers remain reachable and require consumer-by-consumer retirement.
+1. Actual draft edit/delete exists in backend contracts but is not consistently exposed in QML.
+2. Actual and Commitment masters have limited server filters and no dedicated selected-detail query.
+3. Rate cards intentionally have no successor/reactivation operation because the current domain does not support those semantics; a new effective-dated line is used for future terms.
+4. Stale-page list normalization may use four statements.
+5. Float analytical models remain R6E debt, but are not posting or Rate resolution authority.
 
 ## 40. Superseded Paths
 
 The following are marked for deletion, not compatibility preservation:
 
-- Finance uses of `financials/utils/helpers.py::resolve_rate()` that fall back to project/resource hourly metadata after active callers move to Rate Card authority.
+- `financials/utils/helpers.py::resolve_rate()` and its unused float comparison companion were deleted during R6D-B; no production caller remained.
 - Any float-based duplicate rate/cost builder superseded by the canonical R6D Reader/domain contract.
 - Any stale test or adapter referring to `cost_entries_changed`.
 - Any temporary old/new Rate, Actual, or Commitment command/API/controller/QML path created during an active cutover.
@@ -330,9 +327,9 @@ The following are marked for deletion, not compatibility preservation:
 
 ## 41. Recommended R6D Implementation Sequence
 
-### R6D-B - Rate Card governance
+### R6D-B - Rate Card governance - COMPLETE
 
-Define immutable successor/effective lifecycle, complete rate-line snapshot version/modifier evidence, narrow permissions, optimistic concurrency/race handling, typed desktop commands, bounded selectors, deny-safe capabilities, and complete QML command UX. This comes first because approved-time evidence depends on the rate contract.
+Rate Card governance now has immutable consumed economics, complete rate-line snapshot version/modifier evidence, optimistic concurrency and overlap serialization, typed desktop commands, bounded selectors, deny-safe capabilities, and complete QML command UX. The existing `finance.manage` permission remains the write authority; sensitive rate values additionally require `finance.read_sensitive`.
 
 ### R6D-C - Actual Cost governance
 
@@ -407,4 +404,3 @@ The implementation priority is Rate Card governance because labor posting consum
 - Desktop commands: `api/desktop/financials/commands/cost_entries.py`
 - RLS/schema guards: `src/infra/persistence/migrations/helpers/rls_classification.py`, `schema_guards.py`
 - Fresh baseline: `src/infra/persistence/migrations/versions/f3c89cac079d_initial_schema.py`
-

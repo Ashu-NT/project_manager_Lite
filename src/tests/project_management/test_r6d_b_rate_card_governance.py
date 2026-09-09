@@ -24,6 +24,20 @@ from src.ui_qml.modules.project_management.presenters.financials.command_handler
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def _measure_statements(session, operation):
+    statements: list[str] = []
+
+    def capture(_connection, _cursor, statement, _parameters, _context, _many):
+        statements.append(statement)
+
+    engine = session.get_bind()
+    sa.event.listen(engine, "before_cursor_execute", capture)
+    try:
+        return operation(), len(statements)
+    finally:
+        sa.event.remove(engine, "before_cursor_execute", capture)
+
+
 def _project_resource(services):
     project = services["project_service"].create_project(
         "R6D-B governed rates", financial_currency_code="XAF"
@@ -192,6 +206,63 @@ def test_qml_command_adapter_builds_typed_decimal_string_commands():
     assert isinstance(api.line_command, FinancialAddRateLineCommand)
     assert api.line_command.rate_amount == "125.5000"
     assert api.line_command.rate_currency == "XAF"
+
+
+def test_rate_governance_records_representative_write_statement_counts(
+    services, session, capsys
+):
+    project, resource = _project_resource(services)
+    service = services["rate_card_service"]
+    counts: dict[str, int] = {}
+
+    card, counts["card.create"] = _measure_statements(
+        session,
+        lambda: service.create_rate_card(name="Measured rates", project_id=project.id),
+    )
+    card, counts["card.edit"] = _measure_statements(
+        session,
+        lambda: service.update_rate_card(
+            card.id, expected_version=card.version, name="Measured rates v2"
+        ),
+    )
+    line, counts["line.add"] = _measure_statements(
+        session,
+        lambda: service.create_line(
+            card.id,
+            expected_card_version=card.version,
+            rate_type=RateType.COST,
+            unit="HOUR",
+            rate_amount=Decimal("75.25"),
+            rate_currency="XAF",
+            resource_id=resource.id,
+        ),
+    )
+    line, counts["line.edit"] = _measure_statements(
+        session,
+        lambda: service.update_line(
+            line.id,
+            expected_version=line.version,
+            expected_card_version=card.version,
+            rate_amount=Decimal("80.50"),
+        ),
+    )
+    line, counts["line.deactivate"] = _measure_statements(
+        session,
+        lambda: service.deactivate_line(
+            line.id,
+            expected_version=line.version,
+            expected_card_version=card.version,
+        ),
+    )
+    _, counts["card.deactivate"] = _measure_statements(
+        session,
+        lambda: service.deactivate_rate_card(
+            card.id, expected_version=card.version
+        ),
+    )
+
+    print("R6D-B SQL statement counts:", dict(sorted(counts.items())))
+    assert all(count > 0 for count in counts.values())
 
 
 def test_rate_architecture_guards_are_forward_only():
