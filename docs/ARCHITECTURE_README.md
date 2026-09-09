@@ -107,7 +107,6 @@ src/
 | Module package | Key services |
 |---|---|
 | `modules/project_management` | ProjectService, TaskService, ResourceService, BaselineService, RegisterService, PortfolioService, FinancialsService |
-| `modules/inventory_procurement` | ItemCategoryService, ItemMasterService, InventoryService, ProcurementService, PurchasingService |
 | `modules/maintenance` | MaintenanceAssetService, MaintenanceWorkOrderService, MaintenancePreventivePlanService, MaintenanceSensorService |
 | `modules/payroll` | PayrollService |
 | `modules/hr_management` | HR services |

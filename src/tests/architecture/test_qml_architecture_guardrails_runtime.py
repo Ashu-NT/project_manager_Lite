@@ -24,7 +24,6 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         str(UI_QML_ROOT / "shell" / "qml"),
         str(UI_QML_ROOT / "platform" / "qml"),
         str(UI_QML_ROOT / "modules" / "project_management" / "qml"),
-        str(UI_QML_ROOT / "modules" / "inventory_procurement" / "qml"),
     ]
     scheduling_root = (
         UI_QML_ROOT
@@ -98,11 +97,6 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "timesheets" / "TimesheetsEntriesSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "timesheets" / "TimesheetsReviewSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "dashboard" / "DashboardWorkspacePage.qml",
-        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingWorkspacePage.qml",
-        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingFiltersSection.qml",
-        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingExportsSection.qml",
-        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingStockSection.qml",
-        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingSupplierPricingSection.qml",
     ]
     targets.extend(sorted(scheduling_root.rglob("*.qml")))
 

@@ -16,7 +16,6 @@ from src.core.platform.domain.master_data.documents.events import (
 from src.core.platform.infrastructure.persistence.uow.document_unit_of_work import (
     SqlAlchemyDocumentUnitOfWork,
 )
-from src.ui_qml.modules.inventory_procurement.context import InventoryProcurementWorkspaceCatalog
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
 _COUNTER = {"n": 0}
@@ -78,11 +77,6 @@ def _spy_document_structure_list_hints(services):
 def _platform_catalog(services) -> PlatformWorkspaceCatalog:
     registry = build_desktop_api_registry(services)
     return PlatformWorkspaceCatalog(desktop_api_registry=registry)
-
-
-def _inventory_catalog(services) -> InventoryProcurementWorkspaceCatalog:
-    registry = build_desktop_api_registry(services)
-    return InventoryProcurementWorkspaceCatalog(desktop_api_registry=registry)
 
 
 # ---------------------------------------------------------------------------
@@ -322,14 +316,14 @@ def test_failed_document_commit_produces_zero_document_list_hints(services, monk
 
 
 def test_register_entity_attachments_produces_n_document_created_business_events(services):
-    integration_service = services["inventory_purchasing_service"]._document_integration_service
+    integration_service = services["collaboration_service"]._document_integration_service
     calls = _spy_event(services, DocumentCreated, on="document_service")
     entity_id = _unique_code("P16C-BATCH")
 
     created = integration_service.register_entity_attachments(
         required_permission="settings.manage",
         operation_label="register attachments",
-        module_code="inventory_procurement",
+        module_code="project_management",
         entity_type="purchase_order",
         entity_id=entity_id,
         attachments=["C:/att/one.pdf", "C:/att/two.pdf", "C:/att/three.pdf"],
@@ -340,7 +334,7 @@ def test_register_entity_attachments_produces_n_document_created_business_events
 
 
 def test_register_entity_attachments_uses_one_transaction_for_all_typed_events(services, monkeypatch):
-    integration_service = services["inventory_purchasing_service"]._document_integration_service
+    integration_service = services["collaboration_service"]._document_integration_service
     create_calls = []
     original_create = type(integration_service._uow_factory).create
 
@@ -354,7 +348,7 @@ def test_register_entity_attachments_uses_one_transaction_for_all_typed_events(s
     integration_service.register_entity_attachments(
         required_permission="settings.manage",
         operation_label="register attachments",
-        module_code="inventory_procurement",
+        module_code="project_management",
         entity_type="purchase_order",
         entity_id=_unique_code("P16C-BATCH-TXN"),
         attachments=["C:/att/x.pdf", "C:/att/y.pdf"],
@@ -364,13 +358,13 @@ def test_register_entity_attachments_uses_one_transaction_for_all_typed_events(s
 
 
 def test_register_entity_attachments_coalesces_to_one_document_list_hint(services):
-    integration_service = services["inventory_purchasing_service"]._document_integration_service
+    integration_service = services["collaboration_service"]._document_integration_service
     hints = _spy_document_list_hints(services)
 
     integration_service.register_entity_attachments(
         required_permission="settings.manage",
         operation_label="register attachments",
-        module_code="inventory_procurement",
+        module_code="project_management",
         entity_type="purchase_order",
         entity_id=_unique_code("P16C-BATCH-COALESCE"),
         attachments=["C:/att/p.pdf", "C:/att/q.pdf", "C:/att/r.pdf", "C:/att/s.pdf"],
@@ -515,81 +509,6 @@ def test_admin_structure_controller_no_refresh_on_no_op(services):
     document_service.update_document_structure(structure.id, name="Same", expected_version=structure.version)
 
     assert refresh_calls == []
-
-
-# ---------------------------------------------------------------------------
-# UI: Catalog narrow document-options refresh
-# ---------------------------------------------------------------------------
-
-
-def test_catalog_narrow_refresh_once_no_duplicate_full_refresh_on_document_create(services):
-    catalog = _inventory_catalog(services)
-
-    narrow_calls = []
-    catalog.catalogWorkspace.refresh_document_options = (
-        lambda: narrow_calls.append("catalog-document-options") or None
-    )
-    full_calls = []
-    catalog.catalogWorkspace.refresh = lambda: full_calls.append("full") or None
-
-    services["document_service"].create_document(
-        document_code=_unique_code("P16C-CATALOG-CREATE"), title="Catalog Doc", storage_uri="C:/docs/q.pdf"
-    )
-
-    assert narrow_calls == ["catalog-document-options"]
-    assert full_calls == []
-
-
-def test_catalog_narrow_refresh_once_no_duplicate_full_refresh_on_document_update(services):
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code=_unique_code("P16C-CATALOG-UPDATE"), title="Before", storage_uri="C:/docs/r.pdf"
-    )
-
-    catalog = _inventory_catalog(services)
-    narrow_calls = []
-    catalog.catalogWorkspace.refresh_document_options = (
-        lambda: narrow_calls.append("catalog-document-options") or None
-    )
-    full_calls = []
-    catalog.catalogWorkspace.refresh = lambda: full_calls.append("full") or None
-
-    document_service.update_document(document.id, title="After", expected_version=document.version)
-
-    assert narrow_calls == ["catalog-document-options"]
-    assert full_calls == []
-
-
-def test_catalog_does_not_react_to_document_structure_events(services):
-    catalog = _inventory_catalog(services)
-
-    narrow_calls = []
-    catalog.catalogWorkspace.refresh_document_options = (
-        lambda: narrow_calls.append("catalog-document-options") or None
-    )
-
-    services["document_service"].create_document_structure(
-        structure_code=_unique_code("P16C-CATALOG-STRUCT"), name="Structure Not For Catalog"
-    )
-
-    assert narrow_calls == []
-
-
-def test_catalog_no_refresh_on_no_op_document_update(services):
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code=_unique_code("P16C-CATALOG-NOOP"), title="Same", storage_uri="C:/docs/s.pdf"
-    )
-
-    catalog = _inventory_catalog(services)
-    narrow_calls = []
-    catalog.catalogWorkspace.refresh_document_options = (
-        lambda: narrow_calls.append("catalog-document-options") or None
-    )
-
-    document_service.update_document(document.id, title="Same", expected_version=document.version)
-
-    assert narrow_calls == []
 
 
 # ---------------------------------------------------------------------------

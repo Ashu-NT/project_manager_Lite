@@ -216,14 +216,12 @@ def test_deleted_bridge_and_dead_signal_names_have_zero_production_references():
 
 
 def test_no_controller_base_has_the_generic_subscribe_domain_change_method():
-    import src.ui_qml.modules.inventory_procurement.controllers.common.workspace_controller_base as inv_base
     import src.ui_qml.modules.project_management.controllers.common.workspace_controller_base as pm_base
     import src.ui_qml.platform.controllers.common.workspace_controller_base as platform_base
 
     for module, cls_name in (
         (platform_base, "PlatformWorkspaceControllerBase"),
         (pm_base, "ProjectManagementWorkspaceControllerBase"),
-        (inv_base, "InventoryProcurementWorkspaceControllerBase"),
     ):
         cls = getattr(module, cls_name)
         assert not hasattr(cls, "_subscribe_domain_change")

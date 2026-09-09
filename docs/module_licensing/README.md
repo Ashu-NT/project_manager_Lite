@@ -17,7 +17,6 @@ This licensing model needs to support:
 The repo already has a lightweight product catalog:
 
 - `project_management` is enabled by default
-- `inventory_procurement` is present as an available module that can be licensed and enabled
 - `qhse` and `hr_management` are still planned modules
 
 What it now has in the current codebase:
@@ -67,7 +66,6 @@ Initial platform capabilities:
 ### Business Modules
 
 - `project_management`
-- `inventory_procurement`
 - `qhse`
 - `hr_management`
 

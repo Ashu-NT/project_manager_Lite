@@ -102,6 +102,9 @@ from src.infra.composition.project_registry import build_project_management_serv
 from src.infra.composition.repositories import build_repository_bundle
 from src.infra.integration.delivery import SystemDeliveryClock
 from src.infra.integration.approved_time_dispatcher import ApprovedTimeFinancialDispatcher
+from src.infra.integration.procurement_financial_dispatcher import (
+    ProcurementFinancialDispatcher,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -116,8 +119,10 @@ class ServiceGraph:
     module_registry: ModuleRegistry
     integration_resolver: IntegrationResolver
     time_financial_outbox_service: IntegrationOutboxService
+    procurement_financial_outbox_service: IntegrationOutboxService
     project_finance_inbox_service: IntegrationInboxService
     approved_time_financial_dispatcher: ApprovedTimeFinancialDispatcher
+    procurement_financial_dispatcher: ProcurementFinancialDispatcher
     time_service: TimeService
     auth_service: AuthService
     role_governance_service: RoleGovernanceService
@@ -194,8 +199,10 @@ class ServiceGraph:
             "module_registry": self.module_registry,
             "integration_resolver": self.integration_resolver,
             "time_financial_outbox_service": self.time_financial_outbox_service,
+            "procurement_financial_outbox_service": self.procurement_financial_outbox_service,
             "project_finance_inbox_service": self.project_finance_inbox_service,
             "approved_time_financial_dispatcher": self.approved_time_financial_dispatcher,
+            "procurement_financial_dispatcher": self.procurement_financial_dispatcher,
             "time_service": self.time_service,
             "auth_service": self.auth_service,
             "role_governance_service": self.role_governance_service,
@@ -289,6 +296,11 @@ def build_service_graph(session: Session) -> ServiceGraph:
         owner_module="platform_time",
         clock=_delivery_clock,
     )
+    _procurement_financial_outbox_service = IntegrationOutboxService(
+        repository=repositories.procurement_financial_outbox_repo,
+        owner_module="inventory_procurement",
+        clock=_delivery_clock,
+    )
     project_management_services = build_project_management_service_bundle(
         session,
         repositories,
@@ -314,6 +326,14 @@ def build_service_graph(session: Session) -> ServiceGraph:
         transactional_dispatcher=platform_services.platform_transactional_dispatcher,
         post_commit_bus=platform_services.platform_post_commit_bus,
     )
+    _procurement_financial_dispatcher = ProcurementFinancialDispatcher(
+        session=session,
+        outbox_service=_procurement_financial_outbox_service,
+        inbox_service=_project_finance_inbox_service,
+        consumer=project_management_services.procurement_financial_consumer,
+        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
+        post_commit_bus=platform_services.platform_post_commit_bus,
+    )
     project_management_services.time_service.set_approved_time_dispatcher(
         _approved_time_financial_dispatcher.dispatch_pending
     )
@@ -322,6 +342,11 @@ def build_service_graph(session: Session) -> ServiceGraph:
     except Exception:
         session.rollback()
         logger.exception("Approved Time startup replay failed; durable events remain pending")
+    try:
+        _procurement_financial_dispatcher.dispatch_pending(limit=50)
+    except Exception:
+        session.rollback()
+        logger.exception("Procurement startup replay failed; durable events remain pending")
     graph = ServiceGraph(
         session=session,
         user_session=platform_services.user_session,
@@ -330,8 +355,10 @@ def build_service_graph(session: Session) -> ServiceGraph:
         module_registry=_module_registry,
         integration_resolver=_integration_resolver,
         time_financial_outbox_service=_time_financial_outbox_service,
+        procurement_financial_outbox_service=_procurement_financial_outbox_service,
         project_finance_inbox_service=_project_finance_inbox_service,
         approved_time_financial_dispatcher=_approved_time_financial_dispatcher,
+        procurement_financial_dispatcher=_procurement_financial_dispatcher,
         time_service=project_management_services.time_service,
         auth_service=platform_services.auth_service,
         role_governance_service=platform_services.role_governance_service,

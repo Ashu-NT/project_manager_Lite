@@ -9,7 +9,6 @@ import ast
 import inspect
 
 from src.application.runtime import build_desktop_api_registry
-from src.ui_qml.modules.inventory_procurement.context import InventoryProcurementWorkspaceCatalog
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
@@ -29,11 +28,6 @@ def _catalog(services) -> PlatformWorkspaceCatalog:
 def _pm_catalog(services) -> ProjectManagementWorkspaceCatalog:
     registry = build_desktop_api_registry(services)
     return ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
-
-
-def _inventory_catalog(services) -> InventoryProcurementWorkspaceCatalog:
-    registry = build_desktop_api_registry(services)
-    return InventoryProcurementWorkspaceCatalog(desktop_api_registry=registry)
 
 
 def _login(services, username: str, password: str) -> None:
@@ -57,14 +51,12 @@ def _strip_strings_and_comments(source: str) -> str:
 
 
 def test_subscribe_domain_change_no_longer_exists_on_any_controller_base():
-    import src.ui_qml.modules.inventory_procurement.controllers.common.workspace_controller_base as inv_base
     import src.ui_qml.modules.project_management.controllers.common.workspace_controller_base as pm_base
     import src.ui_qml.platform.controllers.common.workspace_controller_base as platform_base
 
     for module, cls_name in (
         (platform_base, "PlatformWorkspaceControllerBase"),
         (pm_base, "ProjectManagementWorkspaceControllerBase"),
-        (inv_base, "InventoryProcurementWorkspaceControllerBase"),
     ):
         cls = getattr(module, cls_name)
         assert not hasattr(cls, "_subscribe_domain_change")
@@ -116,7 +108,7 @@ def test_tenant_membership_mutation_produces_exactly_the_typed_view_invalidation
 
 
 # ---------------------------------------------------------------------------
-# 2b. Representative direct-wiring proofs across PM, Inventory, and shared-master
+# 2b. Representative direct-wiring proofs across PM and shared-master
 # ---------------------------------------------------------------------------
 
 
@@ -132,22 +124,6 @@ def test_pm_register_workspace_direct_wired_to_project_stale_exactly_once(servic
     )
 
     assert refresh_calls == ["refresh"]
-
-
-def test_inventory_dashboard_direct_wired_to_every_inventory_signal(services):
-    inventory_catalog = _inventory_catalog(services)
-    controller = inventory_catalog.dashboardWorkspace
-    refresh_calls = []
-    controller.refresh = lambda: refresh_calls.append("refresh")
-
-    inventory_catalog._dashboard_catalog_view_invalidation_adapter.itemListStale.emit(
-        _unique("p7a-inv-item")
-    )
-    inventory_catalog._dashboard_purchase_order_view_invalidation_adapter.purchaseOrderListStale.emit(
-        _unique("p7a-inv-po")
-    )
-
-    assert refresh_calls == ["refresh", "refresh"]
 
 
 # ---------------------------------------------------------------------------

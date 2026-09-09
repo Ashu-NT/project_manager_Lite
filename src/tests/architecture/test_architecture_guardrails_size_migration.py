@@ -243,14 +243,10 @@ def test_platform_bundle_only_registers_platform_owned_scope_policies():
 
 def test_module_service_bundles_register_their_owned_scope_policies():
     project_bundle_path = ROOT / "src" / "infra" / "composition" / "project_registry.py"
-    inventory_bundle_path = ROOT / "src" / "infra" / "composition" / "inventory_registry.py"
     project_text = project_bundle_path.read_text(encoding="utf-8", errors="ignore")
-    inventory_text = inventory_bundle_path.read_text(encoding="utf-8", errors="ignore")
 
     assert "from src.core.modules.project_management.access.policy import" in project_text
     assert 'scope_type="project"' in project_text
-    assert "from src.core.modules.inventory_procurement.access.policy import" in inventory_text
-    assert 'scope_type="storeroom"' in inventory_text
 
 
 def test_legacy_widget_ui_roots_are_removed():

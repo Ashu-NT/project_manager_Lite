@@ -145,7 +145,7 @@ def test_access_workspace_no_longer_reacts_to_module_mutations(services):
     catalog.adminAccessWorkspace.refresh = lambda: refresh_calls.append("refresh")
     org = services["tenant_context_service"].get_active_organization()
 
-    services["module_catalog_service"].disable_module(org.id, "inventory_procurement")
+    services["module_catalog_service"].disable_module(org.id, "qhse")
 
     assert refresh_calls == []
 

@@ -12,15 +12,6 @@ QML_PM_CONTROLLERS = Path(
 QML_PM_WIDGETS = Path(
     "src/ui_qml/modules/project_management/qml/ProjectManagement/Widgets"
 )
-QML_INV_CONTROLLERS = Path(
-    "src/ui_qml/modules/inventory_procurement/qml/InventoryProcurement/Controllers"
-)
-QML_INV_DIALOGS = Path(
-    "src/ui_qml/modules/inventory_procurement/qml/InventoryProcurement/Dialogs"
-)
-QML_INV_WIDGETS = Path(
-    "src/ui_qml/modules/inventory_procurement/qml/InventoryProcurement/Widgets"
-)
 def test_qml_platform_widgets_module_exists() -> None:
     expected_files = [
         QML_PLATFORM_CONTROLLERS / "qmldir",
@@ -96,58 +87,6 @@ def test_qml_project_management_modules_exist() -> None:
         UI_QML_ROOT
         / "modules/project_management/qml/workspaces/register/sections"
         / "RegisterUrgentSection.qml",
-    ]
-
-    assert all(path.exists() for path in expected_files)
-
-
-def test_qml_inventory_procurement_modules_exist() -> None:
-    _inv = UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces"
-    expected_files = [
-        QML_INV_CONTROLLERS / "qmldir",
-        QML_INV_CONTROLLERS / "typeinfo" / "plugins.qmltypes",
-        QML_INV_DIALOGS / "qmldir",
-        QML_INV_DIALOGS / "CategoryEditorDialog.qml",
-        QML_INV_DIALOGS / "DocumentLinkDialog.qml",
-        QML_INV_DIALOGS / "ItemEditorDialog.qml",
-        QML_INV_DIALOGS / "PurchaseOrderEditorDialog.qml",
-        QML_INV_DIALOGS / "PurchaseOrderLineDialog.qml",
-        QML_INV_DIALOGS / "ReservationCreateDialog.qml",
-        QML_INV_DIALOGS / "ReservationIssueDialog.qml",
-        QML_INV_DIALOGS / "ReceiptPostDialog.qml",
-        QML_INV_DIALOGS / "RequisitionEditorDialog.qml",
-        QML_INV_DIALOGS / "RequisitionLineDialog.qml",
-        QML_INV_DIALOGS / "StockMovementDialog.qml",
-        QML_INV_DIALOGS / "StockTransferDialog.qml",
-        QML_INV_DIALOGS / "StoreroomEditorDialog.qml",
-        QML_INV_WIDGETS / "qmldir",
-        QML_INV_WIDGETS / "RecordListCard.qml",
-        QML_INV_WIDGETS / "WorkspacePlaceholderPage.qml",
-        QML_INV_WIDGETS / "WorkspaceStateBanner.qml",
-        QML_INV_WIDGETS / "WorkspaceStatusSection.qml",
-        _inv / "dashboard" / "DashboardWorkspace.qml",
-        _inv / "dashboard" / "DashboardWorkspacePage.qml",
-        _inv / "catalog" / "CatalogWorkspace.qml",
-        _inv / "catalog" / "CatalogWorkspacePage.qml",
-        _inv / "catalog" / "dialogs" / "CatalogDialogHost.qml",
-        _inv / "catalog" / "panels" / "CatalogDetailPanel.qml",
-        _inv / "inventory" / "InventoryWorkspace.qml",
-        _inv / "inventory" / "InventoryWorkspacePage.qml",
-        _inv / "inventory" / "dialogs" / "InventoryDialogHost.qml",
-        _inv / "inventory" / "panels" / "InventoryDetailPanel.qml",
-        _inv / "reservations" / "ReservationsWorkspace.qml",
-        _inv / "reservations" / "ReservationsWorkspacePage.qml",
-        _inv / "reservations" / "dialogs" / "ReservationsDialogHost.qml",
-        _inv / "reservations" / "panels" / "ReservationsDetailPanel.qml",
-        _inv / "procurement" / "ProcurementWorkspace.qml",
-        _inv / "procurement" / "ProcurementWorkspacePage.qml",
-        _inv / "procurement" / "dialogs" / "ProcurementDialogHost.qml",
-        _inv / "pricing" / "PricingWorkspace.qml",
-        _inv / "pricing" / "PricingWorkspacePage.qml",
-        _inv / "pricing" / "panels" / "PricingDetailPanel.qml",
-        _inv / "warehouses" / "WarehousesWorkspace.qml",
-        _inv / "warehouses" / "WarehousesWorkspacePage.qml",
-        _inv / "warehouses" / "panels" / "WarehousesDetailPanel.qml",
     ]
 
     assert all(path.exists() for path in expected_files)

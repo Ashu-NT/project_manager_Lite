@@ -9,8 +9,8 @@ from alembic.config import Config
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from src.core.modules.inventory_procurement.infrastructure.persistence.orm.integration_outbox import ProcurementFinancialOutboxORM
-from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.integration_outbox import SqlAlchemyProcurementFinancialOutboxRepository
+from src.core.platform.infrastructure.persistence.orm.time_management.time_financial_outbox import TimeFinancialOutboxORM
+from src.core.platform.infrastructure.persistence.repositories.time_management.time_financial_outbox import SqlAlchemyTimeFinancialOutboxRepository
 from src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox import ProjectFinanceInboxORM
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.finance_inbox import SqlAlchemyProjectFinanceInboxRepository
 from src.core.platform.application.integration import (
@@ -61,11 +61,11 @@ def _event(*, event_id: str = "event-1", version: int = 1, amount: str = "10") -
 @pytest.fixture
 def delivery_store():
     engine = create_engine("sqlite+pysqlite:///:memory:")
-    ProcurementFinancialOutboxORM.__table__.create(engine)
+    TimeFinancialOutboxORM.__table__.create(engine)
     ProjectFinanceInboxORM.__table__.create(engine)
     with Session(engine) as session:
         context = _Context()
-        outbox_repo = SqlAlchemyProcurementFinancialOutboxRepository(session)
+        outbox_repo = SqlAlchemyTimeFinancialOutboxRepository(session)
         inbox_repo = SqlAlchemyProjectFinanceInboxRepository(session)
         outbox_repo._tenant_context_service = context
         inbox_repo._tenant_context_service = context
@@ -75,7 +75,7 @@ def delivery_store():
 def test_outbox_is_atomic_scoped_and_lease_owned(delivery_store) -> None:
     session, context, repo, _ = delivery_store
     clock = _Clock()
-    service = IntegrationOutboxService(repository=repo, owner_module="inventory_procurement", clock=clock)
+    service = IntegrationOutboxService(repository=repo, owner_module="platform_time", clock=clock)
 
     created = service.enqueue(_event())
     assert created.status is OutboxDeliveryStatus.PENDING
@@ -101,7 +101,7 @@ def test_outbox_retries_then_dead_letters(delivery_store) -> None:
     clock = _Clock()
     service = IntegrationOutboxService(
         repository=repo,
-        owner_module="inventory_procurement",
+        owner_module="platform_time",
         clock=clock,
         retry_policy=IntegrationRetryPolicy(initial_delay=timedelta(seconds=1), maximum_delay=timedelta(seconds=2)),
         max_attempts=2,

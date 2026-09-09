@@ -16,12 +16,6 @@ from src.core.platform.domain.approval import (
     ApprovalStatus,
 )
 from src.core.shared.events.domain_event import DomainEvent
-from src.core.modules.inventory_procurement.domain.procurement.requisition_events import (
-    InventoryRequisitionSubmitted,
-)
-from src.core.modules.inventory_procurement.domain.procurement.purchasing_events import (
-    InventoryPurchaseOrderSubmitted,
-)
 from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
     FinancialChangeChanged,
     FinancialChangeEventType,
@@ -304,94 +298,6 @@ def test_standalone_request_change_records_exactly_one_approval_requested(servic
     assert event.approval_type == "baseline.create"
     assert event.entity_type == "project_baseline"
     assert event.requested_by_user_id == request.requested_by_user_id
-
-
-def test_submit_requisition_records_exactly_one_approval_requested(services, monkeypatch):
-    from src.tests.ui_runtime_helpers import login_as
-
-    site = services["site_service"].create_site(
-        site_code=_unique("EVT-SITE"), name="Events Site", currency_code="EUR"
-    )
-    item = services["inventory_item_service"].create_item(
-        item_code=_unique("EVT-ITEM"), name="Events Item", status="ACTIVE",
-        stock_uom="EA", is_purchase_allowed=True,
-    )
-    storeroom = services["inventory_service"].create_storeroom(
-        storeroom_code=_unique("EVT-ROOM"), name="Events Storeroom", site_id=site.id, status="ACTIVE",
-    )
-    auth = services["auth_service"]
-    username = _unique("evt-req-user")
-    auth.register_user(username, "StrongPass123", role_names=["inventory_manager"])
-    login_as(services, username, "StrongPass123")
-
-    procurement = services["inventory_procurement_service"]
-    requisition = procurement.create_requisition(
-        requesting_site_id=site.id, requesting_storeroom_id=storeroom.id, purpose="Events probe",
-    )
-    procurement.add_requisition_line(requisition.id, stock_item_id=item.id, quantity_requested=1)
-
-    recorded = _spy_recorded_events(procurement._requisition_submission_uow_factory, monkeypatch)
-    submitted = procurement.submit_requisition(requisition.id)
-
-    # Filtered by type: submission also records InventoryRequisitionSubmitted in the same
-    # transaction, so a naked recorded-event count would be fragile.
-    approval_requested = [e for e in recorded if isinstance(e, ApprovalRequested)]
-    assert len(approval_requested) == 1
-    event = approval_requested[0]
-    assert event.approval_id == submitted.approval_request_id
-    assert event.approval_type == "purchase_requisition.submit"
-    assert event.entity_type == "purchase_requisition"
-    assert event.entity_id == requisition.id
-
-    submitted_events = [e for e in recorded if isinstance(e, InventoryRequisitionSubmitted)]
-    assert len(submitted_events) == 1
-    assert submitted_events[0].requisition_id == requisition.id
-    assert submitted_events[0].approval_request_id == submitted.approval_request_id
-
-
-def test_submit_purchase_order_records_exactly_one_approval_requested(services, monkeypatch):
-    site = services["site_service"].create_site(
-        site_code=_unique("EVT-PO-SITE"), name="Events PO Site", currency_code="EUR"
-    )
-    item = services["inventory_item_service"].create_item(
-        item_code=_unique("EVT-PO-ITEM"), name="Events PO Item", status="ACTIVE",
-        stock_uom="EA", is_purchase_allowed=True,
-    )
-    storeroom = services["inventory_service"].create_storeroom(
-        storeroom_code=_unique("EVT-PO-ROOM"), name="Events PO Storeroom", site_id=site.id, status="ACTIVE",
-    )
-    from src.core.platform.domain.master_data.party import PartyType
-
-    supplier = services["party_service"].create_party(
-        party_code=_unique("EVT-PO-SUP"), party_name="Events Supplier", party_type=PartyType.SUPPLIER,
-    )
-    purchasing = services["inventory_purchasing_service"]
-    purchase_order = purchasing.create_purchase_order(
-        site_id=site.id, supplier_party_id=supplier.id, currency_code="EUR",
-        source_requisition_id=None, expected_delivery_date=date(2026, 6, 1),
-    )
-    purchasing.add_purchase_order_line(
-        purchase_order.id, stock_item_id=item.id, destination_storeroom_id=storeroom.id,
-        quantity_ordered=5, unit_price=10.0,
-    )
-
-    recorded = _spy_recorded_events(purchasing._purchase_order_submission_uow_factory, monkeypatch)
-    submitted = purchasing.submit_purchase_order(purchase_order.id)
-
-    # Filtered by type: submission also records InventoryPurchaseOrderSubmitted (see Requisition
-    # test above).
-    approval_requested = [e for e in recorded if isinstance(e, ApprovalRequested)]
-    assert len(approval_requested) == 1
-    event = approval_requested[0]
-    assert event.approval_id == submitted.approval_request_id
-    assert event.approval_type == "purchase_order.submit"
-    assert event.entity_type == "purchase_order"
-    assert event.entity_id == purchase_order.id
-
-    submitted_events = [e for e in recorded if isinstance(e, InventoryPurchaseOrderSubmitted)]
-    assert len(submitted_events) == 1
-    assert submitted_events[0].purchase_order_id == purchase_order.id
-    assert submitted_events[0].approval_request_id == submitted.approval_request_id
 
 
 def test_submit_change_records_exactly_one_approval_requested(services, monkeypatch):
@@ -977,8 +883,6 @@ _MODERNIZED_APPROVAL_RESULT_SOURCES = {
     "Budget": "core/modules/project_management/infrastructure/approval/budget_apply_participant.py",
     "Billing Preparation": "core/modules/project_management/infrastructure/approval/billing_preparation_apply_participant.py",
     "Forecast": "core/modules/project_management/infrastructure/approval/forecast_apply_participant.py",
-    "Purchase Requisition (decide)": "core/modules/inventory_procurement/application/procurement/procurement_approval.py",
-    "Purchase Order (decide)": "core/modules/inventory_procurement/application/procurement/purchasing_receiving.py",
     "Task": "core/modules/project_management/infrastructure/approval/task_apply_participant.py",
     "Financial Change": "core/modules/project_management/infrastructure/approval/financial_change_apply_participant.py",
 }

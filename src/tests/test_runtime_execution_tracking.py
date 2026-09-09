@@ -47,7 +47,7 @@ def test_runtime_execution_service_tracks_cancellation_and_retry_metadata(servic
     execution = runtime.start_execution(
         operation_type="report",
         operation_key=_unique_key("inventory_backlog"),
-        module_code="inventory_procurement",
+        module_code="qhse",
         input_path="inventory.xlsx",
         output_path="inventory-report.xlsx",
     )

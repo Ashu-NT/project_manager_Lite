@@ -14,22 +14,6 @@ from src.core.platform.application.master_data.party.party_service import PartyS
 from src.core.platform.application.tenant.modules import ModuleCatalogService
 from src.core.platform.application.time_management.time import TimeService
 from src.tests.path_rewrites import REPO_ROOT
-from src.core.modules.inventory_procurement import (
-    InventoryDataExchangeService,
-    InventoryReferenceService,
-    InventoryReportingService,
-    ProcurementService,
-    PurchasingService,
-)
-from src.core.modules.inventory_procurement.application.catalog import (
-    ItemCategoryService,
-    ItemMasterService,
-)
-from src.core.modules.inventory_procurement.application.inventory import (
-    InventoryService,
-    ReservationService,
-    StockControlService,
-)
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
 )
@@ -73,16 +57,6 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.site_service, SiteService)
     assert isinstance(graph.employee_service, EmployeeService)
     assert isinstance(graph.master_data_exchange_service, MasterDataExchangeService)
-    assert isinstance(graph.inventory_reference_service, InventoryReferenceService)
-    assert isinstance(graph.inventory_data_exchange_service, InventoryDataExchangeService)
-    assert isinstance(graph.inventory_reporting_service, InventoryReportingService)
-    assert isinstance(graph.inventory_item_category_service, ItemCategoryService)
-    assert isinstance(graph.inventory_item_service, ItemMasterService)
-    assert isinstance(graph.inventory_service, InventoryService)
-    assert isinstance(graph.inventory_stock_service, StockControlService)
-    assert isinstance(graph.inventory_reservation_service, ReservationService)
-    assert isinstance(graph.inventory_procurement_service, ProcurementService)
-    assert isinstance(graph.inventory_purchasing_service, PurchasingService)
     assert isinstance(graph.access_service, AccessControlService)
     assert isinstance(graph.enterprise_audit_service, EnterpriseAuditService)
     assert isinstance(graph.collaboration_service, CollaborationService)
@@ -114,16 +88,6 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["site_service"] is graph.site_service
     assert as_dict["employee_service"] is graph.employee_service
     assert as_dict["master_data_exchange_service"] is graph.master_data_exchange_service
-    assert as_dict["inventory_reference_service"] is graph.inventory_reference_service
-    assert as_dict["inventory_data_exchange_service"] is graph.inventory_data_exchange_service
-    assert as_dict["inventory_reporting_service"] is graph.inventory_reporting_service
-    assert as_dict["inventory_item_category_service"] is graph.inventory_item_category_service
-    assert as_dict["inventory_item_service"] is graph.inventory_item_service
-    assert as_dict["inventory_service"] is graph.inventory_service
-    assert as_dict["inventory_stock_service"] is graph.inventory_stock_service
-    assert as_dict["inventory_reservation_service"] is graph.inventory_reservation_service
-    assert as_dict["inventory_procurement_service"] is graph.inventory_procurement_service
-    assert as_dict["inventory_purchasing_service"] is graph.inventory_purchasing_service
     assert as_dict["module_catalog_service"] is graph.module_catalog_service
     assert as_dict["time_service"] is graph.time_service
     assert as_dict["access_service"] is graph.access_service
@@ -191,8 +155,6 @@ def test_services_module_delegates_to_modular_registration_builders():
     assert "from src.infra.composition.repositories import build_repository_bundle" in text
     assert "build_repository_bundle(session)" in text
     assert "build_platform_service_bundle(session, repositories)" in text
-    assert "build_inventory_procurement_service_bundle(" in text
-    assert "procurement_financial_outbox_service=_procurement_financial_outbox_service" in text
     assert "build_project_management_service_bundle(" in text
 
 
@@ -202,6 +164,5 @@ def test_service_registration_package_is_split_by_platform_and_module():
     assert (root / "__init__.py").exists()
     assert (root / "repositories.py").exists()
     assert (root / "platform_registry.py").exists()
-    assert (root / "inventory_registry.py").exists()
     assert (root / "project_registry.py").exists()
 

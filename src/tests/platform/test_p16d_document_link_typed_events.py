@@ -15,7 +15,6 @@ from src.core.platform.domain.master_data.documents.events import (
 from src.core.platform.infrastructure.persistence.uow.document_unit_of_work import (
     SqlAlchemyDocumentUnitOfWork,
 )
-from src.ui_qml.modules.inventory_procurement.context import InventoryProcurementWorkspaceCatalog
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
 _COUNTER = {"n": 0}
@@ -57,11 +56,6 @@ def _spy_document_links_hints(services):
 def _platform_catalog(services) -> PlatformWorkspaceCatalog:
     registry = build_desktop_api_registry(services)
     return PlatformWorkspaceCatalog(desktop_api_registry=registry)
-
-
-def _inventory_catalog(services) -> InventoryProcurementWorkspaceCatalog:
-    registry = build_desktop_api_registry(services)
-    return InventoryProcurementWorkspaceCatalog(desktop_api_registry=registry)
 
 
 # ---------------------------------------------------------------------------
@@ -106,7 +100,7 @@ def test_remove_link_produces_exactly_one_document_reference_unlinked(services):
 
 def test_link_existing_document_produces_exactly_one_event(services):
     document_service = services["document_service"]
-    integration_service = services["inventory_purchasing_service"]._document_integration_service
+    integration_service = services["collaboration_service"]._document_integration_service
     document = document_service.create_document(
         document_code=_unique_code("P16D-LINKEXIST"), title="Doc", storage_uri="C:/docs/c.pdf"
     )
@@ -115,8 +109,8 @@ def test_link_existing_document_produces_exactly_one_event(services):
     integration_service.link_existing_document(
         required_permission="settings.manage",
         operation_label="link",
-        module_code="inventory_procurement",
-        entity_type="stock_item",
+        module_code="project_management",
+        entity_type="task",
         entity_id=_unique_code("ITEM"),
         document_id=document.id,
     )
@@ -126,7 +120,7 @@ def test_link_existing_document_produces_exactly_one_event(services):
 
 def test_unlink_existing_document_produces_exactly_one_event(services):
     document_service = services["document_service"]
-    integration_service = services["inventory_purchasing_service"]._document_integration_service
+    integration_service = services["collaboration_service"]._document_integration_service
     document = document_service.create_document(
         document_code=_unique_code("P16D-UNLINKEXIST"), title="Doc", storage_uri="C:/docs/d.pdf"
     )
@@ -134,8 +128,8 @@ def test_unlink_existing_document_produces_exactly_one_event(services):
     integration_service.link_existing_document(
         required_permission="settings.manage",
         operation_label="link",
-        module_code="inventory_procurement",
-        entity_type="stock_item",
+        module_code="project_management",
+        entity_type="task",
         entity_id=entity_id,
         document_id=document.id,
     )
@@ -144,8 +138,8 @@ def test_unlink_existing_document_produces_exactly_one_event(services):
     integration_service.unlink_existing_document(
         required_permission="settings.manage",
         operation_label="unlink",
-        module_code="inventory_procurement",
-        entity_type="stock_item",
+        module_code="project_management",
+        entity_type="task",
         entity_id=entity_id,
         document_id=document.id,
     )
@@ -228,7 +222,7 @@ def test_remove_link_missing_produces_zero_event(services):
 
 
 def test_register_entity_attachments_produces_n_created_and_n_linked_events(services):
-    integration_service = services["inventory_purchasing_service"]._document_integration_service
+    integration_service = services["collaboration_service"]._document_integration_service
     created_calls = _spy_event(services, DocumentCreated)
     linked_calls = _spy_event(services, DocumentReferenceLinked)
     entity_id = _unique_code("P16D-BATCH")
@@ -236,8 +230,8 @@ def test_register_entity_attachments_produces_n_created_and_n_linked_events(serv
     created = integration_service.register_entity_attachments(
         required_permission="settings.manage",
         operation_label="register attachments",
-        module_code="inventory_procurement",
-        entity_type="purchase_order",
+        module_code="project_management",
+        entity_type="attachment_batch",
         entity_id=entity_id,
         attachments=["C:/att/1.pdf", "C:/att/2.pdf", "C:/att/3.pdf"],
     )
@@ -250,7 +244,7 @@ def test_register_entity_attachments_produces_n_created_and_n_linked_events(serv
 
 
 def test_register_entity_attachments_failure_midway_produces_zero_events(services, monkeypatch):
-    integration_service = services["inventory_purchasing_service"]._document_integration_service
+    integration_service = services["collaboration_service"]._document_integration_service
     created_calls = _spy_event(services, DocumentCreated)
     linked_calls = _spy_event(services, DocumentReferenceLinked)
     call_count = {"n": 0}
@@ -268,8 +262,8 @@ def test_register_entity_attachments_failure_midway_produces_zero_events(service
         integration_service.register_entity_attachments(
             required_permission="settings.manage",
             operation_label="register attachments",
-            module_code="inventory_procurement",
-            entity_type="purchase_order",
+            module_code="project_management",
+            entity_type="attachment_batch",
             entity_id=_unique_code("P16D-BATCH-FAIL"),
             attachments=["C:/att/x.pdf", "C:/att/y.pdf", "C:/att/z.pdf"],
         )
@@ -302,35 +296,35 @@ def test_link_entity_a_does_not_invalidate_entity_b(services):
 
 
 def test_n_links_to_same_entity_in_one_commit_produce_one_link_invalidation(services):
-    integration_service = services["inventory_purchasing_service"]._document_integration_service
+    integration_service = services["collaboration_service"]._document_integration_service
     hints = _spy_document_links_hints(services)
     entity_id = _unique_code("P16D-SAME-ENTITY")
 
     integration_service.register_entity_attachments(
         required_permission="settings.manage",
         operation_label="register attachments",
-        module_code="inventory_procurement",
-        entity_type="purchase_order",
+        module_code="project_management",
+        entity_type="attachment_batch",
         entity_id=entity_id,
         attachments=["C:/att/m.pdf", "C:/att/n.pdf", "C:/att/o.pdf"],
     )
 
     entity_shape_hints = [
-        h for h in hints if h.entity_type == "purchase_order" and h.entity_id == entity_id
+        h for h in hints if h.entity_type == "attachment_batch" and h.entity_id == entity_id
     ]
     assert len(entity_shape_hints) == 1
 
 
 def test_n_links_to_same_entity_produce_n_distinct_document_shape_hints(services):
-    integration_service = services["inventory_purchasing_service"]._document_integration_service
+    integration_service = services["collaboration_service"]._document_integration_service
     hints = _spy_document_links_hints(services)
     entity_id = _unique_code("P16D-DOC-SHAPE")
 
     created = integration_service.register_entity_attachments(
         required_permission="settings.manage",
         operation_label="register attachments",
-        module_code="inventory_procurement",
-        entity_type="purchase_order",
+        module_code="project_management",
+        entity_type="attachment_batch",
         entity_id=entity_id,
         attachments=["C:/att/p.pdf", "C:/att/q.pdf", "C:/att/r.pdf"],
     )
@@ -441,87 +435,6 @@ def test_link_scope_is_typed_not_stringly_encoded():
 
 
 # ---------------------------------------------------------------------------
-# UI: Catalog
-# ---------------------------------------------------------------------------
-
-
-def test_catalog_selected_item_link_refreshes_linked_documents_narrowly(services):
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code=_unique_code("P16D-CATALOG-DOC"), title="Doc", storage_uri="C:/docs/k.pdf"
-    )
-    item_id = _unique_code("P16D-CATALOG-ITEM")
-
-    catalog = _inventory_catalog(services)
-    catalog.catalogWorkspace._set_selected_item_id(item_id)
-
-    narrow_calls = []
-    catalog.catalogWorkspace.refresh_selected_item_linked_documents = (
-        lambda: narrow_calls.append("linked-docs") or None
-    )
-    full_calls = []
-    catalog.catalogWorkspace.refresh = lambda: full_calls.append("full") or None
-
-    document_service.add_link(
-        document_id=document.id,
-        module_code="inventory_procurement",
-        entity_type="stock_item",
-        entity_id=item_id,
-    )
-
-    assert narrow_calls == ["linked-docs"]
-    assert full_calls == []
-
-
-def test_catalog_unrelated_item_link_does_not_refresh_selected_item(services):
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code=_unique_code("P16D-CATALOG-OTHER-DOC"), title="Doc", storage_uri="C:/docs/l.pdf"
-    )
-    selected_item_id = _unique_code("P16D-CATALOG-SELECTED")
-    other_item_id = _unique_code("P16D-CATALOG-OTHER")
-
-    catalog = _inventory_catalog(services)
-    catalog.catalogWorkspace._set_selected_item_id(selected_item_id)
-
-    narrow_calls = []
-    catalog.catalogWorkspace.refresh_selected_item_linked_documents = (
-        lambda: narrow_calls.append("linked-docs") or None
-    )
-
-    document_service.add_link(
-        document_id=document.id,
-        module_code="inventory_procurement",
-        entity_type="stock_item",
-        entity_id=other_item_id,
-    )
-
-    assert narrow_calls == []
-
-
-def test_catalog_does_not_full_refresh_on_link_via_document_links_path(services):
-    document_service = services["document_service"]
-    document = document_service.create_document(
-        document_code=_unique_code("P16D-CATALOG-NOFULL"), title="Doc", storage_uri="C:/docs/m.pdf"
-    )
-    item_id = _unique_code("P16D-CATALOG-NOFULL-ITEM")
-
-    catalog = _inventory_catalog(services)
-    catalog.catalogWorkspace._set_selected_item_id(item_id)
-    full_calls = []
-    catalog.catalogWorkspace.refresh = lambda: full_calls.append("full") or None
-
-    document_service.add_link(
-        document_id=document.id,
-        module_code="inventory_procurement",
-        entity_type="stock_item",
-        entity_id=item_id,
-    )
-
-    assert full_calls == []
-
-
-# ---------------------------------------------------------------------------
 # UI: Admin
 # ---------------------------------------------------------------------------
 
@@ -581,41 +494,6 @@ def test_admin_unselected_document_link_does_not_refresh_focus(services):
 # ---------------------------------------------------------------------------
 
 
-def test_reservations_document_linking_has_no_ui_consumer():
-    """`reservation_service.list_reservation_documents/link_document/unlink_document` exist at
-    the application layer but are not exposed through any desktop API or UI controller/presenter
-    -- proven by source absence, not asserted by assumption."""
-    import glob
-
-    hits = []
-    for path in glob.glob("src/ui_qml/**/*.py", recursive=True) + glob.glob(
-        "src/core/modules/inventory_procurement/api/desktop/**/*.py", recursive=True
-    ):
-        if "__pycache__" in path:
-            continue
-        with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-            source = fh.read()
-        if "list_reservation_documents" in source or "reservation_service.link_document" in source:
-            hits.append(path)
-    assert hits == [], hits
-
-
-def test_procurement_document_linking_has_no_ui_consumer():
-    import glob
-
-    hits = []
-    for path in glob.glob("src/ui_qml/**/*.py", recursive=True) + glob.glob(
-        "src/core/modules/inventory_procurement/api/desktop/**/*.py", recursive=True
-    ):
-        if "__pycache__" in path:
-            continue
-        with open(path, "r", encoding="utf-8", errors="ignore") as fh:
-            source = fh.read()
-        if "list_purchase_order_documents" in source or "purchasing_service.link_document" in source:
-            hits.append(path)
-    assert hits == [], hits
-
-
 # ---------------------------------------------------------------------------
 # DocumentLink trust boundary (caller-owned organization-scoped resolution)
 # ---------------------------------------------------------------------------
@@ -628,38 +506,13 @@ def test_all_real_business_callers_resolve_entity_org_scoped_before_linking():
     organization-scoped lookup before calling into DocumentIntegrationService. Admin's manual
     `add_link` tool is a deliberately different, settings.manage-gated manual-entry path and is
     not held to this invariant."""
-    import importlib
     import inspect
 
-    from src.core.modules.inventory_procurement.application.inventory.reservation_service import (
-        ReservationService,
-    )
-    from src.core.modules.inventory_procurement.application.procurement.purchasing_service import (
-        PurchasingService,
-    )
     from src.core.modules.project_management.application.collaboration.commands.collaboration_comments import (
         CollaborationCommentCommandMixin,
     )
 
-    module_checks = [
-        (
-            "src.core.modules.inventory_procurement.application.catalog.item_document_service",
-            ("link_document", "unlink_document"),
-            "get_item(",
-        ),
-    ]
-    for module_name, function_names, org_scoped_lookup in module_checks:
-        module = importlib.import_module(module_name)
-        for function_name in function_names:
-            source = inspect.getsource(getattr(module, function_name))
-            assert org_scoped_lookup in source, (
-                f"{module_name}.{function_name} must resolve its entity via "
-                f"{org_scoped_lookup} before linking a document"
-            )
-
     class_checks = [
-        (ReservationService, ("link_document", "unlink_document"), "self.get_reservation("),
-        (PurchasingService, ("link_document", "unlink_document"), "self.get_purchase_order("),
         (CollaborationCommentCommandMixin, ("post_comment",), "self._require_task("),
     ]
     for owner_class, method_names, org_scoped_lookup in class_checks:

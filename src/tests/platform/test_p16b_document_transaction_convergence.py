@@ -351,7 +351,7 @@ def test_add_link_cross_org_document_denied(services):
 
 
 def test_register_entity_attachments_uses_exactly_one_uow_session_commit(services, monkeypatch):
-    integration_service = services["inventory_purchasing_service"]._document_integration_service
+    integration_service = services["collaboration_service"]._document_integration_service
     create_calls = []
     original_create = type(integration_service._uow_factory).create
 
@@ -365,8 +365,8 @@ def test_register_entity_attachments_uses_exactly_one_uow_session_commit(service
     integration_service.register_entity_attachments(
         required_permission="settings.manage",
         operation_label="register attachments",
-        module_code="inventory_procurement",
-        entity_type="purchase_order",
+        module_code="project_management",
+        entity_type="attachment_batch",
         entity_id=_unique_code("PO"),
         attachments=["C:/att/one.pdf", "C:/att/two.pdf", "C:/att/three.pdf"],
     )
@@ -375,14 +375,14 @@ def test_register_entity_attachments_uses_exactly_one_uow_session_commit(service
 
 
 def test_register_entity_attachments_persists_n_documents_and_n_links_atomically(services):
-    integration_service = services["inventory_purchasing_service"]._document_integration_service
+    integration_service = services["collaboration_service"]._document_integration_service
     entity_id = _unique_code("PO-ATOMIC")
 
     created = integration_service.register_entity_attachments(
         required_permission="settings.manage",
         operation_label="register attachments",
-        module_code="inventory_procurement",
-        entity_type="purchase_order",
+        module_code="project_management",
+        entity_type="attachment_batch",
         entity_id=entity_id,
         attachments=["C:/att/a.pdf", "C:/att/b.pdf"],
     )
@@ -391,15 +391,15 @@ def test_register_entity_attachments_persists_n_documents_and_n_links_atomically
     links = integration_service.list_documents_for_entity(
         required_permission="settings.manage",
         operation_label="list",
-        module_code="inventory_procurement",
-        entity_type="purchase_order",
+        module_code="project_management",
+        entity_type="attachment_batch",
         entity_id=entity_id,
     )
     assert {doc.id for doc in links} == {doc.id for doc in created}
 
 
 def test_register_entity_attachments_failure_midway_rolls_back_entire_batch(services, monkeypatch):
-    integration_service = services["inventory_purchasing_service"]._document_integration_service
+    integration_service = services["collaboration_service"]._document_integration_service
     entity_id = _unique_code("PO-FAIL")
     call_count = {"n": 0}
     original_record = EnterpriseAuditService.record
@@ -416,8 +416,8 @@ def test_register_entity_attachments_failure_midway_rolls_back_entire_batch(serv
         integration_service.register_entity_attachments(
             required_permission="settings.manage",
             operation_label="register attachments",
-            module_code="inventory_procurement",
-            entity_type="purchase_order",
+            module_code="project_management",
+            entity_type="attachment_batch",
             entity_id=entity_id,
             attachments=["C:/att/x.pdf", "C:/att/y.pdf"],
         )
@@ -426,8 +426,8 @@ def test_register_entity_attachments_failure_midway_rolls_back_entire_batch(serv
     remaining = integration_service.list_documents_for_entity(
         required_permission="settings.manage",
         operation_label="list",
-        module_code="inventory_procurement",
-        entity_type="purchase_order",
+        module_code="project_management",
+        entity_type="attachment_batch",
         entity_id=entity_id,
     )
     assert remaining == []
@@ -435,7 +435,7 @@ def test_register_entity_attachments_failure_midway_rolls_back_entire_batch(serv
 
 def test_link_existing_document_success(services):
     document_service = services["document_service"]
-    integration_service = services["inventory_purchasing_service"]._document_integration_service
+    integration_service = services["collaboration_service"]._document_integration_service
     document = document_service.create_document(
         document_code=_unique_code("INT-LINK-DOC"), title="Doc", storage_uri="C:/docs/n.pdf"
     )
@@ -443,8 +443,8 @@ def test_link_existing_document_success(services):
     link = integration_service.link_existing_document(
         required_permission="settings.manage",
         operation_label="link",
-        module_code="inventory_procurement",
-        entity_type="stock_item",
+        module_code="project_management",
+        entity_type="task",
         entity_id=_unique_code("ITEM"),
         document_id=document.id,
     )
@@ -454,7 +454,7 @@ def test_link_existing_document_success(services):
 
 def test_unlink_existing_document_success(services):
     document_service = services["document_service"]
-    integration_service = services["inventory_purchasing_service"]._document_integration_service
+    integration_service = services["collaboration_service"]._document_integration_service
     document = document_service.create_document(
         document_code=_unique_code("INT-UNLINK-DOC"), title="Doc", storage_uri="C:/docs/o.pdf"
     )
@@ -462,8 +462,8 @@ def test_unlink_existing_document_success(services):
     integration_service.link_existing_document(
         required_permission="settings.manage",
         operation_label="link",
-        module_code="inventory_procurement",
-        entity_type="stock_item",
+        module_code="project_management",
+        entity_type="task",
         entity_id=entity_id,
         document_id=document.id,
     )
@@ -471,8 +471,8 @@ def test_unlink_existing_document_success(services):
     integration_service.unlink_existing_document(
         required_permission="settings.manage",
         operation_label="unlink",
-        module_code="inventory_procurement",
-        entity_type="stock_item",
+        module_code="project_management",
+        entity_type="task",
         entity_id=entity_id,
         document_id=document.id,
     )
@@ -480,8 +480,8 @@ def test_unlink_existing_document_success(services):
     assert integration_service.list_documents_for_entity(
         required_permission="settings.manage",
         operation_label="list",
-        module_code="inventory_procurement",
-        entity_type="stock_item",
+        module_code="project_management",
+        entity_type="task",
         entity_id=entity_id,
     ) == []
 
@@ -543,7 +543,7 @@ def test_create_document_repository_and_audit_share_the_uow_session(services, mo
 
 def test_document_service_and_integration_service_share_the_same_uow_factory(services):
     document_service = services["document_service"]
-    integration_service = services["inventory_purchasing_service"]._document_integration_service
+    integration_service = services["collaboration_service"]._document_integration_service
 
     assert document_service._uow_factory is integration_service._uow_factory
 

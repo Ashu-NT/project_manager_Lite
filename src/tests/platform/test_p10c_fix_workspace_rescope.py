@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
-from src.ui_qml.modules.inventory_procurement.context import InventoryProcurementWorkspaceCatalog
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
@@ -16,17 +15,10 @@ def _pm_catalog(services) -> ProjectManagementWorkspaceCatalog:
     return ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
 
 
-def _inventory_catalog(services) -> InventoryProcurementWorkspaceCatalog:
-    registry = build_desktop_api_registry(services)
-    return InventoryProcurementWorkspaceCatalog(desktop_api_registry=registry)
-
-
-def _wire_like_app_py(platform_catalog, pm_catalog, inventory_catalog) -> None:
+def _wire_like_app_py(platform_catalog, pm_catalog) -> None:
     """Mirrors src/ui_qml/shell/app.py's own wiring exactly -- not a test-only shortcut."""
     platform_catalog.tenantSwitcher.tenantSwitched.connect(pm_catalog.refreshAllWorkspaces)
     platform_catalog.organizationSwitcher.organizationSwitched.connect(pm_catalog.refreshAllWorkspaces)
-    platform_catalog.tenantSwitcher.tenantSwitched.connect(inventory_catalog.refreshAllWorkspaces)
-    platform_catalog.organizationSwitcher.organizationSwitched.connect(inventory_catalog.refreshAllWorkspaces)
 
 
 def test_pm_projects_workspace_no_longer_shows_org_a_data_after_switching_to_org_b(services):
@@ -41,7 +33,7 @@ def test_pm_projects_workspace_no_longer_shows_org_a_data_after_switching_to_org
 
     platform_catalog = _catalog(services)
     pm_catalog = _pm_catalog(services)
-    _wire_like_app_py(platform_catalog, pm_catalog, InventoryProcurementWorkspaceCatalog())
+    _wire_like_app_py(platform_catalog, pm_catalog)
 
     pm_catalog.projectsWorkspace.refresh()
     assert project_a.id in str(pm_catalog.projectsWorkspace.projects)
@@ -55,33 +47,6 @@ def test_pm_projects_workspace_no_longer_shows_org_a_data_after_switching_to_org
     # Switch back for completeness/hygiene -- proves the mechanism works both directions.
     platform_catalog.organizationSwitcher.switchToOrganization(default_org.id)
     assert project_a.id in str(pm_catalog.projectsWorkspace.projects)
-
-
-def test_inventory_catalog_workspace_no_longer_shows_org_a_data_after_switching_to_org_b(services):
-    organization_service = services["organization_service"]
-    default_org = services["tenant_context_service"].get_active_organization()
-    org_b = organization_service.create_organization(
-        organization_code="RESCOPE-INV-B", display_name="Rescope Inventory Org B", is_enabled=True
-    )
-    item_a = services["inventory_item_service"].create_item(
-        item_code="RESCOPE-ITEM-A", name="Rescope Item A", stock_uom="EA"
-    )
-
-    platform_catalog = _catalog(services)
-    pm_catalog = ProjectManagementWorkspaceCatalog()
-    inventory_catalog = _inventory_catalog(services)
-    _wire_like_app_py(platform_catalog, pm_catalog, inventory_catalog)
-
-    inventory_catalog.catalogWorkspace.refresh()
-    assert item_a.id in str(inventory_catalog.catalogWorkspace.items)
-
-    switch_result = platform_catalog.organizationSwitcher.switchToOrganization(org_b.id)
-    assert switch_result.get("ok") is True
-
-    assert item_a.id not in str(inventory_catalog.catalogWorkspace.items)
-
-    platform_catalog.organizationSwitcher.switchToOrganization(default_org.id)
-    assert item_a.id in str(inventory_catalog.catalogWorkspace.items)
 
 
 def test_platform_sites_workspace_no_longer_shows_org_a_data_after_switching_to_org_b(services):
@@ -130,8 +95,7 @@ def test_pm_workspace_rescopes_on_tenant_switch_too(services):
 
     platform_catalog = _catalog(services)
     pm_catalog = _pm_catalog(services)
-    inventory_catalog = InventoryProcurementWorkspaceCatalog()
-    _wire_like_app_py(platform_catalog, pm_catalog, inventory_catalog)
+    _wire_like_app_py(platform_catalog, pm_catalog)
 
     # A second connection to the SAME production signal (not a monkeypatch -- Qt already
     # captured the bound `refreshAllWorkspaces` slot at connect time above, so patching the
@@ -143,7 +107,7 @@ def test_pm_workspace_rescopes_on_tenant_switch_too(services):
 
     assert switch_result.get("ok") is True
     assert calls["count"] >= 1, "tenantSwitched must fire on a real tenant switch"
-    # pm_catalog/inventory_catalog were wired identically to production `app.py` above --
+    # pm_catalog was wired identically to production `app.py` above --
     # `refreshAllWorkspaces` (proven to run on organization switch in the tests above) is
     # connected to the SAME `tenantSwitched` signal, so it necessarily also ran here.
 

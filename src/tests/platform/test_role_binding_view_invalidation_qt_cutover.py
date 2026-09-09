@@ -207,12 +207,8 @@ def test_access_workspace_scope_grants_refresh_on_real_assign_mutation(services)
     site = services["site_service"].create_site(
         site_code=_unique_code("P5C3-SITE"), name="P5C-3 Site", city="Berlin", currency_code="EUR"
     )
-    storeroom = services["inventory_service"].create_storeroom(
-        storeroom_code=_unique_code("P5C3-ROOM"), name="P5C-3 Storeroom", site_id=site.id,
-        status="ACTIVE", storeroom_type="MAIN",
-    )
-    catalog.adminAccessWorkspace.setScopeType("storeroom")
-    catalog.adminAccessWorkspace.setScopeId(storeroom.id)
+    catalog.adminAccessWorkspace.setScopeType("site")
+    catalog.adminAccessWorkspace.setScopeId(site.id)
     assert catalog.adminAccessWorkspace.scopeGrants.get("items") == []
 
     user = services["auth_service"].register_user(
@@ -220,7 +216,7 @@ def test_access_workspace_scope_grants_refresh_on_real_assign_mutation(services)
         tenant_id=_active_tenant(services),
     )
     services["access_service"].assign_scope_grant(
-        scope_type="storeroom", scope_id=storeroom.id, user_id=user.id, scope_role="editor"
+        scope_type="site", scope_id=site.id, user_id=user.id, scope_role="editor"
     )
 
     items = catalog.adminAccessWorkspace.scopeGrants.get("items")
@@ -238,17 +234,13 @@ def test_access_workspace_full_catalog_options_do_not_needlessly_refresh(service
     site = services["site_service"].create_site(
         site_code=_unique_code("P5C3-NOFULL-SITE"), name="P5C-3 No-Full Site", city="Berlin", currency_code="EUR"
     )
-    storeroom = services["inventory_service"].create_storeroom(
-        storeroom_code=_unique_code("P5C3-NOFULL-ROOM"), name="P5C-3 No-Full Storeroom", site_id=site.id,
-        status="ACTIVE", storeroom_type="MAIN",
-    )
     user = services["auth_service"].register_user(
         _unique_code("p5c3-nofull-user"), "P5C3NoFull123!", role_names=["inventory_manager"],
         tenant_id=_active_tenant(services),
     )
 
     services["access_service"].assign_scope_grant(
-        scope_type="storeroom", scope_id=storeroom.id, user_id=user.id, scope_role="editor"
+        scope_type="site", scope_id=site.id, user_id=user.id, scope_role="editor"
     )
 
     assert full_refresh_calls == []
@@ -262,10 +254,6 @@ def test_no_refresh_before_commit_and_none_on_commit_failure(services, monkeypat
     site = services["site_service"].create_site(
         site_code=_unique_code("P5C3-COMMITFAIL-SITE"), name="Commit Fail Site", city="Berlin", currency_code="EUR"
     )
-    storeroom = services["inventory_service"].create_storeroom(
-        storeroom_code=_unique_code("P5C3-COMMITFAIL-ROOM"), name="Commit Fail Storeroom", site_id=site.id,
-        status="ACTIVE", storeroom_type="MAIN",
-    )
     user = services["auth_service"].register_user(
         _unique_code("p5c3-commitfail-user"), "P5C3CommitFail123!", role_names=["inventory_manager"],
         tenant_id=_active_tenant(services),
@@ -277,7 +265,7 @@ def test_no_refresh_before_commit_and_none_on_commit_failure(services, monkeypat
     monkeypatch.setattr(SqlAlchemyRoleGovernanceUnitOfWork, "commit", _fail_commit)
     with pytest.raises(RuntimeError):
         services["access_service"].assign_scope_grant(
-            scope_type="storeroom", scope_id=storeroom.id, user_id=user.id, scope_role="editor"
+            scope_type="site", scope_id=site.id, user_id=user.id, scope_role="editor"
         )
 
     assert refresh_calls == []
@@ -289,33 +277,29 @@ def test_no_invalidation_on_no_op_assign_or_revoke(services):
     site = services["site_service"].create_site(
         site_code=_unique_code("P5C3-NOOP-SITE"), name="No-op Site", city="Berlin", currency_code="EUR"
     )
-    storeroom = services["inventory_service"].create_storeroom(
-        storeroom_code=_unique_code("P5C3-NOOP-ROOM"), name="No-op Storeroom", site_id=site.id,
-        status="ACTIVE", storeroom_type="MAIN",
-    )
     user = services["auth_service"].register_user(
         _unique_code("p5c3-noop-user"), "P5C3NoOp123!", role_names=["inventory_manager"],
         tenant_id=_active_tenant(services),
     )
     services["access_service"].assign_scope_grant(
-        scope_type="storeroom", scope_id=storeroom.id, user_id=user.id, scope_role="editor"
+        scope_type="site", scope_id=site.id, user_id=user.id, scope_role="editor"
     )
     refresh_calls = []
     catalog.adminAccessWorkspace.refresh_role_bindings = lambda: refresh_calls.append("refresh") or None
 
     # Identical already-active grant -- a true no-op.
     services["access_service"].assign_scope_grant(
-        scope_type="storeroom", scope_id=storeroom.id, user_id=user.id, scope_role="editor"
+        scope_type="site", scope_id=site.id, user_id=user.id, scope_role="editor"
     )
     assert refresh_calls == []
 
     services["access_service"].remove_scope_grant(
-        scope_type="storeroom", scope_id=storeroom.id, user_id=user.id
+        scope_type="site", scope_id=site.id, user_id=user.id
     )
     refresh_calls.clear()
     with pytest.raises(NotFoundError):
         services["access_service"].remove_scope_grant(
-            scope_type="storeroom", scope_id=storeroom.id, user_id=user.id
+            scope_type="site", scope_id=site.id, user_id=user.id
         )
     assert refresh_calls == []
 
@@ -337,10 +321,6 @@ def test_non_active_organization_resource_mutation_does_not_refresh_the_active_o
     site_a2 = services["site_service"].create_site(
         site_code=_unique_code("P5C3-NONACTIVE-SITE"), name="A2 Site", city="Berlin", currency_code="EUR"
     )
-    storeroom_a2 = services["inventory_service"].create_storeroom(
-        storeroom_code=_unique_code("P5C3-NONACTIVE-ROOM"), name="A2 Storeroom", site_id=site_a2.id,
-        status="ACTIVE", storeroom_type="MAIN",
-    )
     services["organization_service"].update_organization(org_a1_id, is_enabled=True)
     tenant_context_service.set_active_organization(org_a1_id)
     assert tenant_context_service.get_active_organization_id() == org_a1_id
@@ -352,11 +332,11 @@ def test_non_active_organization_resource_mutation_does_not_refresh_the_active_o
         tenant_id=_active_tenant(services),
     )
 
-    # A1 remains active throughout -- the mutation targets an A2 storeroom without ever
+    # A1 remains active throughout -- the mutation targets an A2 site without ever
     # switching. The A1-scoped adapter subscription must never fire.
     assert tenant_context_service.get_active_organization_id() == org_a1_id
     services["access_service"].assign_scope_grant(
-        scope_type="storeroom", scope_id=storeroom_a2.id, user_id=user.id, scope_role="editor"
+        scope_type="site", scope_id=site_a2.id, user_id=user.id, scope_role="editor"
     )
     assert tenant_context_service.get_active_organization_id() == org_a1_id  # never switched
 
@@ -376,10 +356,6 @@ def test_switching_to_the_non_active_org_then_repeating_the_mutation_refreshes_e
     site_a2 = services["site_service"].create_site(
         site_code=_unique_code("P5C3-SWITCH-SITE"), name="Switch A2 Site", city="Berlin", currency_code="EUR"
     )
-    storeroom_a2 = services["inventory_service"].create_storeroom(
-        storeroom_code=_unique_code("P5C3-SWITCH-ROOM"), name="Switch A2 Storeroom", site_id=site_a2.id,
-        status="ACTIVE", storeroom_type="MAIN",
-    )
     user = services["auth_service"].register_user(
         _unique_code("p5c3-switch-user"), "P5C3Switch123!", role_names=["inventory_manager"],
         tenant_id=_active_tenant(services),
@@ -389,7 +365,7 @@ def test_switching_to_the_non_active_org_then_repeating_the_mutation_refreshes_e
     catalog.adminAccessWorkspace.refresh_role_bindings = lambda: refresh_calls.append("refresh") or None
 
     services["access_service"].assign_scope_grant(
-        scope_type="storeroom", scope_id=storeroom_a2.id, user_id=user.id, scope_role="editor"
+        scope_type="site", scope_id=site_a2.id, user_id=user.id, scope_role="editor"
     )
 
     assert refresh_calls == ["refresh"]
@@ -436,7 +412,6 @@ def test_tenant_scope_mutation_refreshes_regardless_of_which_organization_is_act
 def test_cross_tenant_mutation_attempt_produces_no_invalidation(services):
     from datetime import datetime as _dt
 
-    from src.core.modules.inventory_procurement.infrastructure.persistence.orm.inventory import StoreroomORM
     from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
     from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
     from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
@@ -458,16 +433,13 @@ def test_cross_tenant_mutation_attempt_produces_no_invalidation(services):
     foreign_site_id = _unique_code("p5c3-foreign-site")
     session.add(SiteORM(id=foreign_site_id, tenant_id=foreign_tenant_id, organization_id=foreign_org_id, site_code=_unique_code("P5C3FSITE"), name="Foreign Site", is_active=True, created_at=now, updated_at=now, version=1))
     session.commit()
-    foreign_storeroom_id = _unique_code("p5c3-foreign-storeroom")
-    session.add(StoreroomORM(id=foreign_storeroom_id, tenant_id=foreign_tenant_id, organization_id=foreign_org_id, site_id=foreign_site_id, storeroom_code=_unique_code("P5C3FROOM"), name="Foreign Storeroom", status="ACTIVE", created_at=now, updated_at=now, version=1))
-    session.commit()
 
     target, target_role = _resource_scoped_binding_setup(
-        services, suffix="crosstenant", scope_type="storeroom", role_name="storeroom_viewer",
+        services, suffix="crosstenant", scope_type="site", role_name="site_viewer",
     )
     with pytest.raises(NotFoundError):
         services["role_governance_service"].assign_role(
-            target_user_id=target.id, role_id=target_role.id, actual_scope_id=foreign_storeroom_id
+            target_user_id=target.id, role_id=target_role.id, actual_scope_id=foreign_site_id
         )
 
     assert hints == []

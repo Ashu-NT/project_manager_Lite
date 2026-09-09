@@ -180,64 +180,6 @@ def test_commit_failure_rolls_back_binding_and_audit_together(services, monkeypa
 # ---------------------------------------------------------------------------
 
 
-def test_storeroom_role_assignment_targets_a_non_active_organization(services):
-    """Granting a storeroom-scoped role must key off the STOREROOM's own organization, never
-    the ambient active one."""
-    tenant_context_service = services["tenant_context_service"]
-    org_a1_id = tenant_context_service.get_active_organization_id()
-    site_a1 = services["site_service"].create_site(
-        site_code=_unique_code("P5C1-A1-SITE"), name="A1 Site", city="Berlin", currency_code="EUR"
-    )
-    storeroom_a1 = services["inventory_service"].create_storeroom(
-        storeroom_code=_unique_code("P5C1-A1-ROOM"),
-        name="A1 Storeroom",
-        site_id=site_a1.id,
-        status="ACTIVE",
-        storeroom_type="MAIN",
-    )
-    assert storeroom_a1.organization_id == org_a1_id
-
-    org_a2 = services["organization_service"].create_organization(
-        organization_code=_unique_code("P5C1-A2"), display_name="P5C-1 Org A2"
-    )
-    tenant_context_service.set_active_organization(org_a2.id)
-    assert tenant_context_service.get_active_organization_id() == org_a2.id
-
-    auth = services["auth_service"]
-    tenant_id = _tenant_id(services)
-    actor = auth.register_user(
-        _unique_code("p5c1-storeroom-actor"), "P5C1Actor123!", role_names=["tenant_admin"], tenant_id=tenant_id
-    )
-    target = auth.register_user(
-        _unique_code("p5c1-storeroom-target"), "P5C1Target123!", role_names=[], tenant_id=tenant_id
-    )
-    actor_role = auth._role_repo.get_by_name("tenant_admin")
-    storeroom_role = auth._role_repo.get_by_name("storeroom_viewer")
-    services["role_governance_service"].create_delegation_policy(
-        actor_role_id=actor_role.id,
-        assignable_role_id=storeroom_role.id,
-        target_scope_type="storeroom",
-        tenant_id=tenant_id,
-    )
-    _switch_session_to_actor(
-        services,
-        actor,
-        tenant_id=tenant_id,
-        organization_id=org_a2.id,
-        extra_permissions=("auth.role.assign",),
-    )
-
-    # Active organization is A2, but the storeroom being granted belongs to A1 -- must succeed
-    # without switching back, per the confirmed-and-fixed ambient-scope bug.
-    binding = services["role_governance_service"].assign_role(
-        target_user_id=target.id,
-        role_id=storeroom_role.id,
-        actual_scope_id=storeroom_a1.id,
-    )
-    assert tenant_context_service.get_active_organization_id() == org_a2.id  # never switched
-    assert binding.actual_scope_id == storeroom_a1.id
-
-
 def test_project_role_assignment_in_a_non_active_organization_remains_a_confirmed_and_tracked_gap(
     services,
 ):
@@ -469,18 +411,16 @@ def test_department_role_assignment_remains_unreachable_and_undocumented_as_a_ne
     assert not hasattr(department_repo, "get_for_tenant")
 
 
-def test_storeroom_role_assignment_rejects_a_foreign_tenant_storeroom(services):
-    """A storeroom that belongs to a wholly different tenant must never be grantable from the
-    current tenant's role governance -- the "storeroom" `scope_exists_resolver`
-    (`_storeroom_exists` in `inventory_registry.py`) checks
-    `organization_repo.get_for_tenant(storeroom.organization_id, tenant_id)`, which is `None`
-    for a foreign-tenant organization."""
+def test_site_role_assignment_rejects_a_foreign_tenant_site(services):
+    """A site that belongs to a wholly different tenant must never be grantable from the
+    current tenant's role governance -- the "site" `scope_exists_resolver`
+    (`SqlAlchemySiteRepository.get_for_tenant` in `platform_registry.py`) returns `None` for a
+    foreign-tenant site."""
     from datetime import datetime, timezone
 
     from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
     from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
     from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
-    from src.core.modules.inventory_procurement.infrastructure.persistence.orm.inventory import StoreroomORM
 
     now = datetime.now(timezone.utc)
     session = services["session"]
@@ -493,11 +433,11 @@ def test_storeroom_role_assignment_rejects_a_foreign_tenant_storeroom(services):
         _unique_code("p5c1-cross-tenant-target"), "P5C1Target123!", role_names=[], tenant_id=tenant_id
     )
     actor_role = auth._role_repo.get_by_name("tenant_admin")
-    storeroom_role = auth._role_repo.get_by_name("storeroom_viewer")
+    site_role = auth._role_repo.get_by_name("site_viewer")
     services["role_governance_service"].create_delegation_policy(
         actor_role_id=actor_role.id,
-        assignable_role_id=storeroom_role.id,
-        target_scope_type="storeroom",
+        assignable_role_id=site_role.id,
+        target_scope_type="site",
         tenant_id=tenant_id,
     )
 
@@ -539,22 +479,6 @@ def test_storeroom_role_assignment_rejects_a_foreign_tenant_storeroom(services):
         )
     )
     session.commit()
-    foreign_storeroom_id = _unique_code("p5c1-foreign-storeroom")
-    session.add(
-        StoreroomORM(
-            id=foreign_storeroom_id,
-            tenant_id=foreign_tenant_id,
-            organization_id=foreign_org_id,
-            site_id=foreign_site_id,
-            storeroom_code=_unique_code("P5C1FROOM"),
-            name="Foreign Storeroom",
-            status="ACTIVE",
-            created_at=now,
-            updated_at=now,
-            version=1,
-        )
-    )
-    session.commit()
 
     _switch_session_to_actor(
         services, actor, tenant_id=tenant_id, extra_permissions=("auth.role.assign",)
@@ -563,10 +487,10 @@ def test_storeroom_role_assignment_rejects_a_foreign_tenant_storeroom(services):
     with pytest.raises(NotFoundError) as exc_info:
         services["role_governance_service"].assign_role(
             target_user_id=target.id,
-            role_id=storeroom_role.id,
-            actual_scope_id=foreign_storeroom_id,
+            role_id=site_role.id,
+            actual_scope_id=foreign_site_id,
         )
-    assert exc_info.value.code == "STOREROOM_NOT_FOUND"
+    assert exc_info.value.code == "SITE_NOT_FOUND"
 
 
 # ---------------------------------------------------------------------------
@@ -663,13 +587,6 @@ def test_access_facade_does_not_own_a_competing_transaction(services):
     site = services["site_service"].create_site(
         site_code=_unique_code("P5C1-FACADE-SITE"), name="Facade Site", city="Berlin", currency_code="EUR"
     )
-    storeroom = services["inventory_service"].create_storeroom(
-        storeroom_code=_unique_code("P5C1-FACADE-ROOM"),
-        name="Facade Storeroom",
-        site_id=site.id,
-        status="ACTIVE",
-        storeroom_type="MAIN",
-    )
     auth = services["auth_service"]
     tenant_id = _tenant_id(services)
     user = auth.register_user(
@@ -677,13 +594,13 @@ def test_access_facade_does_not_own_a_competing_transaction(services):
     )
 
     grant = services["access_service"].assign_scope_grant(
-        scope_type="storeroom", scope_id=storeroom.id, user_id=user.id, scope_role="editor"
+        scope_type="site", scope_id=site.id, user_id=user.id, scope_role="manager"
     )
-    assert grant.scope_id == storeroom.id
+    assert grant.scope_id == site.id
     services["access_service"].remove_scope_grant(
-        scope_type="storeroom", scope_id=storeroom.id, user_id=user.id
+        scope_type="site", scope_id=site.id, user_id=user.id
     )
-    assert services["access_service"].list_scope_grants("storeroom", storeroom.id) == []
+    assert services["access_service"].list_scope_grants("site", site.id) == []
 
 
 # ---------------------------------------------------------------------------

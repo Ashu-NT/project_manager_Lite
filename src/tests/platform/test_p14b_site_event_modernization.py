@@ -15,7 +15,6 @@ from src.core.platform.domain.master_data.site.events import (
     SiteEnabled,
     SiteProfileUpdated,
 )
-from src.ui_qml.modules.inventory_procurement.context import InventoryProcurementWorkspaceCatalog
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
 _COUNTER = {"n": 0}
@@ -37,11 +36,6 @@ def _spy(services, event_type):
 def _platform_catalog(services) -> PlatformWorkspaceCatalog:
     registry = build_desktop_api_registry(services)
     return PlatformWorkspaceCatalog(desktop_api_registry=registry)
-
-
-def _inventory_catalog(services) -> InventoryProcurementWorkspaceCatalog:
-    registry = build_desktop_api_registry(services)
-    return InventoryProcurementWorkspaceCatalog(desktop_api_registry=registry)
 
 
 def _bypass_known_site_datetime_defect(monkeypatch) -> None:
@@ -411,74 +405,6 @@ def test_admin_console_no_refresh_on_failed_transaction(services):
     assert refresh_calls == []
 
 
-def test_inventory_pricing_procurement_narrow_refresh_once_no_duplicate_full_refresh(services):
-    catalog = _inventory_catalog(services)
-
-    narrow_calls = []
-    full_calls = []
-    catalog.inventoryWorkspace.refresh_site_options = (
-        lambda: narrow_calls.append("inventory") or None
-    )
-    catalog.pricingWorkspace.refresh_site_options = (
-        lambda: narrow_calls.append("pricing") or None
-    )
-    catalog.procurementWorkspace.refresh_site_options = (
-        lambda: narrow_calls.append("procurement") or None
-    )
-    for controller in (
-        catalog.inventoryWorkspace,
-        catalog.pricingWorkspace,
-        catalog.procurementWorkspace,
-        catalog.reservationsWorkspace,
-    ):
-        controller.refresh = lambda name=controller: full_calls.append(name) or None
-
-    services["site_service"].create_site(
-        site_code=_unique_code("P14B-INV-CREATE"), name="Inventory Site"
-    )
-
-    assert sorted(narrow_calls) == ["inventory", "pricing", "procurement"]
-    assert full_calls == []
-
-
-def test_reservations_does_not_react_to_site_events_at_all(services):
-    catalog = _inventory_catalog(services)
-
-    refresh_calls = []
-    catalog.reservationsWorkspace.refresh = lambda: refresh_calls.append("reservations") or None
-
-    services["site_service"].create_site(
-        site_code=_unique_code("P14B-RES-CREATE"), name="Reservations Blind Site"
-    )
-    site = services["site_service"].list_sites()[-1]
-    services["site_service"].update_site(
-        site.id, name="Reservations Blind Site Updated", expected_version=site.version
-    )
-
-    assert refresh_calls == []
-
-
-def test_no_refresh_on_no_op_for_inventory_pricing_procurement(services):
-    site_service = services["site_service"]
-    site = site_service.create_site(site_code=_unique_code("P14B-NOOP-UI"), name="Same UI")
-
-    catalog = _inventory_catalog(services)
-    narrow_calls = []
-    catalog.inventoryWorkspace.refresh_site_options = (
-        lambda: narrow_calls.append("inventory") or None
-    )
-    catalog.pricingWorkspace.refresh_site_options = (
-        lambda: narrow_calls.append("pricing") or None
-    )
-    catalog.procurementWorkspace.refresh_site_options = (
-        lambda: narrow_calls.append("procurement") or None
-    )
-
-    site_service.update_site(site.id, name="Same UI", expected_version=site.version)
-
-    assert narrow_calls == []
-
-
 def test_sites_changed_field_and_producers_are_fully_gone():
     import src.core.platform.application.master_data.site.site_commands as site_commands_module
     import src.core.platform.application.master_data.site.site_service as site_service_module
@@ -518,15 +444,6 @@ def test_no_platform_to_business_module_concrete_infrastructure_import():
 
     source = inspect.getsource(infra_module)
     assert "core.modules" not in source
-
-
-def test_no_generic_refresh_all_workspaces_wired_to_site_events():
-    import src.ui_qml.modules.inventory_procurement.context as context_module
-
-    source = inspect.getsource(context_module)
-    assert "refreshAllWorkspaces" not in inspect.getsource(
-        context_module.InventoryProcurementWorkspaceCatalog.refreshCapabilities
-    )
 
 
 # ---------------------------------------------------------------------------

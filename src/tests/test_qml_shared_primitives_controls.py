@@ -20,15 +20,6 @@ QML_PM_CONTROLLERS = Path(
 QML_PM_WIDGETS = Path(
     "src/ui_qml/modules/project_management/qml/ProjectManagement/Widgets"
 )
-QML_INV_CONTROLLERS = Path(
-    "src/ui_qml/modules/inventory_procurement/qml/InventoryProcurement/Controllers"
-)
-QML_INV_DIALOGS = Path(
-    "src/ui_qml/modules/inventory_procurement/qml/InventoryProcurement/Dialogs"
-)
-QML_INV_WIDGETS = Path(
-    "src/ui_qml/modules/inventory_procurement/qml/InventoryProcurement/Widgets"
-)
 def test_qml_shared_theme_primitives_exist() -> None:
     expected_files = [
         QML_SHARED_ROOT / "Theme" / "AppTheme.qml",
@@ -98,9 +89,6 @@ def test_qml_modules_declare_stable_namespaces() -> None:
         QML_PLATFORM_WIDGETS / "qmldir": "module Platform.Widgets",
         QML_PM_CONTROLLERS / "qmldir": "module ProjectManagement.Controllers",
         QML_PM_WIDGETS / "qmldir": "module ProjectManagement.Widgets",
-        QML_INV_CONTROLLERS / "qmldir": "module InventoryProcurement.Controllers",
-        QML_INV_DIALOGS / "qmldir": "module InventoryProcurement.Dialogs",
-        QML_INV_WIDGETS / "qmldir": "module InventoryProcurement.Widgets",
     }
 
     for path, module_name in expected_modules.items():
@@ -160,7 +148,6 @@ def test_qmlls_import_paths_cover_named_qml_modules() -> None:
         "src/ui_qml/shell/qml",
         "src/ui_qml/platform/qml",
         "src/ui_qml/modules/project_management/qml",
-        "src/ui_qml/modules/inventory_procurement/qml",
     ]
 
     for expected_path in expected_paths:
@@ -179,4 +166,3 @@ def test_qmlls_import_paths_parse_as_qt_string_list() -> None:
     assert "C:/Users/ashuf/Desktop/Projects/project_mangement_app/src/ui_qml/shell/qml" in import_paths
     assert "C:/Users/ashuf/Desktop/Projects/project_mangement_app/src/ui_qml/platform/qml" in import_paths
     assert "C:/Users/ashuf/Desktop/Projects/project_mangement_app/src/ui_qml/modules/project_management/qml" in import_paths
-    assert "C:/Users/ashuf/Desktop/Projects/project_mangement_app/src/ui_qml/modules/inventory_procurement/qml" in import_paths

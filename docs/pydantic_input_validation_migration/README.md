@@ -4,6 +4,8 @@
 
 This document tracks the migration from passive repo-bound dataclasses plus duplicated presenter/service validation to Pydantic-validated CRUD DTOs closer to the database-facing layer.
 
+> **2026-09-09 update:** the `inventory_procurement` module was removed from the codebase pending a future rebuild. Every Inventory/Procurement-specific finding, target, and completion log below is historical — it describes work done on code that no longer exists, kept only as a reference for whoever rebuilds the module (the same DTO/normalization approach should still apply).
+
 The goal is to make the mutable write models used under services own field-level validation and normalization, while preserving service-layer business rules, tenancy enforcement, RBAC checks, repository lookups, and workflow invariants.
 
 ## Enterprise Standard Position

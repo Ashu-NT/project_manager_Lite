@@ -1,15 +1,9 @@
-"""Proves all 20 real approval apply/reject registrations are present, each bound to the right
+"""Proves all 16 real approval apply/reject registrations are present, each bound to the right
 module's participant with a working `dependencies_factory` -- no registration missing, none
 duplicated, none pointed at the wrong participant."""
 
 from __future__ import annotations
 
-from src.core.modules.inventory_procurement.infrastructure.approval.procurement_apply_participant import (
-    ProcurementApprovalParticipant,
-)
-from src.core.modules.inventory_procurement.infrastructure.approval.purchasing_apply_participant import (
-    PurchasingApprovalParticipant,
-)
 from src.core.modules.project_management.infrastructure.approval.baseline_apply_participant import (
     BaselineApprovalParticipant,
 )
@@ -45,8 +39,6 @@ EXPECTED_APPLY_REGISTRATIONS = {
     "project_cost.approve": ProjectCostApprovalParticipant,
     "financial_change.apply": FinancialChangeApprovalParticipant,
     "project_billing_preparation.approve": BillingPreparationApprovalParticipant,
-    "purchase_requisition.submit": ProcurementApprovalParticipant,
-    "purchase_order.submit": PurchasingApprovalParticipant,
 }
 
 EXPECTED_REJECT_REGISTRATIONS = {
@@ -55,8 +47,6 @@ EXPECTED_REJECT_REGISTRATIONS = {
     "project_cost.approve": ProjectCostApprovalParticipant,
     "financial_change.apply": FinancialChangeApprovalParticipant,
     "project_billing_preparation.approve": BillingPreparationApprovalParticipant,
-    "purchase_requisition.submit": ProcurementApprovalParticipant,
-    "purchase_order.submit": PurchasingApprovalParticipant,
 }
 
 
@@ -88,7 +78,7 @@ def test_exact_registration_count(services):
         f"found {sorted(reject_handlers)}"
     )
     total = len(apply_handlers) + len(reject_handlers)
-    assert total == 20, f"expected 20 total approval registrations, found {total}"
+    assert total == 16, f"expected 16 total approval registrations, found {total}"
 
 
 def test_every_expected_apply_request_type_is_registered_to_the_right_participant(services):
