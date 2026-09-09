@@ -3,11 +3,15 @@ from __future__ import annotations
 from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
+from textwrap import dedent
 
 import pytest
 import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
+from PySide6.QtCore import QObject, Qt
+from PySide6.QtQml import QQmlComponent
+from PySide6.QtTest import QTest
 
 from src.core.modules.project_management.api.desktop.financials.commands.rates import (
     FinancialAddRateLineCommand,
@@ -15,6 +19,7 @@ from src.core.modules.project_management.api.desktop.financials.commands.rates i
 )
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
+from src.ui_qml.shell.qml_engine import create_qml_engine
 from src.ui_qml.modules.project_management.presenters.financials.command_handler import (
     add_rate_line,
     create_rate_card,
@@ -22,6 +27,11 @@ from src.ui_qml.modules.project_management.presenters.financials.command_handler
 
 
 ROOT = Path(__file__).resolve().parents[2]
+VIEWPORTS = ((1024, 640), (1280, 720), (1366, 768), (1440, 900), (1920, 1080))
+RATE_DIALOGS = ("RateCardEditorDialog", "RateLineEditorDialog", "RateLifecycleDialog")
+RATE_DIALOG_ROOT = Path(
+    "src/ui_qml/modules/project_management/qml/workspaces/financials/dialogs"
+).resolve()
 
 
 def _measure_statements(session, operation):
@@ -263,6 +273,92 @@ def test_rate_governance_records_representative_write_statement_counts(
 
     print("R6D-B SQL statement counts:", dict(sorted(counts.items())))
     assert all(count > 0 for count in counts.values())
+
+
+@pytest.mark.parametrize(("width", "height"), VIEWPORTS)
+@pytest.mark.parametrize("dialog_type", RATE_DIALOGS)
+def test_rate_governance_dialogs_fit_supported_viewports(
+    qapp, dialog_type: str, width: int, height: int
+):
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    component.setData(
+        dedent(
+            f"""
+            import QtQuick
+            import QtQuick.Controls
+            ApplicationWindow {{
+                width: {width}; height: {height}; visible: true
+                readonly property var rateDialog: loader.item
+                Loader {{
+                    id: loader
+                    source: "{(RATE_DIALOG_ROOT / f'{dialog_type}.qml').as_uri()}"
+                    onLoaded: {{
+                        item.projectId = "project-1"
+                        item.open()
+                    }}
+                }}
+            }}
+            """
+        ).encode(),
+        "r6db-rate-dialog.qml",
+    )
+    window = component.create()
+    assert window is not None, "\n".join(error.toString() for error in component.errors())
+    qapp.processEvents()
+    dialog = window.property("rateDialog")
+    assert dialog is not None
+    assert 0 < float(dialog.property("width")) <= width
+    assert 0 < float(dialog.property("height")) <= height
+    assert dialog.findChild(QObject, "dialogSubmitButton") is not None
+    assert dialog.findChild(QObject, "dialogCancelButton") is not None
+    window.deleteLater()
+    qapp.processEvents()
+
+
+@pytest.mark.parametrize("dialog_type", RATE_DIALOGS)
+def test_rate_governance_dialogs_restore_focus_after_escape(qapp, dialog_type: str):
+    engine = create_qml_engine()
+    component = QQmlComponent(engine)
+    component.setData(
+        dedent(
+            f"""
+            import QtQuick
+            import QtQuick.Controls
+            ApplicationWindow {{
+                width: 1024; height: 640; visible: true
+                readonly property var rateDialog: loader.item
+                Button {{ id: opener; objectName: "rateDialogOpener"; text: "Open" }}
+                Loader {{
+                    id: loader
+                    source: "{(RATE_DIALOG_ROOT / f'{dialog_type}.qml').as_uri()}"
+                    onLoaded: {{
+                        opener.forceActiveFocus()
+                        item.projectId = "project-1"
+                        item.focusReturnTarget = opener
+                        item.open()
+                    }}
+                }}
+            }}
+            """
+        ).encode(),
+        "r6db-rate-dialog-keyboard.qml",
+    )
+    window = component.create()
+    assert window is not None, "\n".join(error.toString() for error in component.errors())
+    qapp.processEvents()
+    dialog = window.property("rateDialog")
+    opener = window.findChild(QObject, "rateDialogOpener")
+    assert dialog is not None and bool(dialog.property("visible"))
+    assert not bool(opener.property("activeFocus"))
+
+    QTest.keyClick(window, Qt.Key.Key_Escape)
+    qapp.processEvents()
+
+    assert not bool(dialog.property("visible"))
+    assert bool(opener.property("activeFocus"))
+    window.deleteLater()
+    qapp.processEvents()
 
 
 def test_rate_architecture_guards_are_forward_only():
