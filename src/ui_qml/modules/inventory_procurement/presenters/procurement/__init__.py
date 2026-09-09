@@ -1,3 +1,0 @@
-from .procurement_workspace_presenter import InventoryProcurementProcurementWorkspacePresenter
-
-__all__ = ["InventoryProcurementProcurementWorkspacePresenter"]
