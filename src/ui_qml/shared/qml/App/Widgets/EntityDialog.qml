@@ -57,6 +57,9 @@ AppControls.CenteredDialog {
 
     // ── Busy ──────────────────────────────────────────────────────────────────
     property bool busy: false
+    // Hosts should set this to the invoking control before open() so keyboard
+    // focus returns to a stable location after accept, reject, or Escape.
+    property Item focusReturnTarget: null
 
     // ── Primary action ────────────────────────────────────────────────────────
     property string primaryText:    "Save"
@@ -105,6 +108,19 @@ AppControls.CenteredDialog {
             + spacing * 2,
         maxDialogHeight
     )
+
+    onAboutToShow: {
+        const window = root.Window.window
+        if (!root.focusReturnTarget)
+            root.focusReturnTarget = window ? window.activeFocusItem : null
+    }
+
+    onClosed: {
+        const target = root.focusReturnTarget
+        root.focusReturnTarget = null
+        if (target && target.visible && target.enabled)
+            Qt.callLater(target.forceActiveFocus)
+    }
 
     // ── Content item ──────────────────────────────────────────────────────────
     contentItem: ColumnLayout {

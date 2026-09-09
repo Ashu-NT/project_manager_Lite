@@ -3,6 +3,7 @@ from __future__ import annotations
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_events import (
     RateCardCreated,
     RateCardDeactivated,
+    RateCardUpdated,
     RateCardLineAdded,
     RateCardLineDeactivated,
     RateCardLineUpdated,
@@ -108,6 +109,7 @@ def build_rate_card_view_invalidation_handler(channel: ViewInvalidationChannel):
         event: (
             RateCardCreated
             | RateCardDeactivated
+            | RateCardUpdated
             | RateCardLineAdded
             | RateCardLineUpdated
             | RateCardLineDeactivated
@@ -119,7 +121,7 @@ def build_rate_card_view_invalidation_handler(channel: ViewInvalidationChannel):
             notified_org_targets.clear()
             notified_detail_targets.clear()
 
-        if isinstance(event, RateCardCreated):
+        if isinstance(event, (RateCardCreated, RateCardUpdated)):
             _notify_list(
                 tenant_id=event.tenant_id,
                 organization_id=event.organization_id,

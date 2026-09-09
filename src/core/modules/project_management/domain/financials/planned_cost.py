@@ -1,19 +1,10 @@
-"""Versioned, computed labor-planned-cost snapshots (Phase B item 6).
+"""Versioned, computed labor-planned-cost snapshots.
 
-Architectural status — read before touching this module: this is a
-deliberately transitional model. ``ProjectResource.planned_hours`` is the
-authoritative project-resource planning envelope.
-``TaskAssignment.allocated_planned_hours`` is a tactical WBS allocation
-mechanism, constrained to never exceed that envelope (see
-``PROJECT_RESOURCE_HOURS_OVERALLOCATED`` in
-``application/tasks/commands/assignment.py``). It provides task-level
-planned-cost visibility before the introduction of a versioned
-``ProjectLaborPlan``/``LaborPlanAllocation`` aggregate (a larger, separately
-scoped future phase). It is NOT an approved labor-planning baseline and
-must not be treated as one by EVM or financial posting workflows — nothing
-in this module is submitted for review or approved by a second principal;
-a snapshot is a computed fact about *current* assignments, recalculated on
-demand.
+Provides task-level planned-cost visibility from the current state of
+``TaskAssignment.allocated_planned_hours``/``ProjectResource.planned_hours``. This is
+NOT an approved labor-planning baseline and must not be treated as one by EVM or
+financial posting workflows -- nothing here is submitted for review or approved by a
+second principal; a snapshot is a computed fact, recalculated on demand.
 """
 
 from __future__ import annotations
@@ -84,29 +75,21 @@ class ResourceAllocationDiagnostic:
 class ProjectPlannedCostVersion:
     """One versioned, computed labor-planned-cost snapshot for a project.
 
-    There is no DRAFT/SUBMIT/APPROVE lifecycle here — a snapshot is either
-    the ``CURRENT`` calculation for its project or it has been
-    ``SUPERSEDED`` by a newer one. ``revision`` is the business calculation
-    number (1, 2, 3...), assigned once and never changed on this row.
-    ``row_version`` is a separate, plain optimistic-concurrency token — it
-    only ever advances once, when this version is superseded.
+    No DRAFT/SUBMIT/APPROVE lifecycle -- a snapshot is either ``CURRENT`` or
+    ``SUPERSEDED`` by a newer one. ``revision`` is the calculation number, assigned once;
+    ``row_version`` is a separate optimistic-concurrency token that advances only when
+    superseded.
 
-    Completeness has three independent meanings, tracked separately rather
-    than folded into one ambiguous flag — a snapshot can have fully
-    resolved rates while still reporting incomplete task allocation:
+    Completeness is tracked as three independent flags, since a snapshot can have fully
+    resolved rates while still reporting incomplete allocation:
 
-    - ``rates_complete``: every eligible assignment's resource rate
-      resolved (via the rate-card resolver) in the project's currency.
-    - ``allocations_complete``: every ``ProjectResource`` envelope with
-      ``planned_hours > 0`` is *fully* distributed across its
-      assignments' ``allocated_planned_hours`` — no envelope is partially
-      allocated, overallocated, or missing entirely for a resource that
-      has allocated assignments.
-    - ``cost_codes_complete``: every produced line has a resolved cost
-      code. In this tactical slice this is always ``True`` once
-      ``calculate_snapshot`` passes its initial default-cost-code gate —
-      there is no per-task cost-code source yet to partially fail against
-      (see ``unclassified_line_count``'s docstring below).
+    - ``rates_complete``: every eligible assignment's resource rate resolved in the
+      project's currency.
+    - ``allocations_complete``: every ``ProjectResource`` envelope with hours is fully
+      distributed across its assignments, none overallocated or missing.
+    - ``cost_codes_complete``: every line has a resolved cost code (always ``True`` in
+      this tactical slice once the default-cost-code gate passes -- see
+      ``unclassified_line_count``).
     """
 
     id: str
@@ -124,9 +107,8 @@ class ProjectPlannedCostVersion:
     cost_codes_complete: bool = True
     unresolved_rate_count: int = 0
     partially_allocated_resource_count: int = 0
-    # Always 0 in this tactical slice — see cost_codes_complete's
-    # docstring above. Kept as a real field (not derived) so a future
-    # per-task cost-code source can populate it without a schema change.
+    # Always 0 in this tactical slice (see cost_codes_complete above). Kept as a real
+    # field so a future per-task cost-code source can populate it without a schema change.
     unclassified_line_count: int = 0
     superseded_by: str | None = None
     superseded_at: datetime | None = None
@@ -253,16 +235,12 @@ class ProjectPlannedCostVersion:
 class ProjectPlannedCostLine:
     """One resource+task planned-labor line within a snapshot version.
 
-    Write-once: unlike ``BudgetLine``, a planned-cost line is never
-    individually updated or deleted after its version is calculated — the
-    only way its contents change is a whole new snapshot calculation.
+    Write-once: unlike ``BudgetLine``, never individually updated or deleted after its
+    version is calculated -- only a new snapshot calculation changes its contents.
 
-    ``source_assignment_id`` is an immutable, snapshotted identifier, not a
-    live foreign key with ``ON DELETE`` behavior — the line's
-    ``planned_hours``/``rate_amount``/``amount``/``currency_code`` are
-    already fully self-contained, so deleting the operational
-    ``TaskAssignment`` later (a routine scheduling action) must not be
-    blocked, and must not erase which record produced this line's numbers.
+    ``source_assignment_id`` is an immutable, snapshotted identifier, not a live foreign
+    key -- the line's hours/rate/amount/currency are already self-contained, so deleting
+    the operational ``TaskAssignment`` later must not be blocked or erase provenance.
     """
 
     id: str
@@ -282,6 +260,9 @@ class ProjectPlannedCostLine:
     rate_card_id: str = ""
     rate_line_id: str = ""
     rate_card_version: int = 1
+    rate_line_version: int | None = None
+    rate_modifier: str | None = None
+    rate_modifier_multiplier: Decimal | None = None
     created_at: datetime = field(default_factory=_utc_now)
 
     @field_validator(
@@ -324,6 +305,38 @@ class ProjectPlannedCostLine:
             raise ValidationError(
                 "Planned-cost line rate_card_version must be positive.",
                 code="PLANNED_COST_LINE_RATE_CARD_VERSION_INVALID",
+            )
+        return resolved
+
+    @field_validator("rate_line_version", mode="before")
+    @classmethod
+    def _validate_rate_line_version(cls, value: object) -> int | None:
+        if value is None:
+            return None
+        resolved = int(value)
+        if resolved < 1:
+            raise ValidationError(
+                "Planned-cost line rate_line_version must be positive.",
+                code="PLANNED_COST_LINE_RATE_LINE_VERSION_INVALID",
+            )
+        return resolved
+
+    @field_validator("rate_modifier", mode="before")
+    @classmethod
+    def _normalize_rate_modifier(cls, value: object) -> str | None:
+        normalized = str(value or "").strip().lower()
+        return normalized or None
+
+    @field_validator("rate_modifier_multiplier", mode="before")
+    @classmethod
+    def _validate_modifier_multiplier(cls, value: object) -> Decimal | None:
+        if value is None:
+            return None
+        resolved = Decimal(str(value))
+        if resolved < 0:
+            raise ValidationError(
+                "Planned-cost rate modifier cannot be negative.",
+                code="PLANNED_COST_LINE_RATE_MODIFIER_INVALID",
             )
         return resolved
 

@@ -15,9 +15,8 @@ def classify_line(
     customer_party_id: str | None,
     contract_reference: str | None,
 ) -> int | None:
-    """Return this line's ADR-PF-005 precedence level (1-5) against the
-    given resource/context, or ``None`` if it does not match at all.
-    """
+    """Return this line's precedence level (1-5, lower wins) against the
+    given resource/context, or ``None`` if it does not match at all."""
     if line.resource_id:
         if line.resource_id != resource_id:
             return None

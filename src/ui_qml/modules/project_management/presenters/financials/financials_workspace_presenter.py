@@ -13,28 +13,49 @@ from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesk
 from src.ui_qml.modules.project_management.view_models.financials import FinancialsWorkspaceViewModel
 
 from .command_handler import (
+    add_cost_code_restriction,
     add_budget_line,
+    add_financial_change_impact,
+    add_rate_line,
     approve_actual,
     close_budget,
     create_budget_successor,
     create_budget_version,
     create_cost_code,
+    change_cost_code_status,
     create_manual_actual,
+    create_rate_card,
+    create_financial_change,
     decide_budget_approval,
     decide_forecast_approval,
+    decide_financial_change_approval,
+    delete_actual_draft,
     delete_budget,
     delete_budget_line,
+    deactivate_rate_card,
+    deactivate_rate_line,
     generate_forecast,
     post_actual,
+    remove_financial_change_impact,
+    remove_cost_code_restriction,
     reject_actual,
     reverse_actual,
     submit_actual,
     submit_budget,
     submit_forecast,
+    submit_financial_change,
     request_budget_approval,
     request_forecast_approval,
     update_budget,
+    update_actual_draft,
     update_budget_line,
+    update_financial_change,
+    update_financial_change_impact,
+    transition_financial_profile,
+    update_cost_code,
+    update_financial_profile,
+    update_rate_card,
+    update_rate_line,
 )
 from .destination_builder import build_destination_state, build_shell_state
 
@@ -76,6 +97,12 @@ class ProjectFinancialsWorkspacePresenter:
     def resolve_finance_project(self, project_id: str):
         return self._desktop_api.resolve_finance_project(project_id)
 
+    def search_rate_resources(self, project_id: str, **query: Any):
+        return self._desktop_api.search_rate_resources(project_id, **query)
+
+    def search_rate_departments(self, project_id: str, **query: Any):
+        return self._desktop_api.search_rate_departments(project_id, **query)
+
     def search_manual_actual_projects(self, **query: Any):
         return self._desktop_api.search_manual_actual_projects(**query)
 
@@ -87,6 +114,12 @@ class ProjectFinancialsWorkspacePresenter:
 
     def resolve_manual_actual_task(self, project_id: str, task_id: str):
         return self._desktop_api.resolve_manual_actual_task(project_id, task_id)
+
+    def search_manual_actual_resources(self, project_id: str, **query: Any):
+        return self._desktop_api.search_manual_actual_resources(project_id, **query)
+
+    def resolve_manual_actual_resource(self, project_id: str, resource_id: str):
+        return self._desktop_api.resolve_manual_actual_resource(project_id, resource_id)
 
     def search_manual_actual_cost_codes(self, project_id: str, **query: Any):
         return self._desktop_api.search_manual_actual_cost_codes(project_id, **query)
@@ -113,6 +146,20 @@ class ProjectFinancialsWorkspacePresenter:
     def resolve_budget_cost_code(self, project_id: str, cost_code_id: str):
         return self._desktop_api.resolve_budget_cost_code(project_id, cost_code_id)
 
+    def search_financial_change_target_lines(
+        self, project_id: str, change_id: str, impact_type: str, **query: Any
+    ):
+        return self._desktop_api.search_financial_change_target_lines(
+            project_id, change_id, impact_type, **query
+        )
+
+    def resolve_financial_change_target_line(
+        self, project_id: str, change_id: str, impact_type: str, line_id: str
+    ):
+        return self._desktop_api.resolve_financial_change_target_line(
+            project_id, change_id, impact_type, line_id
+        )
+
     def search_forecast_tasks(self, project_id: str, **query: Any):
         return self._desktop_api.search_forecast_tasks(project_id, **query)
 
@@ -121,6 +168,9 @@ class ProjectFinancialsWorkspacePresenter:
 
     def search_forecast_risks(self, project_id: str, **query: Any):
         return self._desktop_api.search_forecast_risks(project_id, **query)
+
+    def search_setup_cost_codes(self, project_id: str, **query: Any):
+        return self._desktop_api.search_setup_cost_codes(project_id, **query)
 
     def create_budget_version(self, project_id: str, name: str, currency: str):
         return create_budget_version(self._desktop_api, project_id, name, currency)
@@ -177,11 +227,78 @@ class ProjectFinancialsWorkspacePresenter:
             self._approval_api, request_id, approve=approve, note=note
         )
 
+    def create_financial_change(self, payload: dict[str, Any]):
+        return create_financial_change(self._desktop_api, payload)
+
+    def update_financial_change(self, payload: dict[str, Any]):
+        return update_financial_change(self._desktop_api, payload)
+
+    def add_financial_change_impact(self, payload: dict[str, Any]):
+        return add_financial_change_impact(self._desktop_api, payload)
+
+    def update_financial_change_impact(self, payload: dict[str, Any]):
+        return update_financial_change_impact(self._desktop_api, payload)
+
+    def remove_financial_change_impact(self, payload: dict[str, Any]):
+        return remove_financial_change_impact(self._desktop_api, payload)
+
+    def submit_financial_change(self, payload: dict[str, Any]):
+        return submit_financial_change(self._desktop_api, payload)
+
+    def decide_financial_change_approval(
+        self, request_id: str, approve: bool, note: str
+    ) -> None:
+        decide_financial_change_approval(
+            self._approval_api, request_id, approve=approve, note=note
+        )
+
     def create_manual_actual(self, payload: dict[str, Any]) -> None:
         create_manual_actual(self._desktop_api, payload)
 
+    def update_actual_draft(self, payload: dict[str, Any]) -> None:
+        update_actual_draft(self._desktop_api, payload)
+
+    def delete_actual_draft(self, payload: dict[str, Any]) -> None:
+        delete_actual_draft(self._desktop_api, payload)
+
+    def create_rate_card(self, payload: dict[str, Any]):
+        return create_rate_card(self._desktop_api, payload)
+
+    def update_rate_card(self, payload: dict[str, Any]):
+        return update_rate_card(self._desktop_api, payload)
+
+    def deactivate_rate_card(self, payload: dict[str, Any]):
+        return deactivate_rate_card(self._desktop_api, payload)
+
+    def add_rate_line(self, payload: dict[str, Any]):
+        return add_rate_line(self._desktop_api, payload)
+
+    def update_rate_line(self, payload: dict[str, Any]):
+        return update_rate_line(self._desktop_api, payload)
+
+    def deactivate_rate_line(self, payload: dict[str, Any]):
+        return deactivate_rate_line(self._desktop_api, payload)
+
     def create_cost_code(self, payload: dict[str, Any]) -> None:
         create_cost_code(self._desktop_api, payload)
+
+    def update_financial_profile(self, payload: dict[str, Any]) -> None:
+        update_financial_profile(self._desktop_api, payload)
+
+    def transition_financial_profile(self, payload: dict[str, Any]) -> None:
+        transition_financial_profile(self._desktop_api, payload)
+
+    def update_cost_code(self, payload: dict[str, Any]) -> None:
+        update_cost_code(self._desktop_api, payload)
+
+    def change_cost_code_status(self, payload: dict[str, Any]) -> None:
+        change_cost_code_status(self._desktop_api, payload)
+
+    def add_cost_code_restriction(self, payload: dict[str, Any]) -> None:
+        add_cost_code_restriction(self._desktop_api, payload)
+
+    def remove_cost_code_restriction(self, payload: dict[str, Any]) -> None:
+        remove_cost_code_restriction(self._desktop_api, payload)
 
     def submit_actual(self, payload: dict[str, Any]) -> None:
         submit_actual(self._desktop_api, payload)

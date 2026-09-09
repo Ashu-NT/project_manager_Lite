@@ -4,7 +4,7 @@ Exposes module capability checks and cross-module reference resolution to
 controllers and presenters without them needing to import optional module code.
 
 Usage in a controller:
-    enabled = self._integration_api.is_module_enabled("inventory_procurement")
+    enabled = self._integration_api.is_module_enabled("qhse")
     resolved = self._integration_api.resolve_soft_reference(
         source_module=orm.source_module,
         source_entity_type=orm.source_entity_type,

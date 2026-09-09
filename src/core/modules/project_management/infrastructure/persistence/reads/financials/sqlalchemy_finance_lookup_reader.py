@@ -18,7 +18,20 @@ from src.core.modules.project_management.infrastructure.persistence.orm.financia
     ProjectFinancialProfileORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
+from src.core.modules.project_management.infrastructure.persistence.orm.budget import (
+    BudgetLineORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.forecast import (
+    ForecastLineORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.financial_change import (
+    FinancialChangeRequestORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
+    DepartmentORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.register import (
     RegisterEntryORM,
 )
@@ -88,6 +101,114 @@ class SqlAlchemyFinanceLookupReader:
                     id=str(row.id), label=_project_label(row.project_code, row.name)
                 )
                 for row in rows
+            ),
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
+
+    def search_rate_resources(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts:
+        conditions = [
+            ResourceORM.tenant_id == tenant_id,
+            ResourceORM.organization_id == organization_id,
+            ResourceORM.is_active.is_(True),
+        ]
+        if request.search.strip():
+            pattern = f"%{request.search.strip()}%"
+            conditions.append(
+                or_(
+                    ResourceORM.name.ilike(pattern),
+                    ResourceORM.resource_code.ilike(pattern),
+                )
+            )
+        base = select(ResourceORM.id, ResourceORM.resource_code, ResourceORM.name).where(
+            *conditions
+        )
+        total = int(self._session.scalar(select(func.count()).select_from(base.subquery())) or 0)
+        page, page_size, offset = _window(
+            request.normalized_page, request.normalized_page_size, total
+        )
+        rows = self._session.execute(
+            base.order_by(ResourceORM.name.asc(), ResourceORM.id.asc())
+            .offset(offset)
+            .limit(page_size)
+        ).all()
+        return FinanceLookupPageFacts(
+            items=tuple(
+                FinanceLookupOptionFact(
+                    id=str(row.id),
+                    label=(
+                        f"{row.resource_code} - {row.name}"
+                        if row.resource_code
+                        else str(row.name)
+                    ),
+                )
+                for row in rows
+            ),
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
+
+    def get_resource_option(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        resource_id: str,
+    ) -> FinanceLookupOptionFact | None:
+        row = self._session.execute(
+            select(ResourceORM.id, ResourceORM.resource_code, ResourceORM.name).where(
+                ResourceORM.tenant_id == tenant_id,
+                ResourceORM.organization_id == organization_id,
+                ResourceORM.id == str(resource_id or "").strip(),
+                ResourceORM.is_active.is_(True),
+            )
+        ).one_or_none()
+        if row is None:
+            return None
+        return FinanceLookupOptionFact(
+            id=str(row.id),
+            label=(
+                f"{row.resource_code} - {row.name}"
+                if row.resource_code
+                else str(row.name)
+            ),
+        )
+
+    def search_rate_departments(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts:
+        conditions = [
+            DepartmentORM.tenant_id == tenant_id,
+            DepartmentORM.organization_id == organization_id,
+            DepartmentORM.is_active.is_(True),
+        ]
+        if request.search.strip():
+            conditions.append(DepartmentORM.name.ilike(f"%{request.search.strip()}%"))
+        base = select(DepartmentORM.id, DepartmentORM.name).where(*conditions)
+        total = int(self._session.scalar(select(func.count()).select_from(base.subquery())) or 0)
+        page, page_size, offset = _window(
+            request.normalized_page, request.normalized_page_size, total
+        )
+        rows = self._session.execute(
+            base.order_by(DepartmentORM.name.asc(), DepartmentORM.id.asc())
+            .offset(offset)
+            .limit(page_size)
+        ).all()
+        return FinanceLookupPageFacts(
+            items=tuple(
+                FinanceLookupOptionFact(id=str(row.id), label=str(row.name)) for row in rows
             ),
             total=total,
             page=page,
@@ -388,6 +509,125 @@ class SqlAlchemyFinanceLookupReader:
             else None
         )
 
+    def search_change_target_lines(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        change_id: str,
+        impact_type: str,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts:
+        statement, line_model = self._change_target_statement(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            project_id=project_id,
+            change_id=change_id,
+            impact_type=impact_type,
+        )
+        if request.search.strip():
+            statement = statement.where(
+                line_model.description.ilike(f"%{request.search.strip()}%")
+            )
+        total = int(
+            self._session.scalar(select(func.count()).select_from(statement.subquery()))
+            or 0
+        )
+        page, page_size, offset = _window(
+            request.normalized_page, request.normalized_page_size, total
+        )
+        rows = self._session.execute(
+            statement.order_by(line_model.description.asc(), line_model.id.asc())
+            .offset(offset)
+            .limit(page_size)
+        ).all()
+        return FinanceLookupPageFacts(
+            items=tuple(
+                FinanceLookupOptionFact(id=str(row.id), label=_financial_line_label(row))
+                for row in rows
+            ),
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
+
+    def get_change_target_line_option(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        change_id: str,
+        impact_type: str,
+        line_id: str,
+    ) -> FinanceLookupOptionFact | None:
+        statement, line_model = self._change_target_statement(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            project_id=project_id,
+            change_id=change_id,
+            impact_type=impact_type,
+        )
+        row = self._session.execute(
+            statement.where(line_model.id == line_id)
+        ).one_or_none()
+        return (
+            FinanceLookupOptionFact(id=str(row.id), label=_financial_line_label(row))
+            if row is not None
+            else None
+        )
+
+    @staticmethod
+    def _change_target_statement(
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        change_id: str,
+        impact_type: str,
+    ):
+        if impact_type == "budget":
+            line_model = BudgetLineORM
+            base_column = FinancialChangeRequestORM.base_budget_id
+            parent_column = BudgetLineORM.budget_id
+        elif impact_type == "forecast":
+            line_model = ForecastLineORM
+            base_column = FinancialChangeRequestORM.base_forecast_id
+            parent_column = ForecastLineORM.forecast_id
+        else:
+            raise ValueError("Financial Change line lookup supports Budget or Forecast only.")
+        return (
+            select(
+                line_model.id,
+                line_model.description,
+                line_model.amount,
+                FinancialChangeRequestORM.currency_code,
+            )
+            .select_from(line_model)
+            .join(
+                FinancialChangeRequestORM,
+                and_(
+                    FinancialChangeRequestORM.id == change_id,
+                    FinancialChangeRequestORM.tenant_id == line_model.tenant_id,
+                    FinancialChangeRequestORM.organization_id
+                    == line_model.organization_id,
+                    FinancialChangeRequestORM.project_id == line_model.project_id,
+                    parent_column == base_column,
+                ),
+            )
+            .where(
+                line_model.tenant_id == tenant_id,
+                line_model.organization_id == organization_id,
+                line_model.project_id == project_id,
+                FinancialChangeRequestORM.tenant_id == tenant_id,
+                FinancialChangeRequestORM.organization_id == organization_id,
+                FinancialChangeRequestORM.project_id == project_id,
+                FinancialChangeRequestORM.status == "draft",
+            ),
+            line_model,
+        )
+
     @staticmethod
     def _cost_code_statement(
         *,
@@ -454,6 +694,11 @@ def _project_label(project_code: str | None, name: str) -> str:
 def _task_label(row) -> str:
     reference = row.wbs_code or row.task_code or ""
     return f"{reference} - {row.name}" if reference else str(row.name)
+
+
+def _financial_line_label(row) -> str:
+    description = str(row.description or "Financial line")
+    return f"{description} | {row.amount} {row.currency_code}"
 
 
 __all__ = ["SqlAlchemyFinanceLookupReader"]

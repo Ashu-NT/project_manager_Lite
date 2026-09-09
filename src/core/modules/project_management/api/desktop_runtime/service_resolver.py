@@ -9,10 +9,7 @@ from src.core.modules.project_management.application.collaboration import (
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import (
-    FinancialConfigurationService,
-    FinancialChangeService,
     FinanceService,
-    ForecastVersionService,
     ProjectCommitmentService,
     ProjectBillingPreparationService,
     ProjectBillingProfileService,
@@ -22,6 +19,7 @@ from src.core.modules.project_management.application.financials import (
 )
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
+    FinanceGovernedServicePort,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
@@ -69,11 +67,8 @@ class ProjectManagementDesktopRuntimeServices:
     finance_workspace_query: ProjectFinanceWorkspaceQuery | None
     finance_performance_query: ProjectFinancePerformanceQuery | None
     finance_governance_commands: FinanceGovernanceCommandBoundary | None
-    financial_configuration_service: FinancialConfigurationService | None
-    cost_entry_service: ProjectCostEntryService | None
+    cost_entry_service: ProjectCostEntryService | FinanceGovernedServicePort | None
     commitment_service: ProjectCommitmentService | None
-    forecast_version_service: ForecastVersionService | None
-    financial_change_service: FinancialChangeService | None
     billing_profile_service: ProjectBillingProfileService | None
     billing_preparation_service: ProjectBillingPreparationService | None
     baseline_service: BaselineService | None
@@ -103,11 +98,8 @@ def resolve_project_management_desktop_runtime_services(
     finance_workspace_query = services.get("finance_workspace_query")
     finance_performance_query = services.get("finance_performance_query")
     finance_governance_commands = services.get("finance_governance_commands")
-    financial_configuration_service = services.get("financial_configuration_service")
     cost_entry_service = services.get("cost_entry_service")
     commitment_service = services.get("commitment_service")
-    forecast_version_service = services.get("forecast_version_service")
-    financial_change_service = services.get("financial_change_service")
     billing_profile_service = services.get("billing_profile_service")
     billing_preparation_service = services.get("billing_preparation_service")
     baseline_service = services.get("baseline_service")
@@ -184,29 +176,17 @@ def resolve_project_management_desktop_runtime_services(
             if isinstance(finance_workspace_query, ProjectFinanceWorkspaceQuery)
             else None
         ),
-        financial_configuration_service=(
-            financial_configuration_service
-            if isinstance(financial_configuration_service, FinancialConfigurationService)
-            else None
-        ),
         cost_entry_service=(
             cost_entry_service
-            if isinstance(cost_entry_service, ProjectCostEntryService)
+            if isinstance(
+                cost_entry_service,
+                (ProjectCostEntryService, FinanceGovernedServicePort),
+            )
             else None
         ),
         commitment_service=(
             commitment_service
             if isinstance(commitment_service, ProjectCommitmentService)
-            else None
-        ),
-        forecast_version_service=(
-            forecast_version_service
-            if isinstance(forecast_version_service, ForecastVersionService)
-            else None
-        ),
-        financial_change_service=(
-            financial_change_service
-            if isinstance(financial_change_service, FinancialChangeService)
             else None
         ),
         billing_profile_service=(

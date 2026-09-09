@@ -7,6 +7,9 @@ from src.core.modules.project_management.contracts.repositories.finance.cost_ent
     ProjectCostEntryRepository,
 )
 from src.core.modules.project_management.contracts.reads import ReadSort, ReadSortDirection
+from src.core.modules.project_management.contracts.financial_sources.reference import (
+    FinancialSourceModule,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
     stable_order_by,
 )
@@ -72,6 +75,7 @@ class SqlAlchemyProjectCostEntryRepository(ProjectCostEntryRepository):
         project_id: str,
         *,
         status: ProjectCostEntryStatus | None = None,
+        source_module: FinancialSourceModule | None = None,
         offset: int = 0,
         limit: int = 50,
         sort: ReadSort | None = None,
@@ -87,6 +91,11 @@ class SqlAlchemyProjectCostEntryRepository(ProjectCostEntryRepository):
         if status is not None:
             stmt = stmt.where(ProjectCostEntryORM.status == status.value)
             count_stmt = count_stmt.where(ProjectCostEntryORM.status == status.value)
+        if source_module is not None:
+            stmt = stmt.where(ProjectCostEntryORM.source_module == source_module.value)
+            count_stmt = count_stmt.where(
+                ProjectCostEntryORM.source_module == source_module.value
+            )
         total = int(self.session.execute(count_stmt).scalar_one())
         normalized_sort = sort or ReadSort(
             key="metaText",

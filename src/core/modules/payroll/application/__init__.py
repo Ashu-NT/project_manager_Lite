@@ -1,1 +1,0 @@
-"""Payroll application use cases."""

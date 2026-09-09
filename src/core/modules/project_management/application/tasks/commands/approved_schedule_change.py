@@ -1,7 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import datetime, timezone
 
+from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
+    emit_cascade_schedule_changed,
+)
+from src.core.modules.project_management.application.tasks.task_events import (
+    TaskScheduleChangeType,
+    TaskScheduleChanged,
+)
 from src.core.modules.project_management.contracts.ports.schedule_change import (
     AppliedTaskScheduleChange,
     ApprovedTaskScheduleChange,
@@ -16,6 +24,7 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
 
 
 class ApprovedScheduleChangeMixin:
@@ -26,17 +35,27 @@ class ApprovedScheduleChangeMixin:
         changes: list[ApprovedTaskScheduleChange],
         *,
         actor_id: str,
-        commit: bool = False,
     ) -> list[AppliedTaskScheduleChange]:
+        """Always runs inside the caller's (ApprovalService's) own transaction
+        -- this TaskService instance is participant-scoped (`task_uow_factory=
+        None`), so `self._task_uow()` returns the passthrough shim and never
+        opens a second transaction. Recorded `TaskScheduleChanged` facts are
+        collected via `self._take_pending_task_events()` immediately after
+        this call returns, for the caller to fold into its own
+        `ApprovalHandlerResult.domain_events`."""
         candidates = self._validate_approved_schedule_changes(changes)
         if not candidates:
             return []
         project_id = candidates[0][0].project_id
+        scope = self._active_task_scope(operation_label="apply financial change schedule")
 
-        try:
+        primary_task_ids = frozenset(candidate.id for _, candidate in candidates)
+        with self._task_uow() as uow:
             for _, candidate in candidates:
-                self._task_repo.update(candidate)
-            self._sync_project_schedule(project_id, commit=False)
+                uow.tasks.update(candidate)
+            cascade_ids = self._sync_project_schedule(
+                project_id, commit=False, exclude_task_ids=primary_task_ids
+            )
 
             results: list[AppliedTaskScheduleChange] = []
             for change, candidate in candidates:
@@ -53,8 +72,24 @@ class ApprovedScheduleChangeMixin:
                         f"{applied.start_date}..{applied.end_date} calculated).",
                         code="FINANCIAL_CHANGE_SCHEDULE_RESULT_CONFLICT",
                     )
+                record_audit_entry(
+                    uow,
+                    operation="update",
+                    entity_type="task",
+                    entity_id=applied.id,
+                    module="project_management",
+                    organization_id=scope.organization_id,
+                    severity="low",
+                    metadata={
+                        "action": "task.apply_financial_change_schedule",
+                        "financial_change_impact_id": change.reference_id,
+                        "actor_id": actor_id,
+                    },
+                    commit=False,
+                    fail_closed=True,
+                )
                 record_activity(
-                    self,
+                    uow,
                     action="task.apply_financial_change_schedule",
                     entity_type="task",
                     entity_id=applied.id,
@@ -68,6 +103,16 @@ class ApprovedScheduleChangeMixin:
                     },
                     commit=False,
                 )
+                uow.record_event(
+                    TaskScheduleChanged(
+                        tenant_id=scope.tenant_id,
+                        organization_id=scope.organization_id,
+                        project_id=project_id,
+                        task_id=applied.id,
+                        change_type=TaskScheduleChangeType.APPROVED_SCHEDULE_APPLIED,
+                        occurred_at=datetime.now(timezone.utc),
+                    )
+                )
                 results.append(
                     AppliedTaskScheduleChange(
                         reference_id=change.reference_id,
@@ -77,15 +122,11 @@ class ApprovedScheduleChangeMixin:
                         finish_date=applied.end_date,
                     )
                 )
-            if commit:
-                self._session.commit()
-            else:
-                self._session.flush()
+            emit_cascade_schedule_changed(
+                uow, scope=scope, project_id=project_id, changed_task_ids=cascade_ids
+            )
+            uow.commit()
             return results
-        except Exception:
-            if commit:
-                self._session.rollback()
-            raise
 
     def _validate_approved_schedule_changes(
         self, changes: list[ApprovedTaskScheduleChange]

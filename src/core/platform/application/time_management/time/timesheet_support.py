@@ -257,16 +257,35 @@ class TimesheetSupportMixin:
             "site_name": site_name,
         }
 
-    def _sync_work_allocation_hours_from_entries(self, work_allocation_id: str) -> None:
+    def _sync_work_allocation_hours_from_entries(self, work_allocation_id: str):
+        """Returns the updated work allocation (a `TaskAssignment`, structurally) so the caller
+        can record its own `TaskAssignmentChanged(HOURS_LOGGED_CHANGED)` fact and audit entry
+        inside the same physical transaction -- this method itself stays transaction-neutral,
+        using the CAS-protected `update_hours_logged_with_version_check` instead of a blind write."""
         if self._time_entry_repo is None:
-            return
+            return None
         work_allocation = self._work_allocation_repo.get(work_allocation_id)
         if not work_allocation:
             raise NotFoundError("Work allocation not found.", code="WORK_ALLOCATION_NOT_FOUND")
         entries = self._time_entry_repo.list_by_work_allocation(work_allocation_id)
-        if hasattr(work_allocation, "hours_logged"):
-            work_allocation.hours_logged = sum(float(item.hours or 0.0) for item in entries)
-        self._work_allocation_repo.update(work_allocation)
+        if not hasattr(work_allocation, "hours_logged"):
+            self._work_allocation_repo.update(work_allocation)
+            return work_allocation
+        expected_version = getattr(work_allocation, "version", None)
+        from dataclasses import replace as _replace
+
+        candidate = _replace(
+            work_allocation,
+            hours_logged=sum(float(item.hours or 0.0) for item in entries),
+        )
+        if expected_version is None or not hasattr(
+            self._work_allocation_repo, "update_hours_logged_with_version_check"
+        ):
+            self._work_allocation_repo.update(candidate)
+            return candidate
+        return self._work_allocation_repo.update_hours_logged_with_version_check(
+            candidate, expected_version=expected_version
+        )
 
     def _sync_assignment_hours_from_entries(self, assignment_id: str) -> None:
         self._sync_work_allocation_hours_from_entries(assignment_id)

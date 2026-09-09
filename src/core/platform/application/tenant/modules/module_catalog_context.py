@@ -30,13 +30,10 @@ class ModuleCatalogContextMixin:
     def _fetch_snapshot(self) -> ModuleEntitlementSnapshot | None:
         """One read, reusable for every derived question in one logical call
         (list_entitlements/shell_summary/snapshot each fetch at most once,
-        not once per module) — the CQRS-pilot replacement for calling the
-        write repository's list_all() from inside a per-module loop.
+        not once per module).
 
         Returns None when there's no reader wired, or no organization/tenant
-        context yet — callers fall back to the pre-pilot repo-based path in
-        that case, so behavior is unchanged for any caller not yet wired to
-        an entitlement_reader."""
+        context yet -- callers fall back to the repo-based path in that case."""
         if self._entitlement_reader is None:
             return None
         if not self._has_active_organization_context():

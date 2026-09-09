@@ -57,12 +57,11 @@ class SqlAlchemyOrganizationUnitOfWork(SqlAlchemyUnitOfWorkBase, OrganizationUni
 
 
 class SqlAlchemyOrganizationUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
-    """Closes over a session *factory* (per ADR-005 Section 6.1 -- never an already-created
-    `Session`) plus the ambient collaborators (`tenant_context_service`, `user_session`)
-    `SqlAlchemyOrganizationUnitOfWork` needs to build its own two fresh, session-bound accessors
-    on every `create()` call. Neither collaborator is itself Session-bound, so both are reused
-    as-is across every `create()` call -- only `organizations`/`_enterprise_audit_service` are
-    rebuilt fresh, per call, bound to that call's own new `Session`."""
+    """Closes over a session factory (never an already-created `Session`) plus the ambient
+    collaborators (`tenant_context_service`, `user_session`) needed to build each fresh,
+    session-bound `SqlAlchemyOrganizationUnitOfWork`. Neither collaborator is itself
+    Session-bound, so both are reused as-is across calls -- only `organizations`/
+    `_enterprise_audit_service` are rebuilt per call, bound to that call's new `Session`."""
 
     def __init__(
         self,

@@ -215,6 +215,13 @@ class UserSessionPrincipal:
 
 
 class UserSessionContext:
+    """Ephemeral session/authentication transport. `principal_changed_listener`/
+    `active_scope_changed_listener` are process-local, synchronous notifications for "session
+    state changed" -- never persisted, never a DomainEvent. Distinct from `context_listener`,
+    which persists the active tenant/org onto the durable `AuthSession` row for a future
+    login's "resume where you left off" -- both fire from the same trigger points but serve
+    different consumers."""
+
     def __init__(
         self,
         *,
@@ -225,6 +232,8 @@ class UserSessionContext:
         security_denial_listener: (
             Callable[["SecurityDenialEvent"], None] | None
         ) = None,
+        principal_changed_listener: Callable[["UserSessionContext"], None] | None = None,
+        active_scope_changed_listener: Callable[["UserSessionContext"], None] | None = None,
         validation_interval_seconds: float = 30.0,
     ):
         self._principal: UserSessionPrincipal | None = None
@@ -236,6 +245,8 @@ class UserSessionContext:
         self._last_principal_validation_at: float | None = None
         self._context_listener = context_listener
         self._security_denial_listener = security_denial_listener
+        self._principal_changed_listener = principal_changed_listener
+        self._active_scope_changed_listener = active_scope_changed_listener
         self._active_tenant_id: str | None = None
         self._active_organization_id: str | None = None
 
@@ -243,12 +254,25 @@ class UserSessionContext:
     def principal(self) -> UserSessionPrincipal | None:
         return self._principal
 
+    def set_principal_changed_listener(
+        self,
+        listener: Callable[["UserSessionContext"], None] | None,
+    ) -> None:
+        self._principal_changed_listener = listener
+
+    def set_active_scope_changed_listener(
+        self,
+        listener: Callable[["UserSessionContext"], None] | None,
+    ) -> None:
+        self._active_scope_changed_listener = listener
+
     def set_principal(self, principal: UserSessionPrincipal) -> None:
         normalized = self._normalize_principal(principal)
         self._principal = normalized
         self._last_principal_validation_at = monotonic()
         self._restore_active_context_from_principal(normalized)
         self._notify_context_changed()
+        self._notify_principal_changed()
 
     def set_validator(
         self,
@@ -306,6 +330,7 @@ class UserSessionContext:
         self._active_tenant_id = None
         self._active_organization_id = None
         self._notify_context_changed()
+        self._notify_principal_changed()
 
     def is_authenticated(self) -> bool:
         return self._active_principal() is not None
@@ -397,6 +422,7 @@ class UserSessionContext:
         if self._principal is not None:
             self._principal = replace(self._principal, active_tenant_id=normalized)
         self._notify_context_changed()
+        self._notify_active_scope_changed()
 
     def active_tenant_id(self) -> str | None:
         session_tenant_id = str(self._active_tenant_id or "").strip() or None
@@ -418,6 +444,7 @@ class UserSessionContext:
         if self._principal is not None:
             self._principal = replace(self._principal, active_organization_id=normalized)
         self._notify_context_changed()
+        self._notify_active_scope_changed()
 
     def active_organization_id(self) -> str | None:
         session_organization_id = str(self._active_organization_id or "").strip() or None
@@ -431,8 +458,8 @@ class UserSessionContext:
             or None
         )
         if principal_organization_id:
-            # H-2: only return org from principal when tenant context is consistent.
-            # Prevents a stale org_id (from a previous tenant) leaking through this fallback.
+            # Only return org from principal when tenant context is consistent -- prevents a
+            # stale org_id (from a previous tenant) leaking through this fallback.
             principal_tenant_id = str(getattr(principal, "active_tenant_id", "") or "").strip() or None
             current_tenant_id = str(self._active_tenant_id or "").strip() or None
             if current_tenant_id is None or current_tenant_id == principal_tenant_id:
@@ -487,6 +514,7 @@ class UserSessionContext:
                 self._principal = principal
                 self._restore_active_context_from_principal(principal)
                 self._notify_context_changed()
+                self._notify_principal_changed()
         return principal
 
     def _restore_active_context_from_principal(
@@ -506,6 +534,16 @@ class UserSessionContext:
 
     def _notify_context_changed(self) -> None:
         listener = self._context_listener
+        if listener is not None:
+            listener(self)
+
+    def _notify_principal_changed(self) -> None:
+        listener = self._principal_changed_listener
+        if listener is not None:
+            listener(self)
+
+    def _notify_active_scope_changed(self) -> None:
+        listener = self._active_scope_changed_listener
         if listener is not None:
             listener(self)
 

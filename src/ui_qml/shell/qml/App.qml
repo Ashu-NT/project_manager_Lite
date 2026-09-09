@@ -8,7 +8,6 @@ ApplicationWindow {
     property ShellContexts.ShellContext shellModel
     property var platformCatalog
     property var pmCatalog
-    property var inventoryCatalog
 
     width: 1280
     height: 800
@@ -37,6 +36,5 @@ ApplicationWindow {
         shellModel: app.shellModel
         platformCatalog: app.platformCatalog
         pmCatalog: app.pmCatalog
-        inventoryCatalog: app.inventoryCatalog
     }
 }

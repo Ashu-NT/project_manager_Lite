@@ -18,9 +18,6 @@ from src.core.modules.project_management.api.desktop.tasks.builders.assignment_p
 from src.core.modules.project_management.api.desktop.tasks.builders.assignment_validation_builder import (
     build_assignment_validation,
 )
-from src.core.modules.project_management.api.desktop.tasks.builders.material_demand_builder import (
-    build_material_demand_summary,
-)
 from src.core.modules.project_management.api.desktop.tasks.builders.project_options_builder import (
     build_project_options,
 )
@@ -57,9 +54,6 @@ from src.core.modules.project_management.api.desktop.tasks.commands.dependency_c
     TaskDependencyCreateCommand,
     TaskDependencyUpdateCommand,
 )
-from src.core.modules.project_management.api.desktop.tasks.commands.reservation_commands import (
-    TaskReservationCreateCommand,
-)
 from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
     EDITABLE_CONSTRAINT_OPTIONS,
     coerce_constraint_type,
@@ -90,10 +84,6 @@ from src.core.modules.project_management.api.desktop.tasks.models.options import
     TaskProjectResourceOptionDescriptor,
     TaskStatusDescriptor,
 )
-from src.core.modules.project_management.api.desktop.tasks.models.reservation import (
-    TaskMaterialDemandSummary,
-    TaskReservationDesktopDto,
-)
 from src.core.modules.project_management.api.desktop.tasks.models.skill import (
     TaskSkillRequirementDesktopDto,
 )
@@ -110,9 +100,6 @@ from src.core.modules.project_management.api.desktop.tasks.serializers.assignmen
 )
 from src.core.modules.project_management.api.desktop.tasks.serializers.dependency_serializer import (
     serialize_dependency,
-)
-from src.core.modules.project_management.api.desktop.tasks.serializers.reservation_serializer import (
-    serialize_reservation,
 )
 from src.core.modules.project_management.api.desktop.tasks.serializers.skill_serializer import (
     serialize_skill_requirement,
@@ -548,8 +535,8 @@ class ProjectManagementTasksDesktopApi:
 
     def get_task_time_summary(self, task_id: str) -> TaskTimeSummaryDesktopDto | None:
         """Task-scoped planned/actual/remaining/overrun totals plus the
-        per-resource breakdown for Task Detail -> Time -> Overview (docs
-        §44 Time redesign). None when the task can't be resolved."""
+        per-resource breakdown for Task Detail -> Time -> Overview.
+        None when the task can't be resolved."""
         if not task_id:
             return None
         service = self._require_task_service()
@@ -569,8 +556,8 @@ class ProjectManagementTasksDesktopApi:
         sort_direction: str = "desc",
     ) -> TaskTimeEntriesPageDesktopDto | None:
         """Task-scoped (every assignment on this task), all-time Time
-        Entries listing for Task Detail -> Time -> Time Entries (docs §44
-        Time redesign). None when the task can't be resolved."""
+        Entries listing for Task Detail -> Time -> Time Entries.
+        None when the task can't be resolved."""
         if not task_id:
             return None
         service = self._require_task_service()
@@ -824,9 +811,9 @@ class ProjectManagementTasksDesktopApi:
         self,
         command: TaskDependencyCreateCommand,
     ) -> TaskDependencyImpactPreviewDesktopDto | None:
-        """Non-persisting impact preview for a proposed CREATE (Phase K).
-        Uses the same canonical, non-persisting engine the committed
-        schedule uses -- never a second formula, never QML-side math."""
+        """Non-persisting impact preview for a proposed CREATE. Uses the
+        same canonical, non-persisting engine the committed schedule uses
+        -- never a second formula, never QML-side math."""
         service = self._require_task_service()
         get_diagnostics = getattr(service, "get_dependency_diagnostics", None)
         if not callable(get_diagnostics):
@@ -851,7 +838,7 @@ class ProjectManagementTasksDesktopApi:
         self,
         command: TaskDependencyUpdateCommand,
     ) -> TaskDependencyImpactPreviewDesktopDto | None:
-        """Non-persisting impact preview for a proposed UPDATE (Phase K)."""
+        """Non-persisting impact preview for a proposed UPDATE."""
         service = self._require_task_service()
         get_diagnostics = getattr(service, "get_dependency_diagnostics", None)
         get_dependency = getattr(service, "get_dependency", None)
@@ -876,7 +863,7 @@ class ProjectManagementTasksDesktopApi:
     def preview_delete_dependency(
         self, dependency_id: str
     ) -> TaskDependencyImpactPreviewDesktopDto | None:
-        """Non-persisting impact preview for a proposed DELETE (Phase K)."""
+        """Non-persisting impact preview for a proposed DELETE."""
         service = self._require_task_service()
         preview = getattr(service, "preview_dependency_removal", None)
         if not callable(preview):
@@ -912,56 +899,6 @@ class ProjectManagementTasksDesktopApi:
         normalized_ids = normalize_task_ids(task_ids)
         service = self._require_task_service()
         return tuple(service.delete_tasks(normalized_ids))
-
-    def list_task_reservations(self, task_id: str) -> tuple[TaskReservationDesktopDto, ...]:
-        if not task_id or self._reservation_service is None:
-            return ()
-        all_reservations = self._reservation_service.list_reservations(limit=500)
-        task_reservations = [
-            reservation for reservation in all_reservations
-            if getattr(reservation, "source_reference_type", "") == "task"
-            and getattr(reservation, "source_reference_id", "") == task_id
-        ]
-        return tuple(
-            serialize_reservation(reservation)
-            for reservation in sorted(
-                task_reservations,
-                key=lambda reservation: getattr(reservation, "created_at", None) or "",
-            )
-        )
-
-    def create_task_reservation(
-        self,
-        command: TaskReservationCreateCommand,
-    ) -> TaskReservationDesktopDto:
-        if self._reservation_service is None:
-            raise RuntimeError("Inventory reservation service is not connected.")
-        task = self._require_task_service().get_task(command.task_id)
-        if task is None:
-            raise RuntimeError("Task not found.")
-        reservation = self._reservation_service.create_reservation(
-            stock_item_id=command.stock_item_id,
-            storeroom_id=command.storeroom_id,
-            reserved_qty=command.reserved_qty,
-            uom=command.uom,
-            need_by_date=command.need_by_date,
-            source_reference_type="task",
-            source_reference_id=command.task_id,
-            source_module="project_management",
-            source_entity_type="task",
-            source_code_snapshot=str(getattr(task, "name", "") or ""),
-            source_status_snapshot=str(
-                getattr(getattr(task, "status", None), "value", "") or ""
-            ),
-            notes=command.notes,
-        )
-        return serialize_reservation(reservation)
-
-    def get_task_material_demand(self, task_id: str) -> TaskMaterialDemandSummary:
-        return build_material_demand_summary(
-            task_id,
-            self.list_task_reservations(task_id),
-        )
 
     def list_task_skill_requirements(
         self,
@@ -1015,7 +952,7 @@ class ProjectManagementTasksDesktopApi:
         """Task Detail -> Schedule Impact's always-visible current-state
         facts (position, criticality, float, drivers, conflicts,
         downstream exposure) -- no hypothetical simulation, safe to load
-        automatically on task selection (§26)."""
+        automatically on task selection."""
         normalized_task_id = str(task_id or "").strip()
         normalized_project_id = str(project_id or "").strip()
         if not normalized_task_id or not normalized_project_id:
@@ -1063,8 +1000,8 @@ class ProjectManagementTasksDesktopApi:
         delay_working_days: int = 1,
     ) -> ScheduleImpactReportDto:
         """Task Detail -> Schedule Impact's explicit "Preview Impact"
-        what-if (§12/§13) -- a non-persisting simulation, run only when
-        the user asks for it, never automatically on task selection."""
+        what-if -- a non-persisting simulation, run only when the user
+        asks for it, never automatically on task selection."""
         normalized_task_id = str(task_id or "").strip()
         normalized_project_id = str(project_id or "").strip()
         unavailable = serialize_schedule_impact_report(

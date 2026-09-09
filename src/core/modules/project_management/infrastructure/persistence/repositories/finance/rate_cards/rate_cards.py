@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import exists, func, literal, or_, select, text
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_cards import (
@@ -22,6 +22,15 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.rate
 from src.core.modules.project_management.infrastructure.persistence.orm.rate_cards import (
     ProjectRateCardORM,
     RateCardLineORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.billing import (
+    ProjectBillingPreparationLineORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.labor_posting import (
+    ApprovedTimeLaborPostingORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.planned_cost import (
+    ProjectPlannedCostLineORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds, TenantContextService
@@ -183,6 +192,43 @@ class SqlAlchemyProjectRateCardRepository(_RateCardScope, ProjectRateCardReposit
             },
             not_found_message="Rate card line not found.",
             stale_message="Rate card line was updated by another user.",
+        )
+
+    def is_line_consumed(self, line_id: str) -> bool:
+        context = self._context(operation_label="check rate card line history")
+        labor_use = exists(
+            select(1).where(
+                ApprovedTimeLaborPostingORM.tenant_id == context.tenant_id,
+                ApprovedTimeLaborPostingORM.organization_id == context.organization_id,
+                ApprovedTimeLaborPostingORM.rate_line_id == line_id,
+            )
+        )
+        planned_use = exists(
+            select(1).where(
+                ProjectPlannedCostLineORM.tenant_id == context.tenant_id,
+                ProjectPlannedCostLineORM.organization_id == context.organization_id,
+                ProjectPlannedCostLineORM.rate_line_id == line_id,
+            )
+        )
+        billing_use = exists(
+            select(1).where(
+                ProjectBillingPreparationLineORM.tenant_id == context.tenant_id,
+                ProjectBillingPreparationLineORM.organization_id == context.organization_id,
+                ProjectBillingPreparationLineORM.rate_line_id == line_id,
+            )
+        )
+        return bool(
+            self.session.scalar(
+                select(literal(True)).where(or_(labor_use, planned_use, billing_use))
+            )
+        )
+
+    def lock_line_overlap_scope(self, lock_key: str) -> None:
+        if self.session.get_bind().dialect.name != "postgresql":
+            return
+        self.session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:lock_key, 0))"),
+            {"lock_key": lock_key},
         )
 
     def list_lines(

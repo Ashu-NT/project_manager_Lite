@@ -103,10 +103,9 @@ class PlatformOrganizationController(QObject):
         )
 
     def refresh_organizations(self) -> None:
-        """Narrow reaction to the organization-collection ViewInvalidation target (P5A +
-        Organization-specific P6A cutover) -- re-reads only the organization list, unlike
-        `refresh()`'s full reload (module options too), which is not stale after a plain
-        organization creation."""
+        """Narrow reaction to the organization-collection ViewInvalidation target -- re-reads
+        only the organization list, unlike `refresh()`'s full reload (module options too),
+        which is not stale after a plain organization creation."""
         self._refresh_organizations()
 
     @Slot("QVariantMap", result="QVariantMap")

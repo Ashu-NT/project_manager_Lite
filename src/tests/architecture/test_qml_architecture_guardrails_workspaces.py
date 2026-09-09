@@ -134,19 +134,3 @@ def test_project_management_portfolio_workspace_no_longer_uses_placeholder_page(
     assert "WorkspacePlaceholderPage" not in text
 
 
-def test_inventory_pricing_workspace_no_longer_uses_placeholder_page() -> None:
-    pricing_workspace = (
-        UI_QML_ROOT
-        / "modules"
-        / "inventory_procurement"
-        / "qml"
-        / "workspaces"
-        / "pricing"
-        / "PricingWorkspace.qml"
-    )
-    text = pricing_workspace.read_text(encoding="utf-8", errors="ignore")
-
-    assert "PricingWorkspacePage" in text
-    assert "WorkspacePlaceholderPage" not in text
-
-

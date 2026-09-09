@@ -15,12 +15,16 @@ from src.core.modules.project_management.domain.risk.register import (
     as_register_entry_status,
     as_register_entry_type,
 )
-from src.core.shared.events.domain_events import domain_events
+from src.core.modules.project_management.application.risk.register_events import (
+    RegisterEntryChangeType,
+    RegisterEntryChanged,
+)
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.register.register import RegisterEntryRepository
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 
 
@@ -53,18 +57,24 @@ class RegisterLifecycleMixin:
         ) from exc
 
     def _resolve_entry_code(
-        self, code: str, project_id: str, title: str, *, exclude_id: str | None = None
+        self,
+        code: str,
+        project_id: str,
+        title: str,
+        *,
+        exclude_id: str | None = None,
+        register_repo: RegisterEntryRepository | None = None,
     ) -> str:
-        """Normalize a manual code or auto-generate a unique one (per-project, REG prefix)."""
         from src.core.platform.common.code_generation import (
             CodeGenerator,
             assert_code_unique,
             normalize_manual_code,
         )
 
+        repo = register_repo if register_repo is not None else self._register_repo
         existing = {
             str(getattr(entry, "code", "") or "").upper()
-            for entry in self._register_repo.list_entries(project_id=project_id)
+            for entry in repo.list_entries(project_id=project_id)
             if exclude_id is None or entry.id != exclude_id
         }
         manual = normalize_manual_code(code)
@@ -120,28 +130,53 @@ class RegisterLifecycleMixin:
             impact_summary=impact_summary,
             response_plan=response_plan,
         )
-        entry.code = self._resolve_entry_code(code, project_id, entry.title)
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="create register entry"
+        )
         try:
-            self._register_repo.add(entry)
-            self._session.commit()
-            record_activity(
-                self,
-                action="register.create",
-                entity_type="register_entry",
-                entity_id=entry.id,
-                module="project_management",
-                workspace_id=entry.project_id,
-                details=self._audit_details(entry),
-            )
+            with self._require_uow_factory().create(context=self._new_context()) as uow:
+                entry.code = self._resolve_entry_code(
+                    code, project_id, entry.title, register_repo=uow.entries
+                )
+                uow.entries.add(entry)
+                record_activity(
+                    uow,
+                    action="register.create",
+                    entity_type="register_entry",
+                    entity_id=entry.id,
+                    module="project_management",
+                    workspace_id=entry.project_id,
+                    details=self._audit_details(entry),
+                    commit=False,
+                )
+                record_audit_entry(
+                    uow,
+                    operation="create",
+                    entity_type="register_entry",
+                    entity_id=entry.id,
+                    module="project_management",
+                    organization_id=scope.organization_id,
+                    severity="low",
+                    metadata={"action": "register.create", **self._audit_details(entry)},
+                    commit=False,
+                    fail_closed=True,
+                )
+                uow.record_event(
+                    RegisterEntryChanged(
+                        tenant_id=scope.tenant_id,
+                        organization_id=scope.organization_id,
+                        project_id=entry.project_id,
+                        register_entry_id=entry.id,
+                        entry_type=as_register_entry_type(entry.entry_type),
+                        change_type=RegisterEntryChangeType.CREATED,
+                        occurred_at=datetime.now(timezone.utc),
+                    )
+                )
+                uow.commit()
         except IntegrityError as exc:
-            self._session.rollback()
             if self._is_register_code_integrity_error(exc):
                 self._raise_register_code_duplicate(entry.code, exc)
             raise
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.register_changed.emit(entry.project_id)
         return entry
 
     def update_entry(
@@ -188,37 +223,61 @@ class RegisterLifecycleMixin:
             response_plan=entry.response_plan if response_plan is None else response_plan,
             updated_at=datetime.now(timezone.utc),
         )
-        if code is not None and code.strip():
-            candidate = replace(
-                candidate,
-                code=self._resolve_entry_code(
-                    code,
-                    entry.project_id,
-                    candidate.title,
-                    exclude_id=entry.id,
-                ),
-            )
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="update register entry"
+        )
         try:
-            self._register_repo.update(candidate)
-            self._session.commit()
-            record_activity(
-                self,
-                action="register.update",
-                entity_type="register_entry",
-                entity_id=candidate.id,
-                module="project_management",
-                workspace_id=candidate.project_id,
-                details=self._audit_details(candidate),
-            )
+            with self._require_uow_factory().create(context=self._new_context()) as uow:
+                if code is not None and code.strip():
+                    candidate = replace(
+                        candidate,
+                        code=self._resolve_entry_code(
+                            code,
+                            entry.project_id,
+                            candidate.title,
+                            exclude_id=entry.id,
+                            register_repo=uow.entries,
+                        ),
+                    )
+                uow.entries.update(candidate)
+                record_activity(
+                    uow,
+                    action="register.update",
+                    entity_type="register_entry",
+                    entity_id=candidate.id,
+                    module="project_management",
+                    workspace_id=candidate.project_id,
+                    details=self._audit_details(candidate),
+                    commit=False,
+                )
+                record_audit_entry(
+                    uow,
+                    operation="update",
+                    entity_type="register_entry",
+                    entity_id=candidate.id,
+                    module="project_management",
+                    organization_id=scope.organization_id,
+                    severity="low",
+                    metadata={"action": "register.update", **self._audit_details(candidate)},
+                    commit=False,
+                    fail_closed=True,
+                )
+                uow.record_event(
+                    RegisterEntryChanged(
+                        tenant_id=scope.tenant_id,
+                        organization_id=scope.organization_id,
+                        project_id=candidate.project_id,
+                        register_entry_id=candidate.id,
+                        entry_type=as_register_entry_type(candidate.entry_type),
+                        change_type=RegisterEntryChangeType.UPDATED,
+                        occurred_at=datetime.now(timezone.utc),
+                    )
+                )
+                uow.commit()
         except IntegrityError as exc:
-            self._session.rollback()
             if self._is_register_code_integrity_error(exc):
                 self._raise_register_code_duplicate(candidate.code, exc)
             raise
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.register_changed.emit(candidate.project_id)
         return candidate
 
     def delete_entry(self, entry_id: str) -> None:
@@ -232,22 +291,45 @@ class RegisterLifecycleMixin:
             "register.manage",
             operation_label="delete register entry",
         )
-        try:
-            self._register_repo.delete(entry_id)
-            self._session.commit()
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="delete register entry"
+        )
+        with self._require_uow_factory().create(context=self._new_context()) as uow:
+            uow.entries.delete(entry_id)
             record_activity(
-                self,
+                uow,
                 action="register.delete",
                 entity_type="register_entry",
                 entity_id=entry.id,
                 module="project_management",
                 workspace_id=entry.project_id,
                 details=self._audit_details(entry),
+                commit=False,
             )
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.register_changed.emit(entry.project_id)
+            record_audit_entry(
+                uow,
+                operation="delete",
+                entity_type="register_entry",
+                entity_id=entry.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={"action": "register.delete", **self._audit_details(entry)},
+                commit=False,
+                fail_closed=True,
+            )
+            uow.record_event(
+                RegisterEntryChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    project_id=entry.project_id,
+                    register_entry_id=entry.id,
+                    entry_type=as_register_entry_type(entry.entry_type),
+                    change_type=RegisterEntryChangeType.REMOVED,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            uow.commit()
 
     @staticmethod
     def _audit_details(entry: RegisterEntry) -> dict[str, object]:

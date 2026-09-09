@@ -94,7 +94,16 @@ class Department:
     @field_validator("version", mode="before")
     @classmethod
     def _validate_version(cls, value: object) -> int:
-        resolved = int(value if value not in (None, "") else 1)
+        if value in (None, ""):
+            return 1
+        
+        if not isinstance(value, (int, str)):
+            raise ValidationError(
+            "Department version must be an integer.",
+            code="DEPARTMENT_VERSION_INVALID",
+            )
+        resolved = int(value)
+        
         if resolved < 1:
             raise ValidationError(
                 "Department version must be positive.",

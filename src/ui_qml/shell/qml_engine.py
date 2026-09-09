@@ -29,14 +29,6 @@ import src.ui_qml.modules.project_management.controllers.resources.resources_wor
 import src.ui_qml.modules.project_management.controllers.register.register_workspace_controller  # noqa: F401
 import src.ui_qml.modules.project_management.controllers.dashboard.dashboard_workspace_controller  # noqa: F401
 import src.ui_qml.modules.project_management.controllers.timesheets.timesheets_workspace_controller  # noqa: F401
-import src.ui_qml.modules.inventory_procurement.context  # noqa: F401
-import src.ui_qml.modules.inventory_procurement.controllers.common.workspace_controller_base  # noqa: F401
-import src.ui_qml.modules.inventory_procurement.controllers.catalog.catalog_workspace_controller  # noqa: F401
-import src.ui_qml.modules.inventory_procurement.controllers.dashboard.dashboard_workspace_controller  # noqa: F401
-import src.ui_qml.modules.inventory_procurement.controllers.inventory.inventory_workspace_controller  # noqa: F401
-import src.ui_qml.modules.inventory_procurement.controllers.pricing.pricing_workspace_controller  # noqa: F401
-import src.ui_qml.modules.inventory_procurement.controllers.procurement.procurement_workspace_controller  # noqa: F401
-import src.ui_qml.modules.inventory_procurement.controllers.reservations.reservations_workspace_controller  # noqa: F401
 
 os.environ.setdefault("QT_QUICK_CONTROLS_STYLE", "Basic")
 

@@ -133,7 +133,6 @@ project_manager_Lite/
 │   │   │   │   ├── contracts/
 │   │   │   │   ├── domain/
 │   │   │   │   └── infrastructure/
-│   │   │   ├── inventory_procurement/
 │   │   │   ├── maintenance/
 │   │   │   ├── payroll/
 │   │   │   ├── hr_management/
@@ -169,7 +168,6 @@ project_manager_Lite/
 
 **Module layer** (`src/core/modules/`) owns:
 - Project management (projects, tasks, resources, costs, baselines, portfolio)
-- Inventory and procurement
 - Maintenance (CMMS)
 - Payroll
 - HR management
@@ -753,7 +751,7 @@ Grouped by domain:
 | `project_manager` | planner + `baseline.approve`, `cost.manage`, `finance.read`, `finance.export`, `timesheet.approve` | Senior PM |
 | `resource_manager` | `project.read`, `task.read`, `time.read`, `resource.read/manage`, `employee.read/manage`, `site.read`, `department.read`, `report.view/export`, `timesheet.approve/lock` | HR/resource focus |
 | `finance` / `finance_controller` | (same set) `project/task/time/resource/cost.read`, `cost.manage`, `party.read`, `register.read`, `report.view/export`, `finance.read/manage/export`, `payroll.read`, `approval.request` | Financial controller |
-| `inventory_manager` | `inventory.read/manage`, `site.read`, `party.read`, `report.view/export`, `import.manage`, `approval.request` | Inventory / procurement |
+| `inventory_manager` | `inventory.read/manage`, `site.read`, `party.read`, `report.view/export`, `import.manage`, `approval.request` | Platform RBAC role for inventory-scoped capabilities; unused until a module grants inventory.* |
 | `maintenance_manager` / `maintenance_admin` | (same set) `maintenance.read/manage`, `time.read/manage`, `site.read`, `employee.read`, `party.read`, `report.view/export`, `approval.request`, `import.manage` | CMMS operations |
 | `payroll_manager` | `project/task/time/resource/employee.read`, `employee.manage`, `site.read`, `department.read`, `report.view`, `payroll.read/manage/approve/export`, `timesheet.approve/lock`, `audit.read` | Payroll processing |
 | `portfolio_manager` | `project/task/time/resource/cost/register.read`, `report.view/export`, `portfolio.read/manage`, `collaboration.read`, `approval.request` | Portfolio oversight |

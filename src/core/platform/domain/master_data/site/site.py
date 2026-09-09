@@ -11,6 +11,7 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.finance.money.currency import CurrencyCode
 
 
@@ -22,7 +23,11 @@ def _validate_optional_datetime(value: object, *, code: str) -> datetime | None:
             "Site datetime values must be valid datetimes.",
             code=code,
         )
-    return value
+    # SQLite drops tzinfo on round-trip (plain DateTime column), so a value
+    # reloaded from persistence comes back naive while a freshly-constructed
+    # one is UTC-aware. Normalize here so opened_at/closed_at are always
+    # comparable regardless of where the value came from.
+    return ensure_utc_datetime(value)
 
 
 @validated_dataclass

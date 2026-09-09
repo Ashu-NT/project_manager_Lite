@@ -27,6 +27,18 @@ Item {
     property string impactType: ""
     property string impactAppliedState: ""
     property bool busy: false
+    property bool canCreate: false
+    property string selectedImpactId: ""
+
+    readonly property var selectedChangeState: root.selectedChange
+        ? (root.selectedChange.state || {}) : ({})
+    readonly property var selectedImpact: {
+        const rows = root.impacts.items || []
+        for (let index = 0; index < rows.length; index += 1) {
+            if (String(rows[index].id || "") === root.selectedImpactId) return rows[index]
+        }
+        return null
+    }
 
     signal changeSelected(string changeId)
     signal changePageRequested(int page)
@@ -35,6 +47,12 @@ Item {
     signal impactSortRequested(string key, int direction)
     signal changeFiltersRequested(string search, string status, string approvalStatus, string appliedState)
     signal impactFiltersRequested(string search, string impactType, string appliedState)
+    signal requestCreateRequested()
+    signal requestEditRequested(var change)
+    signal requestLifecycleRequested(string action, var change)
+    signal impactCreateRequested(var change)
+    signal impactEditRequested(var change, var impact)
+    signal impactRemoveRequested(var change, var impact)
 
     readonly property var _changeColumns: [
         { "key": "title", "label": "Change Request", "flex": 1.7, "sortable": true },
@@ -109,6 +127,49 @@ Item {
 
         AppWidgets.SectionHeading { Layout.fillWidth: true; label: "Change Requests" }
 
+        Flow {
+            Layout.fillWidth: true
+            spacing: Theme.AppTheme.spacingSm
+            leftPadding: Theme.AppTheme.spacingMd
+            rightPadding: Theme.AppTheme.spacingMd
+
+            AppControls.SecondaryButton {
+                visible: root.canCreate
+                enabled: !root.busy
+                text: "Create Change Request"
+                iconName: "add"
+                onClicked: root.requestCreateRequested()
+            }
+            AppControls.SecondaryButton {
+                visible: Boolean(root.selectedChangeState.canEdit)
+                enabled: !root.busy
+                text: "Edit"
+                iconName: "edit"
+                onClicked: root.requestEditRequested(root.selectedChange)
+            }
+            AppControls.SecondaryButton {
+                visible: Boolean(root.selectedChangeState.canSubmit)
+                enabled: !root.busy
+                text: "Submit"
+                iconName: "approve"
+                onClicked: root.requestLifecycleRequested("submit", root.selectedChange)
+            }
+            AppControls.SecondaryButton {
+                visible: Boolean(root.selectedChangeState.canApprove)
+                enabled: !root.busy
+                text: "Approve & Apply"
+                iconName: "approve"
+                onClicked: root.requestLifecycleRequested("approve", root.selectedChange)
+            }
+            AppControls.SecondaryButton {
+                visible: Boolean(root.selectedChangeState.canReject)
+                enabled: !root.busy
+                text: "Reject"
+                iconName: "reject"
+                onClicked: root.requestLifecycleRequested("reject", root.selectedChange)
+            }
+        }
+
         AppWidgets.TableToolbar {
             Layout.fillWidth: true
             searchText: root.changeSearch
@@ -173,7 +234,10 @@ Item {
                 selectedRowId: root.selectedChangeId
                 loading: root.busy
                 emptyText: root.changes.emptyState || "No Change Requests."
-                onRowSelected: function(rowId) { root.changeSelected(String(rowId || "")) }
+                onRowSelected: function(rowId) {
+                    root.selectedImpactId = ""
+                    root.changeSelected(String(rowId || ""))
+                }
                 onSortRequested: function(key, direction) { root.changeSortRequested(key, direction) }
             }
         }
@@ -225,6 +289,40 @@ Item {
         }
 
         AppWidgets.SectionHeading { Layout.fillWidth: true; label: "Selected Change Impacts" }
+
+        Flow {
+            Layout.fillWidth: true
+            visible: root.selectedChangeId.length > 0
+            spacing: Theme.AppTheme.spacingSm
+            leftPadding: Theme.AppTheme.spacingMd
+            rightPadding: Theme.AppTheme.spacingMd
+
+            AppControls.SecondaryButton {
+                visible: Boolean(root.selectedChangeState.canAddImpact)
+                enabled: !root.busy
+                text: "Add Impact"
+                iconName: "add"
+                onClicked: root.impactCreateRequested(root.selectedChange)
+            }
+            AppControls.SecondaryButton {
+                visible: Boolean(root.selectedImpact
+                    && root.selectedImpact.state
+                    && root.selectedImpact.state.canEdit)
+                enabled: !root.busy
+                text: "Edit Impact"
+                iconName: "edit"
+                onClicked: root.impactEditRequested(root.selectedChange, root.selectedImpact)
+            }
+            AppControls.SecondaryButton {
+                visible: Boolean(root.selectedImpact
+                    && root.selectedImpact.state
+                    && root.selectedImpact.state.canRemove)
+                enabled: !root.busy
+                text: "Remove Impact"
+                iconName: "delete"
+                onClicked: root.impactRemoveRequested(root.selectedChange, root.selectedImpact)
+            }
+        }
 
         AppWidgets.TableToolbar {
             Layout.fillWidth: true
@@ -280,9 +378,13 @@ Item {
                 sortingMode: "server"
                 sortKey: root.impactSortKey
                 sortDirection: root.impactSortDirection
+                selectedRowId: root.selectedImpactId
                 loading: root.busy
                 emptyText: root.impacts.emptyState || "No impacts."
                 onSortRequested: function(key, direction) { root.impactSortRequested(key, direction) }
+                onRowSelected: function(rowId) {
+                    root.selectedImpactId = String(rowId || "")
+                }
             }
         }
 

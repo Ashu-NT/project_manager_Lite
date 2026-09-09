@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import os
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
-from src.core.shared.events.domain_events import domain_events
-from src.core.platform.domain.security.authorization.roles import ROLE_SCOPE_PLATFORM, RoleBinding
+from src.core.platform.domain.security.authorization.roles import (
+    ROLE_SCOPE_PLATFORM,
+    RoleBindingPlatformScope,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 
 from .default_seed_service import (
@@ -13,7 +16,9 @@ from .default_seed_service import (
     resolve_bootstrap_admin_password,
 )
 from .registration_service import _register_bootstrap_user
-from src.core.platform.application.security.auth.audit.security_audit import add_atomic_system_security_audit
+from src.core.platform.application.security.authorization.roles.role_binding_mutation_participant import (
+    create_role_binding_using,
+)
 
 if TYPE_CHECKING:
     from src.core.platform.domain.security.auth import UserAccount
@@ -22,14 +27,17 @@ if TYPE_CHECKING:
 
 
 def bootstrap_policy_catalog(service: AuthService) -> None:
-    """Initialize definitions without mutating reviewed role permissions."""
-    ensure_auth_policy_definitions(service)
-    service._session.commit()
+    """Initialize definitions without mutating reviewed role permissions. Deliberately its own
+    transaction, separate from `bootstrap_defaults` below: both are independently idempotent, so
+    a crash between the two self-heals on the next startup with no duplicate-insert or
+    partial-account risk. Do not merge them into one transaction."""
+    with service._uow() as uow:
+        ensure_auth_policy_definitions(service)
+        uow.commit()
 
 
 def bootstrap_defaults(service: AuthService) -> UserAccount:
-    authority_changed = False
-    try:
+    with service._uow() as uow:
         role_map = ensure_auth_policy_defaults(service)
 
         admin_username = (
@@ -46,8 +54,8 @@ def bootstrap_defaults(service: AuthService) -> UserAccount:
                 role_names=["admin"],
                 must_change_password=True,
                 commit=False,
+                uow=uow,
             )
-            authority_changed = True
         else:
             admin_role = role_map.get("admin")
             if admin_role and service._role_binding_repo is None:
@@ -67,36 +75,24 @@ def bootstrap_defaults(service: AuthService) -> UserAccount:
                 else None
             )
             if admin_role and existing_admin_binding is None:
-                service._role_binding_repo.add(
-                    RoleBinding.create(
-                        principal_id=admin.id,
-                        role_id=admin_role.id,
-                        actual_scope_type=ROLE_SCOPE_PLATFORM,
-                    )
+                # A real, actual repair (the admin account already exists but is missing its
+                # RoleBinding row) -- records the exact fact for the change that actually
+                # happened (a new RoleBinding), never a fabricated "account created" fact.
+                create_role_binding_using(
+                    role_bindings_repo=service._role_binding_repo,
+                    audit_repo=service._security_audit_repo,
+                    clock=service._clock,
+                    record_event=uow.record_event,
+                    principal_id=admin.id,
+                    role_id=admin_role.id,
+                    tenant_id=None,
+                    scope_type=ROLE_SCOPE_PLATFORM,
+                    scope_id=None,
+                    domain_scope=RoleBindingPlatformScope(),
+                    actor=SimpleNamespace(user_id=None, username="local_startup"),
+                    audit_action="bootstrap.admin_role.repair",
                 )
-                add_atomic_system_security_audit(
-                    service,
-                    operation="permission_change",
-                    entity_type="role_binding",
-                    entity_id=admin.id,
-                    action="bootstrap.admin_role.repair",
-                    severity="critical",
-                    actor_username="local_startup",
-                    field="role",
-                    new_value=admin_role.name,
-                    metadata={
-                        "target_user_id": admin.id,
-                        "role_name": admin_role.name,
-                    },
-                )
-                authority_changed = True
-
-        service._session.commit()
-    except Exception:
-        service._session.rollback()
-        raise
-    if authority_changed:
-        domain_events.auth_changed.emit(admin.id)
+        uow.commit()
     return admin
 
 

@@ -156,7 +156,8 @@ def test_project_management_persistence_imports_project_management_orm_models():
         ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "tasks" / "task.py",
         ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "resources" / "resource.py",
         ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "scheduling" / "baseline.py",
-        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "cost.py",
+        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "finance" / "cost_entries" / "cost_entry.py",
+        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "finance" / "planned_costs" / "planned_cost.py",
         ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "portfolio" / "portfolio.py",
         ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "collaboration" / "collaboration.py",
     ]
@@ -167,23 +168,6 @@ def test_project_management_persistence_imports_project_management_orm_models():
         assert "from src.core.modules.project_management.infrastructure.persistence.orm." in text
         assert "from src.core.modules.project_management.infrastructure.persistence.mappers." in text
         assert "from src.infra.persistence.orm.platform.models import" not in text
-
-
-def test_inventory_persistence_imports_inventory_orm_models():
-    checked_files = [
-        ROOT / "src" / "core" / "modules" / "inventory_procurement" / "infrastructure" / "persistence" / "mappers" / "catalog.py",
-        ROOT / "src" / "core" / "modules" / "inventory_procurement" / "infrastructure" / "persistence" / "mappers" / "inventory.py",
-        ROOT / "src" / "core" / "modules" / "inventory_procurement" / "infrastructure" / "persistence" / "mappers" / "procurement.py",
-        ROOT / "src" / "core" / "modules" / "inventory_procurement" / "infrastructure" / "persistence" / "repositories" / "catalog.py",
-        ROOT / "src" / "core" / "modules" / "inventory_procurement" / "infrastructure" / "persistence" / "repositories" / "inventory.py",
-        ROOT / "src" / "core" / "modules" / "inventory_procurement" / "infrastructure" / "persistence" / "repositories" / "procurement.py",
-    ]
-
-    for path in checked_files:
-        text = path.read_text(encoding="utf-8", errors="ignore")
-        assert "from src.core.modules.inventory_procurement.infrastructure.persistence.orm." in text
-        assert "from src.infra.persistence.orm.platform.models import" not in text
-        assert "from src.infra.persistence.orm.inventory_procurement.models import" not in text
 
 
 def test_orm_package_root_loads_all_model_packages():
@@ -203,8 +187,6 @@ def test_orm_package_root_loads_all_model_packages():
         assert f"import src.core.platform.infrastructure.persistence.orm.{module}" in package_text
     for module in ("project", "resource", "task", "cost", "baseline", "register", "collaboration", "portfolio"):
         assert f"import src.core.modules.project_management.infrastructure.persistence.orm.{module}" in package_text
-    for module in ("catalog", "inventory", "procurement"):
-        assert f"import src.core.modules.inventory_procurement.infrastructure.persistence.orm.{module}" in package_text
     assert "from src.infra.persistence.orm import Base" in migration_env_text
     assert "import src.infra.persistence.orm" in migration_env_text
 
@@ -266,7 +248,6 @@ def test_qml_platform_controller_packages_exist():
 def test_qml_module_workspace_roots_exist():
     for rel_path in (
         "src/ui_qml/modules/project_management/qml/workspaces",
-        "src/ui_qml/modules/inventory_procurement/qml/workspaces",
     ):
         assert (ROOT / rel_path).is_dir()
 

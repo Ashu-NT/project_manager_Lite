@@ -1,4 +1,3 @@
-# src/core/modules/project_management/application/resources/commands/resource_commands.py
 from __future__ import annotations
 
 from dataclasses import replace
@@ -351,8 +350,7 @@ class ResourceCommandMixin:
                 site_id=site_id,
             )
             if candidate == resource:
-                # True no-op (pre-release discipline, P18A §10): zero repository write, zero
-                # audit, zero typed event, zero legacy signal, no synthetic version bump.
+                # True no-op: no write, audit, event, or version bump.
                 return resource
             uow.resources.update(candidate)
             self._stage_activity(uow, candidate, action="resource.updated")

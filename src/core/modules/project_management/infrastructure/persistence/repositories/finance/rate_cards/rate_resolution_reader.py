@@ -1,4 +1,4 @@
-"""Concrete, tenant-scoped batch reads for ADR-PF-005 rate resolution.
+"""Concrete, tenant-scoped batch reads for rate resolution.
 
 One dedicated adapter — not two existing write repositories partially
 implementing a shared protocol. ``RateCardResolver`` depends on

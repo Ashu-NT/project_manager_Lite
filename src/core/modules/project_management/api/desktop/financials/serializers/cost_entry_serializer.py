@@ -9,18 +9,17 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
 )
 from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntry,
-    ProjectCostEntryKind,
-    ProjectCostEntryStatus,
+)
+from src.core.modules.project_management.application.financials.cost.entries.capabilities import (
+    CostEntryActionCapabilities,
 )
 
 
-def serialize_cost_entry(entry: ProjectCostEntry) -> FinancialCostEntryDto:
-    is_draft = entry.status is ProjectCostEntryStatus.DRAFT
-    # A reversal entry is itself already the correction — the domain
-    # (ProjectCostEntry.mark_reversed) forbids reversing a reversal, so the
-    # capability flag must agree rather than offer an action the service
-    # would reject.
-    is_reversible_kind = entry.entry_kind is not ProjectCostEntryKind.REVERSAL
+def serialize_cost_entry(
+    entry: ProjectCostEntry,
+    capabilities: CostEntryActionCapabilities | None = None,
+) -> FinancialCostEntryDto:
+    actions = capabilities or CostEntryActionCapabilities.none()
     return FinancialCostEntryDto(
         id=entry.id,
         project_id=entry.project_id,
@@ -39,15 +38,21 @@ def serialize_cost_entry(entry: ProjectCostEntry) -> FinancialCostEntryDto:
             if entry.source_module.value == "project_management"
             else entry.source_module.value.replace("_", " ").title()
         ),
+        source_module=entry.source_module.value,
+        source_type=entry.source_type.value,
+        source_owned=not entry.is_manual_actual,
         posting_date=entry.posting_date.isoformat() if entry.posting_date else "",
         financial_period_id=entry.financial_period_id or "",
         row_version=entry.row_version,
-        can_edit=is_draft,
-        can_delete=is_draft,
-        can_submit=is_draft,
-        can_approve=entry.status is ProjectCostEntryStatus.SUBMITTED,
-        can_post=entry.status is ProjectCostEntryStatus.APPROVED,
-        can_reverse=entry.status is ProjectCostEntryStatus.POSTED and is_reversible_kind,
+        can_edit=actions.can_edit,
+        can_delete=actions.can_delete,
+        can_submit=actions.can_submit,
+        can_approve=actions.can_approve,
+        can_reject=actions.can_reject,
+        can_post=actions.can_post,
+        can_reverse=actions.can_reverse,
+        approval_action=actions.approval_action,
+        read_only_reason=actions.read_only_reason,
     )
 
 

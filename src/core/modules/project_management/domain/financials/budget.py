@@ -71,14 +71,11 @@ def _require_transition(
 class ProjectBudget:
     """One versioned iteration of a project's budget authorization.
 
-    ``revision`` is the business version within the project (v1, v2, v3...)
-    — assigned once at creation and never changed afterward; a rejected or
-    superseded iteration is never revised in place, only replaced by a new
-    ``ProjectBudget`` row with the next revision. ``row_version`` is a
-    separate, plain optimistic-concurrency token that increments on every
-    field-level update (including line mutations against this budget — see
-    ``touch()``). These two numbers must never be conflated: updating this
-    budget's name must not change which "version" it represents.
+    ``revision`` is the business version (v1, v2, v3...), assigned once and never
+    changed; a rejected or superseded iteration is replaced by a new row, never revised
+    in place. ``row_version`` is a separate optimistic-concurrency token that increments
+    on every field-level update (see ``touch()``). The two must never be conflated:
+    renaming this budget must not change which "version" it represents.
     """
 
     id: str

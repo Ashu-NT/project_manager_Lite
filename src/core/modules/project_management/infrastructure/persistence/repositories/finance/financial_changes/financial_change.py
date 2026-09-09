@@ -25,7 +25,11 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
     ActiveScopeIds,
     TenantContextService,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    NotFoundError,
+)
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
@@ -118,6 +122,10 @@ class SqlAlchemyFinancialChangeRepository(FinancialChangeRepository):
             change.id,
             expected_row_version,
             {
+                "title": change.title,
+                "reason": change.reason,
+                "description": change.description,
+                "effective_date": change.effective_date,
                 "status": change.status.value,
                 "approval_request_id": change.approval_request_id,
                 "applied_budget_id": change.applied_budget_id,
@@ -140,6 +148,17 @@ class SqlAlchemyFinancialChangeRepository(FinancialChangeRepository):
             not_found_message="Financial change not found.",
             stale_message="Financial change was updated by another user.",
         )
+
+    def get_impact(self, impact_id: str) -> FinancialChangeImpact | None:
+        context = self._context(operation_label="access financial change impact")
+        row = self.session.execute(
+            select(FinancialChangeImpactORM).where(
+                FinancialChangeImpactORM.id == impact_id,
+                FinancialChangeImpactORM.tenant_id == context.tenant_id,
+                FinancialChangeImpactORM.organization_id == context.organization_id,
+            )
+        ).scalar_one_or_none()
+        return financial_change_impact_from_orm(row) if row else None
 
     def add_impact(self, impact: FinancialChangeImpact) -> None:
         context = self._context(operation_label="create financial change impact")
@@ -169,6 +188,58 @@ class SqlAlchemyFinancialChangeRepository(FinancialChangeRepository):
             )
         ).scalars().all()
         return [financial_change_impact_from_orm(row) for row in rows]
+
+    def update_impact(
+        self, impact: FinancialChangeImpact, *, expected_row_version: int
+    ) -> None:
+        context = self._context(operation_label="update financial change impact")
+        self._require_scope(impact, context)
+        impact.row_version = update_with_version_check(
+            self.session,
+            FinancialChangeImpactORM,
+            impact.id,
+            expected_row_version,
+            {
+                "description": impact.description,
+                "amount": impact.amount,
+                "currency_code": impact.currency_code,
+                "cost_code_id": impact.cost_code_id,
+                "task_id": impact.task_id,
+                "target_line_id": impact.target_line_id,
+                "target_task_version": impact.target_task_version,
+                "schedule_start": impact.schedule_start,
+                "schedule_finish": impact.schedule_finish,
+                "updated_at": impact.updated_at,
+            },
+            extra_filters={
+                "tenant_id": context.tenant_id,
+                "organization_id": context.organization_id,
+                "project_id": impact.project_id,
+                "change_request_id": impact.change_request_id,
+            },
+            not_found_message="Financial change impact not found.",
+            stale_message="Financial change impact was updated by another user.",
+        )
+
+    def delete_impact(self, impact_id: str, *, expected_row_version: int) -> None:
+        context = self._context(operation_label="delete financial change impact")
+        result = self.session.execute(
+            FinancialChangeImpactORM.__table__.delete().where(
+                FinancialChangeImpactORM.id == impact_id,
+                FinancialChangeImpactORM.tenant_id == context.tenant_id,
+                FinancialChangeImpactORM.organization_id == context.organization_id,
+                FinancialChangeImpactORM.version == expected_row_version,
+            )
+        )
+        if result.rowcount != 1:
+            if self.get_impact(impact_id) is None:
+                raise NotFoundError(
+                    "Financial change impact not found.",
+                    code="FINANCIAL_CHANGE_IMPACT_NOT_FOUND",
+                )
+            raise ConcurrencyError(
+                "Financial change impact was updated by another user.", code="STALE_WRITE"
+            )
 
     def update_impact_application(
         self,

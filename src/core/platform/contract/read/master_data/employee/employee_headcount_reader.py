@@ -1,22 +1,13 @@
-"""Employee headcount read contract
-Separate from ``EmployeeRepository`` (the write-side contract in
-``contracts.py``): a reader answers "how many employees does this
-organization have, and how many are active" with one aggregate query,
-instead of the admin overview's prior pattern of calling
-``list_employees(active_only=None)`` -- the write repository's
-``list_for_organization`` -- and summing over every fully-hydrated
-``Employee`` row in Python just to produce two integers.
+"""Employee headcount read contract.
 
-``get_department_breakdown``/``get_site_breakdown`` extend this with a
-per-department/per-site GROUP BY aggregate (one query each), powering the
-Platform Overview's "Employees by Department"/"Employees by Site" cards.
-Unlike ``EmployeeService.list_employees(department_id=...)`` (a targeted
-row-level fetch for one specific department/site, used by the department/
-site detail pages), these return summary rows across ALL departments/sites
-at once -- a different shape (aggregate buckets, not entity rows) for a
-different consumer (the cross-entity overview, not a single-entity
-drill-down). Employees with no department/site assigned are bucketed under
-a ``None`` id labeled "Unassigned" rather than dropped.
+Separate from ``EmployeeRepository`` (the write-side contract in ``contracts.py``): answers
+"how many employees does this organization have, and how many are active" with one aggregate
+query instead of fetching every ``Employee`` row and summing in Python.
+
+``get_department_breakdown``/``get_site_breakdown`` return per-department/per-site aggregate
+buckets (GROUP BY, one query each) for the cross-entity overview -- a different shape from
+``EmployeeService.list_employees(department_id=...)``'s single-entity row-level fetch. Employees
+with no department/site assigned are bucketed under a ``None`` id labeled "Unassigned".
 """
 
 from __future__ import annotations

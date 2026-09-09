@@ -6,12 +6,15 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.application.financials.invalidation import (
-    FinanceInvalidationScope,
-)
 from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import ApprovedTimeLaborCostConsumer
-from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.integration import InboxDeliveryDisposition, IntegrationInboxService, IntegrationOutboxService
+from src.core.platform.common.ids import generate_id
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.events.domain_event_publisher import (
+    PostCommitEventPublisher,
+    TransactionalEventDispatcher,
+)
+from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
 
 
 logger = logging.getLogger(__name__)
@@ -27,11 +30,15 @@ class ApprovedTimeFinancialDispatcher:
         outbox_service: IntegrationOutboxService,
         inbox_service: IntegrationInboxService,
         consumer: ApprovedTimeLaborCostConsumer,
+        transactional_dispatcher: TransactionalEventDispatcher,
+        post_commit_bus: PostCommitEventPublisher,
     ) -> None:
         self._session = session
         self._outbox_service = outbox_service
         self._inbox_service = inbox_service
         self._consumer = consumer
+        self._transactional_dispatcher = transactional_dispatcher
+        self._post_commit_bus = post_commit_bus
 
     def dispatch_pending(self, *, limit: int = 50) -> int:
         lease_token = f"approved-time:{uuid4()}"
@@ -45,13 +52,10 @@ class ApprovedTimeFinancialDispatcher:
         for record in claimed:
             try:
                 decision = self._inbox_service.begin_delivery(record.envelope)
-                posted_entry = None
                 if decision.disposition is InboxDeliveryDisposition.READY:
-                    posted_entry = self._consumer.consume(record.envelope)
-                    self._inbox_service.mark_processed(decision.receipt.id)
-                self._session.commit()
-                if posted_entry is not None:
-                    self._emit_refresh(posted_entry, event_id=record.envelope.event_id)
+                    self._consume_under_unit_of_work(record.envelope, decision)
+                else:
+                    self._session.commit()
                 if decision.disposition is InboxDeliveryDisposition.QUARANTINED:
                     self._outbox_service.mark_failed(
                         record.id,
@@ -90,22 +94,23 @@ class ApprovedTimeFinancialDispatcher:
                 logger.warning("Approved Time financial delivery failed event_id=%s", record.envelope.event_id, exc_info=True)
         return published
 
-    @staticmethod
-    def _emit_refresh(entry, *, event_id: str) -> None:
-        try:
-            domain_events.cost_entries_changed.emit(
-                FinanceInvalidationScope(
-                    tenant_id=str(entry.tenant_id),
-                    organization_id=str(entry.organization_id),
-                    project_id=str(entry.project_id),
-                )
-            )
-        except Exception:
-            # The integration transaction is already committed; a process-local
-            # presentation hint must never turn durable delivery into a retry.
-            logger.exception(
-                "Approved Time Finance refresh hint failed event_id=%s", event_id
-            )
+    def _consume_under_unit_of_work(self, envelope, decision) -> None:
+        """The Cost Entry mutation(s), inbox `mark_processed`, and each returned Cost Entry
+        DomainEvent all happen inside ONE canonical `UnitOfWork`'s transaction --
+        `SqlAlchemyUnitOfWorkBase` bound to this dispatcher's own already-owned `self._session`
+        (`uow._session is self._session`; no second, independent transaction or Session is
+        introduced) -- mirroring `ProcurementFinancialDispatcher`'s own canonical shape exactly."""
+        with SqlAlchemyUnitOfWorkBase(
+            session=self._session,
+            transactional_dispatcher=self._transactional_dispatcher,
+            post_commit_bus=self._post_commit_bus,
+            context=DomainEventContext(correlation_id=generate_id()),
+        ) as uow:
+            events = self._consumer.consume(envelope)
+            self._inbox_service.mark_processed(decision.receipt.id)
+            for event in events:
+                uow.record_event(event)
+            uow.commit()
 
 
 __all__ = ["ApprovedTimeFinancialDispatcher"]

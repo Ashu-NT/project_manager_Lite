@@ -29,8 +29,8 @@ class AssignmentPreviewDesktopDto:
     warning_messages: tuple[str, ...]
     is_blocked: bool
     block_messages: tuple[str, ...]
-    # Authoritative calendar-based capacity facts (docs §44) -- QML renders
-    # these, it does not calculate them.
+    # Authoritative calendar-based capacity facts -- QML renders these, it
+    # does not calculate them.
     capacity_known: bool = False
     available_capacity_hours_label: str = ""
     existing_committed_hours_label: str = ""

@@ -2,8 +2,9 @@
 
 This document captures a documentation-only cache strategy for the existing modular SaaS application. It does not implement runtime code. It is intended as a follow-up blueprint for introducing service-level caching safely across Platform, Project Management, Inventory & Procurement, and shared runtime services.
 
-Maintenance-specific candidates retained later in this historical strategy are out of current
-product scope and are not active implementation targets.
+Maintenance-specific and Inventory & Procurement-specific candidates retained later in this
+historical strategy are out of current product scope and are not active implementation targets
+(Inventory & Procurement was removed from the codebase on 2026-09-09, pending a future rebuild).
 
 ## Inspection Basis
 

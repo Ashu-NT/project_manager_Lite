@@ -1,1 +1,0 @@
-"""Payroll persistence placeholder package."""

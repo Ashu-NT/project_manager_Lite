@@ -133,11 +133,23 @@ def build_destination_state(
     planned_cost_line_page: int = 1,
     billing_preparation_page: int = 1,
     configuration_page_size: int = 50,
+    setup_cost_code_page: int = 1,
+    setup_restriction_page: int = 1,
+    setup_cost_code_sort_key: str = "code",
+    setup_cost_code_sort_direction: str = "asc",
+    setup_restriction_sort_key: str = "code",
+    setup_restriction_sort_direction: str = "asc",
+    setup_cost_code_search: str = "",
+    setup_cost_code_status: str = "",
+    setup_cost_code_assignment: str = "",
+    setup_restriction_search: str = "",
     actual_page: int = 1,
     commitment_page: int = 1,
     transaction_page_size: int = 50,
     actual_sort_key: str = "metaText",
     actual_sort_direction: str = "desc",
+    actual_status: str = "",
+    actual_source: str = "",
     commitment_sort_key: str = "metaText",
     commitment_sort_direction: str = "desc",
     selected_forecast_id: str | None = None,
@@ -349,6 +361,8 @@ def build_destination_state(
                 limit=page_size,
                 sort_key=actual_sort_key,
                 sort_direction=actual_sort_direction,
+                status=actual_status or None,
+                source_module=actual_source or None,
             )
             options = desktop_api.get_manual_actual_defaults(project_id)
             return FinancialsWorkspaceViewModel(
@@ -367,6 +381,9 @@ def build_destination_state(
                 ledger=build_ledger_collection(result),
                 actual_sort_key=result.sort_key,
                 actual_sort_direction=result.sort_direction,
+                can_create_manual_actual=result.can_create_manual_actual,
+                actual_status=actual_status,
+                actual_source=actual_source,
             )
         if subsection == "commitments":
             page_size = max(1, min(int(transaction_page_size), 200))
@@ -425,6 +442,7 @@ def build_destination_state(
             rate_line_rate_type=views["rate_line_rate_type"],
             rate_line_status=views["rate_line_status"],
             rate_line_effective_status=views["rate_line_effective_status"],
+            can_create_rate_card=views["can_create_rate_card"],
         )
 
     if destination == "performance":
@@ -615,12 +633,37 @@ def build_destination_state(
         )
 
     if subsection == "setup":
-        configuration = desktop_api.get_financial_setup_workspace(project_id)
+        configuration = desktop_api.get_financial_setup_workspace(
+            project_id,
+            cost_code_page=setup_cost_code_page,
+            restriction_page=setup_restriction_page,
+            page_size=configuration_page_size,
+            cost_code_search=setup_cost_code_search,
+            cost_code_status=setup_cost_code_status,
+            cost_code_assignment=setup_cost_code_assignment,
+            restriction_search=setup_restriction_search,
+            cost_code_sort_key=setup_cost_code_sort_key,
+            cost_code_sort_direction=setup_cost_code_sort_direction,
+            restriction_sort_key=setup_restriction_sort_key,
+            restriction_sort_direction=setup_restriction_sort_direction,
+        )
         views = build_finance_configuration_views(configuration)
         return FinancialsWorkspaceViewModel(
             overview=state.overview,
             selected_project_id=project_id,
             financial_profile=views["profile"],
+            can_create_cost_code=views["can_create_cost_code"],
+            can_manage_restrictions=views["can_manage_restrictions"],
+            setup_cost_codes=views["cost_codes"],
+            setup_restrictions=views["restrictions"],
+            setup_cost_code_sort_key=views["cost_code_sort_key"],
+            setup_cost_code_sort_direction=views["cost_code_sort_direction"],
+            setup_restriction_sort_key=views["restriction_sort_key"],
+            setup_restriction_sort_direction=views["restriction_sort_direction"],
+            setup_cost_code_search=setup_cost_code_search,
+            setup_cost_code_status=setup_cost_code_status,
+            setup_cost_code_assignment=setup_cost_code_assignment,
+            setup_restriction_search=setup_restriction_search,
         )
     if subsection == "changes":
         changes = build_change_workspace_views(
@@ -647,6 +690,7 @@ def build_destination_state(
             overview=state.overview,
             selected_project_id=project_id,
             selected_change_id=changes["selected_change_id"],
+            can_create_change=changes["can_create_change"],
             selected_change=changes["selected_change"],
             financial_changes=changes["financial_changes"],
             financial_change_impacts=changes["financial_change_impacts"],

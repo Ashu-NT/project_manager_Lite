@@ -1,8 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date
+from datetime import date, datetime, timezone
 
+from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
+    emit_cascade_schedule_changed,
+)
+from src.core.modules.project_management.application.tasks.task_events import (
+    TaskScheduleChangeType,
+    TaskScheduleChanged,
+)
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
@@ -13,11 +20,14 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.domain.approval.policy import is_governance_required
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError
 from src.core.shared.activity import record_activity
-from src.core.shared.events.domain_events import domain_events
+from src.core.shared.audit import record_audit_entry
 from src.core.modules.project_management.application.scheduling.leveling.schedule_fingerprint import (
     compute_schedule_fingerprint,
 )
 from src.core.modules.project_management.application.scheduling.models.leveling import LevelingProposal
+from src.core.modules.project_management.application.scheduling.leveling.resource_leveling_planner import (
+    ResourceLevelingPlanner,
+)
 
 
 def _coerce_date(value: date | str) -> date:
@@ -25,23 +35,17 @@ def _coerce_date(value: date | str) -> date:
 
 
 class ResourceLevelingApplyMixin:
-    """R4.4M/R4.4O -- persists a previously-computed ``LevelingProposal``
-    (R4.4K, always built by ``ResourceLevelingPlanner`` against an
-    in-memory snapshot that never itself writes to the repository).
+    """Persists a previously-computed ``LevelingProposal`` (always built by
+    ``ResourceLevelingPlanner`` against an in-memory snapshot that never itself
+    writes to the repository).
 
-    Mirrors TaskSchedulingConstraintMixin's shape end to end: a public
-    gate method that runs the governed/ungoverned branch (request-time),
-    and an internal ``_apply_resource_leveling_plan_decision`` that does
-    the actual atomic mutate+recalculate+commit (apply-time) -- reused
-    directly, with ``commit=False``, by the approval apply-handler
-    registered in the composition root when a governed request is later
-    approved. The staleness guard is R4.4L's schedule fingerprint rather
-    than a single task's ``version``, since a leveling plan spans many
-    tasks at once and a per-task version check could pass for some moves
-    while the ones that actually made the preview stale go unnoticed --
-    this also naturally re-validates a governed request at apply time
-    (TOCTOU-safe), exactly like the version re-check other governed
-    commands in this module perform.
+    A public gate method runs the governed/ungoverned branch (request-time); the internal
+    ``_apply_resource_leveling_plan_decision`` does the atomic mutate+recalculate+commit
+    (apply-time), reused directly with ``commit=False`` by the approval apply-handler when a
+    governed request is later approved. The staleness guard is the schedule fingerprint rather
+    than a single task's ``version``, since a leveling plan spans many tasks and a per-task
+    version check could pass for some moves while others go unnoticed -- this also re-validates
+    a governed request at apply time (TOCTOU-safe).
     """
 
     def _leveling_snapshot(self, project_id: str):
@@ -50,6 +54,25 @@ class ResourceLevelingApplyMixin:
         assignments = self._assignment_repo.list_by_tasks(list(tasks_by_id)) if tasks_by_id else []
         deps = self._dependency_repo.list_by_project(project_id)
         return tasks_by_id, assignments, deps
+
+    def build_resource_leveling_preview(self, project_id: str) -> LevelingProposal | None:
+        """Preview-only: runs the ONE authoritative ``ResourceLevelingPlanner``
+        against a fresh in-memory snapshot. Never persists -- see
+        ``apply_resource_leveling_plan`` for the write path."""
+        if not project_id:
+            return None
+        tasks_by_id, assignments, deps = self._leveling_snapshot(project_id)
+        resource_ids = sorted({a.resource_id for a in assignments})
+        resources = self._resource_repo.list_by_ids(resource_ids) if resource_ids else []
+        resource_name_by_id = {r.id: r.name for r in resources}
+        planner = ResourceLevelingPlanner(self._work_calendar_engine)
+        return planner.build_proposal(
+            project_id=project_id,
+            tasks_by_id=tasks_by_id,
+            deps=deps,
+            assignments=assignments,
+            resource_name_by_id=resource_name_by_id,
+        )
 
     def apply_resource_leveling_plan(
         self,
@@ -107,7 +130,6 @@ class ResourceLevelingApplyMixin:
                 for move in proposal.moves
             ],
             schedule_fingerprint=proposal.schedule_fingerprint,
-            commit=True,
         )
 
     def _apply_resource_leveling_plan_decision(
@@ -116,7 +138,6 @@ class ResourceLevelingApplyMixin:
         project_id: str,
         moves: list[dict],
         schedule_fingerprint: str,
-        commit: bool,
     ) -> list[Task]:
         """Apply immediately (ungoverned path) or when an approved
         ``scheduling.leveling.apply`` request is finally applied.
@@ -136,7 +157,8 @@ class ResourceLevelingApplyMixin:
         if not moves:
             return []
 
-        try:
+        scope = self._active_task_scope(operation_label="apply resource leveling plan")
+        with self._task_uow() as uow:
             updated_ids: list[str] = []
             for move in moves:
                 task_id = move["task_id"]
@@ -146,15 +168,28 @@ class ResourceLevelingApplyMixin:
                 old_start = task.start_date
                 new_start = _coerce_date(move["new_start"])
                 candidate = replace(task, resource_leveling_not_before=new_start)
-                self._task_repo.update(candidate)
+                uow.tasks.update(candidate)
                 updated_ids.append(task_id)
-                # Per-task audit entry (matching the entity_type="task"
-                # convention every other schedule-affecting command in
-                # this module uses) so the moved task's OWN activity feed
-                # explains why its start changed -- a project-level-only
-                # summary would leave that task's history silent.
+                # Per-task entry (matching this module's convention) so each moved
+                # task's own activity feed explains why its start changed.
+                record_audit_entry(
+                    uow,
+                    operation="update",
+                    entity_type="task",
+                    entity_id=task_id,
+                    module="project_management",
+                    organization_id=scope.organization_id,
+                    severity="low",
+                    metadata={
+                        "action": "scheduling.leveling.apply",
+                        "old_start": old_start.isoformat() if old_start else None,
+                        "new_start": new_start.isoformat(),
+                    },
+                    commit=False,
+                    fail_closed=True,
+                )
                 record_activity(
-                    self,
+                    uow,
                     action="scheduling.leveling.apply",
                     entity_type="task",
                     entity_id=task_id,
@@ -168,19 +203,25 @@ class ResourceLevelingApplyMixin:
                     },
                     commit=False,
                 )
+                uow.record_event(
+                    TaskScheduleChanged(
+                        tenant_id=scope.tenant_id,
+                        organization_id=scope.organization_id,
+                        project_id=project_id,
+                        task_id=task_id,
+                        change_type=TaskScheduleChangeType.LEVELING_APPLIED,
+                        occurred_at=datetime.now(timezone.utc),
+                    )
+                )
 
-            self._sync_project_schedule(project_id, commit=False)
-            if commit:
-                self._session.commit()
-            else:
-                self._session.flush()
-        except Exception:
-            if commit:
-                self._session.rollback()
-            raise
+            cascade_ids = self._sync_project_schedule(
+                project_id, commit=False, exclude_task_ids=frozenset(updated_ids)
+            )
+            emit_cascade_schedule_changed(
+                uow, scope=scope, project_id=project_id, changed_task_ids=cascade_ids
+            )
+            uow.commit()
 
-        if commit:
-            domain_events.tasks_changed.emit(project_id)
         return [self._task_repo.get(task_id) for task_id in updated_ids]
 
 

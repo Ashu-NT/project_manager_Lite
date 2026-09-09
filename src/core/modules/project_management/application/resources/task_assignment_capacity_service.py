@@ -1,25 +1,13 @@
-"""Authoritative calendar-based capacity for Task Assignment availability
-preview and overallocation validation (docs §44's capacity-authority
-migration).
+"""Authoritative calendar-based capacity for Task Assignment availability preview and
+overallocation validation.
 
-Composition, and why: `EnterpriseCalendarResolver` (platform) already
-resolves real working-day hours through the org/site/department/employee/
-project/resource precedence chain; `EnterpriseResourceAvailabilityService`
-(PM) already wraps that resolver cleanly. Neither of those, nor
-`ResourceCapacityCalculator` (which wraps the availability service for the
-Resources-workspace calendar display), ever multiplied in
-`Resource.capacity_percent` -- confirmed by reading both, not assumed -- so
-this module is the first place that formula (effective_available_capacity
-= calendar_available_hours * capacity_percent / 100) is actually applied.
-It also builds real, per-day existing/proposed committed-hours facts from
-actual TaskAssignment data, which none of the four existing calculators do
-for this specific "is this proposed task assignment capacity-safe" question.
-
-Resource Detail's multi-project workload view now uses its own bounded reader
-and the same enterprise calendar adapter. `ResourceLoadEngine` and
+`effective_available_capacity = calendar_available_hours * capacity_percent / 100` -- the
+only place `capacity_percent` is applied this way; `ResourceCapacityCalculator` and the other
+resource calculators never multiply by it. Builds real, per-day existing/proposed
+committed-hours facts from actual TaskAssignment data. `ResourceLoadEngine` and
 `PortfolioResourcePoolService` remain distinct set-based projection tools for
-Dashboard/Scheduling KPIs and portfolio capacity. See docs §44 for the full
-accounting.
+Dashboard/Scheduling KPIs and portfolio capacity -- this module answers a different question:
+whether one proposed assignment is capacity-safe.
 """
 
 from __future__ import annotations
@@ -33,9 +21,8 @@ CAPACITY_NEAR_CAPACITY = "NEAR_CAPACITY"
 CAPACITY_OVER_CAPACITY = "OVER_CAPACITY"
 CAPACITY_UNKNOWN = "UNKNOWN"
 
-# Matches the existing 90% "near capacity" threshold already established in
-# application/resources/resource_load_engine.py -- reused rather than
-# inventing a second arbitrary threshold, per the request's own instruction.
+# Matches the 90% "near capacity" threshold in resource_load_engine.py -- reused
+# rather than inventing a second arbitrary threshold.
 _NEAR_CAPACITY_THRESHOLD_PERCENT = 90.0
 
 
@@ -52,10 +39,9 @@ class DailyCapacityCommitment:
 
 @dataclass(frozen=True)
 class TaskAssignmentCapacityFact:
-    """Authoritative capacity result for one resource's proposed (or edited)
-    commitment across [start_date, end_date] -- the effective interval is
-    always the Task's own start_date/end_date (see docs §44 §8: TaskAssignment
-    has no independent dates, and none were added for this)."""
+    """Authoritative capacity result for one resource's proposed (or edited) commitment
+    across [start_date, end_date] -- always the Task's own start_date/end_date;
+    TaskAssignment has no independent dates."""
 
     resource_id: str
     start_date: date
@@ -112,14 +98,11 @@ def evaluate_task_assignment_capacity(
     availability_service,
     exclude_assignment_id: str | None = None,
 ) -> TaskAssignmentCapacityFact:
-    """Real assignment commitments (§9/§10): existing = this resource's
-    OTHER assignments within the SAME project overlapping [start_date,
-    end_date] (matching the scope the pre-migration validator already used
-    -- this migration changes the CALCULATION, not the scope), excluding
-    `exclude_assignment_id` when editing. Proposed = `proposed_allocation_percent`
-    applied across the full requested interval (the new/edited assignment's
-    own task window). Batched: one `list_by_resource` + one `list_by_ids`
-    call, never a per-task loop (§9/§26)."""
+    """Existing = this resource's OTHER assignments within the SAME project overlapping
+    [start_date, end_date], excluding `exclude_assignment_id` when editing. Proposed =
+    `proposed_allocation_percent` applied across the full requested interval (the
+    new/edited assignment's own task window). Batched: one `list_by_resource` + one
+    `list_by_ids` call, never a per-task loop."""
     resource = resource_repo.get(resource_id)
     capacity_modifier = Decimal(str(getattr(resource, "capacity_percent", 100.0) or 100.0)) / Decimal("100")
     if capacity_modifier <= 0:
@@ -132,19 +115,17 @@ def evaluate_task_assignment_capacity(
         end=end_date,
     )
     effective_by_date: dict[date, Decimal | None] = {}
-    # Raw (unscaled) calendar hours -- the base against which allocation_percent
-    # commitments are measured. capacity_percent narrows the AVAILABLE ceiling
-    # (effective_by_date) only; it must not also shrink the committed-hours
-    # numerator, or the two scale together and capacity_percent cancels out of
-    # the ratio entirely.
+    # Raw (unscaled) hours: capacity_percent must narrow the available ceiling only,
+    # never the committed-hours numerator too, or the two scale together and it
+    # cancels out of the ratio.
     raw_available_by_date: dict[date, Decimal] = {}
     source_chain: tuple[str, ...] = ()
     calendar_capacity_hours = Decimal("0")
     for day in raw_days:
         calendar_capacity_hours += Decimal(str(day.base_hours))
         if not day.source_chain:
-            # No calendar could be resolved at all for this day -- explicit
-            # UNKNOWN, never a false "0h available" overload trigger (§24).
+            # No calendar could be resolved for this day -- explicit UNKNOWN, never a
+            # false "0h available" overload trigger.
             effective_by_date[day.date] = None
             continue
         raw_hours = Decimal(str(day.available_hours))

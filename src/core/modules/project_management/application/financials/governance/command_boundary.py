@@ -8,6 +8,12 @@ from typing import Any, TypeVar
 from src.core.modules.project_management.application.financials.budgets.budget_service import (
     BudgetService,
 )
+from src.core.modules.project_management.application.financials.commitments.commitment_service import (
+    ProjectCommitmentService,
+)
+from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
+    ProjectCostEntryService,
+)
 from src.core.modules.project_management.application.financials.configuration_service import (
     FinancialConfigurationService,
 )
@@ -20,11 +26,17 @@ from src.core.modules.project_management.application.financials.forecasts.genera
 from src.core.modules.project_management.application.financials.forecasts.version_service import (
     ForecastVersionService,
 )
+from src.core.modules.project_management.application.financials.invoicing.billing_profile_service import (
+    ProjectBillingProfileService,
+)
+from src.core.modules.project_management.application.financials.invoicing.preparation_service import (
+    ProjectBillingPreparationService,
+)
+from src.core.modules.project_management.application.financials.planned_costs.planned_cost_service import (
+    PlannedCostService,
+)
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_service import (
     ProjectRateCardService,
-)
-from src.core.modules.project_management.application.financials.invalidation import (
-    invalidation_scope,
 )
 from src.core.modules.project_management.contracts.uow.finance.finance_governance_unit_of_work import (
     FinanceGovernanceUnitOfWork,
@@ -32,7 +44,6 @@ from src.core.modules.project_management.contracts.uow.finance.finance_governanc
 )
 from src.core.platform.common.ids import generate_id
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 
 
 logger = logging.getLogger(__name__)
@@ -49,6 +60,11 @@ class FinanceGovernanceOperations:
     financial_changes: FinancialChangeService
     financial_setup: FinancialConfigurationService
     rate_cards: ProjectRateCardService
+    planned_costs: PlannedCostService
+    commitments: ProjectCommitmentService
+    cost_entries: ProjectCostEntryService
+    billing_profiles: ProjectBillingProfileService
+    billing_preparations: ProjectBillingPreparationService
     post_commit_actions: list[Callable[[], None]] = field(default_factory=list)
 
 
@@ -71,84 +87,86 @@ class FinanceGovernanceCommandBoundary:
     def budget(
         self,
         command: Callable[[BudgetService], T],
-        *,
-        project_id: str | None = None,
     ) -> T:
-        return self._execute(
-            lambda operations: command(operations.budgets),
-            invalidation=lambda result: self._emit_budget(result, project_id),
-        )
+        return self._execute(lambda operations: command(operations.budgets))
 
     def forecast_version(
         self,
         command: Callable[[ForecastVersionService], T],
-        *,
-        project_id: str | None = None,
     ) -> T:
         return self._execute(
             lambda operations: command(operations.forecast_versions),
-            invalidation=None,
         )
 
     def forecast_generation(
         self,
         command: Callable[[ForecastGenerationService], T],
-        *,
-        project_id: str,
     ) -> T:
-        # P19: see `forecast_version` above -- `ForecastGenerationService` records a typed
-        # `ForecastDraftGenerated` DomainEvent directly on the transaction's own UoW.
         return self._execute(
             lambda operations: command(operations.forecast_generation),
-            invalidation=None,
         )
 
     def financial_change(
         self,
         command: Callable[[FinancialChangeService], T],
-        *,
-        project_id: str | None = None,
     ) -> T:
         return self._execute(
             lambda operations: command(operations.financial_changes),
-            invalidation=lambda result: self._emit_scoped(
-                "financial_changes_changed", result, project_id
-            ),
+        )
+
+    def planned_cost(
+        self,
+        command: Callable[[PlannedCostService], T],
+    ) -> T:
+        return self._execute(
+            lambda operations: command(operations.planned_costs),
+        )
+
+    def commitment(
+        self,
+        command: Callable[[ProjectCommitmentService], T],
+    ) -> T:
+        return self._execute(
+            lambda operations: command(operations.commitments),
+        )
+
+    def cost_entry(
+        self,
+        command: Callable[[ProjectCostEntryService], T],
+    ) -> T:
+        return self._execute(
+            lambda operations: command(operations.cost_entries),
         )
 
     def financial_setup(
         self,
         command: Callable[[FinancialConfigurationService], T],
-        *,
-        project_id: str | None = None,
     ) -> T:
         return self._execute(
             lambda operations: command(operations.financial_setup),
-            invalidation=None,
         )
 
     def rate_card(
         self,
         command: Callable[[ProjectRateCardService], T],
-        *,
-        project_id: str | None = None,
     ) -> T:
-        # P22: Rate Card invalidation is driven canonically -- `ProjectRateCardService` records
-        # typed DomainEvents (`RateCardCreated`/`RateCardDeactivated`/`RateCardLineAdded`/
-        # `RateCardLineUpdated`/`RateCardLineDeactivated`) directly on the transaction's own UoW,
-        # dispatched through the shared transactional/post-commit pipeline to the registered
-        # ViewInvalidation handler. No legacy signal, no bridge.
         return self._execute(
             lambda operations: command(operations.rate_cards),
-            invalidation=None,
         )
 
-    def _execute(
+    def billing_profile(
         self,
-        command: Callable[[FinanceGovernanceOperations], T],
-        *,
-        invalidation: Callable[[T], None] | None,
+        command: Callable[[ProjectBillingProfileService], T],
     ) -> T:
+        return self._execute(lambda operations: command(operations.billing_profiles))
+
+    def billing_preparation(
+        self,
+        command: Callable[[ProjectBillingPreparationService], T],
+    ) -> T:
+        return self._execute(lambda operations: command(operations.billing_preparations))
+
+    def _execute(self, command: Callable[[FinanceGovernanceOperations], T]) -> T:
         if self._prepare_command is not None:
             self._prepare_command()
         context = DomainEventContext(correlation_id=generate_id())
@@ -159,8 +177,6 @@ class FinanceGovernanceCommandBoundary:
             post_commit_actions = tuple(operations.post_commit_actions)
             uow.commit()
 
-        if invalidation is not None:
-            self._run_post_commit(invalidation, result)
         for action in post_commit_actions:
             self._run_post_commit(action)
         return result
@@ -172,35 +188,13 @@ class FinanceGovernanceCommandBoundary:
         except Exception:
             logger.exception("Finance governance post-commit reaction failed")
 
-    @staticmethod
-    def _emit_budget(result: object, fallback_project_id: str | None) -> None:
-        project_id = getattr(result, "project_id", None) or fallback_project_id
-        if project_id:
-            domain_events.budgets_changed.emit(str(project_id))
-
-    @staticmethod
-    def _emit_scoped(
-        signal_name: str,
-        result: object,
-        fallback_project_id: str | None,
-    ) -> None:
-        entity = getattr(result, "forecast", result)
-        if not getattr(entity, "tenant_id", None) or not getattr(
-            entity, "organization_id", None
-        ):
-            logger.warning(
-                "Finance governance invalidation skipped: result has no tenant scope "
-                "signal=%s result_type=%s",
-                signal_name,
-                type(result).__name__,
-            )
-            return
-        signal = getattr(domain_events, signal_name)
-        signal.emit(invalidation_scope(entity, project_id=fallback_project_id))
-
 
 class FinanceGovernedServicePort:
-    """Read delegation plus canonical command routing for one Finance service family."""
+    """Read delegation plus canonical command routing for one Finance service family.
+
+    Command services resolve and authorize their own scoped aggregates inside the fresh
+    operation UoW. The port deliberately performs no pre-read identity resolution.
+    """
 
     def __init__(
         self,
@@ -221,41 +215,10 @@ class FinanceGovernedServicePort:
             return attribute
 
         def governed(*args, **kwargs):
-            project_id = self._project_id(name, args, kwargs)
             executor = getattr(self._boundary, self._family)
-            command = lambda service: getattr(service, name)(*args, **kwargs)
-            if self._family == "forecast_generation":
-                return executor(command, project_id=project_id)
-            return executor(command, project_id=project_id or None)
+            return executor(lambda service: getattr(service, name)(*args, **kwargs))
 
         return governed
-
-    def _project_id(self, name: str, args: tuple, kwargs: dict) -> str:
-        explicit = kwargs.get("project_id") or kwargs.get("available_to_project_id")
-        if explicit:
-            return str(explicit)
-        if name in {"create_budget", "create_forecast", "generate_draft", "create_change"}:
-            return str(args[0]) if args else ""
-        try:
-            if self._family == "budget":
-                if name in {"add_line"}:
-                    return str(self._read_service.get_budget(args[0]).project_id)
-                if name in {"update_line", "delete_line"}:
-                    line = self._read_service._require_line(args[0])
-                    return str(self._read_service.get_budget(line.budget_id).project_id)
-                return str(self._read_service.get_budget(args[0]).project_id)
-            if self._family == "forecast_version":
-                if name == "add_line":
-                    return str(self._read_service.get_forecast(args[0]).project_id)
-                if name in {"update_line", "delete_line"}:
-                    line = self._read_service._require_line(args[0])
-                    return str(self._read_service.get_forecast(line.forecast_id).project_id)
-                return str(self._read_service.get_forecast(args[0]).project_id)
-            if self._family == "financial_change":
-                return str(self._read_service.get_change(args[0]).project_id)
-        except (AttributeError, IndexError, TypeError):
-            return ""
-        return ""
 
 
 __all__ = [

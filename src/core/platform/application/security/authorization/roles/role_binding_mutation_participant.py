@@ -111,7 +111,7 @@ def create_role_binding_using(
     record_event: Callable[[object], None],
     principal_id: str,
     role_id: str,
-    tenant_id: str,
+    tenant_id: str | None,
     scope_type: str,
     scope_id: str | None,
     domain_scope: RoleBindingScope,
@@ -120,19 +120,14 @@ def create_role_binding_using(
     audit_action: str = "auth.role.binding.assigned",
     audit_metadata_extra: dict[str, object] | None = None,
 ) -> tuple[RoleBinding, bool]:
-    """The exact mechanics `RoleGovernanceService.assign_role` used to inline: no-op check
-    (revoke-expired-then-look-for-an-identical-active-binding), create, audit, record
-    `RoleBindingAssigned`. Never opens a transaction, never commits -- the caller's own UoW owns
-    that (the caller must still call `uow.commit()` itself when `is_noop` is `False`; on a
-    genuine no-op it should return immediately WITHOUT committing, exactly like the original
-    inline implementation did, so the outer UoW's own safety net discards the empty transaction).
+    """Revoke-expired-then-look-for-an-identical-active-binding no-op check, then create, audit,
+    and record `RoleBindingAssigned`. Never opens a transaction or commits -- the caller's own
+    UoW owns that; on a genuine no-op the caller should return immediately without committing.
 
     Returns `(binding, is_noop)`. `is_noop=True` means the existing binding was returned
-    unchanged -- no write, no audit, no event, matching the established P5C-1/P5C-2 rule. A
-    genuine `ROLE_BINDING_CONCURRENT_ASSIGNMENT` race is NOT handled here -- it can only
-    surface from the caller's own subsequent `uow.commit()` (a real unique-constraint violation
-    at the database level, never from `add()` alone); see `recover_from_concurrent_assignment`,
-    which the caller should use to wrap that commit."""
+    unchanged -- no write, no audit, no event. A `ROLE_BINDING_CONCURRENT_ASSIGNMENT` race is not
+    handled here -- it can only surface from the caller's own subsequent `uow.commit()`; see
+    `recover_from_concurrent_assignment`, which the caller should use to wrap that commit."""
     now = clock.now()
     role_bindings_repo.revoke_expired_for_assignment(
         principal_id=principal_id,

@@ -7,7 +7,7 @@ import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import workspaces.scheduling.components 1.0
-import "../components/gantt" as Gantt
+import workspaces.scheduling.components.gantt 1.0 as Gantt
 
 Item {
     id: root

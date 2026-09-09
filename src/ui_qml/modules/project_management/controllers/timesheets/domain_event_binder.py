@@ -1,20 +1,14 @@
 from __future__ import annotations
 
-from src.core.shared.events.domain_events import domain_events
+
+def on_task_profile_stale(controller, _project_id: str) -> None:
+    """This workspace shows task names/labels on timesheet entries -- only
+    name/identity/existence facts (TaskCreated/TaskProfileUpdated/TaskRemoved)
+    affect what's displayed, never progress/status/schedule/assignment/
+    dependency. No per-project scoping exists on this controller (it is not
+    project-scoped), so any project's profile change triggers a refresh --
+    narrower than the legacy blanket-every-Task-fact behavior it replaces."""
+    controller._request_domain_refresh()
 
 
-def bind_timesheets_domain_events(controller) -> None:
-    """P7A: direct-wired to the specific legacy signals this workspace actually reads -- no
-    generic `domain_changed` bridge."""
-
-    def _on_domain_event(_payload: object) -> None:
-        controller._request_domain_refresh()
-
-    for signal in (
-        domain_events.timesheet_periods_changed,
-        domain_events.tasks_changed,
-    ):
-        controller._subscribe_domain_signal(signal, _on_domain_event)
-
-
-__all__ = ["bind_timesheets_domain_events"]
+__all__ = ["on_task_profile_stale"]

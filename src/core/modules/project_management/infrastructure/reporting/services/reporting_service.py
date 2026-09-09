@@ -104,7 +104,7 @@ class ReportingService(
     def _require_finance_view(self, operation_label: str, *, project_id: str) -> None:
         """Gate for report methods whose entire result is Project Finance
         authority data (EVM, cost breakdown, cost source breakdown, labor
-        cost). """
+        cost)."""
         require_permission(self._user_session, "finance.read", operation_label=operation_label)
         require_project_permission(
             self._user_session,
@@ -136,9 +136,9 @@ class ReportingService(
         )
 
     def _has_profitability_view(self, project_id: str) -> bool:
-        """Non-raising finance.read_profitability check (ADR-PF-010) for the
-        commercial projection, which mixes ordinary billing-progress figures
-        with commercial margin and must redact only the margin family rather
+        """Non-raising finance.read_profitability check for the commercial
+        projection, which mixes ordinary billing-progress figures with
+        commercial margin and must redact only the margin family rather
         than deny the whole call."""
         return bool(
             self._user_session is not None

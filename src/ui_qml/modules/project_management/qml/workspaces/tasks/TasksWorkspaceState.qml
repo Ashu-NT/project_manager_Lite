@@ -174,19 +174,6 @@ Item {
         ? root.workspaceController.taskTotalCount
         : 0
 
-    // ── RBAC & Capabilities ──────────────────────────────────────────────
-    readonly property bool hasInvStockCapability: root.pmCatalog
-        ? root.pmCatalog.hasCapability("inventory.stock.read")
-        : false
-
-    readonly property bool hasInvReservationsCapability: root.pmCatalog
-        ? root.pmCatalog.hasCapability("inventory.reservations.create")
-        : false
-
-    readonly property bool hasProcurementCapability: root.pmCatalog
-        ? root.pmCatalog.hasCapability("procurement.requisitions.create")
-        : false
-
     // ── Column configuration ─────────────────────────────────────────────
     property var columns: []
 
@@ -213,8 +200,6 @@ Item {
     // ── Detail sections list ─────────────────────────────────────────────
     readonly property var detailSections: {
         const secs = ["Details", "Assignments", "Skills", "Dependencies", "Time"]
-        if (root.hasInvStockCapability || root.hasInvReservationsCapability || root.hasProcurementCapability)
-            secs.push("Material Demand")
         secs.push("Schedule Impact")
         secs.push("Activity")
         secs.push("Discussion")
@@ -246,15 +231,6 @@ Item {
                 { "id": "progress", "label": "Progress", "icon": "approve", "enabled": !isSummary, "danger": false },
                 { "id": "delete",   "label": "Delete",   "icon": "delete",  "enabled": true, "danger": true  }
             ]
-            if (root.hasInvReservationsCapability) {
-                actions.splice(2, 0, {
-                    "id": "reserve_material",
-                    "label": "Reserve Material",
-                    "icon": "inventory",
-                    "enabled": root.selectedTaskModel && root.selectedTaskModel.id && !isSummary ? true : false,
-                    "danger": false
-                })
-            }
             return actions
         }
         if (sectionName === "Dependencies") {
@@ -299,14 +275,6 @@ Item {
         if (root.shellModel && String(routeId || "").length > 0) {
             root.shellModel.selectRoute(String(routeId || ""))
         }
-    }
-
-    function openTaskReservationsRoute() {
-        root.navigateToRoute("inventory_procurement.reservations")
-    }
-
-    function openTaskProcurementRoute() {
-        root.navigateToRoute("inventory_procurement.procurement")
     }
 
     function openTimesheetsRoute() {

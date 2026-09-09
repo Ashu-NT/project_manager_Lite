@@ -11,11 +11,7 @@ from src.core.shared.persistence.unit_of_work import UnitOfWork, UnitOfWorkFacto
 
 class OrganizationUnitOfWork(UnitOfWork, Protocol):
     organizations: OrganizationRepository
-    # Named with a leading underscore, matching `PlatformUnitOfWork`'s own field name, because
-    # `record_audit_entry(owner, ...)` (src/core/shared/audit/audit_recorder.py) resolves its
-    # `owner` argument's audit service via `getattr(owner, "_enterprise_audit_service", None)` --
-    # an existing, codebase-wide duck-type contract this protocol must match exactly so an
-    # `OrganizationUnitOfWork` instance can be passed as `record_audit_entry`'s `owner` directly.
+    # record_audit_entry() resolves the audit service via getattr(owner, "_enterprise_audit_service", None).
     _enterprise_audit_service: EnterpriseAuditService
 
 

@@ -1,15 +1,11 @@
 """Task Detail -> Schedule Impact: current-state schedule facts.
 
-This is orchestration over the canonical CPM output
-(``pure_cpm.run_cpm``/``CPMTaskInfo``) plus the already-canonical
-``ConstraintValidator``/``find_dependency_actual_variances`` facts -- it
-introduces no new scheduling math. It answers "what is this task's current
-schedule position, what drives it, and how exposed is the downstream
-network" without running any hypothetical simulation (that is
-``ScheduleChangeImpactService.analyse``'s job).
-
-See docs/pm_modernization/R4_4_TASK_DEPENDENCY_IMPLEMENTATION_SUMMARY.md,
-"Task Detail -> Schedule Impact" section, for the product rationale.
+Orchestrates the canonical CPM output (``pure_cpm.run_cpm``/``CPMTaskInfo``)
+plus ``ConstraintValidator``/``find_dependency_actual_variances`` -- no new
+scheduling math. Answers "what is this task's current schedule position,
+what drives it, and how exposed is the downstream network" without running
+a hypothetical simulation (that is ``ScheduleChangeImpactService.analyse``'s
+job).
 """
 from __future__ import annotations
 
@@ -49,7 +45,7 @@ class ScheduleDriver:
 class DownstreamExposure:
     """How much of the dependency network sits downstream of a task --
     NOT a claim that all of it will move, just what is structurally
-    reachable (§11)."""
+    reachable."""
 
     direct_successor_count: int
     downstream_task_count: int
@@ -69,11 +65,9 @@ class TaskScheduleOverview:
     current_finish: date | None = None
     is_critical: bool = False
     total_float_days: int | None = None
-    # R4.4 constraint-aware backward CPM pass: True when total_float_days
-    # is genuinely negative (a hard ceiling/pin makes this task's own
-    # dependency-required schedule infeasible, not merely tight). See
-    # CPMTaskInfo.is_infeasible -- the leveling-consumption contract this
-    # pass documents depends on callers checking this, not just float<=0.
+    # True only when total_float_days is genuinely negative -- a hard
+    # ceiling/pin makes the schedule infeasible, not merely tight. Callers
+    # must check this rather than assuming float<=0 alone.
     is_infeasible: bool = False
     free_float_days: int | None = None
     baseline_finish: date | None = None
@@ -87,12 +81,8 @@ class TaskScheduleOverview:
 
 
 def _is_milestone(task: Task) -> bool:
-    """Task.is_milestone is the single source of truth (see Milestones
-    in docs/pm_modernization/R4_4_TASK_DEPENDENCY_IMPLEMENTATION_SUMMARY.md)
-    -- previously guessed from duration_days<=0, the same predicate the
-    CPM engine uses for its own, unrelated "zero-duration date math"
-    branch (task_date_math.py), which stays duration-based since it is
-    pure arithmetic, not a milestone classification."""
+    # task_date_math.py's own zero-duration branch is unrelated pure
+    # arithmetic, not a milestone classification -- don't conflate the two.
     return bool(getattr(task, "is_milestone", False))
 
 
@@ -165,7 +155,7 @@ def compute_downstream_exposure(
     critical_task_ids: set[str],
 ) -> DownstreamExposure:
     """Breadth-first traversal over the already-loaded, in-memory
-    successors map -- no per-task repository calls (§25)."""
+    successors map -- no per-task repository calls."""
     direct = successors_by_task_id.get(task_id, set())
     visited: set[str] = set()
     frontier = list(direct)
@@ -193,11 +183,10 @@ def build_schedule_drivers(
     predecessor_names_by_id: dict[str, str],
 ) -> tuple[ScheduleDriver, ...]:
     """Explanatory summary only -- every incoming dependency is listed as
-    a potential driver (this task may have more than one predecessor);
-    this deliberately does not attempt to single out which one is
-    currently binding, since that would require re-deriving per-edge
-    contributions the forward pass does not expose. Does not duplicate
-    the full Dependencies section (§8)."""
+    a potential driver (a task may have more than one predecessor); this
+    deliberately does not single out which one is currently binding,
+    since that would require re-deriving per-edge contributions the
+    forward pass does not expose."""
     drivers: list[ScheduleDriver] = []
     for dep in incoming_deps:
         predecessor_name = predecessor_names_by_id.get(dep.predecessor_task_id, "Unknown task")

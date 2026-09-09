@@ -102,6 +102,9 @@ class FinancialsWorkspaceViewModel:
     activity: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     actual_sort_key: str = "metaText"
     actual_sort_direction: str = "desc"
+    can_create_manual_actual: bool = False
+    actual_status: str = ""
+    actual_source: str = ""
     selected_forecast_id: str = ""
     selected_forecast: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     forecast_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
@@ -119,6 +122,7 @@ class FinancialsWorkspaceViewModel:
     can_generate_forecast: bool = False
     generate_forecast_disabled_reason: str = ""
     selected_change_id: str = ""
+    can_create_change: bool = False
     selected_change: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     financial_changes: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     financial_change_impacts: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
@@ -143,6 +147,18 @@ class FinancialsWorkspaceViewModel:
     variance_basis: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     report_basis: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     financial_profile: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
+    can_create_cost_code: bool = False
+    can_manage_restrictions: bool = False
+    setup_cost_codes: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    setup_restrictions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    setup_cost_code_sort_key: str = "code"
+    setup_cost_code_sort_direction: str = "asc"
+    setup_restriction_sort_key: str = "code"
+    setup_restriction_sort_direction: str = "asc"
+    setup_cost_code_search: str = ""
+    setup_cost_code_status: str = ""
+    setup_cost_code_assignment: str = ""
+    setup_restriction_search: str = ""
     selected_budget_id: str = ""
     show_create_budget_version: bool = False
     can_create_budget_version: bool = False
@@ -168,6 +184,7 @@ class FinancialsWorkspaceViewModel:
     rate_line_rate_type: str = ""
     rate_line_status: str = ""
     rate_line_effective_status: str = ""
+    can_create_rate_card: bool = False
     selected_planned_cost_version_id: str = ""
     planned_cost_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     planned_cost_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))

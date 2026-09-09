@@ -17,8 +17,30 @@ from src.ui_qml.modules.project_management.controllers.financials.forecast_domai
     on_forecast_approved_basis_stale,
     on_forecast_planning_stale,
 )
+from src.ui_qml.modules.project_management.controllers.financials.commitment_domain_event_binder import (
+    on_commitment_stale,
+)
+from src.ui_qml.modules.project_management.controllers.financials.cost_entry_domain_event_binder import (
+    on_cost_entry_actuals_stale,
+    on_cost_entry_list_stale,
+)
+from src.ui_qml.modules.project_management.controllers.financials.budget_domain_event_binder import (
+    on_budget_planning_stale,
+)
+from src.ui_qml.modules.project_management.controllers.financials.billing_domain_event_binder import (
+    on_billing_commercial_stale,
+)
+from src.ui_qml.modules.project_management.controllers.financials.financial_change_domain_event_binder import (
+    on_financial_change_budget_stale,
+    on_financial_change_forecast_stale,
+    on_financial_change_schedule_stale,
+    on_financial_change_workspace_stale,
+)
 from src.ui_qml.modules.project_management.controllers.financials.financial_setup_domain_event_binder import (
     on_financial_profile_stale,
+)
+from src.ui_qml.modules.project_management.controllers.financials.planned_cost_domain_event_binder import (
+    on_planned_cost_snapshot_stale,
 )
 from src.ui_qml.modules.project_management.controllers.financials.rate_card_domain_event_binder import (
     on_rate_card_detail_stale,
@@ -78,6 +100,8 @@ class ProjectManagementFinancialsWorkspaceController(
     activityChanged = Signal()
     actualSortKeyChanged = Signal()
     actualSortDirectionChanged = Signal()
+    canCreateManualActualChanged = Signal()
+    actualFiltersChanged = Signal()
     selectedForecastIdChanged = Signal()
     forecastVersionsChanged = Signal()
     forecastLinesChanged = Signal()
@@ -90,6 +114,7 @@ class ProjectManagementFinancialsWorkspaceController(
     forecastCapabilitiesChanged = Signal()
     selectedChangeIdChanged = Signal()
     selectedChangeChanged = Signal()
+    canCreateFinancialChangeChanged = Signal()
     financialChangesChanged = Signal()
     financialChangeImpactsChanged = Signal()
     changeSortKeyChanged = Signal()
@@ -107,6 +132,7 @@ class ProjectManagementFinancialsWorkspaceController(
     varianceBasisChanged = Signal()
     reportBasisChanged = Signal()
     financialProfileChanged = Signal()
+    setupChanged = Signal()
     budgetVersionsChanged = Signal()
     budgetLinesChanged = Signal()
     selectedBudgetIdChanged = Signal()
@@ -184,6 +210,9 @@ class ProjectManagementFinancialsWorkspaceController(
         self._actual_page = 1
         self._actual_sort_key = "metaText"
         self._actual_sort_direction = Qt.DescendingOrder.value
+        self._can_create_manual_actual = False
+        self._actual_status = ""
+        self._actual_source = ""
         self._selected_forecast_id = ""
         self._selected_forecast = default_detail()
         self._forecast_versions = default_collection()
@@ -206,6 +235,7 @@ class ProjectManagementFinancialsWorkspaceController(
         self._generate_forecast_disabled_reason = ""
         self._selected_change_id = ""
         self._selected_change = default_detail()
+        self._can_create_financial_change = False
         self._financial_changes = default_collection()
         self._financial_change_impacts = default_collection()
         self._financial_changes_table_model = DynamicTableModel(self)
@@ -236,6 +266,22 @@ class ProjectManagementFinancialsWorkspaceController(
         self._variance_basis = default_detail()
         self._report_basis = default_detail()
         self._financial_profile = default_detail()
+        self._can_create_cost_code = False
+        self._can_manage_restrictions = False
+        self._setup_cost_codes = default_collection()
+        self._setup_restrictions = default_collection()
+        self._setup_cost_codes_table_model = DynamicTableModel(self)
+        self._setup_restrictions_table_model = DynamicTableModel(self)
+        self._setup_cost_code_page = 1
+        self._setup_restriction_page = 1
+        self._setup_cost_code_sort_key = "code"
+        self._setup_cost_code_sort_direction = Qt.AscendingOrder.value
+        self._setup_restriction_sort_key = "code"
+        self._setup_restriction_sort_direction = Qt.AscendingOrder.value
+        self._setup_cost_code_search = ""
+        self._setup_cost_code_status = ""
+        self._setup_cost_code_assignment = ""
+        self._setup_restriction_search = ""
         self._budget_versions = default_collection()
         self._budget_lines = default_collection()
         self._budget_versions_table_model = DynamicTableModel(self)
@@ -267,6 +313,7 @@ class ProjectManagementFinancialsWorkspaceController(
         self._rate_line_rate_type = ""
         self._rate_line_status = ""
         self._rate_line_effective_status = ""
+        self._can_create_rate_card = False
         self._planned_cost_versions = default_collection()
         self._planned_cost_lines = default_collection()
         self._planned_cost_versions_table_model = DynamicTableModel(self)
@@ -321,7 +368,6 @@ class ProjectManagementFinancialsWorkspaceController(
         self._refresh_generation = 0
         self._loaded_destination_keys: set[tuple[str, str, str]] = set()
         self._invalidated_destinations: set[str] = set(FINANCE_DESTINATIONS)
-        self._bind_domain_events()
         self.refresh()
 
     @Property("QVariantMap", notify=overviewChanged)
@@ -386,6 +432,15 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property(int, notify=actualSortDirectionChanged)
     def actualSortDirection(self) -> int: return self._actual_sort_direction
+
+    @Property(bool, notify=canCreateManualActualChanged)
+    def canCreateManualActual(self) -> bool: return self._can_create_manual_actual
+
+    @Property(str, notify=actualFiltersChanged)
+    def actualStatus(self) -> str: return self._actual_status
+
+    @Property(str, notify=actualFiltersChanged)
+    def actualSource(self) -> str: return self._actual_source
 
     @Property(str, notify=selectedForecastIdChanged)
     def selectedForecastId(self) -> str: return self._selected_forecast_id
@@ -457,6 +512,10 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property("QVariantMap", notify=financialChangeImpactsChanged)
     def financialChangeImpacts(self) -> FinancialsMap: return self._financial_change_impacts
+
+    @Property(bool, notify=canCreateFinancialChangeChanged)
+    def canCreateFinancialChange(self) -> bool:
+        return self._can_create_financial_change
 
     @Property(QObject, constant=True)
     def financialChangesTableModel(self) -> DynamicTableModel:
@@ -532,6 +591,48 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property("QVariantMap", notify=financialProfileChanged)
     def financialProfile(self) -> FinancialsMap: return self._financial_profile
 
+    @Property(bool, notify=setupChanged)
+    def canCreateCostCode(self) -> bool: return self._can_create_cost_code
+
+    @Property(bool, notify=setupChanged)
+    def canManageCostCodeRestrictions(self) -> bool: return self._can_manage_restrictions
+
+    @Property("QVariantMap", notify=setupChanged)
+    def setupCostCodes(self) -> FinancialsMap: return self._setup_cost_codes
+
+    @Property("QVariantMap", notify=setupChanged)
+    def setupRestrictions(self) -> FinancialsMap: return self._setup_restrictions
+
+    @Property(QObject, constant=True)
+    def setupCostCodesTableModel(self) -> DynamicTableModel: return self._setup_cost_codes_table_model
+
+    @Property(QObject, constant=True)
+    def setupRestrictionsTableModel(self) -> DynamicTableModel: return self._setup_restrictions_table_model
+
+    @Property(str, notify=setupChanged)
+    def setupCostCodeSortKey(self) -> str: return self._setup_cost_code_sort_key
+
+    @Property(int, notify=setupChanged)
+    def setupCostCodeSortDirection(self) -> int: return self._setup_cost_code_sort_direction
+
+    @Property(str, notify=setupChanged)
+    def setupRestrictionSortKey(self) -> str: return self._setup_restriction_sort_key
+
+    @Property(int, notify=setupChanged)
+    def setupRestrictionSortDirection(self) -> int: return self._setup_restriction_sort_direction
+
+    @Property(str, notify=setupChanged)
+    def setupCostCodeSearch(self) -> str: return self._setup_cost_code_search
+
+    @Property(str, notify=setupChanged)
+    def setupCostCodeStatus(self) -> str: return self._setup_cost_code_status
+
+    @Property(str, notify=setupChanged)
+    def setupCostCodeAssignment(self) -> str: return self._setup_cost_code_assignment
+
+    @Property(str, notify=setupChanged)
+    def setupRestrictionSearch(self) -> str: return self._setup_restriction_search
+
     @Property("QVariantMap", notify=budgetVersionsChanged)
     def budgetVersions(self) -> FinancialsMap: return self._budget_versions
 
@@ -580,6 +681,9 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property("QVariantMap", notify=rateCardsChanged)
     def rateCards(self) -> FinancialsMap: return self._rate_cards
+
+    @Property(bool, notify=rateCardsChanged)
+    def canCreateRateCard(self) -> bool: return self._can_create_rate_card
 
     @Property("QVariantMap", notify=rateLinesChanged)
     def rateLines(self) -> FinancialsMap: return self._rate_lines
@@ -756,8 +860,38 @@ class ProjectManagementFinancialsWorkspaceController(
     def onForecastApprovedBasisStale(self, project_id: str) -> None:
         on_forecast_approved_basis_stale(self, project_id)
 
+    def onFinancialChangeWorkspaceStale(self, project_id: str) -> None:
+        on_financial_change_workspace_stale(self, project_id)
+
+    def onFinancialChangeBudgetStale(self, project_id: str) -> None:
+        on_financial_change_budget_stale(self, project_id)
+
+    def onFinancialChangeForecastStale(self, project_id: str) -> None:
+        on_financial_change_forecast_stale(self, project_id)
+
+    def onFinancialChangeScheduleStale(self, project_id: str) -> None:
+        on_financial_change_schedule_stale(self, project_id)
+
     def onFinancialProfileStale(self, project_id: str) -> None:
         on_financial_profile_stale(self, project_id)
+
+    def onPlannedCostSnapshotStale(self, project_id: str) -> None:
+        on_planned_cost_snapshot_stale(self, project_id)
+
+    def onCommitmentStale(self, project_id: str) -> None:
+        on_commitment_stale(self, project_id)
+
+    def onCostEntryListStale(self, project_id: str) -> None:
+        on_cost_entry_list_stale(self, project_id)
+
+    def onCostEntryActualsStale(self, project_id: str) -> None:
+        on_cost_entry_actuals_stale(self, project_id)
+
+    def onBudgetPlanningStale(self, project_id: str) -> None:
+        on_budget_planning_stale(self, project_id)
+
+    def onBillingCommercialStale(self, project_id: str) -> None:
+        on_billing_commercial_stale(self, project_id)
 
     def onRateCardListStale(self, rate_card_id: str) -> None:
         on_rate_card_list_stale(self, rate_card_id)
@@ -881,6 +1015,30 @@ class ProjectManagementFinancialsWorkspaceController(
     ) -> None:
         self._set_rate_line_filters(search, rate_type, status, effective_status)
 
+    @Slot("QVariantMap", result="QVariantMap")
+    def createRateCard(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._create_rate_card(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateRateCard(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._update_rate_card(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def deactivateRateCard(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._deactivate_rate_card(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def addRateLine(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._add_rate_line(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateRateLine(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._update_rate_line(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def deactivateRateLine(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._deactivate_rate_line(payload)
+
     @Slot(str)
     def selectBudgetVersion(self, budget_id: str) -> None:
         self._select_budget_version(budget_id)
@@ -960,9 +1118,27 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot("QVariantMap", result="QVariantMap")
     def createManualActual(self, payload: FinancialsMap) -> FinancialsMap: return self._create_manual_actual(payload)
 
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateActualDraft(self, payload: FinancialsMap) -> FinancialsMap: return self._update_actual_draft(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def deleteActualDraft(self, payload: FinancialsMap) -> FinancialsMap: return self._delete_actual_draft(payload)
+
     @Slot(str, int, int, result="QVariantMap")
     def searchFinanceProjects(self, search: str, page: int, page_size: int) -> FinancialsMap:
         return self._search_finance_projects(search, page, page_size)
+
+    @Slot(str, str, int, int, result="QVariantMap")
+    def searchRateResources(
+        self, project_id: str, search: str, page: int, page_size: int
+    ) -> FinancialsMap:
+        return self._search_rate_resources(project_id, search, page, page_size)
+
+    @Slot(str, str, int, int, result="QVariantMap")
+    def searchRateDepartments(
+        self, project_id: str, search: str, page: int, page_size: int
+    ) -> FinancialsMap:
+        return self._search_rate_departments(project_id, search, page, page_size)
 
     @Slot(str, int, int, result="QVariantMap")
     def searchManualActualProjects(self, search: str, page: int, page_size: int) -> FinancialsMap:
@@ -973,6 +1149,14 @@ class ProjectManagementFinancialsWorkspaceController(
         self, project_id: str, search: str, page: int, page_size: int
     ) -> FinancialsMap:
         return self._search_manual_actual_tasks(project_id, search, page, page_size)
+
+    @Slot(str, str, int, int, result="QVariantMap")
+    def searchManualActualResources(
+        self, project_id: str, search: str, page: int, page_size: int
+    ) -> FinancialsMap:
+        return self._search_manual_actual_resources(
+            project_id, search, page, page_size
+        )
 
     @Slot(str, str, int, int, str, result="QVariantMap")
     def searchManualActualCostCodes(
@@ -994,6 +1178,12 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str, str, result="QVariantMap")
     def resolveManualActualTask(self, project_id: str, task_id: str) -> FinancialsMap:
         return self._resolve_manual_actual_task(project_id, task_id)
+
+    @Slot(str, str, result="QVariantMap")
+    def resolveManualActualResource(
+        self, project_id: str, resource_id: str
+    ) -> FinancialsMap:
+        return self._resolve_manual_actual_resource(project_id, resource_id)
 
     @Slot(str, str, str, result="QVariantMap")
     def resolveManualActualCostCode(
@@ -1025,6 +1215,28 @@ class ProjectManagementFinancialsWorkspaceController(
     ) -> FinancialsMap:
         return self._resolve_budget_cost_code(project_id, cost_code_id)
 
+    @Slot(str, str, str, str, int, int, result="QVariantMap")
+    def searchFinancialChangeTargetLines(
+        self,
+        project_id: str,
+        change_id: str,
+        impact_type: str,
+        search: str,
+        page: int,
+        page_size: int,
+    ) -> FinancialsMap:
+        return self._search_financial_change_target_lines(
+            project_id, change_id, impact_type, search, page, page_size
+        )
+
+    @Slot(str, str, str, str, result="QVariantMap")
+    def resolveFinancialChangeTargetLine(
+        self, project_id: str, change_id: str, impact_type: str, line_id: str
+    ) -> FinancialsMap:
+        return self._resolve_financial_change_target_line(
+            project_id, change_id, impact_type, line_id
+        )
+
     @Slot(str, str, int, int, result="QVariantMap")
     def searchForecastTasks(
         self, project_id: str, search: str, page: int, page_size: int
@@ -1050,12 +1262,62 @@ class ProjectManagementFinancialsWorkspaceController(
     ) -> FinancialsMap:
         return self._search_forecast_risks(project_id, search, page, page_size)
 
+    @Slot(str, str, int, int, str, bool, result="QVariantMap")
+    def searchSetupCostCodes(
+        self,
+        project_id: str,
+        search: str,
+        page: int,
+        page_size: int,
+        assignment_state: str,
+        active_only: bool,
+    ) -> FinancialsMap:
+        return self._search_setup_cost_codes(
+            project_id, search, page, page_size, assignment_state, active_only
+        )
+
     @Slot(str, result="QVariantMap")
     def loadManualActualDefaults(self, project_id: str) -> FinancialsMap:
         return self._load_manual_actual_defaults(project_id)
 
     @Slot("QVariantMap", result="QVariantMap")
     def createCostCode(self, payload: FinancialsMap) -> FinancialsMap: return self._create_cost_code(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateFinancialProfile(self, payload: FinancialsMap) -> FinancialsMap: return self._update_financial_profile(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def transitionFinancialProfile(self, payload: FinancialsMap) -> FinancialsMap: return self._transition_financial_profile(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateCostCode(self, payload: FinancialsMap) -> FinancialsMap: return self._update_cost_code(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def changeCostCodeStatus(self, payload: FinancialsMap) -> FinancialsMap: return self._change_cost_code_status(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def addCostCodeRestriction(self, payload: FinancialsMap) -> FinancialsMap: return self._add_cost_code_restriction(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def removeCostCodeRestriction(self, payload: FinancialsMap) -> FinancialsMap: return self._remove_cost_code_restriction(payload)
+
+    @Slot(int)
+    def setSetupCostCodePage(self, page: int) -> None: self._set_setup_cost_code_page(page)
+
+    @Slot(int)
+    def setSetupRestrictionPage(self, page: int) -> None: self._set_setup_restriction_page(page)
+
+    @Slot(str, int)
+    def setSetupCostCodeSort(self, key: str, direction: int) -> None: self._set_setup_cost_code_sort(key, direction)
+
+    @Slot(str, int)
+    def setSetupRestrictionSort(self, key: str, direction: int) -> None: self._set_setup_restriction_sort(key, direction)
+
+    @Slot(str, str, str)
+    def setSetupCostCodeFilters(self, search: str, status: str, assignment: str) -> None: self._set_setup_cost_code_filters(search, status, assignment)
+
+    @Slot(str)
+    def setSetupRestrictionFilter(self, search: str) -> None: self._set_setup_restriction_filter(search)
 
     @Slot(str, str, str, result="QVariantMap")
     def createBudgetVersion(self, project_id: str, name: str, currency: str) -> FinancialsMap:
@@ -1080,6 +1342,36 @@ class ProjectManagementFinancialsWorkspaceController(
         self, request_id: str, approve: bool, notes: str
     ) -> FinancialsMap:
         return self._decide_forecast_approval(request_id, approve, notes)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def createFinancialChange(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._create_financial_change(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateFinancialChange(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._update_financial_change(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def addFinancialChangeImpact(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._add_financial_change_impact(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateFinancialChangeImpact(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._update_financial_change_impact(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def removeFinancialChangeImpact(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._remove_financial_change_impact(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def submitFinancialChange(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._submit_financial_change(payload)
+
+    @Slot(str, bool, str, result="QVariantMap")
+    def decideFinancialChange(
+        self, request_id: str, approve: bool, notes: str
+    ) -> FinancialsMap:
+        return self._decide_financial_change(request_id, approve, notes)
 
     @Slot(str, str, result="QVariantMap")
     def createBudgetSuccessor(self, predecessor_id: str, name: str) -> FinancialsMap:
@@ -1196,6 +1488,10 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str, int)
     def setActualSort(self, sort_key: str, sort_direction: int) -> None:
         self._set_actual_sort(sort_key, sort_direction)
+
+    @Slot(str, str)
+    def setActualFilters(self, status: str, source: str) -> None:
+        self._set_actual_filters(status, source)
 
     @Slot(int)
     def setCommitmentPage(self, page: int) -> None: self._set_commitment_page(page)

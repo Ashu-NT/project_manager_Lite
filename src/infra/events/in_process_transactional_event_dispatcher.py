@@ -1,23 +1,3 @@
-"""ADR-005 §7: the concrete, in-process `TransactionalEventDispatcher`.
-
-Stateless across dispatch calls -- no queue, no `_dispatching` flag. Handler dispatch is
-synchronous, pre-commit, FAIL_FAST: an exception from any handler propagates immediately out of
-`dispatch()`, and the remaining registered handlers for that call do not run. This dispatcher
-does not decide rollback itself -- it only propagates, so a future `UnitOfWork` (P3) can roll
-back the transaction it owns.
-
-Deliberately transaction-neutral: this file does not create a SQLAlchemy `Session`, does not
-commit, does not roll back, does not open a transaction, and does not import `sqlalchemy` at
-all. `uow` is accepted and forwarded to handlers exactly as given -- this dispatcher never
-inspects it, matching ADR-005 §9's guarantee that `UnitOfWork` is not yet a concrete type this
-package needs to know the shape of.
-
-Handler matching is by exact event type only (`type(event)`), never a subclass/MRO-based match
--- ADR-005's own Test Impact section states this explicitly ("Handler dispatch is by exact event
-type only"), and Alternatives Rejected rules out polymorphic/supertype subscription for the same
-reason: it would create double-dispatch ambiguity.
-"""
-
 from __future__ import annotations
 
 from threading import RLock

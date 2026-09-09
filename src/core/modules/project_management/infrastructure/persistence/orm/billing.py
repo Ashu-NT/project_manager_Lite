@@ -355,6 +355,15 @@ class ProjectBillingPreparationLineORM(Base):
             "(rate_card_id IS NOT NULL AND rate_line_id IS NOT NULL AND rate_card_version >= 1)",
             name="ck_billing_lines_rate_snapshot",
         ),
+        CheckConstraint(
+            "rate_line_version IS NULL OR rate_line_version >= 1",
+            name="ck_billing_line_rate_line_version",
+        ),
+        CheckConstraint(
+            "rate_modifier_multiplier IS NULL OR "
+            "(rate_modifier IS NOT NULL AND rate_modifier_multiplier >= 0)",
+            name="ck_billing_line_rate_modifier",
+        ),
         _SCOPE_INFO,
     )
 
@@ -403,6 +412,13 @@ class ProjectBillingPreparationLineORM(Base):
     rate_card_id: Mapped[str | None] = mapped_column(String, nullable=True)
     rate_line_id: Mapped[str | None] = mapped_column(String, nullable=True)
     rate_card_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    rate_line_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    rate_modifier: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    rate_modifier_multiplier: Mapped[Decimal | None] = mapped_column(
+        financial_numeric(FinancialNumericKind.RATE),
+        nullable=True,
+        info=financial_numeric_info(FinancialNumericKind.RATE),
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 

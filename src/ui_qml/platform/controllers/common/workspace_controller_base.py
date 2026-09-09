@@ -1,13 +1,9 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
-from typing import Any
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
-
-from src.core.shared.events.signal import Signal as DomainSignal
 
 QML_IMPORT_NAME = "Platform.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -42,10 +38,6 @@ class PlatformWorkspaceControllerBase(QObject):
         }
         self._pending_domain_refresh = False
         self._loaded = True
-        self._domain_event_subscriptions: list[
-            tuple[DomainSignal[Any], Callable[[Any], None]]
-        ] = []
-        self.destroyed.connect(self._disconnect_domain_event_subscriptions)
 
     def _diagnostic_context(self) -> dict[str, object]:
         return {
@@ -180,19 +172,6 @@ class PlatformWorkspaceControllerBase(QObject):
         self._operation_result = value
         self.operationResultChanged.emit()
 
-    def _subscribe_domain_signal(
-        self,
-        signal: DomainSignal[Any],
-        callback: Callable[[Any], None],
-    ) -> None:
-        signal.connect(callback)
-        self._domain_event_subscriptions.append((signal, callback))
-        logger.debug(
-            "Platform domain signal subscribed context=%s subscription_count=%s",
-            self._diagnostic_context(),
-            len(self._domain_event_subscriptions),
-        )
-
     def _request_domain_refresh(self) -> None:
         if not self._loaded:
             # Never activated (lazy-loading controllers only -- always
@@ -222,19 +201,6 @@ class PlatformWorkspaceControllerBase(QObject):
         if callable(refresh):
             logger.debug("Platform pending domain refresh executing context=%s", self._diagnostic_context())
             refresh()
-
-    def _disconnect_domain_event_subscriptions(
-        self,
-        _object: QObject | None = None,
-    ) -> None:
-        for signal, callback in self._domain_event_subscriptions:
-            try:
-                signal.disconnect(callback)
-            except Exception:
-                logger.debug("Platform domain signal disconnect failed context=%s", self._diagnostic_context(), exc_info=True)
-        self._domain_event_subscriptions.clear()
-        logger.debug("Platform domain signal subscriptions cleared context=%s", self._diagnostic_context())
-
 
 __all__ = [
     "PlatformWorkspaceControllerBase",

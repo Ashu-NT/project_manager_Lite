@@ -16,6 +16,7 @@ def record_assignment_action(
     resource_name: str,
     task_id: str | None = None,
     extra: dict[str, Any] | None = None,
+    commit: bool = True,
 ) -> None:
     details: dict[str, Any] = {
         "resource_id": resource_id,
@@ -36,6 +37,7 @@ def record_assignment_action(
         related_entity_type="resource",
         related_entity_id=resource_id,
         details=details,
+        commit=commit,
     )
 
 

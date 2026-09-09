@@ -15,7 +15,7 @@ from src.ui_qml.modules.project_management.controllers.resources.resource_state_
     ResourceStateSettersMixin,
 )
 from src.ui_qml.modules.project_management.controllers.resources.resource_domain_event_binder import (
-    bind_resource_domain_events,
+    on_task_assignments_for_resource_stale,
 )
 from src.ui_qml.modules.project_management.controllers.resources.resource_selection_handler import (
     activate_resource,
@@ -60,7 +60,7 @@ __all__ = [
     "activate_resource",
     "add_certification",
     "add_skill",
-    "bind_resource_domain_events",
+    "on_task_assignments_for_resource_stale",
     "create_resource",
     "create_resource_table_models",
     "default_overview",

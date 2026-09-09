@@ -10,22 +10,27 @@ AppWidgets.EntityDialog {
     objectName: "manualActualEditorDialog"
 
     property var workspaceController: null
+    property string mode: "create"
+    property var entry: null
     property string initialProjectId: ""
     property string initialTaskId: ""
     property string initialCostCodeId: ""
     property var initialDefaults: ({ "currencyCode": "", "entryKinds": [] })
     property var actualDefaults: root.initialDefaults
     property string commandId: ""
+    readonly property bool _isEdit: root.mode === "edit"
 
     signal submitted(var payload)
 
     modal: true
     width: 680
     closePolicy: Popup.CloseOnEscape
-    title: "Create Manual Actual"
-    subtitle: "Create a governed draft actual or adjustment. Submission, approval, and posting remain separate actions."
-    primaryText: "Create Draft"
-    primaryIcon: "add"
+    title: root._isEdit ? "Edit Manual Actual Draft" : "Create Manual Actual"
+    subtitle: root._isEdit
+        ? "Update this draft before it is submitted. Submitted and posted evidence remains immutable."
+        : "Create a governed draft actual or adjustment. Submission, approval, and posting remain separate actions."
+    primaryText: root._isEdit ? "Save Draft" : "Create Draft"
+    primaryIcon: root._isEdit ? "save" : "add"
     primaryEnabled: projectSelector.selectedId.length > 0
         && costCodeSelector.selectedId.length > 0
         && String(root.actualDefaults.currencyCode || "").length > 0
@@ -41,6 +46,21 @@ AppWidgets.EntityDialog {
     function selectedValue(options, index, fallback) {
         const item = (options || [])[index]
         return item ? String(item.value || fallback || "") : String(fallback || "")
+    }
+
+    function _entryState() {
+        return root.entry ? (root.entry.state || {}) : ({})
+    }
+
+    function _selectEntryKind(value) {
+        const options = root.actualDefaults.entryKinds || []
+        for (let index = 0; index < options.length; ++index) {
+            if (String(options[index].value || "") === String(value || "")) {
+                entryKindCombo.currentIndex = index
+                return
+            }
+        }
+        entryKindCombo.currentIndex = 0
     }
 
     function _loadDefaults(projectId) {
@@ -66,6 +86,7 @@ AppWidgets.EntityDialog {
         taskSelector.contextKey = String(value || "")
         costCodeSelector.contextKey = String(value || "") + "|" + transactionDateField.text
         taskSelector.clearSelection()
+        resourceSelector.clearSelection()
         costCodeSelector.clearSelection()
         root.errorMessage = ""
         root._loadDefaults(String(value || ""))
@@ -80,17 +101,29 @@ AppWidgets.EntityDialog {
             return
         }
         root._applyProject(projectResult.item.value, projectResult.item.label)
-        if (root.initialTaskId) {
+        const state = root._entryState()
+        const taskId = root._isEdit ? String(state.taskId || "") : root.initialTaskId
+        if (taskId) {
             const taskResult = root.workspaceController.resolveManualActualTask(
-                projectSelector.selectedId, root.initialTaskId
+                projectSelector.selectedId, taskId
             )
             if (taskResult && taskResult.ok && taskResult.item)
                 taskSelector.setResolvedItem(taskResult.item)
         }
-        if (root.initialCostCodeId) {
+        const resourceId = root._isEdit ? String(state.resourceId || "") : ""
+        if (resourceId) {
+            const resourceResult = root.workspaceController.resolveManualActualResource(
+                projectSelector.selectedId, resourceId
+            )
+            if (resourceResult && resourceResult.ok && resourceResult.item)
+                resourceSelector.setResolvedItem(resourceResult.item)
+        }
+        const costCodeId = root._isEdit
+            ? String(state.costCodeId || "") : root.initialCostCodeId
+        if (costCodeId) {
             const codeResult = root.workspaceController.resolveManualActualCostCode(
                 projectSelector.selectedId,
-                root.initialCostCodeId,
+                costCodeId,
                 transactionDateField.text
             )
             if (codeResult && codeResult.ok && codeResult.item)
@@ -99,20 +132,26 @@ AppWidgets.EntityDialog {
     }
 
     function populateDefaults() {
-        descriptionField.text = ""
-        amountField.text = ""
-        transactionDateField.text = Qt.formatDate(new Date(), "yyyy-MM-dd")
+        const state = root._entryState()
+        descriptionField.text = root._isEdit ? String(state.description || "") : ""
+        amountField.text = root._isEdit ? String(state.amount || "") : ""
+        transactionDateField.text = root._isEdit
+            ? String(state.transactionDate || "")
+            : Qt.formatDate(new Date(), "yyyy-MM-dd")
         entryKindCombo.currentIndex = 0
         projectSelector.clearSelection()
         taskSelector.clearSelection()
+        resourceSelector.clearSelection()
         costCodeSelector.clearSelection()
         root.actualDefaults = root.initialDefaults
         root.errorMessage = ""
         root._resolveInitialSelections()
+        if (root._isEdit)
+            root._selectEntryKind(state.entryKind)
     }
 
     function buildPayload() {
-        return {
+        const payload = {
             "projectId": projectSelector.selectedId,
             "commandId": root.commandId,
             "description": descriptionField.text,
@@ -121,8 +160,15 @@ AppWidgets.EntityDialog {
             "currency": String(root.actualDefaults.currencyCode || ""),
             "transactionDate": transactionDateField.text,
             "costCodeId": costCodeSelector.selectedId,
-            "taskId": taskSelector.selectedId
+            "taskId": taskSelector.selectedId,
+            "resourceId": resourceSelector.selectedId
         }
+        if (root._isEdit) {
+            const state = root._entryState()
+            payload["entryId"] = String(state.entryId || root.entry.id || "")
+            payload["rowVersion"] = Number(state.rowVersion || 0)
+        }
+        return payload
     }
 
     function submitDialog() {
@@ -166,6 +212,7 @@ AppWidgets.EntityDialog {
                 placeholderText: "Select project"
                 searchPlaceholder: "Search project name or code..."
                 contextKey: "manual-actual-projects"
+                enabled: !root._isEdit
                 onLookupRequested: function(query, page, pageSize, generation, lookupContext) {
                     const result = root.workspaceController
                         ? root.workspaceController.searchManualActualProjects(query, page, pageSize)
@@ -185,6 +232,30 @@ AppWidgets.EntityDialog {
                 id: descriptionField
                 Layout.fillWidth: true
                 placeholderText: "Supplier correction, travel expense, or approved adjustment"
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Resource"
+            AppControls.SearchablePagedSelector {
+                id: resourceSelector
+                objectName: "manualActualResourceSelector"
+                Layout.fillWidth: true
+                enabled: projectSelector.selectedId.length > 0
+                allowEmpty: true
+                emptyLabel: "Not linked to a resource"
+                placeholderText: "Optional resource"
+                searchPlaceholder: "Search resource name or code..."
+                contextKey: projectSelector.selectedId
+                onLookupRequested: function(query, page, pageSize, generation, lookupContext) {
+                    const result = root.workspaceController
+                        ? root.workspaceController.searchManualActualResources(
+                            projectSelector.selectedId, query, page, pageSize
+                        )
+                        : ({ "ok": false, "message": "Finance controller is unavailable." })
+                    resourceSelector.acceptResult(result, generation, lookupContext)
+                }
             }
         }
 

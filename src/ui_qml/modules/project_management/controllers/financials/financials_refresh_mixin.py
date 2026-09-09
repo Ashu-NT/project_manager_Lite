@@ -5,7 +5,6 @@ from time import perf_counter
 
 from PySide6.QtCore import Qt
 
-from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.application.financials.invalidation import (
     FinanceInvalidationScope,
 )
@@ -46,10 +45,7 @@ class FinancialsRefreshMixin:
             subsection,
         )
         self._set_is_loading(True)
-        if destination == "planning" and subsection == "forecast":
-            self._set_forecast_capabilities(
-                show=False, enabled=False, disabled_reason=""
-            )
+        self._reset_active_governance_state(destination, subsection)
         try:
             self._set_error_message("")
             self._set_feedback_message("")
@@ -93,6 +89,16 @@ class FinancialsRefreshMixin:
                 planned_cost_version_page=self._planned_cost_version_page,
                 billing_preparation_page=self._billing_preparation_page,
                 configuration_page_size=self._configuration_page_size,
+                setup_cost_code_page=self._setup_cost_code_page,
+                setup_restriction_page=self._setup_restriction_page,
+                setup_cost_code_sort_key=self._setup_cost_code_sort_key,
+                setup_cost_code_sort_direction=self._sort_direction_name(self._setup_cost_code_sort_direction),
+                setup_restriction_sort_key=self._setup_restriction_sort_key,
+                setup_restriction_sort_direction=self._sort_direction_name(self._setup_restriction_sort_direction),
+                setup_cost_code_search=self._setup_cost_code_search,
+                setup_cost_code_status=self._setup_cost_code_status,
+                setup_cost_code_assignment=self._setup_cost_code_assignment,
+                setup_restriction_search=self._setup_restriction_search,
                 actual_page=self._actual_page,
                 commitment_page=self._commitment_page,
                 transaction_page_size=self._transaction_page_size,
@@ -100,6 +106,8 @@ class FinancialsRefreshMixin:
                 actual_sort_direction=self._sort_direction_name(
                     self._actual_sort_direction
                 ),
+                actual_status=self._actual_status,
+                actual_source=self._actual_source,
                 commitment_sort_key=self._commitment_sort_key,
                 commitment_sort_direction=self._sort_direction_name(
                     self._commitment_sort_direction
@@ -359,6 +367,11 @@ class FinancialsRefreshMixin:
                     state.actual_sort_key,
                     state.actual_sort_direction,
                 )
+                self._set_can_create_manual_actual(state.can_create_manual_actual)
+                self._set_actual_filter_state(
+                    state.actual_status,
+                    state.actual_source,
+                )
             elif subsection == "commitments":
                 self._set_commitment_summary(
                     serialize_financials_commitment_summary_view_model(
@@ -382,6 +395,9 @@ class FinancialsRefreshMixin:
                 self._set_rate_cards(
                     serialize_financials_collection_view_model(state.rate_cards)
                 )
+                if self._can_create_rate_card != state.can_create_rate_card:
+                    self._can_create_rate_card = state.can_create_rate_card
+                    self.rateCardsChanged.emit()
                 self._set_rate_lines(
                     serialize_financials_collection_view_model(state.rate_lines)
                 )
@@ -481,7 +497,11 @@ class FinancialsRefreshMixin:
             self._set_financial_profile(
                 serialize_financials_detail_view_model(state.financial_profile)
             )
+            self._set_setup_state(state)
+            self._setup_cost_code_page = state.setup_cost_codes.page
+            self._setup_restriction_page = state.setup_restrictions.page
         elif subsection == "changes":
+            self._set_can_create_financial_change(state.can_create_change)
             self._set_selected_change_id(state.selected_change_id)
             self._set_selected_change(
                 serialize_financials_detail_view_model(state.selected_change)
@@ -514,6 +534,7 @@ class FinancialsRefreshMixin:
         self._set_variance_metrics(default_collection())
         self._set_report_definitions(default_collection())
         self._set_ledger(default_collection())
+        self._set_can_create_manual_actual(False)
         self._set_activity(default_collection())
         self._set_selected_forecast_id("")
         self._set_selected_forecast(default_detail())
@@ -522,6 +543,7 @@ class FinancialsRefreshMixin:
         self._set_forecast_capabilities(show=False, enabled=False, disabled_reason="")
         self._set_selected_change_id("")
         self._set_selected_change(default_detail())
+        self._set_can_create_financial_change(False)
         self._set_financial_changes(default_collection())
         self._set_financial_change_impacts(default_collection())
         self._set_commitment_summary(default_commitment_summary())
@@ -532,6 +554,13 @@ class FinancialsRefreshMixin:
         self._set_variance_basis(default_detail())
         self._set_report_basis(default_detail())
         self._set_financial_profile(default_detail())
+        self._can_create_cost_code = False
+        self._can_manage_restrictions = False
+        self._setup_cost_codes = default_collection()
+        self._setup_restrictions = default_collection()
+        self._setup_cost_codes_table_model.set_rows([])
+        self._setup_restrictions_table_model.set_rows([])
+        self.setupChanged.emit()
         self._set_budget_versions(default_collection())
         self._set_budget_lines(default_collection())
         self._set_selected_budget_id("")
@@ -539,6 +568,7 @@ class FinancialsRefreshMixin:
         self._set_can_create_budget_version(False)
         self._set_create_budget_version_disabled_reason("")
         self._set_rate_cards(default_collection())
+        self._can_create_rate_card = False
         self._set_rate_lines(default_collection())
         self._set_selected_rate_card_id("")
         self._set_selected_rate_card(default_detail())
@@ -553,6 +583,50 @@ class FinancialsRefreshMixin:
         self._set_billing_preparation_lines(default_collection())
         self._set_commercial_projection(default_detail())
         self._loaded_destination_keys.clear()
+
+    def _reset_active_governance_state(
+        self, destination: str, subsection: str
+    ) -> None:
+        """Fail closed while authority for the active governed surface reloads."""
+        if destination == "planning" and subsection == "budgets":
+            self._set_show_create_budget_version(False)
+            self._set_can_create_budget_version(False)
+            self._set_create_budget_version_disabled_reason("")
+            self._set_budget_versions(default_collection())
+            self._set_budget_lines(default_collection())
+            return
+        if destination == "planning" and subsection == "forecast":
+            self._set_forecast_capabilities(
+                show=False, enabled=False, disabled_reason=""
+            )
+            self._set_selected_forecast(default_detail())
+            self._set_forecast_versions(default_collection())
+            self._set_forecast_lines(default_collection())
+            return
+        if destination == "costs" and subsection == "rates":
+            self._can_create_rate_card = False
+            self._set_rate_cards(default_collection())
+            self._set_rate_lines(default_collection())
+            self._set_selected_rate_card(default_detail())
+            self.rateCardsChanged.emit()
+            return
+        if destination != "controls":
+            return
+        if subsection == "changes":
+            self._set_can_create_financial_change(False)
+            self._set_selected_change(default_detail())
+            self._set_financial_changes(default_collection())
+            self._set_financial_change_impacts(default_collection())
+            return
+        if subsection == "setup":
+            self._set_financial_profile(default_detail())
+            self._can_create_cost_code = False
+            self._can_manage_restrictions = False
+            self._setup_cost_codes = default_collection()
+            self._setup_restrictions = default_collection()
+            self._setup_cost_codes_table_model.set_rows([])
+            self._setup_restrictions_table_model.set_rows([])
+            self.setupChanged.emit()
 
     def _selected_project_label(self) -> str:
         return next(
@@ -576,56 +650,14 @@ class FinancialsRefreshMixin:
         if self._active_destination in destinations:
             self._request_domain_refresh()
 
-    def _bind_domain_events(self) -> None:
-        def _projects_changed(payload: object) -> None:
-            self._shell_loaded = False
-            if self._finance_event_matches(payload):
-                self._invalidate_destinations(*self._finance_destinations)
+    def onProjectStale(self, project_id: str) -> None:
+        self._shell_loaded = False
+        if self._finance_event_matches(project_id):
+            self._invalidate_destinations(*self._finance_destinations)
 
-        def _tasks_changed(payload: object) -> None:
-            if self._finance_event_matches(payload):
-                self._invalidate_destinations("planning", "costs", "performance")
-
-        def _budgets_changed(payload: object) -> None:
-            if self._finance_event_matches(payload):
-                self._invalidate_destinations("overview", "planning", "performance")
-
-        def _planned_costs_changed(payload: object) -> None:
-            if self._finance_event_matches(payload):
-                self._invalidate_destinations("planning", "performance")
-
-        def _billing_changed(payload: object) -> None:
-            if self._finance_event_matches(payload):
-                self._invalidate_destinations("commercial")
-
-        def _cost_entries_changed(payload: object) -> None:
-            if self._finance_event_matches(payload):
-                self._invalidate_destinations(
-                    "overview", "costs", "performance", "commercial"
-                )
-
-        def _commitments_changed(payload: object) -> None:
-            if self._finance_event_matches(payload):
-                self._invalidate_destinations(
-                    "overview", "planning", "costs", "performance", "commercial"
-                )
-
-        def _financial_changes_changed(payload: object) -> None:
-            if self._finance_event_matches(payload):
-                self._invalidate_destinations("controls")
-
-        subscriptions = (
-            (domain_events.project_changed, _projects_changed),
-            (domain_events.tasks_changed, _tasks_changed),
-            (domain_events.budgets_changed, _budgets_changed),
-            (domain_events.planned_costs_changed, _planned_costs_changed),
-            (domain_events.billing_preparations_changed, _billing_changed),
-            (domain_events.cost_entries_changed, _cost_entries_changed),
-            (domain_events.commitments_changed, _commitments_changed),
-            (domain_events.financial_changes_changed, _financial_changes_changed),
-        )
-        for signal, callback in subscriptions:
-            self._subscribe_domain_signal(signal, callback)
+    def onTaskScheduleStale(self, project_id: str) -> None:
+        if self._finance_event_matches(project_id):
+            self._invalidate_destinations("planning", "costs", "performance")
 
     def _finance_event_matches(self, payload: object) -> bool:
         if isinstance(payload, FinanceInvalidationScope):

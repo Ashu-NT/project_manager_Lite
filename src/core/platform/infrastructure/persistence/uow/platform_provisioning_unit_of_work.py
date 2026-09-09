@@ -1,12 +1,3 @@
-"""P4C (Platform Runtime Organization Provisioning Transaction Convergence):
-`SqlAlchemyPlatformProvisioningUnitOfWork` -- provisioning's own thin, concrete subclass of the P3
-`SqlAlchemyUnitOfWorkBase`, adding exactly the two named accessors
-`PlatformProvisioningUnitOfWork` declares (`organizations`, `entitlements`) plus
-`_enterprise_audit_service`, all bound to this instance's own fresh `Session` -- never the shared,
-process-lifetime one `PlatformRuntimeApplicationService`'s other, not-yet-migrated collaborators
-still use. Mirrors `SqlAlchemyOrganizationUnitOfWork`/`SqlAlchemyPlatformUnitOfWork` exactly.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -41,6 +32,9 @@ from src.infra.persistence.db.unit_of_work import (
 
 
 class SqlAlchemyPlatformProvisioningUnitOfWork(SqlAlchemyUnitOfWorkBase, PlatformProvisioningUnitOfWork):
+    """Owns a fresh Session per instance, distinct from the shared session
+    `PlatformRuntimeApplicationService`'s other collaborators still use."""
+
     def __init__(
         self,
         *,
@@ -73,9 +67,8 @@ class SqlAlchemyPlatformProvisioningUnitOfWork(SqlAlchemyUnitOfWorkBase, Platfor
 
 
 class SqlAlchemyPlatformProvisioningUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
-    """Closes over a session *factory* (per ADR-005 Section 6.1) plus the ambient collaborators
-    (`tenant_context_service`, `user_session`) needed to build this UoW's fresh, session-bound
-    accessors on every `create()` call."""
+    """Closes over a session factory plus the ambient collaborators (`tenant_context_service`,
+    `user_session`) needed to build this UoW's fresh, session-bound accessors per call."""
 
     def __init__(
         self,

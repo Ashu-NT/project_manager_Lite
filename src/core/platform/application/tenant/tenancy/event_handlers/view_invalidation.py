@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 
+from src.core.platform.domain.security.auth.events import TenantMembershipProvisioned
 from src.core.platform.domain.tenant.tenancy.events import (
     TenantMembershipActivated,
     TenantMembershipReactivated,
@@ -22,14 +23,16 @@ _TenantMembershipEvent = (
     | TenantMembershipSuspended
     | TenantMembershipReactivated
     | TenantMembershipRemoved
+    | TenantMembershipProvisioned
 )
 
 
 def build_tenant_membership_view_invalidation_handler(channel: ViewInvalidationChannel):
     """Returns one `PostCommitEventHandler` bound to `channel`, reused for explicit
-    composition-root registration against all four membership events
-    (`post_commit_bus.subscribe(TenantMembershipActivated, handler)`, ... `Suspended`,
-    `Reactivated`, `Removed`)."""
+    composition-root registration against all five membership events (`Activated`, `Suspended`,
+    `Reactivated`, `Removed`, `Provisioned`). `Provisioned` is a genuinely different creation path
+    (system/admin-direct, not invite->accept) but has an identical membership_id/tenant_id-shaped
+    view-invalidation need, so it reuses this same target rather than a parallel one."""
 
     def handle_tenant_membership_event(
         event: _TenantMembershipEvent, context: DomainEventContext

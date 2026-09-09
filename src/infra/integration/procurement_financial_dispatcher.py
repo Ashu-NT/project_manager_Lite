@@ -6,9 +6,6 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.application.financials.invalidation import (
-    FinanceInvalidationScope,
-)
 from src.core.modules.project_management.application.financials.procurement_consumer import (
     ProcurementFinancialConsumer,
 )
@@ -17,7 +14,13 @@ from src.core.platform.application.integration import (
     IntegrationInboxService,
     IntegrationOutboxService,
 )
-from src.core.shared.events.domain_events import domain_events
+from src.core.platform.common.ids import generate_id
+from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.shared.events.domain_event_publisher import (
+    PostCommitEventPublisher,
+    TransactionalEventDispatcher,
+)
+from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
 
 
 logger = logging.getLogger(__name__)
@@ -33,11 +36,15 @@ class ProcurementFinancialDispatcher:
         outbox_service: IntegrationOutboxService,
         inbox_service: IntegrationInboxService,
         consumer: ProcurementFinancialConsumer,
+        transactional_dispatcher: TransactionalEventDispatcher,
+        post_commit_bus: PostCommitEventPublisher,
     ) -> None:
         self._session = session
         self._outbox_service = outbox_service
         self._inbox_service = inbox_service
         self._consumer = consumer
+        self._transactional_dispatcher = transactional_dispatcher
+        self._post_commit_bus = post_commit_bus
 
     def dispatch_pending(self, *, limit: int = 50) -> int:
         lease_token = f"procurement-finance:{uuid4()}"
@@ -51,18 +58,10 @@ class ProcurementFinancialDispatcher:
         for record in claimed:
             try:
                 decision = self._inbox_service.begin_delivery(record.envelope)
-                consumption = None
                 if decision.disposition is InboxDeliveryDisposition.READY:
-                    consumption = self._consumer.consume(record.envelope)
-                    self._inbox_service.mark_processed(decision.receipt.id)
-                self._session.commit()
-                if consumption is not None:
-                    self._emit_refresh(
-                        consumption,
-                        tenant_id=record.envelope.tenant_id,
-                        organization_id=str(record.envelope.organization_id),
-                        event_id=record.envelope.event_id,
-                    )
+                    self._consume_under_unit_of_work(record.envelope, decision)
+                else:
+                    self._session.commit()
                 if decision.disposition is InboxDeliveryDisposition.QUARANTINED:
                     self._outbox_service.mark_failed(
                         record.id,
@@ -107,29 +106,24 @@ class ProcurementFinancialDispatcher:
                 )
         return published
 
-    @staticmethod
-    def _emit_refresh(
-        consumption,
-        *,
-        tenant_id: str,
-        organization_id: str,
-        event_id: str,
-    ) -> None:
-        scope = FinanceInvalidationScope(
-            tenant_id=str(tenant_id),
-            organization_id=organization_id,
-            project_id=str(consumption.project_id),
-        )
-        try:
-            if consumption.commitment_changed:
-                domain_events.commitments_changed.emit(scope)
-            if consumption.cost_entry_changed:
-                domain_events.cost_entries_changed.emit(scope)
-        except Exception:
-            # Refresh is process-local and follows the durable inbox commit.
-            logger.exception(
-                "Procurement Finance refresh hint failed event_id=%s", event_id
-            )
+    def _consume_under_unit_of_work(self, envelope, decision) -> None:
+        """Both Commitment and Cost Entry DomainEvents produced by one Procurement delivery are
+        recorded into, and published by, the SAME canonical `UnitOfWork` -- one transaction, one
+        event lifecycle, for the whole delivery (a receipt can genuinely produce both a Commitment
+        match fact and a Cost Entry recorded fact from a single envelope)."""
+        with SqlAlchemyUnitOfWorkBase(
+            session=self._session,
+            transactional_dispatcher=self._transactional_dispatcher,
+            post_commit_bus=self._post_commit_bus,
+            context=DomainEventContext(correlation_id=generate_id()),
+        ) as uow:
+            consumption = self._consumer.consume(envelope)
+            self._inbox_service.mark_processed(decision.receipt.id)
+            for event in consumption.commitment_events:
+                uow.record_event(event)
+            for event in consumption.cost_entry_events:
+                uow.record_event(event)
+            uow.commit()
 
 
 __all__ = ["ProcurementFinancialDispatcher"]

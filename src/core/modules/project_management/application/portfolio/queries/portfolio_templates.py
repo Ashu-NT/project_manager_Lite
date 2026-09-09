@@ -7,11 +7,11 @@ from src.core.platform.application.security.authorization.enforcement.permission
 class PortfolioTemplateQueryMixin:
     def list_scoring_templates(self) -> list[PortfolioScoringTemplate]:
         require_permission(self._user_session, "portfolio.read", operation_label="view scoring templates")
-        return self._ensure_scoring_templates()
+        return self._scoring_templates_with_bootstrap()
 
     def get_active_scoring_template(self) -> PortfolioScoringTemplate:
         require_permission(self._user_session, "portfolio.read", operation_label="view active scoring template")
-        return self._active_scoring_template()
+        return self._active_scoring_template_resolved()
 
 
 __all__ = ["PortfolioTemplateQueryMixin"]

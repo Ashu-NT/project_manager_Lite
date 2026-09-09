@@ -1,20 +1,14 @@
 """Single canonical source for Task scheduling-constraint presentation,
 shared across the Tasks (editor), Scheduling (diagnostics), and Schedule
-Impact desktop-API surfaces. Mirrors dependency_presentation.py's
-"one map, not three independently-drifting copies" precedent -- see
-docs/pm_modernization/R4_4_TASK_CONSTRAINT_CURRENT_STATE_AND_TARGET_GAPS.md,
-which found exactly that already happening (a title-cased label in one
-serializer, a raw unlabeled enum value in another, and a third,
-hand-written panel that didn't even read the real enum).
+Impact desktop-API surfaces -- never title-case or hand-format a raw
+ConstraintType elsewhere.
 
-ASAP is not a real ConstraintType member (see the audit, §6/§7) -- it is
-the UI's name for "no constraint selected." It gets its own
-ConstraintPresentation entry here (``value=None``) so the picker can
-present it uniformly alongside the six real, editable types without any
-consumer inventing a separate special case. DEADLINE is deliberately
-NOT included in ``EDITABLE_CONSTRAINT_OPTIONS``: Task.constraint_type
-rejects it outright (see domain/tasks/task.py), since task.deadline is
-the real, separate field for that concept.
+ASAP is not a real ConstraintType member; it is the UI's name for "no
+constraint selected" (``value=None``), so the picker can present it
+alongside the six real, editable types. DEADLINE is deliberately absent
+from ``EDITABLE_CONSTRAINT_OPTIONS``: Task.constraint_type rejects it
+outright (see domain/tasks/task.py) since task.deadline is the real,
+separate field for that concept.
 """
 from __future__ import annotations
 
@@ -22,10 +16,8 @@ from dataclasses import dataclass
 
 from src.core.modules.project_management.domain.enums import ConstraintType
 
-# UI category -- deliberately NOT the validator's hard/soft split, which
-# measures violation severity, not scheduling-boundary behavior (the
-# audit's §5 finding). "Flexible" / "date boundary" / "fixed date" match
-# how each type actually affects a schedule, per Phase L1.
+# UI category, not the validator's hard/soft split (violation severity).
+# Groups by how each type actually affects a schedule.
 CATEGORY_FLEXIBLE = "flexible"
 CATEGORY_DATE_BOUNDARY = "date_boundary"
 CATEGORY_FIXED_DATE = "fixed_date"
@@ -110,12 +102,9 @@ _EDITABLE: tuple[ConstraintPresentation, ...] = (
     ),
 )
 
-# DEADLINE is the one non-editable ConstraintType member (see the audit
-# §3/§21) -- ConstraintValidator uses it purely to classify a
-# task.deadline violation; it is never a Task.constraint_type value.
-# Kept here only so a consumer rendering an arbitrary ConstraintViolation
-# (which CAN legitimately carry ConstraintType.DEADLINE) has a label to
-# show, without it ever appearing in the editable picker.
+# ConstraintValidator can report a DEADLINE violation even though it's never a
+# Task.constraint_type value -- kept here only so that violation has a label,
+# without appearing in the editable picker.
 _DEADLINE = ConstraintPresentation(
     value=ConstraintType.DEADLINE,
     code="DEADLINE",
@@ -134,11 +123,9 @@ _BY_VALUE: dict[ConstraintType | None, ConstraintPresentation] = {
 
 
 def coerce_constraint_type(value: ConstraintType | str | None) -> ConstraintType | None:
-    """"" / None both mean ASAP -> None, matching Task.constraint_type's
-    own normalization (domain/tasks/task.py). Raises ValueError for
-    anything else unrecognized -- callers at a real mutation boundary
-    should let that fail closed, not swallow it (see the audit's §43
-    "invalid combinations" finding)."""
+    """"" / None both mean ASAP -> None, matching Task.constraint_type's own
+    normalization. Raises ValueError for anything else unrecognized -- callers
+    at a real mutation boundary should let that fail closed, not swallow it."""
     if value is None or value == "":
         return None
     if isinstance(value, ConstraintType):
@@ -147,10 +134,7 @@ def coerce_constraint_type(value: ConstraintType | str | None) -> ConstraintType
 
 
 def constraint_presentation(value: ConstraintType | str | None) -> ConstraintPresentation:
-    """The one place any consumer (desktop serializer, QML presenter,
-    Task editor option list) goes to turn a constraint value into
-    something a user should see. Never title-case or hand-format a raw
-    enum value anywhere else."""
+    """Turn a constraint value into what a user should see."""
     if value is None:
         return _ASAP
     if isinstance(value, ConstraintType):

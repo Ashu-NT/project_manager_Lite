@@ -87,6 +87,28 @@ class FinanceLookupReader(Protocol):
         effective_on,
     ) -> FinanceLookupOptionFact | None: ...
 
+    def search_change_target_lines(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        change_id: str,
+        impact_type: str,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts: ...
+
+    def get_change_target_line_option(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        change_id: str,
+        impact_type: str,
+        line_id: str,
+    ) -> FinanceLookupOptionFact | None: ...
+
     def get_manual_actual_defaults(
         self,
         *,
@@ -94,6 +116,30 @@ class FinanceLookupReader(Protocol):
         organization_id: str,
         project_id: str,
     ) -> ManualActualDefaultsFacts | None: ...
+
+    def search_rate_resources(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts: ...
+
+    def get_resource_option(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        resource_id: str,
+    ) -> FinanceLookupOptionFact | None: ...
+
+    def search_rate_departments(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts: ...
 
 
 __all__ = ["FinanceLookupReader"]

@@ -3,24 +3,41 @@ from __future__ import annotations
 from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
+    FinancialChangeCostCodeStatusCommand,
+    FinancialCostCodeRestrictionCommand,
     FinancialAddBudgetLineCommand,
+    FinancialChangeImpactCommand,
+    FinancialCreateChangeCommand,
     FinancialCreateBudgetSuccessorCommand,
     FinancialCreateBudgetVersionCommand,
     FinancialDeleteBudgetLineCommand,
+    FinancialRemoveChangeImpactCommand,
     FinancialUpdateBudgetCommand,
     FinancialUpdateBudgetLineCommand,
+    FinancialUpdateChangeCommand,
+    FinancialUpdateChangeImpactCommand,
     FinancialVersionedBudgetCommand,
     FinancialGenerateForecastCommand,
     FinancialManualEtcCommand,
     FinancialRiskContingencyCommand,
     FinancialVersionedForecastCommand,
+    FinancialSubmitChangeCommand,
     FinancialCreateCostCodeCommand,
+    FinancialTransitionProfileCommand,
+    FinancialUpdateCostCodeCommand,
+    FinancialUpdateProfileCommand,
     FinancialCreateManualActualCommand,
     FinancialDecideActualCommand,
     FinancialPostActualCommand,
     FinancialReverseActualCommand,
     FinancialUpdateActualDraftCommand,
     FinancialVersionedActualCommand,
+    FinancialAddRateLineCommand,
+    FinancialCreateRateCardCommand,
+    FinancialUpdateRateCardCommand,
+    FinancialUpdateRateLineCommand,
+    FinancialVersionedRateCardCommand,
+    FinancialVersionedRateLineCommand,
     ProjectManagementFinancialsDesktopApi,
 )
 from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
@@ -46,6 +63,91 @@ def create_cost_code(
             code=require_text(payload, "code", "Cost code is required."),
             name=require_text(payload, "name", "Cost-code name is required."),
             description=optional_text(payload, "description") or "",
+            parent_id=optional_text(payload, "parentId"),
+            external_system=optional_text(payload, "externalSystem"),
+            external_reference=optional_text(payload, "externalReference"),
+            effective_from=_optional_date(payload, "effectiveFrom"),
+            effective_to=_optional_date(payload, "effectiveTo"),
+        )
+    )
+
+
+def _optional_date(payload: dict[str, Any], key: str):
+    value = optional_text(payload, key)
+    if not value:
+        return None
+    return require_date(payload, key, f"{key} must use YYYY-MM-DD.")
+
+
+def update_financial_profile(desktop_api, payload: dict[str, Any]) -> None:
+    desktop_api.update_financial_profile(
+        FinancialUpdateProfileCommand(
+            project_id=require_text(payload, "projectId", "Select a project."),
+            expected_version=require_int(payload, "version", "Profile version is required."),
+            currency_code=require_text(payload, "currency", "Currency is required.").upper(),
+            billing_method=require_text(payload, "billingMethod", "Billing method is required."),
+            budget_control_mode=require_text(payload, "budgetControlMode", "Budget control is required."),
+            cost_code_policy=require_text(payload, "costCodePolicy", "Cost-code policy is required."),
+            financial_start_date=_optional_date(payload, "financialStartDate"),
+            financial_end_date=_optional_date(payload, "financialEndDate"),
+            is_funded=bool(payload.get("isFunded", False)),
+            is_billable=bool(payload.get("isBillable", False)),
+            default_cost_code_id=optional_text(payload, "defaultCostCodeId"),
+        )
+    )
+
+
+def transition_financial_profile(desktop_api, payload: dict[str, Any]) -> None:
+    desktop_api.transition_financial_profile(
+        FinancialTransitionProfileCommand(
+            project_id=require_text(payload, "projectId", "Select a project."),
+            expected_version=require_int(payload, "version", "Profile version is required."),
+            target_status=require_text(payload, "targetStatus", "Target status is required."),
+        )
+    )
+
+
+def update_cost_code(desktop_api, payload: dict[str, Any]) -> None:
+    desktop_api.update_cost_code(
+        FinancialUpdateCostCodeCommand(
+            cost_code_id=require_text(payload, "costCodeId", "Select a cost code."),
+            expected_version=require_int(payload, "version", "Cost-code version is required."),
+            code=require_text(payload, "code", "Cost code is required."),
+            name=require_text(payload, "name", "Cost-code name is required."),
+            description=optional_text(payload, "description") or "",
+            parent_id=optional_text(payload, "parentId"),
+            external_system=optional_text(payload, "externalSystem"),
+            external_reference=optional_text(payload, "externalReference"),
+            effective_from=_optional_date(payload, "effectiveFrom"),
+            effective_to=_optional_date(payload, "effectiveTo"),
+        )
+    )
+
+
+def change_cost_code_status(desktop_api, payload: dict[str, Any]) -> None:
+    desktop_api.change_cost_code_status(
+        FinancialChangeCostCodeStatusCommand(
+            cost_code_id=require_text(payload, "costCodeId", "Select a cost code."),
+            expected_version=require_int(payload, "version", "Cost-code version is required."),
+            activate=bool(payload.get("activate", False)),
+        )
+    )
+
+
+def add_cost_code_restriction(desktop_api, payload: dict[str, Any]) -> None:
+    desktop_api.add_cost_code_restriction(
+        FinancialCostCodeRestrictionCommand(
+            project_id=require_text(payload, "projectId", "Select a project."),
+            cost_code_id=require_text(payload, "costCodeId", "Select a cost code."),
+        )
+    )
+
+
+def remove_cost_code_restriction(desktop_api, payload: dict[str, Any]) -> None:
+    desktop_api.remove_cost_code_restriction(
+        FinancialCostCodeRestrictionCommand(
+            project_id=require_text(payload, "projectId", "Select a project."),
+            cost_code_id=require_text(payload, "costCodeId", "Select a cost code."),
         )
     )
 
@@ -284,6 +386,132 @@ def decide_forecast_approval(
         )
 
 
+def create_financial_change(desktop_api, payload: dict[str, Any]):
+    return desktop_api.create_financial_change(
+        FinancialCreateChangeCommand(
+            project_id=require_text(
+                payload, "projectId", "Select a project before creating a Change Request."
+            ),
+            title=require_text(payload, "title", "Change title is required."),
+            reason=require_text(payload, "reason", "Change reason is required."),
+            description=optional_text(payload, "description") or "",
+            effective_date=require_date(
+                payload, "effectiveDate", "Effective date must use YYYY-MM-DD."
+            ).isoformat(),
+        )
+    )
+
+
+def update_financial_change(desktop_api, payload: dict[str, Any]):
+    return desktop_api.update_financial_change(
+        FinancialUpdateChangeCommand(
+            change_id=require_text(payload, "changeId", "Select a Change Request."),
+            expected_version=require_int(
+                payload, "rowVersion", "Change version is required."
+            ),
+            title=require_text(payload, "title", "Change title is required."),
+            reason=require_text(payload, "reason", "Change reason is required."),
+            description=optional_text(payload, "description") or "",
+            effective_date=require_date(
+                payload, "effectiveDate", "Effective date must use YYYY-MM-DD."
+            ).isoformat(),
+        )
+    )
+
+
+def _impact_fields(payload: dict[str, Any]) -> dict[str, Any]:
+    impact_type = require_text(payload, "impactType", "Impact type is required.")
+    amount = require_decimal(
+        payload, "amount", "Impact amount must be a valid number."
+    )
+    return {
+        "change_id": require_text(payload, "changeId", "Select a Change Request."),
+        "expected_change_version": require_int(
+            payload, "changeVersion", "Change version is required."
+        ),
+        "impact_type": impact_type,
+        "description": require_text(
+            payload, "description", "Impact description is required."
+        ),
+        "amount": format(amount, "f"),
+        "currency_code": (optional_text(payload, "currency") or "").upper(),
+        "cost_code_id": optional_text(payload, "costCodeId"),
+        "task_id": optional_text(payload, "taskId"),
+        "target_line_id": optional_text(payload, "targetLineId"),
+        "schedule_start": optional_text(payload, "scheduleStart") or "",
+        "schedule_finish": optional_text(payload, "scheduleFinish") or "",
+    }
+
+
+def add_financial_change_impact(desktop_api, payload: dict[str, Any]):
+    return desktop_api.add_financial_change_impact(
+        FinancialChangeImpactCommand(**_impact_fields(payload))
+    )
+
+
+def update_financial_change_impact(desktop_api, payload: dict[str, Any]):
+    return desktop_api.update_financial_change_impact(
+        FinancialUpdateChangeImpactCommand(
+            impact_id=require_text(payload, "impactId", "Select an impact."),
+            expected_impact_version=require_int(
+                payload, "impactVersion", "Impact version is required."
+            ),
+            **_impact_fields(payload),
+        )
+    )
+
+
+def remove_financial_change_impact(desktop_api, payload: dict[str, Any]):
+    return desktop_api.remove_financial_change_impact(
+        FinancialRemoveChangeImpactCommand(
+            impact_id=require_text(payload, "impactId", "Select an impact."),
+            expected_impact_version=require_int(
+                payload, "impactVersion", "Impact version is required."
+            ),
+            expected_change_version=require_int(
+                payload, "changeVersion", "Change version is required."
+            ),
+        )
+    )
+
+
+def submit_financial_change(desktop_api, payload: dict[str, Any]):
+    return desktop_api.submit_financial_change(
+        FinancialSubmitChangeCommand(
+            change_id=require_text(payload, "changeId", "Select a Change Request."),
+            expected_version=require_int(
+                payload, "rowVersion", "Change version is required."
+            ),
+        )
+    )
+
+
+def decide_financial_change_approval(
+    approval_api: PlatformApprovalDesktopApi | None,
+    request_id: str,
+    *,
+    approve: bool,
+    note: str,
+) -> None:
+    if approval_api is None:
+        raise RuntimeError("Platform approval API is not connected.")
+    command = ApprovalDecisionCommand(
+        request_id=str(request_id or "").strip(),
+        note=str(note or "").strip() or None,
+    )
+    result = (
+        approval_api.approve_and_apply(command)
+        if approve
+        else approval_api.reject(command)
+    )
+    if not result.ok:
+        raise RuntimeError(
+            result.error.message
+            if result.error is not None
+            else "The Financial Change decision could not be completed."
+        )
+
+
 def create_manual_actual(
     desktop_api: ProjectManagementFinancialsDesktopApi,
     payload: dict[str, Any],
@@ -303,6 +531,43 @@ def create_manual_actual(
         resource_id=optional_text(payload, "resourceId"),
     )
     desktop_api.create_manual_actual(command)
+
+
+def update_actual_draft(
+    desktop_api: ProjectManagementFinancialsDesktopApi,
+    payload: dict[str, Any],
+) -> None:
+    desktop_api.update_actual_draft(
+        FinancialUpdateActualDraftCommand(
+            entry_id=require_text(payload, "entryId", "Select an actual draft to edit."),
+            expected_version=require_int(
+                payload, "rowVersion", "Entry version is required."
+            ),
+            description=require_text(payload, "description", "Description is required."),
+            amount=require_decimal(payload, "amount", "Amount must be a valid number."),
+            currency_code=require_text(payload, "currency", "Currency is required."),
+            transaction_date=require_date(
+                payload, "transactionDate", "Transaction date must use YYYY-MM-DD."
+            ),
+            cost_code_id=require_text(payload, "costCodeId", "Select a cost code."),
+            task_id=optional_text(payload, "taskId"),
+            resource_id=optional_text(payload, "resourceId"),
+        )
+    )
+
+
+def delete_actual_draft(
+    desktop_api: ProjectManagementFinancialsDesktopApi,
+    payload: dict[str, Any],
+) -> None:
+    desktop_api.delete_actual_draft(
+        FinancialVersionedActualCommand(
+            entry_id=require_text(payload, "entryId", "Select an actual draft to delete."),
+            expected_version=require_int(
+                payload, "rowVersion", "Entry version is required."
+            ),
+        )
+    )
 
 
 def submit_actual(
@@ -370,20 +635,139 @@ def reverse_actual(
     desktop_api.reverse_actual(command)
 
 
+def create_rate_card(desktop_api, payload: dict[str, Any]):
+    scope = optional_text(payload, "scope") or "project"
+    project_id = require_text(
+        payload, "projectId", "Select a project before creating a Rate Card."
+    )
+    return desktop_api.create_rate_card(
+        FinancialCreateRateCardCommand(
+            name=require_text(payload, "name", "Rate Card name is required."),
+            project_id=project_id if scope == "project" else None,
+        )
+    )
+
+
+def update_rate_card(desktop_api, payload: dict[str, Any]):
+    return desktop_api.update_rate_card(
+        FinancialUpdateRateCardCommand(
+            rate_card_id=require_text(payload, "rateCardId", "Select a Rate Card."),
+            expected_version=require_int(
+                payload, "version", "Rate Card version is required."
+            ),
+            name=require_text(payload, "name", "Rate Card name is required."),
+        )
+    )
+
+
+def deactivate_rate_card(desktop_api, payload: dict[str, Any]):
+    return desktop_api.deactivate_rate_card(
+        FinancialVersionedRateCardCommand(
+            rate_card_id=require_text(payload, "rateCardId", "Select a Rate Card."),
+            expected_version=require_int(
+                payload, "version", "Rate Card version is required."
+            ),
+        )
+    )
+
+
+def add_rate_line(desktop_api, payload: dict[str, Any]):
+    return desktop_api.add_rate_line(
+        FinancialAddRateLineCommand(
+            rate_card_id=require_text(payload, "rateCardId", "Select a Rate Card."),
+            expected_card_version=require_int(
+                payload, "cardVersion", "Rate Card version is required."
+            ),
+            rate_type=require_text(payload, "rateType", "Rate purpose is required."),
+            unit=require_text(payload, "unit", "Rate unit is required."),
+            rate_amount=format(
+                require_decimal(payload, "amount", "Rate amount must be a valid number."),
+                "f",
+            ),
+            rate_currency=require_text(payload, "currency", "Currency is required.").upper(),
+            resource_id=optional_text(payload, "resourceId"),
+            role=optional_text(payload, "role"),
+            skill_code=optional_text(payload, "skillCode"),
+            department_id=optional_text(payload, "departmentId"),
+            customer_party_id=optional_text(payload, "customerPartyId"),
+            contract_reference=optional_text(payload, "contractReference"),
+            effective_from=_optional_date(payload, "effectiveFrom"),
+            effective_to=_optional_date(payload, "effectiveTo"),
+            overtime_multiplier=_optional_decimal_text(payload, "overtimeMultiplier"),
+            weekend_multiplier=_optional_decimal_text(payload, "weekendMultiplier"),
+            holiday_multiplier=_optional_decimal_text(payload, "holidayMultiplier"),
+        )
+    )
+
+
+def update_rate_line(desktop_api, payload: dict[str, Any]):
+    return desktop_api.update_rate_line(
+        FinancialUpdateRateLineCommand(
+            rate_line_id=require_text(payload, "rateLineId", "Select a Rate Line."),
+            expected_version=require_int(
+                payload, "version", "Rate Line version is required."
+            ),
+            expected_card_version=require_int(
+                payload, "cardVersion", "Rate Card version is required."
+            ),
+            rate_amount=format(
+                require_decimal(payload, "amount", "Rate amount must be a valid number."),
+                "f",
+            ),
+            effective_from=_optional_date(payload, "effectiveFrom"),
+            effective_to=_optional_date(payload, "effectiveTo"),
+            overtime_multiplier=_optional_decimal_text(payload, "overtimeMultiplier"),
+            weekend_multiplier=_optional_decimal_text(payload, "weekendMultiplier"),
+            holiday_multiplier=_optional_decimal_text(payload, "holidayMultiplier"),
+        )
+    )
+
+
+def deactivate_rate_line(desktop_api, payload: dict[str, Any]):
+    return desktop_api.deactivate_rate_line(
+        FinancialVersionedRateLineCommand(
+            rate_line_id=require_text(payload, "rateLineId", "Select a Rate Line."),
+            expected_version=require_int(
+                payload, "version", "Rate Line version is required."
+            ),
+            expected_card_version=require_int(
+                payload, "cardVersion", "Rate Card version is required."
+            ),
+        )
+    )
+
+
+def _optional_decimal_text(payload: dict[str, Any], key: str) -> str | None:
+    value = optional_text(payload, key)
+    if value is None:
+        return None
+    return format(require_decimal(payload, key, f"{key} must be a valid number."), "f")
+
+
 __all__ = [
+    "add_cost_code_restriction",
+    "change_cost_code_status",
     "add_budget_line",
+    "add_financial_change_impact",
     "approve_actual",
     "close_budget",
     "create_budget_successor",
     "create_budget_version",
     "create_cost_code",
     "create_manual_actual",
+    "create_rate_card",
+    "add_rate_line",
+    "create_financial_change",
     "decide_budget_approval",
     "decide_forecast_approval",
+    "decide_financial_change_approval",
     "delete_budget",
     "delete_budget_line",
+    "deactivate_rate_card",
+    "deactivate_rate_line",
     "generate_forecast",
     "post_actual",
+    "remove_financial_change_impact",
     "reject_actual",
     "request_budget_approval",
     "request_forecast_approval",
@@ -391,6 +775,15 @@ __all__ = [
     "submit_actual",
     "submit_budget",
     "submit_forecast",
+    "submit_financial_change",
     "update_budget",
     "update_budget_line",
+    "update_financial_change",
+    "update_financial_change_impact",
+    "remove_cost_code_restriction",
+    "transition_financial_profile",
+    "update_cost_code",
+    "update_financial_profile",
+    "update_rate_card",
+    "update_rate_line",
 ]

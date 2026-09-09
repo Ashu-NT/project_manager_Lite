@@ -46,6 +46,12 @@ class ProjectCostEntryORM(Base):
             ondelete="RESTRICT",
         ),
         ForeignKeyConstraint(
+            ["tenant_id", "organization_id", "resource_id"],
+            ["resources.tenant_id", "resources.organization_id", "resources.id"],
+            name="fk_project_cost_entries_scoped_resource",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
             ["project_id", "task_id"],
             ["tasks.project_id", "tasks.id"],
             name="fk_project_cost_entries_project_task",
@@ -173,9 +179,7 @@ class ProjectCostEntryORM(Base):
     financial_period_id: Mapped[str | None] = mapped_column(String, nullable=True)
     cost_code_id: Mapped[str] = mapped_column(String, nullable=False)
     task_id: Mapped[str | None] = mapped_column(String, nullable=True)
-    resource_id: Mapped[str | None] = mapped_column(
-        String, ForeignKey("resources.id", ondelete="RESTRICT"), nullable=True
-    )
+    resource_id: Mapped[str | None] = mapped_column(String, nullable=True)
     source_module: Mapped[str] = mapped_column(String(32), nullable=False)
     source_type: Mapped[str] = mapped_column(String(32), nullable=False)
     source_id: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -229,6 +233,14 @@ Index(
     ProjectCostEntryORM.source_module,
     ProjectCostEntryORM.source_type,
     ProjectCostEntryORM.source_id,
+)
+Index(
+    "idx_project_cost_entries_scope_filters",
+    ProjectCostEntryORM.tenant_id,
+    ProjectCostEntryORM.organization_id,
+    ProjectCostEntryORM.project_id,
+    ProjectCostEntryORM.status,
+    ProjectCostEntryORM.source_module,
 )
 Index(
     "uq_project_cost_entries_one_reversal",

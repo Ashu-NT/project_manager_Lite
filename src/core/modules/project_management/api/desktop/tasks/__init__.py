@@ -16,9 +16,6 @@ from src.core.modules.project_management.api.desktop.tasks.commands.dependency_c
     TaskDependencyCreateCommand,
     TaskDependencyUpdateCommand,
 )
-from src.core.modules.project_management.api.desktop.tasks.commands.reservation_commands import (
-    TaskReservationCreateCommand,
-)
 from src.core.modules.project_management.api.desktop.tasks.commands.task_commands import (
     TaskConstraintUpdateCommand,
     TaskCreateCommand,
@@ -43,10 +40,6 @@ from src.core.modules.project_management.api.desktop.tasks.models.options import
     TaskProjectOptionDescriptor,
     TaskProjectResourceOptionDescriptor,
     TaskStatusDescriptor,
-)
-from src.core.modules.project_management.api.desktop.tasks.models.reservation import (
-    TaskMaterialDemandSummary,
-    TaskReservationDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks.models.skill import (
     TaskSkillRequirementDesktopDto,
@@ -86,12 +79,9 @@ __all__ = [
     "TaskDependencyTypeDescriptor",
     "TaskDependencyUpdateCommand",
     "TaskDesktopDto",
-    "TaskMaterialDemandSummary",
     "TaskProgressCommand",
     "TaskProjectOptionDescriptor",
     "TaskProjectResourceOptionDescriptor",
-    "TaskReservationCreateCommand",
-    "TaskReservationDesktopDto",
     "TaskResourceTimeBreakdownDesktopDto",
     "TaskSkillRequirementDesktopDto",
     "TaskStatusDescriptor",

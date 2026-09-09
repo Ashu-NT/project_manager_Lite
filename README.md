@@ -1,8 +1,7 @@
 # ProjectManagerLite
 
 **ProjectManagerLite** is a desktop-first, multi-module enterprise operations platform for
-project management and inventory & procurement, built on a shared tenancy/RBAC/audit platform
-layer.
+project management, built on a shared tenancy/RBAC/audit platform layer.
 
 - **Frontend:** PySide6 (Qt Quick / QML)
 - **Backend:** Pure Python domain & application layer, no framework coupling
@@ -29,7 +28,6 @@ layer.
 | Module | Status | Notes |
 |---|---|---|
 | **Project Management** | Production | Planning/scheduling (CPM), execution, cost, baselines, register (risk/issue/change), portfolio, collaboration, timesheets, dashboards & reporting/exports |
-| **Inventory & Procurement** | Available (phase 1, hardened) | Item master, storerooms, stock balances/transactions, reservations, requisitions, purchase orders, receiving |
 | **QHSE** | Skeleton only | Package scaffolding and module catalog entry only - no runtime capability yet |
 | **HR Management** | Skeleton only | Package scaffolding only; a Payroll-first slice is the intended first cut |
 
@@ -77,7 +75,7 @@ For the full, up-to-date list of what's implemented vs. still open across every 
 
 Within `core/`, `infra/`, and `ui_qml/`, the codebase is consistently split between shared
 `platform/` concerns (tenancy, auth, org, calendar, documents, audit, activity, approval, ...)
-and business `modules/` (`project_management`, `inventory_procurement`, `qhse`,
+and business `modules/` (`project_management`, `qhse`,
 `hr_management`/`payroll`). The supported delivery boundary is `src/api/desktop/`; the dormant
 HTTP placeholder was removed after every operation was verified to have a desktop equivalent.
 Any future server mode must introduce a deliberately designed request-scoped transport rather
@@ -148,33 +146,35 @@ Rules enforced by architecture-guard tests (`src/tests/architecture/`, `src/test
   collapsed into one wider hint.
 - Transactional handlers fail fast (roll back the whole transaction); post-commit handlers
   isolate failures and continue.
-- Legacy `Signal[str]` fields on `DomainEvents` are being retired capability-by-capability - see
-  status below.
+- Legacy `Signal[str]` fields on `DomainEvents` have been retired capability-by-capability, and
+  P46B deleted the legacy `DomainEvents`/`domain_events`/`Signal` infrastructure itself outright -
+  see status below. This is distinct from the canonical typed-`DomainEvent`/`UnitOfWork`/
+  `ViewInvalidation`/`IntegrationEvent` architecture described above, which is permanent and
+  unaffected.
 - No new generic legacy-event bridge, string-keyed router, service locator, or generic
   repository resolver may be introduced for event handling.
 
-**Current modernization status** (source-derived; recompute rather than trust a stale count - see
-[`docs/architecture/event-modernization-plan.md`](docs/architecture/event-modernization-plan.md)
-for the live, detailed roadmap):
+**Current modernization status** (source-derived; recompute rather than trust a stale count):
 
 Fully modernized (typed `DomainEvent`s + scoped `ViewInvalidation`, legacy `Signal` deleted):
 Organization, Tenant Membership, Module Entitlements, Role Binding / Scoped Access, Approval,
-Employee, Department, Site, Party, Document, DocumentStructure, DocumentLink, Project Resource,
-Finance Forecast, Inventory Storeroom + Storage Location, Finance Financial Setup, Finance Rate
-Card, PM Baseline Approval, Inventory Item Catalog + Item Category, Inventory Reorder Policy,
-Purchase Order (P28B/P28B-FIX), Inventory Requisition (P29).
+Employee, Department, Site, Party, Document, DocumentStructure, DocumentLink, Project Resource —
+**all of Finance** (Financial Setup, Rate Card, Forecast, Planned Cost, Project
+Commitment, Project Cost Entry, Project Budget, Billing Profile, Billing Preparation) — **all of
+Project Management** (PM Baseline Approval, Timesheet, Register, Portfolio, Project, Collaboration,
+Task) — and, as of **P46B**, **all of Auth/Security** (Credential & Session, custom-Role
+administration, role-policy reconciliation — the application's last remaining capability with any
+legacy Signal involvement).
 
-No next capability has been chosen yet - re-run prioritization from current source before
-committing to one.
+**The application has ZERO legacy Signal fields left in any module.** `src/core/shared/events/
+domain_events.py` and `src/core/shared/events/signal.py` no longer exist; `DomainEvents`/
+`domain_events`/`Signal` are deleted outright, not merely emptied. This does **not** mean
+authentication activity itself is a durable `DomainEvent` stream — `AuthSession` remains technical
+session infrastructure (no events, no CAS), and the *ephemeral* `UserSessionContext.
+principal_changed_listener`/`active_scope_changed_listener` notification pair is process-local,
+synchronous, and never persisted or dispatched as a `DomainEvent`.
 
-Remaining major areas still on legacy `Signal`s: Project Management (all but Resource/Baseline
-Approval), Finance (all but Forecast/Financial Setup/Rate Card), Inventory / Procurement
-(Reservation, Stock Balance/Ledger, Cycle Count, Goods Receipt), Auth / Security.
-
-**References:** [`docs/architecture_decisions/ADR-005-domain-events.md`](docs/architecture_decisions/ADR-005-domain-events.md)
-(architectural decisions and rationale) and
-[`docs/architecture/event-modernization-plan.md`](docs/architecture/event-modernization-plan.md)
-(living implementation roadmap and phase ledger).
+**References:** [`docs/architecture_decisions/`](docs/architecture_decisions/) (architectural decisions and rationale).
 
 ## Project Structure
 
@@ -200,7 +200,6 @@ project_manager_Lite/
                                 #   exporting, report_runtime, integration, time, ...
       modules/
         project_management/    # Production module
-        inventory_procurement/ # Available module (phase 1)
         qhse/                   # Skeleton
         hr_management/          # Skeleton
         payroll/                 # Legacy-compat alias package during the hr_management rename
@@ -216,7 +215,7 @@ project_manager_Lite/
       modules/                 # Per-module QML workspaces (mirrors core/modules/)
       shared/                  # Design-system QML components
     tests/                     # pytest suite (architecture, platform, project_management,
-                                #   inventory_procurement, hr_management, qhse, ...)
+                                #   hr_management, qhse, ...)
 ```
 
 ## Requirements
@@ -320,11 +319,10 @@ conda run -n pmenv python -m pytest -q src/tests/test_large_scale_performance.py
 - [`docs/REMAINING_WORK.md`](docs/REMAINING_WORK.md) - single consolidated backlog of everything not yet done, across every module and the platform layer
 - [`docs/ARCHITECTURE_README.md`](docs/ARCHITECTURE_README.md) - tenancy/org/auth/RBAC deep reference
 - [`docs/architecture/enterprise-platform-architecture.md`](docs/architecture/enterprise-platform-architecture.md) - full architecture & roadmap
-- [`docs/architecture/event-modernization-plan.md`](docs/architecture/event-modernization-plan.md) - living domain-event/ViewInvalidation modernization roadmap and phase ledger
 - [`docs/architecture_decisions/`](docs/architecture_decisions/) - ADRs
-- [`docs/inventory_procurement/`](docs/inventory_procurement/), [`docs/pm_modernization/`](docs/pm_modernization/) - per-module design/execution plans
+- [`docs/pm_modernization/`](docs/pm_modernization/) - per-module design/execution plans
 - [`docs/cache_service_strategy/`](docs/cache_service_strategy/) - shared cache service design (not yet implemented)
-- [`docs/platform_alignment_followup/`](docs/platform_alignment_followup/), [`docs/platform_modernization/`](docs/platform_modernization/), [`docs/repo_structure_plan/`](docs/repo_structure_plan/), [`docs/tenant_repository_hardening/`](docs/tenant_repository_hardening/) - active cross-cutting workstreams
+- [`docs/platform_alignment_followup/`](docs/platform_alignment_followup/), [`docs/platform_modernization/`](docs/platform_modernization/), [`docs/tenant_repository_hardening/`](docs/tenant_repository_hardening/) - active cross-cutting workstreams
 - [`docs/INLINE_MESSAGE_STANDARDIZATION_README.md`](docs/INLINE_MESSAGE_STANDARDIZATION_README.md), [`docs/ux_design.md`](docs/ux_design.md) - UI/UX conventions
 
 ## License

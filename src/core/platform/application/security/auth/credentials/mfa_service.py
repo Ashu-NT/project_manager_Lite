@@ -3,9 +3,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission
 from src.core.platform.domain.security.auth.credentials.mfa import generate_mfa_secret, verify_totp_code
+from src.core.platform.domain.security.auth.events import MfaChangeType, MfaStatusChanged
 from src.core.platform.common.exceptions import ValidationError
 
 from src.core.platform.application.security.auth.session.session_service import refresh_current_session_if_user
@@ -38,8 +38,8 @@ def provision_mfa_secret(service: AuthService, user_id: str) -> str:
         user,
         action="mfa.provision",
         severity="high",
+        change_type=MfaChangeType.PROVISIONED,
     )
-    domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
     return str(user.mfa_secret or "")
 
@@ -68,8 +68,8 @@ def enable_user_mfa(service: AuthService, user_id: str, verification_code: str) 
         user,
         action="mfa.enable",
         severity="medium",
+        change_type=MfaChangeType.ENABLED,
     )
-    domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
     return user
 
@@ -93,8 +93,8 @@ def disable_user_mfa(service: AuthService, user_id: str) -> UserAccount:
         user,
         action="mfa.disable",
         severity="high",
+        change_type=MfaChangeType.DISABLED,
     )
-    domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
     return user
 
@@ -105,8 +105,10 @@ def _persist_mfa_mutation(
     *,
     action: str,
     severity: str,
+    change_type: MfaChangeType,
 ) -> None:
-    try:
+    occurred_at = user.updated_at or datetime.now(timezone.utc)
+    with service._uow() as uow:
         service._user_repo.update(user)
         add_atomic_security_audit(
             service,
@@ -117,10 +119,15 @@ def _persist_mfa_mutation(
             severity=severity,
             field="mfa",
         )
-        service._session.commit()
-    except Exception:
-        service._session.rollback()
-        raise
+        uow.record_event(
+            MfaStatusChanged(
+                user_id=user.id,
+                tenant_id=service._active_tenant_id_for_event(),
+                change_type=change_type,
+                occurred_at=occurred_at,
+            )
+        )
+        uow.commit()
 
 
 __all__ = ["disable_user_mfa", "enable_user_mfa", "provision_mfa_secret"]

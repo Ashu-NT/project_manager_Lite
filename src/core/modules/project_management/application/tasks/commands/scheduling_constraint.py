@@ -1,13 +1,21 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date
+from datetime import date, datetime, timezone
 
+from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
+    emit_cascade_schedule_changed,
+)
+from src.core.modules.project_management.application.tasks.task_events import (
+    TaskScheduleChangeType,
+    TaskScheduleChanged,
+)
 from src.core.modules.project_management.domain.enums import ConstraintType
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.platform.domain.approval.policy import is_governance_required
 from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     is_admin_session,
     require_permission,
@@ -18,22 +26,17 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.core.shared.events.domain_events import domain_events
 
 
 class TaskSchedulingConstraintMixin:
     """Governed Task scheduling-constraint mutation (MSO/MFO/SNET/SNLT/
     FNET/FNLT + clear-back-to-ASAP). Mirrors TaskDependencyMixin's
-    request-time/apply-time governance shape (see
-    docs/pm_modernization/R4_4_TASK_CONSTRAINT_CURRENT_STATE_AND_TARGET_GAPS.md
-    §21/§28) -- separate from generic update_task rather than overloading
-    it with raw dict semantics, matching how dependency mutations already
-    get their own dedicated, explicitly-governed command shape.
+    request-time/apply-time governance shape -- kept separate from generic
+    update_task rather than overloading it with raw dict semantics.
 
     Task.deadline is intentionally NOT part of this command: it never
     drives CPM (validation-only, same as FINISH_NO_LATER_THAN) and stays
-    on the plain update_task path -- see the implementation summary's
-    "Deadline governance decision" for the explicit reasoning.
+    on the plain update_task path.
     """
 
     def update_task_scheduling_constraint(
@@ -105,7 +108,6 @@ class TaskSchedulingConstraintMixin:
             constraint_type=constraint_type,
             constraint_date=constraint_date,
             expected_version=task.version,
-            commit=True,
         )
 
     def _apply_task_scheduling_constraint_decision(
@@ -115,18 +117,15 @@ class TaskSchedulingConstraintMixin:
         constraint_type: ConstraintType | None,
         constraint_date: date | None,
         expected_version: int | None = None,
-        commit: bool,
     ) -> Task:
         """Apply immediately (ungoverned path) or when an approved
         ``task.constraint.update`` request is finally applied. Re-fetches
         the CURRENT task and re-validates version/calendar rather than
-        trusting request-time facts -- matching the TOCTOU fix already
-        established for dependency mutations: real time (and possibly the
-        task's version or calendar exceptions) may have passed since the
-        original request was validated. ``expected_version`` is the
-        version captured AT REQUEST TIME (governed path) or just-read
-        (ungoverned path) -- not re-derived from the current row, or this
-        check could never fire."""
+        trusting request-time facts, since real time (and possibly the
+        task's version or calendar exceptions) may have passed.
+        ``expected_version`` is the version captured at request time
+        (governed path) or just-read (ungoverned path) -- not re-derived
+        from the current row, or this check could never fire."""
         task = self._task_repo.get(task_id)
         if task is None:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
@@ -134,16 +133,34 @@ class TaskSchedulingConstraintMixin:
             raise ConcurrencyError("Task was updated by another user.", code="STALE_WRITE")
         candidate = replace(task, constraint_type=constraint_type, constraint_date=constraint_date)
         self._validate_constraint_date_is_working_day(candidate)
-        try:
-            self._task_repo.update(candidate)
+        scope = self._active_task_scope(operation_label="update scheduling constraint")
+        with self._task_uow() as uow:
+            uow.tasks.update(candidate)
             # Same one-transaction mutate+recalculate flow every other
             # schedule-affecting task command uses (TaskScheduleSyncMixin)
-            # -- if recalculation raises, the outer except below rolls
+            # -- if recalculation raises, the UoW context manager rolls
             # back the constraint write too; there is no separate
             # constraint scheduler.
-            self._sync_project_schedule(candidate.project_id, commit=False)
+            cascade_ids = self._sync_project_schedule(
+                candidate.project_id, commit=False, exclude_task_ids=frozenset({candidate.id})
+            )
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="task",
+                entity_id=candidate.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={
+                    "action": "task.constraint.update",
+                    "constraint_type": constraint_type.value if constraint_type is not None else None,
+                },
+                commit=False,
+                fail_closed=True,
+            )
             record_activity(
-                self,
+                uow,
                 action="task.constraint.update",
                 entity_type="task",
                 entity_id=candidate.id,
@@ -155,16 +172,20 @@ class TaskSchedulingConstraintMixin:
                 },
                 commit=False,
             )
-            if commit:
-                self._session.commit()
-            else:
-                self._session.flush()
-        except Exception:
-            if commit:
-                self._session.rollback()
-            raise
-        if commit:
-            domain_events.tasks_changed.emit(candidate.project_id)
+            uow.record_event(
+                TaskScheduleChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    project_id=candidate.project_id,
+                    task_id=candidate.id,
+                    change_type=TaskScheduleChangeType.CONSTRAINT_UPDATED,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            emit_cascade_schedule_changed(
+                uow, scope=scope, project_id=candidate.project_id, changed_task_ids=cascade_ids
+            )
+            uow.commit()
         return self._task_repo.get(task_id)
 
     def _validate_constraint_date_is_working_day(self, candidate: Task) -> None:

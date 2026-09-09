@@ -6,7 +6,8 @@ import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
 // Governed decision dialog for the canonical ProjectCostEntry lifecycle.
-// One dialog, three modes, so a reason/date field is defined once instead
+// One dialog owns destructive/lifecycle confirmations so command context is
+// consistent and focus returns through the shared EntityDialog behavior.
 // of duplicated across separate reject/post/reverse dialog components.
 //   mode: "reject"  -> optional notes; returned to draft.
 //   mode: "post"    -> required posting date; approved -> posted.
@@ -24,6 +25,7 @@ AppWidgets.EntityDialog {
     signal decided(string mode, var payload)
 
     readonly property bool _isReject: root.mode === "reject"
+    readonly property bool _isDelete: root.mode === "delete"
     readonly property bool _isPost: root.mode === "post"
     readonly property bool _isReverse: root.mode === "reverse"
     readonly property bool _reasonRequired: root._isReverse
@@ -31,14 +33,16 @@ AppWidgets.EntityDialog {
     modal: true
     width: 480
     closePolicy: Popup.CloseOnEscape
-    title: root._isReject ? "Reject Actual" : (root._isPost ? "Post Actual" : "Reverse Actual")
-    subtitle: root._isReject
+    title: root._isDelete ? "Delete Actual Draft" : (root._isReject ? "Reject Actual" : (root._isPost ? "Post Actual" : "Reverse Actual"))
+    subtitle: root._isDelete
+        ? "Permanently delete this unsubmitted manual actual draft. This action cannot be undone."
+        : (root._isReject
         ? "Return this actual to draft. It can be corrected and resubmitted."
         : (root._isPost
             ? "Post this approved actual into the ledger for the posting date below."
-            : "Create a signed reversal of this posted actual. The original entry becomes immutable once reversed.")
-    primaryText: root._isReject ? "Reject" : (root._isPost ? "Post" : "Reverse")
-    primaryIcon: root._isReject ? "reject" : (root._isPost ? "save" : "delete")
+            : "Create a signed reversal of this posted actual. The original entry becomes immutable once reversed."))
+    primaryText: root._isDelete ? "Delete Draft" : (root._isReject ? "Reject" : (root._isPost ? "Post" : "Reverse"))
+    primaryIcon: root._isDelete ? "delete" : (root._isReject ? "reject" : (root._isPost ? "save" : "delete"))
 
     onAccepted: root.submitDialog()
     onRejected: root.close()

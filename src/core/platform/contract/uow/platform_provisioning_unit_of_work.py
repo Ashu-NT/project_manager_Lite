@@ -15,10 +15,7 @@ from src.core.shared.persistence.unit_of_work import UnitOfWork, UnitOfWorkFacto
 class PlatformProvisioningUnitOfWork(UnitOfWork, Protocol):
     organizations: OrganizationRepository
     entitlements: ModuleEntitlementRepository
-    # Named with a leading underscore, matching `PlatformUnitOfWork`/`OrganizationUnitOfWork`'s own
-    # field name, because `record_audit_entry(owner, ...)`
-    # (src/core/shared/audit/audit_recorder.py) resolves its `owner` argument's audit service via
-    # `getattr(owner, "_enterprise_audit_service", None)`.
+    # record_audit_entry() resolves the audit service via getattr(owner, "_enterprise_audit_service", None).
     _enterprise_audit_service: EnterpriseAuditService
 
 

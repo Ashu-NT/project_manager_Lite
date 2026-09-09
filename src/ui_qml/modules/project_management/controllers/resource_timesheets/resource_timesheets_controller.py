@@ -6,7 +6,6 @@ from datetime import date
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
 )
@@ -106,12 +105,12 @@ class ProjectManagementResourceTimesheetsController(ProjectManagementWorkspaceCo
         self._resource_page = 1
         self._resource_page_size = 20
         self._resource_total = 0
-        for signal in (
-            domain_events.timesheet_periods_changed,
-            domain_events.tasks_changed,
-        ):
-            self._subscribe_domain_signal(signal, lambda _payload: self._request_domain_refresh())
         self.refresh()
+
+    def onTaskProfileStale(self, _project_id: str) -> None:
+        """Task labels shown on this resource's timesheet rows -- only
+        name/identity/existence facts affect them."""
+        self._request_domain_refresh()
 
     period = Property("QVariantMap", lambda self: self._period, notify=periodChanged)
     entries = Property("QVariantList", lambda self: self._entries, notify=entriesChanged)

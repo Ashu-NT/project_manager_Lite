@@ -68,6 +68,27 @@ class ManualEtcEstimate:
         _validate_period(self.period_start, self.period_end)
         return self
 
+    @classmethod
+    def for_command_item(
+        cls,
+        item,
+        *,
+        amount: Decimal,
+        period_start: date | None,
+        period_end: date | None,
+    ) -> "ManualEtcEstimate":
+        """Adapter-facing entry point: an already-typed `amount`/period pair (the
+        caller's own command-parsing concern) plus the raw command item's remaining
+        fields -- keeps callers from needing this dataclass's full field layout."""
+        return cls(
+            cost_code_id=item.cost_code_id,
+            task_id=item.task_id,
+            description=item.description,
+            amount=amount,
+            period_start=period_start,
+            period_end=period_end,
+        )
+
 
 @validated_dataclass(frozen=True)
 class RiskContingencyEstimate:
@@ -113,6 +134,28 @@ class RiskContingencyEstimate:
     def _period_valid(self) -> "RiskContingencyEstimate":
         _validate_period(self.period_start, self.period_end)
         return self
+
+    @classmethod
+    def for_command_item(
+        cls,
+        item,
+        *,
+        amount: Decimal,
+        period_start: date | None,
+        period_end: date | None,
+    ) -> "RiskContingencyEstimate":
+        """Adapter-facing entry point: an already-typed `amount`/period pair (the
+        caller's own command-parsing concern) plus the raw command item's remaining
+        fields -- keeps callers from needing this dataclass's full field layout."""
+        return cls(
+            risk_id=item.risk_id,
+            cost_code_id=item.cost_code_id,
+            task_id=item.task_id,
+            description=item.description,
+            amount=amount,
+            period_start=period_start,
+            period_end=period_end,
+        )
 
 
 def _validate_period(start: date | None, end: date | None) -> None:

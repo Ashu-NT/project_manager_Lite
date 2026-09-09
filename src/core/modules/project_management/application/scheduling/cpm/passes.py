@@ -123,13 +123,10 @@ def run_backward_pass(
 
         duration = tasks_by_id[task_id].duration_days or 0
 
-        # Every outgoing edge -- whatever its type -- is normalized into a
-        # single LATEST-START bound before taking the minimum. This is the
-        # fix for the old shadowing bug: previously, FS/FF-derived bounds
-        # (grouped as "cand_lf_dates") were preferred outright over
-        # SS/SF-derived bounds ("cand_ls_dates") whenever both existed on the
-        # same predecessor, silently discarding the SS/SF constraints. See
-        # docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md §11.
+        # Every outgoing edge -- whatever its type -- is normalized into a single
+        # LATEST-START bound before taking the minimum, so FS/FF-derived and
+        # SS/SF-derived bounds on the same predecessor are compared uniformly
+        # instead of one type silently discarding the other.
         candidate_ls_bounds: list[date] = []
         for dep in outgoing:
             succ_id = dep.successor_task_id

@@ -72,7 +72,7 @@ AppLayouts.WorkspaceFrame {
     readonly property var _detailActions: {
         if (root.workspaceController
                 && root.workspaceController.activeDestination === "controls"
-                && root.workspaceController.activeSubsection === "setup") return [
+                && root.workspaceController.activeSubsection === "setup") return root.workspaceController.canCreateCostCode ? [
             {
                 "id": "add_cost_code",
                 "label": "New Cost Code",
@@ -80,7 +80,7 @@ AppLayouts.WorkspaceFrame {
                 "enabled": !root.workspaceController.isBusy,
                 "danger": false
             }
-        ]
+        ] : []
         if (root.workspaceController
                 && root.workspaceController.activeDestination === "costs"
                 && root.workspaceController.activeSubsection === "actuals") {
@@ -88,13 +88,27 @@ AppLayouts.WorkspaceFrame {
             const state = selected ? (selected.state || {}) : {}
             const busy = root.workspaceController ? root.workspaceController.isBusy : false
             return [
-                {
+                root.workspaceController.canCreateManualActual ? {
                     "id": "add_manual_actual",
                     "label": "New Manual Actual",
                     "icon": "add",
                     "enabled": !busy,
                     "danger": false
-                },
+                } : null,
+                Boolean(state.canEdit) ? {
+                    "id": "edit_actual_draft",
+                    "label": "Edit Draft",
+                    "icon": "edit",
+                    "enabled": !busy,
+                    "danger": false
+                } : null,
+                Boolean(state.canDelete) ? {
+                    "id": "delete_actual_draft",
+                    "label": "Delete Draft",
+                    "icon": "delete",
+                    "enabled": !busy,
+                    "danger": true
+                } : null,
                 Boolean(state.canSubmit) ? {
                     "id": "submit_actual",
                     "label": "Submit",
@@ -104,12 +118,13 @@ AppLayouts.WorkspaceFrame {
                 } : null,
                 Boolean(state.canApprove) ? {
                     "id": "approve_actual",
-                    "label": "Approve",
+                    "label": String(state.approvalAction || "") === "request"
+                        ? "Request Approval" : "Approve",
                     "icon": "approve",
                     "enabled": !busy,
                     "danger": false
                 } : null,
-                Boolean(state.canApprove) ? {
+                Boolean(state.canReject) ? {
                     "id": "reject_actual",
                     "label": "Reject",
                     "icon": "reject",
@@ -333,7 +348,7 @@ AppLayouts.WorkspaceFrame {
                     actions: root._detailActions
                     onActionTriggered: function(actionId) {
                         if (actionId === "add_cost_code") {
-                            dialogHostLoader.invoke("openCreateCostCodeDialog")
+                            dialogHostLoader.invoke("openCostCodeDialog", "create", null)
                             return
                         }
                         if (actionId === "add_manual_actual") {
@@ -353,7 +368,11 @@ AppLayouts.WorkspaceFrame {
                         const state = selected.state || {}
                         const entryId = String(state.entryId || selected.id || "")
                         const rowVersion = Number(state.rowVersion || 0)
-                        if (actionId === "submit_actual") {
+                        if (actionId === "edit_actual_draft") {
+                            dialogHostLoader.invoke("openEditManualActualDialog", selected)
+                        } else if (actionId === "delete_actual_draft") {
+                            dialogHostLoader.invoke("openActualDecisionDialog", "delete", entryId, rowVersion)
+                        } else if (actionId === "submit_actual") {
                             root.workspaceController.submitActual({ "entryId": entryId, "rowVersion": rowVersion })
                         } else if (actionId === "approve_actual") {
                             root.workspaceController.approveActual({ "entryId": entryId, "rowVersion": rowVersion })
@@ -405,6 +424,8 @@ AppLayouts.WorkspaceFrame {
                     selectedActualEntryId: root._selectedActualEntryId
                     actualSortKey: root.workspaceController ? root.workspaceController.actualSortKey : "metaText"
                     actualSortDirection: root.workspaceController ? root.workspaceController.actualSortDirection : Qt.DescendingOrder
+                    actualStatus: root.workspaceController ? root.workspaceController.actualStatus : ""
+                    actualSource: root.workspaceController ? root.workspaceController.actualSource : ""
                     onActualEntrySelected: function(entryId) { root._selectedActualEntryId = entryId }
                     overviewModel: root.overviewModel
                     forecastVersionsModel: root.workspaceController ? root.workspaceController.forecastVersions : ({ "items": [] })
@@ -428,6 +449,8 @@ AppLayouts.WorkspaceFrame {
                     financialChangesModel: root.workspaceController ? root.workspaceController.financialChanges : ({ "items": [] })
                     financialChangeImpactsModel: root.workspaceController ? root.workspaceController.financialChangeImpacts : ({ "items": [] })
                     selectedChangeModel: root.workspaceController ? root.workspaceController.selectedChange : ({ "id": "", "fields": [] })
+                    canCreateFinancialChange: root.workspaceController
+                        ? root.workspaceController.canCreateFinancialChange : false
                     financialChangesTableModel: root.workspaceController ? root.workspaceController.financialChangesTableModel : null
                     financialChangeImpactsTableModel: root.workspaceController ? root.workspaceController.financialChangeImpactsTableModel : null
                     selectedChangeId: root.workspaceController ? root.workspaceController.selectedChangeId : ""
@@ -453,6 +476,19 @@ AppLayouts.WorkspaceFrame {
                     selectedBaselineId: root.workspaceController ? root.workspaceController.selectedBaselineId : ""
                     reportBasisModel: root.workspaceController ? root.workspaceController.reportBasis : ({ "fields": [] })
                     financialProfileModel: root.workspaceController ? root.workspaceController.financialProfile : ({})
+                    setupCostCodesModel: root.workspaceController ? root.workspaceController.setupCostCodes : ({"items":[]})
+                    setupRestrictionsModel: root.workspaceController ? root.workspaceController.setupRestrictions : ({"items":[]})
+                    setupCostCodesTableModel: root.workspaceController ? root.workspaceController.setupCostCodesTableModel : null
+                    setupRestrictionsTableModel: root.workspaceController ? root.workspaceController.setupRestrictionsTableModel : null
+                    canManageCostCodeRestrictions: root.workspaceController ? root.workspaceController.canManageCostCodeRestrictions : false
+                    setupCostCodeSortKey: root.workspaceController ? root.workspaceController.setupCostCodeSortKey : "code"
+                    setupCostCodeSortDirection: root.workspaceController ? root.workspaceController.setupCostCodeSortDirection : Qt.AscendingOrder
+                    setupRestrictionSortKey: root.workspaceController ? root.workspaceController.setupRestrictionSortKey : "code"
+                    setupRestrictionSortDirection: root.workspaceController ? root.workspaceController.setupRestrictionSortDirection : Qt.AscendingOrder
+                    setupCostCodeSearch: root.workspaceController ? root.workspaceController.setupCostCodeSearch : ""
+                    setupCostCodeStatus: root.workspaceController ? root.workspaceController.setupCostCodeStatus : ""
+                    setupCostCodeAssignment: root.workspaceController ? root.workspaceController.setupCostCodeAssignment : ""
+                    setupRestrictionSearch: root.workspaceController ? root.workspaceController.setupRestrictionSearch : ""
                     budgetVersionsModel: root.workspaceController ? root.workspaceController.budgetVersions : ({ "items": [] })
                     budgetLinesModel: root.workspaceController ? root.workspaceController.budgetLines : ({ "items": [] })
                     budgetVersionsTableModel: root.workspaceController ? root.workspaceController.budgetVersionsTableModel : null
@@ -485,6 +521,7 @@ AppLayouts.WorkspaceFrame {
                     rateLineRateType: root.workspaceController ? root.workspaceController.rateLineRateType : ""
                     rateLineStatus: root.workspaceController ? root.workspaceController.rateLineStatus : ""
                     rateLineEffectiveStatus: root.workspaceController ? root.workspaceController.rateLineEffectiveStatus : ""
+                    canCreateRateCard: root.workspaceController ? root.workspaceController.canCreateRateCard : false
                     plannedCostVersionsModel: root.workspaceController ? root.workspaceController.plannedCostVersions : ({ "items": [] })
                     plannedCostLinesModel: root.workspaceController ? root.workspaceController.plannedCostLines : ({ "items": [] })
                     plannedCostVersionsTableModel: root.workspaceController ? root.workspaceController.plannedCostVersionsTableModel : null
@@ -533,6 +570,18 @@ AppLayouts.WorkspaceFrame {
                             root.workspaceController.setConfigurationPage(collection, page)
                         }
                     }
+                    onSetupProfileEditRequested: function(profile) { dialogHostLoader.invoke("openFinancialProfileDialog", profile) }
+                    onSetupProfileTransitionRequested: function(action, profile) { dialogHostLoader.invoke("openFinancialSetupLifecycleDialog", action, profile, null, null) }
+                    onSetupCostCodeEditRequested: function(costCode) { dialogHostLoader.invoke("openCostCodeDialog", "edit", costCode) }
+                    onSetupCostCodeStatusRequested: function(action, costCode) { dialogHostLoader.invoke("openFinancialSetupLifecycleDialog", action, null, costCode, null) }
+                    onSetupRestrictionAddRequested: dialogHostLoader.invoke("openCostCodeRestrictionDialog")
+                    onSetupRestrictionRemoveRequested: function(restriction) { dialogHostLoader.invoke("openFinancialSetupLifecycleDialog", "remove_restriction", null, null, restriction) }
+                    onSetupCostCodePageRequested: function(page) { if (root.workspaceController) root.workspaceController.setSetupCostCodePage(page) }
+                    onSetupRestrictionPageRequested: function(page) { if (root.workspaceController) root.workspaceController.setSetupRestrictionPage(page) }
+                    onSetupCostCodeSortRequested: function(key, direction) { if (root.workspaceController) root.workspaceController.setSetupCostCodeSort(key, direction) }
+                    onSetupRestrictionSortRequested: function(key, direction) { if (root.workspaceController) root.workspaceController.setSetupRestrictionSort(key, direction) }
+                    onSetupCostCodeFiltersRequested: function(search, status, assignment) { if (root.workspaceController) root.workspaceController.setSetupCostCodeFilters(search, status, assignment) }
+                    onSetupRestrictionFilterRequested: function(search) { if (root.workspaceController) root.workspaceController.setSetupRestrictionFilter(search) }
                     onBudgetVersionSelected: function(budgetId) {
                         if (root.workspaceController !== null) root.workspaceController.selectBudgetVersion(budgetId)
                     }
@@ -574,6 +623,31 @@ AppLayouts.WorkspaceFrame {
                             "openForecastLifecycleDialog", action, forecast
                         )
                     }
+                    onFinancialChangeRequestCreateRequested: {
+                        dialogHostLoader.invoke(
+                            "openFinancialChangeRequestDialog", "create", null
+                        )
+                    }
+                    onFinancialChangeRequestEditRequested: function(change) {
+                        dialogHostLoader.invoke(
+                            "openFinancialChangeRequestDialog", "edit", change
+                        )
+                    }
+                    onFinancialChangeImpactCreateRequested: function(change) {
+                        dialogHostLoader.invoke(
+                            "openFinancialChangeImpactDialog", "create", change, null
+                        )
+                    }
+                    onFinancialChangeImpactEditRequested: function(change, impact) {
+                        dialogHostLoader.invoke(
+                            "openFinancialChangeImpactDialog", "edit", change, impact
+                        )
+                    }
+                    onFinancialChangeLifecycleRequested: function(action, change, impact) {
+                        dialogHostLoader.invoke(
+                            "openFinancialChangeLifecycleDialog", action, change, impact
+                        )
+                    }
                     onPlannedCostVersionSelected: function(versionId) {
                         if (root.workspaceController !== null) root.workspaceController.selectPlannedCostVersion(versionId)
                     }
@@ -594,6 +668,10 @@ AppLayouts.WorkspaceFrame {
                     }
                     onActualSortRequested: function(key, direction) {
                         if (root.workspaceController !== null) root.workspaceController.setActualSort(key, direction)
+                    }
+                    onActualFiltersRequested: function(status, source) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setActualFilters(status, source)
                     }
                     onCommitmentPageRequested: function(page) {
                         if (root.workspaceController !== null) root.workspaceController.setCommitmentPage(page)
@@ -650,6 +728,12 @@ AppLayouts.WorkspaceFrame {
                         if (root.workspaceController !== null)
                             root.workspaceController.setRateLineFilters(search, rateType, status, effectiveStatus)
                     }
+                    onRateCardCreateRequested: dialogHostLoader.invoke("openRateCardDialog", "create", null)
+                    onRateCardEditRequested: function(rateCard) { dialogHostLoader.invoke("openRateCardDialog", "edit", rateCard) }
+                    onRateCardDeactivateRequested: function(rateCard) { dialogHostLoader.invoke("openRateLifecycleDialog", "card", rateCard, null) }
+                    onRateLineAddRequested: function(rateCard) { dialogHostLoader.invoke("openRateLineDialog", "create", rateCard, null) }
+                    onRateLineEditRequested: function(rateCard, rateLine) { dialogHostLoader.invoke("openRateLineDialog", "edit", rateCard, rateLine) }
+                    onRateLineDeactivateRequested: function(rateCard, rateLine) { dialogHostLoader.invoke("openRateLifecycleDialog", "line", rateCard, rateLine) }
                     onFinancialChangeSelected: function(changeId) {
                         if (root.workspaceController !== null)
                             root.workspaceController.selectFinancialChange(changeId)

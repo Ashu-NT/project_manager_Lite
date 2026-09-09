@@ -1,7 +1,6 @@
 """Project profitability calculator — authoritative margin computation.
 
-Implements ADR-PF-010's projected-margin projection. Forecast cost at
-completion is always CostPolicyEngine's canonical
+Forecast cost at completion is always CostPolicyEngine's canonical
 CostControlTotals.estimate_at_completion -- this module never recomposes
 cost.
 
@@ -60,9 +59,9 @@ class ProfitabilityResult:
 
 
 class ProjectProfitabilityCalculator:
-    """Computes forecast_revenue_at_completion and projected_margin per
-    ADR-PF-010. Never recomposes cost -- forecast_cost_at_completion must
-    already be CostPolicyEngine's canonical estimate_at_completion. Returns
+    """Computes forecast_revenue_at_completion and projected_margin. Never
+    recomposes cost -- forecast_cost_at_completion must already be
+    CostPolicyEngine's canonical estimate_at_completion. Returns
     an explicit "unavailable" result (revenue_basis names the reason) for
     any billing method other than fixed-price."""
 

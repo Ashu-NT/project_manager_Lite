@@ -2,13 +2,7 @@
 
 Single authority for how a TaskDependency's (dependency_type, lag_days) turns
 into a scheduling constraint, in both the forward (earliest dates) and
-backward (latest dates) CPM passes. Before this module existed, the same
-FS/SS/FF/SF formulas were hand-duplicated across SchedulingEngine,
-CPMCalculator, TaskDependencyDiagnosticsMixin, and DependencyResolver, and
-had drifted: SS/FF/SF's lag was off by one working day relative to FS, and
-the backward pass was not a true inverse for anything but FS (see
-docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
-sections 5 and 11 for the full defect writeup this module fixes).
+backward (latest dates) CPM passes.
 
 Design principle: forward and backward formulas are derived from the SAME
 per-type definition below, via ``shift_working_days`` with a sign flip. They
@@ -16,8 +10,7 @@ cannot drift from each other because there is only one formula, applied in
 two directions -- there is no second, independently-written backward
 formula to keep in sync.
 
-Canonical zero-lag semantics (product decision, not derived from the old
-code):
+Canonical zero-lag semantics:
 
     FINISH_TO_START (FS), lag 0: successor starts the first working day
         AFTER the predecessor finishes (boundary offset = +1 from the
@@ -36,8 +29,7 @@ Positive lag_days adds that many additional working days of separation
 beyond the zero-lag boundary. Negative lag_days ("lead") moves the boundary
 earlier by that many working days -- and is strictly monotonic, because
 every unit of lag is one full step of ``shift_working_days``, never a
-constant that happens to interact with an inclusive/exclusive counting
-quirk (unlike the old ``lag+2``/bare-``lag`` formulas it replaces).
+constant that happens to interact with an inclusive/exclusive counting quirk.
 """
 
 from __future__ import annotations
@@ -213,13 +205,11 @@ def successor_earliest_start_from_boundary(
 
 @dataclass(frozen=True, slots=True)
 class PredecessorLateBoundary:
-    """The single late-date bound one outgoing dependency edge contributes
-    to the predecessor's backward-pass computation, expressed as a LATEST
-    START bound (see module docstring: forward and backward share one
-    formula, applied with a sign flip, so both FS/SS-style "start-anchored"
-    and FF/SF-style "finish-anchored" edges are normalized into the same LS
-    unit before any predecessor-level minimum is taken -- this is what fixes
-    the old mixed-successor-type shadowing bug)."""
+    """The single late-date bound one outgoing dependency edge contributes to
+    the predecessor's backward-pass computation, expressed as a LATEST START
+    bound -- both start-anchored (FS/SS) and finish-anchored (FF/SF) edges
+    normalize into the same LS unit before any predecessor-level minimum is
+    taken."""
 
     latest_start: date
 

@@ -44,11 +44,11 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.cost_entries.labor_posting import (
     SqlAlchemyApprovedTimeLaborPostingRepository,
 )
-from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.integration_outbox import (
-    SqlAlchemyProcurementFinancialOutboxRepository,
-)
 from src.core.platform.infrastructure.persistence.repositories.time_management.time_financial_outbox import (
     SqlAlchemyTimeFinancialOutboxRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.integration.procurement_financial_outbox import (
+    SqlAlchemyProcurementFinancialOutboxRepository,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.configuration.financial_configuration import (
     SqlAlchemyProjectCostCodeRepository,

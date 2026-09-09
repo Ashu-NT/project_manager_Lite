@@ -10,7 +10,6 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.common.ids import generate_id
 from src.core.platform.contract.uow.approval_unit_of_work import PlatformUnitOfWorkFactory
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.application.approval.approval_mutation_participant import (
     build_request_audit_details,
@@ -43,7 +42,6 @@ class ApprovalService:
         enterprise_audit_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
         notification_service: Any = None,
-        role_repo: Any = None,
         role_permission_repo: Any = None,
         permission_repo: Any = None,
         role_binding_repo: Any = None,
@@ -56,7 +54,6 @@ class ApprovalService:
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
         self._notification_service = notification_service
-        self._role_repo = role_repo
         self._role_permission_repo = role_permission_repo
         self._permission_repo = permission_repo
         self._role_binding_repo = role_binding_repo
@@ -239,7 +236,6 @@ class ApprovalService:
             for domain_event in handler_result.domain_events:
                 uow.record_event(domain_event)
             uow.commit()
-        self._emit_handler_events(handler_result)
 
         self._notify_approval_decided(request, decided="rejected")
         return request
@@ -297,12 +293,11 @@ class ApprovalService:
             for domain_event in handler_result.domain_events:
                 uow.record_event(domain_event)
             uow.commit()
-        self._emit_handler_events(handler_result)
         self._notify_approval_decided(request, decided="approved")
         return request
 
     def _require_pending_using(self, approval_repo, request_id: str) -> ApprovalRequest:
-        request = approval_repo.get(request_id)
+        request = approval_repo.get_for_update(request_id)
         if request is None:
             raise NotFoundError("Approval request not found.", code="APPROVAL_NOT_FOUND")
         self._assert_project_in_active_organization_using(
@@ -340,25 +335,6 @@ class ApprovalService:
             )
         return result
 
-    @classmethod
-    def _emit_handler_events(cls, result: ApprovalHandlerResult) -> None:
-        for event in result.post_commit_events:
-            cls._emit_signal_safely(event.signal_name, event.payload)
-
-    @staticmethod
-    def _emit_signal_safely(signal_name: str, payload: object) -> None:
-        signal = getattr(domain_events, signal_name, None)
-        if signal is None:
-            logger.error("Approval post-commit signal is not registered: %s", signal_name)
-            return
-        try:
-            signal.emit(payload)
-        except Exception:
-            logger.exception(
-                "Approval post-commit signal failed signal=%s payload=%s",
-                signal_name,
-                payload,
-            )
 
     def _active_tenant_id(self) -> str | None:
         tenant_context = getattr(self, "_tenant_context_service", None)
@@ -369,7 +345,6 @@ class ApprovalService:
     def _list_users_with_permission(self, permission_code: str, *, tenant_id: str | None) -> set[str]:
         if (
             self._permission_repo is None
-            or self._role_repo is None
             or self._role_permission_repo is None
             or self._role_binding_repo is None
         ):
@@ -378,12 +353,19 @@ class ApprovalService:
         if permission is None:
             return set()
         user_ids: set[str] = set()
-        for role in self._role_repo.list_all():
-            if permission.id not in self._role_permission_repo.list_permission_ids(role.id):
-                continue
-            bindings = list(self._role_binding_repo.list_active_for_role_across_tenants(role.id))
+        role_ids = self._role_permission_repo.list_role_ids_for_permission(
+            permission.id
+        )
+        for role_id in role_ids:
+            bindings = list(
+                self._role_binding_repo.list_active_for_role_across_tenants(role_id)
+            )
             if tenant_id:
-                bindings.extend(self._role_binding_repo.list_active_for_role(role.id, tenant_id=tenant_id))
+                bindings.extend(
+                    self._role_binding_repo.list_active_for_role(
+                        role_id, tenant_id=tenant_id
+                    )
+                )
             for binding in bindings:
                 if binding.principal_type == ROLE_PRINCIPAL_USER:
                     user_ids.add(binding.principal_id)
@@ -442,8 +424,7 @@ class ApprovalService:
         entity_type: str | list[str] | None,
         entity_id: str | None,
     ) -> list[ApprovalRequest]:
-        """Standalone read path -- uses the long-lived `self._approval_repo` (ADR-005 Section 24
-        Round 8/P4 Step 2 Section 9: read-only methods are out of this phase's scope)."""
+        """Read-only path using the service's own long-lived repository, not a transaction."""
         return self._list_approval_rows_using(
             self._approval_repo,
             status=status,

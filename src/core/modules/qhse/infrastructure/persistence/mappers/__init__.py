@@ -1,1 +1,0 @@
-"""QHSE mapper placeholder package."""

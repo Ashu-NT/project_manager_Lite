@@ -230,7 +230,6 @@ class AccessControlService:
             user_id=normalized_user_id,
             tenant_id=tenant_id,
         )
-        # P5C-3: `access_changed` retired -- see `assign_scope_grant`'s own comment above.
         self._refresh_current_session_if_needed(user_id)
         self._clear_active_organization_if_revoked(
             normalized_scope_type, normalized_scope_id, normalized_user_id

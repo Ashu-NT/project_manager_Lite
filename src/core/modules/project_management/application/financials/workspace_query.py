@@ -15,7 +15,10 @@ from src.core.modules.project_management.contracts.reads.financials.finance_look
     FinanceLookupReader,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_setup_facts import (
+    FinanceSetupCostCodeQuery,
     FinanceSetupFacts,
+    FinanceSetupRestrictionQuery,
+    FinanceSetupWorkspaceFacts,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_lookup_facts import (
     FinanceLookupOptionFact,
@@ -118,6 +121,54 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         )
         return scope.tenant_id, scope.organization_id
 
+    def search_setup_cost_codes(
+        self,
+        project_id: str,
+        *,
+        request: FinanceLookupQuery,
+        assignment_state: str = "",
+        active_only: bool = True,
+    ) -> FinanceLookupPageFacts:
+        require_permission(
+            self._user_session,
+            "finance.read",
+            operation_label="search Financial Setup cost codes",
+        )
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "finance.read",
+            operation_label="search Financial Setup cost codes",
+        )
+        if self._tenant_context_service is None:
+            raise RuntimeError("Finance Setup Reader is not configured.")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="search Financial Setup cost codes"
+        )
+        page = self._setup_reader.list_cost_codes(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            request=FinanceSetupCostCodeQuery(
+                page=request.normalized_page,
+                page_size=request.normalized_page_size,
+                search=request.search,
+                status="active" if active_only else "",
+                assignment_state=assignment_state,
+                sort_key="code",
+                sort_direction="asc",
+            ),
+        )
+        return FinanceLookupPageFacts(
+            items=tuple(
+                FinanceLookupOptionFact(id=item.id, label=f"{item.code} - {item.name}")
+                for item in page.items
+            ),
+            total=page.total,
+            page=page.page,
+            page_size=page.page_size,
+        )
+
     def search_finance_projects(
         self, *, request: FinanceLookupQuery
     ) -> FinanceLookupPageFacts:
@@ -179,6 +230,30 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             organization_id=scope.organization_id,
             project_id=project_id,
             task_id=str(task_id or "").strip(),
+        )
+
+    def search_manual_actual_resources(
+        self, project_id: str, *, request: FinanceLookupQuery
+    ) -> FinanceLookupPageFacts:
+        scope = self._require_manual_actual_lookup(
+            project_id, "search manual actual resources"
+        )
+        return self._require_lookup_reader().search_rate_resources(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            request=request,
+        )
+
+    def resolve_manual_actual_resource(
+        self, project_id: str, resource_id: str
+    ) -> FinanceLookupOptionFact | None:
+        scope = self._require_manual_actual_lookup(
+            project_id, "resolve manual actual resource"
+        )
+        return self._require_lookup_reader().get_resource_option(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            resource_id=str(resource_id or "").strip(),
         )
 
     def search_manual_actual_cost_codes(
@@ -274,6 +349,62 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             project_id=project_id,
             cost_code_id=str(cost_code_id or "").strip(),
             effective_on=effective_on,
+        )
+
+    def search_financial_change_target_lines(
+        self,
+        project_id: str,
+        change_id: str,
+        impact_type: str,
+        *,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts:
+        scope = self._require_financial_change_lookup(
+            project_id, "search Financial Change target lines"
+        )
+        return self._require_lookup_reader().search_change_target_lines(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            change_id=str(change_id or "").strip(),
+            impact_type=str(impact_type or "").strip().lower(),
+            request=request,
+        )
+
+    def resolve_financial_change_target_line(
+        self,
+        project_id: str,
+        change_id: str,
+        impact_type: str,
+        line_id: str,
+    ) -> FinanceLookupOptionFact | None:
+        scope = self._require_financial_change_lookup(
+            project_id, "resolve Financial Change target line"
+        )
+        return self._require_lookup_reader().get_change_target_line_option(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            change_id=str(change_id or "").strip(),
+            impact_type=str(impact_type or "").strip().lower(),
+            line_id=str(line_id or "").strip(),
+        )
+
+    def _require_financial_change_lookup(self, project_id: str, operation: str):
+        normalized_id = str(project_id or "").strip()
+        require_permission(
+            self._user_session, "financial_change.manage", operation_label=operation
+        )
+        require_project_permission(
+            self._user_session,
+            normalized_id,
+            "financial_change.manage",
+            operation_label=operation,
+        )
+        if self._tenant_context_service is None:
+            raise RuntimeError("Finance lookup scope is not configured.")
+        return self._tenant_context_service.require_active_scope_ids(
+            operation_label=operation
         )
 
     def search_forecast_risks(
@@ -432,6 +563,40 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         if self._lookup_reader is None:
             raise RuntimeError("Finance Lookup Reader is not configured.")
         return self._lookup_reader
+
+    def search_rate_resources(
+        self, project_id: str, *, request: FinanceLookupQuery
+    ) -> FinanceLookupPageFacts:
+        scope = self._require_rate_lookup(project_id, "search Rate Card resources")
+        return self._require_lookup_reader().search_rate_resources(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            request=request,
+        )
+
+    def search_rate_departments(
+        self, project_id: str, *, request: FinanceLookupQuery
+    ) -> FinanceLookupPageFacts:
+        scope = self._require_rate_lookup(project_id, "search Rate Card departments")
+        return self._require_lookup_reader().search_rate_departments(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            request=request,
+        )
+
+    def _require_rate_lookup(self, project_id: str, operation: str):
+        require_permission(self._user_session, "finance.manage", operation_label=operation)
+        require_project_permission(
+            self._user_session, project_id, "finance.manage", operation_label=operation
+        )
+        require_permission(
+            self._user_session, "finance.read_sensitive", operation_label=operation
+        )
+        if self._tenant_context_service is None:
+            raise RuntimeError("Finance lookup scope is not configured.")
+        return self._tenant_context_service.require_active_scope_ids(
+            operation_label=operation
+        )
 
     def get_budget_workspace(
         self,
@@ -807,11 +972,43 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
                 ),
             )
         )
+        can_manage = self._has_project_permission(project_id, "finance.manage")
+        cards = replace(
+            cards,
+            items=tuple(
+                replace(
+                    item,
+                    can_edit=can_manage and item.is_active,
+                    can_deactivate=can_manage and item.is_active,
+                    can_add_line=can_manage and item.is_active,
+                )
+                for item in cards.items
+            ),
+        )
+        if selected is not None:
+            selected = replace(
+                selected,
+                can_edit=can_manage and selected.is_active,
+                can_deactivate=can_manage and selected.is_active,
+                can_add_line=can_manage and selected.is_active,
+            )
+        lines = replace(
+            lines,
+            items=tuple(
+                replace(
+                    item,
+                    can_edit=can_manage and item.is_active,
+                    can_deactivate=can_manage and item.is_active,
+                )
+                for item in lines.items
+            ),
+        )
         return FinanceRateWorkspaceFacts(
             selected_rate_card_id=resolved_id,
             selected_rate_card=selected,
             cards=cards,
             lines=lines,
+            can_create_rate_card=can_manage,
         )
 
     def get_change_workspace(
@@ -856,6 +1053,39 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             else None
         )
         resolved_id = selected.id if selected is not None else ""
+        can_manage = self._has_project_permission(
+            project_id, "financial_change.manage"
+        )
+        can_request = self._has_project_permission(project_id, "approval.request")
+        can_decide = self._has_project_permission(project_id, "approval.decide")
+        principal = getattr(self._user_session, "principal", None)
+        principal_id = str(getattr(principal, "user_id", "") or "")
+        if selected is not None:
+            is_draft = selected.status == "draft"
+            is_pending = (
+                selected.status == "pending_approval"
+                and selected.approval_status.upper() == "PENDING"
+                and bool(selected.approval_request_id)
+            )
+            can_decide_selected = (
+                can_decide
+                and is_pending
+                and bool(principal_id)
+                and selected.approval_requested_by_user_id != principal_id
+            )
+            selected = replace(
+                selected,
+                can_edit=can_manage and is_draft,
+                can_add_impact=can_manage and is_draft,
+                can_submit=(
+                    can_manage
+                    and can_request
+                    and is_draft
+                    and selected.impact_count > 0
+                ),
+                can_approve=can_decide_selected,
+                can_reject=can_decide_selected,
+            )
         requested_impacts = impact_request or FinancialChangeImpactQuery()
         impacts = (
             self._change_reader.list_impacts(
@@ -877,11 +1107,23 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
                 ),
             )
         )
+        impacts = replace(
+            impacts,
+            items=tuple(
+                replace(
+                    item,
+                    can_edit=bool(selected and selected.can_edit),
+                    can_remove=bool(selected and selected.can_edit),
+                )
+                for item in impacts.items
+            ),
+        )
         return FinanceChangeWorkspaceFacts(
             selected_change_id=resolved_id,
             selected_change=selected,
             changes=changes,
             impacts=impacts,
+            can_create=can_manage,
         )
 
     def get_billing_read_workspace(
@@ -990,7 +1232,13 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             request=request or AccountingStatusQuery(),
         )
 
-    def get_setup_workspace(self, project_id: str) -> FinanceSetupFacts:
+    def get_setup_workspace(
+        self,
+        project_id: str,
+        *,
+        cost_code_request: FinanceSetupCostCodeQuery | None = None,
+        restriction_request: FinanceSetupRestrictionQuery | None = None,
+    ) -> FinanceSetupWorkspaceFacts:
         require_permission(
             self._user_session,
             "finance.read",
@@ -1017,7 +1265,56 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
                 "Project financial profile not found.",
                 code="FINANCIAL_PROFILE_NOT_FOUND",
             )
-        return setup
+        can_manage = self._has_project_permission(project_id, "finance.manage")
+        can_manage_restrictions = can_manage and setup.cost_code_policy == "restricted"
+        cost_codes = self._setup_reader.list_cost_codes(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            request=cost_code_request or FinanceSetupCostCodeQuery(),
+        )
+        restrictions = self._setup_reader.list_restrictions(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            request=restriction_request or FinanceSetupRestrictionQuery(),
+        )
+        cost_codes = replace(
+            cost_codes,
+            items=tuple(
+                replace(
+                    item,
+                    can_edit=can_manage,
+                    can_change_status=can_manage and not item.is_default,
+                    can_add_restriction=(
+                        can_manage_restrictions and item.is_active and not item.is_assigned
+                    ),
+                    can_remove_restriction=(
+                        can_manage_restrictions and item.is_assigned and not item.is_default
+                    ),
+                )
+                for item in cost_codes.items
+            ),
+        )
+        restrictions = replace(
+            restrictions,
+            items=tuple(
+                replace(
+                    item,
+                    can_remove=can_manage_restrictions and not item.is_default,
+                )
+                for item in restrictions.items
+            ),
+        )
+        return FinanceSetupWorkspaceFacts(
+            profile=setup,
+            cost_codes=cost_codes,
+            restrictions=restrictions,
+            can_edit_profile=can_manage,
+            can_transition_profile=can_manage and setup.status != "closed",
+            can_create_cost_code=can_manage,
+            can_manage_restrictions=can_manage_restrictions,
+        )
 
 __all__ = [
     "ProjectFinanceWorkspaceQuery",

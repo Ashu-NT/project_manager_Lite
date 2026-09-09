@@ -58,9 +58,8 @@ class TimesheetQueryMixin:
         self, work_allocation_ids: list[str]
     ) -> list[TimeEntry]:
         """Batched, all-time (not period-bound) lookup across several work
-        allocations in one query -- the platform-level primitive PM's
-        task-scoped Time Entries view (docs §44 Time redesign) builds on,
-        since a task can have several TaskAssignments/work allocations."""
+        allocations in one query, since a task can have several
+        TaskAssignments/work allocations."""
         self._require_time_read_permission("list time entries")
         if self._time_entry_repo is None or not work_allocation_ids:
             return []

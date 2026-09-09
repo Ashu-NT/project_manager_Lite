@@ -68,6 +68,19 @@ Item {
     property string selectedBaselineId: ""
     property var reportBasisModel: ({ "fields": [] })
     property var financialProfileModel: ({ "id": "", "fields": [] })
+    property var setupCostCodesModel: ({ "items": [] })
+    property var setupRestrictionsModel: ({ "items": [] })
+    property var setupCostCodesTableModel: null
+    property var setupRestrictionsTableModel: null
+    property bool canManageCostCodeRestrictions: false
+    property string setupCostCodeSortKey: "code"
+    property int setupCostCodeSortDirection: Qt.AscendingOrder
+    property string setupRestrictionSortKey: "code"
+    property int setupRestrictionSortDirection: Qt.AscendingOrder
+    property string setupCostCodeSearch: ""
+    property string setupCostCodeStatus: ""
+    property string setupCostCodeAssignment: ""
+    property string setupRestrictionSearch: ""
     property var budgetVersionsModel: ({ "items": [] })
     property var budgetLinesModel: ({ "items": [] })
     property var budgetVersionsTableModel: null
@@ -97,6 +110,7 @@ Item {
     property string rateLineRateType: ""
     property string rateLineStatus: ""
     property string rateLineEffectiveStatus: ""
+    property bool canCreateRateCard: false
     property var plannedCostVersionsModel: ({ "items": [] })
     property var plannedCostLinesModel: ({ "items": [] })
     property var plannedCostVersionsTableModel: null
@@ -135,14 +149,29 @@ Item {
     property string billingLineSourceState: ""
     property var commercialProjectionModel: ({ "id": "", "fields": [] })
     property bool isBusy: false
+    property bool canCreateFinancialChange: false
     property string selectedActualEntryId: ""
     property string actualSortKey: "metaText"
     property int actualSortDirection: Qt.DescendingOrder
+    property string actualStatus: ""
+    property string actualSource: ""
     property string commitmentSortKey: "metaText"
     property int commitmentSortDirection: Qt.DescendingOrder
 
     signal subsectionRequested(string subsection)
     signal configurationPageRequested(string collection, int page)
+    signal setupProfileEditRequested(var profile)
+    signal setupProfileTransitionRequested(string action, var profile)
+    signal setupCostCodeEditRequested(var costCode)
+    signal setupCostCodeStatusRequested(string action, var costCode)
+    signal setupRestrictionAddRequested()
+    signal setupRestrictionRemoveRequested(var restriction)
+    signal setupCostCodePageRequested(int page)
+    signal setupRestrictionPageRequested(int page)
+    signal setupCostCodeSortRequested(string key, int direction)
+    signal setupRestrictionSortRequested(string key, int direction)
+    signal setupCostCodeFiltersRequested(string search, string status, string assignment)
+    signal setupRestrictionFilterRequested(string search)
     signal budgetVersionSelected(string budgetId)
     signal budgetVersionPageRequested(int page)
     signal budgetVersionSortRequested(string key, int direction)
@@ -174,6 +203,12 @@ Item {
     signal rateLineSortRequested(string key, int direction)
     signal rateCardFiltersRequested(string search, string scope, string status)
     signal rateLineFiltersRequested(string search, string rateType, string status, string effectiveStatus)
+    signal rateCardCreateRequested()
+    signal rateCardEditRequested(var rateCard)
+    signal rateCardDeactivateRequested(var rateCard)
+    signal rateLineAddRequested(var rateCard)
+    signal rateLineEditRequested(var rateCard, var rateLine)
+    signal rateLineDeactivateRequested(var rateCard, var rateLine)
     signal financialChangeSelected(string changeId)
     signal financialChangePageRequested(int page)
     signal financialChangeImpactPageRequested(int page)
@@ -181,6 +216,11 @@ Item {
     signal financialChangeImpactSortRequested(string key, int direction)
     signal financialChangeFiltersRequested(string search, string status, string approvalStatus, string appliedState)
     signal financialChangeImpactFiltersRequested(string search, string impactType, string appliedState)
+    signal financialChangeRequestCreateRequested()
+    signal financialChangeRequestEditRequested(var change)
+    signal financialChangeLifecycleRequested(string action, var change, var impact)
+    signal financialChangeImpactCreateRequested(var change)
+    signal financialChangeImpactEditRequested(var change, var impact)
     signal varianceBaselineSelected(string baselineId)
     signal costPhasingPresetRequested(int months, string granularity)
     signal billingPreparationSelected(string preparationId)
@@ -197,6 +237,7 @@ Item {
     signal actualPageRequested(int page)
     signal actualPageSizeRequested(int pageSize)
     signal actualSortRequested(string key, int direction)
+    signal actualFiltersRequested(string status, string source)
     signal commitmentPageRequested(int page)
     signal commitmentPageSizeRequested(int pageSize)
     signal commitmentSortRequested(string key, int direction)
@@ -445,10 +486,15 @@ Item {
             selectedEntryId: root.selectedActualEntryId
             sortKey: root.actualSortKey
             sortDirection: root.actualSortDirection
+            statusFilter: root.actualStatus
+            sourceFilter: root.actualSource
             onEntrySelected: function(entryId) { root.actualEntrySelected(entryId) }
             onPageRequested: function(page) { root.actualPageRequested(page) }
             onPageSizeRequested: function(pageSize) { root.actualPageSizeRequested(pageSize) }
             onSortRequested: function(key, direction) { root.actualSortRequested(key, direction) }
+            onFiltersRequested: function(status, source) {
+                root.actualFiltersRequested(status, source)
+            }
         }
     }
 
@@ -490,6 +536,7 @@ Item {
             lineStatus: root.rateLineStatus
             lineEffectiveStatus: root.rateLineEffectiveStatus
             busy: root.isBusy
+            canCreateCard: root.canCreateRateCard
             onCardSelected: function(rateCardId) { root.rateCardSelected(rateCardId) }
             onCardPageRequested: function(page) { root.rateCardPageRequested(page) }
             onLinePageRequested: function(page) { root.rateLinePageRequested(page) }
@@ -501,6 +548,12 @@ Item {
             onLineFiltersRequested: function(search, rateType, status, effectiveStatus) {
                 root.rateLineFiltersRequested(search, rateType, status, effectiveStatus)
             }
+            onCardCreateRequested: root.rateCardCreateRequested()
+            onCardEditRequested: function(rateCard) { root.rateCardEditRequested(rateCard) }
+            onCardDeactivateRequested: function(rateCard) { root.rateCardDeactivateRequested(rateCard) }
+            onLineAddRequested: function(rateCard) { root.rateLineAddRequested(rateCard) }
+            onLineEditRequested: function(rateCard, rateLine) { root.rateLineEditRequested(rateCard, rateLine) }
+            onLineDeactivateRequested: function(rateCard, rateLine) { root.rateLineDeactivateRequested(rateCard, rateLine) }
         }
     }
 
@@ -636,6 +689,32 @@ Item {
         FinancialsProfileSection {
             width: parent ? parent.width : 0
             profile: root.financialProfileModel
+            costCodes: root.setupCostCodesModel
+            restrictions: root.setupRestrictionsModel
+            costCodesTableModel: root.setupCostCodesTableModel
+            restrictionsTableModel: root.setupRestrictionsTableModel
+            canManageRestrictions: root.canManageCostCodeRestrictions
+            busy: root.isBusy
+            costCodeSortKey: root.setupCostCodeSortKey
+            costCodeSortDirection: root.setupCostCodeSortDirection
+            restrictionSortKey: root.setupRestrictionSortKey
+            restrictionSortDirection: root.setupRestrictionSortDirection
+            costCodeSearch: root.setupCostCodeSearch
+            costCodeStatus: root.setupCostCodeStatus
+            costCodeAssignment: root.setupCostCodeAssignment
+            restrictionSearch: root.setupRestrictionSearch
+            onProfileEditRequested: function(profile) { root.setupProfileEditRequested(profile) }
+            onProfileTransitionRequested: function(action, profile) { root.setupProfileTransitionRequested(action, profile) }
+            onCostCodeEditRequested: function(costCode) { root.setupCostCodeEditRequested(costCode) }
+            onCostCodeStatusRequested: function(action, costCode) { root.setupCostCodeStatusRequested(action, costCode) }
+            onRestrictionAddRequested: root.setupRestrictionAddRequested()
+            onRestrictionRemoveRequested: function(restriction) { root.setupRestrictionRemoveRequested(restriction) }
+            onCostCodePageRequested: function(page) { root.setupCostCodePageRequested(page) }
+            onRestrictionPageRequested: function(page) { root.setupRestrictionPageRequested(page) }
+            onCostCodeSortRequested: function(key, direction) { root.setupCostCodeSortRequested(key, direction) }
+            onRestrictionSortRequested: function(key, direction) { root.setupRestrictionSortRequested(key, direction) }
+            onCostCodeFiltersRequested: function(search, status, assignment) { root.setupCostCodeFiltersRequested(search, status, assignment) }
+            onRestrictionFilterRequested: function(search) { root.setupRestrictionFilterRequested(search) }
         }
     }
 
@@ -661,6 +740,7 @@ Item {
             impactType: root.impactType
             impactAppliedState: root.impactAppliedState
             busy: root.isBusy
+            canCreate: root.canCreateFinancialChange
             onChangeSelected: function(changeId) {
                 root.financialChangeSelected(changeId)
             }
@@ -673,6 +753,22 @@ Item {
             }
             onImpactFiltersRequested: function(search, impactType, appliedState) {
                 root.financialChangeImpactFiltersRequested(search, impactType, appliedState)
+            }
+            onRequestCreateRequested: root.financialChangeRequestCreateRequested()
+            onRequestEditRequested: function(change) {
+                root.financialChangeRequestEditRequested(change)
+            }
+            onRequestLifecycleRequested: function(action, change) {
+                root.financialChangeLifecycleRequested(action, change, null)
+            }
+            onImpactCreateRequested: function(change) {
+                root.financialChangeImpactCreateRequested(change)
+            }
+            onImpactEditRequested: function(change, impact) {
+                root.financialChangeImpactEditRequested(change, impact)
+            }
+            onImpactRemoveRequested: function(change, impact) {
+                root.financialChangeLifecycleRequested("remove_impact", change, impact)
             }
         }
     }

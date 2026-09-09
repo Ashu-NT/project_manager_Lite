@@ -31,7 +31,7 @@ class DependencyConstraintConflict:
       what the dependency required (it drives the forward pass -- see
       task_date_math.apply_scheduling_constraints). The schedule uses
       the constraint-driven date; this makes the override visible.
-    - START_NO_LATER_THAN / FINISH_NO_LATER_THAN (R4.4 Phase K): these
+    - START_NO_LATER_THAN / FINISH_NO_LATER_THAN: these
       never drive the forward pass, so the dependency-required date
       flows through untouched and ALSO surfaces as a plain
       ConstraintViolation from _check_task. This fact adds the

@@ -28,6 +28,12 @@ class TaskRepository(ABC):
     def delete(self, task_id: str) -> None: ...
 
     @abstractmethod
+    def delete_with_version_check(self, task_id: str, *, expected_version: int) -> None:
+        """CAS-protected delete -- raises ConcurrencyError on a stale version
+        instead of silently deleting a Task that changed since it was read."""
+        ...
+
+    @abstractmethod
     def get(self, task_id: str) -> Task | None: ...
 
     @abstractmethod
@@ -82,7 +88,29 @@ class AssignmentRepository(ABC):
         ...
 
     @abstractmethod
+    def update_hours_logged_with_version_check(
+        self, assignment: TaskAssignment, *, expected_version: int
+    ) -> TaskAssignment:
+        """Dedicated, versioned write path for ``hours_logged`` -- used by
+        both the manual `set_assignment_hours` command and the
+        TimeEntry-driven sync."""
+        ...
+
+    @abstractmethod
+    def update_response_status_with_version_check(
+        self, assignment: TaskAssignment, *, expected_version: int
+    ) -> TaskAssignment:
+        """Dedicated, versioned write path for ``response_status``/``responded_at``
+        -- used by `accept_assignment`/`decline_assignment`."""
+        ...
+
+    @abstractmethod
     def delete(self, assignment_id: str) -> None: ...
+
+    @abstractmethod
+    def delete_with_version_check(self, assignment_id: str, *, expected_version: int) -> None:
+        """CAS-protected delete -- used by `unassign_resource`."""
+        ...
 
     @abstractmethod
     def delete_by_task(self, task_id: str) -> None: ...

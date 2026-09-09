@@ -17,10 +17,9 @@ class LinkedEmployeeResource(Protocol):
 
 
 class ResourceMasterEventFactory(Protocol):
-    """Builds the business-module-owned typed event for one resource touched by an Employee
-    sync (P18A §8). Platform never imports the concrete Resource event class -- the concrete
-    builder is supplied by composition (ADR-005 Sec21/Sec22: no new Platform -> business-module
-    import), so this Protocol is the only shape Platform code depends on."""
+    """Builds the business-module-owned event for one resource touched by an Employee sync.
+    Platform never imports the concrete Resource event class -- composition supplies the
+    concrete builder, and this Protocol is the only shape Platform code depends on."""
 
     def __call__(
         self, resource: LinkedEmployeeResource, *, tenant_id: str, organization_id: str

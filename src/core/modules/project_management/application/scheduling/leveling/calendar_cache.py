@@ -1,4 +1,4 @@
-"""R4.4W.1 -- a caching CalendarProtocol wrapper scoped to ONE
+"""A caching CalendarProtocol wrapper scoped to ONE
 ``ResourceLevelingPlanner.build_proposal`` call.
 
 Profiling found the leveling Preview's real cost is neither the

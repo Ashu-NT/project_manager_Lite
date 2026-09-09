@@ -140,10 +140,6 @@ class DashboardProfessionalMixin:
 
     @staticmethod
     def _is_explicit_milestone(task: object) -> bool:
-        """Task.is_milestone is the single source of truth (see
-        Milestones in docs/pm_modernization/R4_4_TASK_DEPENDENCY_IMPLEMENTATION_SUMMARY.md)
-        -- previously guessed from duration_days==0 or a "milestone"/"gate"
-        name-sniff, both dropped now that a real flag exists."""
         return bool(getattr(task, "is_milestone", False))
 
     @staticmethod

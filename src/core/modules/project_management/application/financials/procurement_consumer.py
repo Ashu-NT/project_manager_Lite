@@ -28,13 +28,14 @@ from src.core.platform.integration import (
     ProcurementCommitmentEventPayload,
     ProcurementReceiptAccrualEventPayload,
 )
+from src.core.shared.events.domain_event import DomainEvent
 
 
 @dataclass(frozen=True)
 class ProcurementFinancialConsumption:
     project_id: str
-    commitment_changed: bool = False
-    cost_entry_changed: bool = False
+    commitment_events: tuple[DomainEvent, ...] = ()
+    cost_entry_events: tuple[DomainEvent, ...] = ()
 
 
 class ProcurementFinancialConsumer:
@@ -94,9 +95,10 @@ class ProcurementFinancialConsumer:
             source_requisition_line_id=payload.source_requisition_line_id,
             task_id=task_id,
         )
-        self._commitment_service.apply_procurement_source(source)
+        event = self._commitment_service.apply_procurement_source(source)
         return ProcurementFinancialConsumption(
-            project_id=project_id, commitment_changed=True
+            project_id=project_id,
+            commitment_events=(event,) if event is not None else (),
         )
 
     def _consume_receipt(
@@ -130,8 +132,10 @@ class ProcurementFinancialConsumer:
             unit_cost=payload.unit_cost,
             task_id=task_id,
         )
-        entry = self._cost_entry_service.apply_procurement_receipt_source(source)
-        self._commitment_service.apply_procurement_receipt_match(
+        entry, cost_entry_events = self._cost_entry_service.apply_procurement_receipt_source(
+            source
+        )
+        event = self._commitment_service.apply_procurement_receipt_match(
             purchase_order_id=payload.purchase_order_id,
             purchase_order_line_id=payload.purchase_order_line_id,
             cost_entry_id=entry.id,
@@ -140,8 +144,8 @@ class ProcurementFinancialConsumer:
         )
         return ProcurementFinancialConsumption(
             project_id=project_id,
-            commitment_changed=True,
-            cost_entry_changed=True,
+            commitment_events=(event,) if event is not None else (),
+            cost_entry_events=cost_entry_events,
         )
 
     def _resolve_project(

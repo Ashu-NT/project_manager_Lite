@@ -58,13 +58,11 @@ class SqlAlchemyPlatformUnitOfWork(SqlAlchemyUnitOfWorkBase, PlatformUnitOfWork)
 
 
 class SqlAlchemyPlatformUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
-    """Closes over `SessionLocal` (a session *factory*, per ADR-005 Section 6.1 -- never an
-    already-created `Session`) plus the ambient collaborators (`tenant_context_service`,
-    `user_session`) `SqlAlchemyPlatformUnitOfWork` needs to build its own two fresh, session-bound
-    accessors on every `create()` call. Neither collaborator is itself Session-bound, so both are
-    reused as-is across every `create()` call (ADR-005 Section 24, Round 7's "ambient
-    collaborators ... may be reused as-is" rule) -- only `approvals`/`enterprise_audit_service`
-    are rebuilt fresh, per call, bound to that call's own new `Session`."""
+    """Closes over `SessionLocal` (a session factory, never an already-created `Session`) plus
+    the ambient collaborators (`tenant_context_service`, `user_session`) needed to build each
+    fresh, session-bound `SqlAlchemyPlatformUnitOfWork`. Neither collaborator is itself
+    Session-bound, so both are reused as-is across calls -- only `approvals`/
+    `enterprise_audit_service` are rebuilt per call, bound to that call's new `Session`."""
 
     def __init__(
         self,

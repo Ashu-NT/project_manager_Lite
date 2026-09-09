@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import and_, case, exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
@@ -17,6 +17,15 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
 from src.core.modules.project_management.infrastructure.persistence.orm.rate_cards import (
     ProjectRateCardORM,
     RateCardLineORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.billing import (
+    ProjectBillingPreparationLineORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.labor_posting import (
+    ApprovedTimeLaborPostingORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.financials.statements.planned_cost_rows import (
+    PlannedCostLineRow,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
@@ -60,6 +69,32 @@ _LINE_SORTS = {
     "supportingText": RateCardLineORM.rate_amount,
     "metaText": RateCardLineORM.effective_from,
 }
+_LINE_CONSUMED = or_(
+    exists(
+        select(1).where(
+            ApprovedTimeLaborPostingORM.tenant_id == RateCardLineORM.tenant_id,
+            ApprovedTimeLaborPostingORM.organization_id
+            == RateCardLineORM.organization_id,
+            ApprovedTimeLaborPostingORM.rate_line_id == RateCardLineORM.id,
+        )
+    ),
+    exists(
+        select(1).where(
+            PlannedCostLineRow.tenant_id == RateCardLineORM.tenant_id,
+            PlannedCostLineRow.organization_id
+            == RateCardLineORM.organization_id,
+            PlannedCostLineRow.rate_line_id == RateCardLineORM.id,
+        )
+    ),
+    exists(
+        select(1).where(
+            ProjectBillingPreparationLineORM.tenant_id == RateCardLineORM.tenant_id,
+            ProjectBillingPreparationLineORM.organization_id
+            == RateCardLineORM.organization_id,
+            ProjectBillingPreparationLineORM.rate_line_id == RateCardLineORM.id,
+        )
+    ),
+)
 _RATE_TYPES = {"cost", "billing"}
 _STATUSES = {"active", "inactive"}
 _SCOPES = {"organization", "project"}
@@ -287,6 +322,7 @@ class SqlAlchemyFinanceRateReader:
                 ResourceORM.worker_type,
                 DepartmentORM.name.label("department_name"),
                 _effective_status_expression(as_of).label("effective_status"),
+                _LINE_CONSUMED.label("is_consumed"),
             )
             .select_from(RateCardLineORM)
             .join(ProjectRateCardORM, ProjectRateCardORM.id == RateCardLineORM.rate_card_id)
@@ -332,6 +368,7 @@ class SqlAlchemyFinanceRateReader:
             holiday_multiplier=line.holiday_multiplier,
             version=int(line.version),
             updated_at=line.updated_at,
+            is_consumed=bool(row.is_consumed),
         )
 
 

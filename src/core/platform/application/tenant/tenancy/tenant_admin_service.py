@@ -1,4 +1,4 @@
-"""Platform-level tenant lifecycle management service (Phase 2B/2C)."""
+"""Platform-level tenant lifecycle management service."""
 from __future__ import annotations
 
 from sqlalchemy.orm import Session

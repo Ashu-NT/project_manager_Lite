@@ -11,7 +11,7 @@ from src.ui_qml.modules.project_management.presenters import (
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 from . import state_setters as _setters
-from .domain_event_binder import bind_timesheets_domain_events
+from .domain_event_binder import on_task_profile_stale
 from .mutation_handler import TimesheetsMutationHandler
 from .refresh_service import refresh_timesheets_workspace
 from .review_queue_controller import (
@@ -83,8 +83,10 @@ class ProjectManagementTimesheetsWorkspaceController(ProjectManagementWorkspaceC
         self._queue_period_start_to = ""
         self._queue_sort_key = "submittedAt"
         self._queue_sort_direction = 1
-        bind_timesheets_domain_events(self)
         self.refresh()
+
+    def onTaskProfileStale(self, project_id: str) -> None:
+        on_task_profile_stale(self, project_id)
 
     overview = Property("QVariantMap", lambda self: self._overview, notify=overviewChanged)
     projectOptions = Property("QVariantList", lambda self: self._project_options, notify=projectOptionsChanged)

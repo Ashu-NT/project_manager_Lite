@@ -9,7 +9,6 @@ Item {
     property ShellContexts.ShellContext shellModel
     property var platformCatalog
     property var pmCatalog
-    property var inventoryCatalog
     readonly property string _currentRouteSource: root.shellModel
         ? String(root.shellModel.currentRouteSource || "")
         : ""
@@ -73,9 +72,6 @@ Item {
                         }
                         if ("pmCatalog" in item) {
                             item.pmCatalog = root.pmCatalog
-                        }
-                        if ("inventoryCatalog" in item) {
-                            item.inventoryCatalog = root.inventoryCatalog
                         }
                     }
                 }

@@ -12,6 +12,13 @@ class FinancialsMutationMixin:
     def _run_finance_mutation(
         self, operation, success_message: str, on_success
     ) -> dict[str, object]:
+        if self._is_busy:
+            return {
+                "ok": False,
+                "message": "A financial command is already in progress.",
+                "code": "FINANCE_COMMAND_BUSY",
+                "category": "busy",
+            }
         return run_mutation(
             operation=operation,
             success_message=success_message,
@@ -192,6 +199,86 @@ class FinancialsMutationMixin:
             f"Forecast approval request {action}.",
         )
 
+    def _run_financial_change_mutation(
+        self, operation, success_message: str
+    ) -> dict[str, object]:
+        result = self._run_finance_mutation(
+            operation,
+            success_message,
+            on_success=lambda: self._invalidate_destinations("controls"),
+        )
+        if result.get("conflict"):
+            self._invalidate_destinations("controls")
+        return result
+
+    def _create_financial_change(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_financial_change_mutation(
+            lambda: self._financials_workspace_presenter.create_financial_change(
+                dict(payload)
+            ),
+            "Change Request created.",
+        )
+
+    def _update_financial_change(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_financial_change_mutation(
+            lambda: self._financials_workspace_presenter.update_financial_change(
+                dict(payload)
+            ),
+            "Change Request updated.",
+        )
+
+    def _add_financial_change_impact(
+        self, payload: dict[str, object]
+    ) -> dict[str, object]:
+        return self._run_financial_change_mutation(
+            lambda: self._financials_workspace_presenter.add_financial_change_impact(
+                dict(payload)
+            ),
+            "Financial Change impact added.",
+        )
+
+    def _update_financial_change_impact(
+        self, payload: dict[str, object]
+    ) -> dict[str, object]:
+        return self._run_financial_change_mutation(
+            lambda: self._financials_workspace_presenter.update_financial_change_impact(
+                dict(payload)
+            ),
+            "Financial Change impact updated.",
+        )
+
+    def _remove_financial_change_impact(
+        self, payload: dict[str, object]
+    ) -> dict[str, object]:
+        return self._run_financial_change_mutation(
+            lambda: self._financials_workspace_presenter.remove_financial_change_impact(
+                dict(payload)
+            ),
+            "Financial Change impact removed.",
+        )
+
+    def _submit_financial_change(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_financial_change_mutation(
+            lambda: self._financials_workspace_presenter.submit_financial_change(
+                dict(payload)
+            ),
+            "Change Request submitted for approval.",
+        )
+
+    def _decide_financial_change(
+        self, request_id: str, approve: bool, notes: str
+    ) -> dict[str, object]:
+        action = "approved and applied" if approve else "rejected"
+        return self._run_finance_mutation(
+            lambda: self._financials_workspace_presenter.decide_financial_change_approval(
+                request_id, approve, notes
+            ),
+            f"Financial Change {action}.",
+            on_success=lambda: self._invalidate_destinations(
+                "controls", "planning", "overview", "performance", "commercial"
+            ),
+        )
+
     def _export_financials(self, report_format: str, output_path: str) -> None:
         normalized_path = local_path_from_qml_file_url(output_path)
         if not normalized_path:
@@ -217,6 +304,70 @@ class FinancialsMutationMixin:
             on_success=lambda: self._invalidate_destinations("costs", "controls"),
         )
 
+    def _update_actual_draft(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_finance_mutation(
+            lambda: self._financials_workspace_presenter.update_actual_draft(
+                dict(payload)
+            ),
+            "Manual actual draft updated.",
+            on_success=lambda: self._invalidate_destinations("costs"),
+        )
+
+    def _delete_actual_draft(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_finance_mutation(
+            lambda: self._financials_workspace_presenter.delete_actual_draft(
+                dict(payload)
+            ),
+            "Manual actual draft deleted.",
+            on_success=lambda: self._invalidate_destinations("costs"),
+        )
+
+    def _run_rate_mutation(self, operation, success_message: str) -> dict[str, object]:
+        result = self._run_finance_mutation(
+            operation,
+            success_message,
+            on_success=lambda: self._invalidate_destinations("costs"),
+        )
+        if result.get("conflict"):
+            self._invalidate_destinations("costs")
+        return result
+
+    def _create_rate_card(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_rate_mutation(
+            lambda: self._financials_workspace_presenter.create_rate_card(dict(payload)),
+            "Rate Card created.",
+        )
+
+    def _update_rate_card(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_rate_mutation(
+            lambda: self._financials_workspace_presenter.update_rate_card(dict(payload)),
+            "Rate Card updated.",
+        )
+
+    def _deactivate_rate_card(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_rate_mutation(
+            lambda: self._financials_workspace_presenter.deactivate_rate_card(dict(payload)),
+            "Rate Card deactivated.",
+        )
+
+    def _add_rate_line(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_rate_mutation(
+            lambda: self._financials_workspace_presenter.add_rate_line(dict(payload)),
+            "Rate Line added.",
+        )
+
+    def _update_rate_line(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_rate_mutation(
+            lambda: self._financials_workspace_presenter.update_rate_line(dict(payload)),
+            "Rate Line updated.",
+        )
+
+    def _deactivate_rate_line(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_rate_mutation(
+            lambda: self._financials_workspace_presenter.deactivate_rate_line(dict(payload)),
+            "Rate Line deactivated.",
+        )
+
     def _create_cost_code(self, payload: dict[str, object]) -> dict[str, object]:
         return self._run_finance_mutation(
             lambda: self._financials_workspace_presenter.create_cost_code(
@@ -226,6 +377,48 @@ class FinancialsMutationMixin:
             on_success=lambda: self._invalidate_destinations(
                 "planning", "costs", "controls"
             ),
+        )
+
+    def _update_financial_profile(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_finance_mutation(
+            lambda: self._financials_workspace_presenter.update_financial_profile(dict(payload)),
+            "Financial setup updated.",
+            on_success=lambda: self._invalidate_destinations("controls", "planning", "costs"),
+        )
+
+    def _transition_financial_profile(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_finance_mutation(
+            lambda: self._financials_workspace_presenter.transition_financial_profile(dict(payload)),
+            "Financial profile status updated.",
+            on_success=lambda: self._invalidate_destinations("controls"),
+        )
+
+    def _update_cost_code(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_finance_mutation(
+            lambda: self._financials_workspace_presenter.update_cost_code(dict(payload)),
+            "Cost code updated.",
+            on_success=lambda: self._invalidate_destinations("controls", "planning", "costs"),
+        )
+
+    def _change_cost_code_status(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_finance_mutation(
+            lambda: self._financials_workspace_presenter.change_cost_code_status(dict(payload)),
+            "Cost-code status updated.",
+            on_success=lambda: self._invalidate_destinations("controls", "planning", "costs"),
+        )
+
+    def _add_cost_code_restriction(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_finance_mutation(
+            lambda: self._financials_workspace_presenter.add_cost_code_restriction(dict(payload)),
+            "Cost code added to the project allow-list.",
+            on_success=lambda: self._invalidate_destinations("controls", "planning", "costs"),
+        )
+
+    def _remove_cost_code_restriction(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_finance_mutation(
+            lambda: self._financials_workspace_presenter.remove_cost_code_restriction(dict(payload)),
+            "Cost code removed from the project allow-list.",
+            on_success=lambda: self._invalidate_destinations("controls", "planning", "costs"),
         )
 
     def _submit_actual(self, payload: dict[str, object]) -> dict[str, object]:

@@ -50,11 +50,8 @@ class ReportingBaselineCompareMixin:
                 code="BASELINE_COMPARE_PROJECT_MISMATCH",
             )
 
-        # Baseline comparison mixes non-financial schedule facts (dates,
-        # duration, change type) with Project Finance authority data
-        # (planned cost). report.view is sufficient for the former; the
-        # latter is redacted to None without a finance.read grant, matching
-        # the mixed-content pattern used by get_project_kpis.
+        # Planned-cost figures are redacted to None without a finance.read grant,
+        # matching get_project_kpis's mixed-content pattern.
         financial_detail_included = self._has_finance_view(project_id)
 
         all_rows = self._build_baseline_comparison_rows(

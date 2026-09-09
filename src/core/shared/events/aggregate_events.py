@@ -1,15 +1,3 @@
-"""ADR-005 §6 (Event Recording Decision): minimal aggregate event-recording behavior.
-
-Rule: if a DomainEvent represents a business fact produced directly by an aggregate's own
-state transition, the aggregate MUST record that event itself, via this mixin -- never a
-convenience default for the `uow.record_event(...)` escape hatch (reserved exclusively for
-facts with no single owning aggregate; that method lives on the future UnitOfWork contract,
-not here).
-
-Framework-independent: this mixin knows nothing about UnitOfWork, dispatchers, publishers,
-SQLAlchemy, or UI invalidation. It only records, inspects, and clears pending events.
-"""
-
 from __future__ import annotations
 
 from src.core.shared.events.domain_event import DomainEvent

@@ -1,5 +1,0 @@
-﻿module InventoryProcurement.Reservations
-ReservationsWorkspace 1.0 ReservationsWorkspace.qml
-ReservationsWorkspacePage 1.0 ReservationsWorkspacePage.qml
-ReservationsWorkspaceState 1.0 ReservationsWorkspaceState.qml
-ReservationsColumnConfig 1.0 ReservationsColumnConfig.js

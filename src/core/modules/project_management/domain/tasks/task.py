@@ -204,8 +204,7 @@ class Task:
                 # DEADLINE exists only as ConstraintValidator's internal
                 # classification for a task.deadline violation -- it is not
                 # a user-selectable value for THIS field (task.deadline is
-                # the real, separate field for that concept; see
-                # docs/pm_modernization/R4_4_TASK_CONSTRAINT_CURRENT_STATE_AND_TARGET_GAPS.md).
+                # the real, separate field for that concept).
                 raise ValidationError(
                     "Deadline is not a selectable scheduling constraint -- "
                     "set the task's deadline field instead.",

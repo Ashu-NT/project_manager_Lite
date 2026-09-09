@@ -4,12 +4,12 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission
 from src.core.platform.domain.security.auth import (
     normalize_auth_federated_subject,
     normalize_auth_identity_provider,
 )
+from src.core.platform.domain.security.auth.events import FederatedIdentityLinked
 from src.core.platform.common.exceptions import ValidationError
 
 from src.core.platform.application.security.auth.audit.security_audit import add_atomic_security_audit
@@ -77,7 +77,7 @@ def link_federated_identity(
         federated_subject=federated_subject,
         updated_at=datetime.now(timezone.utc),
     )
-    try:
+    with service._uow() as uow:
         service._user_repo.update(updated_user)
         add_atomic_security_audit(
             service,
@@ -90,11 +90,15 @@ def link_federated_identity(
             old_value=user.identity_provider,
             new_value=updated_user.identity_provider,
         )
-        service._session.commit()
-    except Exception:
-        service._session.rollback()
-        raise
-    domain_events.auth_changed.emit(updated_user.id)
+        uow.record_event(
+            FederatedIdentityLinked(
+                user_id=updated_user.id,
+                tenant_id=service._active_tenant_id_for_event(),
+                identity_provider=str(updated_user.identity_provider or ""),
+                occurred_at=updated_user.updated_at,
+            )
+        )
+        uow.commit()
     refresh_current_session_if_user(service, updated_user.id)
     return updated_user
 

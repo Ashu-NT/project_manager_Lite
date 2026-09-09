@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.application.tasks.task_events import (
+    TaskHierarchyChangeType,
+    TaskHierarchyChanged,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
@@ -18,7 +23,7 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from src.core.shared.activity import record_activity
-from src.core.shared.events.domain_events import domain_events
+from src.core.shared.audit import record_audit_entry
 
 
 class TaskHierarchyMixin:
@@ -151,35 +156,58 @@ class TaskHierarchyMixin:
                 -original_by_id[candidate.id].wbs_code.count("."),
             ),
         )
+        scope = self._active_task_scope(operation_label="move task in WBS")
         try:
-            # Deepest-first subtree writes avoid transient unique-code conflicts.
-            for candidate in ordered_updates:
-                self._task_repo.update(candidate)
-            record_activity(
-                self,
-                action="task.wbs_move",
-                entity_type="task",
-                entity_id=task.id,
-                module="project_management",
-                workspace_id=task.project_id,
-                details={
-                    "parent_task_id": parent_task_id,
-                    "wbs_code": resolved_wbs,
-                    "sort_order": target_index,
-                },
-                commit=False,
-            )
-            self._session.commit()
+            with self._task_uow() as uow:
+                # Deepest-first subtree writes avoid transient unique-code conflicts.
+                for candidate in ordered_updates:
+                    uow.tasks.update(candidate)
+                record_audit_entry(
+                    uow,
+                    operation="update",
+                    entity_type="task",
+                    entity_id=task.id,
+                    module="project_management",
+                    organization_id=scope.organization_id,
+                    severity="low",
+                    metadata={
+                        "action": "task.wbs_move",
+                        "parent_task_id": parent_task_id,
+                        "wbs_code": resolved_wbs,
+                    },
+                    commit=False,
+                    fail_closed=True,
+                )
+                record_activity(
+                    uow,
+                    action="task.wbs_move",
+                    entity_type="task",
+                    entity_id=task.id,
+                    module="project_management",
+                    workspace_id=task.project_id,
+                    details={
+                        "parent_task_id": parent_task_id,
+                        "wbs_code": resolved_wbs,
+                        "sort_order": target_index,
+                    },
+                    commit=False,
+                )
+                uow.record_event(
+                    TaskHierarchyChanged(
+                        tenant_id=scope.tenant_id,
+                        organization_id=scope.organization_id,
+                        project_id=task.project_id,
+                        task_id=task.id,
+                        change_type=TaskHierarchyChangeType.MOVED,
+                        occurred_at=datetime.now(timezone.utc),
+                    )
+                )
+                uow.commit()
         except IntegrityError as exc:
-            self._session.rollback()
             raise ValidationError(
                 "The requested WBS move conflicts with another task.",
                 code="TASK_WBS_CONFLICT",
             ) from exc
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.tasks_changed.emit(task.project_id)
         return self._task_repo.get(task.id) or updates[task.id]
 
     def recode_task(

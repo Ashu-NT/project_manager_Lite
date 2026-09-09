@@ -59,8 +59,7 @@ class SqlAlchemyTenantMembershipUnitOfWork(SqlAlchemyUnitOfWorkBase, TenantMembe
 
 
 class SqlAlchemyTenantMembershipUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
-    """Closes over a session *factory* (per ADR-005 Section 6.1), mirroring every sibling
-    Platform UoW factory -- every `create()` call opens a genuinely fresh Session."""
+    """Closes over a session factory -- every `create()` call opens a genuinely fresh Session."""
 
     def __init__(
         self,

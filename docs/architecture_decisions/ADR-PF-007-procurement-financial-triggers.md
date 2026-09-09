@@ -3,6 +3,7 @@
 - Status: accepted; Phase C.5 PO/receipt events and PM consumers implemented
 - Date: 2026-08-02
 - Implementation gate: Phase A2 contract and Phase C consumer
+- **2026-09-09 update:** the `inventory_procurement` module (the event producer) has been removed pending a future rebuild. PM's side of this contract — `ProcurementFinancialConsumer`, `ProcurementFinancialDispatcher`, the `Procurement*FinancialSource` contracts, and the `gateway/procurement` Protocol — remains in place, unwired, as the seam this ADR describes. This document stays the design record for that seam.
 
 ## Context
 

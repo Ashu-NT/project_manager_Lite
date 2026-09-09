@@ -8,10 +8,10 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
 PM_ROOT = Path("src/core/modules/project_management")
 TASK_DESKTOP_API = PM_ROOT / "api/desktop/tasks/api.py"
 SCHEDULING_MAPPER = Path(
-    "src/ui_qml/modules/project_management/presenters/scheduling/record_mappers.py"
+    "src/ui_qml/modules/project_management/presenters/scheduling/leveling_builder.py"
 )
 WBS_MIGRATION = Path(
-    "src/infra/persistence/migrations/versions/k9l0m1n2o3p4_add_task_owned_wbs.py"
+    "src/infra/persistence/migrations/versions/f3c89cac079d_initial_schema.py"
 )
 
 
@@ -33,12 +33,16 @@ def test_task_orm_owns_the_only_project_wbs_hierarchy() -> None:
 
 
 def test_task_wbs_migration_is_independent_and_reversible() -> None:
+    """`wbs_code` is created NOT NULL directly in the initial `tasks` table (no backfill step
+    is needed for a fresh-schema column), and the WBS-owning constraints/index remain present
+    and reversible in the one migration that now owns the whole schema."""
     source = WBS_MIGRATION.read_text(encoding="utf-8")
 
-    assert 'revision = "k9l0m1n2o3p4"' in source
-    assert 'down_revision = "j8k9l0m1n2o3"' in source
+    assert "revision: str = 'f3c89cac079d'" in source
+    assert "down_revision" in source and "None" in source.split("down_revision", 1)[1].split("\n", 1)[0]
     assert "def downgrade()" in source
-    assert "_backfill_root_wbs" in source
+    assert "sa.Column('wbs_code', sa.String(length=64), nullable=False)" in source
+    assert "op.drop_table('tasks')" in source
 
 
 def test_desktop_bulk_mutations_use_canonical_atomic_task_commands() -> None:
@@ -51,7 +55,10 @@ def test_desktop_bulk_mutations_use_canonical_atomic_task_commands() -> None:
 
 
 def test_scheduling_uses_canonical_wbs_instead_of_synthetic_codes() -> None:
+    """Resource Leveling's move rows (`leveling_builder.py`'s `_move_row`) display the per-task
+    WBS code, reading the real, Task-owned `wbs_code` field directly -- never a synthetic
+    `f"1.{row_index}"`-style placeholder."""
     source = SCHEDULING_MAPPER.read_text(encoding="utf-8")
 
-    assert '"wbs": item.wbs_code or "-"' in source
+    assert '"wbsCode": move.wbs_code' in source
     assert 'f"1.{row_index' not in source

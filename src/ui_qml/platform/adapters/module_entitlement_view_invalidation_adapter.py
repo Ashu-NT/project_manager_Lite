@@ -1,30 +1,21 @@
-"""P5B-3: the Qt adapter translating the five Module Entitlement events' `ViewInvalidationHint`
-(transport-independent) into a presentation-friendly Qt signal.
-
-Architectural boundary this file exists to preserve:
+"""The Qt adapter translating the five Module Entitlement events' `ViewInvalidationHint`
+(transport-independent) into a presentation-friendly Qt signal:
 
     Domain/Application -> ViewInvalidationChannel -> Qt adapter (here) -> controller/presenter
 
 Controllers/presenters connected to `moduleEntitlementsStale` know nothing about `DomainEvent`,
-`ModuleLicensed`/etc., `PostCommitEventPublisher`, `EventScope`, or `ScopeFilter` -- they only know
-"the module entitlement collection I read is stale," exactly the same shape of fact a future
-SSE/WebSocket adapter would translate for a web client from the identical `ViewInvalidationHint`.
+`PostCommitEventPublisher`, `EventScope`, or `ScopeFilter` -- they only know "the module
+entitlement collection I read is stale."
 
-Organization scoping (mirrors the Organization P6A hardening review, not its `TenantWide`
-subscription -- Module entitlements are organization-owned, not tenant-wide): subscribes via
-`ExactOrganization(tenant_id, organization_id)` for whichever organization is currently active.
-`AllTenants()`/`TenantWide(...)` are never used here -- an organization-specific read must not be
-invalidated by a broader filter merely because the eventual re-fetch happens to be tenant-safe.
+Subscribes via `ExactOrganization(tenant_id, organization_id)` for the active organization --
+never `AllTenants()`/`TenantWide(...)`, since module entitlements are organization-owned, not
+tenant-wide, and an organization-specific read must not be invalidated by a broader filter.
 
-Tenant AND organization switch lifecycle: a single `PlatformWorkspaceCatalog`/adapter instance
-persists across both kinds of switch in this desktop process (the QML controller tree is never
-reconstructed), so `set_active_scope(...)` must be re-invoked on either -- wired to
-`PlatformWorkspaceCatalog.refreshCurrentPermissions()` in `context.py`, the same existing hook the
-QML shell already calls immediately after both a tenant switch (`ContextBar.onTenantSelected`) and
-an organization switch (`ContextBar.onOrganizationSelected`) -- see `PlatformWorkspacePage.qml`.
-Each call disposes the previous subscription before creating the new one: at most one live
-subscription at any time, no stale Tenant-A/Organization-A1 registration surviving a switch to a
-different tenant or organization, no duplicate callbacks.
+A single adapter instance persists across both tenant and organization switches in this desktop
+process (the QML controller tree is never reconstructed), so `set_active_scope(...)` must be
+re-invoked on either -- wired to `PlatformWorkspaceCatalog.refreshCurrentPermissions()` in
+`context.py`. Each call disposes the previous subscription before creating the new one: at most
+one live subscription at any time, no stale registration surviving a switch.
 
 Thread safety: identical to `OrganizationViewInvalidationAdapter` -- see its own docstring.
 """
@@ -42,7 +33,7 @@ from src.core.shared.events.view_invalidation import (
     ViewInvalidationChannel,
     ViewInvalidationHint,
 )
-from src.ui_qml.platform.adapters.scoped_view_invalidation_subscription import (
+from src.ui_qml.shared.adapters.scoped_view_invalidation_subscription import (
     ScopedViewInvalidationSubscription,
 )
 

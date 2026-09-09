@@ -86,6 +86,9 @@ def planned_cost_line_to_orm(line: ProjectPlannedCostLine) -> ProjectPlannedCost
         rate_card_id=line.rate_card_id,
         rate_line_id=line.rate_line_id,
         rate_card_version=line.rate_card_version,
+        rate_line_version=line.rate_line_version,
+        rate_modifier=line.rate_modifier,
+        rate_modifier_multiplier=line.rate_modifier_multiplier,
         created_at=line.created_at,
     )
 
@@ -109,6 +112,9 @@ def planned_cost_line_from_orm(row: ProjectPlannedCostLineORM) -> ProjectPlanned
         rate_card_id=row.rate_card_id,
         rate_line_id=row.rate_line_id,
         rate_card_version=row.rate_card_version,
+        rate_line_version=row.rate_line_version,
+        rate_modifier=row.rate_modifier,
+        rate_modifier_multiplier=row.rate_modifier_multiplier,
         created_at=row.created_at,
     )
 

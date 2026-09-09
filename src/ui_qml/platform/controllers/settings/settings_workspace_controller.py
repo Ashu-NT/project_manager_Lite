@@ -97,10 +97,10 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
         self._set_organization_profiles(serialize_action_list(self._catalog_presenter.build_organization_profiles()))
 
     def refresh_module_entitlements(self) -> None:
-        """Narrow reaction to the module-entitlement-collection ViewInvalidation target (P5B-3
-        cutover) -- re-reads only the module entitlements list (and the metrics derived from it),
-        unlike `refresh()`'s full-workspace reload (organization profiles/integration
-        capabilities too), neither of which is stale after a module entitlement change."""
+        """Narrow reaction to the module-entitlement-collection ViewInvalidation target --
+        re-reads only the module entitlements list (and metrics derived from it), unlike
+        `refresh()`'s full-workspace reload (organization profiles/integration capabilities too),
+        neither of which is stale after a module entitlement change."""
         self._set_module_entitlements(serialize_action_list(self._catalog_presenter.build_module_entitlements()))
         self._update_settings_metrics()
 

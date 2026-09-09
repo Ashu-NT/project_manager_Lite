@@ -196,6 +196,7 @@ class SqlAlchemyFinanceChangeReader:
                 applied_budget_revision.label("applied_budget_revision"),
                 applied_forecast_revision.label("applied_forecast_revision"),
                 ApprovalRequestORM.status.label("approval_status"),
+                ApprovalRequestORM.requested_by_user_id,
                 ApprovalRequestORM.requested_by_username,
                 ApprovalRequestORM.requested_at,
                 ApprovalRequestORM.decided_by_username,
@@ -386,6 +387,7 @@ class SqlAlchemyFinanceChangeReader:
             approval_request_id=change.approval_request_id,
             approval_status=row.approval_status or "",
             approval_requested_by=row.requested_by_username or "",
+            approval_requested_by_user_id=row.requested_by_user_id,
             approval_requested_at=row.requested_at,
             approval_decided_by=row.decided_by_username or "",
             approval_decided_at=row.decided_at,
@@ -469,7 +471,9 @@ class SqlAlchemyFinanceChangeReader:
             schedule_finish=impact.schedule_finish,
             applied_reference_type=impact.applied_reference_type,
             applied_reference_id=impact.applied_reference_id,
+            row_version=impact.version,
             created_at=impact.created_at,
+            updated_at=impact.updated_at,
         )
 
 

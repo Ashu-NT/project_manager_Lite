@@ -2,10 +2,10 @@
 
 ## 1. Status
 
-**R6C IN PROGRESS.** R6A and R6B are closed. R6C-A, R6C-B, and R6C-C are
-complete. R6C-D through R6C-H remain open. This document records the verified
-R6C starting state and is the execution ledger for the forward-only write
-cutover. R6C must not be marked closed until every blocking exit gate is green.
+**R6C CLOSED.** R6A and R6B are closed, and R6C-A through R6C-H are
+complete. This document records the verified starting state, forward-only
+write cutover, and final closure evidence. Every R6C-owned blocking exit gate
+is green.
 
 ## 2. Scope
 
@@ -261,10 +261,8 @@ integration. R6H: final scale, exhaustive RLS, and release closure.
 
 ## 42. R6C Closure Decision
 
-**R6C NOT CLOSED.** Characterization is complete enough to begin the transaction
-cutover. Blocking work remains: caller-owned UoWs for all R6C command families,
-complete desktop/controller/QML workflows, rollback/SoD/concurrency/RLS proof,
-forward-only cleanup, and final regression evidence.
+**R6C CLOSED.** R6C-A through R6C-H are complete. Pre-release cleanup,
+architecture reconciliation, and broad final regression are green.
 
 ## R6C-A Transaction Ownership Migration
 
@@ -349,8 +347,8 @@ distinct current semantics, not R6C compatibility. No `*_without_commit` API,
 transaction bridge, deprecated caller, or Financial Change submission wrapper
 remains.
 
-R6C remains open. R6C-A added no QML workflow and started no R6D, R6E, R6F, or
-R6G implementation.
+At R6C-A closure, later R6C stages were still pending. R6C-A added no QML
+workflow and started no R6D, R6E, R6F, or R6G implementation.
 
 ## R6C-B Budget Governance Command UX
 
@@ -459,8 +457,8 @@ the subsequent Budget command commits through its isolated UoW.
 ## R6C-C Forecast Governance Command UX
 
 **Status: COMPLETE.** The existing Finance -> Planning -> Forecast destination
-is the only Forecast command UX. R6C remains open; R6C-D through R6C-H were not
-started by this stage.
+is the only Forecast command UX. At this point in the execution history,
+R6C-D through R6C-H had not started; they are now complete.
 
 ### R6C-C Authority Inventory
 
@@ -606,5 +604,703 @@ depth, not application authorization.
 - No Financial Change UX, R6C-D, or R6D-R6G implementation was started. Nothing
   was committed by this implementation pass.
 
-R6C remains open. The next approved stage is R6C-D Financial Change Governance
-Command UX; do not start it implicitly.
+At R6C-C closure, the next approved stage was R6C-D Financial Change Governance
+Command UX. Its completed implementation record follows.
+
+## R6C-D Financial Change Governance Command UX
+
+**Status: COMPLETE.** Finance -> Controls -> Change Control is the only
+Financial Change workspace and command UX. At this point in the execution
+history, R6C-E through R6C-H had not started; they are now complete.
+
+### R6C-D Authority And Lifecycle
+
+- CURRENT AUTHORITATIVE COMMANDS: create and versioned edit of a Draft Change
+  Request; add, versioned edit, and versioned removal of Draft Budget, Forecast,
+  or Schedule Impacts; versioned Submit; and Platform Approval Approve-and-Apply
+  or Reject.
+- INTERNAL SUPPORT OPERATIONS: approval participant apply/reject and the
+  Budget, Forecast, and Scheduling authority calls used by an approved Change.
+  They are not separate desktop or QML commands.
+- NOT SUPPORTED: cancel, withdraw, reopen, generic JSON Impact editing, direct
+  apply, and a separate post-approval apply queue. Approval and application are
+  one existing atomic decision semantic, so `canApprove` governs the single
+  **Approve & Apply** action; inventing a separate `canApply` button would expose
+  a lifecycle the domain does not have.
+- DEAD/SUPERSEDED: the broad `financial_changes_changed` signal and its Finance
+  controller consumer are deleted. The obsolete generic scoped-emission helper
+  left in the governance boundary after typed-event cutover is also deleted.
+  No compatibility Change command API, presenter, dialog, route, transaction
+  wrapper, or approval engine remains.
+
+Only Draft requests and their unapplied Impacts are mutable. Submit freezes the
+aggregate and creates one Platform Approval request. Reject preserves governed
+history. Approve atomically applies all supported effects and marks the request
+Applied; a second decision or application cannot create duplicate successors.
+
+### R6C-D Command Architecture
+
+The sole production path is QML -> Financials controller -> presenter command
+mapper -> typed desktop DTO/API -> `FinanceGovernanceCommandBoundary` ->
+transaction-neutral `FinancialChangeService` -> repositories/authority ports ->
+one Finance UoW commit -> typed post-commit invalidation -> existing R6B Change
+Reader refresh. No visible rows are mutated optimistically in QML.
+
+Create resolves tenant, organization, Project, actor, Project currency, and the
+current approved Budget/Forecast IDs and revisions on the server. QML never
+supplies those bases as authority. Request and parent mutations carry the
+request row version; Impact edit/removal also carries the Impact row version.
+Stale writes fail with `STALE_WRITE` and are not automatically retried.
+
+Desktop Impact DTOs preserve money as canonical decimal strings. The adapter
+converts to `Decimal`; there is no Financial Change monetary `float()` path and
+no FX or mixed-currency aggregation in QML.
+
+### R6C-D Typed Impact Semantics
+
+- Budget Impact records a proposed amount, currency, Cost Code, optional Task,
+  and optional captured base Budget Line. It does not mutate Budget before
+  approval. Apply delegates successor creation, revision allocation, line
+  adjustment, supersession, and audit to the R6C-B Budget authority.
+- Forecast Impact has the corresponding governed Forecast line semantics and
+  does not mutate Forecast before approval. Apply delegates to the R6C-C
+  Forecast authority; Financial Change does not duplicate source-decision,
+  Manual ETC, EAC, or VAC calculation logic.
+- Schedule Impact records a Task and requested dates. The server captures the
+  Task version, validates the proposal through the Scheduling port, and applies
+  it through the Task/Scheduling owner with `commit=False` inside the caller's
+  Finance transaction. Finance imports no Task ORM and runs no CPM or dependency
+  calculation.
+
+Cost Code, Task, and base-line choices use bounded server-side search, paging,
+deterministic ordering, tenant/organization/Project scope, and stale lookup
+generation guards. Budget/Forecast line lookup is limited to the exact base
+captured by the selected Draft Change; arbitrary IDs and non-Draft requests fail
+closed. Type-specific domain validation rejects incomplete shapes, inactive or
+unauthorized Cost Codes, cross-Project Tasks, stale Task snapshots, duplicate
+targets, unsupported currencies, and immutable Impact type changes.
+
+### R6C-D Approval, Bases, And Consistency
+
+Platform Approval remains the only decision authority. `financial_change.manage`,
+`approval.request`, and `approval.decide` remain distinct permissions, enforced
+globally and at Project scope. Read facts project deny-safe create/edit/add/
+remove/submit/approve/reject capabilities. Decision capability also compares the
+authenticated requester user ID with the current principal, preventing a
+requester from approving or rejecting their own request.
+
+Submit and Apply both revalidate relevant captured Budget/Forecast authority.
+Apply reloads current approved bases immediately before successor creation; any
+ID or revision movement fails closed with a specific stale-base conflict. There
+is no silent rebase, latest-version substitution, or apply-anyway path. Budget
+and Forecast effects use the same database Session and UoW as the Change. The
+Scheduling owner participates in that same transaction boundary, so mixed
+effects are all-or-nothing in the current modular-monolith deployment.
+
+Request transition, Platform Approval request, Impact/application evidence,
+successors, audit, and domain events are staged before one outward commit. No
+nested transaction or SAVEPOINT was added. Fault tests prove commit, audit,
+Budget/Forecast/Schedule participant failures roll back the complete operation.
+Post-commit notification failure is logged without undoing committed business
+state.
+
+### R6C-D UX And Invalidation
+
+The Change destination retains R6B authoritative master/detail DataTables with
+server paging, filtering, sorting, counts, explicit selection, and no first-row
+auto-selection. Server-projected capabilities control Create, Edit, Add/Edit/
+Remove Impact, Submit, Approve & Apply, and Reject. Capability state resets
+deny-safe during refresh and context changes; shared mutation state prevents
+double commands and stale async responses are ignored.
+
+Centralized request, typed Impact, and lifecycle dialogs use the shared
+scrollable-body/pinned-footer pattern. Required fields are marked and focus is
+moved to invalid input. Dialogs preserve entered values after command failure,
+support Escape/shared keyboard behavior, and fit 1024x640, 1280x720, 1366x768,
+1440x900, and 1920x1080.
+
+`FinancialChangeChanged` is the canonical typed event. Ordinary mutations
+invalidate only Change Control. Applied events always invalidate Change Control
+and add only the Budget, Forecast, or Schedule scopes represented by actual
+effects. Correlation-scoped deduplication prevents refresh storms. Events are
+dispatched after commit; no global Finance refresh was introduced.
+
+### R6C-D PostgreSQL, Cleanup, And Verification
+
+The repository Docker PostgreSQL 16 environment was recreated from Alembic head.
+The live command suite ran through non-owner `app_runtime` with `NOSUPERUSER` and
+`NOBYPASSRLS`. Legal same-scope Request and Impact commands succeeded. Foreign
+tenant and same-tenant foreign-organization commands were denied. Direct foreign
+Impact INSERT was rejected, while UPDATE and DELETE saw zero rows. Request and
+Impact stale-version writes failed closed through the real command boundary.
+
+- Focused Change command/domain/read/QML/approval/UoW/SQLite session/event slice:
+  `72 passed`.
+- Live PostgreSQL Finance governance command/RLS/concurrency slice: `7 passed`.
+- Financial Change dialogs pass the five required viewport matrix. Python
+  compilation and `git diff --check`: PASS. Runtime QML component tests are
+  green; standalone `qmllint` and optional `ruff` are unavailable in `pmenv`.
+- The P8 Financial Change stale-signal assertion was reconciled to the canonical
+  typed event and `financial_changes_changed` now has zero production references.
+  Current P8 result is `26 passed, 4 failed`; every remaining failure is owned by
+  pre-existing Commitment/Cost signals (`commitments_changed` and
+  `cost_entries_changed`). R6C-D did not alter or allowlist them.
+- Search found no Financial Change compatibility workflow, deprecated action,
+  direct Task persistence mutation, duplicate Budget/Forecast successor
+  algorithm, nested transaction, or temporary delete-later scaffold.
+
+R6C-E completion evidence follows. R6C-F through R6C-H had not started at this
+historical checkpoint, and R6D-R6G remained untouched.
+
+## R6C-E Financial Setup Governance Command UX
+
+**Status: COMPLETE.** R6C-F Integrated Governance Hardening was not started as
+part of R6C-E; its completed record follows below.
+
+### R6C-E Command Inventory And Boundaries
+
+The authoritative Setup command inventory is:
+
+- Financial Profile update and lifecycle transition.
+- Organization Cost Code create, edit, activate, and deactivate.
+- Project Cost Code restriction add and remove.
+- Profile-owned default Cost Code, Budget control mode, Cost Code policy,
+  billing method, funded/billable flags, financial dates, and currency update.
+
+Financial Profile creation is an internal Project-creation support operation,
+not a second Setup workflow. Rate Card/Rate Line writes, Actual and Commitment
+lifecycle, Billing Preparation, Accounting delivery, Procurement, EVM, and
+Task/Schedule configuration remain outside R6C-E. No unsupported restriction
+type was invented: the persisted restriction is exactly Project-to-Cost-Code;
+there is no Task, Resource, Role, Site, or Department restriction model.
+
+The final write path is singular:
+
+`Financial Setup QML -> Financials controller -> Financials presenter -> typed
+desktop command -> ProjectManagementFinancialsDesktopApi ->
+FinanceGovernanceCommandBoundary.financial_setup -> transaction-neutral
+FinancialConfigurationService -> scoped repositories/audit -> one UoW commit ->
+post-commit invalidation -> FinanceSetupReader refresh`.
+
+The unused direct `FinancialConfigurationService` dependency on the desktop
+facade, factory, runtime builder, and runtime resolver was deleted. The service
+bundle's `financial_configuration_service` remains intentionally as a
+`FinanceGovernedServicePort`: it is the governed internal module port used by
+composition and test setup, not a direct-commit or desktop bypass. No Setup
+compatibility API, fallback workflow, duplicate route, duplicate presenter, or
+second visible Create Cost Code action remains.
+
+### R6C-E Read Model And UX
+
+`FinanceSetupReader` remains the only production read authority. Its immutable
+SQL implementation now supplies the Profile plus independently counted,
+server-paged, server-filtered, and server-sorted Cost Code and project allow-list
+collections. Ordering is allowlisted and deterministic; searches are bounded
+and tenant/organization/project scoped. QML performs no collection filtering,
+sorting, count, eligibility, or authority calculation.
+
+Controls -> Financial Setup contains a scalar Profile presentation, a Cost Code
+DataTable, and a project allow-list DataTable. The contextual toolbar owns
+Create Cost Code; selected-row actions own edit/status/restriction behavior.
+Centralized Profile, Cost Code, restriction, and lifecycle dialogs use shared
+currency/date/selector/dialog primitives, required-field validation, pinned
+actions, busy state, and actionable server errors. Cost Code parent/default/
+restriction selectors use bounded server search rather than preloading an
+enterprise collection.
+
+All four dialogs and the Setup section load at 1024x640, 1280x720, 1366x768,
+1440x900, and 1920x1080. Escape closes each dialog and the shared
+`EntityDialog.focusReturnTarget` contract restores keyboard focus to the
+invoking action. Existing PM, Platform, and Inventory dialog consumers remain
+green. Editable dialogs set initial focus on the first meaningful field;
+standard shared-dialog tab traversal remains authoritative.
+
+### R6C-E Profile And Cost Code Governance
+
+Profile writes require the current Profile version. Cost Code edits and status
+changes require the current Cost Code version. Stale writes raise explicit
+concurrency conflicts and the controller invalidates the authoritative Setup
+read rather than patching QML state. Profile status transitions retain the
+existing Draft/Active/On Hold/Closed domain lifecycle.
+
+The current domain treats currency as a versioned editable Profile field; it
+does not yet define a dependent-financial-activity lock. R6C-E preserves that
+actual server policy and does not pretend currency is client-read-only or invent
+an FX/migration workflow. Setup commands contain no monetary amount and add no
+float, Decimal conversion, rounding, or FX authority.
+
+Cost Code uniqueness, normalized code/name rules, hierarchy acyclicity, active
+ancestor rules, effective dates, paired external references, and lifecycle are
+server-owned. There is no hard-delete command: deactivation preserves all
+historical references, active children must be handled first, and a Cost Code
+used as any Profile default cannot be deactivated. A default must resolve in the
+same tenant/organization, be active/effective today, and, under restricted
+policy, belong to the selected Project's allow-list.
+
+Restriction uniqueness is enforced by the domain/database and duplicate add now
+returns an explicit business error. Add/remove is scoped to the selected Project
+and Cost Code. The restriction row is not versioned and does not advance a
+Profile version; concurrent duplicate Add is protected by uniqueness, while
+Remove is a scoped idempotent absence result. No historical Budget, Forecast,
+Actual, Commitment, Billing, or Change row is rewritten by policy or restriction
+changes.
+
+### R6C-E Permissions, Atomicity, And Invalidation
+
+The repository currently has one actual Setup write permission:
+`finance.manage`; reads require `finance.read`. Both global permission and
+Project-scoped permission/visibility are enforced for Project operations.
+Server-projected `canEditProfile`, `canTransitionProfile`,
+`canCreateCostCode`, per-row edit/status/restriction capabilities, and
+`canManageRestrictions` default false before refresh and remain false for a
+read-only or hidden Project. QML does not infer elevated authority.
+
+All Setup writes execute in a fresh operation Session. Business mutation,
+before/after Enterprise Audit evidence, and typed events are staged before the
+single outward commit. Audit or commit failure rolls back state and audit and
+cannot emit success invalidation. The shared Finance mutation guard rejects a
+second command with `FINANCE_COMMAND_BUSY`. Commands are synchronous on the UI
+thread and never populate local response state; successful completion marks
+Readers stale, while project/org-scoped invalidation binding prevents an event
+for one context from populating another.
+
+Profile events invalidate the exact Project Profile/dependent Setup read.
+Organization Cost Code events emit the organization-scoped
+`financial_cost_code_catalog` hint so active selectors refresh. Restriction
+events emit exact-project `financial_cost_code_restrictions` hints. Controller
+refresh dependencies are limited to Controls, Planning, and Costs where Profile
+or eligibility is projected. Dispatch is post-commit, correlation-deduplicated,
+and never performs a global Finance refresh.
+
+### R6C-E PostgreSQL And Test Evidence
+
+The touched tables are `project_finance_profiles`,
+`project_finance_cost_codes`, `project_finance_cost_code_restrictions`, and the
+transactional Enterprise Audit/Event infrastructure already owned by the UoW.
+The disposable PostgreSQL 16 environment was recreated from Alembic head. All
+live commands ran through non-owner `app_runtime`, validated as `NOSUPERUSER`
+and `NOBYPASSRLS`.
+
+- Legal same-scope Profile update, Cost Code creation, and restriction Add pass
+  through the real `FinanceGovernanceCommandBoundary`.
+- Cross-tenant and same-tenant/cross-organization Profile access/update see no
+  foreign row. Foreign Cost Code INSERT is rejected and UPDATE/DELETE affect
+  zero rows. Foreign restriction INSERT is rejected and UPDATE/DELETE affect
+  zero rows.
+- Application authorization separately proves hidden-Project denial, missing
+  `finance.manage` denial, and deny-safe read-only capabilities.
+- Focused R6C-E command/read/rule/authorization/invalidation/QML suite:
+  `36 passed`.
+- Setup authorization and transactional audit regression plus desktop facade,
+  presenter, and command-cutover regression: `76 passed` before the additional
+  keyboard cases were added.
+- R6C-A/B/C/D plus R6B Setup read regression: all `68` non-P8 tests passed.
+- Live PostgreSQL R6C governance/RLS/concurrency suite: `8 passed`.
+- Shared dialog regression across PM, Platform, and Inventory: `51 passed`.
+- This was the R6C-E point-in-time P8 result. R6C-G re-ran the current suite at
+  `31 passed`; no retired Finance process-local signal or P8 debt remains.
+
+Python compilation passes. Repository QML runtime/static component tests pass.
+Standalone `qmllint` and optional `ruff` remain unavailable in `pmenv` and were
+not installed. No Rate Card write, Actual/Commitment redesign, Billing write,
+Accounting integration, R6C-F, R6D, R6E, R6F, or R6G work was started.
+
+## R6C-F Integrated Governance Hardening
+
+**Status: COMPLETE.** At R6C-F closure, R6C-G cleanup and R6C-H final validation
+remained. R6C-F added no Finance product feature and did not start R6D-R6G.
+
+### Integrated Architecture
+
+The final integrated command path remains singular: a typed desktop command
+enters `FinanceGovernanceCommandBoundary`, which creates one operation-scoped
+Session/UoW, binds the Finance service, repositories, Enterprise Audit, and
+transactional events to that Session, commits once, then publishes targeted
+post-commit invalidation. Platform Approval owns its own fresh decision UoW and
+injects that exact Session into Budget, Forecast, or Financial Change
+participants. Readers remain immutable R6B query authorities.
+
+R6C services and all three approval participants contain no `commit()` or
+`rollback()`. The remaining Budget/Forecast `begin_nested()` uses are local
+constraint-conflict translation scopes inside the caller-owned transaction;
+they neither commit nor create a second authority. Financial Change mixed
+Budget/Forecast/Schedule apply has no independent transaction boundary.
+
+### Final Permission And Capability Matrix
+
+All Project operations require both the global permission and the same
+Project-scoped permission/visibility. Organization Cost Code creation without a
+Project still requires active tenant/organization context.
+
+| Capability | Required permission | Additional server-owned conditions |
+| --- | --- | --- |
+| Budget create/edit/delete/lines/submit/successor | `budget.manage` | visible Project; current row versions; mutable lifecycle; eligible dimensions; one-open-version rule; successor source approved |
+| Budget request approval | `approval.request` | Submitted; current version; no existing request |
+| Budget direct approve/reject/close | `budget.approve` | valid lifecycle and current version |
+| Budget Platform decision | `approval.decide` | pending matching request; deciding principal is not requester |
+| Forecast generate/create/input mutation/submit/regenerate | `forecast.manage` | visible Project; current parent/line versions; mutable lifecycle; authoritative source evidence; one-open-version rule |
+| Forecast request approval | `approval.request` | Submitted; current version; no existing request |
+| Forecast direct approve/reject | `forecast.approve` | valid lifecycle and current version |
+| Forecast Platform decision | `approval.decide` | pending matching request; deciding principal is not requester |
+| Change create/edit/Impact mutation | `financial_change.manage` | visible Project; Draft; current Request/Impact versions; valid target and base evidence |
+| Change submit | `financial_change.manage` + `approval.request` | non-empty valid Impacts; current approved bases; no conflicting open Budget/Forecast |
+| Change approve/reject/apply | `approval.decide` | pending matching request; non-requester; unchanged bases and target versions |
+| Setup Profile, Cost Code, lifecycle/default/control/restriction writes | `finance.manage` | visible Project where Project-scoped; current version where versioned; lifecycle, hierarchy, eligibility, uniqueness, and default rules |
+
+Permission alone is never presented as capability. Project visibility,
+lifecycle, entity version/state, open-version constraints, requester identity,
+approval status, and apply state are projected by the authoritative query.
+`manage` does not imply approval. A genuine second principal succeeds; a
+requester holding both management and decision permissions is still denied
+approve and reject with `APPROVAL_SELF_DECISION_FORBIDDEN` for Budget, Forecast,
+and Financial Change. Setup is not forced into Platform Approval because its
+authoritative model does not require that workflow.
+
+### Deny-Safe Presentation And Context Safety
+
+Before each active Budget, Forecast, Change, or Setup authority read, the
+controller clears that visible surface's privileged capabilities and
+capability-bearing rows. Failed or delayed reads therefore remain denied rather
+than displaying prior authority. Project switches clear all destination state.
+Forecast and Change parent switches already clear their detail/child state;
+Budget parent switching now also clears prior lines immediately. The existing
+generation token rejects stale A/B/C selection/filter responses.
+
+Refresh and command errors clear safely through the controller boundary.
+Commands remain synchronously guarded by `FINANCE_COMMAND_BUSY`; no timer,
+thread, event loop, optimistic local patch, or duplicate command path was added.
+Tenant/organization matching remains mandatory for event consumption, and live
+PostgreSQL tests prove that a different tenant or same-tenant foreign
+organization cannot read or mutate the governed rows.
+
+### Approval And Concurrency Hardening
+
+Approval decisions now load the scoped `ApprovalRequest` with PostgreSQL
+`SELECT ... FOR UPDATE OF approval_requests` before checking `PENDING`, SoD, or
+invoking any participant. The row lock serializes Budget, Forecast, Change, and
+approve-versus-reject races through one shared Platform invariant. The losing
+transaction observes the committed terminal status and raises
+`APPROVAL_ALREADY_DECIDED`; it cannot execute duplicate downstream effects.
+
+The live `app_runtime` race test holds the first decision lock, proves a second
+runtime transaction blocks, commits `REJECTED`, and proves the contender then
+observes `REJECTED`. A separate service guard proves decision code cannot fall
+back to the unlocked repository read.
+
+Budget stale header/line/parent writes, submit/delete races, open-version and
+revision races, approval conflict translation, successor uniqueness, and
+immutable approved history remain green. Forecast stale mutation/submit,
+one-open generation, successor supersession, source evidence, and immutable
+approved history remain green. Financial Change stale Request/Impact,
+submit/apply/reapply, and audit rollback remain green.
+
+New cross-family tests move the approved Budget only, Forecast only, and both
+bases after Change submission. Apply fails closed with the exact Budget or
+Forecast stale-base code, performs no silent rebase, creates no additional
+successor, and leaves both Change and Approval pending. The existing mixed
+Budget+Forecast test proves one atomic apply and the audit-fault test proves all
+successors and Schedule effects roll back together.
+
+### Fault, Audit, And Authority Boundaries
+
+- Validation, authorization, lifecycle, optimistic-concurrency, and participant
+  failures roll back the business mutation and fail-closed audit together.
+- Commit failure emits no success invalidation. Post-commit invalidation or
+  notification failure cannot undo committed business state.
+- Budget, Forecast, Change, and Setup audit writes share the command Session.
+  Platform decision audit shares the Platform decision Session.
+- Schedule effects continue through Task-owned command authority; Finance does
+  not import or directly mutate Task ORM. Project does not regain Budget truth,
+  and Resource/Assignment/Time, Procurement, Rate, Actual, Commitment, Billing,
+  and Accounting ownership are unchanged.
+- Decimal amounts and canonical decimal strings remain authoritative. QML uses
+  numeric conversion only for versions, paging, and display mechanics; it does
+  not calculate Finance amounts. Currency remains explicit, with no FX or
+  unlike-currency aggregation. Existing float EVM/Cost calculations are R6E
+  scope and were not changed.
+
+### Final Invalidation Map
+
+| Mutation family | Exact read destinations/scopes |
+| --- | --- |
+| Budget | Finance `overview`, `planning`, and `performance`; typed Budget read invalidation |
+| Forecast | Forecast version/line and approved-basis scopes; Finance `overview`, `planning`, and `performance` |
+| Financial Change draft/submit/reject | `financial_change_workspace` / Finance `controls` |
+| Financial Change apply | Change workspace plus only represented `financial_change_budget_basis`, `financial_change_forecast_basis`, and/or `financial_change_schedule`; affected Finance destinations only |
+| Setup Profile | exact Project `financial_profile`; dependent `controls`, `planning`, and `costs` |
+| Setup Cost Code catalog | organization `financial_cost_code_catalog`; dependent bounded selectors |
+| Setup restriction | exact Project `financial_cost_code_restrictions`; dependent bounded selectors |
+
+Dispatch remains post-commit and correlation-deduplicated. Reads emit nothing.
+Controller teardown/reopen does not duplicate subscriptions, and no generic
+global Finance refresh or event loop was introduced.
+
+### PostgreSQL Security Evidence
+
+The repository PostgreSQL 16 compose environment was recreated through Alembic
+and the complete R6C command/RLS file passed `9` tests. `app_runtime` is verified
+`NOSUPERUSER`, `NOBYPASSRLS`, and non-owner. Legal same-scope commands pass.
+Foreign tenant and same-tenant/foreign-organization access fails closed for
+Budget/BudgetLine, Forecast/ForecastLine/ForecastSourceDecision, Financial
+Change/Impact, and Setup Profile/Cost Code/restriction surfaces. Direct foreign
+INSERT is rejected and scoped UPDATE/DELETE sees zero rows. Application-layer
+permission denial is tested separately from RLS.
+
+### SQL Characterization
+
+The rerunnable R6C-F characterization test records current SQLite statement
+counts without imposing a speculative threshold:
+
+| Family | Observed command counts |
+| --- | --- |
+| Budget | create `14`; line add `12`; line update `11`; submit `9`; approval request `21`; decision `18`; successor `16` |
+| Forecast | generate `23`; input add `12`; submit `10`; approval request `22`; decision `16`; regenerate successor `23` |
+| Change | create `11`; Impact add `15`; Impact update `16`; submit `27`; decision/apply `36` |
+| Setup | Profile update `3`; Cost Code create `7`; update `6`; restriction add `12`; remove `10` |
+
+Characterization exposed a real Approval notification N+1: recipient discovery
+issued one `role_permissions` query for each of 30 roles. The repository now
+resolves all role IDs for `approval.decide` in one inverse lookup and then loads
+bindings only for matching roles. Budget request dropped `51 -> 21`, Forecast
+request `52 -> 22`, and Change submit `57 -> 27`. Remaining repeated
+tenant/organization and audit statements in mixed Change apply are fixed-size
+per authority/audit operation, not per result row. Existing server-bounded
+Budget, Forecast manual ETC/risk, Change target, and Setup selector tests remain
+green.
+
+### Verification And Remaining Work
+
+- R6C A-E command/domain/read/participant matrix: `164 passed`; added SoD and
+  participant transaction guards: `4 passed`.
+- Platform Approval, invalidation, controller/presenter, responsive QML,
+  keyboard/Escape, and cross-module shared-dialog matrix: `192 passed, 1
+  skipped`.
+- Post-N+1 Approval/notification/SQL characterization matrix: `22 passed`.
+- R6B destination/read/bounded-query/invalidation regression: `99 passed`.
+- Architecture/module/read-write guards: `45 passed`.
+- PostgreSQL runtime-role/RLS/concurrency matrix: `9 passed`.
+- This was the R6C-F point-in-time P8 result. R6C-G confirms the current P8
+  suite is fully green at `31 passed`; no dead signal was restored.
+- Runtime QML tests cover all required viewports, including 1024x640, and shared
+  `EntityDialog` focus return across Finance and existing PM/Platform/Inventory
+  consumers. Standalone `qmllint` and optional `ruff` remain unavailable in
+  `pmenv`; they were not installed.
+- Targeted Python compilation and `git diff --check` pass. No files were
+  committed.
+
+R6C-F had no blocker. At its closure, R6C-G cleanup and R6C-H broad final
+closure remained; R6D-R6G were not started.
+
+## R6C-G Pre-Release Cleanup And Architecture Closure
+
+**Status: COMPLETE.** At R6C-G closure, only R6C-H final validation remained.
+R6C-G added no Finance product capability and did not start R6D-R6G.
+
+### Forward-Only Production Architecture
+
+The final R6C path is singular:
+
+`Financial QML -> Financials controller -> Financials presenter -> typed
+desktop command -> ProjectManagementFinancialsDesktopApi ->
+FinanceGovernanceCommandBoundary -> transaction-neutral service/domain -> fresh
+FinanceGovernanceUnitOfWork -> one commit -> typed post-commit invalidation ->
+authoritative R6B Reader refresh`.
+
+`FinanceGovernanceCommandBoundary` remains the sole outward R6C transaction
+owner. Its family methods now accept only the command callable. The unused
+`project_id` routing parameter and `FinanceGovernedServicePort._project_id()`
+pre-read shim were deleted. Each command service resolves, scopes, and
+authorizes its own aggregate inside the fresh operation UoW; the governed port
+does not inspect private repositories or perform permission-masking reads.
+
+The desktop runtime resolver no longer imports, resolves, stores, or exposes
+unused direct `ForecastVersionService` and `FinancialChangeService`
+dependencies. Active internal module consumers continue to receive the
+canonical `FinanceGovernedServicePort`, while the desktop facade receives only
+the composed governance boundary and current read authorities.
+
+The redundant QML `openCreateCostCodeDialog()` alias and its test-only consumer
+were removed. The single active entry point is
+`openCostCodeDialog("create", null)`; there is no second dialog, controller slot,
+presenter command, route, or capability source.
+
+### Inventory Classification
+
+Current authoritative production code retained:
+
+- Typed Finance desktop command DTOs and the QML-to-presenter map conversion at
+  the UI boundary. `QVariantMap` is a QML transport shape, not a second domain
+  command authority.
+- One `FinanceGovernanceCommandBoundary`, one fresh UoW factory, and governed
+  internal service ports. The ports are active module command boundaries, not
+  compatibility adapters.
+- One immutable R6B Reader/query architecture and one active controller,
+  presenter, QML workspace, dialog host, and destination path per Finance
+  concept.
+- One Platform Approval apply registration and one reject registration for each
+  of `budget.approve`, `forecast.approve`, and `financial_change.apply`.
+- Direct Budget/Forecast decision methods where the current server governance
+  policy explicitly permits direct decisions. These are distinct current
+  semantics, not compatibility with Platform Approval.
+- Budget/Forecast `begin_nested()` blocks used only to translate database
+  uniqueness conflicts inside the caller-owned transaction. They neither
+  commit nor establish a second authority.
+- Project approved-budget read projections, which display Finance-owned truth
+  and do not restore a mutable Project Budget field or Project write command.
+- Current Cost/Commitment transaction behavior and the float-based
+  `EarnedValueCalculator`, which are later R6D/R6E authoritative replacement
+  scopes rather than R6C compatibility paths.
+
+Superseded production/test artifacts deleted or migrated:
+
+- ignored family-level `project_id` boundary parameters and every caller that
+  supplied them;
+- private aggregate/repository pre-reads performed by the governed service
+  proxy solely to manufacture that ignored routing value;
+- unused Forecast/Financial Change write-service fields in the desktop runtime
+  resolver;
+- redundant Create Cost Code QML alias and the test preserving it;
+- fake boundaries and permission-order descriptions preserving the retired
+  parameter/pre-read contract.
+
+Repository-wide targeted searches found no R6C compatibility API, old builder,
+aggregate-read fallback, duplicate presenter/controller/dialog, deprecated
+Finance destination, temporary delete-later scaffold, Financial Change
+submission UoW, direct Financial Change `TaskORM` mutation, local QML Finance
+formula, or active `budgets_changed`, `forecasts_changed`,
+`financial_changes_changed`, or `financial_setup_changed` signal. Current typed
+events have one scoped invalidation-handler chain and controller event bindings
+remain tenant/organization/project checked and correlation deduplicated.
+
+### Fresh-Schema Correction
+
+The live PostgreSQL gate exposed one unrelated but blocking fresh-lineage defect
+in migration `d8e1f4a7b2c3`: raw SQLite Boolean literals were used while
+deduplicating active Portfolio scoring templates. The migration now uses a
+typed SQLAlchemy update and windowed keeper subquery, producing correct Boolean
+predicates on both PostgreSQL and SQLite without changing the invariant or
+creating a compatibility branch. Fresh Alembic upgrade now reaches head.
+
+### Architecture Guards And Verification
+
+`test_r6c_g_architecture_closure.py` now prevents reintroduction of:
+
+- family routing metadata or proxy pre-read identity resolution;
+- multiple outward boundary commits;
+- unused direct Forecast/Financial Change desktop-runtime write dependencies;
+- untyped R6C desktop command entry points;
+- duplicate R6C approval participant registrations;
+- retired process-local Finance signals;
+- Financial Change submission UoW/direct Task ORM coupling; and
+- the retired Cost Code dialog alias.
+
+Verification evidence:
+
+- focused R6C command, UX-contract, approval, invalidation, Reader regression,
+  architecture, and SQLite session-handoff suite: `190 passed, 1 skipped`;
+- focused Budget/Billing permission-order regressions: `4 passed`;
+- P8 event architecture canonicalization: `31 passed`;
+- cross-dialect Portfolio migration regression: `2 passed`;
+- fresh Alembic plus live PostgreSQL R6C runtime-role/RLS/concurrency suite:
+  `9 passed` through non-owner `app_runtime`;
+- targeted Python compilation passes;
+- QML dialog-host coverage passes in the focused suite;
+- standalone `qmllint` and optional `ruff` remain unavailable in `pmenv` and
+  were not installed.
+
+The repository PostgreSQL 16 compose container remained healthy and running for
+R6C-H. R6C-G had no blocker. No commit was created by that stage.
+
+## R6C-H Broad Regression And Final Closure
+
+**Status: COMPLETE. R6C CLOSED.** The final gate implemented no new Finance
+product capability and did not begin R6D, R6E, R6F, R6G, or R6H scope.
+
+### Closure Remediation
+
+The first broad PM run exposed one genuine production defect: the
+Financial Change approval dependency factory created its transaction-bound
+`TaskService` without the same-session Enterprise Audit service. Governed
+Schedule Impact application therefore failed closed before writing. The
+factory now injects the already-created audit service, and an architecture
+assertion proves both task participant and audit authority use the supplied
+approval Session.
+
+The same run exposed stale tests that still modeled ambient Session commits,
+retired service constructor arguments, an old tenant-context contract, and an
+obsolete family-level `project_id` boundary argument. Their fixtures now model
+the canonical UoW/scope contracts. Two asynchronous Finance Loader tests now
+use bounded event-loop waits instead of assuming a fixed number of immediate
+iterations. No production compatibility path was restored for an old test.
+
+### Final Architecture Decision
+
+Budget, Forecast, Financial Change, and Financial Setup each retain one
+production path:
+
+`QML -> controller -> presenter -> typed desktop command ->
+ProjectManagementFinancialsDesktopApi -> FinanceGovernanceCommandBoundary ->
+fresh operation-scoped Finance UoW -> transaction-neutral authority -> one
+outward commit -> typed post-commit invalidation -> authoritative R6B Reader`.
+
+Platform Approval remains the only approval authority. Approval apply/reject
+participants use the caller-supplied locked decision Session, perform no
+independent commit, and preserve self-decision denial. Financial Change
+continues to delegate Budget, Forecast, and Scheduling mutations to their
+owning authorities; it performs no direct Task ORM mutation. R6B Readers remain
+read-only. Budget/Forecast `begin_nested()` scopes remain only for translating
+database uniqueness races inside the caller-owned transaction; they neither
+commit nor establish another transaction authority.
+
+Approved Budget authority, approved-history immutability, exact Decimal line
+summation, Forecast source/as-of/Manual ETC/Risk semantics, ETC/EAC/VAC
+definitions, project currency enforcement, Setup lifecycle/restrictions, and
+typed targeted invalidation all remain unchanged. Project, ProjectResource,
+TaskAssignment, TimeEntry, Procurement, Scheduling, Rate, Actual, Commitment,
+EVM, Billing, and Accounting ownership boundaries were not broadened.
+
+### Final Verification Evidence
+
+- Full PM regression after remediation: `1968 passed, 1 skipped`.
+- Focused audit-participant, assignment-UoW, and Finance Loader remediation:
+  `16 passed`, followed by all five accounting/manual-actual viewport cases at
+  `5 passed`.
+- Platform Approval, P8, and shared dialog regression: `128 passed`.
+- Current standalone P8 canonicalization file: `25 passed`; its present
+  collection has 25 tests, all green. Earlier `31 passed` records above are
+  retained as accurate point-in-time suite evidence.
+- SQLite fresh migration/downgrade and Finance migration regression: `4 passed`.
+- Fresh PostgreSQL Alembic-to-head plus runtime-role/RLS/concurrency suite:
+  `9 passed` through non-owner `app_runtime`.
+- The PostgreSQL fixture recreated `public` under `r5h_migrator`; runtime tests
+  used `app_runtime` with `NOSUPERUSER`, `NOBYPASSRLS`, and no protected-table
+  ownership. Parent/child foreign-scope writes were denied, legal scoped writes
+  succeeded, stale writes failed closed, and approval decisions serialized.
+- The `d8e1f4a7b2c3` Boolean correction passed fresh SQLite and PostgreSQL paths
+  and its repository-supported downgrade check. No separate ORM/schema parity
+  guard was found; fresh Alembic plus ORM-backed integration suites passed.
+- Python compilation and `git diff --check`: PASS.
+- Repository QML runtime/component and five-viewport checks passed within the
+  full PM suite. Standalone `qmllint` and optional `ruff` remain unavailable in
+  `pmenv`; neither result is claimed or fabricated.
+- Final static searches found one outward R6C commit owner, no Finance service
+  or approval-participant commit, no superseded R6C API/builder/presenter/QML/DI
+  path, no retired Finance process-local signal, no direct Financial Change
+  `TaskORM` mutation, and no authoritative QML money arithmetic.
+
+All failures observed during R6C-H were inspected and resolved. The production
+audit-wiring failure was an R6C correctness regression; the remaining failures
+were stale test-contract or bounded asynchronous-wait defects. No blocker,
+created file, deleted file, or superseded R6C compatibility architecture
+remains. Nothing was committed by R6C-H.
+
+### Deferred Work Preserved
+
+- R6D: Cost, Commitment, Actual, and Rate write modernization.
+- R6E: Decimal EVM, Variance, and Cost Phasing remediation.
+- R6F: Billing Preparation writes, projected commercial revenue, and profitability.
+- R6G: Durable Accounting handoff, outbox, worker, and adapters.
+- R6H: Release-scale certification, exhaustive RLS, and final Finance hardening.
+
+The PostgreSQL test container is intentionally left running for subsequent
+approved phases. R6C-H stops here; R6D has not started and no commit was made.

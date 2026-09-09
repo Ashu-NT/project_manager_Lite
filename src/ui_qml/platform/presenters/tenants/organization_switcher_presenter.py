@@ -11,7 +11,7 @@ class OrganizationSwitcherPresenter:
     """Transforms PlatformTenantDesktopApi's organization-switcher responses into view models.
 
     Session/working-context only -- never organization availability (enable/disable) or
-    organization-scoped access grants, which stay on their own workspaces (P10A/P10B)."""
+    organization-scoped access grants, which stay on their own workspaces."""
 
     def __init__(self, *, tenant_api: PlatformTenantDesktopApi | None = None) -> None:
         self._tenant_api = tenant_api

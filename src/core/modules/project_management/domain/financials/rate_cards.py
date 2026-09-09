@@ -45,10 +45,10 @@ def _snapshot_utc_now() -> datetime:
 
 @dataclass(frozen=True, slots=True)
 class RateSelectionSnapshot:
-    """An immutable record of one ADR-PF-005 rate resolution — the
-    monetary rate selected, which line/card/version produced it, and any
-    modifier applied. Lives in the domain layer (not application, where
-    the resolver that builds these lives) so both the resolver and the
+    """An immutable record of one rate resolution — the monetary rate
+    selected, which line/card/version produced it, and any modifier
+    applied. Lives in the domain layer (not application, where the
+    resolver that builds these lives) so both the resolver and the
     read/resolution contracts can depend on it without either depending
     on the other's layer."""
 
@@ -56,6 +56,7 @@ class RateSelectionSnapshot:
     rate_card_id: str
     rate_line_id: str
     rate_card_version: int
+    rate_line_version: int
     origin: RateLineOrigin
     precedence_level: int
     effective_date: date
@@ -152,6 +153,19 @@ class ProjectRateCard:
     def is_organization_wide(self) -> bool:
         return self.project_id is None
 
+    def rename(self, name: str, *, changed_at: datetime | None = None) -> None:
+        if not self.is_active:
+            raise ValidationError(
+                "Inactive Rate Cards cannot be edited.",
+                code="RATE_CARD_INACTIVE",
+            )
+        self.name = normalize_required_text(
+            name,
+            message="Rate card name is required.",
+            code="RATE_CARD_NAME_REQUIRED",
+        )
+        self.updated_at = changed_at or _utc_now()
+
     @staticmethod
     def create(
         *,
@@ -247,10 +261,8 @@ class RateCardLine:
     @field_validator("role", "skill_code", mode="before")
     @classmethod
     def _normalize_optional_dimensions(cls, value: object) -> str | None:
-        # Canonicalized at write time (lowercase), matching this codebase's
-        # established convention for controlled/catalog-like values — see
-        # ResourceSkill.skill_code and TaskSkillRequirement.skill_code. This
-        # is what lets the resolver compare without re-folding every read.
+        # Canonicalized to lowercase at write time so the resolver can compare
+        # without re-folding on every read.
         normalized = normalize_optional_text(value).lower()
         return normalized or None
 

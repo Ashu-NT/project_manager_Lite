@@ -23,6 +23,15 @@ class RateCardDeactivated:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class RateCardUpdated:
+    tenant_id: str
+    organization_id: str
+    rate_card_id: str
+    project_id: str | None
+    occurred_at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class RateCardLineAdded:
     tenant_id: str
     organization_id: str
@@ -55,6 +64,7 @@ class RateCardLineDeactivated:
 __all__ = [
     "RateCardCreated",
     "RateCardDeactivated",
+    "RateCardUpdated",
     "RateCardLineAdded",
     "RateCardLineUpdated",
     "RateCardLineDeactivated",

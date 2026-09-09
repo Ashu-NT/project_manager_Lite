@@ -72,23 +72,14 @@ def request_approval_using(
     requested_by_user_id: str | None = None,
     requested_by_username: str | None = None,
 ) -> ApprovalRequest:
-    """Stages a new `ApprovalRequest` (duplicate-pending guard, construction, `repo.add()`,
-    fail-closed audit entry) and records the ONE `ApprovalRequested` fact for it (Approval-P2),
-    inside the caller's OWN already-open transaction. Never commits; the caller calls
-    `uow.commit()` (or equivalent) itself, after this returns.
+    """Stages a new `ApprovalRequest` (duplicate-pending guard, fail-closed audit entry,
+    `ApprovalRequested` event) inside the caller's own open transaction. Never commits -- the
+    caller commits.
 
-    `tenant_id` is REQUIRED and never derived here -- the caller resolves it once, from its own
-    authoritative context, before calling this function (ADR-005 Section 3's rule: never
-    re-derive ambient state after construction). `organization_id` is likewise supplied by the
-    caller, never read from ambient `TenantContextService` state inside this module.
-
-    `record_event` is a narrow, transaction-provided callback (conceptually `owning_uow.
-    record_event`) -- never a concrete UnitOfWork/Session import here, so this module stays
-    transaction-agnostic and reusable by every owning transaction (ADR-005 Section 24's
-    "narrow transaction-provided recording capability" rule, mirroring `role_binding_mutation_
-    participant.py`'s own `record_event: Callable[[object], None]` parameter). `clock` is
-    likewise supplied by the caller (never `datetime.now()` here), so `ApprovalRequested.
-    occurred_at` is deterministic under a fixed-clock test.
+    `tenant_id`, `organization_id`, and `clock` are always supplied by the caller rather than
+    re-derived from ambient context here, keeping this deterministic and reusable across
+    transactions. `record_event` is a narrow transaction-provided callback, never a concrete
+    UnitOfWork/Session import.
     """
     if (
         organization_id

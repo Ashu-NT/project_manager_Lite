@@ -25,9 +25,7 @@ class ProjectBaselineSubmitted:
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ProjectBaselineApproved:
     """`superseded_baseline_id` is the previously-approved baseline this approval superseded,
-    or None if there was no prior approved baseline for the project -- a genuine data fact of
-    the SAME approval decision, not a separately-triggerable business operation (no source
-    path ever supersedes a baseline independently of approving another one)."""
+    if any -- part of the same approval decision, never a separately-triggerable operation."""
 
     tenant_id: str
     organization_id: str

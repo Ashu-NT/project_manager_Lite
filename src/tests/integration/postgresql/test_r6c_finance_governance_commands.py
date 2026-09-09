@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 from decimal import Decimal
+from threading import Event, Thread
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
@@ -33,8 +35,16 @@ from src.core.modules.project_management.application.financials.governance impor
     FinanceGovernanceCommandBoundary,
     FinanceGovernanceOperations,
 )
+from src.core.modules.project_management.domain.financials.financial_change import (
+    FinancialChangeImpactType,
+)
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
     FinancePageRequest,
+)
+from src.core.platform.common.exceptions import ConcurrencyError
+from src.core.platform.domain.approval import ApprovalStatus
+from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
+    SqlAlchemyApprovalRepository,
 )
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
@@ -152,6 +162,7 @@ def seeded_r6c_scopes(postgres_test_environment):
 def _user_session() -> UserSessionContext:
     permissions = frozenset(
         {
+            "finance.read",
             "finance.manage",
             "budget.manage",
             "forecast.manage",
@@ -258,6 +269,11 @@ def _boundary(postgres_test_environment, *, scope: _TenantContext):
                 tenant_context_service=scope,
                 record_event=uow.record_event,
             ),
+            planned_costs=SimpleNamespace(),
+            commitments=SimpleNamespace(),
+            cost_entries=SimpleNamespace(),
+            billing_profiles=SimpleNamespace(),
+            billing_preparations=SimpleNamespace(),
         )
 
     return FinanceGovernanceCommandBoundary(
@@ -275,8 +291,7 @@ def test_r6c_commands_use_app_runtime_and_preserve_rls_scope(postgres_test_envir
         lambda service: service.create_cost_code(code="R6C-RUNTIME", name="Runtime"),
     )
     budget = boundary.budget(
-        lambda service: service.create_budget(PROJECT_A, "R6C Budget"),
-        project_id=PROJECT_A,
+        lambda service: service.create_budget(PROJECT_A, "R6C Budget")
     )
     budget_line = boundary.budget(
         lambda service: service.add_line(
@@ -300,8 +315,7 @@ def test_r6c_commands_use_app_runtime_and_preserve_rls_scope(postgres_test_envir
                     amount=Decimal("75.25"),
                 ),
             ),
-        ),
-        project_id=PROJECT_A,
+        )
     )
     forecast = forecast_result.forecast
     change = boundary.financial_change(
@@ -311,8 +325,18 @@ def test_r6c_commands_use_app_runtime_and_preserve_rls_scope(postgres_test_envir
             reason="Runtime role proof",
             effective_date=date(2026, 9, 1),
             created_by="r6c-runtime-user",
-        ),
-        project_id=PROJECT_A,
+        )
+    )
+    impact = boundary.financial_change(
+        lambda service: service.add_impact(
+            change.id,
+            impact_type=FinancialChangeImpactType.BUDGET,
+            description="R6C governed budget impact",
+            amount=Decimal("10.25"),
+            currency_code="USD",
+            cost_code_id=setup.id,
+            expected_change_version=change.row_version,
+        )
     )
 
     session = postgres_test_environment.runtime_session(
@@ -357,8 +381,171 @@ def test_r6c_commands_use_app_runtime_and_preserve_rls_scope(postgres_test_envir
             text("SELECT count(*) FROM project_finance_change_requests WHERE id=:id"),
             {"id": change.id},
         ) == 1
+        assert session.scalar(
+            text("SELECT count(*) FROM project_finance_change_impacts WHERE id=:id"),
+            {"id": impact.id},
+        ) == 1
     finally:
         session.close()
+
+
+def test_r6c_e_setup_commands_and_child_rows_are_rls_scoped(postgres_test_environment):
+    boundary = _boundary(
+        postgres_test_environment,
+        scope=_TenantContext(TENANT_A, ORG_A),
+    )
+    profile = boundary.financial_setup(
+        lambda service: service.get_profile(PROJECT_A)
+    )
+    updated = boundary.financial_setup(
+        lambda service: service.configure_profile(
+            PROJECT_A,
+            expected_version=profile.version,
+            budget_control_mode="block",
+            cost_code_policy="restricted",
+        )
+    )
+    cost_code = boundary.financial_setup(
+        lambda service: service.create_cost_code(
+            code="R6CE-RUNTIME",
+            name="R6C-E runtime code",
+        )
+    )
+    restriction = boundary.financial_setup(
+        lambda service: service.add_project_cost_code(
+            project_id=PROJECT_A,
+            cost_code_id=cost_code.id,
+        )
+    )
+
+    same_scope = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_A,
+        organization_id=ORG_A,
+    )
+    try:
+        validate_postgresql_execution_role(same_scope)
+        assert updated.version == profile.version + 1
+        assert same_scope.scalar(
+            text("SELECT count(*) FROM project_finance_profiles WHERE project_id=:id"),
+            {"id": PROJECT_A},
+        ) == 1
+        assert same_scope.scalar(
+            text("SELECT count(*) FROM project_finance_cost_codes WHERE id=:id"),
+            {"id": cost_code.id},
+        ) == 1
+        assert same_scope.scalar(
+            text("SELECT count(*) FROM project_finance_cost_code_restrictions WHERE id=:id"),
+            {"id": restriction.id},
+        ) == 1
+    finally:
+        same_scope.close()
+
+    foreign = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_B,
+        organization_id=ORG_B,
+    )
+    try:
+        assert foreign.scalar(
+            text("SELECT count(*) FROM project_finance_profiles WHERE project_id=:id"),
+            {"id": PROJECT_A},
+        ) == 0
+        profile_update = foreign.execute(
+            text(
+                "UPDATE project_finance_profiles SET budget_control_mode='none' "
+                "WHERE project_id=:id"
+            ),
+            {"id": PROJECT_A},
+        )
+        assert profile_update.rowcount == 0
+        cost_code_update = foreign.execute(
+            text("UPDATE project_finance_cost_codes SET name='attack' WHERE id=:id"),
+            {"id": cost_code.id},
+        )
+        assert cost_code_update.rowcount == 0
+        cost_code_delete = foreign.execute(
+            text("DELETE FROM project_finance_cost_codes WHERE id=:id"),
+            {"id": cost_code.id},
+        )
+        assert cost_code_delete.rowcount == 0
+        restriction_update = foreign.execute(
+            text(
+                "UPDATE project_finance_cost_code_restrictions "
+                "SET created_at=:now WHERE id=:id"
+            ),
+            {"id": restriction.id, "now": datetime.now(timezone.utc)},
+        )
+        assert restriction_update.rowcount == 0
+        restriction_delete = foreign.execute(
+            text("DELETE FROM project_finance_cost_code_restrictions WHERE id=:id"),
+            {"id": restriction.id},
+        )
+        assert restriction_delete.rowcount == 0
+        foreign.commit()
+
+        with pytest.raises(DBAPIError):
+            foreign.execute(
+                text(
+                    "INSERT INTO project_finance_cost_codes "
+                    "(id, tenant_id, organization_id, code, name, is_active, version, created_at, updated_at) "
+                    "VALUES ('r6ce-cost-code-attack', :tenant, :organization, "
+                    "'ATTACK', 'Attack', true, 1, :now, :now)"
+                ),
+                {
+                    "tenant": TENANT_A,
+                    "organization": ORG_A,
+                    "now": datetime.now(timezone.utc),
+                },
+            )
+            foreign.commit()
+        foreign.rollback()
+
+        with pytest.raises(DBAPIError):
+            foreign.execute(
+                text(
+                    "INSERT INTO project_finance_cost_code_restrictions "
+                    "(id, tenant_id, organization_id, project_id, cost_code_id, created_at) "
+                    "VALUES ('r6ce-restriction-attack', :tenant, :organization, "
+                    ":project, :cost_code, :now)"
+                ),
+                {
+                    "tenant": TENANT_A,
+                    "organization": ORG_A,
+                    "project": PROJECT_A,
+                    "cost_code": cost_code.id,
+                    "now": datetime.now(timezone.utc),
+                },
+            )
+            foreign.commit()
+        foreign.rollback()
+    finally:
+        foreign.rollback()
+        foreign.close()
+
+    foreign_org = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_A,
+        organization_id=ORG_A2,
+    )
+    try:
+        assert foreign_org.scalar(
+            text("SELECT count(*) FROM project_finance_profiles WHERE project_id=:id"),
+            {"id": PROJECT_A},
+        ) == 0
+        assert foreign_org.execute(
+            text("UPDATE project_finance_cost_codes SET name='org attack' WHERE id=:id"),
+            {"id": cost_code.id},
+        ).rowcount == 0
+        foreign_org.commit()
+    finally:
+        foreign_org.rollback()
+        foreign_org.close()
+
+    boundary.financial_setup(
+        lambda service: service.configure_profile(
+            PROJECT_A,
+            expected_version=updated.version,
+            cost_code_policy="all_active",
+        )
+    )
 
 
 def test_r6c_command_foreign_scope_insert_is_denied(postgres_test_environment):
@@ -387,6 +574,162 @@ def test_r6c_command_same_tenant_foreign_organization_is_denied(
             lambda service: service.create_cost_code(
                 code="R6C-FOREIGN-ORG",
                 name="Must be denied",
+            )
+        )
+
+
+def test_financial_change_impact_child_table_denies_foreign_direct_writes(
+    postgres_test_environment,
+) -> None:
+    with postgres_test_environment.admin_engine.connect() as connection:
+        row = connection.execute(
+            text(
+                "SELECT i.id AS impact_id, i.change_request_id, i.cost_code_id "
+                "FROM project_finance_change_impacts i "
+                "WHERE i.tenant_id=:tenant AND i.organization_id=:organization "
+                "AND i.description='R6C governed budget impact'"
+            ),
+            {"tenant": TENANT_A, "organization": ORG_A},
+        ).mappings().one()
+
+    foreign = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_B,
+        organization_id=ORG_B,
+    )
+    try:
+        assert foreign.scalar(
+            text("SELECT count(*) FROM project_finance_change_impacts WHERE id=:id"),
+            {"id": row["impact_id"]},
+        ) == 0
+        with pytest.raises(DBAPIError):
+            foreign.execute(
+                text(
+                    "INSERT INTO project_finance_change_impacts "
+                    "(id, tenant_id, organization_id, change_request_id, project_id, "
+                    "impact_type, description, amount, currency_code, cost_code_id, "
+                    "version, created_at, updated_at) VALUES "
+                    "('r6c-change-impact-attack', :tenant, :organization, :change, "
+                    ":project, 'budget', 'foreign child attack', 1.00, 'USD', "
+                    ":cost_code, 1, :now, :now)"
+                ),
+                {
+                    "tenant": TENANT_A,
+                    "organization": ORG_A,
+                    "change": row["change_request_id"],
+                    "project": PROJECT_A,
+                    "cost_code": row["cost_code_id"],
+                    "now": datetime.now(timezone.utc),
+                },
+            )
+            foreign.commit()
+        foreign.rollback()
+
+        updated = foreign.execute(
+            text(
+                "UPDATE project_finance_change_impacts "
+                "SET description='foreign update' WHERE id=:id"
+            ),
+            {"id": row["impact_id"]},
+        )
+        assert updated.rowcount == 0
+        foreign.commit()
+
+        deleted = foreign.execute(
+            text("DELETE FROM project_finance_change_impacts WHERE id=:id"),
+            {"id": row["impact_id"]},
+        )
+        assert deleted.rowcount == 0
+        foreign.commit()
+    finally:
+        foreign.rollback()
+        foreign.close()
+
+
+def test_financial_change_request_and_impact_stale_writes_fail_closed(
+    postgres_test_environment,
+) -> None:
+    boundary = _boundary(
+        postgres_test_environment,
+        scope=_TenantContext(TENANT_A, ORG_A),
+    )
+    change = boundary.financial_change(
+        lambda service: service.create_change(
+            PROJECT_A,
+            title="R6C Concurrency Change",
+            reason="Live stale-write proof",
+            effective_date=date(2026, 9, 2),
+            created_by="r6c-runtime-user",
+        )
+    )
+    updated = boundary.financial_change(
+        lambda service: service.update_change(
+            change.id,
+            title="R6C Concurrency Change A",
+            reason=change.reason,
+            description=change.description,
+            effective_date=change.effective_date,
+            expected_version=change.row_version,
+        )
+    )
+    with pytest.raises(ConcurrencyError):
+        boundary.financial_change(
+            lambda service: service.update_change(
+                change.id,
+                title="R6C Concurrency Change B",
+                reason=change.reason,
+                description=change.description,
+                effective_date=change.effective_date,
+                expected_version=change.row_version,
+            )
+        )
+
+    with postgres_test_environment.admin_engine.connect() as connection:
+        cost_code_id = connection.scalar(
+            text(
+                "SELECT id FROM project_finance_cost_codes "
+                "WHERE tenant_id=:tenant AND organization_id=:organization "
+                "AND code='R6C-RUNTIME'"
+            ),
+            {"tenant": TENANT_A, "organization": ORG_A},
+        )
+    impact = boundary.financial_change(
+        lambda service: service.add_impact(
+            change.id,
+            impact_type=FinancialChangeImpactType.BUDGET,
+            description="Concurrent impact",
+            amount=Decimal("2.00"),
+            currency_code="USD",
+            cost_code_id=cost_code_id,
+            expected_change_version=updated.row_version,
+        )
+    )
+    first_impact_update = boundary.financial_change(
+        lambda service: service.update_impact(
+            impact.id,
+            impact_type=impact.impact_type,
+            description="Concurrent impact A",
+            amount=impact.amount,
+            currency_code=impact.currency_code,
+            cost_code_id=impact.cost_code_id,
+            expected_impact_version=impact.row_version,
+            expected_change_version=updated.row_version + 1,
+        )
+    )
+    current_change = boundary.financial_change(
+        lambda service: service.get_change(change.id)
+    )
+    assert first_impact_update.row_version == impact.row_version + 1
+    with pytest.raises(ConcurrencyError):
+        boundary.financial_change(
+            lambda service: service.update_impact(
+                impact.id,
+                impact_type=impact.impact_type,
+                description="Concurrent impact B",
+                amount=impact.amount,
+                currency_code=impact.currency_code,
+                cost_code_id=impact.cost_code_id,
+                expected_impact_version=impact.row_version,
+                expected_change_version=current_change.row_version,
             )
         )
 
@@ -454,3 +797,78 @@ def test_forecast_child_tables_deny_foreign_scope_inserts(
     finally:
         session.rollback()
         session.close()
+
+
+def test_approval_decision_read_serializes_concurrent_runtime_transactions(
+    postgres_test_environment,
+) -> None:
+    request_id = f"r6cf-approval-{uuid4()}"
+    now = datetime.now(timezone.utc)
+    with postgres_test_environment.admin_engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO approval_requests "
+                "(id, tenant_id, request_type, entity_type, entity_id, organization_id, "
+                "project_id, payload_json, status, requested_at) VALUES "
+                "(:id, :tenant, 'budget.approve', 'project_budget', 'budget-race', "
+                ":organization, :project, '{}', 'PENDING', :now)"
+            ),
+            {
+                "id": request_id,
+                "tenant": TENANT_A,
+                "organization": ORG_A,
+                "project": PROJECT_A,
+                "now": now,
+            },
+        )
+
+    first_session = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_A,
+        organization_id=ORG_A,
+    )
+    first_repo = SqlAlchemyApprovalRepository(first_session)
+    first_repo._tenant_context_service = _TenantContext(TENANT_A, ORG_A)
+    first_request = first_repo.get_for_update(request_id)
+    assert first_request is not None
+    assert first_request.status is ApprovalStatus.PENDING
+
+    second_started = Event()
+    second_finished = Event()
+    observed: list[ApprovalStatus] = []
+    failures: list[BaseException] = []
+
+    def load_after_first_decision() -> None:
+        second_session = postgres_test_environment.runtime_session(
+            tenant_id=TENANT_A,
+            organization_id=ORG_A,
+        )
+        second_repo = SqlAlchemyApprovalRepository(second_session)
+        second_repo._tenant_context_service = _TenantContext(TENANT_A, ORG_A)
+        try:
+            second_started.set()
+            second_request = second_repo.get_for_update(request_id)
+            assert second_request is not None
+            observed.append(second_request.status)
+        except BaseException as exc:  # pragma: no cover - surfaced in main thread
+            failures.append(exc)
+        finally:
+            second_session.rollback()
+            second_session.close()
+            second_finished.set()
+
+    contender = Thread(target=load_after_first_decision, daemon=True)
+    contender.start()
+    assert second_started.wait(timeout=2)
+    assert not second_finished.wait(timeout=0.2)
+
+    first_request.status = ApprovalStatus.REJECTED
+    first_request.decided_at = now
+    first_request.decided_by_user_id = "approver-a"
+    first_repo.update(first_request)
+    first_session.commit()
+    first_session.close()
+
+    assert second_finished.wait(timeout=5)
+    contender.join(timeout=1)
+    assert failures == []
+    assert observed == [ApprovalStatus.REJECTED]

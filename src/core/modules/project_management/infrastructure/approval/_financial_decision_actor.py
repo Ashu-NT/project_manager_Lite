@@ -5,9 +5,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 
 def require_financial_decision_actor(user_session) -> str:
     """Shared by every PM financial approval participant (`budget.approve`,
-    `project_cost.approve`, `financial_change.apply`, `project_billing_preparation.approve`) --
-    ported verbatim from the identical closure the four financial approval registrations shared
-    in `project_registry.py` """
+    `project_cost.approve`, `financial_change.apply`, `project_billing_preparation.approve`)."""
     principal = user_session.principal if user_session else None
     if principal is None:
         raise BusinessRuleError(

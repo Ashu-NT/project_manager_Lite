@@ -38,7 +38,6 @@ Item {
     readonly property string _supportingText: String(root.site && root.site.supportingText ? root.site.supportingText : "")
     readonly property string _metaText: String(root.site && root.site.metaText ? root.site.metaText : "")
     readonly property bool _isActive: root._state.isActive === true
-    readonly property bool _inventoryEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("inventory_procurement") : false
     readonly property bool _pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
     readonly property string _siteId: String(root._state.siteId || root._state.id || root.site.id || "")
     readonly property bool _hasCalendarAssignment: String(root.siteCalendarAssignment && root.siteCalendarAssignment.assignmentId ? root.siteCalendarAssignment.assignmentId : "").length > 0
@@ -72,9 +71,6 @@ Item {
             { "label": "Departments", "count": root._departmentRows.length },
             { "label": "Employees", "count": root._employeeRows.length }
         ]
-        if (root._inventoryEnabled) {
-            sections.push({ "label": "Warehouses" })
-        }
         if (root._pmEnabled) {
             sections.push({ "label": "Projects" })
         }
@@ -95,8 +91,6 @@ Item {
             return "Shared departments mapped to this site through the platform department master."
         case "Employees":
             return "Employees aligned to this site through the shared employee master."
-        case "Warehouses":
-            return "Inventory & Procurement warehouse alignment delegated from the shared site master."
         case "Projects":
             return "Project Management project/site alignment delegated to the PM module."
         case "Calendar":
@@ -406,34 +400,6 @@ Item {
                         onRowActivated: function(rowId) {
                             root.relatedRowActivated("employees", rowId)
                         }
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Warehouses" ? warehousesLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: warehousesLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Warehouses"
-                keepLoaded: true
-                loadingMessage: "Loading site warehouse guidance..."
-                sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Warehouses"
-                        infoMessage: "Inventory & Procurement is enabled for this tenant. Warehouse master data stays module-owned and links back to the shared site master."
-                        cardTitle: "Inventory Boundary"
-                        notes: [
-                            "Use Inventory & Procurement workspaces to manage warehouses, zones, bins, and stock posture anchored to this site.",
-                            "Platform admin will surface site-to-warehouse relationships here once the cross-module integration contract is promoted into the admin controller layer."
-                        ]
                     }
                 }
             }

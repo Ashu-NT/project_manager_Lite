@@ -1,1 +1,0 @@
-"""QHSE QML view models."""

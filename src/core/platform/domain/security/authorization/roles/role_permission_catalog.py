@@ -318,6 +318,7 @@ _PROJECT_VIEWER = {
     "project.read",
     "task.read",
     "cost.read",
+    "finance.read",
     "register.read",
     "report.view",
     "collaboration.read",

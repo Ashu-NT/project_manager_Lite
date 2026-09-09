@@ -49,7 +49,32 @@ def build_finance_configuration_views(
                 )
                 for field in profile.fields
             ),
+            state=dict(profile.state),
         ),
+        "can_create_cost_code": source.can_create_cost_code,
+        "can_manage_restrictions": source.can_manage_restrictions,
+        "cost_codes": FinancialsCollectionViewModel(
+            title="Cost Codes",
+            subtitle="Organization-owned financial classification codes.",
+            empty_state="No cost codes match the current filters.",
+            items=tuple(_record(item) for item in source.cost_codes),
+            page=source.cost_code_page,
+            page_size=source.cost_code_page_size,
+            total=source.cost_code_total,
+        ),
+        "restrictions": FinancialsCollectionViewModel(
+            title="Project Allow-list",
+            subtitle="Cost codes explicitly available under the Restricted policy.",
+            empty_state="No cost-code restrictions are configured for this project.",
+            items=tuple(_record(item) for item in source.restrictions),
+            page=source.restriction_page,
+            page_size=source.restriction_page_size,
+            total=source.restriction_total,
+        ),
+        "cost_code_sort_key": source.cost_code_sort_key,
+        "cost_code_sort_direction": source.cost_code_sort_direction,
+        "restriction_sort_key": source.restriction_sort_key,
+        "restriction_sort_direction": source.restriction_sort_direction,
         "budget_versions": FinancialsCollectionViewModel(
             title="Budget Versions",
             subtitle="Governed budget revisions and approval state.",

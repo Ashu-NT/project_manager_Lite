@@ -1,19 +1,21 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Callable, Iterable
 
 from sqlalchemy.exc import IntegrityError
 
-from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     authorization_denied,
     require_permission,
 )
 from src.core.platform.domain.security.auth import UserAccount, normalize_auth_username
+from src.core.platform.domain.security.auth.events import TenantMembershipProvisioned, UserAccountCreated
 from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_PLATFORM,
     ROLE_SCOPE_TENANT,
-    RoleBinding,
+    RoleBindingPlatformScope,
+    RoleBindingTenantScope,
 )
 from src.core.platform.domain.security.auth.credentials.passwords import hash_password
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
@@ -21,6 +23,7 @@ from src.core.platform.domain.tenant.tenancy.user_tenant_membership import UserT
 
 if TYPE_CHECKING:
     from src.core.platform.application.security.auth.auth_service import AuthService
+    from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
 
 from src.core.platform.application.security.auth.credentials.federated_identity_service import (
     normalize_federated_subject,
@@ -33,6 +36,9 @@ from src.core.platform.application.security.auth.audit.security_audit import (
 )
 from src.core.platform.application.security.authorization.enforcement.sod_enforcer import enforce_separation_of_duties
 from src.core.platform.application.security.authorization.enforcement.target_user_authorization import require_actor_active_tenant
+from src.core.platform.application.security.authorization.roles.role_binding_mutation_participant import (
+    create_role_binding_using,
+)
 
 
 def _assign_roles_for_user(
@@ -42,7 +48,8 @@ def _assign_roles_for_user(
     *,
     allow_platform_roles: bool,
     tenant_id: str | None,
-    assigned_by: str | None,
+    record_event: Callable[[object], None],
+    actor,
 ) -> tuple[str, ...]:
     assigned_role_names: list[str] = []
     for role_name in role_names:
@@ -73,20 +80,19 @@ def _assign_roles_for_user(
                     "Canonical role-binding persistence is not configured.",
                     code="AUTHORIZATION_CANONICAL_REPOSITORY_REQUIRED",
                 )
-            if role_binding_repo.get_active_for_assignment(
+            create_role_binding_using(
+                role_bindings_repo=role_binding_repo,
+                audit_repo=service._security_audit_repo,
+                clock=service._clock,
+                record_event=record_event,
                 principal_id=user_id,
                 role_id=role.id,
                 tenant_id=None,
-                actual_scope_type=ROLE_SCOPE_PLATFORM,
-                actual_scope_id=None,
-            ) is None:
-                role_binding_repo.add(
-                    RoleBinding.create(
-                        principal_id=user_id,
-                        role_id=role.id,
-                        actual_scope_type=ROLE_SCOPE_PLATFORM,
-                    )
-                )
+                scope_type=ROLE_SCOPE_PLATFORM,
+                scope_id=None,
+                domain_scope=RoleBindingPlatformScope(),
+                actor=actor,
+            )
             assigned_role_names.append(role.name)
             continue
         if role.allowed_scope_type == ROLE_SCOPE_TENANT:
@@ -101,22 +107,19 @@ def _assign_roles_for_user(
                     "Canonical role-binding persistence is not configured.",
                     code="AUTHORIZATION_CANONICAL_REPOSITORY_REQUIRED",
                 )
-            if role_binding_repo.get_active_for_assignment(
+            create_role_binding_using(
+                role_bindings_repo=role_binding_repo,
+                audit_repo=service._security_audit_repo,
+                clock=service._clock,
+                record_event=record_event,
                 principal_id=user_id,
                 role_id=role.id,
                 tenant_id=tenant_id,
-                actual_scope_type=ROLE_SCOPE_TENANT,
-                actual_scope_id=None,
-            ) is None:
-                role_binding_repo.add(
-                    RoleBinding.create(
-                        principal_id=user_id,
-                        role_id=role.id,
-                        tenant_id=tenant_id,
-                        actual_scope_type=ROLE_SCOPE_TENANT,
-                        assigned_by=assigned_by,
-                    )
-                )
+                scope_type=ROLE_SCOPE_TENANT,
+                scope_id=None,
+                domain_scope=RoleBindingTenantScope(tenant_id=tenant_id),
+                actor=actor,
+            )
             assigned_role_names.append(role.name)
             continue
         authorization_denied(
@@ -152,6 +155,7 @@ def _create_user(
     audit_action: str = "user.register",
     system_audit_actor: str | None = None,
     account_type: str = "human",
+    uow: "SqlAlchemyUnitOfWorkBase | None" = None,
 ) -> UserAccount:
     normalized = normalize_auth_username(username)
     normalized_email = service._normalize_email(email)
@@ -247,7 +251,13 @@ def _create_user(
             target_scope_id=normalized_tenant_id,
             operation="authorization.infrastructure.denied",
         )
-    try:
+    owns_uow = uow is None
+    active_uow = service._uow() if owns_uow else uow
+    membership: UserTenantMembership | None = None
+    occurred_at = datetime.now(timezone.utc)
+
+    def _run() -> tuple[str, ...]:
+        nonlocal membership
         with service._session.begin_nested():
             service._user_repo.add(user)
             service._session.flush()
@@ -257,18 +267,25 @@ def _create_user(
                     tenant_id=normalized_tenant_id,
                 )
                 service._user_tenant_repo.add(membership)
-            actor = (
+            principal = (
                 service._user_session.principal
                 if service._user_session is not None
                 else None
             )
+            if system_audit_actor is not None:
+                from types import SimpleNamespace
+
+                role_binding_actor = SimpleNamespace(user_id=None, username=system_audit_actor)
+            else:
+                role_binding_actor = principal
             assigned_role_names = _assign_roles_for_user(
                 service,
                 user.id,
                 resolved_role_names,
                 allow_platform_roles=system_audit_actor is not None,
                 tenant_id=normalized_tenant_id,
-                assigned_by=actor.user_id if actor is not None else None,
+                record_event=active_uow.record_event,
+                actor=role_binding_actor,
             )
             audit_metadata: dict[str, object] = {
                 "username": user.username,
@@ -299,21 +316,40 @@ def _create_user(
                     metadata=audit_metadata,
                     scope_tenant_id=normalized_tenant_id,
                 )
-        if commit:
-            service._session.commit()
+        active_uow.record_event(
+            UserAccountCreated(
+                user_id=user.id,
+                tenant_id=normalized_tenant_id,
+                account_type=account_type,
+                occurred_at=occurred_at,
+            )
+        )
+        if membership is not None:
+            active_uow.record_event(
+                TenantMembershipProvisioned(
+                    membership_id=membership.id,
+                    tenant_id=membership.tenant_id,
+                    user_id=user.id,
+                    occurred_at=occurred_at,
+                )
+            )
+        return assigned_role_names
+
+    try:
+        if owns_uow:
+            with active_uow:
+                _run()
+                if commit:
+                    active_uow.commit()
+        else:
+            _run()
     except IntegrityError as exc:
-        service._session.rollback()
         if "username" in str(exc).lower():
             raise ValidationError("Username already exists.", code="USERNAME_EXISTS") from exc
         raise ValidationError(
             "Failed to create user due to data conflict.",
             code="USER_CREATE_CONFLICT",
         ) from exc
-    except Exception:
-        service._session.rollback()
-        raise
-    if commit:
-        domain_events.auth_changed.emit(user.id)
     return user
 
 
@@ -394,6 +430,7 @@ def _register_bootstrap_user(
     role_names: Iterable[str] | None = None,
     must_change_password: bool = True,
     commit: bool = False,
+    uow: "SqlAlchemyUnitOfWorkBase | None" = None,
 ) -> UserAccount:
     return _create_user(
         service,
@@ -407,6 +444,7 @@ def _register_bootstrap_user(
         commit=commit,
         audit_action="bootstrap.user.register",
         system_audit_actor="local_startup",
+        uow=uow,
     )
 
 

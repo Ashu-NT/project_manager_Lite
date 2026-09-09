@@ -1,4 +1,3 @@
-# src/core/modules/project_management/application/scheduling/engine.py
 from __future__ import annotations
 
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
@@ -25,8 +24,9 @@ from src.core.modules.project_management.application.scheduling.cpm.task_date_ma
     compute_milestone_dates,
 )
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_dependencies, select_leaf_tasks
-# CalendarResolver removed — enterprise CalendarResolver handles hierarchy resolution
-CalendarResolver = None  # type: ignore[assignment]  # kept for isinstance checks
+# Enterprise CalendarResolver now handles hierarchy resolution; kept as a
+# type placeholder for the isinstance checks below.
+CalendarResolver = None  # type: ignore[assignment]
 from src.core.modules.project_management.application.scheduling.cpm.date_compute import (
     compute_task_dates_common,
 )
@@ -86,7 +86,7 @@ class SchedulingEngine:
         self._project_calendar_adapter: ProjectCalendarAdapter | None = project_calendar_adapter
         # task_id -> (dependency-implied ES, EF), captured before any hard
         # constraint override -- reset each run, read by ConstraintValidator
-        # via CPMTaskInfo.dependency_implied_start/finish (Phase F).
+        # via CPMTaskInfo.dependency_implied_start/finish.
         self._dependency_implied_dates: dict[str, tuple[date | None, date | None]] = {}
 
     def calendar_for_project(self, project_id: str) -> CalendarProtocol:
@@ -126,9 +126,9 @@ class SchedulingEngine:
             return {}
 
         tasks_by_id: dict[str, Task] = {t.id: t for t in tasks}
-        # Baseline for the changed-tasks-only persist below (Phase L1) --
-        # captured before any forward-pass patching (e.g. unanchored-root
-        # default-start patching) can replace entries in tasks_by_id.
+        # Baseline for the changed-tasks-only persist below -- captured
+        # before any forward-pass patching (e.g. unanchored-root default-
+        # start patching) can replace entries in tasks_by_id.
         original_dates = {t.id: (t.start_date, t.end_date) for t in tasks}
         deps = select_leaf_dependencies(
             self._dependency_repo.list_by_project(project_id),
@@ -150,12 +150,9 @@ class SchedulingEngine:
                     self._calendar = calendar
                     self._task_calendar = calendar
             except Exception:
-                # Fall back to the global calendar -- but this is a real
-                # degradation (the computed schedule may differ from what
-                # the project's own enterprise calendar would produce), so
-                # it must be observable, not silent. See
-                # docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
-                # §7/Phase E.
+                # Real degradation (the computed schedule may differ from
+                # what the project's own enterprise calendar would
+                # produce) -- must be observable, not silent.
                 logger.warning(
                     "Project calendar snapshot build failed for project_id=%s; "
                     "recalculating with the global calendar instead.",
@@ -212,13 +209,10 @@ class SchedulingEngine:
 
         if persist:
             try:
-                # Phase L1: only write tasks whose persisted schedule
-                # fields (start_date/end_date -- the only fields
-                # build_schedule_result ever mutates) actually changed.
-                # Previously every leaf task in the project was written
-                # unconditionally on every single recalculation, correlating
-                # DB write volume with project size rather than with how
-                # much the schedule actually moved.
+                # Only write tasks whose persisted schedule fields
+                # (start_date/end_date -- the only fields build_schedule_result
+                # ever mutates) actually changed, so write volume tracks how
+                # much the schedule moved rather than project size.
                 for task_id, info in result.items():
                     if original_dates.get(task_id) == (info.task.start_date, info.task.end_date):
                         continue
@@ -279,15 +273,12 @@ class SchedulingEngine:
         def _capture_dependency_implied(dep_est, dep_eft):
             if incoming_deps:
                 # Pure dependency-graph result, captured BEFORE actuals or
-                # this task's own hard constraints get a chance to override
-                # it -- ConstraintValidator compares this against the final
-                # result to report a DEPENDENCY_CONSTRAINT_CONFLICT instead
-                # of a constraint override being silent (Phase F), and it
-                # is also the basis for actual-vs-planned variance
-                # reporting (Phase J). Must be captured pre-actual: a task
-                # with its own actual_start already folded in would not be
-                # a useful basis for asking "did this task's actual
-                # execution violate what its dependency graph required."
+                # this task's own hard constraints override it --
+                # ConstraintValidator compares this against the final result
+                # to report a conflict, and it's the basis for actual-vs-
+                # planned variance reporting. Must be pre-actual: a task
+                # whose actual_start is already folded in isn't a useful
+                # basis for "did execution violate the dependency graph."
                 self._dependency_implied_dates[task.id] = (dep_est, dep_eft)
 
         est, eft = compute_task_dates_common(
@@ -330,12 +321,10 @@ class SchedulingEngine:
         est: date | None,
         eft: date | None,
     ) -> tuple[date | None, date | None]:
-        """R4.4: the live, persisting counterpart of pure_cpm.run_cpm's
-        same-named call -- see task_date_math.apply_resource_leveling_floor
-        for the full rationale. Both orchestrations must apply this floor
-        or the two paths would (again) disagree, the exact class of bug
-        R4.4's canonical-scheduling-implementation consolidation (Phase D,
-        prior session) already fixed once for constraints."""
+        """The live, persisting counterpart of pure_cpm.run_cpm's
+        same-named call -- see task_date_math.apply_resource_leveling_floor.
+        Both orchestrations must apply this floor identically or the two
+        paths will disagree."""
         return apply_resource_leveling_floor(self._task_calendar, task, est, eft)
 
     def _compute_dates_milestone(

@@ -38,9 +38,8 @@ class ModuleEntitlementRepository(ABC):
         self, organization_id: str, module_code: str
     ) -> ModuleEntitlementRecord | None:
         """Tenant-administration write-path read: any organization within the authenticated
-        tenant, not only the currently active one (P5B prerequisite -- explicit, non-active-org
-        module entitlement mutation needs to read that organization's own current state first).
-        """
+        tenant, not only the currently active one -- needed to read a non-active organization's
+        current state before mutating its entitlements."""
         ...
 
     @abstractmethod

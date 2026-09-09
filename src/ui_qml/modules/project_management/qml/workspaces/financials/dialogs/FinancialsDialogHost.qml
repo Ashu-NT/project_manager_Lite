@@ -16,16 +16,54 @@ Item {
         }
     }
 
+    function _openSetupDialog(dialog) {
+        const window = root.Window.window
+        dialog.focusReturnTarget = window ? window.activeFocusItem : null
+        dialog.open()
+    }
+
     function openCreateManualActualDialog() {
+        editorDialog.mode = "create"
+        editorDialog.entry = null
         editorDialog.commandId = root.workspaceController
             ? root.workspaceController.newFinancialCommandId() : ""
         editorDialog.errorMessage = ""
         editorDialog.open()
     }
 
-    function openCreateCostCodeDialog() {
+    function openEditManualActualDialog(entry) {
+        editorDialog.mode = "edit"
+        editorDialog.entry = entry || null
+        editorDialog.commandId = ""
+        editorDialog.errorMessage = ""
+        editorDialog.open()
+    }
+
+    function openCostCodeDialog(mode, costCode) {
+        costCodeEditorDialog.mode = String(mode || "create")
+        costCodeEditorDialog.costCode = costCode || null
         costCodeEditorDialog.errorMessage = ""
-        costCodeEditorDialog.open()
+        root._openSetupDialog(costCodeEditorDialog)
+    }
+
+    function openFinancialProfileDialog(profile) {
+        financialProfileEditorDialog.profile = profile || null
+        financialProfileEditorDialog.errorMessage = ""
+        root._openSetupDialog(financialProfileEditorDialog)
+    }
+
+    function openFinancialSetupLifecycleDialog(action, profile, costCode, restriction) {
+        financialSetupLifecycleDialog.action = String(action || "")
+        financialSetupLifecycleDialog.profile = profile || null
+        financialSetupLifecycleDialog.costCode = costCode || null
+        financialSetupLifecycleDialog.restriction = restriction || null
+        financialSetupLifecycleDialog.errorMessage = ""
+        root._openSetupDialog(financialSetupLifecycleDialog)
+    }
+
+    function openCostCodeRestrictionDialog() {
+        costCodeRestrictionDialog.errorMessage = ""
+        root._openSetupDialog(costCodeRestrictionDialog)
     }
 
     function openBudgetVersionDialog(mode, budget) {
@@ -53,6 +91,31 @@ Item {
         budgetLifecycleDialog.open()
     }
 
+    function openRateCardDialog(mode, rateCard) {
+        rateCardEditorDialog.mode = String(mode || "create")
+        rateCardEditorDialog.projectId = root.selectedProjectId
+        rateCardEditorDialog.rateCard = rateCard || null
+        rateCardEditorDialog.errorMessage = ""
+        root._openSetupDialog(rateCardEditorDialog)
+    }
+
+    function openRateLineDialog(mode, rateCard, rateLine) {
+        rateLineEditorDialog.mode = String(mode || "create")
+        rateLineEditorDialog.projectId = root.selectedProjectId
+        rateLineEditorDialog.rateCard = rateCard || null
+        rateLineEditorDialog.rateLine = rateLine || null
+        rateLineEditorDialog.errorMessage = ""
+        root._openSetupDialog(rateLineEditorDialog)
+    }
+
+    function openRateLifecycleDialog(target, rateCard, rateLine) {
+        rateLifecycleDialog.target = String(target || "card")
+        rateLifecycleDialog.rateCard = rateCard || null
+        rateLifecycleDialog.rateLine = rateLine || null
+        rateLifecycleDialog.errorMessage = ""
+        root._openSetupDialog(rateLifecycleDialog)
+    }
+
     function openForecastGenerationDialog() {
         forecastGenerationDialog.projectId = root.selectedProjectId
         forecastGenerationDialog.projectLabel = root.selectedProjectLabel
@@ -68,7 +131,32 @@ Item {
         forecastLifecycleDialog.open()
     }
 
-    // Opens the shared reject/post/reverse decision dialog for the given
+    function openFinancialChangeRequestDialog(mode, change) {
+        financialChangeRequestDialog.mode = String(mode || "create")
+        financialChangeRequestDialog.projectId = root.selectedProjectId
+        financialChangeRequestDialog.change = change || null
+        financialChangeRequestDialog.errorMessage = ""
+        financialChangeRequestDialog.open()
+    }
+
+    function openFinancialChangeImpactDialog(mode, change, impact) {
+        financialChangeImpactDialog.mode = String(mode || "create")
+        financialChangeImpactDialog.projectId = root.selectedProjectId
+        financialChangeImpactDialog.change = change || null
+        financialChangeImpactDialog.impact = impact || null
+        financialChangeImpactDialog.errorMessage = ""
+        financialChangeImpactDialog.open()
+    }
+
+    function openFinancialChangeLifecycleDialog(action, change, impact) {
+        financialChangeLifecycleDialog.action = String(action || "submit")
+        financialChangeLifecycleDialog.change = change || null
+        financialChangeLifecycleDialog.impact = impact || null
+        financialChangeLifecycleDialog.errorMessage = ""
+        financialChangeLifecycleDialog.open()
+    }
+
+    // Opens the shared delete/reject/post/reverse decision dialog for the given
     // canonical ProjectCostEntry. Submit and approve need no extra fields
     // and are dispatched directly by the caller without a dialog.
     function openActualDecisionDialog(mode, entryId, rowVersion) {
@@ -91,7 +179,9 @@ Item {
 
         onSubmitted: function(payload) {
             if (!root.workspaceController) return
-            const result = root.workspaceController.createManualActual(payload)
+            const result = editorDialog.mode === "edit"
+                ? root.workspaceController.updateActualDraft(payload)
+                : root.workspaceController.createManualActual(payload)
             root._handleResult(editorDialog, result)
         }
     }
@@ -100,12 +190,60 @@ Item {
         id: costCodeEditorDialog
 
         selectedProjectId: root.selectedProjectId
+        workspaceController: root.workspaceController
         busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
             if (!root.workspaceController) return
-            const result = root.workspaceController.createCostCode(payload)
+            const result = costCodeEditorDialog.mode === "edit"
+                ? root.workspaceController.updateCostCode(payload)
+                : root.workspaceController.createCostCode(payload)
             root._handleResult(costCodeEditorDialog, result)
+        }
+    }
+
+    FinancialProfileEditorDialog {
+        id: financialProfileEditorDialog
+        projectId: root.selectedProjectId
+        workspaceController: root.workspaceController
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onSubmitted: function(payload) {
+            if (!root.workspaceController) return
+            root._handleResult(
+                financialProfileEditorDialog,
+                root.workspaceController.updateFinancialProfile(payload)
+            )
+        }
+    }
+
+    CostCodeRestrictionDialog {
+        id: costCodeRestrictionDialog
+        projectId: root.selectedProjectId
+        workspaceController: root.workspaceController
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onSubmitted: function(payload) {
+            if (!root.workspaceController) return
+            root._handleResult(
+                costCodeRestrictionDialog,
+                root.workspaceController.addCostCodeRestriction(payload)
+            )
+        }
+    }
+
+    FinancialSetupLifecycleDialog {
+        id: financialSetupLifecycleDialog
+        projectId: root.selectedProjectId
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onDecided: function(payload) {
+            if (!root.workspaceController) return
+            let result
+            if (financialSetupLifecycleDialog.action.indexOf("profile_") === 0)
+                result = root.workspaceController.transitionFinancialProfile(payload)
+            else if (financialSetupLifecycleDialog.action === "remove_restriction")
+                result = root.workspaceController.removeCostCodeRestriction(payload)
+            else
+                result = root.workspaceController.changeCostCodeStatus(payload)
+            root._handleResult(financialSetupLifecycleDialog, result)
         }
     }
 
@@ -121,6 +259,8 @@ Item {
                 result = root.workspaceController.postActual(payload)
             } else if (mode === "reverse") {
                 result = root.workspaceController.reverseActual(payload)
+            } else if (mode === "delete") {
+                result = root.workspaceController.deleteActualDraft(payload)
             } else {
                 result = root.workspaceController.rejectActual(payload)
             }
@@ -213,6 +353,43 @@ Item {
         }
     }
 
+    RateCardEditorDialog {
+        id: rateCardEditorDialog
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onSubmitted: function(payload) {
+            if (!root.workspaceController) return
+            const result = rateCardEditorDialog.mode === "edit"
+                ? root.workspaceController.updateRateCard(payload)
+                : root.workspaceController.createRateCard(payload)
+            root._handleResult(rateCardEditorDialog, result)
+        }
+    }
+
+    RateLineEditorDialog {
+        id: rateLineEditorDialog
+        workspaceController: root.workspaceController
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onSubmitted: function(payload) {
+            if (!root.workspaceController) return
+            const result = rateLineEditorDialog.mode === "edit"
+                ? root.workspaceController.updateRateLine(payload)
+                : root.workspaceController.addRateLine(payload)
+            root._handleResult(rateLineEditorDialog, result)
+        }
+    }
+
+    RateLifecycleDialog {
+        id: rateLifecycleDialog
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onDecided: function(payload) {
+            if (!root.workspaceController) return
+            const result = rateLifecycleDialog.target === "line"
+                ? root.workspaceController.deactivateRateLine(payload)
+                : root.workspaceController.deactivateRateCard(payload)
+            root._handleResult(rateLifecycleDialog, result)
+        }
+    }
+
     ForecastGenerationDialog {
         id: forecastGenerationDialog
         workspaceController: root.workspaceController
@@ -244,6 +421,52 @@ Item {
                 )
             }
             root._handleResult(forecastLifecycleDialog, result)
+        }
+    }
+
+    FinancialChangeRequestDialog {
+        id: financialChangeRequestDialog
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onSubmitted: function(payload) {
+            if (!root.workspaceController) return
+            const result = financialChangeRequestDialog.mode === "edit"
+                ? root.workspaceController.updateFinancialChange(payload)
+                : root.workspaceController.createFinancialChange(payload)
+            root._handleResult(financialChangeRequestDialog, result)
+        }
+    }
+
+    FinancialChangeImpactDialog {
+        id: financialChangeImpactDialog
+        workspaceController: root.workspaceController
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onSubmitted: function(payload) {
+            if (!root.workspaceController) return
+            const result = financialChangeImpactDialog.mode === "edit"
+                ? root.workspaceController.updateFinancialChangeImpact(payload)
+                : root.workspaceController.addFinancialChangeImpact(payload)
+            root._handleResult(financialChangeImpactDialog, result)
+        }
+    }
+
+    FinancialChangeLifecycleDialog {
+        id: financialChangeLifecycleDialog
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onDecided: function(action, payload) {
+            if (!root.workspaceController) return
+            let result
+            if (action === "submit") {
+                result = root.workspaceController.submitFinancialChange(payload)
+            } else if (action === "remove_impact") {
+                result = root.workspaceController.removeFinancialChangeImpact(payload)
+            } else {
+                result = root.workspaceController.decideFinancialChange(
+                    String(payload.approvalRequestId || ""),
+                    action === "approve",
+                    String(payload.notes || "")
+                )
+            }
+            root._handleResult(financialChangeLifecycleDialog, result)
         }
     }
 }

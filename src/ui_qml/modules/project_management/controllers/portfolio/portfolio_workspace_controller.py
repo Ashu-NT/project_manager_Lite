@@ -21,7 +21,7 @@ from src.ui_qml.modules.project_management.presenters import (
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 from .collection_page_state import PortfolioCollectionPageState
-from .domain_event_binder import bind_portfolio_domain_events, portfolio_request_domain_refresh
+from .domain_event_binder import on_task_metrics_stale, portfolio_request_domain_refresh
 from .mutation_handler import PortfolioMutationHandler
 from .state import default_collection, default_overview, default_summary
 from .table_models import create_portfolio_table_models
@@ -123,8 +123,13 @@ class ProjectManagementPortfolioWorkspaceController(
         self._hot_project_count = 0
         self._dependency_count = 0
         self._active_template_summary = ""
-        bind_portfolio_domain_events(self)
         self.refresh()
+
+    def onTaskListStale(self, project_id: str) -> None:
+        on_task_metrics_stale(self, project_id)
+
+    def onTaskDependenciesStale(self, project_id: str) -> None:
+        on_task_metrics_stale(self, project_id)
 
     # ── Overview and option list properties ──────────────────────────
 

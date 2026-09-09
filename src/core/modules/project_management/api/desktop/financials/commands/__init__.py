@@ -1,7 +1,12 @@
 """Financial desktop commands."""
 
 from src.core.modules.project_management.api.desktop.financials.commands.configuration import (
+    FinancialChangeCostCodeStatusCommand,
+    FinancialCostCodeRestrictionCommand,
     FinancialCreateCostCodeCommand,
+    FinancialTransitionProfileCommand,
+    FinancialUpdateCostCodeCommand,
+    FinancialUpdateProfileCommand,
 )
 from src.core.modules.project_management.api.desktop.financials.commands.budgets import (
     FinancialAddBudgetLineCommand,
@@ -37,8 +42,32 @@ from src.core.modules.project_management.api.desktop.financials.commands.billing
     FinancialMarkBillingScheduleLineReadyCommand,
     FinancialVersionedBillingPreparationCommand,
 )
+from src.core.modules.project_management.api.desktop.financials.commands.changes import (
+    FinancialChangeImpactCommand,
+    FinancialCreateChangeCommand,
+    FinancialRemoveChangeImpactCommand,
+    FinancialSubmitChangeCommand,
+    FinancialUpdateChangeCommand,
+    FinancialUpdateChangeImpactCommand,
+)
+from src.core.modules.project_management.api.desktop.financials.commands.rates import (
+    FinancialAddRateLineCommand,
+    FinancialCreateRateCardCommand,
+    FinancialUpdateRateCardCommand,
+    FinancialUpdateRateLineCommand,
+    FinancialVersionedRateCardCommand,
+    FinancialVersionedRateLineCommand,
+)
 
 __all__ = [
+    "FinancialChangeCostCodeStatusCommand",
+    "FinancialCostCodeRestrictionCommand",
+    "FinancialChangeImpactCommand",
+    "FinancialCreateChangeCommand",
+    "FinancialRemoveChangeImpactCommand",
+    "FinancialSubmitChangeCommand",
+    "FinancialUpdateChangeCommand",
+    "FinancialUpdateChangeImpactCommand",
     "FinancialAddBudgetLineCommand",
     "FinancialActivateBillingProfileCommand",
     "FinancialAddApprovedTimeBillingSourceCommand",
@@ -48,6 +77,9 @@ __all__ = [
     "FinancialCreateBillingPreparationCommand",
     "FinancialCreateBillingProfileCommand",
     "FinancialCreateCostCodeCommand",
+    "FinancialTransitionProfileCommand",
+    "FinancialUpdateCostCodeCommand",
+    "FinancialUpdateProfileCommand",
     "FinancialCreateBudgetSuccessorCommand",
     "FinancialCreateBudgetVersionCommand",
     "FinancialCreateManualActualCommand",
@@ -66,4 +98,10 @@ __all__ = [
     "FinancialVersionedBillingPreparationCommand",
     "FinancialVersionedBudgetCommand",
     "FinancialVersionedForecastCommand",
+    "FinancialAddRateLineCommand",
+    "FinancialCreateRateCardCommand",
+    "FinancialUpdateRateCardCommand",
+    "FinancialUpdateRateLineCommand",
+    "FinancialVersionedRateCardCommand",
+    "FinancialVersionedRateLineCommand",
 ]

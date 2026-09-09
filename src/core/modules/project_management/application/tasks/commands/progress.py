@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date
+from datetime import date, datetime, timezone
 
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.application.tasks.task_events import (
+    TaskProgressChanged,
+    TaskStatusChanged,
+)
 from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.domain.tasks.task import Task
@@ -14,7 +18,7 @@ from src.core.modules.project_management.access.scope_permissions import require
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError
 from src.core.shared.activity import record_activity
-from src.core.shared.events.domain_events import domain_events
+from src.core.shared.audit import record_audit_entry
 
 
 class TaskProgressMixin:
@@ -77,11 +81,27 @@ class TaskProgressMixin:
                 replace(task, status=status, percent_complete=percent_complete)
             )
 
-        try:
+        if not candidates:
+            return []
+        scope = self._active_task_scope(operation_label="set task status")
+        old_status_by_id = {task.id: task.status.value for task in tasks}
+        with self._task_uow() as uow:
             for candidate in candidates:
-                self._task_repo.update(candidate)
+                uow.tasks.update(candidate)
+                record_audit_entry(
+                    uow,
+                    operation="update",
+                    entity_type="task",
+                    entity_id=candidate.id,
+                    module="project_management",
+                    organization_id=scope.organization_id,
+                    severity="low",
+                    metadata={"action": "task.set_status", "status": candidate.status.value},
+                    commit=False,
+                    fail_closed=True,
+                )
                 record_activity(
-                    self,
+                    uow,
                     action="task.set_status",
                     entity_type="task",
                     entity_id=candidate.id,
@@ -90,12 +110,18 @@ class TaskProgressMixin:
                     details={"status": candidate.status.value},
                     commit=False,
                 )
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
-        for project_id in {candidate.project_id for candidate in candidates}:
-            domain_events.tasks_changed.emit(project_id)
+                uow.record_event(
+                    TaskStatusChanged(
+                        tenant_id=scope.tenant_id,
+                        organization_id=scope.organization_id,
+                        project_id=candidate.project_id,
+                        task_id=candidate.id,
+                        old_status=old_status_by_id[candidate.id],
+                        new_status=candidate.status.value,
+                        occurred_at=datetime.now(timezone.utc),
+                    )
+                )
+            uow.commit()
         return candidates
 
     def update_progress(
@@ -149,11 +175,27 @@ class TaskProgressMixin:
             candidate.actual_start,
             candidate.actual_end,
         )
-        try:
-            self._task_repo.update(candidate)
-            self._session.commit()
+        scope = self._active_task_scope(operation_label="update task progress")
+        with self._task_uow() as uow:
+            uow.tasks.update(candidate)
+            record_audit_entry(
+                uow,
+                operation="update",
+                entity_type="task",
+                entity_id=candidate.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                severity="low",
+                metadata={
+                    "action": "task.update_progress",
+                    "percent_complete": candidate.percent_complete,
+                    "status": candidate.status.value,
+                },
+                commit=False,
+                fail_closed=True,
+            )
             record_activity(
-                self,
+                uow,
                 action="task.update_progress",
                 entity_type="task",
                 entity_id=candidate.id,
@@ -163,11 +205,31 @@ class TaskProgressMixin:
                     "percent_complete": candidate.percent_complete,
                     "status": candidate.status.value,
                 },
+                commit=False,
             )
-        except Exception:
-            self._session.rollback()
-            raise
-        domain_events.tasks_changed.emit(candidate.project_id)
+            uow.record_event(
+                TaskProgressChanged(
+                    tenant_id=scope.tenant_id,
+                    organization_id=scope.organization_id,
+                    project_id=candidate.project_id,
+                    task_id=candidate.id,
+                    percent_complete=candidate.percent_complete,
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+            if candidate.status != task.status:
+                uow.record_event(
+                    TaskStatusChanged(
+                        tenant_id=scope.tenant_id,
+                        organization_id=scope.organization_id,
+                        project_id=candidate.project_id,
+                        task_id=candidate.id,
+                        old_status=task.status.value,
+                        new_status=candidate.status.value,
+                        occurred_at=datetime.now(timezone.utc),
+                    )
+                )
+            uow.commit()
         return candidate
 
 

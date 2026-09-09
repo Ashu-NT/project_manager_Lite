@@ -7,6 +7,24 @@ logger = logging.getLogger(__name__)
 
 
 class FinancialsLookupMixin:
+    def _search_rate_resources(
+        self, project_id: str, search: str, page: int, page_size: int
+    ) -> dict[str, object]:
+        return self._lookup_page(
+            lambda: self._financials_workspace_presenter.search_rate_resources(
+                project_id, search=search, page=page, page_size=page_size
+            )
+        )
+
+    def _search_rate_departments(
+        self, project_id: str, search: str, page: int, page_size: int
+    ) -> dict[str, object]:
+        return self._lookup_page(
+            lambda: self._financials_workspace_presenter.search_rate_departments(
+                project_id, search=search, page=page, page_size=page_size
+            )
+        )
+
     def _search_finance_projects(
         self, search: str, page: int, page_size: int
     ) -> dict[str, object]:
@@ -50,6 +68,15 @@ class FinancialsLookupMixin:
             )
         )
 
+    def _search_manual_actual_resources(
+        self, project_id: str, search: str, page: int, page_size: int
+    ) -> dict[str, object]:
+        return self._lookup_page(
+            lambda: self._financials_workspace_presenter.search_manual_actual_resources(
+                project_id, search=search, page=page, page_size=page_size
+            )
+        )
+
     def _search_manual_actual_cost_codes(
         self,
         project_id: str,
@@ -81,6 +108,15 @@ class FinancialsLookupMixin:
         return self._lookup_item(
             lambda: self._financials_workspace_presenter.resolve_manual_actual_task(
                 project_id, task_id
+            )
+        )
+
+    def _resolve_manual_actual_resource(
+        self, project_id: str, resource_id: str
+    ) -> dict[str, object]:
+        return self._lookup_item(
+            lambda: self._financials_workspace_presenter.resolve_manual_actual_resource(
+                project_id, resource_id
             )
         )
 
@@ -148,6 +184,35 @@ class FinancialsLookupMixin:
             )
         )
 
+    def _search_financial_change_target_lines(
+        self,
+        project_id: str,
+        change_id: str,
+        impact_type: str,
+        search: str,
+        page: int,
+        page_size: int,
+    ) -> dict[str, object]:
+        return self._lookup_page(
+            lambda: self._financials_workspace_presenter.search_financial_change_target_lines(
+                project_id,
+                change_id,
+                impact_type,
+                search=search,
+                page=page,
+                page_size=page_size,
+            )
+        )
+
+    def _resolve_financial_change_target_line(
+        self, project_id: str, change_id: str, impact_type: str, line_id: str
+    ) -> dict[str, object]:
+        return self._lookup_item(
+            lambda: self._financials_workspace_presenter.resolve_financial_change_target_line(
+                project_id, change_id, impact_type, line_id
+            )
+        )
+
     def _search_forecast_tasks(
         self, project_id: str, search: str, page: int, page_size: int
     ) -> dict[str, object]:
@@ -181,6 +246,26 @@ class FinancialsLookupMixin:
         return self._lookup_page(
             lambda: self._financials_workspace_presenter.search_forecast_risks(
                 project_id, search=search, page=page, page_size=page_size
+            )
+        )
+
+    def _search_setup_cost_codes(
+        self,
+        project_id: str,
+        search: str,
+        page: int,
+        page_size: int,
+        assignment_state: str,
+        active_only: bool,
+    ) -> dict[str, object]:
+        return self._lookup_page(
+            lambda: self._financials_workspace_presenter.search_setup_cost_codes(
+                project_id,
+                search=search,
+                page=page,
+                page_size=page_size,
+                assignment_state=assignment_state,
+                active_only=active_only,
             )
         )
 

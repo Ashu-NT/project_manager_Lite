@@ -1,6 +1,4 @@
-"""ADR-PF-005 rate-card resolution — orchestration only.
-
-"""
+"""Rate-card resolution -- orchestration only."""
 
 from __future__ import annotations
 
@@ -42,8 +40,7 @@ def _fold(value: str | None) -> str | None:
 
 
 class RateCardResolver:
-    """Selects and snapshots a rate-card line per ADR-PF-005's precedence order.
-    """
+    """Selects and snapshots a rate-card line by precedence order."""
 
     def __init__(
         self,
@@ -318,7 +315,7 @@ class RateCardResolver:
             if level is not None:
                 buckets.setdefault(level, []).append(candidate.line)
 
-        for level in (1, 2, 3, 4, 5, 6):
+        for level in (1, 2, 3, 4, 5):
             matches = buckets.get(level, [])
             if not matches:
                 continue
@@ -346,6 +343,14 @@ class RateCardResolver:
         as_of: date,
         modifier: RateModifier | None,
     ) -> RateSelectionSnapshot:
+        if modifier is not None and not isinstance(modifier, RateModifier):
+            try:
+                modifier = RateModifier(str(modifier).strip().lower())
+            except ValueError as exc:
+                raise ValidationError(
+                    "Rate modifier must be overtime, weekend, or holiday.",
+                    code="RATE_CARD_MODIFIER_INVALID",
+                ) from exc
         amount = line.rate_amount
         multiplier: Decimal | None = None
         if modifier is not None:
@@ -367,6 +372,7 @@ class RateCardResolver:
             rate_card_id=line.rate_card_id,
             rate_line_id=line.id,
             rate_card_version=card_version,
+            rate_line_version=line.version,
             origin=line.origin,
             precedence_level=level,
             effective_date=as_of,

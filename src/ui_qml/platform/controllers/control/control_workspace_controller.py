@@ -5,7 +5,6 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
-from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.platform.presenters import (
     PlatformControlQueuePresenter,
     PlatformControlWorkspacePresenter,
@@ -57,7 +56,6 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
         self._audit_entity_type_filter = ""
         self._audit_operation_filter = ""
         self._audit_severity_filter = ""
-        self._bind_domain_events()
 
     @Property(str, notify=approvalStatusFilterChanged)
     def approvalStatusFilter(self) -> str:
@@ -203,16 +201,7 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
     def _is_accessible(self) -> bool:
         return self._has_permission(WORKSPACE_PERMISSIONS["control"])
 
-    def _bind_domain_events(self) -> None:
-
-        for signal in (
-            domain_events.project_changed,
-            domain_events.tasks_changed,
-            domain_events.register_changed,
-        ):
-            self._subscribe_domain_signal(signal, self._on_domain_event)
-
-    def _on_domain_event(self, _payload: object) -> None:
+    def onExternalViewStale(self, _hint: str = "") -> None:
         self._request_domain_refresh()
 
     def _apply_request_action(

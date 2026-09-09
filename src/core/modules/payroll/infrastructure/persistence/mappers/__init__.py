@@ -1,1 +1,0 @@
-"""Payroll mapper placeholder package."""

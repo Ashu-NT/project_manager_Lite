@@ -148,10 +148,9 @@ class TaskWorkspaceReadPage:
 @dataclass(frozen=True, slots=True)
 class TaskResourceTimeBreakdownRow:
     """One TaskAssignment's planned-vs-actual row for the Task Detail ->
-    Time -> Overview resource breakdown (docs §44 Time redesign). Every
-    figure here is the SAME authoritative TaskAssignment field the
-    Assignment section already renders -- this is a read-model
-    aggregation, not a new calculation."""
+    Time -> Overview resource breakdown. Every figure here is the SAME
+    authoritative TaskAssignment field the Assignment section already
+    renders -- this is a read-model aggregation, not a new calculation."""
 
     assignment_id: str
     resource_id: str
@@ -187,8 +186,7 @@ class TaskTimeSummaryFact:
 class TaskTimeEntryRow:
     """One TimeEntry plus the resource it was logged against -- TimeEntry
     itself carries only `work_allocation_id`, so this pairs it with the
-    resource_id resolved from that TaskAssignment (docs §44 Time
-    redesign's task-scoped, all-assignments Time Entries list)."""
+    resource_id resolved from that TaskAssignment."""
 
     entry_id: str
     work_allocation_id: str

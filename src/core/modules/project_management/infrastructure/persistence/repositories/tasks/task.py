@@ -120,6 +120,28 @@ class SqlAlchemyTaskRepository(TaskRepository):
         )
         self.session.execute(delete(TaskORM).where(TaskORM.id == in_scope))
 
+    def delete_with_version_check(self, task_id: str, *, expected_version: int) -> None:
+        ctx = self._context()
+        in_scope = self.session.execute(
+            select(TaskORM.id)
+            .join(ProjectORM, TaskORM.project_id == ProjectORM.id)
+            .where(
+                TaskORM.id == task_id,
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
+        ).scalar_one_or_none()
+        if in_scope is None:
+            raise NotFoundError("Task not found.")
+        delete_with_version_check(
+            self.session,
+            TaskORM,
+            task_id,
+            expected_version,
+            not_found_message="Task not found.",
+            stale_message="Task was updated by another user.",
+        )
+
     def get(self, task_id: str) -> Task | None:
         stmt = self._project_scoped_stmt().where(TaskORM.id == task_id)
         row = self.session.execute(stmt).scalar_one_or_none()
@@ -305,6 +327,39 @@ class SqlAlchemyAssignmentRepository(AssignmentRepository):
         )
         return assignment
 
+    def update_hours_logged_with_version_check(
+        self, assignment: TaskAssignment, *, expected_version: int
+    ) -> TaskAssignment:
+        self._ensure_task_in_scope(assignment.task_id)
+        assignment.version = update_with_version_check(
+            self.session,
+            TaskAssignmentORM,
+            assignment.id,
+            expected_version,
+            {"hours_logged": assignment.hours_logged},
+            not_found_message="Assignment not found.",
+            stale_message="Assignment was updated by another user.",
+        )
+        return assignment
+
+    def update_response_status_with_version_check(
+        self, assignment: TaskAssignment, *, expected_version: int
+    ) -> TaskAssignment:
+        self._ensure_task_in_scope(assignment.task_id)
+        assignment.version = update_with_version_check(
+            self.session,
+            TaskAssignmentORM,
+            assignment.id,
+            expected_version,
+            {
+                "response_status": assignment.response_status,
+                "responded_at": assignment.responded_at,
+            },
+            not_found_message="Assignment not found.",
+            stale_message="Assignment was updated by another user.",
+        )
+        return assignment
+
     def delete(self, assignment_id: str) -> None:
         self.session.execute(
             delete(TaskAssignmentORM).where(
@@ -312,6 +367,25 @@ class SqlAlchemyAssignmentRepository(AssignmentRepository):
                     self._scoped_assignment_ids(assignment_id=assignment_id)
                 )
             )
+        )
+
+    def delete_with_version_check(self, assignment_id: str, *, expected_version: int) -> None:
+        in_scope = self.session.execute(
+            select(TaskAssignmentORM.id).where(
+                TaskAssignmentORM.id.in_(
+                    self._scoped_assignment_ids(assignment_id=assignment_id)
+                )
+            )
+        ).scalar_one_or_none()
+        if in_scope is None:
+            raise NotFoundError("Assignment not found.")
+        delete_with_version_check(
+            self.session,
+            TaskAssignmentORM,
+            assignment_id,
+            expected_version,
+            not_found_message="Assignment not found.",
+            stale_message="Assignment was updated by another user.",
         )
 
     def delete_by_task(self, task_id: str) -> None:
@@ -431,15 +505,12 @@ class SqlAlchemyDependencyRepository(DependencyRepository):
             raise NotFoundError("Task not found.")
 
     def _ensure_same_project(self, predecessor_task_id: str, successor_task_id: str) -> None:
-        """Defense-in-depth (§9/§G5 of the R4.4 dependency audit): the
-        schema cannot express "both endpoints in the same project" --
-        task_dependencies has no project_id column and its FKs target
-        tasks.id alone, not the (project_id, id) composite tasks carries
-        for its own self-referential FK. A caller that reaches this
-        repository directly (bypassing TaskDependencyMixin's
-        DEPENDENCY_CROSS_PROJECT diagnostics check) would otherwise be able
-        to persist a cross-project edge as long as both tasks share a
-        tenant/org."""
+        """Defense-in-depth: the schema cannot express "both endpoints in the same project" --
+        task_dependencies has no project_id column and its FKs target tasks.id alone, not the
+        (project_id, id) composite tasks carries for its own self-referential FK. A caller that
+        reaches this repository directly (bypassing TaskDependencyMixin's
+        DEPENDENCY_CROSS_PROJECT diagnostics check) would otherwise be able to persist a
+        cross-project edge as long as both tasks share a tenant/org."""
         ctx = self._context()
         rows = self.session.execute(
             select(TaskORM.id, TaskORM.project_id)
@@ -486,10 +557,6 @@ class SqlAlchemyDependencyRepository(DependencyRepository):
             raise NotFoundError("Dependency not found.")
         self._ensure_task_in_scope(dependency.predecessor_task_id)
         self._ensure_task_in_scope(dependency.successor_task_id)
-        # Defense-in-depth (§G5): both endpoints must belong to the same
-        # project. The DB schema cannot express this (task_dependencies has
-        # no project_id column, and the FKs target tasks.id alone), so it
-        # is enforced here and in the application-layer diagnostics check.
         self._ensure_same_project(dependency.predecessor_task_id, dependency.successor_task_id)
         dependency.version = update_with_version_check(
             self.session,

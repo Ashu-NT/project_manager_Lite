@@ -244,12 +244,11 @@ class TaskDependencyDiagnosticsMixin:
 
     def preview_dependency_removal(self, dependency_id: str) -> DependencyDiagnostic:
         """Impact preview for DELETE -- the inverse of the CREATE preview
-        above (Phase K). Simulates the schedule WITH the dependency
-        (current) vs WITHOUT it (projected), using the exact same
-        canonical, non-persisting ``run_cpm`` path ``get_dependency_diagnostics``
+        above. Simulates the schedule WITH the dependency (current) vs
+        WITHOUT it (projected), using the exact same canonical,
+        non-persisting ``run_cpm`` path ``get_dependency_diagnostics``
         already uses for create/update, so a delete preview can never
-        disagree with what actually removing the edge would produce.
-        """
+        disagree with what actually removing the edge would produce."""
         dependency = self._dependency_repo.get(dependency_id)
         if dependency is None:
             return self._invalid_diagnostic(
@@ -414,11 +413,9 @@ class TaskDependencyDiagnosticsMixin:
         primitives (``pure_cpm.run_cpm``, which shares its per-task date
         math with the live ``SchedulingEngine``) as the committed schedule,
         so a preview can never disagree with what saving would actually
-        produce because of a second, independently-maintained formula --
-        see docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
-        §11/Phase D/K. Preview and committed schedule still resolve the
-        project calendar through the same
-        ``resolve_project_calendar_for_preview`` hook (Phase E)."""
+        produce because of a second, independently-maintained formula.
+        Preview and committed schedule resolve the project calendar
+        through the same hook."""
         tasks_by_id: dict[str, Task] = {task.id: replace(task) for task in tasks}
         calendar = self._resolve_calendar_for_diagnostics(tasks_by_id)
         return run_cpm(calendar, tasks_by_id, deps).schedule
@@ -428,13 +425,10 @@ class TaskDependencyDiagnosticsMixin:
         ``SchedulingEngine.recalculate_project_schedule`` would bind for
         this project (via its public ``calendar_for_project``), so a
         dependency preview can never silently disagree with the committed
-        schedule purely because it consulted a different calendar wrapper
-        -- see docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
-        §7/Phase E. Falls back to the global work calendar only when no
-        scheduling engine is wired (e.g. lightweight test doubles) or the
-        task set spans more than one project (diagnostics is always called
-        for a single project's graph in practice, but this stays honest
-        about that assumption instead of guessing)."""
+        schedule purely because it consulted a different calendar wrapper.
+        Falls back to the global work calendar only when no scheduling
+        engine is wired (e.g. lightweight test doubles) or the task set
+        spans more than one project."""
         scheduling_engine = getattr(self, "_scheduling_engine", None)
         if scheduling_engine is not None:
             project_ids = {task.project_id for task in tasks_by_id.values() if task.project_id}

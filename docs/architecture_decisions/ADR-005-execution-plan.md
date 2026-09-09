@@ -1,15 +1,15 @@
 # ADR-005 Execution Plan: Domain Events Migration
 
-- Companion to [ADR-005-domain-events.md](ADR-005-domain-events.md) — that document owns the
-  design decisions, semantics, and reconciliations; this document owns cross-Platform-and-module
-  sequencing and phase exit criteria. The exact Platform how-to (files, tests, per-phase detail)
-  lives in [`platform_domain_event_implementation_plan.md`](../platform_modernization/domain_event/platform_domain_event_implementation_plan.md) —
-  this document does not duplicate that detail.
-- Status: draft — no phase started yet (ADR-005 itself is still "proposed," not "accepted"; do not
-  begin Phase 0 until it's accepted).
+- Status: superseded — retained only as a historical planning record. The domain-event
+  modernization this plan sequenced is now complete application-wide (see the root
+  `README.md`'s "Event Architecture" section: zero legacy `Signal` fields remain, `P46B`
+  closed the last capability). Its companion design-decisions document
+  (`ADR-005-domain-events.md`) and the detailed Platform how-to plan/audit it references were
+  removed on 2026-09-09 as superseded historical logs. This document's own "Phase 3" was a pilot
+  on the `inventory_procurement` module, which has since been removed pending a future rebuild —
+  do not use this plan's phase sequencing to guide that rebuild; it predates the module's removal.
 - Date: 2026-08-05, revised 2026-08-25 alongside ADR-005's revision 6, after a dedicated
-  Platform-only architecture audit
-  (`docs/platform_modernization/domain_event/platform_domain_event_audit.md`); revised again
+  Platform-only architecture audit; revised again
   2026-08-25 (same day) alongside ADR-005's revision 7, after a P4A pre-implementation
   investigation found the original Phase 2A sequencing had no step for making PM/Inventory's
   apply-handler-backing services session-parameterizable before `ApprovalService` itself migrates
@@ -257,10 +257,10 @@ produces (the shared Qt invalidation adapter in particular). **No module migrati
 onward) may begin until this phase's exit criteria are met and "Platform Domain Event Foundation
 Ready" is declared.**
 
-Exact file-by-file detail, per-capability discovery tables, and step-by-step tasks live in
-[`platform_domain_event_implementation_plan.md`](../platform_modernization/domain_event/platform_domain_event_implementation_plan.md)
-(Phases P0-P8 there map onto this single Phase 2 here, plus Phase 0/1 above). This section states
-only the sequencing and exit gate.
+Exact file-by-file detail, per-capability discovery tables, and step-by-step tasks lived in a
+companion implementation plan (removed 2026-09-09 as a superseded historical log; Phases P0-P8
+there mapped onto this single Phase 2 here, plus Phase 0/1 above). This section states only the
+sequencing and exit gate.
 
 ### 2A-PRE — Approval Transaction-Participant Convergence (NEW — gates 2A; revised Round 8)
 

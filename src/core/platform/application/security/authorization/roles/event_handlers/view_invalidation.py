@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+from src.core.platform.domain.security.auth.events import (
+    CustomRoleCreated,
+    CustomRoleRetired,
+    CustomRoleUpdated,
+    RolePolicyReconciled,
+)
 from src.core.platform.domain.security.authorization.roles.events import (
     RoleBindingAssigned,
     RoleBindingRevoked,
@@ -21,6 +27,13 @@ from src.core.shared.events.view_invalidation import (
 
 ROLE_BINDING_CATEGORY = "role_binding"
 ROLE_BINDING_ASSIGNMENTS_SCOPE_CODE = "role_binding_assignments"
+
+AUTHORIZATION_CONTEXT_CATEGORY = "authorization_context"
+AUTHORIZATION_CONTEXT_SCOPE_CODE = "authorization_context"
+
+_AuthorizationContextEvent = (
+    CustomRoleCreated | CustomRoleUpdated | CustomRoleRetired | RolePolicyReconciled
+)
 
 _RoleBindingEvent = RoleBindingAssigned | RoleBindingRevoked
 
@@ -55,8 +68,36 @@ def build_role_binding_view_invalidation_handler(channel: ViewInvalidationChanne
     return handle_role_binding_event
 
 
+def build_authorization_context_view_invalidation_handler(channel: ViewInvalidationChannel):
+    """One `PostCommitEventHandler` bound to `channel`, registered against the four Role-owned
+    facts (`CustomRoleCreated`/`Updated`/`Retired`, `RolePolicyReconciled`). Tenant-wide scope --
+    Role itself is not a per-principal fact the way RoleBinding is (that's covered separately by
+    `build_role_binding_view_invalidation_handler` above)."""
+
+    def handle_authorization_context_event(
+        event: _AuthorizationContextEvent,
+        context: DomainEventContext,
+    ) -> None:
+        tenant_id = getattr(event, "tenant_id", None)
+        entity_id = getattr(event, "role_id", None) or getattr(event, "policy_name", "")
+        channel.notify(
+            ViewInvalidationHint(
+                scope=TenantScope(tenant_id) if tenant_id else PlatformScope(),
+                category=AUTHORIZATION_CONTEXT_CATEGORY,
+                scope_code=AUTHORIZATION_CONTEXT_SCOPE_CODE,
+                entity_type="role",
+                entity_id=entity_id,
+            )
+        )
+
+    return handle_authorization_context_event
+
+
 __all__ = [
+    "build_authorization_context_view_invalidation_handler",
     "build_role_binding_view_invalidation_handler",
+    "AUTHORIZATION_CONTEXT_CATEGORY",
+    "AUTHORIZATION_CONTEXT_SCOPE_CODE",
     "ROLE_BINDING_CATEGORY",
     "ROLE_BINDING_ASSIGNMENTS_SCOPE_CODE",
 ]

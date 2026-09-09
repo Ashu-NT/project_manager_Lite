@@ -1,13 +1,3 @@
-"""P5B prerequisite (Module Entitlement Transaction Convergence):
-`SqlAlchemyModuleEntitlementUnitOfWork` -- the Module Entitlement capability's own thin, concrete
-subclass of the P3 `SqlAlchemyUnitOfWorkBase`, adding exactly the one named accessor
-`ModuleEntitlementUnitOfWork` declares (`entitlements`) plus `_enterprise_audit_service`, both
-bound to this instance's own fresh `Session` -- never the shared, process-lifetime one
-`ModuleCatalogService`'s other, not-yet-migrated methods (the lazy default-entitlement seeding
-inside `_ensure_context_defaults`, out of this prerequisite pass's scope -- see the P5B report)
-still use. Mirrors `SqlAlchemyOrganizationUnitOfWork`/`SqlAlchemyPlatformUnitOfWork` exactly.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -39,6 +29,9 @@ from src.infra.persistence.db.unit_of_work import (
 
 
 class SqlAlchemyModuleEntitlementUnitOfWork(SqlAlchemyUnitOfWorkBase, ModuleEntitlementUnitOfWork):
+    """Owns a fresh Session per instance, distinct from the shared session
+    `ModuleCatalogService`'s lazy default-entitlement seeding still uses."""
+
     def __init__(
         self,
         *,
@@ -70,9 +63,7 @@ class SqlAlchemyModuleEntitlementUnitOfWork(SqlAlchemyUnitOfWorkBase, ModuleEnti
 
 
 class SqlAlchemyModuleEntitlementUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
-    """Closes over a session *factory* (per ADR-005 Section 6.1) plus the ambient collaborators
-    (`tenant_context_service`, `user_session`) needed to build this UoW's fresh, session-bound
-    accessors on every `create()` call."""
+    """Builds a fresh, session-bound UoW on every `create()` call."""
 
     def __init__(
         self,

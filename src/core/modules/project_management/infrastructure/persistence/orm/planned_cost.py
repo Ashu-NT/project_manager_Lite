@@ -182,6 +182,15 @@ class ProjectPlannedCostLineORM(Base):
         CheckConstraint(
             "rate_card_version >= 1", name="ck_pf_planned_cost_lines_rate_card_version"
         ),
+        CheckConstraint(
+            "rate_line_version IS NULL OR rate_line_version >= 1",
+            name="ck_planned_cost_rate_line_version",
+        ),
+        CheckConstraint(
+            "rate_modifier_multiplier IS NULL OR "
+            "(rate_modifier IS NOT NULL AND rate_modifier_multiplier >= 0)",
+            name="ck_planned_cost_rate_modifier",
+        ),
         {"info": {"rls_scope": "tenant_organization"}},
     )
 
@@ -239,6 +248,12 @@ class ProjectPlannedCostLineORM(Base):
     rate_card_id: Mapped[str] = mapped_column(String, nullable=False)
     rate_line_id: Mapped[str] = mapped_column(String, nullable=False)
     rate_card_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    rate_line_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    rate_modifier: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    rate_modifier_multiplier: Mapped[Decimal | None] = mapped_column(
+        financial_numeric(FinancialNumericKind.RATE), nullable=True,
+        info=financial_numeric_info(FinancialNumericKind.RATE),
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 

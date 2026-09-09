@@ -1,11 +1,6 @@
-"""Module Entitlement's own business event vocabulary.
-
-Application-authored via `uow.record_event(...)` from `ModuleCatalogMutationMixin`
-(platform_p5_event_discovery.md Section 8, mirroring `OrganizationCreated`'s own precedent):
-`ModuleEntitlement` is a plain projection with no transition methods (P5B-SEM's own finding), so
-these are application-recorded, not aggregate-recorded.
-
-Pure business vocabulary only -- no ViewInvalidation import, no legacy `domain_events` Signal
+"""Module Entitlement's own business event vocabulary. Application-authored via
+`uow.record_event(...)` from `ModuleCatalogMutationMixin` -- `ModuleEntitlement` is a plain
+projection with no transition methods. Pure business vocabulary only: no ViewInvalidation
 import, no dispatch/execution metadata (`correlation_id`/`causation_id`/`command_id` live on
 `DomainEventContext`, never duplicated here).
 """

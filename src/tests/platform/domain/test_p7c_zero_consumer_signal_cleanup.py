@@ -1,0 +1,272 @@
+
+from __future__ import annotations
+
+import glob
+import inspect
+
+
+def _strip_strings_and_comments(source: str) -> str:
+    import re
+
+    no_docstrings = re.sub(r'"""[\s\S]*?"""', "", source)
+    no_comments = re.sub(r"#.*", "", no_docstrings)
+    return no_comments
+
+
+def _production_source_files():
+    for path in glob.glob("src/**/*.py", recursive=True):
+        normalized = path.replace("\\", "/")
+        if "__pycache__" in normalized or "/tests/" in normalized:
+            continue
+        yield normalized
+
+
+# ---------------------------------------------------------------------------
+# 1. Finance mutation hints exist only with producers and a targeted consumer
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# 2. Every remaining ApprovalPostCommitEvent resolves to a real signal + real consumer
+# ---------------------------------------------------------------------------
+
+
+def test_zero_remaining_approval_post_commit_event_sites_after_task_modernization():
+    import ast
+
+    signal_names_found = set()
+    for path in _production_source_files():
+        with open(path, "r", encoding="utf-8", errors="ignore") as fh:
+            source = fh.read()
+        if "ApprovalPostCommitEvent(" not in source:
+            continue
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "ApprovalPostCommitEvent"
+                and node.args
+                and isinstance(node.args[0], ast.Constant)
+                and isinstance(node.args[0].value, str)
+            ):
+                signal_names_found.add(node.args[0].value)
+
+    assert signal_names_found == set(), (
+        f"expected zero ApprovalPostCommitEvent sites, found: {signal_names_found}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# 3. _emit_signal_safely: the reflective legacy-signal dispatch bridge, fully retired
+# ---------------------------------------------------------------------------
+
+
+def test_emit_signal_safely_removed_after_task_modernization():
+    import src.core.platform.application.approval.approval_service as approval_service_module
+
+    source = inspect.getsource(approval_service_module)
+    assert "_emit_signal_safely" not in source
+    assert "_emit_handler_events" not in source
+    assert not hasattr(approval_service_module.ApprovalService, "_emit_signal_safely")
+
+
+# ---------------------------------------------------------------------------
+# 4. Approval participant behavior: business mutation preserved, dead output gone
+# ---------------------------------------------------------------------------
+
+
+def test_project_cost_apply_participant_emits_typed_status_changed_events():
+    from src.core.modules.project_management.infrastructure.approval.project_cost_apply_participant import (
+        ProjectCostApprovalParticipant,
+    )
+    from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
+        ProjectCostEntryService,
+    )
+
+    apply_source = inspect.getsource(ProjectCostApprovalParticipant.apply)
+    assert "_apply_approval_decision(" in apply_source
+    assert "ApprovalHandlerResult(domain_events=(event,))" in apply_source
+    assert '"cost_entries_changed"' not in apply_source
+
+    reject_source = inspect.getsource(ProjectCostApprovalParticipant.reject)
+    assert "_apply_rejection_decision(" in reject_source
+    assert "ApprovalHandlerResult(domain_events=(event,))" in reject_source
+    assert '"cost_entries_changed"' not in reject_source
+
+    approval_decision_source = inspect.getsource(
+        ProjectCostEntryService._apply_approval_decision
+    )
+    assert "CostEntryStatusChangeType.APPROVED" in approval_decision_source
+    rejection_decision_source = inspect.getsource(
+        ProjectCostEntryService._apply_rejection_decision
+    )
+    assert "CostEntryStatusChangeType.REJECTED" in rejection_decision_source
+
+
+def test_financial_change_apply_participant_emits_typed_change_and_forecast_events():
+    from src.core.modules.project_management.infrastructure.approval.financial_change_apply_participant import (
+        FinancialChangeApprovalParticipant,
+    )
+
+    apply_source = inspect.getsource(FinancialChangeApprovalParticipant.apply)
+    assert "FinancialChangeChanged(" in apply_source
+    assert "FinancialChangeEventType.APPLIED" in apply_source
+    assert "ForecastVersionChanged(" in apply_source
+    assert "ForecastVersionChangeType.APPROVED" in apply_source
+    assert "budget_events" in apply_source
+    assert "tasks_changed" not in apply_source
+    assert "budgets_changed" not in apply_source
+    assert "ApprovalPostCommitEvent" not in apply_source
+
+    reject_source = inspect.getsource(FinancialChangeApprovalParticipant.reject)
+    assert "FinancialChangeChanged(" in reject_source
+    assert "FinancialChangeEventType.REJECTED" in reject_source
+
+
+def test_real_budget_approval_still_emits_its_own_real_view_invalidation(services):
+    """A real budget approval produces the typed `BudgetStatusChanged(APPROVED)` post-commit
+    ViewInvalidation output."""
+    from decimal import Decimal
+
+    from src.core.modules.project_management.application.financials.budgets.event_handlers.view_invalidation import (
+        BUDGET_CATEGORY,
+        BUDGET_PLANNING_SCOPE_CODE,
+    )
+
+    _login(services, "admin", "ChangeMe123!")
+    project = services["project_service"].create_project(
+        name=_unique("P7C Budget Project"), code=_unique("P7C-BUD"), financial_currency_code="USD"
+    )
+    cost_code = services["financial_configuration_service"].create_cost_code(
+        code=_unique("P7C-CC"), name="P7C cost code"
+    )
+    budgets = services["budget_service"]
+    budget = budgets.create_budget(project.id, "P7C Budget")
+    budgets.add_line(
+        budget.id, cost_code_id=cost_code.id, description="Line", amount=Decimal("100"),
+        expected_budget_version=budget.row_version,
+    )
+    budget = budgets.get_budget(budget.id)
+    budget = budgets.submit_budget(budget.id, "admin", expected_version=budget.row_version)
+
+    hints = []
+
+    class _AnyOrgFilter:
+        def matches(self, scope) -> bool:
+            return True
+
+    services["platform_view_invalidation_channel"].subscribe(
+        _AnyOrgFilter(), lambda hint: hints.append(hint)
+    )
+
+    budgets.approve_budget(budget.id, approved_by="admin", expected_version=budget.row_version)
+
+    budget_hints = [
+        h for h in hints if h.category == BUDGET_CATEGORY and h.scope_code == BUDGET_PLANNING_SCOPE_CODE
+    ]
+    assert [h.entity_id for h in budget_hints] == [project.id]
+
+
+# ---------------------------------------------------------------------------
+# 5. Producer structure and integration-owned post-commit hints
+# ---------------------------------------------------------------------------
+
+
+def test_no_commit_and_emit_helper_remains_anywhere():
+    """Service helpers use the concise `_commit` name; signal publication is part of commit."""
+    hits = []
+    for path in _production_source_files():
+        with open(path, "r", encoding="utf-8", errors="ignore") as fh:
+            source = fh.read()
+        if "_commit_and_emit" in source:
+            hits.append(path)
+    assert hits == [], hits
+
+
+def test_procurement_financial_dispatcher_emits_scoped_post_commit_hints():
+    import src.infra.integration.procurement_financial_dispatcher as module
+
+    source = inspect.getsource(module)
+    assert "SqlAlchemyUnitOfWorkBase" in source
+    assert "consumption.commitment_events" in source
+    assert "consumption.cost_entry_events" in source
+    assert "uow.record_event(event)" in source
+    assert "uow.commit()" in source
+    assert "FinanceInvalidationScope" not in source, (
+        "the legacy Finance-signal payload type has no remaining use in this file"
+    )
+    assert "cost_entries_changed" not in source
+    assert "self._transactional_dispatcher.dispatch(" not in source, (
+        "the dispatcher must not directly invoke the transactional dispatcher -- "
+        "that is the canonical UoW's own responsibility during commit()"
+    )
+    assert "self._post_commit_bus.publish(" not in source, (
+        "the dispatcher must not directly publish DomainEvents post-commit -- "
+        "that is the canonical UoW's own responsibility during commit()"
+    )
+
+
+def test_approved_time_dispatcher_uses_canonical_unit_of_work():
+    import src.infra.integration.approved_time_dispatcher as module
+
+    source = inspect.getsource(module)
+    assert "SqlAlchemyUnitOfWorkBase" in source
+    assert "uow.record_event(event)" in source
+    assert "uow.commit()" in source
+    assert "FinanceInvalidationScope" not in source
+    assert "cost_entries_changed" not in source
+    assert "self._transactional_dispatcher.dispatch(" not in source
+    assert "self._post_commit_bus.publish(" not in source
+
+
+# ---------------------------------------------------------------------------
+# 6. Final legacy signal invariant
+# ---------------------------------------------------------------------------
+
+
+def test_no_new_business_domain_event_or_replacement_signal_introduced():
+    import ast
+
+    forbidden = (
+        "CostEntryChanged", "CommitmentChanged", "ForecastChanged",
+        "FinanceChanged",
+    )
+    hits = []
+    for path in _production_source_files():
+        with open(path, "r", encoding="utf-8", errors="ignore") as fh:
+            source = fh.read()
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            continue
+        defined = {
+            node.name
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+        if defined.intersection(forbidden):
+            hits.append((path, sorted(defined.intersection(forbidden))))
+    assert hits == [], hits
+
+
+# ---------------------------------------------------------------------------
+# helpers
+# ---------------------------------------------------------------------------
+
+_COUNTER = {"n": 0}
+
+
+def _unique(prefix: str) -> str:
+    _COUNTER["n"] += 1
+    return f"{prefix}-{_COUNTER['n']}"
+
+
+def _login(services, username: str, password: str) -> None:
+    auth = services["auth_service"]
+    user_session = services["user_session"]
+    user = auth.authenticate(username, password)
+    user_session.set_principal(auth.build_principal(user))
