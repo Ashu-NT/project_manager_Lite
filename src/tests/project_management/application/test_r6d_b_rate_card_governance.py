@@ -294,7 +294,8 @@ def test_rate_governance_dialogs_fit_supported_viewports(
                     id: loader
                     source: "{(RATE_DIALOG_ROOT / f'{dialog_type}.qml').as_uri()}"
                     onLoaded: {{
-                        item.projectId = "project-1"
+                        if (typeof item.projectId !== "undefined")
+                            item.projectId = "project-1"
                         item.open()
                     }}
                 }}
@@ -334,7 +335,8 @@ def test_rate_governance_dialogs_restore_focus_after_escape(qapp, dialog_type: s
                     source: "{(RATE_DIALOG_ROOT / f'{dialog_type}.qml').as_uri()}"
                     onLoaded: {{
                         opener.forceActiveFocus()
-                        item.projectId = "project-1"
+                        if (typeof item.projectId !== "undefined")
+                            item.projectId = "project-1"
                         item.focusReturnTarget = opener
                         item.open()
                     }}
