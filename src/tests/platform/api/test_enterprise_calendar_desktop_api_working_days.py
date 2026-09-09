@@ -28,6 +28,7 @@ from src.core.platform.application.time_management.calendar.capacity.enterprise_
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
 from src.core.platform.api.desktop.time_management.calendar.enterprise_calendar import EnterpriseCalendarDesktopApi
 from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import WorkingDaysCommand
+from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
 
 
 @pytest.fixture
@@ -76,6 +77,9 @@ def tenant_context(org_id):
     context.get_active_organization_id.return_value = org_id
     context.get_active_organization.return_value = FakeOrg()
     context.get_active_tenant_id.return_value = "tenant-wd"
+    context.require_active_scope_ids.return_value = ActiveScopeIds(
+        tenant_id="tenant-wd", organization_id=org_id
+    )
     context.require_organization_context.return_value = FakeContext(organization=FakeOrg())
     return context
 
