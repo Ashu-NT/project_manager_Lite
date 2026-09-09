@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 from decimal import Decimal
+from dataclasses import replace
 
 import pytest
 
@@ -76,6 +77,17 @@ def _create_draft(services, project, cost_code, *, command_id="p37-manual-1", am
         currency_code=organization.base_currency,
         transaction_date=date(2026, 1, 12),
         cost_code_id=cost_code.id,
+    )
+
+
+def _become_independent_decider(services) -> None:
+    user_session = services["user_session"]
+    user_session.set_principal(
+        replace(
+            user_session.principal,
+            user_id="p37-independent-finance-decider",
+            username="p37-independent-finance-decider",
+        )
     )
 
 
@@ -266,6 +278,7 @@ def test_submit_approve_post_progression_produces_source_derived_hints(services)
     assert [h.scope_code for h in submit_hints] == [COST_ENTRY_LIST_SCOPE_CODE]
 
     hints.clear()
+    _become_independent_decider(services)
     service.approve(submitted.id, expected_version=submitted.row_version)
     approved = service.get_entry(submitted.id)
     approve_hints = _cost_entry_hints(hints)
@@ -287,6 +300,7 @@ def test_reject_produces_exactly_one_list_hint(services):
     submitted = service.submit(entry.id, expected_version=entry.row_version)
 
     hints = _spy_hints(services)
+    _become_independent_decider(services)
     rejected = service.reject(
         submitted.id, expected_version=submitted.row_version, notes="Needs correction"
     )
@@ -301,6 +315,7 @@ def test_reverse_produces_both_list_and_actuals_hints(services):
     entry = _create_draft(services, project, cost_code)
     service = services["cost_entry_service"]
     submitted = service.submit(entry.id, expected_version=entry.row_version)
+    _become_independent_decider(services)
     service.approve(submitted.id, expected_version=submitted.row_version)
     approved = service.get_entry(submitted.id)
     posted = service.post(
