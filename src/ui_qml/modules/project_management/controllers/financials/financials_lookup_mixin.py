@@ -7,6 +7,24 @@ logger = logging.getLogger(__name__)
 
 
 class FinancialsLookupMixin:
+    def _search_rate_resources(
+        self, project_id: str, search: str, page: int, page_size: int
+    ) -> dict[str, object]:
+        return self._lookup_page(
+            lambda: self._financials_workspace_presenter.search_rate_resources(
+                project_id, search=search, page=page, page_size=page_size
+            )
+        )
+
+    def _search_rate_departments(
+        self, project_id: str, search: str, page: int, page_size: int
+    ) -> dict[str, object]:
+        return self._lookup_page(
+            lambda: self._financials_workspace_presenter.search_rate_departments(
+                project_id, search=search, page=page, page_size=page_size
+            )
+        )
+
     def _search_finance_projects(
         self, search: str, page: int, page_size: int
     ) -> dict[str, object]:

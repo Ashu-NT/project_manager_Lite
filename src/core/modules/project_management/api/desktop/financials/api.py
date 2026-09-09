@@ -259,6 +259,38 @@ class ProjectManagementFinancialsDesktopApi:
         )
         return _serialize_lookup_page(facts)
 
+    def search_rate_resources(
+        self,
+        project_id: str,
+        *,
+        search: str = "",
+        page: int = 1,
+        page_size: int = 25,
+    ) -> FinancialLookupPageDto:
+        facts = self._require_finance_workspace_query().search_rate_resources(
+            project_id,
+            request=FinanceLookupQuery(
+                search=search, page=page, page_size=page_size
+            ),
+        )
+        return _serialize_lookup_page(facts)
+
+    def search_rate_departments(
+        self,
+        project_id: str,
+        *,
+        search: str = "",
+        page: int = 1,
+        page_size: int = 25,
+    ) -> FinancialLookupPageDto:
+        facts = self._require_finance_workspace_query().search_rate_departments(
+            project_id,
+            request=FinanceLookupQuery(
+                search=search, page=page, page_size=page_size
+            ),
+        )
+        return _serialize_lookup_page(facts)
+
     def resolve_finance_project(self, project_id: str) -> FinancialLookupOptionDto | None:
         fact = self._require_finance_workspace_query().resolve_finance_project(project_id)
         return _serialize_lookup_option(fact)

@@ -117,5 +117,21 @@ class FinanceLookupReader(Protocol):
         project_id: str,
     ) -> ManualActualDefaultsFacts | None: ...
 
+    def search_rate_resources(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts: ...
+
+    def search_rate_departments(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts: ...
+
 
 __all__ = ["FinanceLookupReader"]

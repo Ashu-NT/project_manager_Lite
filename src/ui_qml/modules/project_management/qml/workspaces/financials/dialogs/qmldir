@@ -14,3 +14,6 @@ FinancialChangeRequestDialog 1.0 FinancialChangeRequestDialog.qml
 ForecastGenerationDialog 1.0 ForecastGenerationDialog.qml
 ForecastLifecycleDialog 1.0 ForecastLifecycleDialog.qml
 ManualActualEditorDialog 1.0 ManualActualEditorDialog.qml
+RateCardEditorDialog 1.0 RateCardEditorDialog.qml
+RateLineEditorDialog 1.0 RateLineEditorDialog.qml
+RateLifecycleDialog 1.0 RateLifecycleDialog.qml

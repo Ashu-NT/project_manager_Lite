@@ -284,6 +284,7 @@ Component {
     Property { name: "rateLineRateType"; type: "QString"; isReadonly: true }
     Property { name: "rateLineStatus"; type: "QString"; isReadonly: true }
     Property { name: "rateLineEffectiveStatus"; type: "QString"; isReadonly: true }
+    Property { name: "canCreateRateCard"; type: "bool"; isReadonly: true }
     Property { name: "plannedCostVersions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "plannedCostLines"; type: "QVariantMap"; isReadonly: true }
     Property { name: "plannedCostVersionsTableModel"; type: "QObject"; isReadonly: true }
@@ -340,6 +341,14 @@ Component {
     Method { name: "setRateLineSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
     Method { name: "setRateCardFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "scope"; type: "QString" } Parameter { name: "status"; type: "QString" } }
     Method { name: "setRateLineFilters"; Parameter { name: "search"; type: "QString" } Parameter { name: "rateType"; type: "QString" } Parameter { name: "status"; type: "QString" } Parameter { name: "effectiveStatus"; type: "QString" } }
+    Method { name: "createRateCard"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateRateCard"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deactivateRateCard"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "addRateLine"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateRateLine"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deactivateRateLine"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "searchRateResources"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "search"; type: "QString" } Parameter { name: "page"; type: "int" } Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "searchRateDepartments"; type: "QVariantMap"; Parameter { name: "projectId"; type: "QString" } Parameter { name: "search"; type: "QString" } Parameter { name: "page"; type: "int" } Parameter { name: "pageSize"; type: "int" } }
     Method { name: "selectFinancialChange"; Parameter { name: "changeId"; type: "QString" } }
     Method { name: "setFinancialChangePage"; Parameter { name: "page"; type: "int" } }
     Method { name: "setFinancialChangeImpactPage"; Parameter { name: "page"; type: "int" } }

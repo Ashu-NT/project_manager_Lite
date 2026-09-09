@@ -81,6 +81,31 @@ Item {
         budgetLifecycleDialog.open()
     }
 
+    function openRateCardDialog(mode, rateCard) {
+        rateCardEditorDialog.mode = String(mode || "create")
+        rateCardEditorDialog.projectId = root.selectedProjectId
+        rateCardEditorDialog.rateCard = rateCard || null
+        rateCardEditorDialog.errorMessage = ""
+        root._openSetupDialog(rateCardEditorDialog)
+    }
+
+    function openRateLineDialog(mode, rateCard, rateLine) {
+        rateLineEditorDialog.mode = String(mode || "create")
+        rateLineEditorDialog.projectId = root.selectedProjectId
+        rateLineEditorDialog.rateCard = rateCard || null
+        rateLineEditorDialog.rateLine = rateLine || null
+        rateLineEditorDialog.errorMessage = ""
+        root._openSetupDialog(rateLineEditorDialog)
+    }
+
+    function openRateLifecycleDialog(target, rateCard, rateLine) {
+        rateLifecycleDialog.target = String(target || "card")
+        rateLifecycleDialog.rateCard = rateCard || null
+        rateLifecycleDialog.rateLine = rateLine || null
+        rateLifecycleDialog.errorMessage = ""
+        root._openSetupDialog(rateLifecycleDialog)
+    }
+
     function openForecastGenerationDialog() {
         forecastGenerationDialog.projectId = root.selectedProjectId
         forecastGenerationDialog.projectLabel = root.selectedProjectLabel
@@ -311,6 +336,43 @@ Item {
                 )
             }
             root._handleResult(budgetLifecycleDialog, result)
+        }
+    }
+
+    RateCardEditorDialog {
+        id: rateCardEditorDialog
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onSubmitted: function(payload) {
+            if (!root.workspaceController) return
+            const result = rateCardEditorDialog.mode === "edit"
+                ? root.workspaceController.updateRateCard(payload)
+                : root.workspaceController.createRateCard(payload)
+            root._handleResult(rateCardEditorDialog, result)
+        }
+    }
+
+    RateLineEditorDialog {
+        id: rateLineEditorDialog
+        workspaceController: root.workspaceController
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onSubmitted: function(payload) {
+            if (!root.workspaceController) return
+            const result = rateLineEditorDialog.mode === "edit"
+                ? root.workspaceController.updateRateLine(payload)
+                : root.workspaceController.addRateLine(payload)
+            root._handleResult(rateLineEditorDialog, result)
+        }
+    }
+
+    RateLifecycleDialog {
+        id: rateLifecycleDialog
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onDecided: function(payload) {
+            if (!root.workspaceController) return
+            const result = rateLifecycleDialog.target === "line"
+                ? root.workspaceController.deactivateRateLine(payload)
+                : root.workspaceController.deactivateRateCard(payload)
+            root._handleResult(rateLifecycleDialog, result)
         }
     }
 

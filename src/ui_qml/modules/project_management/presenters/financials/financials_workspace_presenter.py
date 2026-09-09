@@ -95,6 +95,12 @@ class ProjectFinancialsWorkspacePresenter:
     def resolve_finance_project(self, project_id: str):
         return self._desktop_api.resolve_finance_project(project_id)
 
+    def search_rate_resources(self, project_id: str, **query: Any):
+        return self._desktop_api.search_rate_resources(project_id, **query)
+
+    def search_rate_departments(self, project_id: str, **query: Any):
+        return self._desktop_api.search_rate_departments(project_id, **query)
+
     def search_manual_actual_projects(self, **query: Any):
         return self._desktop_api.search_manual_actual_projects(**query)
 
