@@ -34,7 +34,7 @@ def _python_files(root: Path):
     for path in root.rglob("*.py"):
         if _EXCLUDED_DIR_PARTS.intersection(path.parts):
             continue
-        if path.name == "resources_rc.py":
+        if path.name.endswith("resources_rc.py"):
             continue
         yield path
 
