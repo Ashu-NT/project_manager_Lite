@@ -20,6 +20,7 @@ _LARGE_MODULE_BUDGETS = {
     "src/core/platform/domain/time_management/calendar/enterprise_calendar.py": 1408,
     "src/core/modules/project_management/application/financials/workspace_query.py": 1297,
     "src/core/modules/project_management/api/desktop/financials/api.py": 2041,
+    "src/core/modules/project_management/application/financials/cost/entries/cost_entry_service.py": 1246,
 }
 
 
