@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from src.core.platform.contract.repositories.events.notifications.contracts import NotificationRepository
@@ -44,6 +44,25 @@ class SqlAlchemyNotificationRepository(NotificationRepository):
         if obj is None:
             return
         obj.read_at = read_at
+
+    def count_unread_for_user(self, user_id: str) -> int:
+        stmt = select(func.count()).select_from(NotificationORM).where(
+            NotificationORM.recipient_user_id == user_id,
+            NotificationORM.read_at.is_(None),
+        )
+        return int(self.session.execute(stmt).scalar_one())
+
+    def mark_all_read_for_user(self, user_id: str, *, read_at: datetime) -> int:
+        stmt = (
+            update(NotificationORM)
+            .where(
+                NotificationORM.recipient_user_id == user_id,
+                NotificationORM.read_at.is_(None),
+            )
+            .values(read_at=read_at)
+        )
+        result = self.session.execute(stmt)
+        return int(result.rowcount or 0)
 
 
 __all__ = ["SqlAlchemyNotificationRepository"]

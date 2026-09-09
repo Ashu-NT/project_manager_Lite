@@ -97,6 +97,17 @@ from src.core.modules.project_management.application.resources.resource_capacity
 from src.core.modules.project_management.application.resources.resource_workload_service import ResourceWorkloadService
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
 from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import PortfolioResourcePoolService
+from src.core.application.global_overview.api.desktop.global_overview import (
+    GlobalOverviewDesktopApi,
+)
+from src.core.application.global_overview.services.action_center_service import ActionCenterService
+from src.core.application.global_overview.services.global_overview_service import (
+    GlobalOverviewService,
+)
+from src.core.platform.api.desktop.events.notifications.notification import (
+    PlatformNotificationDesktopApi,
+)
+from src.infra.composition.global_overview_registry import build_global_overview_service_bundle
 from src.infra.composition.platform_registry import build_platform_service_bundle
 from src.infra.composition.project_registry import build_project_management_service_bundle
 from src.infra.composition.repositories import build_repository_bundle
@@ -189,6 +200,10 @@ class ServiceGraph:
     resource_workload_service: ResourceWorkloadService | None
     enterprise_resource_availability: EnterpriseResourceAvailabilityService | None
     portfolio_resource_pool_service: PortfolioResourcePoolService | None
+    action_center_service: ActionCenterService
+    global_overview_service: GlobalOverviewService
+    global_overview_desktop_api: GlobalOverviewDesktopApi
+    platform_notification_desktop_api: PlatformNotificationDesktopApi
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -274,6 +289,10 @@ class ServiceGraph:
             # uses this instance through the bounded Resource workload query.
             "resource_availability_service": self.enterprise_resource_availability,
             "portfolio_resource_pool_service": self.portfolio_resource_pool_service,
+            "action_center_service": self.action_center_service,
+            "global_overview_service": self.global_overview_service,
+            "global_overview_desktop_api": self.global_overview_desktop_api,
+            "platform_notification_desktop_api": self.platform_notification_desktop_api,
         }
 
 
@@ -310,6 +329,9 @@ def build_service_graph(session: Session) -> ServiceGraph:
     logger.debug(
         "Project Management service bundle built duration_ms=%.1f",
         (perf_counter() - started) * 1000,
+    )
+    global_overview_services = build_global_overview_service_bundle(
+        session, platform_services, project_management_services
     )
     _module_registry = ModuleRegistry(platform_services.module_catalog_service)
     _integration_resolver = IntegrationResolver(_module_registry)
@@ -431,6 +453,10 @@ def build_service_graph(session: Session) -> ServiceGraph:
         resource_workload_service=project_management_services.resource_workload_service,
         enterprise_resource_availability=project_management_services.enterprise_resource_availability,
         portfolio_resource_pool_service=project_management_services.portfolio_resource_pool_service,
+        action_center_service=global_overview_services.action_center_service,
+        global_overview_service=global_overview_services.global_overview_service,
+        global_overview_desktop_api=global_overview_services.global_overview_desktop_api,
+        platform_notification_desktop_api=global_overview_services.platform_notification_desktop_api,
     )
     logger.debug(
         "Service graph build complete duration_ms=%.1f",
