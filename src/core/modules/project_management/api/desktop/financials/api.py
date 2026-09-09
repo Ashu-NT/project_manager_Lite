@@ -15,6 +15,7 @@ from src.core.modules.project_management.application.financials import (
 )
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
+    FinanceGovernedServicePort,
 )
 from src.core.modules.project_management.contracts.reads.financials.sorting import (
     normalize_cost_entry_sort,
@@ -231,7 +232,7 @@ class ProjectManagementFinancialsDesktopApi:
         finance_workspace_query: ProjectFinanceWorkspaceQuery | None = None,
         finance_performance_query: ProjectFinancePerformanceQuery | None = None,
         finance_governance_commands: FinanceGovernanceCommandBoundary | None = None,
-        cost_entry_service: ProjectCostEntryService | None = None,
+        cost_entry_service: ProjectCostEntryService | FinanceGovernedServicePort | None = None,
         commitment_service: ProjectCommitmentService | None = None,
         billing_profile_service: ProjectBillingProfileService | None = None,
         billing_preparation_service: ProjectBillingPreparationService | None = None,

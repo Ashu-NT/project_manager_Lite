@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -22,6 +23,17 @@ def _build_api(services) -> ProjectManagementFinancialsDesktopApi:
     return ProjectManagementFinancialsDesktopApi(
         finance_workspace_query=services["finance_workspace_query"],
         cost_entry_service=services["cost_entry_service"],
+    )
+
+
+def _become_independent_decider(services) -> None:
+    user_session = services["user_session"]
+    user_session.set_principal(
+        replace(
+            user_session.principal,
+            user_id="desktop-independent-cost-decider",
+            username="desktop-independent-cost-decider",
+        )
     )
 
 
@@ -99,6 +111,7 @@ def test_desktop_cutover_creates_canonical_draft_and_preserves_posted_immutabili
     submitted = api.submit_actual(
         FinancialVersionedActualCommand(updated.id, updated.row_version)
     )
+    _become_independent_decider(services)
     approved = api.approve_actual(
         FinancialDecideActualCommand(submitted.id, submitted.row_version)
     )
@@ -167,6 +180,8 @@ def test_desktop_reject_actual_returns_submitted_entry_to_draft(services) -> Non
     submitted = api.submit_actual(
         FinancialVersionedActualCommand(draft.id, draft.row_version)
     )
+    _become_independent_decider(services)
+    submitted = api.list_cost_entries(project.id).items[0]
     assert submitted.can_approve
 
     rejected = api.reject_actual(
