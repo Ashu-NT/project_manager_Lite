@@ -13,7 +13,7 @@ from src.core.modules.project_management.contracts.reads.timesheets import (
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 QML = ROOT / "ui_qml/modules/project_management/qml/workspaces/timesheets"
 CONTROLLER = ROOT / "ui_qml/modules/project_management/controllers/timesheets"
 PRESENTER = ROOT / "ui_qml/modules/project_management/presenters/timesheets"

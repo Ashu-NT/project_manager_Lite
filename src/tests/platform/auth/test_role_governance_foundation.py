@@ -54,7 +54,7 @@ def _tenant_repo(services):
     return SqlAlchemyTenantRepository(services["session"])
 
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+_REPO_ROOT = Path(__file__).resolve().parents[4]
 _MIGRATIONS_ROOT = (
     _REPO_ROOT / "src" / "infra" / "persistence" / "migrations"
 )

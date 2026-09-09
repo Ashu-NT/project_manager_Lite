@@ -10,7 +10,7 @@ from src.core.platform.domain.security.auth.session import UserSessionContext, U
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.tests.ui_runtime_helpers import login_as
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+_REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
 def _register_active_tenant_user(services, username: str, *, role_names: list[str]):

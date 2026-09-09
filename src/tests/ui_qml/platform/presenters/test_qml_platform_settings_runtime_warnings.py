@@ -10,7 +10,7 @@ from PySide6.QtQuick import QQuickWindow
 from src.ui_qml.shell.qml_engine import create_qml_engine
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 SETTINGS_PAGE = ROOT / "ui_qml/platform/qml/settings/SettingsWorkspacePage.qml"
 PLATFORM_WORKSPACE = ROOT / "ui_qml/platform/qml/workspace/PlatformWorkspace.qml"
 RELEASE_PANEL = (

@@ -10,7 +10,7 @@ from PySide6.QtQuick import QQuickItem, QQuickWindow
 from src.ui_qml.shell.qml_engine import create_qml_engine
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 PM_QML = ROOT / "ui_qml/modules/project_management/qml"
 
 

@@ -10,10 +10,26 @@ Covers:
 """
 from __future__ import annotations
 
+from types import SimpleNamespace
+
+import pytest
+
+from src.core.platform.common.ids import generate_id
 from src.core.platform.domain.security.authorization.roles import RoleBinding
 from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
     DEFAULT_PERMISSIONS,
     DEFAULT_ROLE_PERMISSIONS,
+)
+
+_NO_STOREROOM_RESOLVER_REASON = (
+    "Resource-ownership validation for the 'storeroom' scope is registered at "
+    "runtime by the inventory_procurement module (see the deleted "
+    "src/infra/composition/inventory_registry.py's "
+    "register_canonical_scope_tenant_resolver('storeroom', ...) call). That "
+    "module was removed 2026-09-09 pending a future rebuild, so no resolver "
+    "is registered and build_principal()/build_principal_for_context() raise "
+    "AUTHORIZATION_SCOPE_RESOLVER_REQUIRED for storeroom-scoped bindings. "
+    "Un-skip once a module registers this resolver again."
 )
 
 
@@ -43,19 +59,17 @@ def _bind_storeroom_role(services, user_id: str, storeroom_id: str, role_name: s
 
 
 def _create_storeroom(services, storeroom_code: str):
-    site = services["site_service"].create_site(
+    """Synthesize a storeroom scope id. `RoleBinding.actual_scope_id` is an
+    opaque string with no FK to a real storeroom row (see role_binding.py),
+    so a real storeroom entity is not required to exercise storeroom-scoped
+    role binding/permission behavior."""
+    services["site_service"].create_site(
         site_code=f"{storeroom_code}-SITE",
         name=f"Phase 2D {storeroom_code} Site",
         city="Berlin",
         currency_code="EUR",
     )
-    return services["inventory_service"].create_storeroom(
-        storeroom_code=storeroom_code,
-        name=f"Phase 2D {storeroom_code}",
-        site_id=site.id,
-        status="ACTIVE",
-        storeroom_type="MAIN",
-    )
+    return SimpleNamespace(id=generate_id())
 
 
 # ---------------------------------------------------------------------------
@@ -106,6 +120,7 @@ def test_storeroom_scope_roles_are_seeded_in_db(services):
 # 3. Permission assignment via build_principal
 # ---------------------------------------------------------------------------
 
+@pytest.mark.skip(reason=_NO_STOREROOM_RESOLVER_REASON)
 def test_user_assigned_storeroom_manager_gets_correct_permissions(services):
     auth = services["auth_service"]
     tenant_id, _ = _active_context_ids(services)
@@ -125,6 +140,7 @@ def test_user_assigned_storeroom_manager_gets_correct_permissions(services):
     assert storeroom.id in principal.scoped_access.get("storeroom", {})
 
 
+@pytest.mark.skip(reason=_NO_STOREROOM_RESOLVER_REASON)
 def test_user_assigned_storeroom_viewer_gets_read_only_permissions(services):
     auth = services["auth_service"]
     tenant_id, _ = _active_context_ids(services)
@@ -148,6 +164,7 @@ def test_user_assigned_storeroom_viewer_gets_read_only_permissions(services):
 # 4. Scope isolation: a storeroom role binding only ever names its own storeroom
 # ---------------------------------------------------------------------------
 
+@pytest.mark.skip(reason=_NO_STOREROOM_RESOLVER_REASON)
 def test_storeroom_role_binding_is_scoped_to_its_own_storeroom(services):
     auth = services["auth_service"]
     tenant_id, organization_id = _active_context_ids(services)

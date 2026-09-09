@@ -8,7 +8,7 @@ from src.core.platform.application.approval import approval_mutation_participant
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.domain.approval.approval_request import ApprovalRequest
 
-_SRC_CORE = Path(__file__).resolve().parents[2] / "core"
+_SRC_CORE = Path(__file__).resolve().parents[3] / "core"
 
 
 def test_approval_request_does_not_implement_records_domain_events():

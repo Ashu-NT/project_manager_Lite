@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from src.core.modules.project_management.contracts.reads import ReadSort
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 
 
 def test_fresh_baseline_contains_time_entry_version(tmp_path) -> None:

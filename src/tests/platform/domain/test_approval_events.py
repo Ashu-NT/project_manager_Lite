@@ -218,7 +218,7 @@ def test_no_approval_applied_or_changed_event_classes_exist():
     import re
     from pathlib import Path
 
-    src_core = Path(__file__).resolve().parents[2] / "core"
+    src_core = Path(__file__).resolve().parents[3] / "core"
     for forbidden in ("ApprovalApplied", "ApprovalChanged", "ApprovalStatusChanged"):
         for path in src_core.rglob("*.py"):
             if "approval" not in path.as_posix().lower():
@@ -232,7 +232,7 @@ def test_no_approval_applied_or_changed_event_classes_exist():
 def test_approval_requested_has_exactly_one_recording_responsibility():
     from pathlib import Path
 
-    src_core = Path(__file__).resolve().parents[2] / "core"
+    src_core = Path(__file__).resolve().parents[3] / "core"
     construction_sites = [
         path for path in src_core.rglob("*.py")
         if "ApprovalRequested(" in path.read_text(encoding="utf-8", errors="ignore")
@@ -906,7 +906,7 @@ def _strip_strings_and_comments(source: str) -> str:
 def _approval_participant_files():
     from pathlib import Path
 
-    src_core = Path(__file__).resolve().parents[2] / "core"
+    src_core = Path(__file__).resolve().parents[3] / "core"
     return sorted(src_core.rglob("*_apply_participant.py"))
 
 
@@ -932,7 +932,7 @@ def test_zero_approval_participant_files_construct_approval_post_commit_event():
         source = _strip_strings_and_comments(path.read_text(encoding="utf-8", errors="ignore"))
         assert "ApprovalPostCommitEvent(" not in source, f"{path} still constructs the legacy bridge"
 
-    src_core = Path(__file__).resolve().parents[2] / "core"
+    src_core = Path(__file__).resolve().parents[3] / "core"
     for path in src_core.rglob("*.py"):
         source = _strip_strings_and_comments(path.read_text(encoding="utf-8", errors="ignore"))
         if "ApprovalPostCommitEvent(" not in source:
@@ -953,7 +953,7 @@ def test_modernized_approval_capability_uses_only_typed_domain_events(
     from pathlib import Path
 
     assert capability_name  # readability only; the path below is what's actually verified
-    src_core = Path(__file__).resolve().parents[2] / "core"
+    src_core = Path(__file__).resolve().parents[3] / "core"
     source = _strip_strings_and_comments(
         (src_core / relative_path.removeprefix("core/")).read_text(
             encoding="utf-8", errors="ignore"

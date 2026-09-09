@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 PM_UI = ROOT / "ui_qml" / "modules" / "project_management"
 SCHEDULING_QML = PM_UI / "qml" / "workspaces" / "scheduling"
 GANTT_QML = SCHEDULING_QML / "components" / "gantt"

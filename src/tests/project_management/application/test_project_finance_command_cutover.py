@@ -181,7 +181,7 @@ def test_desktop_reject_actual_returns_submitted_entry_to_draft(services) -> Non
 
 
 def test_legacy_combined_write_adapters_and_import_contract_are_deleted() -> None:
-    root = Path(__file__).resolve().parents[2]
+    root = Path(__file__).resolve().parents[3]
     production_files = (
         root / "core/modules/project_management/api/desktop/financials/api.py",
         root / "ui_qml/modules/project_management/presenters/financials/command_handler.py",

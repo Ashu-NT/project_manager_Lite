@@ -31,7 +31,7 @@ from src.core.platform.domain.tenant.tenancy import (
 from src.infra.persistence.migrations.runner import run_migrations
 
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+_REPO_ROOT = Path(__file__).resolve().parents[4]
 _MIGRATIONS_ROOT = (
     _REPO_ROOT / "src" / "infra" / "persistence" / "migrations"
 )

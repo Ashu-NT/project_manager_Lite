@@ -13,7 +13,7 @@ from pathlib import Path
 import src.core.platform.access.application.access_control_service as access_control_service_module
 from src.core.platform.access.application.access_control_service import AccessControlService
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+_REPO_ROOT = Path(__file__).resolve().parents[4]
 _FORBIDDEN_MODEL_NAMES = frozenset({"OrganizationUser", "UserOrganization", "OrganizationMembership"})
 
 
