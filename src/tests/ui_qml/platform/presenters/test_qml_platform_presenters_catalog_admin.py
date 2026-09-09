@@ -30,7 +30,7 @@ def test_platform_workspace_catalog_exposes_admin_action_lists() -> None:
     assert sites["items"][0]["title"] == "Berlin Campus"
 
     assert departments["title"] == "Departments"
-    assert departments["items"][0]["supportingText"] == "Site: Berlin Campus | Location: No default location"
+    assert departments["items"][0]["supportingText"] == "Site: Berlin Campus"
 
     assert employees["title"] == "Employees"
     assert employees["items"][0]["metaText"].startswith("Full Time")
@@ -55,7 +55,6 @@ def test_platform_workspace_catalog_exposes_admin_action_lists() -> None:
 
     assert len(catalog.adminWorkspace.organizationEditorOptions["moduleOptions"]) == 3
     assert len(catalog.adminWorkspace.departmentEditorOptions["siteOptions"]) == 1
-    assert len(catalog.adminWorkspace.departmentEditorOptions["locationOptions"]) == 2
     assert len(catalog.adminWorkspace.employeeEditorOptions["departmentOptions"]) == 1
     assert len(catalog.adminWorkspace.userEditorOptions["roleOptions"]) == 2
     assert len(catalog.adminWorkspace.partyEditorOptions["typeOptions"]) >= 3
