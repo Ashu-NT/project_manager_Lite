@@ -1,1 +1,0 @@
-"""QHSE persistence placeholder package."""

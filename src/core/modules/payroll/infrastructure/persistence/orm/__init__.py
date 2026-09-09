@@ -1,1 +1,0 @@
-"""Payroll ORM placeholder package."""
