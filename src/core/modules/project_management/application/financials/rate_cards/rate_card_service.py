@@ -369,6 +369,23 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         # project-specific line for the same role are legitimate coexisting precedence
         # tiers, not a duplicate, but two project-scoped cards for the same project are.
         card = self._require_rate_card(rate_card_id)
+        self._rate_card_repo.lock_line_overlap_scope(
+            "|".join(
+                str(value or "-")
+                for value in (
+                    card.tenant_id,
+                    card.organization_id,
+                    card.project_id,
+                    candidate.rate_type.value,
+                    candidate.resource_id,
+                    candidate.customer_party_id,
+                    candidate.contract_reference,
+                    candidate.role,
+                    candidate.skill_code,
+                    candidate.department_id,
+                )
+            )
+        )
         existing = self._rate_card_repo.list_lines_in_scope(project_id=card.project_id)
         for other in existing:
             if other.id == excluding_line_id:

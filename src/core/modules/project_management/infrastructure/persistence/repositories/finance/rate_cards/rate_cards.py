@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import exists, func, literal, or_, select
+from sqlalchemy import exists, func, literal, or_, select, text
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_cards import (
@@ -221,6 +221,14 @@ class SqlAlchemyProjectRateCardRepository(_RateCardScope, ProjectRateCardReposit
             self.session.scalar(
                 select(literal(True)).where(or_(labor_use, planned_use, billing_use))
             )
+        )
+
+    def lock_line_overlap_scope(self, lock_key: str) -> None:
+        if self.session.get_bind().dialect.name != "postgresql":
+            return
+        self.session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:lock_key, 0))"),
+            {"lock_key": lock_key},
         )
 
     def list_lines(

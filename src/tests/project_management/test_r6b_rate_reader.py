@@ -266,7 +266,7 @@ Window {
     root.deleteLater()
 
 
-def test_rate_qml_contract_is_server_read_only():
+def test_rate_qml_contract_keeps_server_reads_and_governed_actions():
     source = (
         "src/ui_qml/modules/project_management/qml/workspaces/financials/sections/"
         "FinancialsRateCardsSection.qml"
@@ -275,5 +275,7 @@ def test_rate_qml_contract_is_server_read_only():
     assert text.count('sortingMode: "server"') == 2
     assert "cardSelected" in text
     assert "lineFiltersRequested" in text
-    assert "Add Rate" not in text
-    assert "Create Rate" not in text
+    assert "Create Rate Card" in text
+    assert "Add Rate Line" in text
+    assert "cardCreateRequested" in text
+    assert "lineEditRequested" in text

@@ -43,6 +43,11 @@ class ProjectRateCardRepository(ABC):
         ...
 
     @abstractmethod
+    def lock_line_overlap_scope(self, lock_key: str) -> None:
+        """Serialize equivalent Rate Line overlap checks for this transaction."""
+        ...
+
+    @abstractmethod
     def list_lines(
         self,
         rate_card_id: str,

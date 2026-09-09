@@ -5,6 +5,7 @@ from decimal import Decimal
 
 import pytest
 from sqlalchemy import event, text
+from sqlalchemy.exc import IntegrityError, ProgrammingError
 
 from src.core.modules.project_management.contracts.reads.financials.models.finance_rate_facts import (
     RateCardRequest,
@@ -12,6 +13,9 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.financials.sqlalchemy_finance_rate_reader import (
     SqlAlchemyFinanceRateReader,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_cards import (
+    SqlAlchemyProjectRateCardRepository,
 )
 from src.infra.persistence.db.postgresql_rls import validate_postgresql_execution_role
 
@@ -249,3 +253,150 @@ def test_rate_reader_postgresql_plans_are_bounded(postgres_test_environment):
             assert "Execution Time" in plan, (name, plan)
     finally:
         session.close()
+
+
+def test_rate_governance_runtime_role_denies_foreign_parent_and_child_writes(
+    postgres_test_environment,
+):
+    session = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_A, organization_id=ORG_A
+    )
+    now = datetime(2026, 9, 9, 12, 0, tzinfo=timezone.utc)
+    try:
+        assert session.execute(
+            text(
+                "UPDATE project_finance_rate_cards SET name = 'attack' "
+                "WHERE id = 'r6b-rate-card-project-b'"
+            )
+        ).rowcount == 0
+        assert session.execute(
+            text(
+                "DELETE FROM project_finance_rate_card_lines "
+                "WHERE id = 'r6b-rate-line-project-b'"
+            )
+        ).rowcount == 0
+        with pytest.raises((IntegrityError, ProgrammingError)):
+            session.execute(
+                text(
+                    "INSERT INTO project_finance_rate_cards "
+                    "(id, tenant_id, organization_id, project_id, name, version, "
+                    "is_active, created_at, updated_at) VALUES "
+                    "('r6d-b-foreign-project-attack', :tenant, :organization, "
+                    ":foreign_project, 'attack', 1, true, :now, :now)"
+                ),
+                {
+                    "tenant": TENANT_A,
+                    "organization": ORG_A,
+                    "foreign_project": PROJECT_B,
+                    "now": now,
+                },
+            )
+        session.rollback()
+    finally:
+        session.close()
+
+    child_session = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_A, organization_id=ORG_A
+    )
+    try:
+        with pytest.raises((IntegrityError, ProgrammingError)):
+            child_session.execute(
+                text(
+                    "INSERT INTO project_finance_rate_card_lines "
+                    "(id, tenant_id, organization_id, rate_card_id, rate_type, origin, "
+                    "role, is_active, unit, rate_amount, rate_currency, version, "
+                    "created_at, updated_at) VALUES "
+                    "('r6d-b-foreign-card-line-attack', :tenant, :organization, "
+                    "'r6b-rate-card-project-b', 'cost', 'configured', 'attacker', "
+                    "true, 'HOUR', 1, 'USD', 1, :now, :now)"
+                ),
+                {"tenant": TENANT_A, "organization": ORG_A, "now": now},
+            )
+        child_session.rollback()
+    finally:
+        child_session.close()
+
+
+def test_rate_governance_runtime_role_allows_same_scope_card_and_line(
+    postgres_test_environment,
+):
+    session = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_A, organization_id=ORG_A
+    )
+    now = datetime(2026, 9, 9, 12, 0, tzinfo=timezone.utc)
+    card_id = "r6d-b-runtime-card-a"
+    line_id = "r6d-b-runtime-line-a"
+    try:
+        session.execute(
+            text(
+                "INSERT INTO project_finance_rate_cards "
+                "(id, tenant_id, organization_id, project_id, name, version, is_active, "
+                "created_at, updated_at) VALUES "
+                "(:id, :tenant, :organization, :project, 'Runtime card', 1, true, :now, :now)"
+            ),
+            {
+                "id": card_id,
+                "tenant": TENANT_A,
+                "organization": ORG_A,
+                "project": PROJECT_A,
+                "now": now,
+            },
+        )
+        session.execute(
+            text(
+                "INSERT INTO project_finance_rate_card_lines "
+                "(id, tenant_id, organization_id, rate_card_id, rate_type, origin, role, "
+                "is_active, unit, rate_amount, rate_currency, version, created_at, updated_at) "
+                "VALUES (:id, :tenant, :organization, :card, 'cost', 'configured', "
+                "'runtime-role', true, 'HOUR', 42.5, 'USD', 1, :now, :now)"
+            ),
+            {
+                "id": line_id,
+                "tenant": TENANT_A,
+                "organization": ORG_A,
+                "card": card_id,
+                "now": now,
+            },
+        )
+        session.commit()
+        assert session.scalar(
+            text("SELECT count(*) FROM project_finance_rate_card_lines WHERE id = :id"),
+            {"id": line_id},
+        ) == 1
+    finally:
+        session.rollback()
+        session.close()
+
+
+def test_rate_line_overlap_scope_is_serialized_across_transactions(
+    postgres_test_environment,
+):
+    first = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_A, organization_id=ORG_A
+    )
+    second = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_A, organization_id=ORG_A
+    )
+    lock_key = (
+        f"{TENANT_A}:{ORG_A}:{PROJECT_A}:cost:resource-1:customer-1:"
+        "contract-1:engineer:python:department-1"
+    )
+    try:
+        SqlAlchemyProjectRateCardRepository(first).lock_line_overlap_scope(lock_key)
+
+        assert second.scalar(
+            text("SELECT pg_try_advisory_xact_lock(hashtextextended(:lock_key, 0))"),
+            {"lock_key": lock_key},
+        ) is False
+
+        first.rollback()
+
+        assert second.scalar(
+            text("SELECT pg_try_advisory_xact_lock(hashtextextended(:lock_key, 0))"),
+            {"lock_key": lock_key},
+        ) is True
+    finally:
+        first.rollback()
+        second.rollback()
+        first.close()
+        second.close()

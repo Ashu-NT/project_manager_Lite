@@ -343,6 +343,14 @@ class RateCardResolver:
         as_of: date,
         modifier: RateModifier | None,
     ) -> RateSelectionSnapshot:
+        if modifier is not None and not isinstance(modifier, RateModifier):
+            try:
+                modifier = RateModifier(str(modifier).strip().lower())
+            except ValueError as exc:
+                raise ValidationError(
+                    "Rate modifier must be overtime, weekend, or holiday.",
+                    code="RATE_CARD_MODIFIER_INVALID",
+                ) from exc
         amount = line.rate_amount
         multiplier: Decimal | None = None
         if modifier is not None:

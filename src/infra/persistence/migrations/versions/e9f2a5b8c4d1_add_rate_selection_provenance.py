@@ -27,6 +27,18 @@ _TABLES = {
 }
 
 
+def _restore_sqlite_labor_guards() -> None:
+    if op.get_bind().dialect.name != "sqlite":
+        return
+    table = "project_approved_time_labor_postings"
+    for operation in ("UPDATE", "DELETE"):
+        op.execute(
+            f"CREATE TRIGGER trg_{table}_immutable_{operation.lower()} "
+            f"BEFORE {operation} ON {table} BEGIN SELECT RAISE(ABORT, "
+            f"'{table} rows are immutable'); END"
+        )
+
+
 def upgrade() -> None:
     for table, constraint_prefix in _TABLES.items():
         with op.batch_alter_table(table, schema=None) as batch_op:
@@ -48,6 +60,7 @@ def upgrade() -> None:
                 "rate_modifier_multiplier IS NULL OR "
                 "(rate_modifier IS NOT NULL AND rate_modifier_multiplier >= 0)",
             )
+    _restore_sqlite_labor_guards()
 
 
 def downgrade() -> None:
@@ -62,3 +75,4 @@ def downgrade() -> None:
             batch_op.drop_column("rate_modifier_multiplier")
             batch_op.drop_column("rate_modifier")
             batch_op.drop_column("rate_line_version")
+    _restore_sqlite_labor_guards()
