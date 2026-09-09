@@ -14,7 +14,7 @@ from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_b
     build_gantt_projection,
 )
 from src.tests.path_rewrites import REPO_ROOT
-from src.tests.project_management.test_r4_5b_gantt_read_contract import (
+from src.tests.ui_qml.project_management.controllers.test_r4_5b_gantt_read_contract import (
     _node,
     _projection,
     _schedule,

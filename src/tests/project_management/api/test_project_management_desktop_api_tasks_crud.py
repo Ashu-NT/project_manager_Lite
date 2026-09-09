@@ -17,12 +17,12 @@ from src.core.modules.project_management.domain.tasks.task import (
     TaskAssignment,
     TaskDependency,
 )
-from src.tests.project_management._fake_project_resource_services import (
+from src.tests.project_management.api._fake_project_resource_services import (
     _FakeProjectResourceService,
     _FakeProjectService,
     _FakeResourceService,
 )
-from src.tests.project_management._fake_task_service import _FakeTaskService
+from src.tests.project_management.api._fake_task_service import _FakeTaskService
 
 
 def test_project_management_tasks_desktop_api_lists_statuses() -> None:

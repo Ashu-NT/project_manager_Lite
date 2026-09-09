@@ -24,7 +24,7 @@ from src.core.modules.project_management.api.desktop.scheduling.models import (
     GanttProjectionDto,
 )
 from src.tests.path_rewrites import REPO_ROOT
-from src.tests.project_management.test_r4_5b_gantt_read_contract import (
+from src.tests.ui_qml.project_management.controllers.test_r4_5b_gantt_read_contract import (
     _edge,
     _node,
     _projection,
@@ -760,7 +760,7 @@ def test_canvas_painted_output_tracks_scroll_and_row_centers_at_supported_dpr(
 ) -> None:
     probe_code = (
         "import json; "
-        "from src.tests.project_management.test_r4_5e_gantt_dependencies "
+        "from src.tests.ui_qml.project_management.controllers.test_r4_5e_gantt "
         "import _canvas_paint_probe; "
         "print('R45E_PROBE=' + json.dumps(_canvas_paint_probe()))"
     )

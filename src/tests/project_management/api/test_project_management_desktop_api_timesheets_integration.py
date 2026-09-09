@@ -9,12 +9,12 @@ from src.core.modules.project_management.domain.enums import (
     WorkerType,
 )
 
-from src.tests.project_management._timesheets_fakes_services import (
+from src.tests.project_management.api._timesheets_fakes_services import (
     _FakeProjectService,
     _FakeResourceService,
     _FakeTaskService,
 )
-from src.tests.project_management._timesheets_fakes_timesheet import (
+from src.tests.project_management.api._timesheets_fakes_timesheet import (
     _FakeTimesheetService,
 )
 

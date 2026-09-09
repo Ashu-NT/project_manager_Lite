@@ -24,7 +24,7 @@ from src.core.modules.project_management.contracts.reads.tasks import (
     TaskDependencyReadPage,
 )
 from src.core.platform.domain.master_data.documents import DocumentStorageKind
-from src.tests.project_management._fake_task_workspace_query import (
+from src.tests.ui_qml.project_management.presenters._fake_task_workspace_query import (
     build_fake_task_workspace_page,
 )
 

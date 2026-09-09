@@ -42,7 +42,7 @@ from src.tests.ui_runtime_helpers import wait_until
 from src.ui_qml.modules.project_management.presenters.collaboration import (
     ProjectCollaborationWorkspacePresenter,
 )
-from src.tests.project_management._task_presenters_test_helpers import (
+from src.tests.ui_qml.project_management.presenters._task_presenters_test_helpers import (
     _FakePmRuntimeApi,
     _FakeCollaborationService,
     _FakeTaskService,

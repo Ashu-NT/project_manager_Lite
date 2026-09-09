@@ -23,10 +23,10 @@ from src.core.modules.project_management.domain.portfolio import (
     PortfolioScoringTemplate,
 )
 from src.core.modules.project_management.domain.projects.project import Project
-from src.tests.project_management.test_project_management_desktop_api_portfolio_fakes import (
+from src.tests.project_management.api.test_project_management_desktop_api_portfolio_fakes import (
     _FakeProjectService,
 )
-from src.tests.project_management.test_project_management_desktop_api_portfolio_service import (
+from src.tests.project_management.api.test_project_management_desktop_api_portfolio_service import (
     _FakePortfolioService,
 )
 

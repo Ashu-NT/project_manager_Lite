@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from src.tests.ui_runtime_helpers import wait_until
-from src.tests.project_management._pm_task_service_helpers import build_task_controller_bundle
+from src.tests.ui_qml.project_management.presenters._pm_task_service_helpers import build_task_controller_bundle
 
 
 def test_pm_tasks_initial_state(tmp_path: Path, qapp) -> None:

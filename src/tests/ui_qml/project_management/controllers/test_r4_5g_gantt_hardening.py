@@ -21,11 +21,11 @@ from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_b
 )
 from src.core.modules.project_management.domain.scheduling.baseline import BaselineTask
 from src.tests.path_rewrites import REPO_ROOT
-from src.tests.project_management.test_r4_5b_gantt_read_contract import _projection
-from src.tests.project_management.test_r4_5c_gantt_viewport import (
+from src.tests.ui_qml.project_management.controllers.test_r4_5b_gantt_read_contract import _projection
+from src.tests.ui_qml.project_management.controllers.test_r4_5c_gantt_viewport import (
     _projection_from_hierarchy,
 )
-from src.tests.project_management.test_r4_5b_gantt_read_contract import (
+from src.tests.ui_qml.project_management.controllers.test_r4_5b_gantt_read_contract import (
     _edge,
     _node,
     _schedule,

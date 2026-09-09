@@ -4,7 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from src.tests.ui_runtime_helpers import wait_until
-from src.tests.project_management._pm_task_service_helpers import build_task_controller_bundle
+from src.tests.ui_qml.project_management.presenters._pm_task_service_helpers import build_task_controller_bundle
 from src.ui_qml.modules.project_management.presenters.tasks.assignment_command_handler import (
     preview_assignment,
 )
