@@ -47,11 +47,6 @@ AppLayouts.WorkspaceFrame {
     readonly property var scheduleImpactPreviewModel: state.scheduleImpactPreviewModel
     readonly property var taskActivityModel: state.taskActivityModel
 
-    // ── RBAC capabilities ─────────────────────────────────────────────────
-    readonly property bool _hasInvStockCap: state.hasInvStockCapability
-    readonly property bool _hasInvResCap: state.hasInvReservationsCapability
-    readonly property bool _hasProcReqCap: state.hasProcurementCapability
-
     // ── Column management ─────────────────────────────────────────────────
     property var _columns: state.columns
     readonly property string _tableId: state.tableId
@@ -116,14 +111,6 @@ AppLayouts.WorkspaceFrame {
 
     function _navigateToRoute(routeId) {
         state.navigateToRoute(routeId)
-    }
-
-    function _openTaskReservationsRoute() {
-        state.openTaskReservationsRoute()
-    }
-
-    function _openTaskProcurementRoute() {
-        state.openTaskProcurementRoute()
     }
 
     function _openTimesheetsRoute() {
@@ -413,8 +400,6 @@ AppLayouts.WorkspaceFrame {
                             dialogHostLoader.invoke("openProgressDialog", root.selectedTaskModel)
                         } else if (actionId === "delete") {
                             dialogHostLoader.invoke("openDeleteDialog", root.selectedTaskModel)
-                        } else if (actionId === "reserve_material") {
-                            root._openTaskReservationsRoute()
                         } else if (actionId === "edit_dependency" && tasksDetailPanel) {
                             tasksDetailPanel.openSelectedDependencyEditor()
                         } else if (actionId === "remove_dependency" && root._selectedDependencyItem) {
@@ -473,8 +458,6 @@ AppLayouts.WorkspaceFrame {
                     collaborationCommentsModel: root.collaborationCommentsModel
                     collaborationPresenceModel: root.collaborationPresenceModel
                     selectedTaskId: root.workspaceController ? root.workspaceController.selectedTaskId : ""
-                    canOpenReservations: root._hasInvResCap
-                    canOpenProcurement: root._hasProcReqCap
                     skillRequirementsModel: root.skillRequirementsModel
                     scheduleImpactModel: root.scheduleImpactModel
                     scheduleImpactPreviewModel: root.scheduleImpactPreviewModel
@@ -644,8 +627,6 @@ AppLayouts.WorkspaceFrame {
                             root.workspaceController.loadSelectedTaskCollaboration()
                         }
                     }
-                    onOpenReservationsRequested: root._openTaskReservationsRoute()
-                    onOpenProcurementRequested: root._openTaskProcurementRoute()
                 }
             }
         }

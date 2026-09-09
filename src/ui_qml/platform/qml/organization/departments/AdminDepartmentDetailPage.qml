@@ -34,7 +34,6 @@ Item {
     readonly property string _status: String(root.department && root.department.statusLabel ? root.department.statusLabel : "")
     readonly property string _subtitle: String(root.department && root.department.subtitle ? root.department.subtitle : "")
     readonly property bool _isActive: root._state.isActive === true
-    readonly property bool _inventoryEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("inventory_procurement") : false
     readonly property bool _pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
     readonly property string _departmentId: String(root._state.departmentId || root._state.id || root.department.id || "")
     readonly property bool _hasCalendarAssignment: String(root.deptCalendarAssignment && root.deptCalendarAssignment.assignmentId ? root.deptCalendarAssignment.assignmentId : "").length > 0
@@ -60,9 +59,6 @@ Item {
         if (root._pmEnabled) {
             sections.push({ "label": "Projects" })
         }
-        if (root._inventoryEnabled) {
-            sections.push({ "label": "Warehouses" })
-        }
         sections.push({ "label": "Calendar" })
         sections.push({ "label": "Documents" })
         sections.push({ "label": "Audit" })
@@ -84,8 +80,6 @@ Item {
             return "Identity accounts remain governed by the shared platform user workspace."
         case "Projects":
             return "Project ownership and staffing remain governed by the Project Management module."
-        case "Warehouses":
-            return "Inventory warehouse alignment remains governed by Inventory & Procurement."
         case "Documents":
             return "Department-linked document governance stays in the shared document workspace."
         case "Audit":
@@ -390,34 +384,6 @@ Item {
                         notes: [
                             "Departments should be referenced by PM resources and project metadata rather than re-managed here.",
                             "Cross-module project views should open the PM module instead of duplicating task or schedule data in Platform."
-                        ]
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Warehouses" ? warehousesLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: warehousesLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Warehouses"
-                keepLoaded: true
-                loadingMessage: "Loading inventory integration guidance..."
-                sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Warehouses"
-                        infoMessage: "Warehouse and stock-location ownership stays inside Inventory & Procurement."
-                        cardTitle: "Inventory Boundary"
-                        notes: [
-                            "Department usage of warehouses should be referenced from Inventory & Procurement rather than maintained in Platform Admin.",
-                            "Any linked warehouse views should remain capability-gated and open the module that owns the records."
                         ]
                     }
                 }

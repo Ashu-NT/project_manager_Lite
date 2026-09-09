@@ -44,9 +44,5 @@ import src.core.modules.project_management.infrastructure.persistence.orm.regist
 import src.core.modules.project_management.infrastructure.persistence.orm.collaboration  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.portfolio  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.skills  # noqa: F401
-import src.core.modules.inventory_procurement.infrastructure.persistence.orm.catalog  # noqa: F401
-import src.core.modules.inventory_procurement.infrastructure.persistence.orm.inventory  # noqa: F401
-import src.core.modules.inventory_procurement.infrastructure.persistence.orm.procurement  # noqa: F401
-import src.core.modules.inventory_procurement.infrastructure.persistence.orm.integration_outbox  # noqa: F401
 
 __all__ = ["Base"]

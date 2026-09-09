@@ -19,9 +19,6 @@ from src.infra.platform.app_settings import AppSettingsStore
 from src.infra.platform.logging_config import setup_logging
 from src.infra.platform.resource import resource_path
 
-from src.ui_qml.modules.inventory_procurement.context import (
-    InventoryProcurementWorkspaceCatalog,
-)
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.shell.context import build_shell_context, update_shell_runtime_state
@@ -194,10 +191,6 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         ),
     )
     logger.debug("Project Management workspace catalog created.")
-    inventory_workspace_catalog = InventoryProcurementWorkspaceCatalog(
-        desktop_api_registry=desktop_api_registry,
-    )
-    logger.debug("Inventory/Procurement workspace catalog created.")
     platform_workspace_catalog.tenantSwitcher.tenantSwitched.connect(
         pm_workspace_catalog.refreshAllWorkspaces
     )
@@ -215,12 +208,6 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
     )
     pm_workspace_catalog.projectDirectoryStale.connect(
         platform_workspace_catalog.adminAccessWorkspace.onExternalViewStale
-    )
-    platform_workspace_catalog.tenantSwitcher.tenantSwitched.connect(
-        inventory_workspace_catalog.refreshAllWorkspaces
-    )
-    platform_workspace_catalog.organizationSwitcher.organizationSwitched.connect(
-        inventory_workspace_catalog.refreshAllWorkspaces
     )
     runtime_session_controller = None
     if services is not None:
@@ -242,7 +229,6 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
             refresh_callbacks=(
                 platform_workspace_catalog.refreshAllWorkspaces,
                 pm_workspace_catalog.refreshAllWorkspaces,
-                inventory_workspace_catalog.refreshAllWorkspaces,
             ),
             poll_interval_ms=poll_interval_ms,
             app=app,
@@ -260,7 +246,6 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
             "shellModel": shell_context,
             "platformCatalog": platform_workspace_catalog,
             "pmCatalog": pm_workspace_catalog,
-            "inventoryCatalog": inventory_workspace_catalog,
         },
     )
     if runtime_session_controller is not None:

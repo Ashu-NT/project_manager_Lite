@@ -40,8 +40,6 @@ Item {
     property var collaborationCommentsModel: AppMock.MockFactory.catalog("Collaboration", "", "Select a task.")
     property var collaborationPresenceModel: AppMock.MockFactory.catalog("Active Presence", "", "Select a task.")
     property string selectedTaskId: ""
-    property bool canOpenReservations: false
-    property bool canOpenProcurement: false
 
     property var skillRequirementsModel: AppMock.MockFactory.catalog("Skill Requirements", "", "Select a task.")
     property var taskActivityModel: ({
@@ -100,8 +98,6 @@ Item {
     signal commentReactionRemovalRequested(var payload)
     signal markReadRequested(string taskId)
     signal collaborationRefreshRequested()
-    signal openReservationsRequested()
-    signal openProcurementRequested()
 
     readonly property real _progressValue: {
         const s = root.taskDetail.state || {}
@@ -162,7 +158,6 @@ Item {
         if (name === "Dependencies")    return _sec2.implicitHeight
         if (name === "Time")            return _sec3.implicitHeight
         if (name === "Discussion")      return _sec4.implicitHeight
-        if (name === "Material Demand") return _sec5.implicitHeight
         if (name === "Skills")          return _sec6.implicitHeight
         if (name === "Schedule Impact") return _sec7.implicitHeight
         if (name === "Activity")        return _sec8.implicitHeight
@@ -385,23 +380,6 @@ Item {
                     }
                     onMarkReadRequested: function(id) { root.markReadRequested(id) }
                     onRefreshRequested: root.collaborationRefreshRequested()
-                }
-            }
-        }
-
-        AppWidgets.LazySectionLoader {
-            id: _sec5
-            active: root._idx === root._secIdx("Material Demand")
-            loadingMessage: "Loading..."
-            sourceComponent: Component {
-                TasksMaterialDemandSection {
-                    width: parent ? parent.width : 0
-                    taskDetail: root.taskDetail
-                    canOpenReservations: root.canOpenReservations
-                    canOpenProcurement: root.canOpenProcurement
-                    isBusy: root.isBusy
-                    onOpenReservationsRequested: root.openReservationsRequested()
-                    onOpenProcurementRequested: root.openProcurementRequested()
                 }
             }
         }

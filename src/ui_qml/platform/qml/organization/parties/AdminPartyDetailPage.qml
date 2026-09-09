@@ -11,7 +11,6 @@ Item {
 
     property var party: ({})
     property bool canWrite: true
-    property bool inventoryEnabled: false
     property bool pmEnabled: false
     property bool busy: false
     property string errorMessage: ""
@@ -32,15 +31,9 @@ Item {
             { "label": "Overview" },
             { "label": "Contacts" }
         ]
-        if (root.inventoryEnabled) {
-            sections.push({ "label": "Supplier Profile" })
-        }
         sections.push({ "label": "Customer / Client Profile" })
         if (root.pmEnabled) {
             sections.push({ "label": "Linked Projects" })
-        }
-        if (root.inventoryEnabled) {
-            sections.push({ "label": "Linked Procurement" })
         }
         sections.push({ "label": "Documents" })
         sections.push({ "label": "Audit" })
@@ -56,14 +49,10 @@ Item {
             return root._subtitle
         case "Contacts":
             return "Shared platform contact and address information used across modules by reference."
-        case "Supplier Profile":
-            return "Supplier-facing procurement posture remains governed by Inventory & Procurement."
         case "Customer / Client Profile":
             return "Customer and client master-data posture remains platform-owned for downstream commercial workflows."
         case "Linked Projects":
             return "Project relationships remain governed by the Project Management module."
-        case "Linked Procurement":
-            return "Procurement transactions and supplier usage remain governed by Inventory & Procurement."
         case "Documents":
             return "Party-linked document governance stays in the shared document workspace."
         case "Audit":
@@ -373,35 +362,6 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Supplier Profile" ? supplierLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: supplierLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Supplier Profile"
-                keepLoaded: true
-                loadingMessage: "Loading supplier profile..."
-                sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Supplier Profile"
-                        infoMessage: "Supplier-specific procurement posture is governed by Inventory & Procurement."
-                        cardTitle: "Procurement Boundary"
-                        notes: [
-                            "Use Inventory & Procurement to validate whether this party is acting as a supplier, vendor, contractor, or service provider.",
-                            "Supplier usage, purchasing history, and approval workflows should remain in the Procurement workspace.",
-                            root._partyType.length > 0 ? ("Current party type: " + root._partyType) : "Current party type is not explicitly set on this record."
-                        ]
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
             implicitHeight: root._activeSectionLabel === "Customer / Client Profile" ? customerLoader.implicitHeight : 0
             height: implicitHeight
             visible: implicitHeight > 0
@@ -451,34 +411,6 @@ Item {
                         notes: [
                             "Open the Project Management workspace to inspect projects that reference this party as a client or commercial counterparty.",
                             "Platform Admin should not duplicate project lists or project-level CRUD here."
-                        ]
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Linked Procurement" ? procurementLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: procurementLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Linked Procurement"
-                keepLoaded: true
-                loadingMessage: "Loading procurement linkage guidance..."
-                sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Linked Procurement"
-                        infoMessage: "Procurement transactions and supplier usage remain governed by Inventory & Procurement."
-                        cardTitle: "Procurement Boundary"
-                        notes: [
-                            "Open Inventory & Procurement to review purchase orders, requisitions, and supplier usage tied to this party.",
-                            "Platform Admin should not duplicate procurement-ledger or receiving views here."
                         ]
                     }
                 }

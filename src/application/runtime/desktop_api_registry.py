@@ -26,19 +26,6 @@ from src.core.platform.application.platform_runtime import (
     resolve_platform_runtime_application_service,
 )
 from src.core.shared.events.view_invalidation import ViewInvalidationChannel
-from src.core.modules.inventory_procurement.api.desktop import (
-    InventoryProcurementCatalogDesktopApi,
-    InventoryProcurementDashboardDesktopApi,
-    InventoryProcurementInventoryDesktopApi,
-    InventoryProcurementPricingDesktopApi,
-    InventoryProcurementProcurementDesktopApi,
-    InventoryProcurementReservationsDesktopApi,
-    InventoryProcurementWorkspaceDesktopApi,
-)
-from src.core.modules.inventory_procurement.api.desktop_runtime import (
-    InventoryProcurementDesktopRuntimePlatformDependencies,
-    build_inventory_procurement_desktop_runtime_apis,
-)
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementCollaborationDesktopApi,
     ProjectManagementDashboardDesktopApi,
@@ -124,13 +111,6 @@ class DesktopApiRegistry:
     project_management_scheduling: ProjectManagementSchedulingDesktopApi
     project_management_tasks: ProjectManagementTasksDesktopApi
     project_management_timesheets: ProjectManagementTimesheetsDesktopApi
-    inventory_procurement_workspaces: InventoryProcurementWorkspaceDesktopApi
-    inventory_procurement_catalog: InventoryProcurementCatalogDesktopApi
-    inventory_procurement_inventory: InventoryProcurementInventoryDesktopApi
-    inventory_procurement_reservations: InventoryProcurementReservationsDesktopApi
-    inventory_procurement_procurement: InventoryProcurementProcurementDesktopApi
-    inventory_procurement_dashboard: InventoryProcurementDashboardDesktopApi
-    inventory_procurement_pricing: InventoryProcurementPricingDesktopApi
 
 
 def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegistry:
@@ -186,9 +166,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     task_service = services.get("task_service")
     resource_service = services.get("resource_service")
     baseline_service = services.get("baseline_service")
-    inventory_service = services.get("inventory_service")
     inventory_reservation_service = services.get("inventory_reservation_service")
-    inventory_purchasing_service = services.get("inventory_purchasing_service")
 
     platform_site_api = PlatformSiteDesktopApi(site_service=site_service)
     platform_calendar_api = (
@@ -220,15 +198,6 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     access_scope_option_loaders["site"] = lambda: _load_site_scope_options(
         platform_site_api
     )
-    if inventory_service is not None and hasattr(
-        inventory_service,
-        "list_storerooms",
-    ):
-        access_scope_type_choices.append(("Storeroom", "storeroom"))
-        access_scope_option_loaders["storeroom"] = lambda: [
-            (f"{storeroom.storeroom_code} - {storeroom.name}", storeroom.id)
-            for storeroom in inventory_service.list_storerooms()
-        ]
 
     module_registry = services.get("module_registry")
     if not isinstance(module_registry, ModuleRegistry):
@@ -300,13 +269,6 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             enterprise_calendar_api=enterprise_calendar_api,
         ),
     )
-    inventory_procurement_apis = build_inventory_procurement_desktop_runtime_apis(
-        services=services,
-        platform_dependencies=InventoryProcurementDesktopRuntimePlatformDependencies(
-            module_catalog_service=services.get("module_catalog_service"),
-            user_session=services.get("user_session"),
-        ),
-    )
     return DesktopApiRegistry(
         integration_capability=integration_capability,
         platform_view_invalidation_channel=services.get("platform_view_invalidation_channel"),
@@ -351,7 +313,6 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             service_principal_service=service_principal_service,
         ),
         **vars(project_management_apis),
-        **vars(inventory_procurement_apis),
     )
 
 

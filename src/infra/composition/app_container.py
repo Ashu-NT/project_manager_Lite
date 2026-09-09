@@ -43,23 +43,6 @@ from src.core.platform.application.tenant.tenancy import (
 )
 from src.core.platform.application.data_operations.runtime_tracking import RuntimeExecutionService
 from src.core.platform.application.security.identity import ServicePrincipalService
-from src.core.modules.inventory_procurement import (
-    ProcurementService,
-    InventoryDataExchangeService,
-    InventoryReferenceService,
-    InventoryReportingService,
-    PurchasingService,
-)
-from src.core.modules.inventory_procurement.application.catalog import (
-    ItemCategoryService,
-    ItemMasterService,
-)
-from src.core.modules.inventory_procurement.application.inventory import (
-    InventoryFoundationService,
-    InventoryService,
-    ReservationService,
-    StockControlService,
-)
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
 )
@@ -114,15 +97,11 @@ from src.core.modules.project_management.application.resources.resource_capacity
 from src.core.modules.project_management.application.resources.resource_workload_service import ResourceWorkloadService
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
 from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import PortfolioResourcePoolService
-from src.infra.composition.inventory_registry import build_inventory_procurement_service_bundle
 from src.infra.composition.platform_registry import build_platform_service_bundle
 from src.infra.composition.project_registry import build_project_management_service_bundle
 from src.infra.composition.repositories import build_repository_bundle
 from src.infra.integration.delivery import SystemDeliveryClock
 from src.infra.integration.approved_time_dispatcher import ApprovedTimeFinancialDispatcher
-from src.infra.integration.procurement_financial_dispatcher import (
-    ProcurementFinancialDispatcher,
-)
 
 
 logger = logging.getLogger(__name__)
@@ -137,10 +116,8 @@ class ServiceGraph:
     module_registry: ModuleRegistry
     integration_resolver: IntegrationResolver
     time_financial_outbox_service: IntegrationOutboxService
-    procurement_financial_outbox_service: IntegrationOutboxService
     project_finance_inbox_service: IntegrationInboxService
     approved_time_financial_dispatcher: ApprovedTimeFinancialDispatcher
-    procurement_financial_dispatcher: ProcurementFinancialDispatcher
     time_service: TimeService
     auth_service: AuthService
     role_governance_service: RoleGovernanceService
@@ -158,17 +135,6 @@ class ServiceGraph:
     employee_service: EmployeeService
     master_data_exchange_service: MasterDataExchangeService
     runtime_execution_service: RuntimeExecutionService
-    inventory_reference_service: InventoryReferenceService
-    inventory_data_exchange_service: InventoryDataExchangeService
-    inventory_reporting_service: InventoryReportingService
-    inventory_item_category_service: ItemCategoryService
-    inventory_item_service: ItemMasterService
-    inventory_foundation_service: InventoryFoundationService
-    inventory_service: InventoryService
-    inventory_stock_service: StockControlService
-    inventory_reservation_service: ReservationService
-    inventory_procurement_service: ProcurementService
-    inventory_purchasing_service: PurchasingService
     access_service: AccessControlService
     activity_service: ActivityService
     enterprise_audit_service: EnterpriseAuditService
@@ -228,10 +194,8 @@ class ServiceGraph:
             "module_registry": self.module_registry,
             "integration_resolver": self.integration_resolver,
             "time_financial_outbox_service": self.time_financial_outbox_service,
-            "procurement_financial_outbox_service": self.procurement_financial_outbox_service,
             "project_finance_inbox_service": self.project_finance_inbox_service,
             "approved_time_financial_dispatcher": self.approved_time_financial_dispatcher,
-            "procurement_financial_dispatcher": self.procurement_financial_dispatcher,
             "time_service": self.time_service,
             "auth_service": self.auth_service,
             "role_governance_service": self.role_governance_service,
@@ -251,17 +215,6 @@ class ServiceGraph:
             "employee_service": self.employee_service,
             "master_data_exchange_service": self.master_data_exchange_service,
             "runtime_execution_service": self.runtime_execution_service,
-            "inventory_reference_service": self.inventory_reference_service,
-            "inventory_data_exchange_service": self.inventory_data_exchange_service,
-            "inventory_reporting_service": self.inventory_reporting_service,
-            "inventory_item_category_service": self.inventory_item_category_service,
-            "inventory_item_service": self.inventory_item_service,
-            "inventory_foundation_service": self.inventory_foundation_service,
-            "inventory_service": self.inventory_service,
-            "inventory_stock_service": self.inventory_stock_service,
-            "inventory_reservation_service": self.inventory_reservation_service,
-            "inventory_procurement_service": self.inventory_procurement_service,
-            "inventory_purchasing_service": self.inventory_purchasing_service,
             "access_service": self.access_service,
             "activity_service": self.activity_service,
             "enterprise_audit_service": self.enterprise_audit_service,
@@ -336,19 +289,6 @@ def build_service_graph(session: Session) -> ServiceGraph:
         owner_module="platform_time",
         clock=_delivery_clock,
     )
-    _procurement_financial_outbox_service = IntegrationOutboxService(
-        repository=repositories.procurement_financial_outbox_repo,
-        owner_module="inventory_procurement",
-        clock=_delivery_clock,
-    )
-    inventory_procurement_services = build_inventory_procurement_service_bundle(
-        platform_services,
-        procurement_financial_outbox_service=_procurement_financial_outbox_service,
-    )
-    logger.debug(
-        "Inventory/Procurement service bundle built duration_ms=%.1f",
-        (perf_counter() - started) * 1000,
-    )
     project_management_services = build_project_management_service_bundle(
         session,
         repositories,
@@ -374,30 +314,14 @@ def build_service_graph(session: Session) -> ServiceGraph:
         transactional_dispatcher=platform_services.platform_transactional_dispatcher,
         post_commit_bus=platform_services.platform_post_commit_bus,
     )
-    _procurement_financial_dispatcher = ProcurementFinancialDispatcher(
-        session=session,
-        outbox_service=_procurement_financial_outbox_service,
-        inbox_service=_project_finance_inbox_service,
-        consumer=project_management_services.procurement_financial_consumer,
-        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
-        post_commit_bus=platform_services.platform_post_commit_bus,
-    )
     project_management_services.time_service.set_approved_time_dispatcher(
         _approved_time_financial_dispatcher.dispatch_pending
-    )
-    inventory_procurement_services.inventory_purchasing_service.set_procurement_financial_dispatcher(
-        _procurement_financial_dispatcher.dispatch_pending
     )
     try:
         _approved_time_financial_dispatcher.dispatch_pending(limit=50)
     except Exception:
         session.rollback()
         logger.exception("Approved Time startup replay failed; durable events remain pending")
-    try:
-        _procurement_financial_dispatcher.dispatch_pending(limit=50)
-    except Exception:
-        session.rollback()
-        logger.exception("Procurement startup replay failed; durable events remain pending")
     graph = ServiceGraph(
         session=session,
         user_session=platform_services.user_session,
@@ -406,10 +330,8 @@ def build_service_graph(session: Session) -> ServiceGraph:
         module_registry=_module_registry,
         integration_resolver=_integration_resolver,
         time_financial_outbox_service=_time_financial_outbox_service,
-        procurement_financial_outbox_service=_procurement_financial_outbox_service,
         project_finance_inbox_service=_project_finance_inbox_service,
         approved_time_financial_dispatcher=_approved_time_financial_dispatcher,
-        procurement_financial_dispatcher=_procurement_financial_dispatcher,
         time_service=project_management_services.time_service,
         auth_service=platform_services.auth_service,
         role_governance_service=platform_services.role_governance_service,
@@ -429,17 +351,6 @@ def build_service_graph(session: Session) -> ServiceGraph:
         employee_service=platform_services.employee_service,
         master_data_exchange_service=platform_services.master_data_exchange_service,
         runtime_execution_service=platform_services.runtime_execution_service,
-        inventory_reference_service=inventory_procurement_services.inventory_reference_service,
-        inventory_data_exchange_service=inventory_procurement_services.inventory_data_exchange_service,
-        inventory_reporting_service=inventory_procurement_services.inventory_reporting_service,
-        inventory_item_category_service=inventory_procurement_services.inventory_item_category_service,
-        inventory_item_service=inventory_procurement_services.inventory_item_service,
-        inventory_foundation_service=inventory_procurement_services.inventory_foundation_service,
-        inventory_service=inventory_procurement_services.inventory_service,
-        inventory_stock_service=inventory_procurement_services.inventory_stock_service,
-        inventory_reservation_service=inventory_procurement_services.inventory_reservation_service,
-        inventory_procurement_service=inventory_procurement_services.inventory_procurement_service,
-        inventory_purchasing_service=inventory_procurement_services.inventory_purchasing_service,
         access_service=platform_services.access_service,
         activity_service=platform_services.activity_service,
         enterprise_audit_service=platform_services.enterprise_audit_service,

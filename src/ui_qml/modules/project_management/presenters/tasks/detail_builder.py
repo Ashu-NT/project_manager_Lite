@@ -12,43 +12,6 @@ from .overview_builder import build_empty_overview
 from .task_mapper import build_task_state
 from .task_lookup import resolve_selected_task
 
-def build_material_demand_state(desktop_api: Any, task_id: str) -> dict[str, object]:
-    normalized_task_id = str(task_id or "").strip()
-    if not normalized_task_id:
-        return {
-            "materialDemandLabel": "No reservations",
-            "materialDemandTotal": "0",
-            "materialDemandActive": "0",
-            "materialDemandFulfilled": "0",
-            "materialDemandCancelled": "0",
-        }
-    try:
-        summary = desktop_api.get_task_material_demand(normalized_task_id)
-    except Exception:
-        return {
-            "materialDemandLabel": "Unavailable",
-            "materialDemandTotal": "0",
-            "materialDemandActive": "0",
-            "materialDemandFulfilled": "0",
-            "materialDemandCancelled": "0",
-        }
-    total_reserved = int(getattr(summary, "total_reserved", 0) or 0)
-    active_count = int(getattr(summary, "active_count", 0) or 0)
-    fulfilled_count = int(getattr(summary, "fulfilled_count", 0) or 0)
-    cancelled_count = int(getattr(summary, "cancelled_count", 0) or 0)
-    label = (
-        f"{active_count} active / {total_reserved} total"
-        if total_reserved > 0
-        else "No reservations"
-    )
-    return {
-        "materialDemandLabel": label,
-        "materialDemandTotal": str(total_reserved),
-        "materialDemandActive": str(active_count),
-        "materialDemandFulfilled": str(fulfilled_count),
-        "materialDemandCancelled": str(cancelled_count),
-    }
-
 def build_detail_view_model(
     desktop_api: Any,
     task: Any,
@@ -65,7 +28,6 @@ def build_detail_view_model(
             ),
         )
     state = build_task_state(task)
-    state.update(build_material_demand_state(desktop_api, task.id))
     return TaskDetailViewModel(
         id=task.id,
         title=task.name,
@@ -105,13 +67,6 @@ def build_detail_view_model(
                 label="Dependencies",
                 value=str(dependency_count),
                 supporting_text="Predecessor and successor links in the plan.",
-            ),
-            TaskDetailFieldViewModel(
-                label="Material Demand",
-                value=str(state.get("materialDemandLabel", "No reservations")),
-                supporting_text=(
-                    "Inventory-linked reservations and procurement demand for this task."
-                ),
             ),
             TaskDetailFieldViewModel(label="Version", value=str(state["version"])),
         ),

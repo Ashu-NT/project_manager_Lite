@@ -1,14 +1,6 @@
 // Column configuration and helpers for Tasks workspace table
 
 function baseColumns() {
-    // "Material" (materialDemandLabel) was removed: it had no data source
-    // anywhere in the list-row pipeline (TaskDesktopDto never carried it)
-    // and rendered blank for every row regardless of capability. Building
-    // it properly would need a new bulk-by-task-ids material-demand query --
-    // the existing per-task lookup fetches up to 500 reservations per task,
-    // which would be an N+1 disaster across a page of rows. The real,
-    // correctly-backed Material Demand data still lives in the task detail
-    // panel's own section (single-task load), so nothing is lost.
     return [
         { "key": "wbsCode",        "label": "WBS",       "flex": 0,   "minWidth": 86, "sortable": true, "required": true, "visibleByDefault": true },
         { "key": "title",          "label": "Task",      "flex": 2,   "sortable": true, "required": true, "visibleByDefault": true },

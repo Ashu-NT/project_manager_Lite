@@ -7,7 +7,6 @@ query ModuleRegistry, not import optional module code directly.
 Module IDs match DEFAULT_ENTERPRISE_MODULES codes:
     platform             (always enabled — built-in)
     project_management
-    inventory_procurement
     qhse
     hr_management
 """
@@ -28,58 +27,34 @@ _CAPABILITY_MODULE: dict[str, str] = {
     # Project Management
     "project_management.projects.read": "project_management",
     "project_management.tasks.read": "project_management",
-    "project_management.tasks.open": "project_management",
-    "project_management.material_demand.create": "project_management",
     "project_management.resources.read": "project_management",
     "project_management.financials.read": "project_management",
-    # Inventory / Procurement
-    "inventory.stock.read": "inventory_procurement",
-    "inventory.reservations.create": "inventory_procurement",
-    "inventory.reservations.read": "inventory_procurement",
-    "procurement.requisitions.create": "inventory_procurement",
-    "procurement.purchase_orders.read": "inventory_procurement",
-    "procurement.purchase_orders.create": "inventory_procurement",
 }
 
 # Maps capability_id → short labels of modules that consume the capability.
 _CAPABILITY_CONSUMERS: dict[str, list[str]] = {
-    "platform.sites.read":              ["PM", "INV"],
-    "platform.parties.read":            ["PM", "INV"],
+    "platform.sites.read":              ["PM"],
+    "platform.parties.read":            ["PM"],
     "platform.employees.read":          ["PM"],
-    "platform.documents.attach":        ["PM", "INV"],
-    "platform.approvals.create":        ["PM", "INV"],
-    "platform.audit.write":             ["PM", "INV"],
+    "platform.documents.attach":        ["PM"],
+    "platform.approvals.create":        ["PM"],
+    "platform.audit.write":             ["PM"],
     "project_management.projects.read": ["PM"],
     "project_management.tasks.read":    ["PM"],
-    "project_management.tasks.open":    ["INV"],
-    "project_management.material_demand.create": ["PM"],
     "project_management.resources.read": ["PM"],
     "project_management.financials.read": ["PM"],
-    "inventory.stock.read":             ["PM"],
-    "inventory.reservations.create":    ["PM"],
-    "inventory.reservations.read":      ["PM"],
-    "procurement.requisitions.create":  ["PM"],
-    "procurement.purchase_orders.read": ["PM"],
-    "procurement.purchase_orders.create": ["INV"],
 }
 
 _MODULE_LABELS: dict[str, str] = {
     "platform":              "Platform",
     "project_management":    "PM",
-    "inventory_procurement": "INV",
     "qhse":                  "QHSE",
     "hr_management":         "HR",
 }
 
 # Maps (source_module, target_module, capability) → bool (static rules).
 # Dynamic check also requires both modules to be enabled at runtime.
-_INTEGRATION_RULES: frozenset[tuple[str, str, str]] = frozenset(
-    {
-        ("project_management", "inventory_procurement", "material_demand"),
-        ("project_management", "inventory_procurement", "source_reference"),
-        ("inventory_procurement", "project_management", "source_reference"),
-    }
-)
+_INTEGRATION_RULES: frozenset[tuple[str, str, str]] = frozenset(set())
 
 
 class ModuleRegistry:

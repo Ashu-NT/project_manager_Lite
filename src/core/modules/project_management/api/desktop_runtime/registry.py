@@ -44,7 +44,7 @@ class ProjectManagementDesktopRuntimePlatformDependencies:
     site_service: SiteService
     department_service: DepartmentService | None
     approval_service: ApprovalService
-    reservation_service: TaskReservationGateway | None
+    reservation_service: TaskReservationGateway | None = None
     enterprise_calendar_api: object | None = None
 
 

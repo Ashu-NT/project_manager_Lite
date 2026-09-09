@@ -18,9 +18,6 @@ from src.core.modules.project_management.api.desktop.tasks.builders.assignment_p
 from src.core.modules.project_management.api.desktop.tasks.builders.assignment_validation_builder import (
     build_assignment_validation,
 )
-from src.core.modules.project_management.api.desktop.tasks.builders.material_demand_builder import (
-    build_material_demand_summary,
-)
 from src.core.modules.project_management.api.desktop.tasks.builders.project_options_builder import (
     build_project_options,
 )
@@ -57,9 +54,6 @@ from src.core.modules.project_management.api.desktop.tasks.commands.dependency_c
     TaskDependencyCreateCommand,
     TaskDependencyUpdateCommand,
 )
-from src.core.modules.project_management.api.desktop.tasks.commands.reservation_commands import (
-    TaskReservationCreateCommand,
-)
 from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
     EDITABLE_CONSTRAINT_OPTIONS,
     coerce_constraint_type,
@@ -90,10 +84,6 @@ from src.core.modules.project_management.api.desktop.tasks.models.options import
     TaskProjectResourceOptionDescriptor,
     TaskStatusDescriptor,
 )
-from src.core.modules.project_management.api.desktop.tasks.models.reservation import (
-    TaskMaterialDemandSummary,
-    TaskReservationDesktopDto,
-)
 from src.core.modules.project_management.api.desktop.tasks.models.skill import (
     TaskSkillRequirementDesktopDto,
 )
@@ -110,9 +100,6 @@ from src.core.modules.project_management.api.desktop.tasks.serializers.assignmen
 )
 from src.core.modules.project_management.api.desktop.tasks.serializers.dependency_serializer import (
     serialize_dependency,
-)
-from src.core.modules.project_management.api.desktop.tasks.serializers.reservation_serializer import (
-    serialize_reservation,
 )
 from src.core.modules.project_management.api.desktop.tasks.serializers.skill_serializer import (
     serialize_skill_requirement,
@@ -912,56 +899,6 @@ class ProjectManagementTasksDesktopApi:
         normalized_ids = normalize_task_ids(task_ids)
         service = self._require_task_service()
         return tuple(service.delete_tasks(normalized_ids))
-
-    def list_task_reservations(self, task_id: str) -> tuple[TaskReservationDesktopDto, ...]:
-        if not task_id or self._reservation_service is None:
-            return ()
-        all_reservations = self._reservation_service.list_reservations(limit=500)
-        task_reservations = [
-            reservation for reservation in all_reservations
-            if getattr(reservation, "source_reference_type", "") == "task"
-            and getattr(reservation, "source_reference_id", "") == task_id
-        ]
-        return tuple(
-            serialize_reservation(reservation)
-            for reservation in sorted(
-                task_reservations,
-                key=lambda reservation: getattr(reservation, "created_at", None) or "",
-            )
-        )
-
-    def create_task_reservation(
-        self,
-        command: TaskReservationCreateCommand,
-    ) -> TaskReservationDesktopDto:
-        if self._reservation_service is None:
-            raise RuntimeError("Inventory reservation service is not connected.")
-        task = self._require_task_service().get_task(command.task_id)
-        if task is None:
-            raise RuntimeError("Task not found.")
-        reservation = self._reservation_service.create_reservation(
-            stock_item_id=command.stock_item_id,
-            storeroom_id=command.storeroom_id,
-            reserved_qty=command.reserved_qty,
-            uom=command.uom,
-            need_by_date=command.need_by_date,
-            source_reference_type="task",
-            source_reference_id=command.task_id,
-            source_module="project_management",
-            source_entity_type="task",
-            source_code_snapshot=str(getattr(task, "name", "") or ""),
-            source_status_snapshot=str(
-                getattr(getattr(task, "status", None), "value", "") or ""
-            ),
-            notes=command.notes,
-        )
-        return serialize_reservation(reservation)
-
-    def get_task_material_demand(self, task_id: str) -> TaskMaterialDemandSummary:
-        return build_material_demand_summary(
-            task_id,
-            self.list_task_reservations(task_id),
-        )
 
     def list_task_skill_requirements(
         self,

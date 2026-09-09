@@ -176,7 +176,6 @@ AppLayouts.WorkspaceFrame {
                 AdminPartyDetailPage {
                     party: root._selectedItem || ({})
                     canWrite: root._canWrite
-                    inventoryEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("inventory_procurement") : false
                     pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
                     busy: root.busy
                     errorMessage: root.err

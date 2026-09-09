@@ -42,13 +42,7 @@ Rectangle {
             "project_management.register": "register",
             "project_management.collaboration": "collaboration",
             "project_management.timesheets": "timesheets",
-            "project_management.dashboard": "dashboard",
-            "inventory_procurement.dashboard": "dashboard",
-            "inventory_procurement.catalog": "catalog",
-            "inventory_procurement.inventory": "inventory",
-            "inventory_procurement.reservations": "reservations",
-            "inventory_procurement.procurement": "procurement",
-            "inventory_procurement.pricing": "pricing"
+            "project_management.dashboard": "dashboard"
         }
         return icons[routeId] || "default"
     }

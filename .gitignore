@@ -40,3 +40,4 @@ tmp_reports/
 .pytest_workspaces/
 main.py
 .pytest_appdata/
+docs/ui_audit/design-system/

@@ -44,9 +44,6 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.cost_entries.labor_posting import (
     SqlAlchemyApprovedTimeLaborPostingRepository,
 )
-from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.integration_outbox import (
-    SqlAlchemyProcurementFinancialOutboxRepository,
-)
 from src.core.platform.infrastructure.persistence.repositories.time_management.time_financial_outbox import (
     SqlAlchemyTimeFinancialOutboxRepository,
 )
@@ -193,7 +190,6 @@ class RepositoryBundle:
     service_principal_repo: SqlAlchemyServicePrincipalRepository
     api_key_credential_repo: SqlAlchemyApiKeyCredentialRepository
     time_financial_outbox_repo: SqlAlchemyTimeFinancialOutboxRepository
-    procurement_financial_outbox_repo: SqlAlchemyProcurementFinancialOutboxRepository
     project_finance_inbox_repo: SqlAlchemyProjectFinanceInboxRepository
     approved_time_labor_posting_repo: SqlAlchemyApprovedTimeLaborPostingRepository
     project_billing_repo: SqlAlchemyProjectBillingRepository
@@ -276,7 +272,6 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
             tenant_context_service=None,
         ),
         time_financial_outbox_repo=SqlAlchemyTimeFinancialOutboxRepository(session),
-        procurement_financial_outbox_repo=SqlAlchemyProcurementFinancialOutboxRepository(session),
         project_finance_inbox_repo=SqlAlchemyProjectFinanceInboxRepository(session),
         approved_time_labor_posting_repo=SqlAlchemyApprovedTimeLaborPostingRepository(session),
         project_billing_repo=SqlAlchemyProjectBillingRepository(session),
