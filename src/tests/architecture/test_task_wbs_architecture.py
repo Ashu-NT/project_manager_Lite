@@ -33,13 +33,9 @@ def test_task_orm_owns_the_only_project_wbs_hierarchy() -> None:
 
 
 def test_task_wbs_migration_is_independent_and_reversible() -> None:
-    """The original standalone `k9l0m1n2o3p4_add_task_owned_wbs` migration (with its own
-    `_backfill_root_wbs` step for pre-existing rows) was folded into the squashed
-    `f3c89cac079d_initial_schema` migration during a later migration-history squash -- a
-    disclosed, confirmed-neutral drift (P45A-FINAL-CLOSURE item 14 / P45B-FINAL-CLEANUP), not a
-    production defect. `wbs_code` is now created NOT NULL directly in the initial `tasks` table
-    (no backfill step is needed for a fresh-schema column), and the WBS-owning constraints/index
-    remain present and reversible in the one migration that now owns the whole schema."""
+    """`wbs_code` is created NOT NULL directly in the initial `tasks` table (no backfill step
+    is needed for a fresh-schema column), and the WBS-owning constraints/index remain present
+    and reversible in the one migration that now owns the whole schema."""
     source = WBS_MIGRATION.read_text(encoding="utf-8")
 
     assert "revision: str = 'f3c89cac079d'" in source
@@ -59,12 +55,9 @@ def test_desktop_bulk_mutations_use_canonical_atomic_task_commands() -> None:
 
 
 def test_scheduling_uses_canonical_wbs_instead_of_synthetic_codes() -> None:
-    """The original target (`presenters/scheduling/record_mappers.py`) never owned resource-
-    leveling's row mapping and has no `wbs`-keyed field of any kind -- a mapper-refactor drift
-    (P45A-FINAL-CLOSURE item 14 / P45B-FINAL-CLEANUP), not a production defect. Resource
-    Leveling's move rows (`leveling_builder.py`'s `_move_row`) are the actual current site that
-    displays a per-task WBS code, and they read the real, Task-owned `wbs_code` field directly --
-    never a synthetic `f"1.{row_index}"`-style placeholder."""
+    """Resource Leveling's move rows (`leveling_builder.py`'s `_move_row`) display the per-task
+    WBS code, reading the real, Task-owned `wbs_code` field directly -- never a synthetic
+    `f"1.{row_index}"`-style placeholder."""
     source = SCHEDULING_MAPPER.read_text(encoding="utf-8")
 
     assert '"wbsCode": move.wbs_code' in source

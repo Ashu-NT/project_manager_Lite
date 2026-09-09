@@ -274,7 +274,7 @@ def test_successful_write_produces_exactly_one_portfolio_view_invalidation(creat
 
 def test_activate_scoring_template_rolls_back_both_writes_on_repository_failure(services, monkeypatch):
     """`activate_scoring_template` mutates TWO rows in the same transaction (the newly-activated
-    template and the previously-active one, via `_deactivate_other_templates`) -- P42's UoW makes
+    template and the previously-active one, via `_deactivate_other_templates`) -- the UoW makes
     both genuinely atomic. Forcing the SECOND write (the target) to fail must roll back the FIRST
     (the deactivation) too -- proving real cross-sub-aggregate-row atomicity, not two independent
     commits that merely happen to run in sequence."""

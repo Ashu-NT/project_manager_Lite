@@ -182,10 +182,6 @@ def _posted_receipt_entry(services, *, organization, project, cost_code, period,
     return entry
 
 
-# P46B: test_legacy_commitment_signal_field_is_deleted removed -- domain_events module is deleted
-# outright (see docs/architecture/event-modernization-plan.md's P46B entry).
-
-
 # ---------------------------------------------------------------------------
 # ViewInvalidation handler: unit-level mapping/dedupe (both event types share one target)
 # ---------------------------------------------------------------------------

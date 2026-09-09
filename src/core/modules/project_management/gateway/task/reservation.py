@@ -1,19 +1,16 @@
 """PM-owned port for the task-material-reservation capability Inventory/
 Procurement provides.
 
-This mirrors the existing `ProcurementFinancialSourceProvider` pattern
-(`gateway/procurement/financial_source.py`): PM defines the shape it needs; the
-Inventory/Procurement module's `ReservationService` already satisfies it
-structurally (same method names, same keyword arguments) and requires no
-change and no import of this module to do so -- Python's `Protocol` typing
-is structural, not nominal. This closes the boundary gap where PM's desktop
-runtime previously received that service typed as plain `object` purely to
-avoid a static cross-module import (see TODO §5A).
+Mirrors the `ProcurementFinancialSourceProvider` pattern
+(`gateway/procurement/financial_source.py`): PM defines the shape it needs, and
+Inventory/Procurement's `ReservationService` already satisfies it structurally (same
+method names, same keyword arguments) -- Python's `Protocol` typing is structural, not
+nominal, so no import in either direction is required.
 
 Reservation records themselves (`StockReservation`) remain Inventory-owned
 and are deliberately not re-typed here -- PM's existing reservation
-serializer already reads them defensively via `getattr`, which is the
-correct way for PM to consume a record shape it does not own.
+serializer reads them defensively via `getattr`, the correct way to consume
+a record shape it does not own.
 """
 
 from __future__ import annotations

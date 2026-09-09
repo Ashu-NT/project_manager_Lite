@@ -1,19 +1,8 @@
-"""ADR-005 Sec21 (Architecture Guardrails): Platform must not depend on a concrete business
-module's implementation, except through explicitly governed, cited exceptions.
+"""Platform must not depend on a concrete business module's implementation, except through
+explicitly governed, cited exceptions.
 
-Uses the same AST-based technique already proven in this test suite (see
-test_qml_architecture_guardrails_layers.py, test_pm_inventory_module_boundary.py) -- no new
-enforcement framework is introduced.
-
-Scope note (documentation/implementation mismatch found and corrected while implementing this
-test): ADR-005 Sec21's prose says the guardrail scans "src/core/platform/{domain,application}/",
-but Sec22 says the SqlAlchemyApprovalRepository -> ProjectORM violation (which lives under
-src/core/platform/infrastructure/) is allowlisted "in the new guardrail test". Those two
-statements are inconsistent -- a domain/application-only scan would never see the
-infrastructure-layer violation Sec22 says this test allowlists. This test scans the whole
-src/core/platform/ tree, matching Sec22's actual intent and the audit's own methodology (which
-found both known violations by grepping all of src/core/platform/, not a narrower subtree).
-ADR-005 Sec21's wording has been corrected to match (see the ADR's own revision note).
+Scans the whole src/core/platform/ tree (not just domain/application), since the known
+allowlisted violation lives under infrastructure/.
 """
 
 from __future__ import annotations

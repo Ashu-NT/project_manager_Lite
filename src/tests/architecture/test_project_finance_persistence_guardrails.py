@@ -38,9 +38,6 @@ PROJECT_FINANCE_TRANSITION_FILES = (
         "lifecycle.py"
     ),
 )
-PROJECT_FINANCE_PLAN = Path(
-    "docs/pm_modernization/project_finance_existing_state_and_implementation_plan.md"
-)
 CANONICAL_PM_NUMERIC_COLUMNS = {
     ("resources", "hourly_rate"): FinancialNumericKind.RATE,
     ("project_resources", "hourly_rate"): FinancialNumericKind.RATE,

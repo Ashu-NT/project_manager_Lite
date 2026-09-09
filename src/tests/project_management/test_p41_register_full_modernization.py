@@ -201,7 +201,7 @@ def test_duplicate_code_rejected_with_zero_hints(services):
 
 
 # ---------------------------------------------------------------------------
-# P40A's two-commit bug: audit failure must roll back the Register mutation
+# Audit failure must roll back the Register mutation, not just the audit write
 # ---------------------------------------------------------------------------
 
 

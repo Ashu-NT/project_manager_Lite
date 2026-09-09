@@ -227,7 +227,7 @@ def test_project_resource_add_produces_detail_hint_only(services):
 
 
 # ---------------------------------------------------------------------------
-# Audit failure rollback -- including set_status, previously the weakest path
+# Audit failure rollback, including set_status
 # ---------------------------------------------------------------------------
 
 
