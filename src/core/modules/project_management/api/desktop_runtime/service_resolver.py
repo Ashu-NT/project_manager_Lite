@@ -19,6 +19,7 @@ from src.core.modules.project_management.application.financials import (
 )
 from src.core.modules.project_management.application.financials.governance import (
     FinanceGovernanceCommandBoundary,
+    FinanceGovernedServicePort,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
@@ -66,7 +67,7 @@ class ProjectManagementDesktopRuntimeServices:
     finance_workspace_query: ProjectFinanceWorkspaceQuery | None
     finance_performance_query: ProjectFinancePerformanceQuery | None
     finance_governance_commands: FinanceGovernanceCommandBoundary | None
-    cost_entry_service: ProjectCostEntryService | None
+    cost_entry_service: ProjectCostEntryService | FinanceGovernedServicePort | None
     commitment_service: ProjectCommitmentService | None
     billing_profile_service: ProjectBillingProfileService | None
     billing_preparation_service: ProjectBillingPreparationService | None
@@ -177,7 +178,10 @@ def resolve_project_management_desktop_runtime_services(
         ),
         cost_entry_service=(
             cost_entry_service
-            if isinstance(cost_entry_service, ProjectCostEntryService)
+            if isinstance(
+                cost_entry_service,
+                (ProjectCostEntryService, FinanceGovernedServicePort),
+            )
             else None
         ),
         commitment_service=(

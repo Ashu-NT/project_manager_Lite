@@ -1033,6 +1033,8 @@ def test_cost_actuals_tab_loads_only_paged_actual_dependencies() -> None:
         limit=25,
         sort_key="metaText",
         sort_direction="desc",
+        status=None,
+        source_module=None,
     )
     api.get_manual_actual_defaults.assert_called_once_with("project-1")
     assert not hasattr(api, "list_tasks") or api.list_tasks.call_count == 0

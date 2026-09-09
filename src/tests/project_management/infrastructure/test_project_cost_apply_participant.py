@@ -3,6 +3,7 @@ caller-supplied Session without opening or completing its own transaction."""
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
@@ -31,6 +32,17 @@ def _login(services, username: str, password: str) -> None:
     user_session = services["user_session"]
     user = auth.authenticate(username, password)
     user_session.set_principal(auth.build_principal(user))
+
+
+def _become_independent_decider(services) -> None:
+    user_session = services["user_session"]
+    user_session.set_principal(
+        replace(
+            user_session.principal,
+            user_id="independent-cost-decider",
+            username="independent-cost-decider",
+        )
+    )
 
 
 def _submitted_entry(services, session):
@@ -84,6 +96,7 @@ def _deps(services, session):
 def test_participant_apply_approves_entry_on_the_supplied_session(services, session):
     _login(services, "admin", "ChangeMe123!")
     _, entry = _submitted_entry(services, session)
+    _become_independent_decider(services)
 
     deps = _deps(services, session)
     request = _approval_request(entry, expected_version=entry.row_version)
@@ -98,6 +111,7 @@ def test_participant_never_calls_commit_or_rollback(services, session, monkeypat
     """The participant stages only; the caller owns transaction completion."""
     _login(services, "admin", "ChangeMe123!")
     _, entry = _submitted_entry(services, session)
+    _become_independent_decider(services)
     deps = _deps(services, session)
     request = _approval_request(entry, expected_version=entry.row_version)
 

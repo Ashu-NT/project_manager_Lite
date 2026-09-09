@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
@@ -13,6 +14,17 @@ def _login(services, username: str, password: str):
     user_session = services["user_session"]
     user = auth.authenticate(username, password)
     user_session.set_principal(auth.build_principal(user))
+
+
+def _become_independent_admin_decider(services) -> None:
+    user_session = services["user_session"]
+    user_session.set_principal(
+        replace(
+            user_session.principal,
+            user_id="independent-admin-decider",
+            username="independent-admin-decider",
+        )
+    )
 
 
 def _submitted_cost_entry(services, name: str):
@@ -60,6 +72,7 @@ def test_cost_entry_requester_can_lack_approve_and_admin_can_approve(services, m
     assert req.payload["entry_id"] == item.id
 
     _login(services, "admin", "ChangeMe123!")
+    _become_independent_admin_decider(services)
     approvals.approve_and_apply(req.id, note="Approved")
 
     updated = cost_entries.get_entry(item.id)
@@ -145,6 +158,7 @@ def test_approval_apply_rolls_back_handler_when_decision_update_fails(
 
     monkeypatch.setattr(approval_repo_class, "update", _fail_decision_update)
     _login(services, "admin", "ChangeMe123!")
+    _become_independent_admin_decider(services)
 
     with pytest.raises(RuntimeError, match="simulated decision persistence failure"):
         approvals.approve_and_apply(request.id, note="Should roll back")
@@ -188,6 +202,7 @@ def test_approval_apply_rolls_back_handler_when_required_audit_fails(
 
     monkeypatch.setattr(audit_service_class, "record", _fail_approval_audit)
     _login(services, "admin", "ChangeMe123!")
+    _become_independent_admin_decider(services)
 
     with pytest.raises(RuntimeError, match="simulated audit failure"):
         approvals.approve_and_apply(request.id, note="Should roll back")

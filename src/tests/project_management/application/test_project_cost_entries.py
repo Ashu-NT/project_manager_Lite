@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
@@ -33,6 +34,17 @@ def _login(services, username: str, password: str) -> None:
     auth = services["auth_service"]
     user = auth.authenticate(username, password)
     services["user_session"].set_principal(auth.build_principal(user))
+
+
+def _become_independent_decider(services) -> None:
+    user_session = services["user_session"]
+    user_session.set_principal(
+        replace(
+            user_session.principal,
+            user_id="independent-cost-decider",
+            username="independent-cost-decider",
+        )
+    )
 
 
 def _source(*, command_id: str = "command-1", content_hash: str = "a" * 64):
@@ -176,6 +188,7 @@ def test_manual_entry_lifecycle_is_idempotent_posts_and_reverses_exactly(service
     assert conflict.value.code == "PROJECT_COST_ENTRY_SOURCE_REPLAY_CONFLICT"
 
     submitted = service.submit(draft.id, expected_version=draft.row_version)
+    _become_independent_decider(services)
     approved_result = service.approve(
         submitted.id,
         expected_version=submitted.row_version,
@@ -313,6 +326,7 @@ def test_cross_currency_posting_requires_and_freezes_fx_snapshot(services) -> No
         cost_code_id=cost_code.id,
     )
     submitted = service.submit(draft.id, expected_version=draft.row_version)
+    _become_independent_decider(services)
     service.approve(submitted.id, expected_version=submitted.row_version)
     approved = service.get_entry(draft.id)
     with pytest.raises(ValidationError) as missing_fx:
@@ -343,6 +357,7 @@ def test_posting_rejects_closed_period(services) -> None:
     _organization, _project, _cost_code, period, draft = _create_draft(services)
     service = services["cost_entry_service"]
     submitted = service.submit(draft.id, expected_version=draft.row_version)
+    _become_independent_decider(services)
     service.approve(submitted.id, expected_version=submitted.row_version)
     approved = service.get_entry(draft.id)
     services["financial_period_service"].close_period(
@@ -378,6 +393,7 @@ def test_governed_cost_approval_applies_as_deciding_principal(
     requester_id = request.requested_by_user_id
 
     _login(services, "admin", "ChangeMe123!")
+    _become_independent_decider(services)
     approver_id = services["user_session"].principal.user_id
     services["approval_service"].approve_and_apply(request.id, note="Approved actual")
     approved = service.get_entry(submitted.id)
