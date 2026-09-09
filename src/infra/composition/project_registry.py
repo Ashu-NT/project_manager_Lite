@@ -319,6 +319,7 @@ from src.core.modules.project_management.infrastructure.persistence.reads.projec
 from src.core.modules.project_management.infrastructure.persistence.reads.resources import (
     SqlAlchemyResourceCatalogReader,
     SqlAlchemyResourceContextReader,
+    SqlAlchemyResourceIdentityReader,
     SqlAlchemyResourceWorkloadDemandReader,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.register import (
@@ -512,7 +513,10 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         scope_organization_resolver=_time_scope_organization_id,
         approved_time_outbox_service=approved_time_outbox_service,
-        timesheet_workspace_reader=SqlAlchemyTimesheetWorkspaceReader(session=session),
+        timesheet_workspace_reader=SqlAlchemyTimesheetWorkspaceReader(
+            session=session,
+            resource_identity_reader=SqlAlchemyResourceIdentityReader(session=session),
+        ),
         timesheet_review_reader=SqlAlchemyTimesheetReviewReader(session=session),
         transactional_dispatcher=platform_services.platform_transactional_dispatcher,
         post_commit_bus=platform_services.platform_post_commit_bus,

@@ -28,6 +28,9 @@ from src.core.modules.project_management.infrastructure.persistence.reads.resour
 from src.core.modules.project_management.infrastructure.persistence.reads.resources.sqlalchemy_workload_reader import (
     SqlAlchemyResourceWorkloadDemandReader,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.resources.sqlalchemy_resource_identity_reader import (
+    SqlAlchemyResourceIdentityReader,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.timesheets.sqlalchemy_review_reader import (
     SqlAlchemyTimesheetReviewReader,
 )
@@ -231,7 +234,10 @@ def test_real_readers_are_bounded_and_measured(postgres_test_environment, size):
     try:
         catalog = SqlAlchemyResourceCatalogReader(session=session)
         workload = SqlAlchemyResourceWorkloadDemandReader(session=session)
-        selector = SqlAlchemyTimesheetWorkspaceReader(session=session)
+        selector = SqlAlchemyTimesheetWorkspaceReader(
+            session=session,
+            resource_identity_reader=SqlAlchemyResourceIdentityReader(session=session),
+        )
         review = SqlAlchemyTimesheetReviewReader(session=session)
         suffix = "10k" if size == 10_000 else "50k"
         resource_id = f"r5h-perf-resource-{suffix}-1"

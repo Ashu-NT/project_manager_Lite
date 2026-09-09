@@ -38,6 +38,7 @@ from src.core.platform.infrastructure.persistence.orm.time_management.time.time 
     TimeEntryORM,
     TimesheetPeriodORM,
 )
+from src.core.shared.resource_identity.contracts import ResourceIdentityReader
 
 
 def _decimal_hours(value: object) -> Decimal:
@@ -52,8 +53,14 @@ def _period_bounds(value: date) -> tuple[date, date]:
 class SqlAlchemyTimesheetWorkspaceReader:
     """Bounded resource-centric Timesheets projection."""
 
-    def __init__(self, *, session: Session) -> None:
+    def __init__(
+        self,
+        *,
+        session: Session,
+        resource_identity_reader: ResourceIdentityReader,
+    ) -> None:
         self._session = session
+        self._resource_identity_reader = resource_identity_reader
 
     @staticmethod
     def _eligibility_filters(*, include_inactive: bool = False) -> list[object]:
@@ -99,25 +106,32 @@ class SqlAlchemyTimesheetWorkspaceReader:
         tenant_id: str,
         organization_id: str,
     ) -> TimesheetResourceFact | None:
-        rows = self._session.execute(
+        # Identity resolution (which Resource this user maps to) is owned by
+        # the neutral shared resolver, not this module -- only the
+        # time-reporting eligibility check below is a Timesheets-specific
+        # rule, applied on top of that resolved resource.
+        identity = self._resource_identity_reader.resolve_resource_for_user(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+        )
+        if identity is None:
+            return None
+        row = self._session.execute(
             select(*self._resource_columns())
             .select_from(ResourceORM)
             .join(EmployeeORM, EmployeeORM.id == ResourceORM.employee_id)
             .where(
+                ResourceORM.id == identity.resource_id,
                 ResourceORM.tenant_id == tenant_id,
                 ResourceORM.organization_id == organization_id,
-                EmployeeORM.user_id == user_id,
                 EmployeeORM.tenant_id == tenant_id,
                 EmployeeORM.organization_id == organization_id,
                 EmployeeORM.is_active.is_(True),
                 *self._eligibility_filters(),
             )
-            .order_by(ResourceORM.id.asc())
-            .limit(2)
-        ).all()
-        if len(rows) != 1:
-            return None
-        return self._resource_fact(rows[0])
+        ).one_or_none()
+        return self._resource_fact(row) if row else None
 
     def _resource_scope_stmt(
         self,

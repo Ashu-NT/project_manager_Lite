@@ -8,6 +8,7 @@ from src.core.platform.api.desktop_runtime.service_resolver import (
     ModuleRuntimeSnapshot,
     build_module_runtime_snapshot,
 )
+from src.core.platform.application.platform_runtime.module_access_policy import is_module_accessible
 from src.core.platform.application.tenant.modules import ModuleCatalogService
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ValidationError
@@ -93,6 +94,21 @@ class PlatformRuntimeApplicationService:
 
     def list_enabled_modules(self):
         return self._module_catalog_service.list_enabled_modules()
+
+    def list_accessible_modules(self):
+        """Enabled modules the current user also has permission to use.
+
+        The single authoritative enabled+accessible definition -- see
+        `module_access_policy.py`. An enabled module is not necessarily
+        accessible: a module can be turned on for the organization while
+        the current user holds no permission relevant to it.
+        """
+        permissions = self.get_current_permissions()
+        return tuple(
+            module
+            for module in self.list_enabled_modules()
+            if is_module_accessible(module.code, permissions)
+        )
 
     def list_available_modules(self):
         return self._module_catalog_service.list_available_modules()
