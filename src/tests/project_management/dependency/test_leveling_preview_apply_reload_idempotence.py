@@ -1,7 +1,6 @@
-"""R4.4N -- Preview -> Apply -> reload -> run_cpm idempotence.
+"""Preview -> Apply -> reload -> run_cpm idempotence.
 
-Per the R4.4 directive, this is THE critical regression: if it fails,
-the R4.4 leveling architecture is not complete. It is not enough for a
+This is a critical regression: it is not enough for a
 resource-capacity resolution to hold immediately after Apply -- it must
 survive a completely disconnected reload (fresh objects read back from
 the repository, no reuse of the pre-apply Python instances) and then
@@ -87,9 +86,8 @@ class TestPreviewApplyReloadIdempotence:
     def test_resource_conflict_resolution_survives_reload_and_repeated_recalculation_via_the_live_engine(self, services):
         """Same guarantee, but through the LIVE persisting orchestration
         path (SchedulingEngine.recalculate_project_schedule) rather than
-        the pure function -- confirmed separately per R4.4A's finding
-        that SchedulingEngine and pure_cpm.run_cpm are two independent
-        orchestrations sharing only primitives."""
+        the pure function -- SchedulingEngine and pure_cpm.run_cpm are
+        two independent orchestrations sharing only primitives."""
         ps = services["project_service"]
         ts = services["task_service"]
         rs = services["resource_service"]

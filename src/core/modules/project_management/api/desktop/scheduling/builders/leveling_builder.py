@@ -1,12 +1,11 @@
-"""Resource-leveling preview assembly (R4.4Q) -- gathers the same
-in-memory snapshot shape the planner's own tests build (leaf tasks,
-assignments, dependencies, resource names), runs the ONE authoritative
-``ResourceLevelingPlanner`` (application/scheduling/leveling/
-resource_leveling_planner.py), and returns both the raw domain
-``LevelingProposal`` (for the desktop API to cache and later hand back
-to ``apply_resource_leveling_plan`` verbatim -- Apply must revalidate
-against the EXACT snapshot Preview reasoned about) and its QML-facing
-DTO.
+"""Resource-leveling preview assembly -- gathers the same in-memory snapshot
+shape the planner's own tests build (leaf tasks, assignments, dependencies,
+resource names), runs the ONE authoritative ``ResourceLevelingPlanner``
+(application/scheduling/leveling/resource_leveling_planner.py), and returns
+both the raw domain ``LevelingProposal`` (for the desktop API to cache and
+later hand back to ``apply_resource_leveling_plan`` verbatim -- Apply must
+revalidate against the EXACT snapshot Preview reasoned about) and its
+QML-facing DTO.
 """
 from __future__ import annotations
 

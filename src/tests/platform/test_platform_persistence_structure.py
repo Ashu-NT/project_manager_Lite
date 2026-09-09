@@ -5,9 +5,8 @@ from src.tests.path_rewrites import REPO_ROOT
 ROOT = REPO_ROOT
 PERSISTENCE_ROOT = ROOT / "src" / "core" / "platform" / "infrastructure" / "persistence"
 
-# Areas already regrouped by content per the layer-first restructure (§5a) land as
-# nested `<group>/<file>.py` in each of orm/repositories/mappers instead of a flat
-# `<area>.py`. Update this set in lockstep as each remaining group's phase lands.
+# Every area lands as nested `<group>/<file>.py` in each of orm/repositories/mappers,
+# never a flat `<area>.py` (FLAT_AREAS below is empty).
 NESTED_AREA_FILES = {
     "history/activity/activity.py",
     "history/audit/audit_entry.py",
@@ -27,9 +26,8 @@ NESTED_AREA_FILES = {
     "security/auth/auth.py",
 }
 
-# runtime_tracking, modules, and identity have no mapper (never did — "no
-# mapper exists today" per §8), so their nested files only need to exist
-# under orm/ and repositories/, not mappers/.
+# runtime_tracking, modules, and identity have no mapper, so their nested files
+# only need to exist under orm/ and repositories/, not mappers/.
 NESTED_AREA_FILES_NO_MAPPER = {
     "data_operations/runtime_tracking/runtime_tracking.py",
     "tenant/modules/modules.py",

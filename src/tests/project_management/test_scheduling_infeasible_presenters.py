@@ -1,8 +1,6 @@
-"""PRE-R4.4 -- WIRE CPM INFEASIBILITY STATE TO DESKTOP/QML: the
-Scheduling workspace's project-wide diagnostics/overview/table surfaces
-must read the backend-owned SchedulingTaskDto.is_infeasible flag
-directly, never re-derive it from ``total_float_days < 0`` (the exact
-heuristic these two presenter functions used before this pass).
+"""The Scheduling workspace's diagnostics/overview/table surfaces must read the
+backend-owned SchedulingTaskDto.is_infeasible flag directly, never re-derive it
+from ``total_float_days < 0``.
 """
 from __future__ import annotations
 
@@ -46,12 +44,9 @@ def _item(**overrides):
 
 
 class TestDiagnosticsConstraintsRow:
-    """R4.4 Planning IA dedup (migration step 6): the diagnostics collection
-    no longer carries a per-row infeasible/critical/delayed/overloads count --
-    those are the Overview KPI strip's job (see TestOverviewInfeasibleMetric
-    below). It keeps only the "constraints" (deadline-breach) row, which the
-    KPI strip does not report.
-    """
+    """The diagnostics collection carries only the "constraints" (deadline-breach) row --
+    infeasible/critical/delayed/overloads counts are the Overview KPI strip's job (see
+    TestOverviewInfeasibleMetric below), which this row does not report."""
 
     def test_constraints_row_counts_deadline_breaches(self):
         items = [_item(deadline="2026-01-01", late_by_days=2)]

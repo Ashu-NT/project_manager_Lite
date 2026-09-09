@@ -215,15 +215,12 @@ class UserSessionPrincipal:
 
 
 class UserSessionContext:
-    """Ephemeral session/authentication transport: `principal_changed_listener`/
-    `active_scope_changed_listener` are the canonical, minimal, non-DomainEvent notification
-    vocabulary for "the UI-relevant application state held here changed" -- process-local,
-    synchronous (fires on the same thread that calls `set_principal`/`clear`/`set_active_tenant_id`/
-    `set_active_organization_id`, always the UI thread in this desktop-first architecture), never
-    persisted, never a DomainEvent. Distinct from `context_listener`, which is a producer-side
-    persistence convenience (writes the active tenant/org back onto the durable `AuthSession` row
-    for a future login's "resume where you left off") -- both fire from the identical trigger
-    points, but serve different consumers and must not be conflated."""
+    """Ephemeral session/authentication transport. `principal_changed_listener`/
+    `active_scope_changed_listener` are process-local, synchronous notifications for "session
+    state changed" -- never persisted, never a DomainEvent. Distinct from `context_listener`,
+    which persists the active tenant/org onto the durable `AuthSession` row for a future
+    login's "resume where you left off" -- both fire from the same trigger points but serve
+    different consumers."""
 
     def __init__(
         self,
@@ -461,8 +458,8 @@ class UserSessionContext:
             or None
         )
         if principal_organization_id:
-            # H-2: only return org from principal when tenant context is consistent.
-            # Prevents a stale org_id (from a previous tenant) leaking through this fallback.
+            # Only return org from principal when tenant context is consistent -- prevents a
+            # stale org_id (from a previous tenant) leaking through this fallback.
             principal_tenant_id = str(getattr(principal, "active_tenant_id", "") or "").strip() or None
             current_tenant_id = str(self._active_tenant_id or "").strip() or None
             if current_tenant_id is None or current_tenant_id == principal_tenant_id:

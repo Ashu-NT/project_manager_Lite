@@ -1,10 +1,9 @@
-"""Phase M1 (R4.4 constraint pass): no raw/mis-rendered ConstraintType
-value reaches a desktop DTO. The audit found three disagreeing
-treatments for the identical underlying value: title-cased in one
-serializer, raw snake_case with no label field in another, and a third
-site that would have rendered the literal enum repr
-("ConstraintType.MUST_START_ON") had it ever fired. All three now go
-through the one canonical constraint_presentation() map.
+"""No raw/mis-rendered ConstraintType value reaches a desktop DTO. Three
+disagreeing treatments existed for the identical underlying value:
+title-cased in one serializer, raw snake_case with no label field in
+another, and a third site that would have rendered the literal enum
+repr ("ConstraintType.MUST_START_ON") had it ever fired. All three now
+go through the one canonical constraint_presentation() map.
 """
 from __future__ import annotations
 

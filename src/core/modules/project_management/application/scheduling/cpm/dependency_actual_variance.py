@@ -1,20 +1,13 @@
-"""Actual-vs-planned dependency variance facts (Phase J).
+"""Actual-vs-planned dependency variance facts.
 
-Actual dates are historical truth and are never moved to satisfy a planned
-dependency (confirmed unchanged behavior -- ``apply_actual_date_constraints``
-always overrides the dependency-derived date, never the reverse). What was
-previously missing is any signal when a task's own recorded actual
-execution violated what its dependency graph required: e.g. a successor
-whose ``actual_start`` is earlier than the date its FS/SS predecessor
-relationship would have permitted, given the predecessor's own best-known
-(actual-if-recorded, else planned) date. This module reports that as an
-explicit, non-blocking fact -- it never changes any date.
+Actual dates are historical truth and are never moved to satisfy a planned dependency
+(``apply_actual_date_constraints`` always overrides the dependency-derived date, never the
+reverse). This module reports, as a non-blocking fact, when a task's own recorded actual date
+fell outside what its dependency graph required -- it never changes any date.
 
-Reads ``CPMTaskInfo.dependency_implied_start/finish``, captured BEFORE the
-task's own actual-date override was applied (see
-``compute_task_dates_common``'s ``on_dependency_implied`` hook) -- that is
-what makes comparing a task's OWN actual dates against its dependency
-graph's requirement meaningful, rather than circular.
+Reads ``CPMTaskInfo.dependency_implied_start/finish``, captured before the task's own
+actual-date override was applied, so the comparison is against the graph's requirement rather
+than circular.
 """
 
 from __future__ import annotations

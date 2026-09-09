@@ -1,4 +1,4 @@
-"""Tests for Phase 2E: RBAC and Tenant Hardening.
+"""Tests for RBAC and Tenant Hardening.
 
 Covers:
   C-1  Canonical delegation replaces role-name privilege ranks

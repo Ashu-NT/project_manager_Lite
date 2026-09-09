@@ -1,8 +1,6 @@
 """
 Test that SchedulingEngine uses the enterprise calendar when a project
 has a calendar assignment, and falls back to WorkCalendarEngine when none exists.
-
-This verifies Fix 1: ProjectCalendarAdapter is now wired into SchedulingEngine.
 """
 
 from __future__ import annotations
@@ -225,7 +223,6 @@ def _seed_project(db_session, tenant_context, project_id: str) -> None:
 def test_bound_project_calendar_is_working_day_uses_enterprise(
     global_cal, adapter, assignment_service, db_session, tenant_context
 ):
-    """When project has a calendar assignment, BoundProjectCalendar uses enterprise resolver."""
     _seed_project(db_session, tenant_context, "proj-bind-test")
     assignment_service.assign_project_calendar("proj-bind-test", global_cal.id)
     bound = BoundProjectCalendar(adapter, "proj-bind-test")
@@ -278,25 +275,15 @@ def test_bound_project_calendar_next_working_day(
 
 
 def test_bind_for_project_returns_none_when_enterprise_not_bootstrapped(adapter):
-    """
-    When no enterprise calendars exist at all (no Global calendar bootstrapped),
-    bind_for_project returns None so SchedulingEngine falls back to WorkCalendarEngine.
-
-    In production, ensure_global_calendar() always runs at startup, so this path
-    is only reached if bootstrap failed or the DB is empty.
-    A project with no explicit assignment but a bootstrapped Global calendar
-    will return a BoundProjectCalendar that uses the Global calendar via the resolver.
-    """
+    """In production, ensure_global_calendar() always runs at startup, so this path
+    is only reached if bootstrap failed or the DB is empty."""
     bound = adapter.bind_for_project("proj-no-calendar")
     assert bound is None
 
 
 def test_bind_for_project_returns_bound_when_only_global_exists(global_cal, adapter):
-    """
-    A project with no explicit project-level assignment still gets a BoundProjectCalendar
-    because the resolver finds the Global calendar and uses it as the base.
-    The old WorkCalendarEngine is NOT consulted.
-    """
+    """The old WorkCalendarEngine is NOT consulted -- the resolver finds the Global
+    calendar and uses it as the base."""
     bound = adapter.bind_for_project("proj-no-specific-cal")
     assert bound is not None
     assert isinstance(bound, BoundProjectCalendar)
@@ -308,7 +295,6 @@ def test_bind_for_project_returns_bound_when_only_global_exists(global_cal, adap
 def test_bind_for_project_returns_bound_when_assigned(
     global_cal, adapter, assignment_service, db_session, tenant_context
 ):
-    """When project has a calendar, bind_for_project returns a BoundProjectCalendar."""
     _seed_project(db_session, tenant_context, "proj-assigned")
     assignment_service.assign_project_calendar("proj-assigned", global_cal.id)
     bound = adapter.bind_for_project("proj-assigned")
@@ -319,7 +305,6 @@ def test_bind_for_project_returns_bound_when_assigned(
 def test_project_calendar_overrides_weekend_via_bound(
     global_cal, cal_service, rule_service, assignment_service, adapter, org_id, db_session, tenant_context
 ):
-    """Project calendar with Saturday working hours produces working day on Saturday via bound adapter."""
     project_cal = cal_service.create_calendar(
         code="PRJ-SAT",
         name="Weekend Project",
@@ -350,10 +335,7 @@ def test_project_calendar_overrides_weekend_via_bound(
 def test_scheduling_engine_falls_back_to_base_calendar_when_not_bootstrapped(
     adapter,
 ):
-    """
-    SchedulingEngine uses the base calendar when no enterprise calendars are bootstrapped
-    (get_source_chain returns [] → bind_for_project returns None → base calendar used).
-    """
+    """get_source_chain returns [] -> bind_for_project returns None -> base calendar used."""
     from unittest.mock import MagicMock
     from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
     from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
@@ -377,9 +359,6 @@ def test_scheduling_engine_falls_back_to_base_calendar_when_not_bootstrapped(
 def test_scheduling_engine_uses_enterprise_calendar_when_assigned(
     global_cal, adapter, assignment_service, db_session, tenant_context
 ):
-    """
-    SchedulingEngine swaps to BoundProjectCalendar when a project calendar is assigned.
-    """
     from unittest.mock import MagicMock
     from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
     from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol

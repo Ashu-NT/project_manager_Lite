@@ -32,23 +32,17 @@ def _coerce_date(value: date | str) -> date:
 
 
 class ResourceLevelingApplyMixin:
-    """R4.4M/R4.4O -- persists a previously-computed ``LevelingProposal``
-    (R4.4K, always built by ``ResourceLevelingPlanner`` against an
-    in-memory snapshot that never itself writes to the repository).
+    """Persists a previously-computed ``LevelingProposal`` (always built by
+    ``ResourceLevelingPlanner`` against an in-memory snapshot that never itself
+    writes to the repository).
 
-    Mirrors TaskSchedulingConstraintMixin's shape end to end: a public
-    gate method that runs the governed/ungoverned branch (request-time),
-    and an internal ``_apply_resource_leveling_plan_decision`` that does
-    the actual atomic mutate+recalculate+commit (apply-time) -- reused
-    directly, with ``commit=False``, by the approval apply-handler
-    registered in the composition root when a governed request is later
-    approved. The staleness guard is R4.4L's schedule fingerprint rather
-    than a single task's ``version``, since a leveling plan spans many
-    tasks at once and a per-task version check could pass for some moves
-    while the ones that actually made the preview stale go unnoticed --
-    this also naturally re-validates a governed request at apply time
-    (TOCTOU-safe), exactly like the version re-check other governed
-    commands in this module perform.
+    A public gate method runs the governed/ungoverned branch (request-time); the internal
+    ``_apply_resource_leveling_plan_decision`` does the atomic mutate+recalculate+commit
+    (apply-time), reused directly with ``commit=False`` by the approval apply-handler when a
+    governed request is later approved. The staleness guard is the schedule fingerprint rather
+    than a single task's ``version``, since a leveling plan spans many tasks and a per-task
+    version check could pass for some moves while others go unnoticed -- this also re-validates
+    a governed request at apply time (TOCTOU-safe).
     """
 
     def _leveling_snapshot(self, project_id: str):
@@ -154,11 +148,8 @@ class ResourceLevelingApplyMixin:
                 candidate = replace(task, resource_leveling_not_before=new_start)
                 uow.tasks.update(candidate)
                 updated_ids.append(task_id)
-                # Per-task audit entry (matching the entity_type="task"
-                # convention every other schedule-affecting command in
-                # this module uses) so the moved task's OWN activity feed
-                # explains why its start changed -- a project-level-only
-                # summary would leave that task's history silent.
+                # Per-task entry (matching this module's convention) so each moved
+                # task's own activity feed explains why its start changed.
                 record_audit_entry(
                     uow,
                     operation="update",

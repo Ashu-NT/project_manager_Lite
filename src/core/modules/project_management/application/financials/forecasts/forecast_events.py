@@ -31,10 +31,10 @@ class ForecastLineChangeType(str, Enum):
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ForecastLineChanged:
-    """A canonical DomainEvent -- recorded via `uow.record_event(...)`. Forecast lines can
-    only be mutated while their owning forecast is mutable (DRAFT/SUBMITTED, never APPROVED
-    -- see `ForecastVersionService._require_mutable_forecast`), so a line change never affects
-    the project's approved ETC basis; it only invalidates the forecast planning projection."""
+    """Forecast lines can only be mutated while their owning forecast is mutable
+    (DRAFT/SUBMITTED, never APPROVED -- see `ForecastVersionService._require_mutable_forecast`),
+    so a line change never affects the project's approved ETC basis; it only invalidates the
+    forecast planning projection."""
 
     tenant_id: str
     organization_id: str
@@ -47,12 +47,11 @@ class ForecastLineChanged:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ForecastDraftGenerated:
-    """A canonical DomainEvent -- recorded via `uow.record_event(...)`. Draft generation is a
-    genuinely distinct fact from version/line editing (it atomically snapshots planned cost,
-    open commitments, posted actuals, manual estimates, and risk contingencies into one new
-    DRAFT forecast plus its `ForecastSourceDecision` audit trail), but its read-model impact is
-    identical to `ForecastVersionChanged(CREATED)`: the generated forecast is never
-    pre-approved, so only the forecast planning projection goes stale."""
+    """Draft generation is a genuinely distinct fact from version/line editing (it atomically
+    snapshots planned cost, open commitments, posted actuals, manual estimates, and risk
+    contingencies into one new DRAFT forecast plus its `ForecastSourceDecision` audit trail),
+    but its read-model impact is identical to `ForecastVersionChanged(CREATED)`: the generated
+    forecast is never pre-approved, so only the forecast planning projection goes stale."""
 
     tenant_id: str
     organization_id: str

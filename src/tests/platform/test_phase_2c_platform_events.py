@@ -1,4 +1,4 @@
-"""Tests for Phase 2C: PlatformEvent persistence and TenantAdminService emission.
+"""Tests for PlatformEvent persistence and TenantAdminService emission.
 
 Covers:
   1. create_tenant emits a platform_event with severity=low and correct metadata

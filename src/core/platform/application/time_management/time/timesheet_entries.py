@@ -16,18 +16,10 @@ from src.core.platform.domain.time_management.time import TimeEntry
 
 
 def _time_entry_unit_of_work(service):
-    """One physical transaction for a TimeEntry mutation and its
-    TaskAssignment-side side-effect: a bare, canonical `SqlAlchemyUnitOfWorkBase`
-    wrapping TimeService's own already-shared Session (same precedent as
-    Project's `delete_project` and Timesheet's own `_persist_timesheet_
-    transition`). `uow.record_event(...)` stages the typed fact PRECOMMIT;
-    transactional (FAIL_FAST) handlers run inside `uow.commit()` before the
-    physical `session.commit()`, and postcommit delivery happens only after
-    that commit actually succeeds -- no manual post-commit publish call
-    remains anywhere in this module, and no degraded no-event fallback path
-    exists: a `TimeService` built without both dependencies wired fails loudly
-    here rather than silently mutating without its canonical DomainEvent
-    lifecycle (mirrors `PortfolioService._require_uow_factory`'s convention)."""
+    """One physical transaction for a TimeEntry mutation and its TaskAssignment-side
+    side effect, wrapping TimeService's own already-shared Session. Fails loudly if
+    the transactional dispatcher / post-commit bus aren't wired -- no degraded
+    no-event fallback path."""
     if service._transactional_dispatcher is None or service._post_commit_bus is None:
         raise RuntimeError(
             "TimeService is missing its transactional dispatcher / post-commit bus -- "
@@ -46,15 +38,11 @@ def _time_entry_unit_of_work(service):
 def _stage_task_assignment_hours_audit_and_record_event(
     service, uow, *, work_allocation, project_id: str | None
 ) -> None:
-    """Stages the TaskAssignment-side EnterpriseAudit entry and records its
-    `TaskAssignmentChanged(HOURS_LOGGED_CHANGED)` fact on `uow` -- both
-    PRECOMMIT, inside the SAME physical transaction as the TimeEntry mutation
-    and the `_sync_work_allocation_hours_from_entries` CAS write that already
-    ran before this call. Imports `task_events` lazily -- `application.tasks`'
-    package `__init__` eagerly imports `TaskService`, which (via
-    `TaskTimeEntryMixin`) imports `TimesheetService`, which imports this very
-    module at the top of `TimeService`'s own MRO -- a module-level import here
-    would be circular."""
+    """Stages the TaskAssignment-side audit entry and records its
+    `TaskAssignmentChanged(HOURS_LOGGED_CHANGED)` fact on `uow`, precommit, in the same
+    physical transaction as the TimeEntry mutation. Imports `task_events` lazily to avoid
+    a circular import: `application.tasks`'s package `__init__` eagerly imports
+    `TimesheetService`, which imports this very module."""
     if work_allocation is None or service._tenant_context_service is None:
         return
     from src.core.modules.project_management.application.tasks.task_events import (

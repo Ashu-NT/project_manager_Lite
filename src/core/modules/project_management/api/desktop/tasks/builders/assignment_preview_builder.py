@@ -24,8 +24,8 @@ def build_assignment_preview(
 ) -> AssignmentPreviewDesktopDto:
     """Return combined availability + skill/cert check for an assignment
     candidate. Capacity comes from `TaskService.preview_assignment_capacity`
-    -- the exact same authority save-time validation uses (docs §44) -- not
-    a separate calculation."""
+    -- the exact same authority save-time validation uses -- not a
+    separate calculation."""
     empty_preview = _empty_assignment_preview(task_id)
     if not task_id or not project_resource_id:
         return empty_preview
@@ -78,13 +78,8 @@ def build_assignment_preview(
                     if day.status == fact.capacity_status:
                         conflict_task_ids.update(day.contributing_task_ids)
                 conflict_task_ids.discard(task_id)
-                # Resolve names via the caller's pre-scoped, batched lookup
-                # rather than per-conflict task_service.get_task calls plus
-                # a `project_name` attribute Task doesn't have. A project the
-                # current user isn't authorized to see simply won't resolve
-                # a name here -- the capacity result still surfaces, the
-                # other project's identity does not, without a second,
-                # separate authorization check.
+                # Resolve names via the caller's pre-scoped, batched lookup: a project the
+                # current user isn't authorized to see simply won't resolve a name here.
                 names = project_names or {}
                 for conflict_task_id in conflict_task_ids:
                     conflict_task = task_service.get_task(conflict_task_id)

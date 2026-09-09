@@ -37,9 +37,8 @@ class TaskTimeEntryMixin:
         page_size: int = 25,
         sort_direction: str = "desc",
     ) -> TaskTimeEntriesPage:
-        """Task-scoped (every TaskAssignment on this task, never just one)
-        and all-time (not period-bound) Time Entries listing for Task
-        Detail -> Time -> Time Entries (docs §44 Time redesign).
+        """Task-scoped (every TaskAssignment on this task, never just one) and
+        all-time (not period-bound) Time Entries listing.
 
         Fetches the complete, authoritative entry set for this task's
         assignments in one batched repository call (`list_by_work_
@@ -51,7 +50,7 @@ class TaskTimeEntryMixin:
         time realistically stays small, so honest in-memory paging over
         the true total is proportionate here. If a task's entry volume
         ever grows large enough for that to stop holding, migrating to a
-        dedicated reader is the natural next step (see docs §44).
+        dedicated reader is the natural next step.
         """
         assignments = self.list_assignments_for_task(task_id)
         resource_by_assignment_id = {a.id: a.resource_id for a in assignments}

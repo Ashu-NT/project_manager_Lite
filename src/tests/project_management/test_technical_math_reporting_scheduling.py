@@ -48,10 +48,8 @@ def test_cpm_dependency_type_math(services):
     assert fs_info.earliest_start == exp_fs_start
     assert fs_info.earliest_finish == exp_fs_finish
 
-    # SS/FF/SF zero-lag boundary is "same day as the anchor" (not "next
-    # working day after", unlike FS), so N days of lag beyond that boundary
-    # is add_working_days(anchor, N + 1) -- the same "+1" trick used for FS
-    # above, just without FS's extra zero-lag offset.
+    # SS/FF/SF zero-lag boundary is the anchor day itself (not "next working day
+    # after", unlike FS), so N days of lag is add_working_days(anchor, N + 1).
     ss_info = result[ss.id]
     exp_ss_start = wc.add_working_days(p.earliest_start, 3 + 1)
     exp_ss_finish = wc.add_working_days(exp_ss_start, 2)

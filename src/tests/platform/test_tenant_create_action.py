@@ -1,9 +1,5 @@
-"""New "Create Tenant" action -- Tenant Management previously had no create
-UI at all (Refresh/Switch only), while tenant provisioning already existed
-backend-only via TenantAdminService.create_tenant(). Adds the missing
-desktop API method, presenter method, and controller slot, mirroring the
-already-working Organizations "Create Organization" flow.
-"""
+"""Desktop API + presenter for the Tenant Management "Create Tenant" action,
+mirroring the existing Organizations "Create Organization" flow."""
 from __future__ import annotations
 
 import pytest

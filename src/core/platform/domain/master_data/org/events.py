@@ -1,10 +1,6 @@
-"""Organization's business event vocabulary.
-
-Application-authored via `uow.record_event(...)` from `OrganizationService`: Organization is a
-plain validated dataclass with no state-transition methods (see
-`src/core/platform/domain/master_data/org/organization.py`), so it cannot record its own events.
-
-Pure business vocabulary only -- no ViewInvalidation import, no dispatch/execution metadata
+"""Organization's business event vocabulary. Application-authored via `uow.record_event(...)`
+from `OrganizationService` -- Organization has no state-transition methods of its own. Pure
+business vocabulary only: no ViewInvalidation import, no dispatch/execution metadata
 (`correlation_id`/`causation_id`/`command_id` live on `DomainEventContext`, never duplicated here).
 """
 

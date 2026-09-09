@@ -1,27 +1,14 @@
 """Employees by Department/Site -- scoped read capability.
 
-Before this change, the Department detail page's "Employees" tab fetched
-EVERY employee in the active organization via
-EmployeeService.list_employees(active_only=None) -- fully hydrating the
-whole organization's employee table -- then filtered that in-memory list
-down to one department in QML JavaScript
-(AdminDepartmentDetailPage.qml's _employeeRows). The Site detail page had
-no employee breakdown at all.
+`EmployeeRepository.list_for_organization()` accepts optional department_id/site_id filters
+straight in its SQL WHERE clause (mirroring the existing active_only filter), threaded through
+EmployeeService, PlatformEmployeeDesktopApi, and two QML-facing controller slots
+(employeesForDepartment/employeesForSite).
 
-This adds optional department_id/site_id filters straight to
-EmployeeRepository.list_for_organization()'s SQL WHERE clause (mirroring
-the existing active_only filter), threaded through EmployeeService and
-PlatformEmployeeDesktopApi, and wired to two new QML-facing slots
-(PlatformEmployeeController.employeesForDepartment/employeesForSite,
-delegated through PlatformAdminWorkspaceController) that both detail pages
-now call instead of client-side filtering the full catalog.
-
-These tests cover: filter correctness (department_id, site_id), that the
-filter composes correctly with the existing tenant/organization scoping
-(a foreign department/site id yields zero rows, never cross-org data),
-that the underlying SQL is a single narrowly-filtered SELECT rather than a
-full-table fetch, and an end-to-end check through the real admin
-controller slots the QML pages call.
+Covers: filter correctness, composition with tenant/organization scoping (a foreign
+department/site id yields zero rows, never cross-org data), that the filtered fetch is a single
+narrow SELECT (not a full-table fetch filtered in Python), and an end-to-end check through the
+real admin controller slots.
 """
 from __future__ import annotations
 

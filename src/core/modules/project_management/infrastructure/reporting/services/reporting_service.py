@@ -104,7 +104,7 @@ class ReportingService(
     def _require_finance_view(self, operation_label: str, *, project_id: str) -> None:
         """Gate for report methods whose entire result is Project Finance
         authority data (EVM, cost breakdown, cost source breakdown, labor
-        cost). """
+        cost)."""
         require_permission(self._user_session, "finance.read", operation_label=operation_label)
         require_project_permission(
             self._user_session,

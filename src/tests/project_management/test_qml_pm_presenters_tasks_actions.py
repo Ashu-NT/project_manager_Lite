@@ -316,13 +316,13 @@ def test_pm_tasks_time_entries_collaboration_and_bulk_delete(tmp_path: Path, qap
     assert controller.selectedTimeEntryId == ""
     assert timesheets_api.added_entries[-1]["hours"] == 2.5
     controller.loadSelectedTaskTime()
-    # This fake harness's TaskService double doesn't track time entries at
-    # all (that's `_FakeTaskTimesheetsDesktopApi.added_entries`, asserted
-    # above) -- the task-scoped taskTimeEntriesPage/taskTimeSummary content
-    # itself (docs §44 Time redesign) is covered end to end against the
-    # real backend in test_assignment_time_task_detail_r43.py. Here we only
-    # need the controller to keep exposing a well-shaped page without
-    # crashing when the service doesn't implement the new query methods.
+    # This fake harness's TaskService double doesn't track time entries at all
+    # (that's `_FakeTaskTimesheetsDesktopApi.added_entries`, asserted above) --
+    # the task-scoped taskTimeEntriesPage/taskTimeSummary content itself is
+    # covered end to end against the real backend in
+    # test_assignment_time_task_detail_r43.py. Here we only need the
+    # controller to keep exposing a well-shaped page without crashing when
+    # the service doesn't implement the new query methods.
     assert controller.taskTimeEntriesPage["items"] == []
     assert controller.taskTimeEntriesPage["total"] == 0
 

@@ -340,10 +340,8 @@ def test_project_role_assignment_reverse_direction_active_a2_target_in_a1(servic
 
 def test_site_role_assignment_targets_a_non_active_organization(services):
     """Same fix, "site" scope: `SiteRepository.get_for_tenant()` backs the "site" resolver
-    registered directly on `role_governance_service` at construction time in
-    `platform_registry.py` (a registration this test file originally missed entirely, having
-    only grepped for `register_scope_exists_resolver(...)` calls -- "site" was ALWAYS reachable,
-    just ambiently org-scoped, exactly like the reopened storeroom finding)."""
+    registered on `role_governance_service` at construction -- ambiently org-scoped, exactly
+    like storeroom."""
     tenant_context_service = services["tenant_context_service"]
     org_a1_id = tenant_context_service.get_active_organization_id()
     site_a1 = services["site_service"].create_site(
@@ -435,17 +433,11 @@ def test_organization_scoped_role_assignment_targets_a_non_active_organization(s
 def test_department_role_assignment_remains_unreachable_and_undocumented_as_a_new_feature(
     services,
 ):
-    """Unlike organization/project/site/storeroom, "department" has NO `scope_exists_resolver`
-    registered anywhere in composition, and no role in the catalog declares
-    `allowed_scope_type == "department"` -- a resource scope never wired up for role assignment
-    at all (not an ambient-scope bug in an existing registration). Enabling it from scratch (a
-    `ScopedRolePolicy`, role choices, a delegation-namespace convention, a catalog role) is a
-    materially larger feature addition, so it stays out of scope here, documented rather than
-    implemented. Organization ownership IS trivially derivable for department --
-    `DepartmentORM.organization_id` is a required column, identical in shape to `Site`/
-    `Storeroom` -- and `DepartmentRepository.get()` shares the same ambient-active-organization
-    filter class already fixed for project/site/storeroom (proven directly below); the missing
-    piece is only the `scope_exists_resolver`/catalog-role wiring, not ownership derivation."""
+    """Unlike organization/project/site/storeroom, "department" has no `scope_exists_resolver`
+    or catalog role declaring `allowed_scope_type == "department"` -- resource-scoped role
+    assignment for departments was never wired up at all, not merely left ambient-scoped like
+    the others. `DepartmentRepository.get()` shares the same ambient-active-organization filter
+    already fixed elsewhere, proven directly below."""
     role_governance_service = services["role_governance_service"]
     assert role_governance_service._scope_exists_resolvers.get("department") is None
     assert role_governance_service._organization_owner_resolvers.get("department") is None
@@ -471,9 +463,8 @@ def test_department_role_assignment_remains_unreachable_and_undocumented_as_a_ne
 
     department_repo = SqlAlchemyDepartmentRepository(services["session"])
     department_repo._tenant_context_service = tenant_context_service
-    # Confirmed: the SAME ambient-active-organization defect class already fixed for
-    # project/site/storeroom also exists here at the repository level -- department A1 is
-    # invisible while A2 is active, exactly like the pre-fix storeroom bug.
+    # The same ambient-active-organization defect exists here too -- department A1 is
+    # invisible while A2 is active.
     assert department_repo.get(department_a1.id) is None
     assert not hasattr(department_repo, "get_for_tenant")
 
@@ -584,13 +575,10 @@ def test_storeroom_role_assignment_rejects_a_foreign_tenant_storeroom(services):
 
 
 def test_self_assignment_refreshes_current_principal_only_after_commit(services):
-    """The real production path (`AuthService.assign_role`/`.revoke_role`, the legacy tenant-role
-    facade over `RoleGovernanceService`) calls `refresh_current_session_if_user` AFTER the
-    canonical UoW commits -- proven end to end: an admin assigning themselves a brand-new role
-    must see it appear in their own session immediately, and disappear immediately on revoke.
-    `RoleGovernanceService.assign_role`/`revoke_role_binding` themselves never call this refresh
-    (confirmed by reading the source) -- it is deliberately the calling facade's responsibility,
-    which this test exercises directly rather than assuming."""
+    """The real production path (`AuthService.assign_role`/`.revoke_role`) calls
+    `refresh_current_session_if_user` AFTER the canonical UoW commits.
+    `RoleGovernanceService.assign_role`/`revoke_role_binding` never call this refresh
+    themselves -- it's deliberately the calling facade's responsibility."""
     auth = services["auth_service"]
     tenant_id = _tenant_id(services)
     username = _unique_code("p5c1-self-actor")

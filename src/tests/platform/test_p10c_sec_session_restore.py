@@ -138,8 +138,8 @@ def test_persisted_disabled_organization_is_not_restored(services):
 
 def test_persisted_cross_tenant_organization_is_not_restored(services):
     """`validate_principal_context`'s pre-existing tenant-ownership check (`ORGANIZATION_TENANT_
-    MISMATCH`) is what actually guards this -- unrelated to P10C-SEC's own RBAC check, but
-    re-verified here since it sits on the exact same restore path this phase modified. A normal
+    MISMATCH`) is what actually guards this -- unrelated to this file's own RBAC check, but
+    re-verified here since it sits on the exact same restore path. A normal
     switch can never produce this state (it always requires the org to belong to the active
     tenant), so it is reproduced directly on the persisted `AuthSession` record, the same way a
     stale/corrupted persisted value could arise in practice."""

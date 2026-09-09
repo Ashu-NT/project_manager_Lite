@@ -1,4 +1,4 @@
-"""Tests for Phase 2D backend prerequisites: list_accessible_tenants + switch_to_tenant.
+"""Tests for tenant-switcher backend prerequisites: list_accessible_tenants + switch_to_tenant.
 
 Covers:
   1. user can list only their accessible tenants (membership-based, no permission gate)

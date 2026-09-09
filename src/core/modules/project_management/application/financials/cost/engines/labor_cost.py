@@ -1,14 +1,5 @@
-"""Labor cost engine — owns all labor cost calculation logic.
-
-Computes labor details (actual, from assignments) and, as diagnostics on the
-same result, unpriced resource-envelope planning rows. Reporting delegates
-here; this class is the authoritative source for labor figures.
-
-Labor rates are resolved through the rate-card system
-(``LaborRateResolver.resolve_many``), batched once per calculation rather
-than per assignment/resource — ``ProjectResource.hourly_rate``/
-``Resource.hourly_rate`` are never read directly here.
-"""
+"""Labor cost engine — owns all labor cost calculation logic. Reporting delegates here;
+this class is the authoritative source for labor figures."""
 
 from __future__ import annotations
 
@@ -49,15 +40,11 @@ if TYPE_CHECKING:
 
 
 class LaborCostEngine:
-    """
-    Compute labor cost details for a project.
-
-    Uses assignment execution data (hours_logged x resolved rate) for actuals,
-    and ProjectResource planning data (planned_hours x resolved rate) for the
-    planned-envelope diagnostic rows carried alongside them. Both rates come
-    from the same batched rate-card resolution per calculation — never a
-    per-assignment/per-resource call.
-    """
+    """Computes labor cost details for a project: actuals from assignment execution data
+    (hours_logged x resolved rate), and diagnostic planned-envelope rows (planned_hours x
+    resolved rate) alongside them. Both rates come from one batched rate-card resolution per
+    calculation -- ``ProjectResource.hourly_rate``/``Resource.hourly_rate`` are never read
+    directly here."""
 
     def __init__(
         self,

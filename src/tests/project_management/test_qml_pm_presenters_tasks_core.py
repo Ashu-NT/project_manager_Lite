@@ -155,10 +155,9 @@ def test_tasks_controller_activate_and_load_detail(
     controller.loadSelectedTaskTime()
 
     # This fake TaskService double doesn't implement the task-scoped
-    # get_task_time_summary/list_time_entries_for_task_page methods (docs
-    # §44 Time redesign); the desktop API degrades gracefully rather than
-    # crashing. Real end-to-end coverage lives in
-    # test_task_detail_time_redesign_backend.py.
+    # get_task_time_summary/list_time_entries_for_task_page methods; the
+    # desktop API degrades gracefully rather than crashing. Real
+    # end-to-end coverage lives in test_task_detail_time_redesign_backend.py.
     assert controller.taskTimeSummary == {"hasSummary": False}
     assert controller.taskTimeEntriesPage["items"] == []
     assert controller.selectedTimeEntry["title"] == "No entry selected"

@@ -1,11 +1,6 @@
-"""Phase J (R4.4 constraint pass): actuals are historical truth. A
-started task's actual_start must not be silently rewritten by a
-MUST_START_ON/START_NO_EARLIER_THAN scheduling constraint -- the old
-behavior let the constraint unconditionally overwrite it. The fix
-preserves the actual date and lets ConstraintValidator report the
-resulting mismatch as a real violation, exactly the "task actually
-started N working days after its Must Start On constraint" fact the
-audit's target behavior calls for.
+"""A started task's actual_start must not be silently rewritten by a
+MUST_START_ON/START_NO_EARLIER_THAN scheduling constraint. ConstraintValidator
+reports the resulting mismatch as a real violation instead.
 """
 from __future__ import annotations
 
@@ -68,9 +63,8 @@ def test_must_start_on_does_not_overwrite_an_already_started_task():
     # The actual start wins -- not silently rescheduled back to 8 Sep.
     assert info.earliest_start == date(2026, 9, 10)
 
-    # ConstraintValidator reports the mismatch as a real violation,
-    # automatically, with no separate variance-tracking code needed --
-    # it already compares whatever es/ef ended up being against cd.
+    # ConstraintValidator reports the mismatch automatically -- it already
+    # compares whatever es/ef ended up being against cd, no separate code needed.
     validator = ConstraintValidator(calendar)
     violation_result = validator.validate({"t1": task}, {"t1": info})
     assert not violation_result.is_valid

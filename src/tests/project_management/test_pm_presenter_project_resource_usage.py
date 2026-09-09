@@ -1,7 +1,7 @@
-"""Task Detail Assignment inspector's Project Resource Context wiring
-(docs §44 QML follow-up): ProjectTasksWorkspacePresenter.get_project_resource_usage
-reads the same ProjectResourceUsageFact the Projects -> Resources workspace
-already renders, via the Projects desktop API -- no new calculation."""
+"""Task Detail Assignment inspector's Project Resource Context wiring:
+ProjectTasksWorkspacePresenter.get_project_resource_usage reads the same
+ProjectResourceUsageFact the Projects -> Resources workspace already
+renders, via the Projects desktop API -- no new calculation."""
 
 from __future__ import annotations
 

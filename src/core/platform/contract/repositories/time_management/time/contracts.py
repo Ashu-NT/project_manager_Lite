@@ -59,7 +59,7 @@ class TimeEntryRepository(ABC):
         """Batched multi-assignment lookup -- default falls back to one call
         per id; concrete repositories should override with a real IN(...)
         query. Used by task-scoped time views that span every TaskAssignment
-        on a task, never just one (docs §44 Time redesign)."""
+        on a task, never just one."""
         entries: list[TimeEntry] = []
         for work_allocation_id in work_allocation_ids:
             entries.extend(self.list_by_work_allocation(work_allocation_id))

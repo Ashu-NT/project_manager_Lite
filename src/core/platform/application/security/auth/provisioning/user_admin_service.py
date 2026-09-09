@@ -60,15 +60,10 @@ def list_users(service: AuthService) -> list[UserAccount]:
 
 
 def get_user_rollup_summary(service: AuthService):
-    """Overview-only equivalent of list_users() + Python total/active/locked
-    aggregation -- one SQL query instead of one full materialization plus,
-    for tenant callers, a per-user platform-role-exclusion N+1. Same
-    permission check and same platform-operator/tenant-caller branch as
-    list_users(); never used by the paginated Users workspace page, which
-    keeps calling list_users() unchanged. See SqlAlchemyPlatformOverview
-    RollupReader.get_user_summary()'s module docstring for the exclusion
-    predicate's semantic-equivalence proof.
-    """
+    """Overview-only equivalent of list_users() -- one SQL query instead of one full
+    materialization plus, for tenant callers, a per-user platform-role-exclusion N+1. Same
+    permission check and platform-operator/tenant-caller branch as list_users(), which the
+    paginated Users workspace page keeps calling unchanged."""
     require_any_permission(
         service._user_session,
         ("auth.manage", "auth.read", "access.manage", "security.manage"),

@@ -1,16 +1,8 @@
 """Shared, calendar-parameterized per-task CPM date computation.
 
-Before this module existed, SchedulingEngine and CPMCalculator each carried
-their own byte-for-byte copy of "milestone vs duration" dependency
-resolution, actual-date overriding, and (only on SchedulingEngine's side)
-scheduling-constraint application. That let CPMCalculator's consumer (the
-Portfolio heatmap) silently compute a different schedule than the live
-SchedulingEngine path for the same project
-
-Every consumer of per-task CPM date math (SchedulingEngine today; the
-Portfolio heatmap's pure_cpm.run_cpm going forward) calls these same three
-functions, parameterized only by which calendar to use. There is exactly one
-implementation of "how a task's dates are computed" in the codebase.
+Every consumer of per-task CPM date math (`SchedulingEngine`, the Portfolio heatmap's
+`pure_cpm.run_cpm`) calls these same functions, parameterized only by which calendar to use --
+there is exactly one implementation of "how a task's dates are computed" in the codebase.
 """
 
 from __future__ import annotations
@@ -146,8 +138,7 @@ def _coerce_task_constraint(task: Task) -> tuple[ConstraintType | None, date | N
     """Single shared parse of a task's (constraint_type, constraint_date)
     pair -- used by both the forward and backward constraint application
     so the two directions read the exact same interpretation of a task's
-    constraint and cannot silently drift apart (R4.4 backward-CPM pass,
-    §15)."""
+    constraint and cannot silently drift apart."""
     raw_ct = getattr(task, "constraint_type", None)
     cd: date | None = getattr(task, "constraint_date", None)
     if raw_ct is None or cd is None:
@@ -214,27 +205,19 @@ def apply_resource_leveling_floor(
     est: date | None,
     eft: date | None,
 ) -> tuple[date | None, date | None]:
-    """R4.4: unconditional forward-pass floor for an ACCEPTED resource-
-    leveling placement (``Task.resource_leveling_not_before``) -- composes
-    with (never replaces) whatever the dependency graph and
-    ``apply_scheduling_constraints`` already produced, exactly like
-    ``START_NO_EARLIER_THAN``'s own floor. This is what makes a
-    resource-driven placement survive every subsequent canonical
-    ``run_cpm`` call even for a task with an incoming dependency -- the
-    defect ``test_leveling_dependency_boundary.py`` pins (pre-R4.4,
-    leveling wrote raw ``Task.start_date``, which the forward pass
-    ignores outright whenever a usable incoming dependency exists).
+    """Unconditional forward-pass floor for an accepted resource-leveling placement
+    (``Task.resource_leveling_not_before``) -- composes with (never replaces) whatever the
+    dependency graph and ``apply_scheduling_constraints`` already produced, exactly like
+    ``START_NO_EARLIER_THAN``'s own floor. This is what makes a resource-driven placement
+    survive every subsequent ``run_cpm`` call, even for a task with an incoming dependency.
 
-    Called AFTER ``apply_scheduling_constraints`` so a real, user-entered
-    exact pin (MUST_START_ON/MUST_FINISH_ON) is never second-guessed by a
-    resource placement -- movability policy (leveling_policy.py) is
-    responsible for never proposing a move for a pinned task in the
-    first place; this function only guards the composition, it does not
-    enforce that policy itself.
+    Called AFTER ``apply_scheduling_constraints`` so a real, user-entered exact pin
+    (MUST_START_ON/MUST_FINISH_ON) is never second-guessed by a resource placement -- this
+    function only guards the composition; movability policy (`movability_policy.py`) is
+    responsible for never proposing a move for a pinned task in the first place.
 
-    Skipped once ``actual_start``/``actual_end`` locks the task --
-    historical fact always wins over a scheduler-generated placement,
-    same precedence every other constraint already respects.
+    Skipped once ``actual_start``/``actual_end`` locks the task -- historical fact always wins
+    over a scheduler-generated placement, same precedence every other constraint respects.
     """
     floor = getattr(task, "resource_leveling_not_before", None)
     if floor is None:
@@ -257,54 +240,27 @@ def apply_backward_scheduling_constraints(
     raw_lst: date | None,
     raw_lft: date | None,
 ) -> tuple[date | None, date | None]:
-    """Adjust one task's network-derived (raw_lst, raw_lft) backward-pass
-    late dates for its own actual-date lock and/or scheduling constraint,
-    so LATEST START/FINISH -- and therefore total float and criticality --
-    reflect what the task can ACTUALLY do, not just what the dependency
-    graph alone would allow (R4.4 constraint-aware backward CPM pass).
+    """Adjust one task's network-derived (raw_lst, raw_lft) backward-pass late dates for its
+    own actual-date lock and/or scheduling constraint, so latest start/finish -- and therefore
+    total float and criticality -- reflect what the task can actually do, not just what the
+    dependency graph alone would allow.
 
-    Mirrors ``apply_scheduling_constraints``'s forward-pass semantics
-    exactly, reusing the task's own already-computed ``est``/``eft``
-    (never re-deriving a constraint date independently) so the two
-    directions cannot drift apart -- see ``_coerce_task_constraint``.
+    Mirrors ``apply_scheduling_constraints``'s forward-pass semantics, reusing the task's own
+    already-computed ``est``/``eft`` (never re-deriving a constraint date independently) so the
+    two directions cannot drift apart -- see ``_coerce_task_constraint``.
 
-    START_NO_EARLIER_THAN / FINISH_NO_EARLIER_THAN need NO adjustment
-    here and are intentionally not handled below: the floor they apply
-    already raised ``est``/``eft`` forward, which flows into every
-    downstream successor computation already -- this task's own
-    ``raw_lst``/``raw_lft`` is bounded by ITS OWN successors (or the
-    project finish), not by its own floor, so it is already correct
-    as-is once ``est``/``eft`` reflect the floor.
+    START_NO_EARLIER_THAN / FINISH_NO_EARLIER_THAN need no adjustment here: the floor they apply
+    already raised ``est``/``eft`` forward, so this task's own ``raw_lst``/``raw_lft`` -- bounded
+    by its own successors, not its own floor -- is already correct.
 
-    - actual_end set (completed): ls/lf = est/eft, unconditionally. A
-      historical fact; nothing else can move it.
-    - actual_start set, no actual_end (started, unfinished): ls = est
-      (the start already happened, so it cannot show fictitious movable
-      float) -- lf is left to the network/ceiling logic below, since the
-      remaining, not-yet-happened portion of the task can still
-      legitimately have finish-side slack or a finish-side ceiling.
-    - MUST_START_ON (and not already actual-locked): ls = est, and since
-      forward derives eft from est+duration in the very same branch,
-      lf = eft too -- an exact pin ties both dimensions to zero float
-      together.
-    - MUST_FINISH_ON: lf = eft (exact pin), active even once started,
-      matching apply_scheduling_constraints's own "always applies unless
-      actual_end is set" rule.
-    - START_NO_LATER_THAN (ceiling, pre-start only): caps ls at the
-      constraint date when the network-implied ls would be later,
-      deriving lf from the now-capped ls. Can legitimately push ls below
-      est, producing negative float -- an infeasible ceiling is not
-      clamped away (see results.py).
-    - FINISH_NO_LATER_THAN (ceiling): caps lf at the constraint date;
-      re-derives ls from the capped lf, UNLESS the start already
-      happened (actual_start set), in which case ls stays pinned to est
-      and only lf is capped -- capping ls too would fabricate a change
-      to a date that already occurred.
-    - Deadline (task.deadline, independent of constraint_type): same
-      ceiling treatment as FINISH_NO_LATER_THAN, applied on top of
-      whatever constraint_type already produced -- Deadline stays a
-      separate field/fact and never becomes a scheduling constraint in
-      its own right.
+    An actual-date lock takes precedence over any constraint: a completed task (`actual_end`) has
+    ls/lf pinned to est/eft; a started-but-unfinished task (`actual_start` only) pins ls to est but
+    leaves lf to the network/ceiling logic, since the not-yet-happened portion can still have
+    finish-side slack. MUST_START_ON/MUST_FINISH_ON are exact pins (zero float on the pinned side).
+    START_NO_LATER_THAN/FINISH_NO_LATER_THAN are ceilings that cap ls/lf at the constraint date --
+    an infeasible ceiling is not clamped away and can legitimately produce negative float (see
+    `results.py`). `task.deadline` gets the same ceiling treatment as FINISH_NO_LATER_THAN but
+    stays a separate field, never becoming a scheduling constraint in its own right.
     """
     if est is None or eft is None:
         return raw_lst, raw_lft

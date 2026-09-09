@@ -1,4 +1,4 @@
-"""Tests for Phase 2A: RBAC & Admin Role Hierarchy.
+"""Tests for RBAC & Admin Role Hierarchy.
 
 Covers:
   1. Policy unit: DEFAULT_ROLE_PERMISSIONS contains tenant_admin and org_admin

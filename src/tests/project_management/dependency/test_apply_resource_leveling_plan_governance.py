@@ -1,8 +1,8 @@
-"""R4.4O -- governance parity for ApplyResourceLevelingPlanCommand,
-mirroring TaskSchedulingConstraintMixin's governed/ungoverned shape
+"""Governance parity for ApplyResourceLevelingPlanCommand, mirroring
+TaskSchedulingConstraintMixin's governed/ungoverned shape
 (test_task_constraint_governance.py): approval-gated apply, admin
-bypass, and TOCTOU-safe revalidation at apply time using R4.4L's
-schedule fingerprint instead of a single task's version.
+bypass, and TOCTOU-safe revalidation at apply time using the schedule
+fingerprint instead of a single task's version.
 """
 from __future__ import annotations
 

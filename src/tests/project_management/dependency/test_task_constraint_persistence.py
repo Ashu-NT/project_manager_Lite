@@ -1,10 +1,6 @@
-"""Task.constraint_type/constraint_date persistence -- the ORM/mapper/
-repository vertical slice (R4.4 constraint audit §4 gap: DB columns
-existed from an old migration but were never mapped/round-tripped/
-written by the version-checked update). Exercises the real
-TaskRepository, not a fake, since that's exactly the layer the gap was
-in.
-"""
+"""Task.constraint_type/constraint_date persistence -- the ORM/mapper/repository
+vertical slice. Exercises the real TaskRepository, not a fake, since round-tripping
+through the mapper is exactly what's under test."""
 from __future__ import annotations
 
 from datetime import date

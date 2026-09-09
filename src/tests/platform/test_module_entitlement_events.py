@@ -131,7 +131,7 @@ def test_shared_events_package_does_not_import_module_entitlement_events():
 
 
 # ---------------------------------------------------------------------------
-# License idempotency (P5B-2 step 2): confirm the P5B-1 decision before trusting it for events
+# License idempotency: a no-op transition preserves existing state
 # ---------------------------------------------------------------------------
 
 

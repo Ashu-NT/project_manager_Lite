@@ -1,7 +1,5 @@
-"""Task Detail -> Time redesign (docs §44): task-scoped (never resource-wide,
-never period-bound) Time summary + resource breakdown + paginated Time
-Entries listing. Covers the exit gate's task-scope isolation, overrun
-semantics, and pagination requirements end to end against the real backend.
+"""Task-scoped (never resource-wide, never period-bound) Time summary + resource
+breakdown + paginated Time Entries listing, against the real backend.
 """
 
 from __future__ import annotations
@@ -87,9 +85,8 @@ def test_task_time_summary_reports_overrun_when_actual_exceeds_planned(services)
 
 
 def test_task_time_summary_and_entries_are_task_scoped_not_resource_wide(services):
-    """The exact scenario from docs §44 §9: the same resource logs time
-    against two different tasks -- Task A's figures must reflect only
-    Task A's hours, never the resource's combined total."""
+    """The same resource logs time against two different tasks -- Task A's figures must
+    reflect only Task A's hours, never the resource's combined total."""
     ps, rs, prs, project, alice, pr_alice = _setup_project_resource(services, planned_hours=100.0)
     ts = services["task_service"]
     task_a = ts.create_task(project.id, "Task A")

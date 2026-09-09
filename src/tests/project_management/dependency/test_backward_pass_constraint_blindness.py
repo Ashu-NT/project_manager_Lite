@@ -1,12 +1,9 @@
-"""RESOLVED (R4.4 constraint-aware backward CPM pass): backward-pass
-constraint/float blindness, originally characterized and deliberately
-NOT implemented in the R4.4 constraint feature pass (see git history for
-this file's prior content), is now fixed. Kept as a regression file --
-not renamed -- so a future change accidentally regressing this cannot
-land without touching a test file whose name still describes exactly
-the risk being guarded against.
+"""Backward-pass constraint/float blindness is fixed. Kept as a
+regression file -- not renamed -- so a future change accidentally
+regressing this cannot land without touching a test file whose name
+still describes exactly the risk being guarded against.
 
-backward CPM" section. Summary:
+Summary:
 
 - MUST_START_ON / MUST_FINISH_ON (exact pins): own total float is 0 --
   the task cannot move regardless of what slack the network would
@@ -87,17 +84,14 @@ def test_a_must_start_on_pinned_task_now_reports_zero_total_float():
 
 
 def test_a_must_start_on_pin_now_propagates_backward_through_a_real_successor():
-    """
-    Correcting a flawed premise in the original (never-implemented)
-    decision record: an exact pin on B does NOT force a's float to 0 --
-    MUST_START_ON fixes B's start at an exact date, it does not turn the
-    A--FS-->B edge into an exact-pin relationship. A only needs to
-    finish EARLY ENOUGH (on or before one working day before B's pinned
-    start) for the FS relationship to hold; consistent with that, A
-    legitimately has slack across that whole window. What the fix must
-    prove is that A's latest start/finish are now derived from B's
-    ACTUAL pinned position (2026-09-21), not from C's far-later position
-    (2026-10-05) the way the pre-fix bug would have propagated."""
+    """An exact pin on B does NOT force A's float to 0 -- MUST_START_ON
+    fixes B's start at an exact date, it does not turn the A--FS-->B
+    edge into an exact-pin relationship. A only needs to finish EARLY
+    ENOUGH (on or before one working day before B's pinned start) for
+    the FS relationship to hold, so A legitimately has slack across
+    that whole window. A's latest start/finish must derive from B's
+    ACTUAL pinned position (2026-09-21), not from C's far-later
+    position (2026-10-05)."""
     calendar = _MonToFriCalendar()
     a = Task(id="a", project_id="p1", name="Task A", duration_days=2, start_date=date(2026, 9, 7))
     b = Task(
@@ -123,12 +117,9 @@ def test_a_must_start_on_pin_now_propagates_backward_through_a_real_successor():
     assert info_b.total_float_days == 0
     assert info_b.is_critical is True
 
-    # A's latest start/finish are now one working day before B's PIN
+    # A's latest start/finish are one working day before B's pin
     # (2026-09-18 latest finish, 2026-09-17 latest start) -- derived from
-    # B's actual fixed position, not from C's far-later slack. Before
-    # this fix, B's own late date leaked through from C (project finish
-    # 2026-10-07), which would have put A's latest start weeks later
-    # than this.
+    # B's actual fixed position, not from C's far-later slack.
     assert info_a.latest_finish == date(2026, 9, 18)
     assert info_a.latest_start == date(2026, 9, 17)
     assert info_a.total_float_days == 8

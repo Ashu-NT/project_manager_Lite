@@ -1,34 +1,11 @@
-"""Users Overview rollup -- semantic-equivalence-proven SQL replacement for
-list_users() + Python aggregation on the Admin Overview.
+"""Users Overview rollup -- SQL replacement for `list_users()` + Python aggregation on the
+Admin Overview, avoiding the tenant-caller path's former per-user N+1
+(`_canonical_platform_authority`) to compute total/active/locked counts.
 
-list_users() (user_admin_service.py) is left completely UNCHANGED and is
-still what the paginated Users workspace page calls. This only replaces how
-PlatformAdminWorkspacePresenter.build_overview() computes three numbers
-(total/active/locked), which previously required a full list_users() call --
-for tenant callers, a per-user N+1 (_canonical_platform_authority(user.id):
-a full permission-catalog fetch plus a role-binding query, per user) to
-implement the platform-role exclusion.
-
-The exclusion predicate's semantic-equivalence proof (see the reader impl's
-module comments) established:
-  - role_bindings.tenant_id IS NULL is DB-proven equivalent to
-    actual_scope_type='platform' (ck_role_bindings_scope_shape CHECK).
-  - That alone does NOT prove "platform authority" as
-    _canonical_platform_authority defines it -- the referenced role must
-    ALSO independently have allowed_scope_type='platform' (app-write-path
-    enforced, not DB-enforced), pass role.status='active', and have a name
-    literally in {"admin", "support_admin"} (list_users()'s own extra
-    is_platform_role() re-check after _canonical_platform_authority's
-    scope/status validation already ran).
-  - So the SQL predicate reproduces ALL of those checks explicitly, never
-    inferring authority from tenant_id IS NULL alone.
-
-These tests: (A) reader-level unit tests against an isolated db covering
-every scenario in the required matrix, (B) service-level tests through the
-real `services` fixture for both caller-type branches, (C) a parity test
-comparing the rollup against list_users()'s own actual population for a
-representative fixture, (D) guardrails proving a bounded query count and
-that no per-user canonical-authority/permission lookups happen.
+`list_users()` itself is unchanged and still backs the paginated Users workspace page. The
+SQL predicate reproduces `_canonical_platform_authority`'s full platform-authority check
+(`actual_scope_type='platform'`, `role.status='active'`, and `role.name` in
+{"admin", "support_admin"}) rather than inferring it from `tenant_id IS NULL` alone.
 """
 from __future__ import annotations
 

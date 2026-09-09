@@ -79,10 +79,10 @@ def test_tasks_controller_initial_state_and_lazy_load(tmp_path: Path, qapp) -> N
     controller.loadSelectedTaskTime()
 
     # This fake TaskService double doesn't implement the task-scoped
-    # get_task_time_summary/list_time_entries_for_task_page methods (docs
-    # §44 Time redesign) -- the desktop API degrades gracefully to empty
-    # defaults rather than crashing, which is exactly what's asserted here.
-    # Real end-to-end coverage lives in test_task_detail_time_redesign_backend.py.
+    # get_task_time_summary/list_time_entries_for_task_page methods -- the
+    # desktop API degrades gracefully to empty defaults rather than
+    # crashing, which is exactly what's asserted here. Real end-to-end
+    # coverage lives in test_task_detail_time_redesign_backend.py.
     assert controller.taskTimeSummary == {"hasSummary": False}
     assert controller.taskTimeEntriesPage["items"] == []
     assert controller.selectedTimeEntry["title"] == "No entry selected"

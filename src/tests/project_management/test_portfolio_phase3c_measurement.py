@@ -185,7 +185,7 @@ def test_phase3c_measure_portfolio_read_candidates(services, size_name, capsys) 
             assert calls["resource_repo.list"] == 0
             assert calls["resource_repo.get"] == 0
         elif operation_name == "heatmap":
-            # D.4 removed per-project labor-rate resolution from canonical finance variance.
+            # Heatmap variance comes from canonical finance data, not per-project labor-rate resolution.
             expected_sql = 13 + (4 * project_count)
             assert sql_stats.total_statements == expected_sql
             assert calls["portfolio_heatmap_reader.read_facts"] == 1

@@ -1,4 +1,4 @@
-"""Tests for Phase 2B: TenantAdminService lifecycle operations.
+"""Tests for TenantAdminService lifecycle operations.
 
 Covers:
   1. Tenant.is_active is a derived property from tenant_status

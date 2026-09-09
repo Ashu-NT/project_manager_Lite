@@ -105,15 +105,11 @@ class BillingPreparationStatusChangeType(str, Enum):
 class BillingPreparationStatusChanged:
     """`submit`/`approve`/`reject`/`request_delivery` and the status-transitioning branches of
     `record_external_outcome` are all the same kind of fact (the preparation's status field
-    changed), differentiated by `change_type` -- mirroring Budget's/Cost Entry's own
-    status-transition shape. `request_delivery` produces no separate durable fact beyond this
-    status change: it returns an in-memory delivery payload to its caller but persists nothing
-    else (no outbox row, no allocated external identifier) -- confirmed by direct source reading,
-    not assumed; a `BillingPreparationDeliveryRequested` fact was considered and found
-    unnecessary. `record_external_outcome(DELIVERY_ACCEPTED)` transitions status twice in one call
-    (`mark_delivered` then `acknowledge`, both persisted) -- both are recorded as two separate
-    facts, one per actual status transition, mirroring Budget's approve/supersede precedent.
-    `CANCELLED` has no service-layer command and is not represented."""
+    changed), differentiated by `change_type`. `request_delivery` produces no separate durable
+    fact: it returns an in-memory delivery payload and persists nothing else. Some
+    `record_external_outcome` outcomes (e.g. DELIVERY_ACCEPTED) transition status twice in one
+    call (`mark_delivered` then `acknowledge`), each persisted as its own fact. `CANCELLED` has
+    no service-layer command and is not represented."""
 
     tenant_id: str
     organization_id: str

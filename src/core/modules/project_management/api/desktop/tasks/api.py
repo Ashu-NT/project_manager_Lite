@@ -548,8 +548,8 @@ class ProjectManagementTasksDesktopApi:
 
     def get_task_time_summary(self, task_id: str) -> TaskTimeSummaryDesktopDto | None:
         """Task-scoped planned/actual/remaining/overrun totals plus the
-        per-resource breakdown for Task Detail -> Time -> Overview (docs
-        §44 Time redesign). None when the task can't be resolved."""
+        per-resource breakdown for Task Detail -> Time -> Overview.
+        None when the task can't be resolved."""
         if not task_id:
             return None
         service = self._require_task_service()
@@ -569,8 +569,8 @@ class ProjectManagementTasksDesktopApi:
         sort_direction: str = "desc",
     ) -> TaskTimeEntriesPageDesktopDto | None:
         """Task-scoped (every assignment on this task), all-time Time
-        Entries listing for Task Detail -> Time -> Time Entries (docs §44
-        Time redesign). None when the task can't be resolved."""
+        Entries listing for Task Detail -> Time -> Time Entries.
+        None when the task can't be resolved."""
         if not task_id:
             return None
         service = self._require_task_service()
@@ -824,9 +824,9 @@ class ProjectManagementTasksDesktopApi:
         self,
         command: TaskDependencyCreateCommand,
     ) -> TaskDependencyImpactPreviewDesktopDto | None:
-        """Non-persisting impact preview for a proposed CREATE (Phase K).
-        Uses the same canonical, non-persisting engine the committed
-        schedule uses -- never a second formula, never QML-side math."""
+        """Non-persisting impact preview for a proposed CREATE. Uses the
+        same canonical, non-persisting engine the committed schedule uses
+        -- never a second formula, never QML-side math."""
         service = self._require_task_service()
         get_diagnostics = getattr(service, "get_dependency_diagnostics", None)
         if not callable(get_diagnostics):
@@ -851,7 +851,7 @@ class ProjectManagementTasksDesktopApi:
         self,
         command: TaskDependencyUpdateCommand,
     ) -> TaskDependencyImpactPreviewDesktopDto | None:
-        """Non-persisting impact preview for a proposed UPDATE (Phase K)."""
+        """Non-persisting impact preview for a proposed UPDATE."""
         service = self._require_task_service()
         get_diagnostics = getattr(service, "get_dependency_diagnostics", None)
         get_dependency = getattr(service, "get_dependency", None)
@@ -876,7 +876,7 @@ class ProjectManagementTasksDesktopApi:
     def preview_delete_dependency(
         self, dependency_id: str
     ) -> TaskDependencyImpactPreviewDesktopDto | None:
-        """Non-persisting impact preview for a proposed DELETE (Phase K)."""
+        """Non-persisting impact preview for a proposed DELETE."""
         service = self._require_task_service()
         preview = getattr(service, "preview_dependency_removal", None)
         if not callable(preview):
@@ -1015,7 +1015,7 @@ class ProjectManagementTasksDesktopApi:
         """Task Detail -> Schedule Impact's always-visible current-state
         facts (position, criticality, float, drivers, conflicts,
         downstream exposure) -- no hypothetical simulation, safe to load
-        automatically on task selection (§26)."""
+        automatically on task selection."""
         normalized_task_id = str(task_id or "").strip()
         normalized_project_id = str(project_id or "").strip()
         if not normalized_task_id or not normalized_project_id:
@@ -1063,8 +1063,8 @@ class ProjectManagementTasksDesktopApi:
         delay_working_days: int = 1,
     ) -> ScheduleImpactReportDto:
         """Task Detail -> Schedule Impact's explicit "Preview Impact"
-        what-if (§12/§13) -- a non-persisting simulation, run only when
-        the user asks for it, never automatically on task selection."""
+        what-if -- a non-persisting simulation, run only when the user
+        asks for it, never automatically on task selection."""
         normalized_task_id = str(task_id or "").strip()
         normalized_project_id = str(project_id or "").strip()
         unavailable = serialize_schedule_impact_report(

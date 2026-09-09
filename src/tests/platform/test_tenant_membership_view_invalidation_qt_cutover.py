@@ -282,14 +282,14 @@ def test_real_tenant_switch_through_the_catalog_rewires_the_adapter(services):
 
 
 def test_organization_switch_does_not_re_scope_the_membership_subscription(services):
-    """Item 8/34: membership has no organization dimension -- switching the active organization
-    within the SAME tenant must leave the adapter's subscription targeting the same tenant, with
-    no re-subscription at all (unlike the RoleBinding/ModuleEntitlement adapters, which DO
-    re-scope on `refreshCurrentPermissions()`)."""
+    """Membership has no organization dimension -- switching the active organization within the
+    SAME tenant must leave the adapter's subscription targeting the same tenant, with no
+    re-subscription at all (unlike the RoleBinding/ModuleEntitlement adapters, which DO re-scope
+    on `refreshCurrentPermissions()`)."""
     catalog = _catalog(services)
     channel = services["platform_view_invalidation_channel"]
     adapter = catalog._tenant_membership_view_invalidation_adapter
-    # P6: the raw channel Subscription (`adapter._subscription._subscription`), not the
+    # The raw channel Subscription (`adapter._subscription._subscription`), not the
     # always-present `ScopedViewInvalidationSubscription` wrapper itself, is what must keep its
     # identity here -- the wrapper instance never changes, only what it wraps.
     subscription_before = adapter._subscription._subscription

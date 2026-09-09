@@ -1,13 +1,11 @@
 """PM-owned port for pulling Approved Time financial-source facts from
 Platform Time.
 
-Mirrors `gateway.task.reservation.TaskReservationGateway`: PM defines the
-shape it would need; unlike that gateway, this one currently has zero
-implementations anywhere in the codebase (Platform Time delivers Approved
-Time facts exclusively through the push-based outbox/inbox event path --
-see `ApprovedTimeLaborCostConsumer` -- not through this pull contract). It
-is retained as a declared, forward-looking pull alternative and is not
-wired into any runtime composition today.
+Mirrors `gateway.task.reservation.TaskReservationGateway`, but currently has zero
+implementations: Platform Time delivers Approved Time facts exclusively through the
+push-based outbox/inbox event path (see `ApprovedTimeLaborCostConsumer`), not through
+this pull contract. Retained as a declared, forward-looking alternative -- not wired
+into any runtime composition today.
 """
 
 from __future__ import annotations

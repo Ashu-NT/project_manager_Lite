@@ -141,10 +141,9 @@ def test_preview_impact_button_emits_the_chosen_delay_days() -> None:
 
 
 def test_task_switch_clears_delay_and_selection_state() -> None:
-    """Phase-N-style task-switch guarantee, applied to Schedule Impact
-    (§29): a new scheduleImpactModel identity must reset the delay input
-    and any selected affected-task row before the next task's data
-    renders -- no stale state from the previous task."""
+    """A new scheduleImpactModel identity must reset the delay input and any
+    selected affected-task row before the next task's data renders -- no
+    stale state from the previous task."""
     _, root = _load({"scheduleImpactModel": _AVAILABLE_OVERVIEW})
 
     root.setProperty("_delayWorkingDays", 5)
@@ -180,7 +179,7 @@ def test_task_detail_panel_forwards_the_schedule_impact_preview_contract() -> No
     assert "scheduleImpactPreviewModel: root.scheduleImpactPreviewModel" in source
 
 
-# ── R4.4: is_infeasible wired to desktop/QML read path ──────────────────
+# ── is_infeasible wired to desktop/QML read path ──────────────────
 
 
 def _find(root, name: str):

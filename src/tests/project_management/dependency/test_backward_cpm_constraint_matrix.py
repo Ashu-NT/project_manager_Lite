@@ -1,14 +1,12 @@
-"""R4.4 constraint-aware backward CPM pass -- full test matrix (directive
-item 21). Complements test_backward_pass_constraint_blindness.py (the
-resolved decision record) with broader coverage: SNET/FNET floors,
-Deadline-vs-FNLT distinction, all four dependency types combined with a
-constraint, multiple predecessors, actual-date handling, a
-non-weekend-only calendar, and free-float behavior on constrained tasks.
+"""Constraint-aware backward CPM pass -- full test matrix. Complements
+test_backward_pass_constraint_blindness.py with broader coverage:
+SNET/FNET floors, Deadline-vs-FNLT distinction, all four dependency
+types combined with a constraint, multiple predecessors, actual-date
+handling, a non-weekend-only calendar, and free-float behavior on
+constrained tasks.
 
 See task_date_math.apply_backward_scheduling_constraints for the
-decision table these tests verify, and
-R4_4_TASK_CONSTRAINT_IMPLEMENTATION_SUMMARY.md's "Constraint-aware
-backward CPM" section for the write-up.
+decision table these tests verify.
 """
 from __future__ import annotations
 
@@ -59,7 +57,7 @@ class _CalendarWithHoliday(_MonToFriCalendar):
     tests are not accidentally passing only because every non-working
     day happens to be a weekend -- proves the constraint adjustment
     routes every date shift through the SAME injected CalendarProtocol,
-    not a hardcoded Mon-Fri assumption (directive item 12)."""
+    not a hardcoded Mon-Fri assumption."""
 
     def __init__(self, holidays: set[date]) -> None:
         self._holidays = holidays
@@ -76,16 +74,12 @@ def _fs(pred: Task, succ: Task, lag_days: int = 0) -> TaskDependency:
 
 
 class TestUnconstrainedBaselineUnchanged:
-    """Values here are verified, BEFORE this pass's changes too (by
-    diffing against the stashed pre-fix code), to be byte-identical --
-    they pin down the codebase's existing end-task backward-pass
-    arithmetic (LS derived from the project finish via
-    ``add_working_days(pef, -(duration-1))``), which has an established,
-    PRE-EXISTING off-by-one quality relative to a naive "solo task has
-    zero float" expectation and is out of this pass's scope to change
-    (directive item 2: preserve current, unconstrained behavior
-    unchanged). The point of these tests is only to prove that claim
-    with real numbers, not to assert an idealized value."""
+    """Pins the codebase's existing end-task backward-pass arithmetic (LS
+    derived from the project finish via
+    ``add_working_days(pef, -(duration-1))``), which has a pre-existing
+    off-by-one quality relative to a naive "solo task has zero float"
+    expectation and is out of scope to change here. These tests only
+    prove that claim with real numbers, not an idealized value."""
 
     def test_single_task_no_constraint(self):
         calendar = _MonToFriCalendar()
@@ -176,15 +170,14 @@ class TestFloorsAlreadyConsistent:
 class TestDeadlineDistinctFromFnlt:
     """NOTE on scope: a task whose DEPENDENCY-implied start ends up later
     than its own task.deadline cannot be constructed through run_cpm at
-    all today -- results.py's build_schedule_result replace()s the
-    task's start_date to the computed est, which re-runs Task's own
-    domain validator, and that validator unconditionally rejects
+    all -- results.py's build_schedule_result replace()s the task's
+    start_date to the computed est, which re-runs Task's own domain
+    validator, and that validator unconditionally rejects
     deadline < start_date (task.py's _validate_date_ranges). This is a
     pre-existing domain/forward-pipeline restriction, unrelated to
-    backward-pass float truthfulness -- out of scope for this pass, and
-    not fixed here. Every case below uses a task whose OWN start_date is
-    compatible with its deadline, so only duration (not a dependency)
-    pushes the finish past the deadline."""
+    backward-pass float truthfulness. Every case below uses a task whose
+    OWN start_date is compatible with its deadline, so only duration
+    (not a dependency) pushes the finish past the deadline."""
 
     def test_deadline_within_bound_is_feasible(self):
         calendar = _MonToFriCalendar()
@@ -451,15 +444,12 @@ class TestCalendarAuthority:
 
 
 class TestFreeFloatOnConstrainedTasks:
-    """compute_free_float_days (task_schedule_overview.py) is audited,
-    not modified, by this pass: it is computed purely from EARLIEST
-    dates (a task's own ES/EF vs. its successors' ES), never from
-    LS/LF -- so it was already correct wherever a constraint's effect
-    flows through the (unchanged) forward pass, and it is unaffected by
-    this pass's backward-pass changes EXCEPT for its own documented
-    fallback (a leaf task with no successors reports its
-    total_float_days as its free float), which now correctly inherits
-    the fixed, possibly-negative total_float_days value."""
+    """compute_free_float_days (task_schedule_overview.py) is computed
+    purely from EARLIEST dates (a task's own ES/EF vs. its successors'
+    ES), never from LS/LF -- unaffected by backward-pass constraint
+    changes, except its own documented fallback (a leaf task with no
+    successors reports its total_float_days as its free float), which
+    correctly inherits a possibly-negative total_float_days value."""
 
     def test_leaf_pinned_task_free_float_equals_zero(self):
         calendar = _MonToFriCalendar()

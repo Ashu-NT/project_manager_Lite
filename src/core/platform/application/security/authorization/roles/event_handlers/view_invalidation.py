@@ -70,13 +70,9 @@ def build_role_binding_view_invalidation_handler(channel: ViewInvalidationChanne
 
 def build_authorization_context_view_invalidation_handler(channel: ViewInvalidationChannel):
     """One `PostCommitEventHandler` bound to `channel`, registered against the four Role-owned
-    facts (`CustomRoleCreated`/`Updated`/`Retired`, `RolePolicyReconciled`) -- the
-    `authorization_context` target's own share of the durable event families it maps to (the
-    other share, RoleBinding grant/revoke, is already covered by `build_role_binding_view_
-    invalidation_handler` above under its own `role_binding` category; both categories partition
-    the same underlying "does the viewer's own authority need re-evaluation" concern without
-    overlap). Tenant-wide scope -- Role itself is not a per-principal fact the way RoleBinding
-    is."""
+    facts (`CustomRoleCreated`/`Updated`/`Retired`, `RolePolicyReconciled`). Tenant-wide scope --
+    Role itself is not a per-principal fact the way RoleBinding is (that's covered separately by
+    `build_role_binding_view_invalidation_handler` above)."""
 
     def handle_authorization_context_event(
         event: _AuthorizationContextEvent,
