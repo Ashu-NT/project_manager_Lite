@@ -533,6 +533,43 @@ def create_manual_actual(
     desktop_api.create_manual_actual(command)
 
 
+def update_actual_draft(
+    desktop_api: ProjectManagementFinancialsDesktopApi,
+    payload: dict[str, Any],
+) -> None:
+    desktop_api.update_actual_draft(
+        FinancialUpdateActualDraftCommand(
+            entry_id=require_text(payload, "entryId", "Select an actual draft to edit."),
+            expected_version=require_int(
+                payload, "rowVersion", "Entry version is required."
+            ),
+            description=require_text(payload, "description", "Description is required."),
+            amount=require_decimal(payload, "amount", "Amount must be a valid number."),
+            currency_code=require_text(payload, "currency", "Currency is required."),
+            transaction_date=require_date(
+                payload, "transactionDate", "Transaction date must use YYYY-MM-DD."
+            ),
+            cost_code_id=require_text(payload, "costCodeId", "Select a cost code."),
+            task_id=optional_text(payload, "taskId"),
+            resource_id=optional_text(payload, "resourceId"),
+        )
+    )
+
+
+def delete_actual_draft(
+    desktop_api: ProjectManagementFinancialsDesktopApi,
+    payload: dict[str, Any],
+) -> None:
+    desktop_api.delete_actual_draft(
+        FinancialVersionedActualCommand(
+            entry_id=require_text(payload, "entryId", "Select an actual draft to delete."),
+            expected_version=require_int(
+                payload, "rowVersion", "Entry version is required."
+            ),
+        )
+    )
+
+
 def submit_actual(
     desktop_api: ProjectManagementFinancialsDesktopApi,
     payload: dict[str, Any],

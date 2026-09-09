@@ -92,6 +92,18 @@ class FinancialsStateMixin:
             self._actual_sort_direction = normalized_direction
             self.actualSortDirectionChanged.emit()
 
+    def _set_can_create_manual_actual(self, value: bool) -> None:
+        normalized = bool(value)
+        if normalized != self._can_create_manual_actual:
+            self._can_create_manual_actual = normalized
+            self.canCreateManualActualChanged.emit()
+
+    def _set_actual_filter_state(self, status: str, source: str) -> None:
+        values = (str(status or ""), str(source or ""))
+        if values != (self._actual_status, self._actual_source):
+            self._actual_status, self._actual_source = values
+            self.actualFiltersChanged.emit()
+
     def _set_selected_forecast_id(self, value: str) -> None:
         if value != self._selected_forecast_id:
             self._selected_forecast_id = value

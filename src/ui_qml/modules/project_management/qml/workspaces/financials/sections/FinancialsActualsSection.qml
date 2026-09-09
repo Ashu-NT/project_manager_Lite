@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 
 Item {
@@ -11,11 +12,45 @@ Item {
     property string selectedEntryId: ""
     property string sortKey: "metaText"
     property int sortDirection: Qt.DescendingOrder
+    property string statusFilter: ""
+    property string sourceFilter: ""
 
     signal entrySelected(string entryId)
     signal pageRequested(int page)
     signal pageSizeRequested(int pageSize)
     signal sortRequested(string key, int direction)
+    signal filtersRequested(string status, string source)
+
+    readonly property var _statusOptions: [
+        { "value": "", "label": "All statuses" },
+        { "value": "draft", "label": "Draft" },
+        { "value": "submitted", "label": "Submitted" },
+        { "value": "approved", "label": "Approved" },
+        { "value": "posted", "label": "Posted" },
+        { "value": "reversed", "label": "Reversed" }
+    ]
+    readonly property var _sourceOptions: [
+        { "value": "", "label": "All sources" },
+        { "value": "project_management", "label": "Manual Actual" },
+        { "value": "platform_time", "label": "Approved Time" },
+        { "value": "inventory_procurement", "label": "Procurement Gateway" }
+    ]
+
+    function _indexOf(model, value) {
+        for (let index = 0; index < model.length; ++index) {
+            if (String(model[index].value) === String(value || "")) return index
+        }
+        return 0
+    }
+
+    function _applyFilters() {
+        const status = root._statusOptions[statusCombo.currentIndex]
+        const source = root._sourceOptions[sourceCombo.currentIndex]
+        root.filtersRequested(
+            status ? String(status.value) : "",
+            source ? String(source.value) : ""
+        )
+    }
 
     readonly property var _columns: [
         { "key": "title",         "label": "Reference",        "flex": 2, "sortable": true },
@@ -33,6 +68,32 @@ Item {
         spacing: 0
 
         AppWidgets.SectionHeading { width: parent.width; label: "Actuals" }
+
+        AppWidgets.TableToolbar {
+            width: parent.width
+            showSearch: false
+            showFilter: false
+            showRefresh: false
+            isBusy: root.isBusy
+
+            AppControls.ComboBox {
+                id: statusCombo
+                implicitWidth: 145
+                textRole: "label"
+                model: root._statusOptions
+                currentIndex: root._indexOf(root._statusOptions, root.statusFilter)
+                onActivated: root._applyFilters()
+            }
+
+            AppControls.ComboBox {
+                id: sourceCombo
+                implicitWidth: 190
+                textRole: "label"
+                model: root._sourceOptions
+                currentIndex: root._indexOf(root._sourceOptions, root.sourceFilter)
+                onActivated: root._applyFilters()
+            }
+        }
 
         AppWidgets.EmptyState {
             width: parent.width

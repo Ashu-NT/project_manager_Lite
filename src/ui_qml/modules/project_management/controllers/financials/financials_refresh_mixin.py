@@ -106,6 +106,8 @@ class FinancialsRefreshMixin:
                 actual_sort_direction=self._sort_direction_name(
                     self._actual_sort_direction
                 ),
+                actual_status=self._actual_status,
+                actual_source=self._actual_source,
                 commitment_sort_key=self._commitment_sort_key,
                 commitment_sort_direction=self._sort_direction_name(
                     self._commitment_sort_direction
@@ -365,6 +367,11 @@ class FinancialsRefreshMixin:
                     state.actual_sort_key,
                     state.actual_sort_direction,
                 )
+                self._set_can_create_manual_actual(state.can_create_manual_actual)
+                self._set_actual_filter_state(
+                    state.actual_status,
+                    state.actual_source,
+                )
             elif subsection == "commitments":
                 self._set_commitment_summary(
                     serialize_financials_commitment_summary_view_model(
@@ -527,6 +534,7 @@ class FinancialsRefreshMixin:
         self._set_variance_metrics(default_collection())
         self._set_report_definitions(default_collection())
         self._set_ledger(default_collection())
+        self._set_can_create_manual_actual(False)
         self._set_activity(default_collection())
         self._set_selected_forecast_id("")
         self._set_selected_forecast(default_detail())

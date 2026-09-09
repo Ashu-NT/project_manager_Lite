@@ -148,6 +148,8 @@ def build_destination_state(
     transaction_page_size: int = 50,
     actual_sort_key: str = "metaText",
     actual_sort_direction: str = "desc",
+    actual_status: str = "",
+    actual_source: str = "",
     commitment_sort_key: str = "metaText",
     commitment_sort_direction: str = "desc",
     selected_forecast_id: str | None = None,
@@ -359,6 +361,8 @@ def build_destination_state(
                 limit=page_size,
                 sort_key=actual_sort_key,
                 sort_direction=actual_sort_direction,
+                status=actual_status or None,
+                source_module=actual_source or None,
             )
             options = desktop_api.get_manual_actual_defaults(project_id)
             return FinancialsWorkspaceViewModel(
@@ -377,6 +381,9 @@ def build_destination_state(
                 ledger=build_ledger_collection(result),
                 actual_sort_key=result.sort_key,
                 actual_sort_direction=result.sort_direction,
+                can_create_manual_actual=result.can_create_manual_actual,
+                actual_status=actual_status,
+                actual_source=actual_source,
             )
         if subsection == "commitments":
             page_size = max(1, min(int(transaction_page_size), 200))

@@ -88,13 +88,27 @@ AppLayouts.WorkspaceFrame {
             const state = selected ? (selected.state || {}) : {}
             const busy = root.workspaceController ? root.workspaceController.isBusy : false
             return [
-                {
+                root.workspaceController.canCreateManualActual ? {
                     "id": "add_manual_actual",
                     "label": "New Manual Actual",
                     "icon": "add",
                     "enabled": !busy,
                     "danger": false
-                },
+                } : null,
+                Boolean(state.canEdit) ? {
+                    "id": "edit_actual_draft",
+                    "label": "Edit Draft",
+                    "icon": "edit",
+                    "enabled": !busy,
+                    "danger": false
+                } : null,
+                Boolean(state.canDelete) ? {
+                    "id": "delete_actual_draft",
+                    "label": "Delete Draft",
+                    "icon": "delete",
+                    "enabled": !busy,
+                    "danger": true
+                } : null,
                 Boolean(state.canSubmit) ? {
                     "id": "submit_actual",
                     "label": "Submit",
@@ -104,12 +118,13 @@ AppLayouts.WorkspaceFrame {
                 } : null,
                 Boolean(state.canApprove) ? {
                     "id": "approve_actual",
-                    "label": "Approve",
+                    "label": String(state.approvalAction || "") === "request"
+                        ? "Request Approval" : "Approve",
                     "icon": "approve",
                     "enabled": !busy,
                     "danger": false
                 } : null,
-                Boolean(state.canApprove) ? {
+                Boolean(state.canReject) ? {
                     "id": "reject_actual",
                     "label": "Reject",
                     "icon": "reject",
@@ -353,7 +368,11 @@ AppLayouts.WorkspaceFrame {
                         const state = selected.state || {}
                         const entryId = String(state.entryId || selected.id || "")
                         const rowVersion = Number(state.rowVersion || 0)
-                        if (actionId === "submit_actual") {
+                        if (actionId === "edit_actual_draft") {
+                            dialogHostLoader.invoke("openEditManualActualDialog", selected)
+                        } else if (actionId === "delete_actual_draft") {
+                            dialogHostLoader.invoke("openActualDecisionDialog", "delete", entryId, rowVersion)
+                        } else if (actionId === "submit_actual") {
                             root.workspaceController.submitActual({ "entryId": entryId, "rowVersion": rowVersion })
                         } else if (actionId === "approve_actual") {
                             root.workspaceController.approveActual({ "entryId": entryId, "rowVersion": rowVersion })
@@ -405,6 +424,8 @@ AppLayouts.WorkspaceFrame {
                     selectedActualEntryId: root._selectedActualEntryId
                     actualSortKey: root.workspaceController ? root.workspaceController.actualSortKey : "metaText"
                     actualSortDirection: root.workspaceController ? root.workspaceController.actualSortDirection : Qt.DescendingOrder
+                    actualStatus: root.workspaceController ? root.workspaceController.actualStatus : ""
+                    actualSource: root.workspaceController ? root.workspaceController.actualSource : ""
                     onActualEntrySelected: function(entryId) { root._selectedActualEntryId = entryId }
                     overviewModel: root.overviewModel
                     forecastVersionsModel: root.workspaceController ? root.workspaceController.forecastVersions : ({ "items": [] })
@@ -647,6 +668,10 @@ AppLayouts.WorkspaceFrame {
                     }
                     onActualSortRequested: function(key, direction) {
                         if (root.workspaceController !== null) root.workspaceController.setActualSort(key, direction)
+                    }
+                    onActualFiltersRequested: function(status, source) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setActualFilters(status, source)
                     }
                     onCommitmentPageRequested: function(page) {
                         if (root.workspaceController !== null) root.workspaceController.setCommitmentPage(page)

@@ -6,6 +6,9 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntry,
     ProjectCostEntryStatus,
 )
+from src.core.modules.project_management.contracts.financial_sources.reference import (
+    FinancialSourceModule,
+)
 from src.core.modules.project_management.contracts.reads import ReadSort
 
 
@@ -25,6 +28,7 @@ class ProjectCostEntryRepository(ABC):
         project_id: str,
         *,
         status: ProjectCostEntryStatus | None = None,
+        source_module: FinancialSourceModule | None = None,
         offset: int = 0,
         limit: int = 50,
         sort: ReadSort | None = None,

@@ -25,6 +25,12 @@ from src.core.modules.project_management.application.financials.cost.entries.app
     CostEntryApprovalOutcome,
     CostEntryApprovalResult,
 )
+from src.core.modules.project_management.application.financials.cost.entries.capabilities import (
+    CostEntryActionCapabilities,
+    build_cost_entry_capabilities,
+    can_create_manual_actual,
+    is_manual_actual_entry,
+)
 from src.core.modules.project_management.contracts.financial_sources.approved_time import (
     ApprovedTimeFinancialSource,
 )
@@ -419,6 +425,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         project_id: str,
         *,
         status: ProjectCostEntryStatus | str | None = None,
+        source_module: FinancialSourceModule | str | None = None,
         offset: int = 0,
         limit: int = 50,
         sort_key: str = "metaText",
@@ -438,9 +445,19 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
                 "Project cost entry status is invalid.",
                 code="PROJECT_COST_ENTRY_STATUS_INVALID",
             ) from exc
+        try:
+            resolved_source = (
+                FinancialSourceModule(source_module) if source_module is not None else None
+            )
+        except ValueError as exc:
+            raise ValidationError(
+                "Project cost entry source is invalid.",
+                code="PROJECT_COST_ENTRY_SOURCE_INVALID",
+            ) from exc
         return self._entry_repo.list_for_project(
             project_id,
             status=resolved_status,
+            source_module=resolved_source,
             offset=offset,
             limit=limit,
             sort=normalize_cost_entry_sort(
@@ -514,10 +531,12 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             occurred_at=now,
         )
         try:
-            self._entry_repo.add(entry)
-            self._entry_repo.flush()
+            # The savepoint translates only the source-identity race. The outer
+            # Finance UoW remains the sole transaction owner.
+            with self._session.begin_nested():
+                self._entry_repo.add(entry)
+                self._entry_repo.flush()
         except IntegrityError as exc:
-            self._session.rollback()
             concurrent = self._entry_repo.get_by_idempotency_key(source.idempotency_key)
             if concurrent is not None:
                 return self._resolve_replay(concurrent, source)
@@ -553,6 +572,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         resource_id: str | None = None,
     ) -> ProjectCostEntry:
         entry = self._require_entry(entry_id)
+        self._require_manual_interactive_entry(entry, operation="edit")
         self._require_command_permission(
             entry.project_id, "project_cost.update_draft", "update project cost entry draft"
         )
@@ -607,6 +627,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
 
     def delete_draft(self, entry_id: str, *, expected_version: int) -> None:
         entry = self._require_entry(entry_id)
+        self._require_manual_interactive_entry(entry, operation="delete")
         self._require_command_permission(
             entry.project_id, "project_cost.update_draft", "delete project cost entry draft"
         )
@@ -631,6 +652,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
 
     def submit(self, entry_id: str, *, expected_version: int) -> ProjectCostEntry:
         entry = self._require_entry(entry_id)
+        self._require_manual_interactive_entry(entry, operation="submit")
         self._require_command_permission(entry.project_id, "project_cost.submit", "submit project cost entry")
         self._require_expected_version(entry, expected_version)
         entry.submit(actor_id=self._actor_id(), occurred_at=self._clock.now())
@@ -657,6 +679,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         notes: str = "",
     ) -> CostEntryApprovalResult:
         entry = self._require_entry(entry_id)
+        self._require_manual_interactive_entry(entry, operation="approve")
         governed = self._approval_service is not None and is_governance_required(
             "project_cost.approve"
         )
@@ -710,6 +733,14 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         notes: str = "",
     ) -> ProjectCostEntry:
         entry = self._require_entry(entry_id)
+        self._require_manual_interactive_entry(entry, operation="reject")
+        if self._approval_service is not None and is_governance_required(
+            "project_cost.approve"
+        ):
+            raise BusinessRuleError(
+                "Governed actuals must be rejected through Platform Approval.",
+                code="PROJECT_COST_ENTRY_PLATFORM_DECISION_REQUIRED",
+            )
         self._require_command_permission(entry.project_id, "project_cost.approve", "reject project cost entry")
         rejected, _event = self._apply_rejection_decision(
             entry_id=entry.id,
@@ -731,6 +762,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         exchange_rate_captured_at: datetime | None = None,
     ) -> ProjectCostEntry:
         entry = self._require_entry(entry_id)
+        self._require_manual_interactive_entry(entry, operation="post")
         self._require_command_permission(entry.project_id, "project_cost.post", "post project cost entry")
         self._require_expected_version(entry, expected_version)
         profile = self._require_active_profile(entry.project_id)
@@ -784,6 +816,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         reason: str,
     ) -> ProjectCostEntry:
         entry = self._require_entry(entry_id, for_update=True)
+        self._require_manual_interactive_entry(entry, operation="reverse")
         self._require_command_permission(entry.project_id, "project_cost.reverse", "reverse project cost entry")
         source = self._manual_source(
             tenant_id=entry.tenant_id,
@@ -855,7 +888,9 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         actor_id: str,
     ) -> tuple[ProjectCostEntry, CostEntryStatusChanged]:
         entry = self._require_entry(entry_id)
+        self._require_manual_interactive_entry(entry, operation="approve")
         self._require_expected_version(entry, expected_version)
+        self._require_independent_decision(entry, actor_id)
         entry.approve(actor_id=actor_id, occurred_at=self._clock.now())
         self._entry_repo.update(entry, expected_row_version=expected_version)
         self._record_audit("approve", entry)
@@ -881,7 +916,9 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         notes: str,
     ) -> tuple[ProjectCostEntry, CostEntryStatusChanged]:
         entry = self._require_entry(entry_id)
+        self._require_manual_interactive_entry(entry, operation="reject")
         self._require_expected_version(entry, expected_version)
+        self._require_independent_decision(entry, actor_id)
         entry.reject(actor_id=actor_id, occurred_at=self._clock.now(), notes=notes)
         self._entry_repo.update(entry, expected_row_version=expected_version)
         self._record_audit("reject", entry)
@@ -1080,6 +1117,33 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             raise NotFoundError("Project cost entry not found.", code="PROJECT_COST_ENTRY_NOT_FOUND")
         return entry
 
+    def capabilities_for(self, entry: ProjectCostEntry) -> CostEntryActionCapabilities:
+        return build_cost_entry_capabilities(entry, user_session=self._user_session)
+
+    def can_create_manual_entry(self, project_id: str) -> bool:
+        return can_create_manual_actual(
+            user_session=self._user_session,
+            project_id=str(project_id or "").strip(),
+        )
+
+    @staticmethod
+    def _require_manual_interactive_entry(
+        entry: ProjectCostEntry, *, operation: str
+    ) -> None:
+        if not is_manual_actual_entry(entry):
+            raise BusinessRuleError(
+                f"Source-owned actuals cannot use the {operation} command in Project Finance.",
+                code="PROJECT_COST_ENTRY_SOURCE_OWNED",
+            )
+
+    @staticmethod
+    def _require_independent_decision(entry: ProjectCostEntry, actor_id: str) -> None:
+        if not entry.submitted_by or entry.submitted_by == actor_id:
+            raise BusinessRuleError(
+                "The submitter cannot approve or reject their own actual.",
+                code="PROJECT_COST_ENTRY_SELF_DECISION_FORBIDDEN",
+            )
+
     def _require_project(self, project_id: str) -> None:
         if self._project_repo.get(project_id) is None:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
@@ -1136,9 +1200,8 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         return str(actor_id)
 
     def _record_audit(self, operation: str, entry: ProjectCostEntry) -> None:
-        try:
-            record_audit_entry(
-                self,
+        record_audit_entry(
+            self,
                 operation=f"project_cost_entry.{operation}",
                 entity_type="project_cost_entry",
                 entity_id=entry.id,
@@ -1177,10 +1240,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
                 metadata={"action": operation},
                 commit=False,
                 fail_closed=True,
-            )
-        except Exception:
-            self._session.rollback()
-            raise
+        )
 
 
 __all__ = ["ProjectCostEntryService"]

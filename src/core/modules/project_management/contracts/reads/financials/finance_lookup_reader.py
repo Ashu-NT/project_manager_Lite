@@ -125,6 +125,14 @@ class FinanceLookupReader(Protocol):
         request: FinanceLookupQuery,
     ) -> FinanceLookupPageFacts: ...
 
+    def get_resource_option(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        resource_id: str,
+    ) -> FinanceLookupOptionFact | None: ...
+
     def search_rate_departments(
         self,
         *,

@@ -153,6 +153,8 @@ Item {
     property string selectedActualEntryId: ""
     property string actualSortKey: "metaText"
     property int actualSortDirection: Qt.DescendingOrder
+    property string actualStatus: ""
+    property string actualSource: ""
     property string commitmentSortKey: "metaText"
     property int commitmentSortDirection: Qt.DescendingOrder
 
@@ -235,6 +237,7 @@ Item {
     signal actualPageRequested(int page)
     signal actualPageSizeRequested(int pageSize)
     signal actualSortRequested(string key, int direction)
+    signal actualFiltersRequested(string status, string source)
     signal commitmentPageRequested(int page)
     signal commitmentPageSizeRequested(int pageSize)
     signal commitmentSortRequested(string key, int direction)
@@ -483,10 +486,15 @@ Item {
             selectedEntryId: root.selectedActualEntryId
             sortKey: root.actualSortKey
             sortDirection: root.actualSortDirection
+            statusFilter: root.actualStatus
+            sourceFilter: root.actualSource
             onEntrySelected: function(entryId) { root.actualEntrySelected(entryId) }
             onPageRequested: function(page) { root.actualPageRequested(page) }
             onPageSizeRequested: function(pageSize) { root.actualPageSizeRequested(pageSize) }
             onSortRequested: function(key, direction) { root.actualSortRequested(key, direction) }
+            onFiltersRequested: function(status, source) {
+                root.actualFiltersRequested(status, source)
+            }
         }
     }
 
