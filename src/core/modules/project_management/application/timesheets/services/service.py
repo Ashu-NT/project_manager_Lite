@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date
+from datetime import date, datetime, timezone
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_any_project_permission,
@@ -133,6 +133,25 @@ class TimesheetService(
                 "timesheet.edit_all",
             ),
             operation_label=operation_label,
+        )
+
+    def _build_task_assignment_hours_synced_event(
+        self, *, tenant_id: str, organization_id: str, project_id: str, work_allocation
+    ):
+        from src.core.modules.project_management.application.tasks.task_events import (
+            TaskAssignmentChangeType,
+            TaskAssignmentChanged,
+        )
+
+        return TaskAssignmentChanged(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            project_id=project_id,
+            task_id=getattr(work_allocation, "task_id", "") or "",
+            assignment_id=work_allocation.id,
+            resource_id=getattr(work_allocation, "resource_id", "") or "",
+            change_type=TaskAssignmentChangeType.HOURS_LOGGED_CHANGED,
+            occurred_at=datetime.now(timezone.utc),
         )
 
     def _require_current_principal_resource(self, resource_id: str) -> None:

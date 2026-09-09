@@ -467,7 +467,7 @@ class ProjectManagementSchedulingDesktopApi:
         normalized_id = (project_id or "").strip()
         if not normalized_id:
             return empty_leveling_proposal_dto()
-        result = build_resource_leveling_preview(normalized_id, self._task_service, self._work_calendar_engine)
+        result = build_resource_leveling_preview(normalized_id, self._task_service)
         if result is None:
             return empty_leveling_proposal_dto(normalized_id)
         proposal, dto = result

@@ -281,6 +281,14 @@ class ProjectCostEntry:
     def is_draft(self) -> bool:
         return self.status == ProjectCostEntryStatus.DRAFT
 
+    @property
+    def is_manual_actual(self) -> bool:
+        return (
+            self.source_module is FinancialSourceModule.PROJECT_MANAGEMENT
+            and self.source_type is FinancialSourceType.MANUAL_COMMAND
+            and self.posting_purpose is FinancialPostingPurpose.MANUAL_ACTUAL
+        )
+
     def update_draft(
         self,
         *,

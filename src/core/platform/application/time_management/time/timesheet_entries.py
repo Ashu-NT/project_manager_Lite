@@ -38,18 +38,13 @@ def _time_entry_unit_of_work(service):
 def _stage_task_assignment_hours_audit_and_record_event(
     service, uow, *, work_allocation, project_id: str | None
 ) -> None:
-    """Stages the TaskAssignment-side audit entry and records its
-    `TaskAssignmentChanged(HOURS_LOGGED_CHANGED)` fact on `uow`, precommit, in the same
-    physical transaction as the TimeEntry mutation. Imports `task_events` lazily to avoid
-    a circular import: `application.tasks`'s package `__init__` eagerly imports
-    `TimesheetService`, which imports this very module."""
+    """Stages the TaskAssignment-side audit entry, precommit, in the same physical
+    transaction as the TimeEntry mutation. The assignment-facing domain event (if any)
+    comes from `service._build_task_assignment_hours_synced_event`, which the base
+    mixin leaves a no-op -- a subclass that actually owns assignment tracking overrides
+    it to produce its own fact, so this module never needs to know that vocabulary."""
     if work_allocation is None or service._tenant_context_service is None:
         return
-    from src.core.modules.project_management.application.tasks.task_events import (
-        TaskAssignmentChangeType,
-        TaskAssignmentChanged,
-    )
-
     scope = service._tenant_context_service.require_active_scope_ids(
         operation_label="sync task assignment hours from time entries"
     )
@@ -68,18 +63,14 @@ def _stage_task_assignment_hours_audit_and_record_event(
         commit=False,
         fail_closed=True,
     )
-    uow.record_event(
-        TaskAssignmentChanged(
-            tenant_id=scope.tenant_id,
-            organization_id=scope.organization_id,
-            project_id=project_id or "",
-            task_id=getattr(work_allocation, "task_id", "") or "",
-            assignment_id=work_allocation.id,
-            resource_id=getattr(work_allocation, "resource_id", "") or "",
-            change_type=TaskAssignmentChangeType.HOURS_LOGGED_CHANGED,
-            occurred_at=datetime.now(timezone.utc),
-        )
+    event = service._build_task_assignment_hours_synced_event(
+        tenant_id=scope.tenant_id,
+        organization_id=scope.organization_id,
+        project_id=project_id or "",
+        work_allocation=work_allocation,
     )
+    if event is not None:
+        uow.record_event(event)
 
 
 class TimesheetEntriesMixin:
@@ -87,6 +78,13 @@ class TimesheetEntriesMixin:
     _work_owner_repo: WorkOwnerRepository
     _resource_repo: WorkResourceRepository
     _time_entry_repo: TimeEntryRepository | None
+
+    def _build_task_assignment_hours_synced_event(
+        self, *, tenant_id: str, organization_id: str, project_id: str, work_allocation
+    ) -> object | None:
+        """No assignment-event vocabulary at this layer -- override in a subclass
+        that owns assignment tracking to return its own fact, or None for none."""
+        return None
 
     def initialize_timesheet_for_work_allocation(self, work_allocation_id: str) -> list[TimeEntry]:
         self._require_time_manage_permission("open timesheet")

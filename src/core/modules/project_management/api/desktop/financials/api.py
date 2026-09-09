@@ -912,10 +912,8 @@ class ProjectManagementFinancialsDesktopApi:
                 as_of_date=self._command_date(command.as_of_date, "Forecast as-of date"),
                 generated_by=self._forecast_actor_id(service),
                 manual_estimates=tuple(
-                    ManualEtcEstimate(
-                        cost_code_id=item.cost_code_id,
-                        task_id=item.task_id,
-                        description=item.description,
+                    ManualEtcEstimate.for_command_item(
+                        item,
                         amount=self._forecast_command_amount(item.amount),
                         period_start=self._optional_command_date(item.period_start),
                         period_end=self._optional_command_date(item.period_end),
@@ -923,11 +921,8 @@ class ProjectManagementFinancialsDesktopApi:
                     for item in command.manual_estimates
                 ),
                 risk_contingencies=tuple(
-                    RiskContingencyEstimate(
-                        risk_id=item.risk_id,
-                        cost_code_id=item.cost_code_id,
-                        task_id=item.task_id,
-                        description=item.description,
+                    RiskContingencyEstimate.for_command_item(
+                        item,
                         amount=self._forecast_command_amount(item.amount),
                         period_start=self._optional_command_date(item.period_start),
                         period_end=self._optional_command_date(item.period_end),
@@ -1386,8 +1381,8 @@ class ProjectManagementFinancialsDesktopApi:
         )
         return self._change_mutation_dto(change)
 
-    @staticmethod
-    def _change_impact_arguments(command) -> dict[str, object]:
+    @classmethod
+    def _change_impact_arguments(cls, command) -> dict[str, object]:
         try:
             impact_type = FinancialChangeImpactType(str(command.impact_type).strip().lower())
         except ValueError as exc:
@@ -1399,13 +1394,13 @@ class ProjectManagementFinancialsDesktopApi:
             "impact_type": impact_type,
             "description": command.description,
             "expected_change_version": command.expected_change_version,
-            "amount": ProjectManagementFinancialsDesktopApi._change_command_amount(command.amount),
+            "amount": cls._change_command_amount(command.amount),
             "currency_code": command.currency_code or None,
             "cost_code_id": command.cost_code_id,
             "task_id": command.task_id,
             "target_line_id": command.target_line_id,
-            "schedule_start": ProjectManagementFinancialsDesktopApi._optional_command_date(command.schedule_start),
-            "schedule_finish": ProjectManagementFinancialsDesktopApi._optional_command_date(command.schedule_finish),
+            "schedule_start": cls._optional_command_date(command.schedule_start),
+            "schedule_finish": cls._optional_command_date(command.schedule_finish),
         }
 
     @staticmethod
@@ -1423,11 +1418,7 @@ class ProjectManagementFinancialsDesktopApi:
 
     @staticmethod
     def _change_actor_id(service) -> str:
-        actor_id = getattr(
-            getattr(getattr(service, "_user_session", None), "principal", None),
-            "user_id",
-            None,
-        )
+        actor_id = service.current_actor_user_id
         if not actor_id:
             raise ValidationError(
                 "An authenticated actor is required for Financial Change commands.",
@@ -1763,11 +1754,7 @@ class ProjectManagementFinancialsDesktopApi:
 
     @staticmethod
     def _actor_id(service) -> str:
-        actor_id = getattr(
-            getattr(getattr(service, "_user_session", None), "principal", None),
-            "user_id",
-            None,
-        )
+        actor_id = service.current_actor_user_id
         if not actor_id:
             raise ValidationError(
                 "An authenticated actor is required for Budget commands.",
@@ -1793,11 +1780,7 @@ class ProjectManagementFinancialsDesktopApi:
 
     @staticmethod
     def _forecast_actor_id(service) -> str:
-        actor_id = getattr(
-            getattr(getattr(service, "_user_session", None), "principal", None),
-            "user_id",
-            None,
-        )
+        actor_id = service.current_actor_user_id
         if not actor_id:
             raise ValidationError(
                 "An authenticated actor is required for Forecast commands.",

@@ -24,8 +24,8 @@ from src.core.modules.project_management.infrastructure.persistence.orm.billing 
 from src.core.modules.project_management.infrastructure.persistence.orm.labor_posting import (
     ApprovedTimeLaborPostingORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.planned_cost import (
-    ProjectPlannedCostLineORM,
+from src.core.modules.project_management.infrastructure.persistence.reads.financials.statements.planned_cost_rows import (
+    PlannedCostLineRow,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
@@ -80,10 +80,10 @@ _LINE_CONSUMED = or_(
     ),
     exists(
         select(1).where(
-            ProjectPlannedCostLineORM.tenant_id == RateCardLineORM.tenant_id,
-            ProjectPlannedCostLineORM.organization_id
+            PlannedCostLineRow.tenant_id == RateCardLineORM.tenant_id,
+            PlannedCostLineRow.organization_id
             == RateCardLineORM.organization_id,
-            ProjectPlannedCostLineORM.rate_line_id == RateCardLineORM.id,
+            PlannedCostLineRow.rate_line_id == RateCardLineORM.id,
         )
     ),
     exists(

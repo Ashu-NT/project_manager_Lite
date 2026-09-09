@@ -12,7 +12,6 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
 )
 from src.core.modules.project_management.application.financials.cost.entries.capabilities import (
     CostEntryActionCapabilities,
-    is_manual_actual_entry,
 )
 
 
@@ -20,7 +19,7 @@ def serialize_cost_entry(
     entry: ProjectCostEntry,
     capabilities: CostEntryActionCapabilities | None = None,
 ) -> FinancialCostEntryDto:
-    actions = capabilities or CostEntryActionCapabilities()
+    actions = capabilities or CostEntryActionCapabilities.none()
     return FinancialCostEntryDto(
         id=entry.id,
         project_id=entry.project_id,
@@ -41,7 +40,7 @@ def serialize_cost_entry(
         ),
         source_module=entry.source_module.value,
         source_type=entry.source_type.value,
-        source_owned=not is_manual_actual_entry(entry),
+        source_owned=not entry.is_manual_actual,
         posting_date=entry.posting_date.isoformat() if entry.posting_date else "",
         financial_period_id=entry.financial_period_id or "",
         row_version=entry.row_version,

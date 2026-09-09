@@ -19,6 +19,12 @@ TIMESHEET_MODULE_CODE = "project_management"
 TIMESHEET_RESOURCE_ENTITY_TYPE = "resource"
 TIMESHEET_PROJECT_ENTITY_TYPE = "project"
 
+# Mirrors the Task workspace's own category/scope-code constants so this hint lands on
+# the same invalidation target it uses -- literal values, not imported, so this module
+# stays free of a dependency on that module's package.
+_TASK_CATEGORY = "task"
+_TASK_LIST_SCOPE_CODE = "task_list"
+
 _OrgTarget = tuple[str, str, str]
 _ResourceTarget = tuple[str, str, str, str, str, str]
 
@@ -117,20 +123,15 @@ def build_timesheet_view_invalidation_handler(channel: ViewInvalidationChannel):
 
             # This transition also stales the Task workspace's task_list (time totals shown
             # per task) -- map onto Task's existing target rather than inventing a new event.
-            from src.core.modules.project_management.application.tasks.event_handlers.view_invalidation import (
-                TASK_CATEGORY,
-                TASK_LIST_SCOPE_CODE,
-            )
-
-            task_list_target = _resource_scope_target(f"{TASK_CATEGORY}:{TASK_LIST_SCOPE_CODE}", project_scope)
+            task_list_target = _resource_scope_target(f"{_TASK_CATEGORY}:{_TASK_LIST_SCOPE_CODE}", project_scope)
             if task_list_target in notified_resource_targets:
                 continue
             notified_resource_targets.add(task_list_target)
             channel.notify(
                 ViewInvalidationHint(
                     scope=project_scope,
-                    category=TASK_CATEGORY,
-                    scope_code=TASK_LIST_SCOPE_CODE,
+                    category=_TASK_CATEGORY,
+                    scope_code=_TASK_LIST_SCOPE_CODE,
                     entity_type=TIMESHEET_PROJECT_ENTITY_TYPE,
                     entity_id=project_id,
                 )

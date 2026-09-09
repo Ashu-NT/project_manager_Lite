@@ -2,11 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.core.modules.project_management.contracts.financial_sources.reference import (
-    FinancialPostingPurpose,
-    FinancialSourceModule,
-    FinancialSourceType,
-)
 from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntry,
     ProjectCostEntryKind,
@@ -29,13 +24,14 @@ class CostEntryActionCapabilities:
     approval_action: str = ""
     read_only_reason: str = ""
 
+    @classmethod
+    def none(cls) -> "CostEntryActionCapabilities":
+        """All-False default, for a caller with no computed capabilities to pass."""
+        return cls()
+
 
 def is_manual_actual_entry(entry: ProjectCostEntry) -> bool:
-    return (
-        entry.source_module is FinancialSourceModule.PROJECT_MANAGEMENT
-        and entry.source_type is FinancialSourceType.MANUAL_COMMAND
-        and entry.posting_purpose is FinancialPostingPurpose.MANUAL_ACTUAL
-    )
+    return entry.is_manual_actual
 
 
 def build_cost_entry_capabilities(

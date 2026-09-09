@@ -25,6 +25,9 @@ from src.core.modules.project_management.application.scheduling.leveling.schedul
     compute_schedule_fingerprint,
 )
 from src.core.modules.project_management.application.scheduling.models.leveling import LevelingProposal
+from src.core.modules.project_management.application.scheduling.leveling.resource_leveling_planner import (
+    ResourceLevelingPlanner,
+)
 
 
 def _coerce_date(value: date | str) -> date:
@@ -51,6 +54,25 @@ class ResourceLevelingApplyMixin:
         assignments = self._assignment_repo.list_by_tasks(list(tasks_by_id)) if tasks_by_id else []
         deps = self._dependency_repo.list_by_project(project_id)
         return tasks_by_id, assignments, deps
+
+    def build_resource_leveling_preview(self, project_id: str) -> LevelingProposal | None:
+        """Preview-only: runs the ONE authoritative ``ResourceLevelingPlanner``
+        against a fresh in-memory snapshot. Never persists -- see
+        ``apply_resource_leveling_plan`` for the write path."""
+        if not project_id:
+            return None
+        tasks_by_id, assignments, deps = self._leveling_snapshot(project_id)
+        resource_ids = sorted({a.resource_id for a in assignments})
+        resources = self._resource_repo.list_by_ids(resource_ids) if resource_ids else []
+        resource_name_by_id = {r.id: r.name for r in resources}
+        planner = ResourceLevelingPlanner(self._work_calendar_engine)
+        return planner.build_proposal(
+            project_id=project_id,
+            tasks_by_id=tasks_by_id,
+            deps=deps,
+            assignments=assignments,
+            resource_name_by_id=resource_name_by_id,
+        )
 
     def apply_resource_leveling_plan(
         self,
