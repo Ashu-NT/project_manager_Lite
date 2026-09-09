@@ -5,7 +5,7 @@ import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
-import "../sections" as Sections
+import ProjectManagement.PortfolioSections 1.0 as Sections
 
 Flickable {
     id: root
