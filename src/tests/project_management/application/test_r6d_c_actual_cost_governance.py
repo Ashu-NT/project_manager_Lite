@@ -178,7 +178,7 @@ def test_actual_filters_are_server_owned_and_invalid_sources_fail_closed(service
 
     rows, total = service.list_for_project(
         project.id,
-        source_module=FinancialSourceModule.PROCUREMENT,
+        source_module=FinancialSourceModule.INVENTORY_PROCUREMENT,
     )
     assert rows == []
     assert total == 0

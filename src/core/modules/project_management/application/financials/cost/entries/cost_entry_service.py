@@ -33,6 +33,10 @@ from src.core.modules.project_management.application.financials.cost.entries.cap
     can_create_manual_actual,
     is_manual_actual_entry,
 )
+from src.core.modules.project_management.application.financials.cost.entries.manual_source import (
+    build_manual_content,
+    build_manual_source,
+)
 from src.core.modules.project_management.contracts.financial_sources.approved_time import (
     ApprovedTimeFinancialSource,
 )
@@ -40,10 +44,8 @@ from src.core.modules.project_management.contracts.financial_sources.procurement
     ProcurementReceiptAccrualFinancialSource,
 )
 from src.core.modules.project_management.contracts.financial_sources.reference import (
-    FinancialPostingPurpose,
     FinancialSourceModule,
     FinancialSourceReference,
-    FinancialSourceType,
     financial_source_content_hash,
 )
 from src.core.modules.project_management.contracts.repositories.finance.cost_entries.labor_posting import ApprovedTimeLaborPostingRepository
@@ -85,7 +87,7 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from src.core.platform.domain.approval.policy import is_governance_required
-from src.core.platform.finance import EXCHANGE_RATE_STORAGE, Money, MoneyPayload
+from src.core.platform.finance import EXCHANGE_RATE_STORAGE, Money
 
 
 class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
@@ -496,12 +498,12 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             resource_id=resource_id,
             organization_id=context.organization_id,
         )
-        source = self._manual_source(
+        source = build_manual_source(
             tenant_id=context.tenant_id,
             organization_id=context.organization_id,
             project_id=project_id,
             command_id=command_id,
-            content=self._manual_content(
+            content=build_manual_content(
                 description=description,
                 kind=kind,
                 money=money,
@@ -589,7 +591,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             organization_id=context.organization_id,
         )
         content_hash = financial_source_content_hash(
-            self._manual_content(
+            build_manual_content(
                 description=description,
                 kind=entry.entry_kind,
                 money=money,
@@ -819,7 +821,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         entry = self._require_entry(entry_id, for_update=True)
         self._require_manual_interactive_entry(entry, operation="reverse")
         self._require_command_permission(entry.project_id, "project_cost.reverse", "reverse project cost entry")
-        source = self._manual_source(
+        source = build_manual_source(
             tenant_id=entry.tenant_id,
             organization_id=entry.organization_id,
             project_id=entry.project_id,
@@ -1038,49 +1040,6 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
                 code="PROJECT_COST_ENTRY_FX_CAPTURE_TIME_INVALID",
             )
         return rate, exchange_rate_date, str(exchange_rate_source).strip(), exchange_rate_captured_at
-
-    @staticmethod
-    def _manual_content(
-        *,
-        description: str,
-        kind: ProjectCostEntryKind,
-        money: Money,
-        transaction_date: date,
-        cost_code_id: str,
-        task_id: str | None,
-        resource_id: str | None,
-    ) -> dict[str, object]:
-        return {
-            "description": str(description or "").strip(),
-            "entry_kind": kind.value,
-            "amount": MoneyPayload.from_domain(money).amount,
-            "currency_code": money.currency.code,
-            "transaction_date": transaction_date.isoformat(),
-            "cost_code_id": str(cost_code_id or "").strip(),
-            "task_id": str(task_id or "").strip() or None,
-            "resource_id": str(resource_id or "").strip() or None,
-        }
-
-    @staticmethod
-    def _manual_source(
-        *,
-        tenant_id: str,
-        organization_id: str,
-        project_id: str,
-        command_id: str,
-        content: dict[str, object],
-    ) -> FinancialSourceReference:
-        return FinancialSourceReference(
-            tenant_id=tenant_id,
-            organization_id=organization_id,
-            project_id=project_id,
-            source_module=FinancialSourceModule.PROJECT_MANAGEMENT,
-            source_type=FinancialSourceType.MANUAL_COMMAND,
-            source_id=command_id,
-            source_revision="1",
-            content_hash=financial_source_content_hash(content),
-            posting_purpose=FinancialPostingPurpose.MANUAL_ACTUAL,
-        )
 
     @staticmethod
     def _resolve_draft_kind(value: ProjectCostEntryKind | str) -> ProjectCostEntryKind:

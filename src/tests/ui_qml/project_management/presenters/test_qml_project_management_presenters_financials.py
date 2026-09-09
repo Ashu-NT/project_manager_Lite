@@ -14,6 +14,7 @@ from src.core.modules.project_management.api.desktop.financials import (
     FinancialDecideActualCommand,
     FinancialPostActualCommand,
     FinancialReverseActualCommand,
+    FinancialUpdateActualDraftCommand,
     FinancialVersionedActualCommand,
     ProjectManagementFinancialsDesktopApi,
 )
@@ -24,10 +25,12 @@ from src.ui_qml.modules.project_management.controllers.financials.financials_wor
 from src.ui_qml.modules.project_management.presenters.financials.command_handler import (
     approve_actual,
     create_cost_code,
+    delete_actual_draft,
     post_actual,
     reject_actual,
     reverse_actual,
     submit_actual,
+    update_actual_draft,
 )
 
 
@@ -42,6 +45,12 @@ class _RecordingDesktopApi:
 
     def submit_actual(self, command):
         self.calls.append(("submit_actual", command))
+
+    def update_actual_draft(self, command):
+        self.calls.append(("update_actual_draft", command))
+
+    def delete_actual_draft(self, command):
+        self.calls.append(("delete_actual_draft", command))
 
     def approve_actual(self, command):
         self.calls.append(("approve_actual", command))
@@ -122,6 +131,49 @@ def test_submit_actual_builds_versioned_command():
     name, command = api.calls[0]
     assert name == "submit_actual"
     assert command == FinancialVersionedActualCommand(entry_id="entry-1", expected_version=3)
+
+
+def test_update_actual_draft_builds_typed_command():
+    api = _RecordingDesktopApi()
+    update_actual_draft(
+        api,
+        {
+            "entryId": "entry-1",
+            "rowVersion": 3,
+            "description": "Corrected travel",
+            "amount": "125.40",
+            "currency": "USD",
+            "transactionDate": "2026-09-09",
+            "costCodeId": "cost-1",
+            "taskId": "task-1",
+            "resourceId": "resource-1",
+        },
+    )
+
+    name, command = api.calls[0]
+    assert name == "update_actual_draft"
+    assert command == FinancialUpdateActualDraftCommand(
+        entry_id="entry-1",
+        expected_version=3,
+        description="Corrected travel",
+        amount=Decimal("125.40"),
+        currency_code="USD",
+        transaction_date=date(2026, 9, 9),
+        cost_code_id="cost-1",
+        task_id="task-1",
+        resource_id="resource-1",
+    )
+
+
+def test_delete_actual_draft_builds_versioned_command():
+    api = _RecordingDesktopApi()
+    delete_actual_draft(api, {"entryId": "entry-1", "rowVersion": 3})
+
+    name, command = api.calls[0]
+    assert name == "delete_actual_draft"
+    assert command == FinancialVersionedActualCommand(
+        entry_id="entry-1", expected_version=3
+    )
 
 
 def test_approve_actual_defaults_notes_to_empty_string():
@@ -232,6 +284,12 @@ class _FakeFinancialsWorkspacePresenter:
     def submit_actual(self, payload):
         self._record("submit_actual", payload)
 
+    def update_actual_draft(self, payload):
+        self._record("update_actual_draft", payload)
+
+    def delete_actual_draft(self, payload):
+        self._record("delete_actual_draft", payload)
+
     def approve_actual(self, payload):
         self._record("approve_actual", payload)
 
@@ -276,6 +334,38 @@ def test_submit_actual_slot_delegates_and_reports_success(controller):
         ("submit_actual", {"entryId": "entry-1", "rowVersion": 1})
     ]
     controller._invalidate_destinations.assert_called_once_with("costs", "controls")
+
+
+@pytest.mark.parametrize(
+    ("slot", "presenter_method", "message"),
+    (
+        ("updateActualDraft", "update_actual_draft", "Manual actual draft updated."),
+        ("deleteActualDraft", "delete_actual_draft", "Manual actual draft deleted."),
+    ),
+)
+def test_actual_draft_slots_delegate_and_refresh_costs_only(
+    controller, slot, presenter_method, message
+):
+    controller._invalidate_destinations = MagicMock()
+    payload = {"entryId": "entry-1", "rowVersion": 1}
+
+    result = getattr(controller, slot)(payload)
+
+    assert result == {"ok": True, "message": message}
+    assert controller._fake_presenter.calls == [(presenter_method, payload)]
+    controller._invalidate_destinations.assert_called_once_with("costs")
+
+
+def test_actual_filters_reset_page_and_refresh_authoritative_query(controller):
+    controller.refresh = MagicMock()
+    controller._actual_page = 4
+
+    controller.setActualFilters("submitted", "platform_time")
+
+    assert controller.actualStatus == "submitted"
+    assert controller.actualSource == "platform_time"
+    assert controller._actual_page == 1
+    controller.refresh.assert_called_once_with()
 
 
 def test_create_cost_code_slot_delegates_and_invalidates_destinations(controller):
