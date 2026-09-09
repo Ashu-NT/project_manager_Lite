@@ -26,7 +26,7 @@ from src.ui_qml.modules.project_management.presenters.financials.command_handler
 )
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 VIEWPORTS = ((1024, 640), (1280, 720), (1366, 768), (1440, 900), (1920, 1080))
 RATE_DIALOGS = ("RateCardEditorDialog", "RateLineEditorDialog", "RateLifecycleDialog")
 RATE_DIALOG_ROOT = Path(
