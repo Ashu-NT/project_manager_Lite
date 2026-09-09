@@ -138,16 +138,8 @@ class ModuleRegistry:
         return {
             "isPlatformEnabled": True,
             "isProjectManagementEnabled": self.is_module_enabled("project_management"),
-            "isInventoryProcurementEnabled": self.is_module_enabled("inventory_procurement"),
             "isQhseEnabled": self.is_module_enabled("qhse"),
             "isHrManagementEnabled": self.is_module_enabled("hr_management"),
-            # Cross-module integration pairs
-            "canPmLinkInventory": self.can_use_integration(
-                "project_management", "inventory_procurement", "material_demand"
-            ),
-            "canInventoryLinkPm": self.can_use_integration(
-                "inventory_procurement", "project_management", "source_reference"
-            ),
         }
 
 

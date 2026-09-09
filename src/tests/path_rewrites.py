@@ -242,7 +242,6 @@ PATH_REWRITE_EXACT = {
     "core/platform/notifications/__init__.py": "src/core/shared/events/__init__.py",
     "infra/platform/service_registration/platform_bundle.py": "src/infra/composition/platform_registry.py",
     "infra/platform/service_registration/project_management_bundle.py": "src/infra/composition/project_registry.py",
-    "infra/platform/service_registration/inventory_procurement_bundle.py": "src/infra/composition/inventory_registry.py",
     "infra/services.py": "src/infra/composition/app_container.py",
     "ui/main_window.py": "src/ui/shell/main_window.py",
     "ui/admin/audit_tab.py": "src/ui/platform/workspaces/control/audit/tab.py",
