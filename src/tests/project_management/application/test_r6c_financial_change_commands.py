@@ -57,6 +57,11 @@ class _ChangeService:
         )
         self.change = _change()
 
+    @property
+    def current_actor_user_id(self):
+        principal = getattr(self._user_session, "principal", None)
+        return getattr(principal, "user_id", None)
+
     def get_change(self, _change_id):
         return self.change
 
