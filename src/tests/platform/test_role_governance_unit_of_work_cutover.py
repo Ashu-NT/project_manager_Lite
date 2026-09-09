@@ -181,9 +181,8 @@ def test_commit_failure_rolls_back_binding_and_audit_together(services, monkeypa
 
 
 def test_storeroom_role_assignment_targets_a_non_active_organization(services):
-    """The confirmed-and-fixed ambient-org bug (P5C prerequisite pass): granting a
-    storeroom-scoped role must key off the STOREROOM's own organization, never the ambient
-    active one."""
+    """Granting a storeroom-scoped role must key off the STOREROOM's own organization, never
+    the ambient active one."""
     tenant_context_service = services["tenant_context_service"]
     org_a1_id = tenant_context_service.get_active_organization_id()
     site_a1 = services["site_service"].create_site(
@@ -437,23 +436,16 @@ def test_department_role_assignment_remains_unreachable_and_undocumented_as_a_ne
     services,
 ):
     """Unlike organization/project/site/storeroom, "department" has NO `scope_exists_resolver`
-    registered anywhere in composition, and no role in the catalog even declares
-    `allowed_scope_type == "department"` -- not a bug in an existing registration (which is what
-    this phase fixes), but a resource scope never wired up for role assignment at all. Enabling
-    it from scratch (a `ScopedRolePolicy`, role choices, a delegation-namespace convention, a
-    catalog role) is a materially larger feature addition than closing an existing resolver's
-    ambient-scope defect, so it is documented here, not implemented, and stays out of P5C-1's
-    boundary.
-
-    Item 4 evidence (full trace, not an unchecked assumption): organization ownership IS
-    trivially derivable for department -- `DepartmentORM.organization_id` is a required column,
-    identical in shape to `Site`/`Storeroom` -- so this is NOT a
-    "P5C-1 RESOURCE OWNERSHIP MODEL BLOCKER" (ownership needs no domain redesign to derive). The
-    repository read (`DepartmentRepository.get()`) is confirmed to share the SAME ambient-active-
-    organization filter class already fixed for project/site/storeroom -- proven directly below,
-    not merely inferred from reading the source -- but fixing it is moot while no
-    `scope_exists_resolver`/catalog role exists to ever reach it, and wiring the whole feature is
-    the out-of-boundary part, not the ownership-derivation part."""
+    registered anywhere in composition, and no role in the catalog declares
+    `allowed_scope_type == "department"` -- a resource scope never wired up for role assignment
+    at all (not an ambient-scope bug in an existing registration). Enabling it from scratch (a
+    `ScopedRolePolicy`, role choices, a delegation-namespace convention, a catalog role) is a
+    materially larger feature addition, so it stays out of scope here, documented rather than
+    implemented. Organization ownership IS trivially derivable for department --
+    `DepartmentORM.organization_id` is a required column, identical in shape to `Site`/
+    `Storeroom` -- and `DepartmentRepository.get()` shares the same ambient-active-organization
+    filter class already fixed for project/site/storeroom (proven directly below); the missing
+    piece is only the `scope_exists_resolver`/catalog-role wiring, not ownership derivation."""
     role_governance_service = services["role_governance_service"]
     assert role_governance_service._scope_exists_resolvers.get("department") is None
     assert role_governance_service._organization_owner_resolvers.get("department") is None
@@ -638,12 +630,9 @@ def test_other_user_mutation_does_not_refresh_the_calling_actors_own_principal(s
 
 
 def test_current_principal_refresh_failure_after_commit_fails_closed(services, monkeypatch):
-    """P5C-1 characterization (item 24): if rebuilding the principal raises AFTER the RoleBinding
-    transaction has already committed, the established `refresh_current_session_if_user` helper
-    (unchanged by this phase, still reached via the `AuthService.revoke_role` facade) clears the
-    session entirely -- fail-closed -- rather than silently continuing with a stale principal. No
-    broader auth redesign is required; this proves the existing mechanism survives the UoW
-    migration unchanged."""
+    """If rebuilding the principal raises AFTER the RoleBinding transaction has already
+    committed, `refresh_current_session_if_user` clears the session entirely -- fail-closed --
+    rather than silently continuing with a stale principal."""
     auth = services["auth_service"]
     tenant_id = _tenant_id(services)
     username = _unique_code("p5c1-refresh-fail-actor")
@@ -724,9 +713,8 @@ def _role_governance_service_source() -> str:
 
 def test_role_governance_service_has_no_inline_commit_or_rollback_or_global_session():
     """`_validate_target_scope` legitimately takes a per-call `session: Session` parameter
-    (P5C-1 reopened storeroom finding: resource-scope resolvers now read within the calling
-    UoW's own transaction) -- what must never exist is a process-lifetime `self._session`
-    the service stores and reuses across calls."""
+    (resource-scope resolvers read within the calling UoW's own transaction) -- what must never
+    exist is a process-lifetime `self._session` the service stores and reuses across calls."""
     source = _role_governance_service_source()
     for forbidden in (
         "self._session.commit(",
@@ -738,13 +726,10 @@ def test_role_governance_service_has_no_inline_commit_or_rollback_or_global_sess
 
 
 def test_role_governance_emits_no_legacy_signal_and_no_view_invalidation_or_qt_vocabulary():
-    """P5C-2 legitimately added `RoleBindingAssigned`/`RoleBindingRevoked` (see
+    """`RoleBindingAssigned`/`RoleBindingRevoked` are legitimately recorded (see
     `test_role_binding_events.py`); this guard asserts what must still never exist -- any legacy
-    Signal emission at all (P5 closeout, 2026-08-26: `auth_changed.emit(...)` removed from both
-    `assign_role`/`revoke_role_binding` as a confirmed pure legacy duplicate of the
-    already-implemented RoleBinding ViewInvalidation path), and no ViewInvalidation/Qt dependency
-    (P5C-3's concern -- RoleGovernanceService itself stays a pure DomainEvent recorder, never a
-    ViewInvalidation producer or Qt-aware component)."""
+    Signal emission, and no ViewInvalidation/Qt dependency (`RoleGovernanceService` stays a pure
+    DomainEvent recorder, never a ViewInvalidation producer or Qt-aware component)."""
     source = _role_governance_service_source()
     emitted_signals = set(re.findall(r"domain_events\.(\w+)\.emit\(", source))
     assert emitted_signals == set()

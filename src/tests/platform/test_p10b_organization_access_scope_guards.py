@@ -1,13 +1,8 @@
-"""P10B: architecture guards for organization-scoped access assignment.
-
-Organization is now a selectable Access Workspace scope type (see
-`test_platform_access_scopes.py`'s `test_access_service_supports_organization_scope_grants_and_
-principal_hydration` and `test_platform_control_desktop_api.py`'s
-`test_build_desktop_api_registry_exposes_organization_as_an_access_scope_type` for the positive
-behavioral proof). These guards protect the specific constraints the governing spec called out:
-no new user<->organization persistence model, no parallel authorization path around
-RoleGovernance, and no UI-layer repository/ORM leakage in the Access Workspace surface.
-"""
+"""Architecture guards for organization-scoped access assignment: no new user<->organization
+persistence model, no parallel authorization path around RoleGovernance, and no UI-layer
+repository/ORM leakage in the Access Workspace surface. Positive behavioral proof that
+Organization is a selectable Access Workspace scope type lives in `test_platform_access_scopes.py`
+and `test_platform_control_desktop_api.py`."""
 
 from __future__ import annotations
 
@@ -29,8 +24,8 @@ def _iter_source_files(*relative_dirs: str):
 
 
 def test_no_new_user_organization_persistence_model_was_introduced():
-    """P10B explicitly forbids a parallel `OrganizationUser`/`UserOrganization`/
-    `OrganizationMembership` table -- organization access must stay RoleBinding-based."""
+    """No parallel `OrganizationUser`/`UserOrganization`/`OrganizationMembership` table --
+    organization access must stay RoleBinding-based."""
     offenders: list[str] = []
     for path in _iter_source_files("src/core", "src/infra"):
         try:
@@ -70,9 +65,8 @@ def test_organization_is_a_canonical_scope_type_not_a_special_case():
 
 
 def test_access_workspace_presenter_and_controller_do_not_import_repositories_or_orm():
-    """The Access Workspace presenter/controller stay desktop-API-only -- P10B added no new
-    scope-type-specific code there (the layer was already scope-type-agnostic), so this guard
-    simply confirms that remains true."""
+    """The Access Workspace presenter/controller stay desktop-API-only -- scope-type-agnostic,
+    with no scope-type-specific repository/ORM code."""
     presenter_path = (
         _REPO_ROOT
         / "src/ui_qml/platform/presenters/identity_access/access/access_workspace_presenter.py"
@@ -94,7 +88,7 @@ def test_access_workspace_presenter_and_controller_do_not_import_repositories_or
 def test_organization_access_policy_role_choices_map_to_pre_existing_system_roles():
     """`ORGANIZATION_SCOPE_ROLE_CANONICAL_NAMES` must resolve to the pre-existing `org_admin`/
     `org_viewer`/`org_member` system roles (see `role_scope_policy.py`'s
-    `_ORGANIZATION_SCOPE_ROLE_NAMES`) -- P10B must not invent new organization role names."""
+    `_ORGANIZATION_SCOPE_ROLE_NAMES`) -- no new organization role names may be invented."""
     from src.core.platform.domain.master_data.org.access_policy import (
         ORGANIZATION_SCOPE_ROLE_CANONICAL_NAMES,
         ORGANIZATION_SCOPE_ROLE_CHOICES,

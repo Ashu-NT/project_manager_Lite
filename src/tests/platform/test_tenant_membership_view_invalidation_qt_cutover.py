@@ -516,12 +516,9 @@ def test_removal_fires_both_membership_and_role_binding_invalidation_separately(
 
 
 def test_membership_transition_does_not_trigger_unrelated_sub_controller_refreshes(services):
-    """Item 37: a membership event must never reload calendars/sites/departments/organizations/
-    parties/documents -- the coarse legacy `auth_changed` binder's own over-refresh, not
-    reproduced by the narrow P5D-3 wiring. Uses a pure `suspend_member` (setup completed before
-    installing spies) so the measured window contains only the membership transition itself --
-    no `register_user()`/`authenticate()` calls, which legitimately fire their OWN unrelated
-    `auth_changed` emissions (new-account creation, login) and would confound this proof."""
+    """A membership event must never reload calendars/sites/departments/organizations/parties/
+    documents. Uses a pure `suspend_member` (setup completed before installing spies) so the
+    measured window contains only the membership transition itself."""
     catalog = _catalog(services)
     membership_service = services["tenant_membership_service"]
     admin_principal = services["user_session"].principal

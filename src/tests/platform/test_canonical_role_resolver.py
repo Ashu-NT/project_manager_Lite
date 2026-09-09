@@ -41,10 +41,9 @@ def _resolver(services, *, owned_scopes=None) -> CanonicalRoleResolver:
 
 
 def _role_repositories(services):
-    # P5C-1: RoleGovernanceService no longer holds its own `_role_binding_repo` (it opens a
-    # fresh UoW-bound one per mutation) -- a freshly-constructed repository bound to the same
-    # shared test `session` reads/writes the identical underlying data for setup/assertion
-    # purposes, exactly like `auth._role_repo`/etc. below already do.
+    # RoleGovernanceService opens a fresh UoW-bound role-binding repo per mutation -- a
+    # freshly-constructed repository bound to the same shared test `session` reads/writes the
+    # identical underlying data for setup/assertion purposes.
     auth = services["auth_service"]
     return SimpleNamespace(
         role_binding_repo=SqlAlchemyRoleBindingRepository(services["session"]),

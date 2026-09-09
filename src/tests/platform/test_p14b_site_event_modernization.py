@@ -530,7 +530,7 @@ def test_no_generic_refresh_all_workspaces_wired_to_site_events():
 
 
 # ---------------------------------------------------------------------------
-# P14B-FIX: correlation_id-based site_list dedup audit
+# correlation_id-based site_list dedup audit
 # ---------------------------------------------------------------------------
 
 

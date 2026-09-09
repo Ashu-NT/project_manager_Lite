@@ -69,14 +69,8 @@ def test_platform_runtime_desktop_api_maps_validation_errors(services):
 
 
 def test_platform_runtime_desktop_api_maps_permission_denied_enable_organization(services):
-    """P10A: `PlatformRuntimeDesktopApi.set_active_organization` (session switching, gated
-    identically to organization access) was deleted -- the desktop API no longer exposes any
-    session-switch action at all (P10C, not yet built, will add one calling
-    `TenantContextService.set_active_organization` directly; see
-    `test_platform_runtime_application_service.py` for that mechanism's own denial coverage).
-    `enable_organization` is the desktop API's remaining organization-scoped write, gated by
-    `settings.manage` -- this test replaces the retired switch-permission test with equivalent
-    coverage of that gate's own desktop-API error mapping."""
+    """`enable_organization` is the desktop API's organization-scoped write, gated by
+    `settings.manage` -- proves that gate's desktop-API error mapping."""
     api = PlatformRuntimeDesktopApi(
         platform_runtime_application_service=services["platform_runtime_application_service"]
     )

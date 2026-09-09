@@ -111,14 +111,14 @@ def test_platform_sites_workspace_no_longer_shows_org_a_data_after_switching_to_
 
 
 def test_pm_workspace_rescopes_on_tenant_switch_too(services):
-    """Section 4 of the governing spec: verify the same consistency after a TENANT switch, not
-    just an organization switch -- `refreshAllWorkspaces` is wired to both signals identically.
+    """Verify the same consistency after a TENANT switch, not just an organization switch --
+    `refreshAllWorkspaces` is wired to both signals identically.
 
     A bare `Tenant.create(...)` has no organization/module-entitlement provisioning at all, so
     proving actual PROJECT DATA disappears would really be testing PM's own "Project Management
-    not licensed" early-exit path (a real, but separate and pre-existing, PM behavior -- see the
-    final report), not organization-scoping. This proves the WIRING itself fires identically to
-    the organization-switch case above: `refreshAllWorkspaces` runs on `tenantSwitched` too."""
+    not licensed" early-exit path, not organization-scoping. This proves the WIRING itself fires
+    identically to the organization-switch case above: `refreshAllWorkspaces` runs on
+    `tenantSwitched` too."""
     from src.core.platform.domain.tenant.tenancy import Tenant
     from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.tenant import (
         SqlAlchemyTenantRepository,
@@ -149,15 +149,12 @@ def test_pm_workspace_rescopes_on_tenant_switch_too(services):
 
 
 def test_pm_workspace_does_not_keep_serving_org_a_data_after_current_org_access_is_revoked(services):
-    """P10C's `_clear_active_organization_if_revoked` fix only clears the CURRENT live session
-    when the revoked user IS that session's own principal (matching `refresh_current_session_if_
-    user`'s same-user precedent -- proven as an explicit no-op for a DIFFERENT user's session,
-    and characterized end-to-end, in test_p10c_organization_switcher.py). Exercises that method
-    directly (as that file's own same-session proof does) rather than through the full
-    `remove_scope_grant` public API's own permission+delegation-policy gates, which are a
-    separate, already-tested concern -- this isolates the one behavior relevant here: does a
-    PM workspace already showing org A's data stop doing so once the session's active
-    organization is cleared."""
+    """`_clear_active_organization_if_revoked` only clears the CURRENT live session when the
+    revoked user IS that session's own principal (see `test_p10c_organization_switcher.py` for
+    the same-session characterization). Exercises that method directly rather than through the
+    full `remove_scope_grant` public API, to isolate the one behavior relevant here: does a PM
+    workspace already showing org A's data stop doing so once the session's active organization
+    is cleared."""
     from src.tests.ui_runtime_helpers import login_as
 
     organization_service = services["organization_service"]

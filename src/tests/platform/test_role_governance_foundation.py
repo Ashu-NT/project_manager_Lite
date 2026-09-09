@@ -40,9 +40,9 @@ from src.infra.persistence.migrations.runner import run_migrations
 
 
 def _role_binding_repo(services):
-    """P5C-1: RoleGovernanceService no longer holds `_role_binding_repo` (it opens a fresh
-    UoW-bound one per mutation) -- a freshly-constructed repository bound to the same shared
-    test `session` reads/writes the identical underlying data for setup/assertion purposes."""
+    """`RoleGovernanceService` opens a fresh UoW-bound repository per mutation -- this
+    freshly-constructed one, bound to the same shared test `session`, reads/writes the identical
+    underlying data for setup/assertion purposes."""
     return SqlAlchemyRoleBindingRepository(services["session"])
 
 
@@ -824,8 +824,8 @@ def test_canonical_assignment_rolls_back_when_audit_persistence_fails(
     def _fail_audit(*_args, **_kwargs) -> None:
         raise RuntimeError("audit unavailable")
 
-    # P5C-1: RoleGovernanceService builds a fresh SqlAlchemyAuditRepository per UoW call, so
-    # patching one instance would not affect the next call -- patch the class method instead.
+    # A fresh SqlAlchemyAuditRepository is built per UoW call, so patching one instance would
+    # not affect the next call -- patch the class method instead.
     monkeypatch.setattr(
         SqlAlchemyAuditRepository,
         "add_for_tenant",

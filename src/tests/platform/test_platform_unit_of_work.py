@@ -1,7 +1,5 @@
-"""P4 Step 2 (ADR-005 Section 24, Round 7/8): `SqlAlchemyPlatformUnitOfWork`/
-`SqlAlchemyPlatformUnitOfWorkFactory` -- proven directly, before `ApprovalService` is cut over
-onto them.
-"""
+"""`SqlAlchemyPlatformUnitOfWork`/`SqlAlchemyPlatformUnitOfWorkFactory` -- proven directly,
+independent of `ApprovalService`'s own cutover onto them."""
 
 from __future__ import annotations
 
@@ -141,9 +139,8 @@ def test_rollback_discards_staged_approval_and_audit_rows_together(tmp_path):
 
 
 def test_approval_request_mapper_round_trips_tenant_and_organization_id():
-    """Approval-P1 (§6): the mapper must round-trip `tenant_id` -- ORM tenant_id=T1/org_id=O1 ->
-    domain -> ORM, byte-for-byte unchanged, with no ambient context involved anywhere in the
-    mapping functions themselves."""
+    """ORM tenant_id=T1/org_id=O1 -> domain -> ORM, byte-for-byte unchanged, with no ambient
+    context involved anywhere in the mapping functions themselves."""
     from src.core.platform.infrastructure.persistence.mappers.approval.approval import (
         approval_from_orm,
         approval_to_orm,
@@ -178,9 +175,9 @@ def test_approval_request_mapper_round_trips_tenant_and_organization_id():
 
 
 def test_cross_tenant_context_cannot_read_another_tenants_approval_request(tmp_path):
-    """Approval-P1 (§7): Tenant A's `ApprovalRequest` must not be readable through a UoW whose
-    active context resolves to Tenant B -- proven without ever switching an "active
-    organization" within the same tenant; the two contexts are genuinely different tenants."""
+    """Tenant A's `ApprovalRequest` must not be readable through a UoW whose active context
+    resolves to Tenant B -- proven with two genuinely different tenants, not just a different
+    active organization within the same tenant."""
     from src.core.platform.infrastructure.persistence.uow.approval_unit_of_work import (
         SqlAlchemyPlatformUnitOfWorkFactory,
     )

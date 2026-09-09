@@ -51,12 +51,7 @@ def test_cpm_dependency_type_math(services):
     # SS/FF/SF zero-lag boundary is "same day as the anchor" (not "next
     # working day after", unlike FS), so N days of lag beyond that boundary
     # is add_working_days(anchor, N + 1) -- the same "+1" trick used for FS
-    # above, just without FS's extra zero-lag offset. See
-    # docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
-    # §5/§11/Phase B for why bare `add_working_days(anchor, lag)` (the
-    # pre-fix formula this test used to assert) was wrong: it gave SS/FF/SF
-    # one fewer working day of separation than FS for the "same" lag value,
-    # and could not tell lag=0 apart from lag=1.
+    # above, just without FS's extra zero-lag offset.
     ss_info = result[ss.id]
     exp_ss_start = wc.add_working_days(p.earliest_start, 3 + 1)
     exp_ss_finish = wc.add_working_days(exp_ss_start, 2)
@@ -78,11 +73,8 @@ def test_cpm_dependency_type_math(services):
 
 
 def test_ss_lag_zero_and_lag_one_are_now_distinguishable(services):
-    """Regression for the exact bug flagged in the R4.4 dependency audit:
-    under the old add_working_days(anchor, lag) formula, SS/FF/SF lag=0 and
-    lag=1 produced the identical date whenever the predecessor's anchor date
-    already fell on a working day. The canonical dependency math must
-    distinguish them."""
+    """SS/FF/SF lag=0 and lag=1 must produce distinguishable dates, even when the
+    predecessor's anchor date falls on a working day."""
     ps = services["project_service"]
     ts = services["task_service"]
     sched = services["scheduling_engine"]
@@ -104,8 +96,7 @@ def test_ss_lag_zero_and_lag_one_are_now_distinguishable(services):
 
 
 def test_fs_negative_lead_is_monotonic(services):
-    """Regression for the audit's negative-lag finding: FS lag=-1 and
-    lag=-2 must not collapse to the same date."""
+    """FS lag=-1 and lag=-2 must not collapse to the same date."""
     ps = services["project_service"]
     ts = services["task_service"]
     sched = services["scheduling_engine"]
@@ -130,18 +121,14 @@ def test_fs_negative_lead_is_monotonic(services):
 
 
 def test_mixed_successor_types_both_constrain_predecessor_late_dates(services):
-    """Regression for the audit's backward-pass shadowing bug
-    (docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
-    §11): the old code took the FS/FF-derived late-finish candidates
-    (`cand_lf_dates`) whenever ANY existed, discarding the SS/SF-derived
-    late-start candidates (`cand_ls_dates`) entirely on that predecessor,
-    even when the SS/SF bound was the tighter (more constraining) one.
+    """The backward pass must take the tighter (more constraining) of the FS/FF-derived
+    late-finish candidates and the SS/SF-derived late-start candidates on a predecessor with
+    mixed successor types -- never just whichever candidate set happens to be non-empty.
 
-    Construct exactly that case: an FS successor with a short duration (so
-    its own latest-start sits right at the project's late finish) and an SS
-    successor with a much longer duration (so its own latest-start is
-    pulled far earlier). The predecessor's latest start must reflect the
-    tighter SS-derived bound, not just the looser FS-derived one.
+    Construct exactly that case: an FS successor with a short duration (so its own
+    latest-start sits right at the project's late finish) and an SS successor with a much
+    longer duration (so its own latest-start is pulled far earlier). The predecessor's latest
+    start must reflect the tighter SS-derived bound, not the looser FS-derived one.
     """
     ps = services["project_service"]
     ts = services["task_service"]
@@ -164,9 +151,6 @@ def test_mixed_successor_types_both_constrain_predecessor_late_dates(services):
 
     # With lag=0, SS's backward formula propagates the successor's own
     # latest-start straight onto the predecessor: pred.LS == ss_succ.LS.
-    # Under the old shadowing bug, pred.LS would instead have come out
-    # equal to a looser, FS-derived value (fs_succ.LS shifted back by the
-    # predecessor's own duration), strictly LATER than ss_succ.LS.
     assert pred_info.latest_start == ss_info.latest_start
     assert pred_info.latest_start < fs_info.latest_start
 

@@ -1,8 +1,7 @@
-"""ADR-005 P5A: `OrganizationCreated` -- the business event contract, its recording lifecycle
-(both creation paths), and its post-commit `ViewInvalidation` mapping. Complements
+"""`OrganizationCreated` -- the business event contract, its recording lifecycle (both creation
+paths), and its post-commit `ViewInvalidation` mapping. Complements
 `test_organization_service_unit_of_work_cutover.py`/`test_platform_provisioning_unit_of_work_cutover.py`,
-which already prove the standalone/provisioning transaction mechanics this event rides on top of.
-"""
+which prove the standalone/provisioning transaction mechanics this event rides on top of."""
 
 from __future__ import annotations
 
@@ -63,7 +62,6 @@ def test_organization_created_conforms_to_domain_event_and_has_only_approved_fie
     assert is_dataclass(event)
     field_names = {f.name for f in fields(event)}
     assert field_names == {"tenant_id", "organization_id", "name", "code", "occurred_at"}
-    # Immutable, per ADR-005's frozen/slots convention.
     with pytest.raises(AttributeError):
         event.name = "Changed"  # type: ignore[misc]
 
@@ -361,7 +359,7 @@ def test_cross_tenant_routing_via_real_channel(services):
 
 
 # ---------------------------------------------------------------------------
-# Post-commit failure isolation (P2 ISOLATE_AND_CONTINUE)
+# Post-commit failure isolation
 # ---------------------------------------------------------------------------
 
 

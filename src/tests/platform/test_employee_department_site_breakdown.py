@@ -1,25 +1,13 @@
-"""Employees by Department/Site -- Overview breakdown analytics.
+"""Employees by Department/Site -- Overview breakdown analytics: a GROUP BY aggregate across ALL
+departments/sites at once, powering the Platform Overview's "Employees by Department"/"Employees
+by Site" cards. Extends the existing `EmployeeHeadcountReader` rather than a new reader class.
+Employees with no department/site assigned are bucketed under a `None` id labeled "Unassigned"
+rather than dropped, since that's a real, expected state.
 
-This is the deliberately separate analytics/read-model phase flagged when
-the department/site-filtered employee listing (P6.5-style drill-down for
-the Department/Site detail pages) was built: a GROUP BY aggregate across
-ALL departments/sites at once, powering the Platform Overview's "Employees
-by Department"/"Employees by Site" cards -- which previously showed a
-hardcoded "Not yet available" placeholder.
-
-Extends the existing EmployeeHeadcountReader (P6) rather than introducing a
-new reader class, per the established precedent: employee-specific
-aggregate reads live there. Employees with no department/site assigned are
-bucketed under a ``None`` id labeled "Unassigned" rather than dropped,
-since that's a real, expected state (Employee.department_id/site_id are
-nullable).
-
-These tests mirror test_employee_headcount_reader.py's structure:
-reader-level unit tests (query count, unassigned bucket, ordering,
-tenant/org isolation, isolated db), then service/desktop-API-level tests
-through the real `services` fixture, then an end-to-end guardrail through
-the real admin overview presenter.
-"""
+Mirrors `test_employee_headcount_reader.py`'s structure: reader-level unit tests (query count,
+unassigned bucket, ordering, tenant/org isolation, isolated db), then service/desktop-API-level
+tests through the real `services` fixture, then an end-to-end guardrail through the real admin
+overview presenter."""
 from __future__ import annotations
 
 import pytest

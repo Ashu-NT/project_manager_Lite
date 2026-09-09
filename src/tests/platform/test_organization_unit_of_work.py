@@ -1,8 +1,5 @@
-"""P4B (Organization Capability Transaction Convergence): `SqlAlchemyOrganizationUnitOfWork`/
-`SqlAlchemyOrganizationUnitOfWorkFactory` -- proven directly, mirroring
-`test_platform_unit_of_work.py` (Approval's own P4 Step 2 equivalent), before
-`OrganizationService` is cut over onto them.
-"""
+"""`SqlAlchemyOrganizationUnitOfWork`/`SqlAlchemyOrganizationUnitOfWorkFactory` -- proven
+directly, mirroring `test_platform_unit_of_work.py`'s equivalent for Approval."""
 
 from __future__ import annotations
 

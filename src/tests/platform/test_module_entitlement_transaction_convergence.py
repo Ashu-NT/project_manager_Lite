@@ -1,27 +1,15 @@
-"""P5B prerequisite (Module Entitlement Transaction Convergence): the generic
-`ModuleCatalogService.set_module_state` cut over from the shared, process-lifetime Session onto a
-canonical, fresh-session `ModuleEntitlementUnitOfWork`, and from an ambient
-(active-organization-only) scope onto an explicit `organization_id` parameter that can target ANY
-organization within the caller's authenticated tenant -- not only the currently active one.
-Mirrors `test_organization_service_unit_of_work_cutover.py` (P4B's own equivalent for
-Organization).
+"""Module Entitlement's five business commands (`license_module`/`revoke_module_license`/
+`enable_module`/`disable_module`/`transition_module_lifecycle`, exercised here via
+`disable_module` as the representative single-field mutation) use a fresh-session
+`ModuleEntitlementUnitOfWork` and an explicit `organization_id` parameter that can target any
+organization in the caller's authenticated tenant, not only the currently active one. Mirrors
+`test_organization_service_unit_of_work_cutover.py`'s equivalent for Organization.
 
-P5B-SEM/P5B-1 then retired `set_module_state` itself in favor of five explicit business commands
-(`license_module`/`revoke_module_license`/`enable_module`/`disable_module`/
-`transition_module_lifecycle`) -- this file now exercises the same transaction/scope guarantees
-through those commands (using `disable_module` as the representative single-field mutation).
-
-P5B-2 then added the five typed `ModuleLicensed`/`ModuleLicenseRevoked`/`ModuleEnabled`/
-`ModuleDisabled`/`ModuleLifecycleTransitioned` DomainEvents at these same command boundaries (see
-`test_module_entitlement_events.py`).
-
-P5B-3 then mapped those events (plus a direct provisioning-triggered case) onto
-`ViewInvalidationHint`, migrated the real Qt consumers, and retired `modules_changed` entirely --
-see `test_module_entitlement_view_invalidation_qt_cutover.py`.
-`test_module_entitlement_application_layer_stays_qt_free` enforces the remaining phase boundary:
-the application layer may produce transport-independent `ViewInvalidationHint`s, but must never
-import Qt or the Qt adapter package directly.
-"""
+Event recording is covered in `test_module_entitlement_events.py`; ViewInvalidation mapping and
+Qt consumer wiring in `test_module_entitlement_view_invalidation_qt_cutover.py`.
+`test_module_entitlement_application_layer_stays_qt_free` enforces the layering boundary: the
+application layer may produce transport-independent `ViewInvalidationHint`s, but must never
+import Qt or the Qt adapter package directly."""
 
 from __future__ import annotations
 

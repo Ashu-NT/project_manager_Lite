@@ -1,14 +1,10 @@
-"""P5B-SEM/P5B-1: the generic `set_module_state(licensed=..., enabled=..., lifecycle_status=...)`
-patch API is retired. Every module-entitlement mutation is now one of five explicit business
-commands on `ModuleCatalogService`: `license_module`, `revoke_module_license`, `enable_module`,
-`disable_module`, `transition_module_lifecycle`. This file exercises the full state machine each
-command enforces -- see `platform_domain_event_implementation_plan.md`'s `## P5B-SEM` section for
-the design rationale.
+"""Every module-entitlement mutation is one of five explicit business commands on
+`ModuleCatalogService`: `license_module`, `revoke_module_license`, `enable_module`,
+`disable_module`, `transition_module_lifecycle` -- no generic patch API. This file exercises the
+full state machine each command enforces.
 
-No DomainEvent, no ViewInvalidation, no Qt migration in this phase --
 `test_module_entitlement_transaction_convergence.py::test_module_entitlement_prerequisite_does_not_add_event_vocabulary`
-enforces that boundary.
-"""
+enforces that this module stays free of DomainEvent/ViewInvalidation/Qt vocabulary."""
 
 from __future__ import annotations
 
@@ -163,9 +159,9 @@ def test_enable_module_rejects_suspended_and_expired(services):
 
 
 def test_enable_module_rejects_inactive_module(services):
-    """`inactive` is only reachable via `revoke_module_license` (licensed=False), so this is the
-    same rejection path as `test_enable_module_rejects_unlicensed_module`, documented explicitly
-    for the `inactive` lifecycle value named in P5B-SEM's own test list."""
+    """`inactive` is only reachable via `revoke_module_license` -- same rejection path as
+    `test_enable_module_rejects_unlicensed_module`, documented explicitly for this lifecycle
+    value."""
     catalog = services["module_catalog_service"]
     org = services["tenant_context_service"].get_active_organization()
     catalog.revoke_module_license(org.id, "project_management")

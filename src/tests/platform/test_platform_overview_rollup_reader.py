@@ -1,30 +1,19 @@
-"""Platform Overview rollup -- backend performance modernization.
+"""Platform Overview rollup: `PlatformOverviewRollupReader` computes
+Organizations/Sites/Departments/Parties/Documents counts via a single aggregate SQL query
+(COUNT + SUM(CASE...)) per entity, never a full-list materialization + Python sum.
 
-Before this change, PlatformAdminWorkspacePresenter.build_overview() computed
-Organizations/Sites/Departments/Parties/Documents counts by calling each
-entity's list_X(active_only=None) -- fully hydrating every row for the active
-organization -- then summing/len()-ing over the whole in-memory list in
-Python. This mirrors the same anti-pattern P6 (test_employee_headcount_
-reader.py) already fixed for Employees: a single aggregate SQL query
-(COUNT + SUM(CASE...)) via a dedicated reader replaces the full-list
-materialization + Python sum.
+One cohesive overview-specific reader (not one Reader per entity). Employees keeps its own
+`EmployeeHeadcountReader`; Users is deliberately out of scope (`list_users()` has caller-type
+branching and a platform-role exclusion computed via per-user role lookups that a naive COUNT
+would not safely replicate).
 
-PlatformOverviewRollupReader is one cohesive overview-specific reader (not
-one Reader per entity) covering Organizations, Sites, Departments, Parties,
-and Documents. Employees keeps its own EmployeeHeadcountReader unchanged;
-Users is deliberately out of scope for this phase (list_users() has
-caller-type branching and a platform-role exclusion computed via per-user
-role lookups that a naive COUNT would not safely replicate).
+Sites additionally carries row-level scope restriction on top of the permission check
+(`SiteService.list_sites()` applies `filter_scope_rows()`) -- `get_site_rollup_summary()`
+replicates that restriction by passing the caller's `allowed_site_ids` into the reader.
 
-Sites additionally carries row-level scope restriction on top of the
-permission check (SiteService.list_sites() applies filter_scope_rows()) --
-SiteService.get_site_rollup_summary() replicates that restriction by passing
-the caller's allowed_site_ids into the reader, verified below.
-
-These tests mirror test_employee_headcount_reader.py's structure: reader-
-level unit tests (exact query count + tenancy/organization scoping, isolated
-db), then service-level tests through the real `services` fixture, then
-end-to-end (real admin presenter) SQL-count guardrails.
+Structure: reader-level unit tests (exact query count + tenancy/organization scoping, isolated
+db), then service-level tests through the real `services` fixture, then end-to-end (real admin
+presenter) SQL-count guardrails.
 """
 from __future__ import annotations
 
@@ -666,10 +655,8 @@ def test_rollup_summaries_never_call_write_repository_list_methods(services):
 
 
 def test_admin_overview_never_lists_full_master_data_collections(services):
-    """End-to-end: the real Admin Console overview builder must use the
-    rollup summaries, not full list_X() collections, regardless of how many
-    rows exist. Also captures the SQL/query-count shape of build_overview()
-    before vs. after this phase's change (see docstring at top of file)."""
+    """End-to-end: the real Admin Console overview builder must use the rollup summaries, not
+    full list_X() collections, regardless of how many rows exist."""
     from src.application.runtime import build_desktop_api_registry
     from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
@@ -730,11 +717,8 @@ def test_admin_overview_never_lists_full_master_data_collections(services):
                 "to compute rollup metrics -- that would reintroduce full-list materialization"
             )
 
-    # SQL query-count captured for build_overview(): this phase replaces N
-    # full-table-scan + Python-sum passes (one per entity) with one narrow
-    # aggregate query per entity (plus a second, LIMIT-3 query for Sites'
-    # sample names) -- a fixed, row-count-independent number of statements
-    # rather than one that grows with result-set size.
+    # One aggregate query per entity (plus a second, LIMIT-3 query for Sites' sample names) --
+    # a fixed, row-count-independent number of statements.
     master_data_tables = ("organizations", "sites", "departments", "parties", "documents")
     master_data_statements = [
         statement for statement in statements

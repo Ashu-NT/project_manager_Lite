@@ -1,14 +1,9 @@
-"""ADR-005 P5B-2: `ModuleLicensed`/`ModuleLicenseRevoked`/`ModuleEnabled`/`ModuleDisabled`/
-`ModuleLifecycleTransitioned` -- the five Module Entitlement business events, their recording
-lifecycle at each P5B-SEM/P5B-1 semantic command boundary, and the no-event/single-event
-guarantees P5B-SEM's design decided. Complements
+"""The five Module Entitlement business events (`ModuleLicensed`/`ModuleLicenseRevoked`/
+`ModuleEnabled`/`ModuleDisabled`/`ModuleLifecycleTransitioned`), their recording lifecycle at
+each semantic command boundary, and the no-event/single-event guarantees. Complements
 `test_module_entitlement_transaction_convergence.py` (transaction/scope mechanics) and
-`test_module_entitlement_semantic_commands.py` (the state machine itself).
-
-P5B-3 (see `test_module_entitlement_view_invalidation_qt_cutover.py`) later mapped these events
-onto `ViewInvalidationHint`, migrated the real Qt consumers, and retired the legacy
-`modules_changed` signal this file no longer tests directly.
-"""
+`test_module_entitlement_semantic_commands.py` (the state machine itself); ViewInvalidation
+mapping is covered in `test_module_entitlement_view_invalidation_qt_cutover.py`."""
 
 from __future__ import annotations
 

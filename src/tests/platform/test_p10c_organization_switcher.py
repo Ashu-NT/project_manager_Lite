@@ -48,9 +48,8 @@ def test_list_accessible_organizations_includes_only_enabled_and_authorized_orgs
     )
     user = _register_active_tenant_user(services, "switcher-list-user", role_names=["viewer"])
     _grant_organization_access(services, user_id=user.id, organization_id=org_granted.id)
-    # Also grant the disabled org -- P10B policy A: authorization and availability are
-    # independent, so a grant to a disabled org is legal; it just must not appear as a
-    # switch-TARGET (is_enabled gates the switcher list, not the grant).
+    # Also grant the disabled org -- authorization and availability are independent, so a grant
+    # to a disabled org is legal; it just must not appear as a switch-TARGET.
     _grant_organization_access(services, user_id=user.id, organization_id=org_disabled.id)
 
     login_as(services, "switcher-list-user", "StrongPass123")
@@ -144,11 +143,10 @@ def test_disabling_a_non_active_organization_does_not_disturb_the_current_contex
 
 
 def test_revoking_a_users_only_organization_grant_clears_their_active_organization(services):
-    """Same-session proof: `_clear_active_organization_if_revoked` fires only when the revoked
-    user IS the current live principal (matching `refresh_current_session_if_user`'s own
-    same-user scoping). Exercised directly rather than through the full `assign_scope_grant`
-    public API's own permission+delegation-policy gates (both already covered by their own
-    dedicated tests elsewhere) -- this isolates the one behavior P10C actually added."""
+    """`_clear_active_organization_if_revoked` fires only when the revoked user IS the current
+    live principal, matching `refresh_current_session_if_user`'s own same-user scoping. Exercised
+    directly rather than through the full `assign_scope_grant` public API, whose
+    permission+delegation-policy gates are covered elsewhere."""
     access = services["access_service"]
     organization_service = services["organization_service"]
     org = organization_service.create_organization(
@@ -190,9 +188,9 @@ def test_revoked_organization_access_is_not_restored_on_the_next_login(services)
 
 
 def test_revoking_a_grant_for_a_different_currently_active_user_session_is_a_noop_in_this_process(services):
-    """Desktop architecture note (per governing spec §9/§10): a single interactive process has
-    one live session. Revoking someone ELSE's grant while THIS process's principal belongs to a
-    different user must not touch this process's own active organization."""
+    """A single interactive process has one live session. Revoking someone ELSE's grant while
+    THIS process's principal belongs to a different user must not touch this process's own
+    active organization."""
     access = services["access_service"]
     organization_service = services["organization_service"]
     default_org = services["tenant_context_service"].get_active_organization()
@@ -375,11 +373,8 @@ def test_independent_sessions_switch_organizations_without_affecting_each_other(
 
 
 def test_no_new_organization_or_legacy_signal_domain_event_was_introduced():
-    """P46B: `src/core/shared/events/domain_events.py` (the legacy `DomainEvents` dataclass +
-    `domain_events` singleton) is deleted outright -- there is no longer a legacy-signal hub for
-    a hypothetical new organization-switching field to be added to at all. Widened to a full
-    production-source scan for the same three hypothetical event names, so the guard survives the
-    module's deletion instead of depending on it."""
+    """No production source may introduce `OrganizationSelected`/`OrganizationActivated`/
+    `ActiveOrganizationChanged` -- organization-switching stays event-free."""
     import glob
     import re
 

@@ -186,9 +186,8 @@ def test_switching_context_does_not_require_settings_manage(services):
 
 
 def test_switching_to_a_disabled_organization_is_denied(services):
-    """P10A: the switch-time gate now checks `is_enabled`, never a mutual-exclusion designation --
-    an organization the caller is otherwise authorized for still cannot be selected while
-    disabled."""
+    """The switch-time gate checks `is_enabled` -- an organization the caller is otherwise
+    authorized for still cannot be selected while disabled."""
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     user_session = services["user_session"]

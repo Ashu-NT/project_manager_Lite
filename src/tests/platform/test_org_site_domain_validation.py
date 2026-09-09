@@ -99,13 +99,11 @@ class _FakeOrganizationRepo:
 
 
 class _FakeOrganizationUnitOfWork:
-    """P4B: a minimal stand-in for `SqlAlchemyOrganizationUnitOfWork` -- this file tests
+    """A minimal stand-in for `SqlAlchemyOrganizationUnitOfWork` -- this file tests
     `OrganizationService`'s domain-validation/final-state logic against fully in-memory fakes
-    with no real SQLAlchemy Session, so it cannot construct a real
-    `SqlAlchemyOrganizationUnitOfWork`. Wraps the SAME `organization_repo`/
-    `enterprise_audit_service` instances passed to `OrganizationService`'s constructor (not a
-    fresh repo per call) since this fake world has no session-per-call concept -- callers assert
-    against `service._organization_repo` directly across sequential calls."""
+    with no real SQLAlchemy Session. Wraps the SAME `organization_repo`/`enterprise_audit_service`
+    instances passed to `OrganizationService`'s constructor (not a fresh repo per call), since
+    callers assert against `service._organization_repo` directly across sequential calls."""
 
     def __init__(self, organization_repo: "_FakeOrganizationRepo", enterprise_audit_service) -> None:
         self.organizations = organization_repo
@@ -348,7 +346,7 @@ def test_organization_service_uses_entity_validation_and_final_state(monkeypatch
     assert activated.display_name == "North Ops"
     assert activated.is_enabled is True
     assert activated.version == 2
-    # P10A: enabling `second` never disables `created` -- no mutual exclusion.
+    # Enabling `second` never disables `created` -- no mutual exclusion.
     reloaded_first = service._organization_repo.get(created.id)
     assert reloaded_first is not None
     assert reloaded_first.is_enabled is True

@@ -1,13 +1,11 @@
-"""P10D: Organization event modernization -- `update_organization`/`enable_organization`/
-`disable_organization` no longer emit the legacy `organizations_changed` Signal (deleted
-entirely, not merely unproduced). They now record `OrganizationProfileUpdated`/
-`OrganizationEnabled`/`OrganizationDisabled` before commit, on the same canonical
-`OrganizationUnitOfWork` `create_organization` already uses for `OrganizationCreated` (P5A) --
-same lifecycle, same `uow.record_event(...)` application-authored pattern, no aggregate refactor.
+"""`update_organization`/`enable_organization`/`disable_organization` record
+`OrganizationProfileUpdated`/`OrganizationEnabled`/`OrganizationDisabled` before commit, on the
+same `OrganizationUnitOfWork` `create_organization` uses for `OrganizationCreated` -- same
+lifecycle, same `uow.record_event(...)` application-authored pattern, no aggregate refactor.
 
 Every event maps onto the existing `organization_list` ViewInvalidation target (TenantScope) --
-never `organization_details` (still no real consumer, unchanged from P5A's own finding) -- via a
-single shared handler (`build_organization_profile_view_invalidation_handler`).
+never `organization_details`, which has no real consumer -- via a single shared handler
+(`build_organization_profile_view_invalidation_handler`).
 
 These tests subscribe directly to `organization_service._uow_factory._post_commit_bus` (the real
 composition-owned bus) to observe exact typed-event counts and types, not merely the resulting
@@ -408,7 +406,7 @@ def test_session_organization_switch_produces_no_business_event(services):
 
 
 # ----------------------------------------------------------------------
-# organizations_changed: zero production refs (belt-and-suspenders, mirrors the P8/P7B guards)
+# organizations_changed: zero production refs (belt-and-suspenders)
 # ----------------------------------------------------------------------
 
 
@@ -486,10 +484,9 @@ def test_no_generic_compatibility_bridge_was_introduced():
 
 
 def test_new_events_use_the_canonical_organization_uow_record_event_pattern():
-    """P10D used the SAME application-authored `uow.record_event(...)` mechanism
-    `_create_organization_using` already established for `OrganizationCreated` -- Organization
-    was not refactored into a `RecordsDomainEvents` aggregate for this, matching the governing
-    spec's least-complex-correct-ownership instruction."""
+    """Uses the SAME application-authored `uow.record_event(...)` mechanism
+    `_create_organization_using` already established for `OrganizationCreated` -- Organization is
+    not a `RecordsDomainEvents` aggregate."""
     import inspect
 
     import src.core.platform.application.master_data.org.organization_service as org_service_module

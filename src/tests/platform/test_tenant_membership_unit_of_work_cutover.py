@@ -338,9 +338,7 @@ def test_last_admin_suspend_and_remove_fail_atomically_with_zero_side_effects(se
 
 def _strip_docstrings_and_comments(source: str) -> str:
     """Architecture guards below check for real code patterns (a call, an attribute touch), not
-    prose -- this module's own docstrings legitimately narrate the pre-P5D-1 bypasses being
-    removed and the sibling capability being mirrored, which would otherwise false-positive a
-    naive raw-source `in` check."""
+    prose that happens to mention the same names in a docstring."""
     without_triple_quoted = re.sub(r'"""[\s\S]*?"""', "", source)
     return re.sub(r"#.*", "", without_triple_quoted)
 
@@ -375,9 +373,9 @@ def test_tenant_membership_service_has_no_inline_commit_or_rollback_or_global_se
 
 
 def test_tenant_membership_service_has_no_direct_role_binding_repository_bypass():
-    """The two P5D-SEM-discovered bypasses (`_ensure_default_role_bindings`'s direct `add()`,
-    `remove_member`'s raw bulk `revoke_active_for_principal_tenant`) must be gone -- replaced
-    by the shared, canonical `role_binding_mutation_participant` mechanics."""
+    """Direct bypasses (`_ensure_default_role_bindings`'s raw `add()`, `remove_member`'s raw bulk
+    `revoke_active_for_principal_tenant`) must be gone -- replaced by the shared, canonical
+    `role_binding_mutation_participant` mechanics."""
     source = _tenant_membership_service_source(code_only=True)
     assert "role_bindings.add(" not in source
     assert "revoke_active_for_principal_tenant" not in source
@@ -395,11 +393,10 @@ def test_tenant_membership_service_never_calls_role_governance_service():
     assert "role_governance_service" not in source
 
 
-def test_tenant_membership_service_adds_no_p5d3_ui_vocabulary():
-    """P5D-1/P5D-2 are transaction convergence and typed DomainEvents only -- ViewInvalidation
-    and any Qt/UI wiring for membership are P5D-3's job, not started here. (The four
-    `TenantMembership*` event names are legitimately P5D-2 vocabulary as of this phase --
-    see `test_tenant_membership_typed_events.py` for their own positive/negative coverage.)"""
+def test_tenant_membership_service_has_no_ui_vocabulary():
+    """`TenantMembershipService` itself never imports ViewInvalidation/Qt/UI vocabulary --
+    that wiring lives elsewhere (see `test_tenant_membership_typed_events.py` for the events'
+    own coverage)."""
     source = _tenant_membership_service_source()
     for forbidden in ("ViewInvalidation", "PySide6", "ui_qml"):
         assert forbidden not in source

@@ -105,7 +105,7 @@ def _issue_and_accept(services, *, username: str):
 
 
 def test_acceptance_records_activated_before_role_binding_assigned(services):
-    """P5D-2A: committed event order mirrors actual business-transition order --
+    """Committed event order mirrors actual business-transition order --
     `membership.accept_invitation()` (the transition `TenantMembershipActivated` anchors to)
     happens strictly before the default RoleBinding grant that follows it in the same
     command."""
@@ -204,9 +204,9 @@ def test_suspend_then_reactivate_records_exactly_those_two_events_and_no_role_bi
 
 
 def test_removal_records_removed_before_role_binding_revoked(services):
-    """P5D-2A: `membership.remove()` (the transition `TenantMembershipRemoved` anchors to)
-    happens strictly before the RoleBinding revocation cascade that follows it in the same
-    command -- the committed event order mirrors that."""
+    """`membership.remove()` (the transition `TenantMembershipRemoved` anchors to) happens
+    strictly before the RoleBinding revocation cascade that follows it in the same command --
+    the committed event order mirrors that."""
     membership_service = services["tenant_membership_service"]
     target, _accepted = _issue_and_accept(services, username=_unique_code("p5d2-remove"))
     recorder = _Recorder(services)
@@ -405,9 +405,9 @@ def test_membership_event_carries_tenant_scope_only_no_organization_id(services)
     assert activated.tenant_id == tenant_id
     assert not hasattr(activated, "organization_id")
 
-    # Switch the ambient active organization -- confirmed unrelated to `TenantMembershipService`
-    # (P5D-1: `_require_tenant_administrator` resolves `tenant_id` only, never touches
-    # organization context) -- the membership event's `tenant_id` must be unaffected.
+    # Switch the ambient active organization -- `_require_tenant_administrator` resolves
+    # `tenant_id` only, never organization context, so the membership event's `tenant_id` must
+    # be unaffected.
     tenant_context.set_active_organization(other_org.id)
     removed_recorder = _Recorder(services)
     membership_service = services["tenant_membership_service"]

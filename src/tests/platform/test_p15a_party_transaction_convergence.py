@@ -341,15 +341,6 @@ def test_update_party_uses_a_fresh_uow_distinct_from_the_legacy_session(services
     assert seen["uow_session"] is not party_service._session
 
 
-# P15B superseded the four tests that used to live here (`test_admin_console_still_reacts_to_
-# parties_changed_unchanged`, `test_inventory_procurement_representative_consumer_still_reacts_to_
-# parties_changed_unchanged`, `test_no_new_party_domain_event_introduced`,
-# `test_parties_changed_field_still_present`): they proved the *pre*-P15B state (legacy signal
-# still present and still the only reaction path). Party is now fully modernized -- see
-# test_p15b_party_event_modernization.py for the typed-event/ViewInvalidation/consumer-cutover
-# proofs, and its `test_parties_changed_field_and_producers_are_fully_gone` for the deletion proof.
-
-
 def test_canonical_party_uow_retained_no_raw_session_commit():
     import inspect
 

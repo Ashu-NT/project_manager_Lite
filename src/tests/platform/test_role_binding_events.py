@@ -207,9 +207,8 @@ def test_shared_events_package_does_not_import_role_binding_events():
 
 
 def test_access_facade_does_not_record_role_binding_events():
-    """The facade's own comments legitimately MENTION `RoleBindingAssigned` (documenting why
-    `access_changed` was retired, per P5C-3) -- what must never exist is an actual construction
-    of the event or a call to `record_event`/`uow.record_event`."""
+    """The facade's own comments legitimately MENTION `RoleBindingAssigned` -- what must never
+    exist is an actual construction of the event or a call to `record_event`/`uow.record_event`."""
     import src.core.platform.access.application.access_control_service as access_module
 
     source = inspect.getsource(access_module)
@@ -225,7 +224,7 @@ def test_tenant_role_facade_does_not_record_role_binding_events():
         assert forbidden not in source
 
 
-def test_no_p5c3_production_code_exists_for_role_binding_events():
+def test_role_governance_service_has_no_ui_or_qt_vocabulary():
     import src.core.platform.application.security.authorization.roles.role_governance_service as service_module
 
     source = inspect.getsource(service_module)
@@ -236,8 +235,8 @@ def test_no_p5c3_production_code_exists_for_role_binding_events():
 def test_role_governance_service_introduces_no_new_arbitrary_session_usage():
     """The `session: Session` parameter threaded through `_validate_target_scope`/
     `_resolve_domain_scope_for_binding` exists ONLY to pass the calling UoW's own Session into
-    the registered (session-bound) resource resolvers -- P5C-2 must not have introduced a new,
-    separate, direct SQLAlchemy query inside `RoleGovernanceService` itself."""
+    the registered (session-bound) resource resolvers -- never a new, separate, direct SQLAlchemy
+    query inside `RoleGovernanceService` itself."""
     import src.core.platform.application.security.authorization.roles.role_governance_service as service_module
 
     source = inspect.getsource(service_module)
@@ -761,9 +760,8 @@ def test_post_commit_subscriber_receives_the_commands_own_domain_event_context(s
 
 
 def test_current_principal_self_refresh_unaffected_by_a_broken_role_binding_event_subscriber(services):
-    """P5C-2 must not make security-state consistency depend on a best-effort event handler --
-    the existing explicit post-commit refresh flow (established in P5C-1) must keep working
-    even when a RoleBindingRevoked subscriber raises."""
+    """Security-state consistency must not depend on a best-effort event handler -- the explicit
+    post-commit refresh flow must keep working even when a RoleBindingRevoked subscriber raises."""
     from src.tests.ui_runtime_helpers import login_as
 
     auth = services["auth_service"]
@@ -796,17 +794,11 @@ def test_current_principal_self_refresh_unaffected_by_a_broken_role_binding_even
 
 
 # ---------------------------------------------------------------------------
-# Legacy signal retired for RoleBinding (P5 closeout); delegation-policy remains eventless
+# Delegation-policy lifecycle remains eventless
 # ---------------------------------------------------------------------------
 
 
 def test_only_the_typed_event_fires_for_role_binding_mutations(services, monkeypatch):
-    """P5 closeout (2026-08-26): `assign_role`/`revoke_role_binding`'s own `auth_changed.emit(...)`
-    calls were removed -- confirmed pure legacy duplicates of the already-implemented
-    `RoleBindingAssigned`/`RoleBindingRevoked` -> ViewInvalidation -> narrow-consumer path, with
-    no independent responsibility. P46B: `auth_changed` itself is now deleted application-wide, so
-    there is nothing left to prove silent -- this now only proves the positive: exactly one typed
-    event fires."""
     target, target_role = _tenant_scoped_binding_setup(services, suffix="legacy-signal")
     role_governance_service = services["role_governance_service"]
     recorded = _spy_recorded_events(role_governance_service, monkeypatch)

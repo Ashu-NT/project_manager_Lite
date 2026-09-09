@@ -31,11 +31,9 @@ from src.core.platform.domain.tenant.tenancy import (
 _PASSWORD = "StrongPass123!"
 
 
-# P5D-1: `TenantMembershipService` no longer stores individual repository attributes (it holds
-# only a `TenantMembershipUnitOfWorkFactory`, per the canonical-transaction-ownership cutover) --
-# mirrors the established post-cutover test pattern from `test_role_governance_unit_of_work_
-# cutover.py`/`test_role_binding_events.py`: read persisted state back via a fresh repository
-# bound to the shared test session, never via a service-internal attribute.
+# `TenantMembershipService` holds only a `TenantMembershipUnitOfWorkFactory`, not individual
+# repository attributes -- read persisted state back via a fresh repository bound to the shared
+# test session, never via a service-internal attribute.
 def _membership_repo(services):
     return SqlAlchemyUserTenantMembershipRepository(services["session"])
 

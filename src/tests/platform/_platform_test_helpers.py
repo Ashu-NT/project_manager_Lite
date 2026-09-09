@@ -200,7 +200,7 @@ class FakePlatformRuntimeApi:
                     category="conflict",
                 ),
             )
-        # P10A: no mutual-exclusion sibling deactivation -- multiple organizations may be
+        # No mutual-exclusion sibling deactivation -- multiple organizations may be
         # is_enabled=True simultaneously.
         organization = OrganizationDto(
             id=f"org-{len(self._organizations) + 1}",
@@ -241,7 +241,7 @@ class FakePlatformRuntimeApi:
         )
 
     def enable_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
-        # P10A: availability mutation only -- never touches any other organization row.
+        # Availability mutation only -- never touches any other organization row.
         for index, row in enumerate(self._organizations):
             if row.id != organization_id:
                 continue

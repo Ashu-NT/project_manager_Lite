@@ -32,9 +32,6 @@ _REMOVED_TENANT_ADMIN_PERMISSIONS = {
 
 
 def _reconciliation_service(services) -> RolePolicyReconciliationService:
-    # P5C-1: RoleGovernanceService no longer holds its own `_role_binding_repo` (it opens a
-    # fresh UoW-bound one per mutation) -- a freshly-constructed repository bound to the same
-    # shared test `session` reads/writes the identical underlying data.
     auth = services["auth_service"]
     return RolePolicyReconciliationService(
         session=services["session"],

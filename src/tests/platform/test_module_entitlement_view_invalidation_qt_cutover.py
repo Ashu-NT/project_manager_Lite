@@ -1,15 +1,11 @@
-"""P5B-3: the five Module Entitlement events (plus a direct provisioning-triggered case) mapped
-onto `ViewInvalidationHint`, the one real Qt consumer (settings workspace's `moduleEntitlements`
-list) migrated directly onto `ModuleEntitlementViewInvalidationAdapter`, and the legacy
-`modules_changed` signal retired entirely -- no bridge. The other two former subscribers (control,
-access workspaces) were traced end-to-end and found to read no module-entitlement-derived state
-at all (incidental over-refresh from the coarse legacy signal) -- their subscriptions are simply
-dropped, not migrated.
+"""The five Module Entitlement events (plus a direct provisioning-triggered case) map onto
+`ViewInvalidationHint`, reaching the one real Qt consumer (settings workspace's
+`moduleEntitlements` list) via `ModuleEntitlementViewInvalidationAdapter`. Control and Access
+workspaces read no module-entitlement-derived state at all, so they must never react.
 
 Uses the real `services` fixture (real Session, real UnitOfWorks, real composition-owned
 `ViewInvalidationChannel`) plus the real `build_desktop_api_registry`/`PlatformWorkspaceCatalog`
-construction, mirroring `test_organization_view_invalidation_qt_cutover.py`'s own pattern.
-"""
+construction, mirroring `test_organization_view_invalidation_qt_cutover.py`'s own pattern."""
 
 from __future__ import annotations
 
@@ -140,14 +136,9 @@ def test_settings_workspace_module_entitlements_refresh_on_real_mutation(service
 
 
 def test_access_workspace_no_longer_reacts_to_module_mutations(services):
-    """P5B-3: `modules_changed` was dropped (not migrated) for Access workspace. Initial
-    investigation suspected `scopeTypeOptions`' storeroom entry depended on
-    `inventory_procurement`'s enablement (matching the fake QML-preview test helper's crafted
-    data), but tracing the REAL desktop-API wiring end-to-end
-    (`desktop_api_registry.py`'s `access_scope_type_choices`/`access_scope_option_loaders`) found
-    the storeroom scope type is gated purely by whether the Inventory service object was composed
-    at startup (`inventory_service is not None`), never by live module-entitlement state -- no
-    read model in this workspace actually depends on it."""
+    """The Access workspace's `scopeTypeOptions` storeroom entry is gated purely by whether the
+    Inventory service was composed at startup, never by live module-entitlement state -- no read
+    model here actually depends on it."""
     catalog = _catalog(services)
     catalog.adminAccessWorkspace.refresh()
     refresh_calls = []
@@ -160,8 +151,7 @@ def test_access_workspace_no_longer_reacts_to_module_mutations(services):
 
 
 def test_control_workspace_no_longer_reacts_to_module_mutations(services):
-    """P5B-3: `modules_changed` was dropped (not migrated) for Control workspace -- traced
-    end-to-end, its `refresh()` never reads module-entitlement state at all."""
+    """Control workspace's `refresh()` never reads module-entitlement state at all."""
     catalog = _catalog(services)
     catalog.controlWorkspace.ensureLoaded()
     refresh_calls = []
@@ -446,8 +436,8 @@ def test_provisioning_the_active_organization_produces_direct_invalidation_and_n
     """`provision_organization(is_enabled=True)` both creates AND activates the new organization
     in one call -- the module entitlement collection any open UI is showing just became stale
     (a different organization's rows are now the authoritative ones), so this legitimately
-    produces direct ViewInvalidation, never a DomainEvent (P5B-SEM's provisioning-is-not-licensing
-    decision, unchanged). Verified at the channel level with a broad, test-only
+    produces direct ViewInvalidation, never a DomainEvent. Verified at the channel level with a
+    broad, test-only
     `AnyOrganizationInTenant` subscription -- the provisioned organization's id does not exist
     until after this single call returns, so it cannot be known in advance the way
     `ExactOrganization` would require."""

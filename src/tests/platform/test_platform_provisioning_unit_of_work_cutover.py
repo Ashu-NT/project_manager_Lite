@@ -1,13 +1,6 @@
-"""P4C (Platform Runtime Organization Provisioning Transaction Convergence):
-`PlatformRuntimeApplicationService.provision_organization` cut over from the legacy,
-process-lifetime shared-Session transaction onto a canonical, fresh-session
-`PlatformProvisioningUnitOfWork`. Mirrors `test_organization_service_unit_of_work_cutover.py`/
-`test_approval_service_unit_of_work_cutover.py`'s own equivalents.
-
-P4C is transaction convergence only -- no `OrganizationCreated`/`ModuleLicensed`/`ModuleEnabled`/
-`ModuleDisabled` DomainEvent, no ViewInvalidation producer.
-`test_p4c_does_not_add_p5a_event_vocabulary` enforces that phase boundary.
-"""
+"""`PlatformRuntimeApplicationService.provision_organization` runs inside a fresh-session
+`PlatformProvisioningUnitOfWork`, mirroring `test_organization_service_unit_of_work_cutover.py`/
+`test_approval_service_unit_of_work_cutover.py`'s own equivalents."""
 
 from __future__ import annotations
 
@@ -206,10 +199,9 @@ def test_provisioning_remains_tenant_scoped(services):
     assert reloaded is not None
 
 
-def test_p5a_does_not_add_p5b_plus_event_vocabulary():
-    """Phase-boundary guard (superseding P4C's own, now-obsolete guard now that P5A legitimately
-    records `OrganizationCreated` end-to-end, including through provisioning): no P5B+ event
-    vocabulary belongs in this module."""
+def test_provisioning_never_gains_module_or_authorization_event_vocabulary():
+    """`OrganizationCreated` is recorded elsewhere (end-to-end, including through provisioning) --
+    no module-entitlement or authorization event vocabulary belongs in this module."""
     source = inspect.getsource(platform_runtime_service_module)
     for forbidden in (
         "ModuleLicensed",

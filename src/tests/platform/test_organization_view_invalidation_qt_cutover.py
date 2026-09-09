@@ -1,18 +1,13 @@
-"""P5A + Organization-specific P6A cutover, extended by P10D: end-to-end proof that Organization
-creation, profile updates, and enable/disable ALL reach the two real UI consumers (admin console
-organization list, settings organization profiles list) through
-`OrganizationCreated`/`OrganizationProfileUpdated`/`OrganizationEnabled`/`OrganizationDisabled`
--> `ViewInvalidationHint` -> `OrganizationViewInvalidationAdapter` -- the legacy
-`organizations_changed` signal no longer exists at all (P10A already replaced the deleted
-`set_active_organization` with the narrower `enable_organization`; P10D finished the cutover for
-its own event emission).
+"""End-to-end proof that Organization creation, profile updates, and enable/disable ALL reach
+the two real UI consumers (admin console organization list, settings organization profiles list)
+through `OrganizationCreated`/`OrganizationProfileUpdated`/`OrganizationEnabled`/
+`OrganizationDisabled` -> `ViewInvalidationHint` -> `OrganizationViewInvalidationAdapter`.
 
 Uses the real `services` fixture (real Session, real UnitOfWorks, real composition-owned
 `ViewInvalidationChannel`) plus the real `build_desktop_api_registry`/`PlatformWorkspaceCatalog`
 construction, mirroring `test_admin_workspace_eager_refresh_gating.py`'s own pattern -- not the
 fully-faked `build_connected_platform_registry()` QML-preview helper other QML tests use, since
-this needs the real backend event pipeline underneath.
-"""
+this needs the real backend event pipeline underneath."""
 
 from __future__ import annotations
 
@@ -88,10 +83,9 @@ def test_no_refresh_signal_before_commit_and_none_on_rollback(services):
 
 
 def test_update_and_enable_now_also_use_the_typed_view_invalidation_path(services):
-    """P10D: `update_organization`/`enable_organization` no longer emit any legacy signal -- they
-    record `OrganizationProfileUpdated`/`OrganizationEnabled`, which reach the SAME real Qt
-    consumers `OrganizationCreated` already does, through the identical adapter path (not a
-    separate mechanism)."""
+    """`update_organization`/`enable_organization` record `OrganizationProfileUpdated`/
+    `OrganizationEnabled`, which reach the SAME real Qt consumers `OrganizationCreated` already
+    does, through the identical adapter path."""
     catalog = _catalog(services)
     organization_service = services["organization_service"]
     organization = organization_service.create_organization(

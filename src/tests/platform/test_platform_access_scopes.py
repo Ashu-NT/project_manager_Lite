@@ -312,29 +312,11 @@ def test_access_service_supports_storeroom_scope_grants_and_principal_hydration(
 
 
 def test_storeroom_scope_grant_targets_a_non_active_organization(services):
-    """P5C prerequisite: confirmed ambient-scope bug (the same class of defect already fixed for
-    Organization in P4B and Module Entitlements in the P5B prerequisite pass) -- the storeroom
-    `scope_exists_resolver` used to compare `storeroom.organization_id` against the CURRENTLY
-    ACTIVE organization, making it structurally impossible to grant/revoke storeroom-scoped
-    access (or assign a canonical role at storeroom scope) for a storeroom belonging to any
-    non-active organization within the caller's own tenant. Mandatory scenario: active org A1,
-    grant/revoke targets a storeroom that belongs to org A2 -- must succeed, and must not affect
-    or require switching the active organization.
-
-    P5C-1 CORRECTION (reopened finding): this test originally only flipped `Organization
-    .is_active` in the DB via `create_organization(is_enabled=True)` -- a completely different
-    mechanism from the SESSION-level active organization
-    (`tenant_context_service`/`user_session.active_organization_id()`) that
-    `require_active_scope_ids()` (and therefore every ambient-org-scoped repository read)
-    actually consults. Flipping only the DB flag never moved the ambient session org away from
-    A1, so this test was a false negative: it asserted `organization_service
-    .get_active_organization().id == org_a2.id` (the DB flag, an unrelated read) and never
-    proved anything about the repository-scoping mechanism the bug lived in. Fixed here by
-    explicitly calling `tenant_context_service.set_active_organization(...)` -- the actual
-    ambient switch -- and asserting against THAT, not the DB flag. The underlying resolver
-    (`_storeroom_exists`/`_storeroom_exists_for_role_governance` in `inventory_registry.py`) is
-    now genuinely fixed via `StoreroomRepository.get_for_tenant()` (tenant-scoped only, added in
-    P5C-1), which this corrected test actually exercises."""
+    """Granting/revoking storeroom-scoped access for a storeroom belonging to a non-active
+    organization (A2, while A1 is ambiently active) must succeed and must not require switching
+    the active organization. Uses the actual SESSION-level active-organization switch
+    (`tenant_context_service.set_active_organization`), not the DB `is_active` flag, since that's
+    what `require_active_scope_ids()` and every ambient-org-scoped repository read consult."""
     access = services["access_service"]
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
@@ -358,12 +340,6 @@ def test_storeroom_scope_grant_targets_a_non_active_organization(services):
     org_a2 = organization_service.create_organization(
         organization_code="STR-SCOPE-A2", display_name="Storeroom Scope Org A2", is_enabled=True
     )
-    # The actual ambient SESSION-level switch -- what `require_active_scope_ids()` reads, and
-    # therefore what `StoreroomRepository.get()`'s (now bypassed) active-org filter keys off.
-    # Deliberately NOT relying on the DB `is_active` flag flip alone (the original false
-    # negative): `set_active_organization` happens to also require the target's own
-    # `is_active` flag, but that flag is unrelated to -- and, per this fix, no longer consulted
-    # by -- the storeroom resolver's own organization-ownership check.
     tenant_context_service.set_active_organization(org_a2.id)
     assert tenant_context_service.get_active_organization_id() == org_a2.id
 
@@ -407,12 +383,9 @@ def test_storeroom_scope_grant_targets_the_active_organization_while_a_different
     org_a2 = organization_service.create_organization(
         organization_code="STR-SCOPE-INV-A2", display_name="Storeroom Scope Inverse Org A2", is_enabled=True
     )
-    # P10A: creating A2 as `is_enabled=True` no longer deactivates A1 -- multiple organizations
-    # may be enabled simultaneously. A1 remains enabled throughout this test regardless.
 
     # Build a site/storeroom under A2 by switching the ambient session org to it temporarily --
-    # this setup step, unlike the actual grant below, is allowed to switch. A2 is already the
-    # DB-active organization at this point, so the switch succeeds.
+    # this setup step, unlike the actual grant below, is allowed to switch.
     tenant_context_service.set_active_organization(org_a2.id)
     site_a2 = services["site_service"].create_site(
         site_code="STR-A2-SITE", name="Org A2 Site", city="Berlin", currency_code="EUR"
@@ -423,8 +396,6 @@ def test_storeroom_scope_grant_targets_the_active_organization_while_a_different
     )
     assert storeroom_a2.organization_id == org_a2.id
 
-    # P10A: A1 was never disabled (no mutual exclusion), so this is a harmless no-op re-affirming
-    # it explicitly, kept for clarity that the switch back to A1 below relies on it being enabled.
     organization_service.update_organization(org_a1_id, is_enabled=True)
     tenant_context_service.set_active_organization(org_a1_id)
     assert tenant_context_service.get_active_organization_id() == org_a1_id

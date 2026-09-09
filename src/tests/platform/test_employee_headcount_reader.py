@@ -1,22 +1,10 @@
-"""P6 -- employee headcount rollup pilot.
+"""Employee headcount rollup: a single aggregate query (COUNT + SUM(CASE...)) via
+`EmployeeHeadcountReader`, replacing full-list materialization + a Python sum for the Admin
+Console overview tiles.
 
-Before this pilot, the Admin Console overview tiles
-(PlatformAdminWorkspacePresenter.build_overview) computed employee counts
-by calling list_employees(active_only=None) -- EmployeeService.list_employees,
-which fully hydrates every Employee row for the active organization via
-EmployeeRepository.list_for_organization -- then summed over the whole
-in-memory list in Python (active_employee_count = sum(1 for e in employees
-if e.is_active)), refreshed on nearly every admin mutation
-(admin_refresh_service.py). This is Platform's first SQL-side rollup
-(audit sec.14 #6 "no SQL-side rollups anywhere in Platform"): a single
-aggregate query (COUNT + SUM(CASE...)) via EmployeeHeadcountReader replaces
-the full-list materialization + Python sum, exactly the way P1's
-ModuleEntitlementReader replaced module_catalog's per-module N+1.
-
-These tests mirror test_module_entitlement_reader.py's structure: reader-
-level unit tests (exact query count + tenancy scoping, isolated db), then
-service-level and end-to-end (real admin presenter) equivalence/isolation
-tests through the real `services` fixture, then SQL-count guardrails.
+Mirrors `test_module_entitlement_reader.py`'s structure: reader-level unit tests (exact query
+count + tenancy scoping, isolated db), then service-level and end-to-end (real admin presenter)
+equivalence/isolation tests through the real `services` fixture, then SQL-count guardrails.
 """
 from __future__ import annotations
 

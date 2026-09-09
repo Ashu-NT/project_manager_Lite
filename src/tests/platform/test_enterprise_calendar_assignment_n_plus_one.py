@@ -1,21 +1,12 @@
-"""P5 -- regression guardrail for the confirmed N+1 in
-EnterpriseCalendarDesktopApi._serialize_assignment
-(src/core/platform/api/desktop/time_management/calendar/enterprise_calendar.py).
+"""Regression guardrail for an N+1 in `EnterpriseCalendarDesktopApi._serialize_assignment`:
+serializing a list of calendar assignments used to call `get_calendar(assignment.calendar_id)`
+once per assignment. The fix batches all distinct `calendar_id`s into one lookup
+(`EnterpriseCalendarService.get_calendars_by_ids`) and made `_serialize_assignment` pure -- it
+takes the already-resolved calendar instead of fetching it itself.
 
-Before the fix, every method that serialized a list of calendar
-assignments (list_site/department/employee_calendar_assignments and the
-combined list_calendar_assignments) called get_calendar(assignment.calendar_id)
-once per returned assignment -- O(N) calendar lookups for N assignments,
-even when every assignment referenced the same calendar. The fix batches
-all distinct calendar_ids referenced by a list into one lookup
-(EnterpriseCalendarService.get_calendars_by_ids -> PlatformCalendarRepository
-.list_by_ids) and made _serialize_assignment pure (it now takes the
-already-resolved calendar instead of fetching it itself).
-
-These tests pin that behavior so it cannot silently regress back to a
-per-assignment get_calendar() loop, and confirm every assignment category
-(site/department/employee/project/resource) still serializes identically.
-"""
+These tests pin that batching so it cannot silently regress back to a per-assignment
+`get_calendar()` loop, across every assignment category (site/department/employee/project/
+resource)."""
 from __future__ import annotations
 
 from sqlalchemy import event

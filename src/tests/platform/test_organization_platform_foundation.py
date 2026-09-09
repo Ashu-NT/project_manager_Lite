@@ -2,8 +2,8 @@ from __future__ import annotations
 
 
 def test_organization_service_bootstraps_default_and_enables_another_organization_independently(services):
-    """P10A: enabling one organization must never disable a sibling -- multiple organizations in
-    the same tenant may be is_enabled=True simultaneously."""
+    """Enabling one organization must never disable a sibling -- multiple organizations in the
+    same tenant may be `is_enabled=True` simultaneously."""
     organization_service = services["organization_service"]
 
     initial_rows = organization_service.list_organizations()
@@ -30,7 +30,7 @@ def test_organization_service_bootstraps_default_and_enables_another_organizatio
         row.organization_code: row.is_enabled
         for row in organization_service.list_organizations()
     }
-    # Both organizations are enabled -- no mutual exclusion, unlike the pre-P10A model.
+    # Both organizations are enabled -- no mutual exclusion.
     assert status_by_code == {"DEFAULT": True, "NORTH": True}
 
 
@@ -57,8 +57,8 @@ def test_organization_provisioning_seeds_requested_modules_without_changing_defa
     assert tenant_context_service.get_active_organization().organization_code == "DEFAULT"
     assert module_catalog.is_enabled("project_management") is True
 
-    # P10A: enabling and session-selecting are two separate, explicit steps -- enabling alone
-    # (organization availability) never switches anyone's current working organization.
+    # Enabling and session-selecting are two separate, explicit steps -- enabling alone never
+    # switches anyone's current working organization.
     organization_service.enable_organization(created.id)
     assert tenant_context_service.get_active_organization().organization_code == "DEFAULT"
 

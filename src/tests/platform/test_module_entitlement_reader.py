@@ -208,12 +208,9 @@ def test_module_catalog_read_path_is_isolated_per_organization(services):
 
 
 # ---------------------------------------------------------------------------
-# P1.5 -- SQL-count guardrail: pins the fix so a future change to
-# ModuleCatalogService can't silently reintroduce the confirmed 15-20-query
-# N+1 (audit §7 R7a / §17) this pilot closed. Counts only statements against
-# organization_module_entitlements -- the unrelated single "organizations"
-# lookup snapshot() does for its context_label is out of this pilot's scope
-# and asserted separately below so it isn't silently absorbed by a loose bound.
+# SQL-count guardrail: pins the fix so a future change can't silently
+# reintroduce an N+1 against organization_module_entitlements. The unrelated single
+# "organizations" lookup snapshot() does for its context_label is asserted separately below.
 # ---------------------------------------------------------------------------
 
 

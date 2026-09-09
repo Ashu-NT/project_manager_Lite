@@ -1,26 +1,16 @@
-"""P10A (Multi-Organization Domain-Model Correction): `Organization.is_active` carried legacy
-single-organization mutual-exclusion designation semantics -- application code enforced "at most
-one organization is_active=True per tenant" and coupled that persisted flag to session context
-selection. P9B's SaaS-readiness audit established the domain/authorization architecture already
-supports multiple organizations per tenant, multiple organizations per user
-(`RoleBinding(actual_scope_type="organization")` -> `Principal.scoped_access["organization"]`),
-and independent per-user session selection (`TenantContextService.set_active_organization`) --
-the ONLY defect was `Organization.is_active`'s mutual-exclusion behavior.
-
-P10A renamed the field to `is_enabled` (independent per-organization availability, no invariant
-against siblings), deleted the sibling-deactivation machinery and
-`OrganizationService.set_active_organization` (its persisted-designation half; its session-switch
-half was always `TenantContextService.set_active_organization`'s own job), and added
-`enable_organization`/`disable_organization` (availability-only, single-row mutations).
+"""Multi-organization availability model: `Organization.is_enabled` is independent per-organization
+availability, with no mutual-exclusion invariant against sibling organizations. Multiple
+organizations may be enabled per tenant simultaneously; per-user session selection
+(`TenantContextService.set_active_organization`) is independent of that availability flag.
+`enable_organization`/`disable_organization` are availability-only, single-row mutations.
 
 This module holds:
-  1. structural guards proving the legacy mutual-exclusion machinery is gone and stays gone;
+  1. structural guards proving the legacy sibling-mutual-exclusion machinery is gone and stays gone;
   2. structural guards proving `TenantContextService.set_active_organization`/
      `UserSessionContext.active_organization_id` remain canonical and untouched;
-  3. behavioral characterization of the corrected multi-org model end to end (two organizations
-     enabled simultaneously, independent per-session selection, a disabled organization rejected
-     at switch time) that the P10A governing spec's own test matrix requires and which no other
-     test file covers.
+  3. behavioral characterization of the multi-org model end to end (two organizations enabled
+     simultaneously, independent per-session selection, a disabled organization rejected at
+     switch time).
 """
 
 from __future__ import annotations
@@ -73,10 +63,8 @@ def test_organization_service_has_no_set_active_organization_method():
 
 
 def test_organization_service_has_no_get_active_organization_method():
-    """P10A: `OrganizationService.get_active_organization()` was the singular-designee lookup --
-    dead code even before P10A (the real runtime path already used
-    `TenantContextService.get_active_organization()`), and deleted rather than kept as an unused
-    legacy concept."""
+    """`OrganizationService.get_active_organization()` (a singular-designee lookup superseded by
+    `TenantContextService.get_active_organization()`) is deleted, not kept as unused dead code."""
     assert not hasattr(OrganizationService, "get_active_organization")
 
 
@@ -124,8 +112,8 @@ def test_no_mutual_exclusion_vocabulary_remains_in_organization_service_source()
 
 
 def test_no_organization_repository_implementation_still_defines_active_only_param():
-    """`active_only` (the pre-P10A repository filter kwarg name) must not survive under its old
-    name on any Organization repository -- the corrected name is `enabled_only`."""
+    """`active_only` must not survive as a repository filter kwarg name on any Organization
+    repository -- the correct name is `enabled_only`."""
     import re
 
     for path in _production_source_files():
@@ -206,9 +194,8 @@ def test_disabled_organization_cannot_be_selected_but_others_remain_unaffected(s
 
 
 def test_independent_sessions_select_different_organizations_simultaneously(services):
-    """P10A section 14 (TWO-USER MODEL): two users, both with access to two organizations in the
-    same tenant, may have their own sessions independently pointed at different organizations at
-    the same time -- proving the domain/session architecture, not desktop multi-window UI."""
+    """Two users, both with access to two organizations in the same tenant, may have their own
+    sessions independently pointed at different organizations at the same time."""
     organization_service = services["organization_service"]
     real_tenant_context_service = services["tenant_context_service"]
     tenant_id = real_tenant_context_service.get_active_tenant_id()
@@ -260,8 +247,8 @@ def test_independent_sessions_select_different_organizations_simultaneously(serv
 
 
 def test_enabling_organization_never_switches_any_session_context(services):
-    """P10A: availability and session selection are fully decoupled -- enabling an organization
-    must never, as a side effect, change what any session's current organization is."""
+    """Availability and session selection are fully decoupled -- enabling an organization must
+    never, as a side effect, change what any session's current organization is."""
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
 

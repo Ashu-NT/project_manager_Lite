@@ -83,11 +83,9 @@ def test_each_command_uses_a_fresh_uow_and_commits_exactly_once() -> None:
 
 
 def test_commit_failure_rolls_back_and_runs_no_post_commit_actions() -> None:
-    """P38B: `budget()` no longer has any post-commit invalidation callback of its own (typed
-    Budget events are recorded pre-commit via `uow.record_event`, inside the same UoW that
-    `commit()` failed to complete) -- `post_commit_actions` (the boundary's one remaining
-    post-commit mechanism, used by other families such as `financial_change`) is what this proves
-    must not run on a failed commit."""
+    """`budget()` has no post-commit invalidation callback of its own (Budget events are
+    recorded pre-commit via `uow.record_event`) -- `post_commit_actions` (used by other
+    families such as `financial_change`) must not run on a failed commit."""
     factory = _FakeFactory()
     factory.fail_next_commit = True
     calls: list[str] = []

@@ -229,10 +229,9 @@ def test_access_workspace_scope_grants_refresh_on_real_assign_mutation(services)
 
 
 def test_access_workspace_full_catalog_options_do_not_needlessly_refresh(services):
-    """P5C-3's main point: a RoleBinding transition must trigger ONLY the narrow
-    `refresh_role_bindings()` reaction, never the coarse full `refresh()` -- proving
-    `scope_type_options`/`user_options`/`role_options`/`scope_options` (none of which depend on
-    RoleBinding state) are no longer needlessly reloaded."""
+    """A RoleBinding transition must trigger ONLY the narrow `refresh_role_bindings()` reaction,
+    never the coarse full `refresh()` -- `scope_type_options`/`user_options`/`role_options`/
+    `scope_options` (none of which depend on RoleBinding state) must not be needlessly reloaded."""
     catalog = _catalog(services)
     catalog.adminAccessWorkspace.refresh()
     full_refresh_calls = []
