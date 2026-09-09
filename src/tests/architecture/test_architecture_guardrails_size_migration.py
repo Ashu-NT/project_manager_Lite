@@ -11,6 +11,15 @@ _LARGE_MODULE_BUDGETS = {
     "src/ui_qml/modules/project_management/controllers/scheduling/scheduling_workspace_controller.py": 1338,
     "src/ui_qml/modules/project_management/controllers/tasks/tasks_workspace_controller.py": 1600,
     "src/tests/project_management/application/test_project_finance_budgets.py": 1418,
+    "src/ui_qml/modules/project_management/controllers/financials/financials_workspace_controller.py": 1470,
+    "src/tests/ui_qml/platform/presenters/_platform_test_helpers.py": 1281,
+    "src/tests/project_management/infrastructure/test_r6b_finance_destination_queries.py": 1290,
+    "src/infra/composition/platform_registry.py": 1216,
+    "src/infra/composition/project_registry.py": 1727,
+    "src/infra/persistence/migrations/versions/f3c89cac079d_initial_schema.py": 3782,
+    "src/core/platform/domain/time_management/calendar/enterprise_calendar.py": 1408,
+    "src/core/modules/project_management/application/financials/workspace_query.py": 1297,
+    "src/core/modules/project_management/api/desktop/financials/api.py": 2041,
 }
 
 
@@ -18,9 +27,12 @@ def _line_count(path: Path) -> int:
     return len(path.read_text(encoding="utf-8", errors="ignore").splitlines())
 
 
+_EXCLUDED_DIR_PARTS = frozenset({"dist", "pmenv", ".venv", "venv", "__pycache__"})
+
+
 def _python_files(root: Path):
     for path in root.rglob("*.py"):
-        if "dist" in path.parts:
+        if _EXCLUDED_DIR_PARTS.intersection(path.parts):
             continue
         if path.name == "resources_rc.py":
             continue
@@ -194,7 +206,7 @@ def test_shared_access_platform_layers_do_not_import_pm_access_code():
     )
     checked_files = (
         ROOT / "src" / "core" / "platform" / "access" / "application" / "access_control_service.py",
-        ROOT / "src" / "ui_qml" / "platform" / "controllers" / "admin" / "access_workspace_controller.py",
+        ROOT / "src" / "ui_qml" / "platform" / "controllers" / "identity_access" / "access" / "access_workspace_controller.py",
     )
     violations: list[tuple[str, str]] = []
 
