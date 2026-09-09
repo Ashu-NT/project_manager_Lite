@@ -96,7 +96,7 @@ def test_a_fake_contributor_satisfies_the_action_center_contributor_protocol():
 
 def test_a_fake_contributor_satisfies_the_module_summary_contributor_protocol():
     class _FakeModuleSummaryContributor:
-        def build_summary(self, context: ActionCenterContext) -> ModuleSummaryDto:
+        def get_summary(self, context: ActionCenterContext) -> ModuleSummaryDto | None:
             return ModuleSummaryDto(
                 module_code="project_management",
                 title="Project Management",
@@ -108,10 +108,22 @@ def test_a_fake_contributor_satisfies_the_module_summary_contributor_protocol():
                 route_id="project_management",
             )
 
-    summary = _FakeModuleSummaryContributor().build_summary(
+    summary = _FakeModuleSummaryContributor().get_summary(
         ActionCenterContext(user_id="u1", tenant_id="t1", organization_id="o1")
     )
+    assert summary is not None
     assert summary.module_code == "project_management"
+
+
+def test_a_module_summary_contributor_may_return_none_when_unavailable():
+    class _UnavailableModuleSummaryContributor:
+        def get_summary(self, context: ActionCenterContext) -> ModuleSummaryDto | None:
+            return None
+
+    summary = _UnavailableModuleSummaryContributor().get_summary(
+        ActionCenterContext(user_id="u1", tenant_id="t1", organization_id="o1")
+    )
+    assert summary is None
 
 
 def test_global_overview_context_role_label_is_optional():

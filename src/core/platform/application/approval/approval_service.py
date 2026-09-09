@@ -182,6 +182,22 @@ class ApprovalService:
     def list_pending(self, *, project_id: str | None = None, limit: int = 200) -> list[ApprovalRequest]:
         return self.list_requests(status=ApprovalStatus.PENDING, limit=limit, project_id=project_id)
 
+    def count_pending(self, *, project_id: str | None = None) -> int:
+        """Exact count, independent of any list/preview limit -- callers
+        that only need "how many" must use this instead of `len()` on a
+        possibly-truncated `list_requests`/`list_pending` result."""
+        require_any_permission(
+            self._user_session,
+            ("approval.request", "approval.decide"),
+            operation_label="view governance requests",
+        )
+        return self._count_approval_rows(
+            status=ApprovalStatus.PENDING,
+            project_id=project_id,
+            entity_type=None,
+            entity_id=None,
+        )
+
     def list_recent(self, *, project_id: str | None = None, limit: int = 200) -> list[ApprovalRequest]:
         return self.list_requests(status=None, limit=limit, project_id=project_id)
 
@@ -457,6 +473,50 @@ class ApprovalService:
         return approval_repo.list_by_status(
             status,
             limit=limit,
+            project_id=project_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
+        )
+
+    def _count_approval_rows(
+        self,
+        *,
+        status: ApprovalStatus | None,
+        project_id: str | None,
+        entity_type: str | list[str] | None,
+        entity_id: str | None,
+    ) -> int:
+        """Read-only path using the service's own long-lived repository,
+        mirroring `_list_approval_rows`'s org-scoping choice exactly so the
+        exact count and the preview list always share the same criteria."""
+        return self._count_approval_rows_using(
+            self._approval_repo,
+            status=status,
+            project_id=project_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
+        )
+
+    def _count_approval_rows_using(
+        self,
+        approval_repo,
+        *,
+        status: ApprovalStatus | None,
+        project_id: str | None,
+        entity_type: str | list[str] | None,
+        entity_id: str | None,
+    ) -> int:
+        organization_id = self._active_organization_id(operation_label="view governance requests")
+        if organization_id and hasattr(approval_repo, "count_by_status_for_organization"):
+            return approval_repo.count_by_status_for_organization(
+                organization_id,
+                status,
+                project_id=project_id,
+                entity_type=entity_type,
+                entity_id=entity_id,
+            )
+        return approval_repo.count_by_status(
+            status,
             project_id=project_id,
             entity_type=entity_type,
             entity_id=entity_id,

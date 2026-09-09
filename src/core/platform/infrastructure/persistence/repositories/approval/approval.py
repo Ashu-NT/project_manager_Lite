@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import and_, desc, or_, select
+from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
@@ -87,33 +87,35 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
         obj = self.session.execute(stmt).scalar_one_or_none()
         return approval_from_orm(obj) if obj else None
 
-    def list_by_status(
-        self,
-        status: ApprovalStatus | None = None,
-        *,
-        limit: int = 200,
-        project_id: str | None = None,
-        entity_type: str | list[str] | None = None,
-        entity_id: str | None = None,
-    ) -> list[ApprovalRequest]:
-        ctx = self._context(operation_label="access approvals")
-        stmt = (
+    @staticmethod
+    def _base_scope_stmt(*, tenant_id: str, organization_id: str):
+        return (
             select(ApprovalRequestORM)
             .outerjoin(
                 ProjectORM,
                 and_(
                     ProjectORM.id == ApprovalRequestORM.project_id,
-                    ProjectORM.tenant_id == ctx.tenant_id,
+                    ProjectORM.tenant_id == tenant_id,
                 ),
             )
             .where(
-                ApprovalRequestORM.tenant_id == ctx.tenant_id,
+                ApprovalRequestORM.tenant_id == tenant_id,
                 or_(
-                    ApprovalRequestORM.organization_id == ctx.organization_id,
-                    ProjectORM.organization_id == ctx.organization_id,
+                    ApprovalRequestORM.organization_id == organization_id,
+                    ProjectORM.organization_id == organization_id,
                 ),
             )
         )
+
+    @staticmethod
+    def _apply_status_filters(
+        stmt,
+        *,
+        status: ApprovalStatus | None,
+        project_id: str | None,
+        entity_type: str | list[str] | None,
+        entity_id: str | None,
+    ):
         if status is not None:
             stmt = stmt.where(ApprovalRequestORM.status == status.value)
         if project_id is not None:
@@ -125,9 +127,51 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
                 stmt = stmt.where(ApprovalRequestORM.entity_type.in_(entity_type))
         if entity_id is not None:
             stmt = stmt.where(ApprovalRequestORM.entity_id == entity_id)
+        return stmt
+
+    def list_by_status(
+        self,
+        status: ApprovalStatus | None = None,
+        *,
+        limit: int = 200,
+        project_id: str | None = None,
+        entity_type: str | list[str] | None = None,
+        entity_id: str | None = None,
+    ) -> list[ApprovalRequest]:
+        ctx = self._context(operation_label="access approvals")
+        stmt = self._apply_status_filters(
+            self._base_scope_stmt(tenant_id=ctx.tenant_id, organization_id=ctx.organization_id),
+            status=status,
+            project_id=project_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
+        )
         stmt = stmt.order_by(desc(ApprovalRequestORM.requested_at)).limit(max(1, int(limit)))
         rows = self.session.execute(stmt).scalars().all()
         return [approval_from_orm(row) for row in rows]
+
+    def count_by_status(
+        self,
+        status: ApprovalStatus | None = None,
+        *,
+        project_id: str | None = None,
+        entity_type: str | list[str] | None = None,
+        entity_id: str | None = None,
+    ) -> int:
+        ctx = self._context(operation_label="access approvals")
+        stmt = self._apply_status_filters(
+            self._base_scope_stmt(tenant_id=ctx.tenant_id, organization_id=ctx.organization_id),
+            status=status,
+            project_id=project_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
+        )
+        return int(
+            self.session.scalar(
+                select(func.count()).select_from(stmt.order_by(None).subquery())
+            )
+            or 0
+        )
 
     def project_belongs_to_organization(self, project_id: str, organization_id: str) -> bool:
         ctx = self._context(operation_label="access approvals")
@@ -165,37 +209,42 @@ class SqlAlchemyApprovalRepository(TenantScopedRepositorySupport, ApprovalReposi
         ctx = self._context(operation_label="access approvals")
         if organization_id != ctx.organization_id:
             return []
-        stmt = (
-            select(ApprovalRequestORM)
-            .outerjoin(
-                ProjectORM,
-                and_(
-                    ProjectORM.id == ApprovalRequestORM.project_id,
-                    ProjectORM.tenant_id == ctx.tenant_id,
-                ),
-            )
-            .where(
-                ApprovalRequestORM.tenant_id == ctx.tenant_id,
-                or_(
-                    ApprovalRequestORM.organization_id == ctx.organization_id,
-                    ProjectORM.organization_id == ctx.organization_id,
-                )
-            )
+        stmt = self._apply_status_filters(
+            self._base_scope_stmt(tenant_id=ctx.tenant_id, organization_id=ctx.organization_id),
+            status=status,
+            project_id=project_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
         )
-        if status is not None:
-            stmt = stmt.where(ApprovalRequestORM.status == status.value)
-        if project_id is not None:
-            stmt = stmt.where(ApprovalRequestORM.project_id == project_id)
-        if entity_type is not None:
-            if isinstance(entity_type, str):
-                stmt = stmt.where(ApprovalRequestORM.entity_type == entity_type)
-            else:
-                stmt = stmt.where(ApprovalRequestORM.entity_type.in_(entity_type))
-        if entity_id is not None:
-            stmt = stmt.where(ApprovalRequestORM.entity_id == entity_id)
         stmt = stmt.order_by(desc(ApprovalRequestORM.requested_at)).limit(max(1, int(limit)))
         rows = self.session.execute(stmt).scalars().all()
         return [approval_from_orm(row) for row in rows]
+
+    def count_by_status_for_organization(
+        self,
+        organization_id: str,
+        status: ApprovalStatus | None = None,
+        *,
+        project_id: str | None = None,
+        entity_type: str | list[str] | None = None,
+        entity_id: str | None = None,
+    ) -> int:
+        ctx = self._context(operation_label="access approvals")
+        if organization_id != ctx.organization_id:
+            return 0
+        stmt = self._apply_status_filters(
+            self._base_scope_stmt(tenant_id=ctx.tenant_id, organization_id=ctx.organization_id),
+            status=status,
+            project_id=project_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
+        )
+        return int(
+            self.session.scalar(
+                select(func.count()).select_from(stmt.order_by(None).subquery())
+            )
+            or 0
+        )
 
 
 __all__ = ["SqlAlchemyApprovalRepository"]

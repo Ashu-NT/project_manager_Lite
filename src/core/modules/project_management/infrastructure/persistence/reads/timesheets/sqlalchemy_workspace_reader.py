@@ -133,6 +133,116 @@ class SqlAlchemyTimesheetWorkspaceReader:
         ).one_or_none()
         return self._resource_fact(row) if row else None
 
+    def _open_period_starts(
+        self,
+        *,
+        resource: TimesheetResourceFact,
+        tenant_id: str,
+        organization_id: str,
+    ) -> list[date]:
+        """The full (unbounded) set of distinct calendar-month periods this
+        resource has logged time in but never submitted -- resource-scoped,
+        so this candidate set is inherently small, unlike an org-wide scan.
+        """
+        allocation_id = func.coalesce(TimeEntryORM.assignment_id, TimeEntryORM.work_allocation_id)
+        owner_filters: list[object] = [TaskAssignmentORM.resource_id == resource.resource_id]
+        if resource.employee_id:
+            owner_filters.append(TimeEntryORM.employee_id == resource.employee_id)
+        entry_dates = (
+            self._session.execute(
+                select(TimeEntryORM.entry_date)
+                .select_from(TimeEntryORM)
+                .outerjoin(TaskAssignmentORM, TaskAssignmentORM.id == allocation_id)
+                .where(
+                    TimeEntryORM.tenant_id == tenant_id,
+                    TimeEntryORM.organization_id == organization_id,
+                    or_(*owner_filters),
+                )
+            )
+            .scalars()
+            .all()
+        )
+        candidate_starts = sorted({_period_bounds(d)[0] for d in entry_dates}, reverse=True)
+        open_starts: list[date] = []
+        for period_start in candidate_starts:
+            existing = self._session.execute(
+                select(TimesheetPeriodORM.id).where(
+                    TimesheetPeriodORM.tenant_id == tenant_id,
+                    TimesheetPeriodORM.organization_id == organization_id,
+                    TimesheetPeriodORM.resource_id == resource.resource_id,
+                    TimesheetPeriodORM.period_start == period_start,
+                )
+            ).first()
+            if existing is None:
+                # No row at all -- never submitted, still genuinely open.
+                # A row means it's already submitted/rejected/etc., no
+                # longer open, and already covered by read_history.
+                open_starts.append(period_start)
+        return open_starts
+
+    def count_open_periods(
+        self,
+        *,
+        resource: TimesheetResourceFact,
+        tenant_id: str,
+        organization_id: str,
+    ) -> int:
+        return len(
+            self._open_period_starts(
+                resource=resource, tenant_id=tenant_id, organization_id=organization_id
+            )
+        )
+
+    def list_open_periods(
+        self,
+        *,
+        resource: TimesheetResourceFact,
+        tenant_id: str,
+        organization_id: str,
+        limit: int = 50,
+    ) -> tuple[TimesheetPeriodFact, ...]:
+        open_starts = self._open_period_starts(
+            resource=resource, tenant_id=tenant_id, organization_id=organization_id
+        )
+        open_periods: list[TimesheetPeriodFact] = []
+        for period_start in open_starts[: max(1, int(limit))]:
+            start, end = _period_bounds(period_start)
+            project_id = self._project_id_expression()
+            aggregate = self._session.execute(
+                self._entry_joined(
+                    select(
+                        func.coalesce(func.sum(TimeEntryORM.hours), 0),
+                        func.count(func.distinct(TimeEntryORM.id)),
+                        func.count(func.distinct(project_id)),
+                        func.count(func.distinct(TaskORM.id)),
+                    ),
+                    resource=resource,
+                ).where(
+                    *self._entry_filters(
+                        tenant_id=tenant_id, organization_id=organization_id, period_start=start
+                    )
+                )
+            ).one()
+            open_periods.append(
+                TimesheetPeriodFact(
+                    period_id=f"open:{resource.resource_id}:{start.isoformat()}",
+                    resource_id=resource.resource_id,
+                    resource_name=resource.resource_name,
+                    resource_code=resource.resource_code,
+                    resource_kind=resource.kind,
+                    worker_type=resource.worker_type,
+                    period_start=start,
+                    period_end=end,
+                    status=TimesheetPeriodStatus.OPEN,
+                    version=1,
+                    total_hours=_decimal_hours(aggregate[0]),
+                    entry_count=int(aggregate[1] or 0),
+                    project_count=int(aggregate[2] or 0),
+                    task_count=int(aggregate[3] or 0),
+                )
+            )
+        return tuple(open_periods)
+
     def _resource_scope_stmt(
         self,
         *,

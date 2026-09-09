@@ -16,7 +16,7 @@ class ModuleSummaryDto:
 
 
 class ModuleSummaryContributor(Protocol):
-    def build_summary(self, context: ActionCenterContext) -> ModuleSummaryDto: ...
+    def get_summary(self, context: ActionCenterContext) -> ModuleSummaryDto | None: ...
 
 
 __all__ = ["ModuleSummaryDto", "ModuleSummaryContributor"]

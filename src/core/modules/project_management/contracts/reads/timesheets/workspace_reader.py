@@ -148,6 +148,32 @@ class TimesheetWorkspaceReader(Protocol):
         organization_id: str,
     ) -> TimesheetResourceFact | None: ...
 
+    def count_open_periods(
+        self,
+        *,
+        resource: TimesheetResourceFact,
+        tenant_id: str,
+        organization_id: str,
+    ) -> int:
+        """Exact count, independent of `list_open_periods`'s limit."""
+        ...
+
+    def list_open_periods(
+        self,
+        *,
+        resource: TimesheetResourceFact,
+        tenant_id: str,
+        organization_id: str,
+        limit: int,
+    ) -> tuple[TimesheetPeriodFact, ...]:
+        """Periods with logged time entries that have never been
+        submitted. A TimesheetPeriodORM row is only created on first
+        submit, so `read_history` (anchored on that table) structurally
+        cannot see a genuinely open period -- this is the read path for
+        that case, synthesizing OPEN period facts from the underlying time
+        entries instead."""
+        ...
+
     def read_resource_page(
         self,
         *,

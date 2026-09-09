@@ -8,20 +8,24 @@ from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 def test_is_module_accessible_true_when_a_registered_prefix_permission_is_held():
     assert is_module_accessible("project_management", frozenset({"task.read"})) is True
-    assert is_module_accessible("platform", frozenset({"settings.manage"})) is True
 
 
 def test_is_module_accessible_false_when_no_relevant_permission_is_held():
     assert is_module_accessible("project_management", frozenset({"settings.manage"})) is False
-    assert is_module_accessible("platform", frozenset({"task.read"})) is False
 
 
 def test_is_module_accessible_false_for_an_unregistered_module_code():
     assert is_module_accessible("payroll", frozenset({"settings.manage"})) is False
 
 
+def test_is_module_accessible_false_for_platform_which_is_not_an_enterprise_module():
+    """Platform must never be treated as an EnterpriseModule -- it is
+    deliberately absent from the policy table, so any permission set,
+    however broad, still resolves to inaccessible via this policy."""
+    assert is_module_accessible("platform", frozenset({"settings.manage", "audit.read"})) is False
+
+
 def test_is_module_accessible_false_for_empty_permissions():
-    assert is_module_accessible("platform", frozenset()) is False
     assert is_module_accessible("project_management", frozenset()) is False
 
 

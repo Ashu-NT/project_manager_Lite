@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Protocol
 
 
@@ -25,6 +25,11 @@ class ActionCenterItemDto:
     route_id: str
     priority: str | None = None
     due_at: date | None = None
+    # A real, existing source timestamp (submitted/requested/decided/period
+    # reference -- never fabricated) used only to order items that have no
+    # due_at. Read-model field, not a domain change -- see
+    # `services/ordering.py`.
+    source_timestamp: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
