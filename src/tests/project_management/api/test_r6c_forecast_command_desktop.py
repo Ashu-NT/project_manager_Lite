@@ -30,6 +30,11 @@ class _Boundary:
         self.generated = None
         self.versioned = None
 
+    @property
+    def current_actor_user_id(self):
+        principal = getattr(self._user_session, "principal", None)
+        return getattr(principal, "user_id", None)
+
     def forecast_generation(self, command):
         return command(self)
 
