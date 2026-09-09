@@ -376,25 +376,21 @@ def test_resource_scope_assignment_in_a_non_active_organization_carries_the_auth
     site_a1 = services["site_service"].create_site(
         site_code=_unique_code("P5C2-A1-SITE"), name="A1 Site", city="Berlin", currency_code="EUR"
     )
-    storeroom_a1 = services["inventory_service"].create_storeroom(
-        storeroom_code=_unique_code("P5C2-A1-ROOM"), name="A1 Storeroom", site_id=site_a1.id,
-        status="ACTIVE", storeroom_type="MAIN",
-    )
-    org_a1_id = storeroom_a1.organization_id
+    org_a1_id = site_a1.organization_id
     org_a2 = services["organization_service"].create_organization(
         organization_code=_unique_code("P5C2-A2"), display_name="P5C-2 Org A2", is_enabled=True
     )
     tenant_context_service.set_active_organization(org_a2.id)
 
     target, target_role = _resource_scoped_binding_setup(
-        services, suffix="resource-nonactive", scope_type="storeroom", role_name="storeroom_viewer",
+        services, suffix="resource-nonactive", scope_type="site", role_name="site_viewer",
         organization_id=org_a2.id,
     )
     role_governance_service = services["role_governance_service"]
     recorded = _spy_recorded_events(role_governance_service, monkeypatch)
 
     binding = role_governance_service.assign_role(
-        target_user_id=target.id, role_id=target_role.id, actual_scope_id=storeroom_a1.id
+        target_user_id=target.id, role_id=target_role.id, actual_scope_id=site_a1.id
     )
 
     assert tenant_context_service.get_active_organization_id() == org_a2.id  # never switched
@@ -403,7 +399,7 @@ def test_resource_scope_assignment_in_a_non_active_organization_carries_the_auth
     assert isinstance(event, RoleBindingAssigned)
     assert event.binding_id == binding.id
     assert event.scope == RoleBindingResourceScope(
-        tenant_id=_tenant_id(services), organization_id=org_a1_id, scope_type="storeroom", scope_id=storeroom_a1.id,
+        tenant_id=_tenant_id(services), organization_id=org_a1_id, scope_type="site", scope_id=site_a1.id,
     )
     assert event.scope.organization_id == org_a1_id
     assert event.scope.organization_id != org_a2.id
@@ -416,23 +412,19 @@ def test_resource_scope_revocation_preserves_the_same_authoritative_binding_scop
     site_a1 = services["site_service"].create_site(
         site_code=_unique_code("P5C2-REV-A1-SITE"), name="A1 Site", city="Berlin", currency_code="EUR"
     )
-    storeroom_a1 = services["inventory_service"].create_storeroom(
-        storeroom_code=_unique_code("P5C2-REV-A1-ROOM"), name="A1 Storeroom", site_id=site_a1.id,
-        status="ACTIVE", storeroom_type="MAIN",
-    )
-    org_a1_id = storeroom_a1.organization_id
+    org_a1_id = site_a1.organization_id
     org_a2 = services["organization_service"].create_organization(
         organization_code=_unique_code("P5C2-REV-A2"), display_name="P5C-2 Revoke Org A2", is_enabled=True
     )
     tenant_context_service.set_active_organization(org_a2.id)
 
     target, target_role = _resource_scoped_binding_setup(
-        services, suffix="resource-revoke-nonactive", scope_type="storeroom", role_name="storeroom_viewer",
+        services, suffix="resource-revoke-nonactive", scope_type="site", role_name="site_viewer",
         organization_id=org_a2.id,
     )
     role_governance_service = services["role_governance_service"]
     binding = role_governance_service.assign_role(
-        target_user_id=target.id, role_id=target_role.id, actual_scope_id=storeroom_a1.id
+        target_user_id=target.id, role_id=target_role.id, actual_scope_id=site_a1.id
     )
     recorded = _spy_recorded_events(role_governance_service, monkeypatch)
 
@@ -444,7 +436,7 @@ def test_resource_scope_revocation_preserves_the_same_authoritative_binding_scop
     assert isinstance(event, RoleBindingRevoked)
     assert event.binding_id == binding.id
     assert event.scope == RoleBindingResourceScope(
-        tenant_id=_tenant_id(services), organization_id=org_a1_id, scope_type="storeroom", scope_id=storeroom_a1.id,
+        tenant_id=_tenant_id(services), organization_id=org_a1_id, scope_type="site", scope_id=site_a1.id,
     )
 
 
@@ -506,47 +498,12 @@ def test_site_scope_event_carries_the_authoritative_organization_from_the_correc
     assert recorded[0].scope.scope_id == site_a1.id
 
 
-def test_storeroom_scope_event_carries_the_authoritative_organization_from_the_corrected_repository(
-    services, monkeypatch
-):
-    tenant_context_service = services["tenant_context_service"]
-    site_a1 = services["site_service"].create_site(
-        site_code=_unique_code("P5C2-STOREROOM-A1-SITE"), name="A1 Site", city="Berlin", currency_code="EUR"
-    )
-    storeroom_a1 = services["inventory_service"].create_storeroom(
-        storeroom_code=_unique_code("P5C2-STOREROOM-A1-ROOM"), name="A1 Storeroom", site_id=site_a1.id,
-        status="ACTIVE", storeroom_type="MAIN",
-    )
-    org_a1_id = storeroom_a1.organization_id
-    org_a2 = services["organization_service"].create_organization(
-        organization_code=_unique_code("P5C2-STOREROOM-A2"), display_name="P5C-2 Storeroom Org A2", is_enabled=True
-    )
-    tenant_context_service.set_active_organization(org_a2.id)
-
-    target, target_role = _resource_scoped_binding_setup(
-        services, suffix="storeroom-scope", scope_type="storeroom", role_name="storeroom_viewer",
-        organization_id=org_a2.id,
-    )
-    role_governance_service = services["role_governance_service"]
-    recorded = _spy_recorded_events(role_governance_service, monkeypatch)
-
-    role_governance_service.assign_role(
-        target_user_id=target.id, role_id=target_role.id, actual_scope_id=storeroom_a1.id
-    )
-
-    assert len(recorded) == 1
-    assert recorded[0].scope.organization_id == org_a1_id
-    assert recorded[0].scope.scope_type == "storeroom"
-    assert recorded[0].scope.scope_id == storeroom_a1.id
-
-
 # ---------------------------------------------------------------------------
 # Cross-tenant
 # ---------------------------------------------------------------------------
 
 
-def test_cross_tenant_storeroom_assignment_attempt_emits_zero_events(services, monkeypatch):
-    from src.core.modules.inventory_procurement.infrastructure.persistence.orm.inventory import StoreroomORM
+def test_cross_tenant_site_assignment_attempt_emits_zero_events(services, monkeypatch):
     from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
     from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
     from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
@@ -572,26 +529,19 @@ def test_cross_tenant_storeroom_assignment_attempt_emits_zero_events(services, m
         created_at=now, updated_at=now, version=1,
     ))
     session.commit()
-    foreign_storeroom_id = _unique_code("p5c2-foreign-storeroom")
-    session.add(StoreroomORM(
-        id=foreign_storeroom_id, tenant_id=foreign_tenant_id, organization_id=foreign_org_id,
-        site_id=foreign_site_id, storeroom_code=_unique_code("P5C2FROOM"), name="Foreign Storeroom",
-        status="ACTIVE", created_at=now, updated_at=now, version=1,
-    ))
-    session.commit()
 
     target, target_role = _resource_scoped_binding_setup(
-        services, suffix="cross-tenant", scope_type="storeroom", role_name="storeroom_viewer",
+        services, suffix="cross-tenant", scope_type="site", role_name="site_viewer",
     )
     role_governance_service = services["role_governance_service"]
     recorded = _spy_recorded_events(role_governance_service, monkeypatch)
 
     with pytest.raises(NotFoundError) as exc_info:
         role_governance_service.assign_role(
-            target_user_id=target.id, role_id=target_role.id, actual_scope_id=foreign_storeroom_id
+            target_user_id=target.id, role_id=target_role.id, actual_scope_id=foreign_site_id
         )
 
-    assert exc_info.value.code == "STOREROOM_NOT_FOUND"
+    assert exc_info.value.code == "SITE_NOT_FOUND"
     assert recorded == []
 
 

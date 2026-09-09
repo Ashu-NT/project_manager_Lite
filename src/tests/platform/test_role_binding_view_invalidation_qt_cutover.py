@@ -254,8 +254,11 @@ def test_no_refresh_before_commit_and_none_on_commit_failure(services, monkeypat
     site = services["site_service"].create_site(
         site_code=_unique_code("P5C3-COMMITFAIL-SITE"), name="Commit Fail Site", city="Berlin", currency_code="EUR"
     )
+    # role_names=[] -- a non-empty global role assignment itself records a RoleBindingAssigned
+    # event (and thus a `refresh_role_bindings()` reaction), which would pollute the
+    # under-test assertion below; the target user's global role is irrelevant to a scope grant.
     user = services["auth_service"].register_user(
-        _unique_code("p5c3-commitfail-user"), "P5C3CommitFail123!", role_names=["inventory_manager"],
+        _unique_code("p5c3-commitfail-user"), "P5C3CommitFail123!", role_names=[],
         tenant_id=_active_tenant(services),
     )
 
@@ -327,8 +330,9 @@ def test_non_active_organization_resource_mutation_does_not_refresh_the_active_o
 
     refresh_calls = []
     catalog.adminAccessWorkspace.refresh_role_bindings = lambda: refresh_calls.append("refresh") or None
+    # role_names=[] -- see test_no_refresh_before_commit_and_none_on_commit_failure.
     user = services["auth_service"].register_user(
-        _unique_code("p5c3-nonactive-user"), "P5C3NonActive123!", role_names=["inventory_manager"],
+        _unique_code("p5c3-nonactive-user"), "P5C3NonActive123!", role_names=[],
         tenant_id=_active_tenant(services),
     )
 
@@ -386,10 +390,11 @@ def test_tenant_scope_mutation_refreshes_regardless_of_which_organization_is_act
     tenant_context_service.set_active_organization(org_a2.id)
     catalog.refreshCurrentPermissions()
 
-    refresh_calls = []
-    catalog.adminAccessWorkspace.refresh_role_bindings = lambda: refresh_calls.append("refresh") or None
     auth = services["auth_service"]
     tenant_id = _active_tenant(services)
+    # Registered before `refresh_calls` starts tracking -- registering `actor` with a non-empty
+    # global role itself records a RoleBindingAssigned event (its own `refresh_role_bindings()`
+    # reaction), which is setup noise, not the mutation under test.
     actor = auth.register_user(
         _unique_code("p5c3-tenantscope-actor"), "P5C3TenantScope123!", role_names=["tenant_admin"], tenant_id=tenant_id
     )
@@ -404,6 +409,8 @@ def test_tenant_scope_mutation_refreshes_regardless_of_which_organization_is_act
     )
     _switch_session_to_actor(services, actor, tenant_id=tenant_id, extra_permissions=("auth.role.assign",))
 
+    refresh_calls = []
+    catalog.adminAccessWorkspace.refresh_role_bindings = lambda: refresh_calls.append("refresh") or None
     services["role_governance_service"].assign_role(target_user_id=target.id, role_id=viewer_role.id)
 
     assert refresh_calls == ["refresh"]
@@ -419,9 +426,6 @@ def test_cross_tenant_mutation_attempt_produces_no_invalidation(services):
     channel = services["platform_view_invalidation_channel"]
     tenant_a = _active_tenant(services)
     session = services["session"]
-    hints = []
-    channel.subscribe(TenantWide(tenant_a), lambda hint: hints.append(hint))
-    channel.subscribe(ExactOrganization(tenant_a, "does-not-matter"), lambda hint: hints.append(hint))
 
     now = _dt.now(timezone.utc)
     foreign_tenant_id = _unique_code("p5c3-foreign-tenant")
@@ -437,6 +441,14 @@ def test_cross_tenant_mutation_attempt_produces_no_invalidation(services):
     target, target_role = _resource_scoped_binding_setup(
         services, suffix="crosstenant", scope_type="site", role_name="site_viewer",
     )
+
+    # Subscribed only after setup -- `_resource_scoped_binding_setup`'s own actor registration
+    # (a non-empty global role) legitimately records its own RoleBindingAssigned/hint; what this
+    # test asserts is that the REJECTED cross-tenant mutation attempt produces none.
+    hints = []
+    channel.subscribe(TenantWide(tenant_a), lambda hint: hints.append(hint))
+    channel.subscribe(ExactOrganization(tenant_a, "does-not-matter"), lambda hint: hints.append(hint))
+
     with pytest.raises(NotFoundError):
         services["role_governance_service"].assign_role(
             target_user_id=target.id, role_id=target_role.id, actual_scope_id=foreign_site_id

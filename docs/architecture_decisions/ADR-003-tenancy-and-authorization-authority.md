@@ -21,9 +21,7 @@ organization scope is now canonical and no staged/shadow/observation-window mode
 implemented or used.
 
 This ADR freezes deployment mode, administrative boundaries, canonical scope semantics,
-migration gates, evidence ownership, and rollback rules. Detailed findings and implementation
-progress remain in
-[Tenancy and RBAC Hardening](../tenancy_rbac_hardening/README.md).
+migration gates, evidence ownership, and rollback rules.
 
 ## Decision
 

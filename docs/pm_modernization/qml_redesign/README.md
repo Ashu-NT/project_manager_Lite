@@ -9,11 +9,6 @@ the design docs, then use the pattern notes below when implementing.
   -- completed authoritative TimesheetPeriod Review Queue workflow, read model,
   concurrency, security, QML ownership, cleanup, and R5G handoff.
 
-- [`project_management_qml_existing_state_audit.md`](project_management_qml_existing_state_audit.md)
-  -- current-state audit of the PM QML surface.
-- [`project_management_qml_target_ui_ux_design.md`](project_management_qml_target_ui_ux_design.md)
-  -- target IA, page patterns, wireframes, and design-system extension list
-  (see `10.2 Extend shared primitives` for `InspectorPanel`).
 - [`project_management_ui_repository_restructure_plan.md`](project_management_ui_repository_restructure_plan.md)
   -- file/module layout plan for the redesign.
 

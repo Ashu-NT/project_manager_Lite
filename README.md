@@ -154,9 +154,7 @@ Rules enforced by architecture-guard tests (`src/tests/architecture/`, `src/test
 - No new generic legacy-event bridge, string-keyed router, service locator, or generic
   repository resolver may be introduced for event handling.
 
-**Current modernization status** (source-derived; recompute rather than trust a stale count - see
-[`docs/architecture/event-modernization-plan.md`](docs/architecture/event-modernization-plan.md)
-for the live, detailed roadmap):
+**Current modernization status** (source-derived; recompute rather than trust a stale count):
 
 Fully modernized (typed `DomainEvent`s + scoped `ViewInvalidation`, legacy `Signal` deleted):
 Organization, Tenant Membership, Module Entitlements, Role Binding / Scoped Access, Approval,
@@ -176,10 +174,7 @@ session infrastructure (no events, no CAS), and the *ephemeral* `UserSessionCont
 principal_changed_listener`/`active_scope_changed_listener` notification pair is process-local,
 synchronous, and never persisted or dispatched as a `DomainEvent`.
 
-**References:** [`docs/architecture_decisions/ADR-005-domain-events.md`](docs/architecture_decisions/ADR-005-domain-events.md)
-(architectural decisions and rationale) and
-[`docs/architecture/event-modernization-plan.md`](docs/architecture/event-modernization-plan.md)
-(living implementation roadmap and phase ledger).
+**References:** [`docs/architecture_decisions/`](docs/architecture_decisions/) (architectural decisions and rationale).
 
 ## Project Structure
 
@@ -324,11 +319,10 @@ conda run -n pmenv python -m pytest -q src/tests/test_large_scale_performance.py
 - [`docs/REMAINING_WORK.md`](docs/REMAINING_WORK.md) - single consolidated backlog of everything not yet done, across every module and the platform layer
 - [`docs/ARCHITECTURE_README.md`](docs/ARCHITECTURE_README.md) - tenancy/org/auth/RBAC deep reference
 - [`docs/architecture/enterprise-platform-architecture.md`](docs/architecture/enterprise-platform-architecture.md) - full architecture & roadmap
-- [`docs/architecture/event-modernization-plan.md`](docs/architecture/event-modernization-plan.md) - living domain-event/ViewInvalidation modernization roadmap and phase ledger
 - [`docs/architecture_decisions/`](docs/architecture_decisions/) - ADRs
 - [`docs/pm_modernization/`](docs/pm_modernization/) - per-module design/execution plans
 - [`docs/cache_service_strategy/`](docs/cache_service_strategy/) - shared cache service design (not yet implemented)
-- [`docs/platform_alignment_followup/`](docs/platform_alignment_followup/), [`docs/platform_modernization/`](docs/platform_modernization/), [`docs/repo_structure_plan/`](docs/repo_structure_plan/), [`docs/tenant_repository_hardening/`](docs/tenant_repository_hardening/) - active cross-cutting workstreams
+- [`docs/platform_alignment_followup/`](docs/platform_alignment_followup/), [`docs/platform_modernization/`](docs/platform_modernization/), [`docs/tenant_repository_hardening/`](docs/tenant_repository_hardening/) - active cross-cutting workstreams
 - [`docs/INLINE_MESSAGE_STANDARDIZATION_README.md`](docs/INLINE_MESSAGE_STANDARDIZATION_README.md), [`docs/ux_design.md`](docs/ux_design.md) - UI/UX conventions
 
 ## License

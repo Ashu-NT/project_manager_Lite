@@ -23,7 +23,7 @@ caught, the item below reflects the verified-against-code status, not just the d
 
 ## 1. Tenant / Multi-Tenant Isolation
 
-**Detail:** `docs/architecture/enterprise-platform-architecture.md` (§Roadmap), `docs/ARCHITECTURE.md` (§9–10), `docs/tenant_architecture_audit/PHASE_2_HARDENING_FINDINGS.md`, `docs/tenant_repository_hardening/README.md` + `NEXT_TRANCHES.md`
+**Detail:** `docs/architecture/enterprise-platform-architecture.md` (§Roadmap), `docs/ARCHITECTURE.md` (§9–10), `docs/tenant_repository_hardening/README.md`
 
 ### Critical / High
 - No `user_tenants` membership table and no membership check in `TenantContextService.set_active_tenant()` — any authenticated user can switch into any active tenant by ID and immediately see its data.
@@ -59,8 +59,8 @@ caught, the item below reflects the verified-against-code status, not just the d
 - `maintenance_asset_components` and `document_links` lack a direct `tenant_id` (inconsistent with sibling tables).
 - `approval_requests.project_id` and `baseline_variance_records.project_id`/`task_id` stored as plain strings, no FK.
 - `ScopedAccessGrant.tenant_id` nullable for non-organization scopes — creates cross-tenant permission bleed.
-- Repository constructor tightening for platform/PM repos still defaulting `_tenant_context_service = None` (e.g. `sites.py`, PM `task.py`/`collaboration.py`) — see `tenant_repository_hardening/NEXT_TRANCHES.md`.
-- Non-PM contract cleanup: `list_for_organization(...)` still present across 8 platform repos and 15 inventory/procurement files — evaluate whether it can be simplified away.
+- Repository constructor tightening for platform/PM repos still defaulting `_tenant_context_service = None` (e.g. `sites.py`, PM `task.py`/`collaboration.py`) — see `tenant_repository_hardening/README.md`.
+- Non-PM contract cleanup: `list_for_organization(...)` still present across 8 platform repos — evaluate whether it can be simplified away.
 
 ### Cross-cutting / not yet built
 - No automated cross-tenant isolation test suite (direct object access, list isolation, write isolation, child-table isolation) — `test_repo_cross_tenant_isolation.py` doesn't exist yet.
@@ -96,7 +96,7 @@ caught, the item below reflects the verified-against-code status, not just the d
 
 ## 3. Platform Modernization (Admin Console / Control Center / Settings)
 
-**Detail:** `docs/platform_modernization/PLATFORM_LIST_DETAIL_MIGRATION_PLAN.md` (current source of truth — supersedes the alignment plan's status claims), `docs/platform_modernization/PLATFORM_LIST_DETAIL_ALIGNMENT_PLAN.md`, `docs/platform_modernization/PLATFORM_CALENDAR_OWNERSHIP_MIGRATION_PLAN.md`
+**Detail:** `docs/platform_modernization/PLATFORM_CALENDAR_OWNERSHIP_MIGRATION_PLAN.md`
 
 - Admin Console → **Documents** and **Structures**: entire list/detail workflow not started (section mapping, list/detail migration, Overview/Revisions/Linked-Entities/Approvals/Access/Audit sections, section-aware actions, lazy loading).
 - Admin Console → **Roles & Access**: Overview/Permissions/Scope/Users/Sessions/Audit section build-out mostly not started (only action-wiring and lazy loading done).
@@ -252,27 +252,24 @@ rebuild will need to redo, not an active commitment:
 - Phase 6 sign-off: interactive `python main_qt.py` boot + per-module walk, manual list/detail/dialog message-scope walk, stale-message-after-close check — none done.
 
 ### Workspace Refactoring (`docs/workspace_refactoring_plan.md`)
-- Priority 1: extract `ListPage` components for financials, register, procurement, reservations, inventory, warehouses, work_requests, assets, preventive workspaces (list UI still inline in `WorkspacePage.qml`).
+- Priority 1: extract `ListPage` components for financials, register, work_requests, assets, preventive workspaces (list UI still inline in `WorkspacePage.qml`).
 - Priority 2: extract `DetailPanel` components for the same workspace set.
 - Priority 3: full Portfolio + Scheduling (PM) refactor — move ~15 section/component files into `sections/`/`components/`, create `PortfolioWorkspaceState.qml`/`PortfolioColumnConfig.js` and `SchedulingWorkspaceState.qml`.
 - Priority 4: Dashboard workspaces (all 4 modules) + Collaboration — folders exist, no `WorkspaceState.qml`/section extraction done.
 - Priority 5: Platform workspaces (Admin Console 15+ section files, Control, Settings) — folders only, sections not moved.
-- Known risk: QML module cache needs clearing after moves; Warehouses' cross-folder dialog-host import path unverified at runtime; `FinancialsInsightsSection.qml` still at workspace root.
+- Known risk: QML module cache needs clearing after moves; `FinancialsInsightsSection.qml` still at workspace root.
 - Validation checklist (route opens, column-customizer persistence, pagination, bulk actions, dialog wiring, no broken imports/stale `qmldir`) not marked done for Phase-2 workspaces.
 
 ### UX Execution Plan (`docs/ui_ux_execution_plan.md`)
 - Density mode (Compact/Comfortable/Spacious) — explicitly pending; needs a density preference on `ShellContext`/settings plus `AppTheme` density tokens wired through row/toolbar/form/sidebar/dialog spacing.
-- Full validation pass (compileall, architecture/platform/PM/inventory/maintenance pytest, qmllint, offscreen dialog checks) — deferred, not confirmed executed.
+- Full validation pass (compileall, architecture/platform/PM/maintenance pytest, qmllint, offscreen dialog checks) — deferred, not confirmed executed.
 
 ### Dialog Design System (`docs/DIALOG_DESIGN_SYSTEM_AND_CODE_GENERATION.md`)
-- Optionally migrate Inventory's random `INV-PO-xxxxxxxxxx` PO numbers to a meaningful sequential `PO-2026-NNNN` format — open, not done.
 - Optionally extend the "required" asterisk convention to non-code labelled rows for full consistency — open, cosmetic.
 
 ---
 
 ## 9. Repo Structure / Legacy Cleanup
-
-**Detail:** `docs/repo_structure_plan/EXECUTION_SPEC.md`, `docs/repo_structure_plan/README.md`
 
 - ~~Remove the unused HTTP placeholder after verifying desktop parity.~~ Complete on 2026-08-02: `src/api/http` and its dedicated test were deleted; any future network API requires a new request-scoped design.
 - Slice 5 (HR Management, Payroll, QHSE): only placeholder package skeletons exist; cross-module isolation architecture tests for these not written.
@@ -307,10 +304,10 @@ rebuild will need to redo, not an active commitment:
 - `docs/architecture/enterprise-platform-architecture.md` (kept) has internally contradictory sections: its own §25 roadmap marks Phases 0–2C (tenant_admin/org_admin roles, `TenantAdminService`, `user_tenants`, `platform_events`) as ✅ complete, while earlier narrative sections (§5.5, §6.7, §9, §10, §13, §16) still describe those same things as missing. Verify directly against `src/core/platform/` rather than trusting either section at face value; the doc would benefit from a consistency pass.
 - `docs/architecture_decisions/ADR-001-cross-platform-ownership-model.md` (kept) has a dated "Current Implementation Status" checklist that's stale: it says Maintenance and Inventory/Procurement are "not implemented yet beyond scaffolding" — Maintenance is substantially built (see §5 above), and Inventory/Procurement was subsequently built, then removed entirely on 2026-09-09 pending a future rebuild (see §4 above). The ownership *decision* in the ADR is still valid; only its status tracker needs correcting.
 - `docs/tenant_isolation_audit/README.md` was deleted — its foundational premise ("Organization is the tenant boundary," no separate Tenant entity) has been superseded by the actual Tenant/Organization split now in the code (confirmed: `src/core/platform/tenancy/domain/tenant.py` exists). Its still-open phases (5–8: dashboard/export hardening, cache/snapshot hardening, async-worker propagation, final penetration test) are folded into §1 and §7 above.
-- `docs/tenant_architecture_audit/TENANT_ORG_AUDIT_REPORT.md` was deleted — it was a pre-implementation audit ("Status: Pre-implementation — no code changes made") whose recommendations (Tenant model, `tenant_id` on organizations, employee `organization_id`) have all since been implemented. `PHASE_2_HARDENING_FINDINGS.md` (kept) is the current source of truth for what's still open in this area.
-- `docs/tenant_architecture_audit/PHASE_2E_REMEDIATION_REPORT.md` was deleted as a near-duplicate of `PHASE_2_HARDENING_FINDINGS.md` (kept) — same Medium/Low findings, no new information.
-- 13 of 15 files under `docs/tenant_repository_hardening/` were deleted (sequential round-by-round completion logs, each one's "next step" confirmed done by the following file). `README.md` and `NEXT_TRANCHES.md` (both kept) are the accurate, current tracker pair for this workstream.
-- `docs/platform_modernization/README.md` was deleted — fully superseded by `PLATFORM_LIST_DETAIL_MIGRATION_PLAN.md` (kept), which explicitly notes this doc's "in progress" status had regressed and was re-fixed.
+- `docs/tenant_architecture_audit/TENANT_ORG_AUDIT_REPORT.md` was deleted — it was a pre-implementation audit ("Status: Pre-implementation — no code changes made") whose recommendations (Tenant model, `tenant_id` on organizations, employee `organization_id`) have all since been implemented. Its sibling `PHASE_2_HARDENING_FINDINGS.md` (kept at the time, since deleted 2026-09-09 as a superseded historical log) had been the source of truth for what was still open in this area — §1 above folds in what remained relevant.
+- `docs/tenant_architecture_audit/PHASE_2E_REMEDIATION_REPORT.md` was deleted as a near-duplicate of `PHASE_2_HARDENING_FINDINGS.md` — same Medium/Low findings, no new information. The whole `tenant_architecture_audit/` directory is now gone (its last file, `PHASE_2_HARDENING_FINDINGS.md`, was deleted 2026-09-09).
+- 14 of 15 files under `docs/tenant_repository_hardening/` have now been deleted (sequential round-by-round completion logs, each one's "next step" confirmed done by the following file, plus `NEXT_TRANCHES.md` itself, removed 2026-09-09 as a superseded historical log). `README.md` (kept) is the last remaining tracker for this workstream.
+- `docs/platform_modernization/README.md` was deleted — fully superseded by `PLATFORM_LIST_DETAIL_MIGRATION_PLAN.md`, which itself was later deleted (2026-09-09) as a superseded historical log once its migration work completed.
 - `docs/project_management_followup/README.md` was deleted — all 9 tracked slices are done; its remaining bullets were explicitly-accepted permanent design tradeoffs (legacy PM task-comment attachments, time-entry site/department snapshot strings, PM resources not owning department/site fields, the lightweight fallback collaboration store), not open TODOs. Worth knowing these are intentional, not gaps.
 
 ---
