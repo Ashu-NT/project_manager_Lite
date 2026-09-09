@@ -76,6 +76,9 @@ class RateCardFact:
     line_count: int
     created_at: datetime
     updated_at: datetime
+    can_edit: bool = False
+    can_deactivate: bool = False
+    can_add_line: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,6 +111,9 @@ class RateLineFact:
     holiday_multiplier: Decimal | None
     version: int
     updated_at: datetime
+    is_consumed: bool = False
+    can_edit: bool = False
+    can_deactivate: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,6 +122,7 @@ class FinanceRateWorkspaceFacts:
     selected_rate_card: RateCardFact | None
     cards: FinancePageFacts[RateCardFact]
     lines: FinancePageFacts[RateLineFact]
+    can_create_rate_card: bool = False
 
 
 __all__ = [

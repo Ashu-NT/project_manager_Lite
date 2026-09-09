@@ -21,6 +21,7 @@ class FinancialRateCardDetailDto:
     status_label: str = ""
     subtitle: str = ""
     fields: tuple[tuple[str, str, str], ...] = ()
+    state: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

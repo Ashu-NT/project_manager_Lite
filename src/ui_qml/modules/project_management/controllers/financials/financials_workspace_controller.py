@@ -308,6 +308,7 @@ class ProjectManagementFinancialsWorkspaceController(
         self._rate_line_rate_type = ""
         self._rate_line_status = ""
         self._rate_line_effective_status = ""
+        self._can_create_rate_card = False
         self._planned_cost_versions = default_collection()
         self._planned_cost_lines = default_collection()
         self._planned_cost_versions_table_model = DynamicTableModel(self)
@@ -667,6 +668,9 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property("QVariantMap", notify=rateCardsChanged)
     def rateCards(self) -> FinancialsMap: return self._rate_cards
 
+    @Property(bool, notify=rateCardsChanged)
+    def canCreateRateCard(self) -> bool: return self._can_create_rate_card
+
     @Property("QVariantMap", notify=rateLinesChanged)
     def rateLines(self) -> FinancialsMap: return self._rate_lines
 
@@ -996,6 +1000,30 @@ class ProjectManagementFinancialsWorkspaceController(
         self, search: str, rate_type: str, status: str, effective_status: str
     ) -> None:
         self._set_rate_line_filters(search, rate_type, status, effective_status)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def createRateCard(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._create_rate_card(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateRateCard(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._update_rate_card(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def deactivateRateCard(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._deactivate_rate_card(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def addRateLine(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._add_rate_line(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateRateLine(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._update_rate_line(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def deactivateRateLine(self, payload: FinancialsMap) -> FinancialsMap:
+        return self._deactivate_rate_line(payload)
 
     @Slot(str)
     def selectBudgetVersion(self, budget_id: str) -> None:

@@ -20,15 +20,15 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-_TABLES = (
-    "project_approved_time_labor_postings",
-    "project_finance_planned_cost_lines",
-    "project_billing_preparation_lines",
-)
+_TABLES = {
+    "project_approved_time_labor_postings": "labor",
+    "project_finance_planned_cost_lines": "planned_cost",
+    "project_billing_preparation_lines": "billing_line",
+}
 
 
 def upgrade() -> None:
-    for table in _TABLES:
+    for table, constraint_prefix in _TABLES.items():
         with op.batch_alter_table(table, schema=None) as batch_op:
             batch_op.add_column(sa.Column("rate_line_version", sa.Integer(), nullable=True))
             batch_op.add_column(sa.Column("rate_modifier", sa.String(length=24), nullable=True))
@@ -40,21 +40,25 @@ def upgrade() -> None:
                 )
             )
             batch_op.create_check_constraint(
-                f"ck_{table}_rate_line_version",
+                f"ck_{constraint_prefix}_rate_line_version",
                 "rate_line_version IS NULL OR rate_line_version >= 1",
             )
             batch_op.create_check_constraint(
-                f"ck_{table}_rate_modifier",
+                f"ck_{constraint_prefix}_rate_modifier",
                 "rate_modifier_multiplier IS NULL OR "
                 "(rate_modifier IS NOT NULL AND rate_modifier_multiplier >= 0)",
             )
 
 
 def downgrade() -> None:
-    for table in reversed(_TABLES):
+    for table, constraint_prefix in reversed(tuple(_TABLES.items())):
         with op.batch_alter_table(table, schema=None) as batch_op:
-            batch_op.drop_constraint(f"ck_{table}_rate_modifier", type_="check")
-            batch_op.drop_constraint(f"ck_{table}_rate_line_version", type_="check")
+            batch_op.drop_constraint(
+                f"ck_{constraint_prefix}_rate_modifier", type_="check"
+            )
+            batch_op.drop_constraint(
+                f"ck_{constraint_prefix}_rate_line_version", type_="check"
+            )
             batch_op.drop_column("rate_modifier_multiplier")
             batch_op.drop_column("rate_modifier")
             batch_op.drop_column("rate_line_version")

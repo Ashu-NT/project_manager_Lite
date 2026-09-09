@@ -42,6 +42,12 @@ from src.core.modules.project_management.api.desktop.financials.commands import 
     FinancialTransitionProfileCommand,
     FinancialUpdateCostCodeCommand,
     FinancialUpdateProfileCommand,
+    FinancialAddRateLineCommand,
+    FinancialCreateRateCardCommand,
+    FinancialUpdateRateCardCommand,
+    FinancialUpdateRateLineCommand,
+    FinancialVersionedRateCardCommand,
+    FinancialVersionedRateLineCommand,
 )
 from src.core.modules.project_management.api.desktop.financials.factories.financials_api_factory import (
     build_project_management_financials_desktop_api,
@@ -75,6 +81,7 @@ from src.core.modules.project_management.api.desktop.financials.models import (
     FinancialRateCardDetailDto,
     FinancialRateTableRecordDto,
     FinancialRateWorkspaceDto,
+    FinancialRateMutationDto,
 )
 
 __all__ = [
@@ -130,6 +137,13 @@ __all__ = [
     "FinancialRateCardDetailDto",
     "FinancialRateTableRecordDto",
     "FinancialRateWorkspaceDto",
+    "FinancialRateMutationDto",
+    "FinancialAddRateLineCommand",
+    "FinancialCreateRateCardCommand",
+    "FinancialUpdateRateCardCommand",
+    "FinancialUpdateRateLineCommand",
+    "FinancialVersionedRateCardCommand",
+    "FinancialVersionedRateLineCommand",
     "FinancialReverseActualCommand",
     "FinancialUpdateActualDraftCommand",
     "FinancialUpdateBudgetCommand",

@@ -30,6 +30,15 @@ class ApprovedTimeLaborPostingORM(Base):
         UniqueConstraint("tenant_id", "organization_id", "approved_snapshot_id", name="uq_labor_postings_snapshot"),
         CheckConstraint("source_revision >= 1 AND hours > 0 AND rate_amount >= 0", name="ck_labor_postings_values"),
         CheckConstraint("rate_card_version >= 1 AND rate_precedence_level >= 1", name="ck_labor_postings_rate_versions"),
+        CheckConstraint(
+            "rate_line_version IS NULL OR rate_line_version >= 1",
+            name="ck_labor_rate_line_version",
+        ),
+        CheckConstraint(
+            "rate_modifier_multiplier IS NULL OR "
+            "(rate_modifier IS NOT NULL AND rate_modifier_multiplier >= 0)",
+            name="ck_labor_rate_modifier",
+        ),
         Index("idx_labor_postings_latest", "tenant_id", "organization_id", "time_entry_id", "source_revision"),
         {"info": {"rls_scope": "tenant_organization"}},
     )

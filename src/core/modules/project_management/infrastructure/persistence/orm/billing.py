@@ -355,6 +355,15 @@ class ProjectBillingPreparationLineORM(Base):
             "(rate_card_id IS NOT NULL AND rate_line_id IS NOT NULL AND rate_card_version >= 1)",
             name="ck_billing_lines_rate_snapshot",
         ),
+        CheckConstraint(
+            "rate_line_version IS NULL OR rate_line_version >= 1",
+            name="ck_billing_line_rate_line_version",
+        ),
+        CheckConstraint(
+            "rate_modifier_multiplier IS NULL OR "
+            "(rate_modifier IS NOT NULL AND rate_modifier_multiplier >= 0)",
+            name="ck_billing_line_rate_modifier",
+        ),
         _SCOPE_INFO,
     )
 

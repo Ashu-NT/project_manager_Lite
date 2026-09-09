@@ -54,6 +54,15 @@ def serialize_finance_rate_workspace(
                 ("Version", str(selected.version), "Optimistic-concurrency version"),
                 ("Updated", _datetime_label(selected.updated_at), ""),
             ),
+            state={
+                "projectId": selected.project_id or "",
+                "scope": selected.scope,
+                "version": selected.version,
+                "isActive": selected.is_active,
+                "canEdit": selected.can_edit,
+                "canDeactivate": selected.can_deactivate,
+                "canAddLine": selected.can_add_line,
+            },
         )
         if selected is not None
         else FinancialRateCardDetailDto()
@@ -81,6 +90,7 @@ def serialize_finance_rate_workspace(
         line_status=line_status,
         line_effective_status=line_effective_status,
         as_of=(as_of.isoformat() if as_of else ""),
+        can_create_rate_card=source.can_create_rate_card,
     )
 
 
@@ -97,6 +107,10 @@ def _card_record(item) -> FinancialRateTableRecordDto:
             "scope": item.scope,
             "lineCount": item.line_count,
             "version": item.version,
+            "isActive": item.is_active,
+            "canEdit": item.can_edit,
+            "canDeactivate": item.can_deactivate,
+            "canAddLine": item.can_add_line,
         },
     )
 
@@ -144,6 +158,15 @@ def _line_record(item) -> FinancialRateTableRecordDto:
             "effectiveStatus": item.effective_status,
             "isActive": item.is_active,
             "version": item.version,
+            "isConsumed": item.is_consumed,
+            "historicalLockMessage": (
+                "This line has historical financial use. Its economic terms are "
+                "locked; create a new effective-dated line for future changes."
+                if item.is_consumed
+                else ""
+            ),
+            "canEdit": item.can_edit,
+            "canDeactivate": item.can_deactivate,
         },
     )
 

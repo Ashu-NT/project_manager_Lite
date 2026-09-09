@@ -914,11 +914,43 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
                 ),
             )
         )
+        can_manage = self._has_project_permission(project_id, "finance.manage")
+        cards = replace(
+            cards,
+            items=tuple(
+                replace(
+                    item,
+                    can_edit=can_manage and item.is_active,
+                    can_deactivate=can_manage and item.is_active,
+                    can_add_line=can_manage and item.is_active,
+                )
+                for item in cards.items
+            ),
+        )
+        if selected is not None:
+            selected = replace(
+                selected,
+                can_edit=can_manage and selected.is_active,
+                can_deactivate=can_manage and selected.is_active,
+                can_add_line=can_manage and selected.is_active,
+            )
+        lines = replace(
+            lines,
+            items=tuple(
+                replace(
+                    item,
+                    can_edit=can_manage and item.is_active,
+                    can_deactivate=can_manage and item.is_active,
+                )
+                for item in lines.items
+            ),
+        )
         return FinanceRateWorkspaceFacts(
             selected_rate_card_id=resolved_id,
             selected_rate_card=selected,
             cards=cards,
             lines=lines,
+            can_create_rate_card=can_manage,
         )
 
     def get_change_workspace(
