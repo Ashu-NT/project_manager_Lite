@@ -42,6 +42,9 @@ class ApprovedTimeLaborPosting:
     task_id: str | None = None
     employee_id: str | None = None
     reversal_cost_entry_id: str | None = None
+    rate_line_version: int | None = None
+    rate_modifier: str | None = None
+    rate_modifier_multiplier: Decimal | None = None
     created_at: datetime = field(default_factory=_utc_now)
 
     @field_validator(
@@ -85,6 +88,38 @@ class ApprovedTimeLaborPosting:
         resolved = int(value)
         if resolved < 1:
             raise ValidationError(f"{info.field_name} must be positive.", code="LABOR_POSTING_VERSION_INVALID")
+        return resolved
+
+    @field_validator("rate_line_version", mode="before")
+    @classmethod
+    def _optional_line_version(cls, value: object) -> int | None:
+        if value is None:
+            return None
+        resolved = int(value)
+        if resolved < 1:
+            raise ValidationError(
+                "rate_line_version must be positive.",
+                code="LABOR_POSTING_VERSION_INVALID",
+            )
+        return resolved
+
+    @field_validator("rate_modifier", mode="before")
+    @classmethod
+    def _optional_modifier(cls, value: object) -> str | None:
+        normalized = str(value or "").strip().lower()
+        return normalized or None
+
+    @field_validator("rate_modifier_multiplier", mode="before")
+    @classmethod
+    def _optional_modifier_multiplier(cls, value: object) -> Decimal | None:
+        if value is None:
+            return None
+        resolved = Decimal(str(value))
+        if resolved < 0:
+            raise ValidationError(
+                "Rate modifier multiplier cannot be negative.",
+                code="LABOR_POSTING_MODIFIER_INVALID",
+            )
         return resolved
 
     @field_validator("rate_resolved_at", "approved_at", "created_at", mode="before")

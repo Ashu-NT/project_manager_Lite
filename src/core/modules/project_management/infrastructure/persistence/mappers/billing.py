@@ -220,6 +220,9 @@ def preparation_line_to_orm(
         rate_card_id=value.rate_card_id,
         rate_line_id=value.rate_line_id,
         rate_card_version=value.rate_card_version,
+        rate_line_version=value.rate_line_version,
+        rate_modifier=value.rate_modifier,
+        rate_modifier_multiplier=value.rate_modifier_multiplier,
         created_at=value.created_at,
     )
 
@@ -251,6 +254,9 @@ def preparation_line_from_orm(
         rate_card_id=row.rate_card_id,
         rate_line_id=row.rate_line_id,
         rate_card_version=row.rate_card_version,
+        rate_line_version=row.rate_line_version,
+        rate_modifier=row.rate_modifier,
+        rate_modifier_multiplier=row.rate_modifier_multiplier,
         created_at=row.created_at,
     )
 

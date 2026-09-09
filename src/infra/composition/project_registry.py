@@ -175,6 +175,7 @@ from src.core.modules.project_management.application.financials.rate_cards.event
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_events import (
     RateCardCreated,
     RateCardDeactivated,
+    RateCardUpdated,
     RateCardLineAdded,
     RateCardLineDeactivated,
     RateCardLineUpdated,
@@ -955,6 +956,7 @@ def build_project_management_service_bundle(
     for _rate_card_event_type in (
         RateCardCreated,
         RateCardDeactivated,
+        RateCardUpdated,
         RateCardLineAdded,
         RateCardLineUpdated,
         RateCardLineDeactivated,
@@ -1258,6 +1260,7 @@ def build_project_management_service_bundle(
         mutations=frozenset(
             {
                 "create_rate_card",
+                "update_rate_card",
                 "deactivate_rate_card",
                 "create_line",
                 "update_line",

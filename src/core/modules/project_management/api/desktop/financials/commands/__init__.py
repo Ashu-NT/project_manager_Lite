@@ -50,6 +50,14 @@ from src.core.modules.project_management.api.desktop.financials.commands.changes
     FinancialUpdateChangeCommand,
     FinancialUpdateChangeImpactCommand,
 )
+from src.core.modules.project_management.api.desktop.financials.commands.rates import (
+    FinancialAddRateLineCommand,
+    FinancialCreateRateCardCommand,
+    FinancialUpdateRateCardCommand,
+    FinancialUpdateRateLineCommand,
+    FinancialVersionedRateCardCommand,
+    FinancialVersionedRateLineCommand,
+)
 
 __all__ = [
     "FinancialChangeCostCodeStatusCommand",
@@ -90,4 +98,10 @@ __all__ = [
     "FinancialVersionedBillingPreparationCommand",
     "FinancialVersionedBudgetCommand",
     "FinancialVersionedForecastCommand",
+    "FinancialAddRateLineCommand",
+    "FinancialCreateRateCardCommand",
+    "FinancialUpdateRateCardCommand",
+    "FinancialUpdateRateLineCommand",
+    "FinancialVersionedRateCardCommand",
+    "FinancialVersionedRateLineCommand",
 ]
