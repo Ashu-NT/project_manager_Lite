@@ -598,6 +598,17 @@ class FinancialsSelectionMixin:
             self.actualSortDirectionChanged.emit()
             self.refresh()
 
+    def _set_actual_filters(self, status: str, source: str) -> None:
+        values = (
+            str(status or "").strip().lower(),
+            str(source or "").strip().lower(),
+        )
+        if values != (self._actual_status, self._actual_source):
+            self._actual_status, self._actual_source = values
+            self._actual_page = 1
+            self.actualFiltersChanged.emit()
+            self.refresh()
+
     def _set_commitment_sort(self, sort_key: str, sort_direction: int) -> None:
         normalized_key = str(sort_key or "").strip()
         if (

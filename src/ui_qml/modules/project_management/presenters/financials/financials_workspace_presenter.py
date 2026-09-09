@@ -29,6 +29,7 @@ from .command_handler import (
     decide_budget_approval,
     decide_forecast_approval,
     decide_financial_change_approval,
+    delete_actual_draft,
     delete_budget,
     delete_budget_line,
     deactivate_rate_card,
@@ -46,6 +47,7 @@ from .command_handler import (
     request_budget_approval,
     request_forecast_approval,
     update_budget,
+    update_actual_draft,
     update_budget_line,
     update_financial_change,
     update_financial_change_impact,
@@ -112,6 +114,12 @@ class ProjectFinancialsWorkspacePresenter:
 
     def resolve_manual_actual_task(self, project_id: str, task_id: str):
         return self._desktop_api.resolve_manual_actual_task(project_id, task_id)
+
+    def search_manual_actual_resources(self, project_id: str, **query: Any):
+        return self._desktop_api.search_manual_actual_resources(project_id, **query)
+
+    def resolve_manual_actual_resource(self, project_id: str, resource_id: str):
+        return self._desktop_api.resolve_manual_actual_resource(project_id, resource_id)
 
     def search_manual_actual_cost_codes(self, project_id: str, **query: Any):
         return self._desktop_api.search_manual_actual_cost_codes(project_id, **query)
@@ -246,6 +254,12 @@ class ProjectFinancialsWorkspacePresenter:
 
     def create_manual_actual(self, payload: dict[str, Any]) -> None:
         create_manual_actual(self._desktop_api, payload)
+
+    def update_actual_draft(self, payload: dict[str, Any]) -> None:
+        update_actual_draft(self._desktop_api, payload)
+
+    def delete_actual_draft(self, payload: dict[str, Any]) -> None:
+        delete_actual_draft(self._desktop_api, payload)
 
     def create_rate_card(self, payload: dict[str, Any]):
         return create_rate_card(self._desktop_api, payload)

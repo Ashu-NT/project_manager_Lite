@@ -333,6 +333,28 @@ class ProjectManagementFinancialsDesktopApi:
         )
         return _serialize_lookup_option(fact)
 
+    def search_manual_actual_resources(
+        self,
+        project_id: str,
+        *,
+        search: str = "",
+        page: int = 1,
+        page_size: int = 25,
+    ) -> FinancialLookupPageDto:
+        facts = self._require_finance_workspace_query().search_manual_actual_resources(
+            project_id,
+            request=FinanceLookupQuery(search=search, page=page, page_size=page_size),
+        )
+        return _serialize_lookup_page(facts)
+
+    def resolve_manual_actual_resource(
+        self, project_id: str, resource_id: str
+    ) -> FinancialLookupOptionDto | None:
+        fact = self._require_finance_workspace_query().resolve_manual_actual_resource(
+            project_id, resource_id
+        )
+        return _serialize_lookup_option(fact)
+
     def search_manual_actual_cost_codes(
         self,
         project_id: str,
@@ -614,6 +636,7 @@ class ProjectManagementFinancialsDesktopApi:
         project_id: str,
         *,
         status: str | None = None,
+        source_module: str | None = None,
         offset: int = 0,
         limit: int = 50,
         sort_key: str = "metaText",
@@ -630,6 +653,7 @@ class ProjectManagementFinancialsDesktopApi:
         entries, total = self._cost_entry_service.list_for_project(
             project_id,
             status=status,
+            source_module=source_module,
             offset=offset,
             limit=limit,
             sort_key=sort.key,
@@ -644,18 +668,22 @@ class ProjectManagementFinancialsDesktopApi:
             entries, total = self._cost_entry_service.list_for_project(
                 project_id,
                 status=status,
+                source_module=source_module,
                 offset=normalized_offset,
                 limit=limit,
                 sort_key=sort.key,
                 sort_direction=sort.direction.value,
             )
         return FinancialCostEntryPageDto(
-            items=tuple(serialize_cost_entry(entry) for entry in entries),
+            items=tuple(self._serialize_cost_entry(entry) for entry in entries),
             total=total,
             offset=normalized_offset,
             limit=limit,
             sort_key=sort.key,
             sort_direction=sort.direction.value,
+            can_create_manual_actual=self._cost_entry_service.can_create_manual_entry(
+                project_id
+            ),
         )
 
     def create_manual_actual(
@@ -673,7 +701,7 @@ class ProjectManagementFinancialsDesktopApi:
             task_id=command.task_id,
             resource_id=command.resource_id,
         )
-        return serialize_cost_entry(entry)
+        return self._serialize_cost_entry(entry)
 
     def update_actual_draft(
         self, command: FinancialUpdateActualDraftCommand
@@ -689,7 +717,7 @@ class ProjectManagementFinancialsDesktopApi:
             task_id=command.task_id,
             resource_id=command.resource_id,
         )
-        return serialize_cost_entry(entry)
+        return self._serialize_cost_entry(entry)
 
     def delete_actual_draft(self, command: FinancialVersionedActualCommand) -> None:
         self._require_cost_entry_service().delete_draft(
@@ -699,7 +727,7 @@ class ProjectManagementFinancialsDesktopApi:
     def submit_actual(
         self, command: FinancialVersionedActualCommand
     ) -> FinancialCostEntryDto:
-        return serialize_cost_entry(
+        return self._serialize_cost_entry(
             self._require_cost_entry_service().submit(
                 command.entry_id, expected_version=command.expected_version
             )
@@ -725,7 +753,7 @@ class ProjectManagementFinancialsDesktopApi:
     def reject_actual(
         self, command: FinancialDecideActualCommand
     ) -> FinancialCostEntryDto:
-        return serialize_cost_entry(
+        return self._serialize_cost_entry(
             self._require_cost_entry_service().reject(
                 command.entry_id,
                 expected_version=command.expected_version,
@@ -734,7 +762,7 @@ class ProjectManagementFinancialsDesktopApi:
         )
 
     def post_actual(self, command: FinancialPostActualCommand) -> FinancialCostEntryDto:
-        return serialize_cost_entry(
+        return self._serialize_cost_entry(
             self._require_cost_entry_service().post(
                 command.entry_id,
                 expected_version=command.expected_version,
@@ -749,7 +777,7 @@ class ProjectManagementFinancialsDesktopApi:
     def reverse_actual(
         self, command: FinancialReverseActualCommand
     ) -> FinancialCostEntryDto:
-        return serialize_cost_entry(
+        return self._serialize_cost_entry(
             self._require_cost_entry_service().reverse(
                 command.entry_id,
                 expected_version=command.expected_version,
@@ -758,6 +786,10 @@ class ProjectManagementFinancialsDesktopApi:
                 reason=command.reason,
             )
         )
+
+    def _serialize_cost_entry(self, entry) -> FinancialCostEntryDto:
+        service = self._require_cost_entry_service()
+        return serialize_cost_entry(entry, service.capabilities_for(entry))
 
     def get_finance_overview(self, project_id: str) -> FinancialOverviewDto:
         if not project_id or self._finance_service is None:

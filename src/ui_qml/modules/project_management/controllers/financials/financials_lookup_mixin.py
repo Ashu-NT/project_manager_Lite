@@ -68,6 +68,15 @@ class FinancialsLookupMixin:
             )
         )
 
+    def _search_manual_actual_resources(
+        self, project_id: str, search: str, page: int, page_size: int
+    ) -> dict[str, object]:
+        return self._lookup_page(
+            lambda: self._financials_workspace_presenter.search_manual_actual_resources(
+                project_id, search=search, page=page, page_size=page_size
+            )
+        )
+
     def _search_manual_actual_cost_codes(
         self,
         project_id: str,
@@ -99,6 +108,15 @@ class FinancialsLookupMixin:
         return self._lookup_item(
             lambda: self._financials_workspace_presenter.resolve_manual_actual_task(
                 project_id, task_id
+            )
+        )
+
+    def _resolve_manual_actual_resource(
+        self, project_id: str, resource_id: str
+    ) -> dict[str, object]:
+        return self._lookup_item(
+            lambda: self._financials_workspace_presenter.resolve_manual_actual_resource(
+                project_id, resource_id
             )
         )
 

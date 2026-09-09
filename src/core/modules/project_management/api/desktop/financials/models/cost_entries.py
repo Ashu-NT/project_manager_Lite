@@ -35,6 +35,9 @@ class FinancialCostEntryDto:
     task_id: str
     resource_id: str
     source_label: str
+    source_module: str
+    source_type: str
+    source_owned: bool
     posting_date: str
     financial_period_id: str
     row_version: int
@@ -42,8 +45,11 @@ class FinancialCostEntryDto:
     can_delete: bool
     can_submit: bool
     can_approve: bool
+    can_reject: bool
     can_post: bool
     can_reverse: bool
+    approval_action: str
+    read_only_reason: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +60,7 @@ class FinancialCostEntryPageDto:
     limit: int = 50
     sort_key: str = "metaText"
     sort_direction: str = "desc"
+    can_create_manual_actual: bool = False
 
 
 @dataclass(frozen=True, slots=True)

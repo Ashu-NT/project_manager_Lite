@@ -100,6 +100,8 @@ class ProjectManagementFinancialsWorkspaceController(
     activityChanged = Signal()
     actualSortKeyChanged = Signal()
     actualSortDirectionChanged = Signal()
+    canCreateManualActualChanged = Signal()
+    actualFiltersChanged = Signal()
     selectedForecastIdChanged = Signal()
     forecastVersionsChanged = Signal()
     forecastLinesChanged = Signal()
@@ -208,6 +210,9 @@ class ProjectManagementFinancialsWorkspaceController(
         self._actual_page = 1
         self._actual_sort_key = "metaText"
         self._actual_sort_direction = Qt.DescendingOrder.value
+        self._can_create_manual_actual = False
+        self._actual_status = ""
+        self._actual_source = ""
         self._selected_forecast_id = ""
         self._selected_forecast = default_detail()
         self._forecast_versions = default_collection()
@@ -427,6 +432,15 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property(int, notify=actualSortDirectionChanged)
     def actualSortDirection(self) -> int: return self._actual_sort_direction
+
+    @Property(bool, notify=canCreateManualActualChanged)
+    def canCreateManualActual(self) -> bool: return self._can_create_manual_actual
+
+    @Property(str, notify=actualFiltersChanged)
+    def actualStatus(self) -> str: return self._actual_status
+
+    @Property(str, notify=actualFiltersChanged)
+    def actualSource(self) -> str: return self._actual_source
 
     @Property(str, notify=selectedForecastIdChanged)
     def selectedForecastId(self) -> str: return self._selected_forecast_id
@@ -1104,6 +1118,12 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot("QVariantMap", result="QVariantMap")
     def createManualActual(self, payload: FinancialsMap) -> FinancialsMap: return self._create_manual_actual(payload)
 
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateActualDraft(self, payload: FinancialsMap) -> FinancialsMap: return self._update_actual_draft(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def deleteActualDraft(self, payload: FinancialsMap) -> FinancialsMap: return self._delete_actual_draft(payload)
+
     @Slot(str, int, int, result="QVariantMap")
     def searchFinanceProjects(self, search: str, page: int, page_size: int) -> FinancialsMap:
         return self._search_finance_projects(search, page, page_size)
@@ -1130,6 +1150,14 @@ class ProjectManagementFinancialsWorkspaceController(
     ) -> FinancialsMap:
         return self._search_manual_actual_tasks(project_id, search, page, page_size)
 
+    @Slot(str, str, int, int, result="QVariantMap")
+    def searchManualActualResources(
+        self, project_id: str, search: str, page: int, page_size: int
+    ) -> FinancialsMap:
+        return self._search_manual_actual_resources(
+            project_id, search, page, page_size
+        )
+
     @Slot(str, str, int, int, str, result="QVariantMap")
     def searchManualActualCostCodes(
         self,
@@ -1150,6 +1178,12 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str, str, result="QVariantMap")
     def resolveManualActualTask(self, project_id: str, task_id: str) -> FinancialsMap:
         return self._resolve_manual_actual_task(project_id, task_id)
+
+    @Slot(str, str, result="QVariantMap")
+    def resolveManualActualResource(
+        self, project_id: str, resource_id: str
+    ) -> FinancialsMap:
+        return self._resolve_manual_actual_resource(project_id, resource_id)
 
     @Slot(str, str, str, result="QVariantMap")
     def resolveManualActualCostCode(
@@ -1454,6 +1488,10 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str, int)
     def setActualSort(self, sort_key: str, sort_direction: int) -> None:
         self._set_actual_sort(sort_key, sort_direction)
+
+    @Slot(str, str)
+    def setActualFilters(self, status: str, source: str) -> None:
+        self._set_actual_filters(status, source)
 
     @Slot(int)
     def setCommitmentPage(self, page: int) -> None: self._set_commitment_page(page)

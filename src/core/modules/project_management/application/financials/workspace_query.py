@@ -232,6 +232,30 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             task_id=str(task_id or "").strip(),
         )
 
+    def search_manual_actual_resources(
+        self, project_id: str, *, request: FinanceLookupQuery
+    ) -> FinanceLookupPageFacts:
+        scope = self._require_manual_actual_lookup(
+            project_id, "search manual actual resources"
+        )
+        return self._require_lookup_reader().search_rate_resources(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            request=request,
+        )
+
+    def resolve_manual_actual_resource(
+        self, project_id: str, resource_id: str
+    ) -> FinanceLookupOptionFact | None:
+        scope = self._require_manual_actual_lookup(
+            project_id, "resolve manual actual resource"
+        )
+        return self._require_lookup_reader().get_resource_option(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            resource_id=str(resource_id or "").strip(),
+        )
+
     def search_manual_actual_cost_codes(
         self,
         project_id: str,

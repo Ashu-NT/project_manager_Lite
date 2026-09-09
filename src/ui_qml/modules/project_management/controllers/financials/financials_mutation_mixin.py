@@ -304,6 +304,24 @@ class FinancialsMutationMixin:
             on_success=lambda: self._invalidate_destinations("costs", "controls"),
         )
 
+    def _update_actual_draft(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_finance_mutation(
+            lambda: self._financials_workspace_presenter.update_actual_draft(
+                dict(payload)
+            ),
+            "Manual actual draft updated.",
+            on_success=lambda: self._invalidate_destinations("costs"),
+        )
+
+    def _delete_actual_draft(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_finance_mutation(
+            lambda: self._financials_workspace_presenter.delete_actual_draft(
+                dict(payload)
+            ),
+            "Manual actual draft deleted.",
+            on_success=lambda: self._invalidate_destinations("costs"),
+        )
+
     def _run_rate_mutation(self, operation, success_message: str) -> dict[str, object]:
         result = self._run_finance_mutation(
             operation,

@@ -156,6 +156,32 @@ class SqlAlchemyFinanceLookupReader:
             page_size=page_size,
         )
 
+    def get_resource_option(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        resource_id: str,
+    ) -> FinanceLookupOptionFact | None:
+        row = self._session.execute(
+            select(ResourceORM.id, ResourceORM.resource_code, ResourceORM.name).where(
+                ResourceORM.tenant_id == tenant_id,
+                ResourceORM.organization_id == organization_id,
+                ResourceORM.id == str(resource_id or "").strip(),
+                ResourceORM.is_active.is_(True),
+            )
+        ).one_or_none()
+        if row is None:
+            return None
+        return FinanceLookupOptionFact(
+            id=str(row.id),
+            label=(
+                f"{row.resource_code} - {row.name}"
+                if row.resource_code
+                else str(row.name)
+            ),
+        )
+
     def search_rate_departments(
         self,
         *,

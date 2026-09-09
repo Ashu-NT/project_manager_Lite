@@ -23,8 +23,18 @@ Item {
     }
 
     function openCreateManualActualDialog() {
+        editorDialog.mode = "create"
+        editorDialog.entry = null
         editorDialog.commandId = root.workspaceController
             ? root.workspaceController.newFinancialCommandId() : ""
+        editorDialog.errorMessage = ""
+        editorDialog.open()
+    }
+
+    function openEditManualActualDialog(entry) {
+        editorDialog.mode = "edit"
+        editorDialog.entry = entry || null
+        editorDialog.commandId = ""
         editorDialog.errorMessage = ""
         editorDialog.open()
     }
@@ -146,7 +156,7 @@ Item {
         financialChangeLifecycleDialog.open()
     }
 
-    // Opens the shared reject/post/reverse decision dialog for the given
+    // Opens the shared delete/reject/post/reverse decision dialog for the given
     // canonical ProjectCostEntry. Submit and approve need no extra fields
     // and are dispatched directly by the caller without a dialog.
     function openActualDecisionDialog(mode, entryId, rowVersion) {
@@ -169,7 +179,9 @@ Item {
 
         onSubmitted: function(payload) {
             if (!root.workspaceController) return
-            const result = root.workspaceController.createManualActual(payload)
+            const result = editorDialog.mode === "edit"
+                ? root.workspaceController.updateActualDraft(payload)
+                : root.workspaceController.createManualActual(payload)
             root._handleResult(editorDialog, result)
         }
     }
@@ -247,6 +259,8 @@ Item {
                 result = root.workspaceController.postActual(payload)
             } else if (mode === "reverse") {
                 result = root.workspaceController.reverseActual(payload)
+            } else if (mode === "delete") {
+                result = root.workspaceController.deleteActualDraft(payload)
             } else {
                 result = root.workspaceController.rejectActual(payload)
             }
