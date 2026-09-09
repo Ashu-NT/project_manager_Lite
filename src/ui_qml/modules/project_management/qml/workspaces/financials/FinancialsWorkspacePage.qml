@@ -500,6 +500,7 @@ AppLayouts.WorkspaceFrame {
                     rateLineRateType: root.workspaceController ? root.workspaceController.rateLineRateType : ""
                     rateLineStatus: root.workspaceController ? root.workspaceController.rateLineStatus : ""
                     rateLineEffectiveStatus: root.workspaceController ? root.workspaceController.rateLineEffectiveStatus : ""
+                    canCreateRateCard: root.workspaceController ? root.workspaceController.canCreateRateCard : false
                     plannedCostVersionsModel: root.workspaceController ? root.workspaceController.plannedCostVersions : ({ "items": [] })
                     plannedCostLinesModel: root.workspaceController ? root.workspaceController.plannedCostLines : ({ "items": [] })
                     plannedCostVersionsTableModel: root.workspaceController ? root.workspaceController.plannedCostVersionsTableModel : null
@@ -702,6 +703,12 @@ AppLayouts.WorkspaceFrame {
                         if (root.workspaceController !== null)
                             root.workspaceController.setRateLineFilters(search, rateType, status, effectiveStatus)
                     }
+                    onRateCardCreateRequested: dialogHostLoader.invoke("openRateCardDialog", "create", null)
+                    onRateCardEditRequested: function(rateCard) { dialogHostLoader.invoke("openRateCardDialog", "edit", rateCard) }
+                    onRateCardDeactivateRequested: function(rateCard) { dialogHostLoader.invoke("openRateLifecycleDialog", "card", rateCard, null) }
+                    onRateLineAddRequested: function(rateCard) { dialogHostLoader.invoke("openRateLineDialog", "create", rateCard, null) }
+                    onRateLineEditRequested: function(rateCard, rateLine) { dialogHostLoader.invoke("openRateLineDialog", "edit", rateCard, rateLine) }
+                    onRateLineDeactivateRequested: function(rateCard, rateLine) { dialogHostLoader.invoke("openRateLifecycleDialog", "line", rateCard, rateLine) }
                     onFinancialChangeSelected: function(changeId) {
                         if (root.workspaceController !== null)
                             root.workspaceController.selectFinancialChange(changeId)

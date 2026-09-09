@@ -28,6 +28,10 @@ from src.core.modules.project_management.infrastructure.persistence.orm.financia
     FinancialChangeRequestORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
+from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
+    DepartmentORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.register import (
     RegisterEntryORM,
 )
@@ -97,6 +101,88 @@ class SqlAlchemyFinanceLookupReader:
                     id=str(row.id), label=_project_label(row.project_code, row.name)
                 )
                 for row in rows
+            ),
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
+
+    def search_rate_resources(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts:
+        conditions = [
+            ResourceORM.tenant_id == tenant_id,
+            ResourceORM.organization_id == organization_id,
+            ResourceORM.is_active.is_(True),
+        ]
+        if request.search.strip():
+            pattern = f"%{request.search.strip()}%"
+            conditions.append(
+                or_(
+                    ResourceORM.name.ilike(pattern),
+                    ResourceORM.resource_code.ilike(pattern),
+                )
+            )
+        base = select(ResourceORM.id, ResourceORM.resource_code, ResourceORM.name).where(
+            *conditions
+        )
+        total = int(self._session.scalar(select(func.count()).select_from(base.subquery())) or 0)
+        page, page_size, offset = _window(
+            request.normalized_page, request.normalized_page_size, total
+        )
+        rows = self._session.execute(
+            base.order_by(ResourceORM.name.asc(), ResourceORM.id.asc())
+            .offset(offset)
+            .limit(page_size)
+        ).all()
+        return FinanceLookupPageFacts(
+            items=tuple(
+                FinanceLookupOptionFact(
+                    id=str(row.id),
+                    label=(
+                        f"{row.resource_code} - {row.name}"
+                        if row.resource_code
+                        else str(row.name)
+                    ),
+                )
+                for row in rows
+            ),
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
+
+    def search_rate_departments(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        request: FinanceLookupQuery,
+    ) -> FinanceLookupPageFacts:
+        conditions = [
+            DepartmentORM.tenant_id == tenant_id,
+            DepartmentORM.organization_id == organization_id,
+            DepartmentORM.is_active.is_(True),
+        ]
+        if request.search.strip():
+            conditions.append(DepartmentORM.name.ilike(f"%{request.search.strip()}%"))
+        base = select(DepartmentORM.id, DepartmentORM.name).where(*conditions)
+        total = int(self._session.scalar(select(func.count()).select_from(base.subquery())) or 0)
+        page, page_size, offset = _window(
+            request.normalized_page, request.normalized_page_size, total
+        )
+        rows = self._session.execute(
+            base.order_by(DepartmentORM.name.asc(), DepartmentORM.id.asc())
+            .offset(offset)
+            .limit(page_size)
+        ).all()
+        return FinanceLookupPageFacts(
+            items=tuple(
+                FinanceLookupOptionFact(id=str(row.id), label=str(row.name)) for row in rows
             ),
             total=total,
             page=page,

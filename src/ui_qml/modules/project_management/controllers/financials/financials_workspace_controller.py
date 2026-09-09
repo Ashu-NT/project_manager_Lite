@@ -1108,6 +1108,18 @@ class ProjectManagementFinancialsWorkspaceController(
     def searchFinanceProjects(self, search: str, page: int, page_size: int) -> FinancialsMap:
         return self._search_finance_projects(search, page, page_size)
 
+    @Slot(str, str, int, int, result="QVariantMap")
+    def searchRateResources(
+        self, project_id: str, search: str, page: int, page_size: int
+    ) -> FinancialsMap:
+        return self._search_rate_resources(project_id, search, page, page_size)
+
+    @Slot(str, str, int, int, result="QVariantMap")
+    def searchRateDepartments(
+        self, project_id: str, search: str, page: int, page_size: int
+    ) -> FinancialsMap:
+        return self._search_rate_departments(project_id, search, page, page_size)
+
     @Slot(str, int, int, result="QVariantMap")
     def searchManualActualProjects(self, search: str, page: int, page_size: int) -> FinancialsMap:
         return self._search_manual_actual_projects(search, page, page_size)

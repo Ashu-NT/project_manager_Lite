@@ -110,6 +110,7 @@ Item {
     property string rateLineRateType: ""
     property string rateLineStatus: ""
     property string rateLineEffectiveStatus: ""
+    property bool canCreateRateCard: false
     property var plannedCostVersionsModel: ({ "items": [] })
     property var plannedCostLinesModel: ({ "items": [] })
     property var plannedCostVersionsTableModel: null
@@ -200,6 +201,12 @@ Item {
     signal rateLineSortRequested(string key, int direction)
     signal rateCardFiltersRequested(string search, string scope, string status)
     signal rateLineFiltersRequested(string search, string rateType, string status, string effectiveStatus)
+    signal rateCardCreateRequested()
+    signal rateCardEditRequested(var rateCard)
+    signal rateCardDeactivateRequested(var rateCard)
+    signal rateLineAddRequested(var rateCard)
+    signal rateLineEditRequested(var rateCard, var rateLine)
+    signal rateLineDeactivateRequested(var rateCard, var rateLine)
     signal financialChangeSelected(string changeId)
     signal financialChangePageRequested(int page)
     signal financialChangeImpactPageRequested(int page)
@@ -521,6 +528,7 @@ Item {
             lineStatus: root.rateLineStatus
             lineEffectiveStatus: root.rateLineEffectiveStatus
             busy: root.isBusy
+            canCreateCard: root.canCreateRateCard
             onCardSelected: function(rateCardId) { root.rateCardSelected(rateCardId) }
             onCardPageRequested: function(page) { root.rateCardPageRequested(page) }
             onLinePageRequested: function(page) { root.rateLinePageRequested(page) }
@@ -532,6 +540,12 @@ Item {
             onLineFiltersRequested: function(search, rateType, status, effectiveStatus) {
                 root.rateLineFiltersRequested(search, rateType, status, effectiveStatus)
             }
+            onCardCreateRequested: root.rateCardCreateRequested()
+            onCardEditRequested: function(rateCard) { root.rateCardEditRequested(rateCard) }
+            onCardDeactivateRequested: function(rateCard) { root.rateCardDeactivateRequested(rateCard) }
+            onLineAddRequested: function(rateCard) { root.rateLineAddRequested(rateCard) }
+            onLineEditRequested: function(rateCard, rateLine) { root.rateLineEditRequested(rateCard, rateLine) }
+            onLineDeactivateRequested: function(rateCard, rateLine) { root.rateLineDeactivateRequested(rateCard, rateLine) }
         }
     }
 

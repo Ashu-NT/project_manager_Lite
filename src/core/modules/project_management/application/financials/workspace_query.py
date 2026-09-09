@@ -540,6 +540,40 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             raise RuntimeError("Finance Lookup Reader is not configured.")
         return self._lookup_reader
 
+    def search_rate_resources(
+        self, project_id: str, *, request: FinanceLookupQuery
+    ) -> FinanceLookupPageFacts:
+        scope = self._require_rate_lookup(project_id, "search Rate Card resources")
+        return self._require_lookup_reader().search_rate_resources(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            request=request,
+        )
+
+    def search_rate_departments(
+        self, project_id: str, *, request: FinanceLookupQuery
+    ) -> FinanceLookupPageFacts:
+        scope = self._require_rate_lookup(project_id, "search Rate Card departments")
+        return self._require_lookup_reader().search_rate_departments(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            request=request,
+        )
+
+    def _require_rate_lookup(self, project_id: str, operation: str):
+        require_permission(self._user_session, "finance.manage", operation_label=operation)
+        require_project_permission(
+            self._user_session, project_id, "finance.manage", operation_label=operation
+        )
+        require_permission(
+            self._user_session, "finance.read_sensitive", operation_label=operation
+        )
+        if self._tenant_context_service is None:
+            raise RuntimeError("Finance lookup scope is not configured.")
+        return self._tenant_context_service.require_active_scope_ids(
+            operation_label=operation
+        )
+
     def get_budget_workspace(
         self,
         project_id: str,

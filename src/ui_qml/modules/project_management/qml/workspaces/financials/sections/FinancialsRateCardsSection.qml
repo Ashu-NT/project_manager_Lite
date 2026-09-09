@@ -27,6 +27,8 @@ Item {
     property string lineStatus: ""
     property string lineEffectiveStatus: ""
     property bool busy: false
+    property bool canCreateCard: false
+    property string selectedLineId: ""
 
     signal cardSelected(string rateCardId)
     signal cardPageRequested(int page)
@@ -35,6 +37,29 @@ Item {
     signal lineSortRequested(string key, int direction)
     signal cardFiltersRequested(string search, string scope, string status)
     signal lineFiltersRequested(string search, string rateType, string status, string effectiveStatus)
+    signal cardCreateRequested()
+    signal cardEditRequested(var rateCard)
+    signal cardDeactivateRequested(var rateCard)
+    signal lineAddRequested(var rateCard)
+    signal lineEditRequested(var rateCard, var rateLine)
+    signal lineDeactivateRequested(var rateCard, var rateLine)
+
+    readonly property var selectedCardRecord: {
+        const items = root.cards.items || []
+        for (let index = 0; index < items.length; index += 1)
+            if (String(items[index].id || "") === root.selectedCardId) return items[index]
+        return null
+    }
+    readonly property var selectedCardState: root.selectedCardRecord
+        ? (root.selectedCardRecord.state || {}) : ({})
+    readonly property var selectedLine: {
+        const items = root.lines.items || []
+        for (let index = 0; index < items.length; index += 1)
+            if (String(items[index].id || "") === root.selectedLineId) return items[index]
+        return null
+    }
+    readonly property var selectedLineState: root.selectedLine
+        ? (root.selectedLine.state || {}) : ({})
 
     readonly property var _cardColumns: [
         { "key": "title", "label": "Rate Card", "flex": 1.7, "sortable": true },
@@ -107,6 +132,37 @@ Item {
 
         AppWidgets.SectionHeading { Layout.fillWidth: true; label: "Rate Cards" }
 
+        Flow {
+            Layout.fillWidth: true
+            leftPadding: Theme.AppTheme.spacingMd
+            rightPadding: Theme.AppTheme.spacingMd
+            topPadding: Theme.AppTheme.spacingSm
+            bottomPadding: Theme.AppTheme.spacingSm
+            spacing: Theme.AppTheme.spacingSm
+            AppControls.SecondaryButton {
+                visible: root.canCreateCard
+                enabled: !root.busy
+                text: "Create Rate Card"
+                iconName: "add"
+                onClicked: root.cardCreateRequested()
+            }
+            AppControls.SecondaryButton {
+                visible: Boolean(root.selectedCardState.canEdit)
+                enabled: !root.busy
+                text: "Edit Card"
+                iconName: "edit"
+                onClicked: root.cardEditRequested(root.selectedCardRecord)
+            }
+            AppControls.SecondaryButton {
+                visible: Boolean(root.selectedCardState.canDeactivate)
+                enabled: !root.busy
+                text: "Deactivate Card"
+                iconName: "pause"
+                danger: true
+                onClicked: root.cardDeactivateRequested(root.selectedCardRecord)
+            }
+        }
+
         AppWidgets.TableToolbar {
             Layout.fillWidth: true
             searchText: root.cardSearch
@@ -161,7 +217,10 @@ Item {
                 selectedRowId: root.selectedCardId
                 loading: root.busy
                 emptyText: root.cards.emptyState || "No Rate Cards."
-                onRowSelected: function(rowId) { root.cardSelected(String(rowId || "")) }
+                onRowSelected: function(rowId) {
+                    root.selectedLineId = ""
+                    root.cardSelected(String(rowId || ""))
+                }
                 onSortRequested: function(key, direction) { root.cardSortRequested(key, direction) }
             }
         }
@@ -209,6 +268,44 @@ Item {
         }
 
         AppWidgets.SectionHeading { Layout.fillWidth: true; label: "Selected Rate Card Lines" }
+
+        Flow {
+            Layout.fillWidth: true
+            visible: root.selectedCardRecord !== null
+            leftPadding: Theme.AppTheme.spacingMd
+            rightPadding: Theme.AppTheme.spacingMd
+            topPadding: Theme.AppTheme.spacingSm
+            bottomPadding: Theme.AppTheme.spacingSm
+            spacing: Theme.AppTheme.spacingSm
+            AppControls.SecondaryButton {
+                visible: Boolean(root.selectedCardState.canAddLine)
+                enabled: !root.busy
+                text: "Add Rate Line"
+                iconName: "add"
+                onClicked: root.lineAddRequested(root.selectedCardRecord)
+            }
+            AppControls.SecondaryButton {
+                visible: Boolean(root.selectedLineState.canEdit)
+                enabled: !root.busy
+                text: "Edit Rate Line"
+                iconName: "edit"
+                onClicked: root.lineEditRequested(root.selectedCardRecord, root.selectedLine)
+            }
+            AppControls.SecondaryButton {
+                visible: Boolean(root.selectedLineState.canDeactivate)
+                enabled: !root.busy
+                text: "Deactivate Rate Line"
+                iconName: "pause"
+                danger: true
+                onClicked: root.lineDeactivateRequested(root.selectedCardRecord, root.selectedLine)
+            }
+            AppWidgets.InfoTip {
+                visible: Boolean(root.selectedLineState.isConsumed)
+                title: "Historical terms protected"
+                message: String(root.selectedLineState.historicalLockMessage || "")
+                accessibleLabel: "Why this Rate Line has protected terms"
+            }
+        }
 
         AppWidgets.TableToolbar {
             Layout.fillWidth: true
@@ -274,8 +371,10 @@ Item {
                 sortingMode: "server"
                 sortKey: root.lineSortKey
                 sortDirection: root.lineSortDirection
+                selectedRowId: root.selectedLineId
                 loading: root.busy
                 emptyText: root.lines.emptyState || "No Rate Card Lines."
+                onRowSelected: function(rowId) { root.selectedLineId = String(rowId || "") }
                 onSortRequested: function(key, direction) { root.lineSortRequested(key, direction) }
             }
         }
