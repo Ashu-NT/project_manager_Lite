@@ -32,7 +32,7 @@ def _item(
     kind: str = "pm_task",
     module: str = "Project Management",
     due_at: date | None = None,
-    source_timestamp: datetime | None = None,
+    sort_at: datetime | None = None,
 ) -> ActionCenterItemDto:
     return ActionCenterItemDto(
         id=item_id,
@@ -45,7 +45,7 @@ def _item(
         action_state="todo",
         route_id="project_management.tasks",
         due_at=due_at,
-        source_timestamp=source_timestamp,
+        sort_at=sort_at,
     )
 
 
@@ -117,8 +117,8 @@ def test_deterministic_ordering_overdue_then_due_today_then_future_then_no_due_d
     due_today = _item("today", due_at=_TODAY)
     future_soon = _item("soon", due_at=date(2026, 9, 12))
     future_later = _item("later", due_at=date(2026, 9, 20))
-    no_due_newer = _item("newer", source_timestamp=datetime(2026, 9, 9, 10, 0))
-    no_due_older = _item("older", source_timestamp=datetime(2026, 9, 1, 10, 0))
+    no_due_newer = _item("newer", sort_at=datetime(2026, 9, 9, 10, 0))
+    no_due_older = _item("older", sort_at=datetime(2026, 9, 1, 10, 0))
     no_due_unknown = _item("unknown")
 
     platform = _FakeContributor(

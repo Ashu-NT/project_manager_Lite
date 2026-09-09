@@ -12,18 +12,18 @@ _NO_DUE_AT_FILLER = date.max
 _NO_RECENCY = float("inf")
 
 
-def _recency_rank(source_timestamp: datetime | None) -> float:
-    """Larger = older/missing, so ascending sort naturally puts the newest
-    real timestamp first and items with no timestamp at all last.
+def _recency_rank(sort_at: datetime | None) -> float:
+    """Larger = older/missing, so ascending sort naturally puts the most
+    recent `sort_at` first and items with none at all last.
 
     Deliberately avoids datetime.timestamp() -- datetime.min.timestamp()
     raises OSError on Windows, and this needs to be safe for any legitimate
-    source timestamp, not just recent ones.
+    value, not just recent ones.
     """
-    if source_timestamp is None:
+    if sort_at is None:
         return _NO_RECENCY
-    ordinal_seconds = source_timestamp.toordinal() * 86400 + (
-        source_timestamp.hour * 3600 + source_timestamp.minute * 60 + source_timestamp.second
+    ordinal_seconds = sort_at.toordinal() * 86400 + (
+        sort_at.hour * 3600 + sort_at.minute * 60 + sort_at.second
     )
     return -float(ordinal_seconds)
 
@@ -39,9 +39,9 @@ def _sort_key(item: ActionCenterItemDto, *, today: date) -> tuple:
         due_rank = item.due_at
         recency_rank = 0.0
     else:
-        tier = 3  # no due date -- most recent relevant timestamp first
+        tier = 3  # no due date -- most recent sort_at first
         due_rank = _NO_DUE_AT_FILLER
-        recency_rank = _recency_rank(item.source_timestamp)
+        recency_rank = _recency_rank(item.sort_at)
     return (tier, due_rank, recency_rank, item.module, item.kind, item.id)
 
 
@@ -59,7 +59,7 @@ def sort_action_center_items(
     1. genuinely overdue items with a real due_at, most overdue first
     2. items due today
     3. remaining items with a real due_at, earliest first
-    4. no-due-date items, most recent relevant timestamp first
+    4. no-due-date items, most recent sort_at first
     5. stable tie-breaker: module, kind, id
     """
     return tuple(sorted(items, key=lambda item: _sort_key(item, today=today)))

@@ -8,6 +8,7 @@ from src.core.modules.project_management.application.global_overview.pm_action_c
 )
 from src.core.modules.project_management.domain.enums import TaskStatus, WorkerType
 from src.core.modules.project_management.domain.scheduling.baseline import BaselineStatus
+from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.shared.resource_identity.contracts import ResourceIdentityReader
 
 
@@ -32,6 +33,7 @@ def _contributor(services, resource_identity_reader: ResourceIdentityReader):
         timesheet_workspace_reader=SqlAlchemyTimesheetWorkspaceReader(
             session=services["session"], resource_identity_reader=resource_identity_reader
         ),
+        user_session=services["user_session"],
     )
 
 
@@ -177,6 +179,117 @@ def test_baselines_include_only_submitted_across_accessible_projects_regardless_
     assert all(
         item.due_at is None for item in contribution.items if item.kind == "baseline_review"
     )
+
+
+def _reviewer_context_and_contributor(services, *, project_id: str, permissions: frozenset[str]):
+    """A non-admin principal, so inclusion/exclusion reflects real
+    baseline.approve enforcement rather than the admin role's blanket
+    bypass in has_scope_permission."""
+    active_tenant_id = services["tenant_context_service"].get_active_tenant_id()
+    organization = services["tenant_context_service"].get_active_organization()
+    reviewer = services["auth_service"].register_user(
+        f"baseline-reviewer-{'-'.join(sorted(permissions)) or 'none'}",
+        "StrongPass123",
+        role_names=["viewer"],
+    )
+    services["user_session"].set_principal(
+        UserSessionPrincipal(
+            user_id=reviewer.id,
+            username=reviewer.username,
+            display_name="Baseline Reviewer",
+            role_names=frozenset(),
+            permissions=permissions,
+            scoped_access={"project": {project_id: permissions}},
+            active_tenant_id=active_tenant_id,
+            active_organization_id=organization.id,
+        )
+    )
+    services["user_session"].set_active_organization_id(organization.id)
+    reader = _resource_identity_reader(services)
+    contributor = _contributor(services, reader)
+    context = ActionCenterContext(
+        user_id=reviewer.id, tenant_id=active_tenant_id, organization_id=organization.id
+    )
+    return context, contributor
+
+
+def test_submitted_baseline_with_authorized_reviewer_is_included(services):
+    organization = services["tenant_context_service"].get_active_organization()
+    project = services["project_service"].create_project(
+        "Authorized Reviewer Project", financial_currency_code=organization.base_currency
+    )
+    services["task_service"].create_task(
+        project.id, "Seed task", start_date=date(2026, 6, 1), duration_days=2
+    )
+    baseline = services["baseline_service"].create_baseline(
+        project.id, "Baseline", rate_as_of=date(2026, 6, 1)
+    )
+    services["baseline_service"].submit_baseline(baseline.id, submitted_by="admin")
+
+    context, contributor = _reviewer_context_and_contributor(
+        services,
+        project_id=project.id,
+        permissions=frozenset({"project.read", "baseline.approve"}),
+    )
+
+    contribution = contributor.collect(context, preview_limit=10)
+
+    baseline_ids = {item.subject_id for item in contribution.items if item.kind == "baseline_review"}
+    assert baseline_ids == {baseline.id}
+    assert contribution.summary.reviews_and_approvals == 1
+
+
+def test_submitted_baseline_with_unauthorized_user_is_excluded(services):
+    """Project read/list visibility alone (project.read) must not be
+    treated as authorization to review -- baseline.approve is required."""
+    organization = services["tenant_context_service"].get_active_organization()
+    project = services["project_service"].create_project(
+        "Unauthorized Reviewer Project", financial_currency_code=organization.base_currency
+    )
+    services["task_service"].create_task(
+        project.id, "Seed task", start_date=date(2026, 6, 1), duration_days=2
+    )
+    baseline = services["baseline_service"].create_baseline(
+        project.id, "Baseline", rate_as_of=date(2026, 6, 1)
+    )
+    services["baseline_service"].submit_baseline(baseline.id, submitted_by="admin")
+
+    context, contributor = _reviewer_context_and_contributor(
+        services, project_id=project.id, permissions=frozenset({"project.read"})
+    )
+
+    contribution = contributor.collect(context, preview_limit=10)
+
+    baseline_ids = {item.subject_id for item in contribution.items if item.kind == "baseline_review"}
+    assert baseline_ids == set()
+    assert contribution.summary.reviews_and_approvals == 0
+
+
+def test_non_submitted_baseline_with_authorized_reviewer_is_excluded(services):
+    organization = services["tenant_context_service"].get_active_organization()
+    project = services["project_service"].create_project(
+        "Draft With Authorized Reviewer Project",
+        financial_currency_code=organization.base_currency,
+    )
+    services["task_service"].create_task(
+        project.id, "Seed task", start_date=date(2026, 6, 1), duration_days=2
+    )
+    draft_baseline = services["baseline_service"].create_baseline(
+        project.id, "Draft Baseline", rate_as_of=date(2026, 6, 1)
+    )
+    assert draft_baseline.status == BaselineStatus.DRAFT
+
+    context, contributor = _reviewer_context_and_contributor(
+        services,
+        project_id=project.id,
+        permissions=frozenset({"project.read", "baseline.approve"}),
+    )
+
+    contribution = contributor.collect(context, preview_limit=10)
+
+    baseline_ids = {item.subject_id for item in contribution.items if item.kind == "baseline_review"}
+    assert draft_baseline.id not in baseline_ids
+    assert contribution.summary.reviews_and_approvals == 0
 
 
 # -- C. Timesheets ---------------------------------------------------------------

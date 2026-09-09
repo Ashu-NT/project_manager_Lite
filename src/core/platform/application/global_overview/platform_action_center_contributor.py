@@ -78,7 +78,7 @@ class PlatformActionCenterContributor:
             subject_display=entity_label.title(),
             action_state="awaiting_decision",
             route_id="control_approvals",
-            source_timestamp=request.requested_at,
+            sort_at=request.requested_at,
         )
 
 

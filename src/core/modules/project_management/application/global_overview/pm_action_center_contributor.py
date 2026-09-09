@@ -20,8 +20,11 @@ from src.core.modules.project_management.contracts.reads.timesheets import (
 )
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.domain.scheduling.baseline import BaselineStatus
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 from src.core.shared.resource_identity.contracts import ResourceIdentityReader
+
+_BASELINE_APPROVE_PERMISSION = "baseline.approve"
 
 _MODULE = "Project Management"
 _OPEN_TASK_STATUSES = (TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED)
@@ -54,12 +57,14 @@ class ProjectManagementActionCenterContributor:
         project_service: ProjectService,
         resource_identity_reader: ResourceIdentityReader,
         timesheet_workspace_reader: TimesheetWorkspaceReader,
+        user_session: UserSessionContext,
     ) -> None:
         self._task_service = task_service
         self._baseline_service = baseline_service
         self._project_service = project_service
         self._resource_identity_reader = resource_identity_reader
         self._timesheet_workspace_reader = timesheet_workspace_reader
+        self._user_session = user_session
 
     def collect(
         self,
@@ -123,7 +128,12 @@ class ProjectManagementActionCenterContributor:
             action_state=task.status.value.lower(),
             route_id="project_management.tasks",
             due_at=task.deadline,
-            source_timestamp=_to_datetime(task.start_date),
+            # Task has no creation/logged timestamp field. start_date is a
+            # scheduling date, not an event timestamp -- reused here only as
+            # a deterministic no-due-date sort fallback (earlier-scheduled
+            # tasks sort first among tasks with no deadline), never as a
+            # stand-in for "when this became actionable."
+            sort_at=_to_datetime(task.start_date),
         )
 
     # -- B. Baseline reviews --------------------------------------------------
@@ -133,8 +143,18 @@ class ProjectManagementActionCenterContributor:
         context: ActionCenterContext,
         accessible_projects,
     ) -> tuple[ActionCenterItemDto, ...]:
+        # Project read/list visibility (accessible_projects) is NOT the
+        # same as being authorized to decide a baseline -- approve_baseline/
+        # reject_baseline both require "baseline.approve" (global permission
+        # + project-scoped grant, verified via UserSessionContext.
+        # has_project_permission, which checks both). A user who can see a
+        # project's baselines is not necessarily authorized to review them.
         items: list[ActionCenterItemDto] = []
         for project in accessible_projects:
+            if not self._user_session.has_project_permission(
+                project.id, _BASELINE_APPROVE_PERMISSION
+            ):
+                continue
             baselines = self._baseline_service.list_baselines(project.id)
             for baseline in baselines:
                 if baseline.status != BaselineStatus.SUBMITTED:
@@ -154,7 +174,7 @@ class ProjectManagementActionCenterContributor:
             subject_display=project.name,
             action_state="awaiting_review",
             route_id="project_management.scheduling",
-            source_timestamp=_to_datetime(baseline.submitted_at),
+            sort_at=_to_datetime(baseline.submitted_at),
         )
 
     # -- C. Timesheets --------------------------------------------------------
@@ -225,7 +245,7 @@ class ProjectManagementActionCenterContributor:
             subject_display=subject_display,
             action_state=action_state,
             route_id="project_management.timesheets",
-            source_timestamp=_to_datetime(period.decided_at or period.period_start),
+            sort_at=_to_datetime(period.decided_at or period.period_start),
         )
 
 

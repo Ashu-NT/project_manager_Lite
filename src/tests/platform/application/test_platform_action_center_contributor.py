@@ -89,7 +89,7 @@ def test_no_due_at_is_ever_invented_for_approvals(services):
     contribution = _contributor(services).collect(_context(services), preview_limit=10)
 
     assert all(item.due_at is None for item in contribution.items)
-    assert all(item.source_timestamp is not None for item in contribution.items)
+    assert all(item.sort_at is not None for item in contribution.items)
 
 
 def test_exact_count_matches_actual_pending_count_beyond_preview_limit(services):

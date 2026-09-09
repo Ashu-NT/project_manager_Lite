@@ -25,11 +25,14 @@ class ActionCenterItemDto:
     route_id: str
     priority: str | None = None
     due_at: date | None = None
-    # A real, existing source timestamp (submitted/requested/decided/period
-    # reference -- never fabricated) used only to order items that have no
-    # due_at. Read-model field, not a domain change -- see
-    # `services/ordering.py`.
-    source_timestamp: datetime | None = None
+    # A deterministic sort fallback for items with no due_at -- NOT an
+    # audit/event timestamp. Each contributor picks the closest real,
+    # existing field it has (submitted_at, requested_at, decided_at, or,
+    # for PM Task, the scheduling start_date reused only for this purpose)
+    # and normalizes it to a datetime here. Never fabricated, never implies
+    # "when this became actionable." Read-model field, not a domain change
+    # -- see `services/ordering.py`.
+    sort_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
