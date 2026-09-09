@@ -1,4 +1,4 @@
-"""Phase K (R4.4 constraint pass): SNLT/FNLT dependency infeasibility.
+"""SNLT/FNLT dependency infeasibility.
 Extends DependencyConstraintConflict (previously MSO/MFO-only) to also
 cover START_NO_LATER_THAN/FINISH_NO_LATER_THAN -- these never drive the
 forward pass, so a dependency-implied date past the ceiling flows

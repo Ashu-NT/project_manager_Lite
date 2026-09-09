@@ -284,10 +284,9 @@ class PlatformRuntimeApplicationService:
         return organization
 
     def enable_organization(self, organization_id: str) -> Organization:
-        # P10A: availability mutation only -- routes to `OrganizationService.enable_organization`,
-        # which never touches session/tenant context. Selecting this organization as the acting
-        # user's own current working context is a separate action
-        # (`TenantContextService.set_active_organization`), not a side effect of enabling it.
+        # Availability mutation only -- never touches session/tenant context. Selecting this
+        # organization as the acting user's working context is a separate action
+        # (`TenantContextService.set_active_organization`).
         if self._organization_service is None:
             raise RuntimeError("Organization service is not configured.")
         return self._organization_service.enable_organization(organization_id)

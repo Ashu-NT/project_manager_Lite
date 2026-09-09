@@ -1,8 +1,7 @@
-"""Offscreen QML load smoke test for the redesigned Task Detail Assignment
-section (docs §44 QML follow-up): the DataTable-based list plus the
-Inspector panel must both instantiate without errors, including with a row
-selected (which exercises the Task Planning / Execution / Project Resource
-Context rendering paths)."""
+"""Offscreen QML load smoke test for the Task Detail Assignment section: the
+DataTable-based list plus the Inspector panel must both instantiate without
+errors, including with a row selected (which exercises the Task Planning /
+Execution / Project Resource Context rendering paths)."""
 
 from __future__ import annotations
 

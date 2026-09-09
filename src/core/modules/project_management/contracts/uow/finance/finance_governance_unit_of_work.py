@@ -29,7 +29,7 @@ from src.core.shared.persistence.unit_of_work import UnitOfWork, UnitOfWorkFacto
 
 
 class FinanceGovernanceUnitOfWork(UnitOfWork, Protocol):
-    """One fresh transaction for R6C Budget/Forecast/Change/Setup commands."""
+    """One fresh transaction for Budget/Forecast/Change/Setup commands."""
 
     projects: ProjectRepository
     tasks: TaskRepository

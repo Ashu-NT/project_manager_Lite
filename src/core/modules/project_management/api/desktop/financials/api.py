@@ -1935,13 +1935,9 @@ class ProjectManagementFinancialsDesktopApi:
     def request_billing_delivery(
         self, command: FinancialVersionedBillingPreparationCommand
     ) -> FinancialBillingPreparationDto:
-        # request_delivery() returns the outbound project_billing_preparation.v1
-        # payload for a future Accounting publisher/worker to transmit -- that
-        # payload is not surfaced here. Only PM's own preparation-state DTO is
-        # returned, matching every other command on this facade; PM requests
-        # delivery of its own evidence, it does not itself deliver or record
-        # what Accounting did with it (see record_external_outcome, which is
-        # deliberately not exposed on this desktop surface).
+        # The outbound project_billing_preparation.v1 payload isn't surfaced here -- PM
+        # requests delivery of its own evidence, it doesn't deliver or record what
+        # Accounting did with it.
         service = self._require_billing_preparation_service()
         service.request_delivery(
             command.preparation_id, expected_row_version=command.expected_version

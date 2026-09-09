@@ -1,10 +1,7 @@
-"""R4.3 Task Detail (Assignment + Time) backend upgrade — targeted coverage.
-
-Covers the concrete, evidence-based fixes made during the deep Assignment +
-Time audit (see docs §43): optimistic-concurrency on allocation edits,
-read-side exposure of allocated_planned_hours/version, the task-scoped (not
-resource-wide) Time Summary fix, and removal of the "Set Hours" UI affordance.
-"""
+"""Task Detail (Assignment + Time) backend coverage: optimistic-concurrency on
+allocation edits, read-side exposure of allocated_planned_hours/version, the
+task-scoped (not resource-wide) Time Summary fix, and removal of the "Set Hours"
+UI affordance."""
 
 from __future__ import annotations
 
@@ -206,8 +203,7 @@ def test_task_assignment_hours_dialog_qml_file_was_removed():
     assert not path.exists(), (
         "TaskAssignmentHoursDialog.qml should stay removed -- editing "
         "hours_logged from Assignment collides with Time's ownership of "
-        "actual logged work now that Time Capture is the real path (see "
-        "docs §43 defect D4)."
+        "actual logged work now that Time Capture is the real path."
     )
 
 
@@ -331,9 +327,7 @@ def test_desktop_update_assignment_planned_hours_stale_project_resource_version_
     """The dual optimistic-lock guards against two sibling assignments (on
     the same shared ProjectResource envelope) racing to redistribute planned
     hours -- NOT against the envelope itself being resized via
-    ProjectResourceService.update(), which does not touch `version` at all
-    (a separate, pre-existing gap noted in docs §43, out of this pass's
-    scope since it lives in the ProjectResource/Planning aggregate)."""
+    ProjectResourceService.update(), which does not touch `version` at all."""
     ps, ts, rs, prs, project, resource, project_resource, task = _setup_project_resource(
         services, planned_hours=40.0
     )
@@ -376,10 +370,9 @@ def test_desktop_update_assignment_planned_hours_stale_project_resource_version_
 
 
 # ---------------------------------------------------------------------------
-# list_assignments exposes per-row calendar capacity facts (Task Detail QML
-# redesign follow-up, docs §44) -- the table's Capacity Status column and the
-# inspector's Available/Committed/Headroom rows read these directly; QML
-# performs no calculation of its own.
+# list_assignments exposes per-row calendar capacity facts -- the table's
+# Capacity Status column and the inspector's Available/Committed/Headroom
+# rows read these directly; QML performs no calculation of its own.
 # ---------------------------------------------------------------------------
 
 

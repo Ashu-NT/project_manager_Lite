@@ -1,18 +1,8 @@
-"""Frontend RBAC visibility -- the QML nav previously showed the same static
-14-item list to every user regardless of their actual backend permissions,
-and every workspace controller was eagerly constructed+refreshed at
-startup regardless of what the user could access. This adds a real
-permission-derived visibility check the shell nav (and, going forward,
-individual workspace pages) can use: PlatformRuntimeApplicationService.
-get_current_permissions() reads the current session principal's already-
-resolved permission set (no extra query -- it's computed once at login),
-exposed through PlatformRuntimeDesktopApi and then PlatformWorkspaceCatalog.
-hasPermission()/hasAnyPermission(), which PlatformNavigation.qml uses to
-filter its destination list.
-
-This does not yet address the eager-construction/refresh problem identified
-alongside it (a separate, larger change) -- it only closes the "user sees a
-nav item they have no permission for" gap.
+"""Frontend RBAC visibility: PlatformRuntimeApplicationService.get_current_permissions() reads
+the session principal's already-resolved permission set (no extra query -- computed once at
+login), exposed through PlatformRuntimeDesktopApi and PlatformWorkspaceCatalog.hasPermission()/
+hasAnyPermission(), which PlatformNavigation.qml uses to filter its destination list to what
+the user can actually access.
 """
 from __future__ import annotations
 

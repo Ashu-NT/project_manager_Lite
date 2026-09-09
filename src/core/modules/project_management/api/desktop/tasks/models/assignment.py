@@ -20,12 +20,9 @@ class TaskAssignmentDesktopDto:
     allocated_planned_hours: str = "0"
     version: int = 1
     project_resource_version: int = 1
-    # Authoritative calendar-based capacity facts for THIS assignment's own
-    # current commitment (docs §44's follow-up QML pass) -- reuses the same
-    # evaluate_task_assignment_capacity authority the create/edit preview
-    # uses, treating this assignment's own allocation_percent as "proposed"
-    # against everything else already committed. QML renders these; it does
-    # not calculate them.
+    # Authoritative calendar-based capacity facts for THIS assignment's own current
+    # commitment -- reuses the same evaluate_task_assignment_capacity authority the
+    # create/edit preview uses. QML renders these; it does not calculate them.
     capacity_known: bool = False
     capacity_status: str = "UNKNOWN"
     capacity_status_label: str = "Capacity unknown"

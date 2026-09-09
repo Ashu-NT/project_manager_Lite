@@ -1,11 +1,8 @@
-"""Module Entitlement's own business event vocabulary.
-
-Application-authored via `uow.record_event(...)` from `ModuleCatalogMutationMixin`:
-`ModuleEntitlement` is a plain projection with no transition methods, so these are
-application-recorded, not aggregate-recorded.
-
-Pure business vocabulary only -- no ViewInvalidation import, no dispatch/execution metadata
-(`correlation_id`/`causation_id`/`command_id` live on `DomainEventContext`, never duplicated here).
+"""Module Entitlement's own business event vocabulary. Application-authored via
+`uow.record_event(...)` from `ModuleCatalogMutationMixin` -- `ModuleEntitlement` is a plain
+projection with no transition methods. Pure business vocabulary only: no ViewInvalidation
+import, no dispatch/execution metadata (`correlation_id`/`causation_id`/`command_id` live on
+`DomainEventContext`, never duplicated here).
 """
 
 from __future__ import annotations

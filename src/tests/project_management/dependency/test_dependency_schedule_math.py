@@ -216,7 +216,7 @@ def test_unknown_dependency_type_fails_closed(cal):
 
 class TestForwardBackwardDuality:
     """The backward pass must be the exact algebraic inverse of the forward
-    pass for every type, not just FS -- this is the core Phase C2 fix."""
+    pass for every type, not just FS."""
 
     @pytest.mark.parametrize(
         "dependency_type",

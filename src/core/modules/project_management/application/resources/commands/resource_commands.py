@@ -1,4 +1,3 @@
-# src/core/modules/project_management/application/resources/commands/resource_commands.py
 from __future__ import annotations
 
 from dataclasses import replace

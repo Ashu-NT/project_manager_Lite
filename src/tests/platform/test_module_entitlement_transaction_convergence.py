@@ -73,9 +73,9 @@ def test_repository_and_audit_share_the_uow_session(services, monkeypatch):
 
 
 def test_audit_entry_is_atomic_with_the_entitlement_write(services, monkeypatch):
-    """P5B prerequisite fix (preserved through P5B-SEM's command refactor): the entitlement
-    write and its audit entry share one fresh UoW Session -- a commit failure rolls back both
-    together (proven structurally: the UoW's own `_committed`/`_closed` state)."""
+    """The entitlement write and its audit entry share one fresh UoW Session -- a commit
+    failure rolls back both together (proven structurally via the UoW's own
+    `_committed`/`_closed` state)."""
     module_catalog = services["module_catalog_service"]
     active_org = services["tenant_context_service"].get_active_organization()
     captured_uow = {}
@@ -126,10 +126,8 @@ def test_organization_id_is_required_and_explicit(services):
 
 
 def test_non_active_organization_mutation_affects_only_that_organization(services):
-    """Mandatory P5B prerequisite test: mutating a NON-active organization's module entitlement
-    must succeed and affect only that organization, without changing which organization is
-    active first -- structurally impossible before this convergence (the old `upsert()` path
-    required the active organization to match, via `TenantScopedRepositorySupport`)."""
+    """Mutating a NON-active organization's module entitlement must succeed and affect only
+    that organization, without changing which organization is active first."""
     organization_service = services["organization_service"]
     module_catalog = services["module_catalog_service"]
 
@@ -158,12 +156,9 @@ def test_non_active_organization_mutation_affects_only_that_organization(service
 
 
 def test_module_entitlement_application_layer_stays_qt_free():
-    """Phase-boundary guard (superseding the pre-P5B-3 guard, which correctly started failing
-    once P5B-3 legitimately added `ViewInvalidation` producer code to `module_catalog_mutation.py`
-    -- see `test_p5a_does_not_add_p5b_plus_event_vocabulary`-style precedent from the
-    Organization slice). P5B-3 is the direct Qt consumer cutover: the application layer may now
-    produce `ViewInvalidationHint`s (transport-independent), but must still never import Qt or
-    the Qt adapter package directly -- that boundary belongs to the Qt adapter alone."""
+    """The application layer may produce `ViewInvalidationHint`s (transport-independent), but
+    must never import Qt or the Qt adapter package directly -- that boundary belongs to the Qt
+    adapter alone."""
     for module_name in ("module_catalog_service", "module_catalog_mutation", "module_catalog_context"):
         module = __import__(
             f"src.core.platform.application.tenant.modules.{module_name}", fromlist=[module_name]
@@ -171,8 +166,7 @@ def test_module_entitlement_application_layer_stays_qt_free():
         source = inspect.getsource(module)
         for forbidden in ("PySide6", "ui_qml", "QObject", "Signal("):
             assert forbidden not in source
-    # The legacy `modules_changed` signal is fully retired (P5B-3 direct cutover, no bridge) --
-    # no `domain_events` import/usage remains anywhere in the mutation module.
+    # No domain_events import/usage remains anywhere in the mutation module.
     mutation_source = inspect.getsource(
         __import__(
             "src.core.platform.application.tenant.modules.module_catalog_mutation",

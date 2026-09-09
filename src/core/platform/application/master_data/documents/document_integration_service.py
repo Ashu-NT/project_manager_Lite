@@ -168,8 +168,8 @@ def link_existing_document_in_uow(
     clock: Clock,
     link_role: str = "reference",
 ) -> DocumentLink:
-    """Transaction-neutral core of `link_existing_document` -- see `register_entity_attachments_
-    in_uow`'s docstring for the same never-commits/never-rolls-back/never-publishes contract."""
+    """Transaction-neutral core of `link_existing_document`: never commits, rolls back, or
+    publishes -- the caller's UoW owns the transaction."""
     document = uow.documents.get(document_id)
     if document is None or document.organization_id != organization.id:
         raise NotFoundError("Document not found in the active organization.", code="DOCUMENT_NOT_FOUND")

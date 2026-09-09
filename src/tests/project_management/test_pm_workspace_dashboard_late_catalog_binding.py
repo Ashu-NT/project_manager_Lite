@@ -1,17 +1,9 @@
-"""Regression test for a real production bug: Overview/Dashboard is the
-default landing capability inside the PM canonical shell
-(ProjectManagementWorkspacePage.qml), so its Loader activates earlier than
-any other capability -- often before the shell has finished assigning
-pmCatalog onto the outer shell page. The shell's Loader.onLoaded handler
-used to do a plain "=" snapshot assignment (`item.pmCatalog =
-root.pmCatalog`), which captures whatever root.pmCatalog happened to be at
-that instant and then never updates -- if that instant was before pmCatalog
-landed, the Dashboard page's pmCatalog stayed null forever, its
-ensureLoaded() never found a non-null workspaceController, and
-_refresh_dashboard() never ran (confirmed live via the app's own log file:
-zero "PM dashboard refresh complete" entries across repeated real launches).
-The fix replaced the snapshot with a live Qt.binding() so a late
-pmCatalog assignment still reaches the loaded capability page."""
+"""Overview/Dashboard is the PM canonical shell's default landing capability
+(ProjectManagementWorkspacePage.qml), so its Loader can activate before the shell finishes
+assigning `pmCatalog` onto the outer shell page. The Loader must bind `item.pmCatalog` live
+via `Qt.binding()`, not a one-time `=` snapshot -- a snapshot captures whatever
+`root.pmCatalog` was at that instant and never updates, so a late `pmCatalog` assignment
+would leave the Dashboard page's `ensureLoaded()` stuck on a null `workspaceController`."""
 
 from __future__ import annotations
 

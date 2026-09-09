@@ -184,8 +184,7 @@ class ModuleCatalogMutationMixin:
         }
         if audit_extra:
             metadata.update(audit_extra)
-        # P5B prerequisite fix (preserved): staged in the SAME transaction as the entitlement
-        # write (ADR-003) -- calling `record_audit_entry` after `uow.commit()` would hit an
+        # Staged before uow.commit() -- calling record_audit_entry after commit would hit an
         # already-closed Session.
         record_audit_entry(
             uow,

@@ -17,22 +17,18 @@ class ReportingVarianceMixin:
         project_id: str,
         baseline_id: str | None = None,
     ) -> list[TaskVarianceRow]:
+        """Compares baseline task dates vs current task dates."""
         self._require_view("view schedule variance", project_id=project_id)
-        """
-        Compares baseline task dates vs current task dates.
-        """
-        # Get baseline tasks
         if baseline_id:
             b_tasks = self._baseline_repo.list_tasks(baseline_id)
         else:
             latest = self._baseline_repo.get_latest_for_project(project_id)
             b_tasks = self._baseline_repo.list_tasks(latest.id) if latest else []
 
-        # Map current tasks
         tasks = select_leaf_tasks(self._task_repo.list_by_project(project_id))
         tasks_by_id = {t.id: t for t in tasks}
 
-        # Critical tasks (optional – you already have get_critical_path)
+        # Critical-path task ids, best-effort -- not required for variance itself.
         critical_ids = set()
         try:
             cp = self.get_critical_path(project_id)

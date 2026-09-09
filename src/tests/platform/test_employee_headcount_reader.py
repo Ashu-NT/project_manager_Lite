@@ -165,9 +165,8 @@ def test_employee_headcount_is_isolated_per_organization(services):
 
 
 # ---------------------------------------------------------------------------
-# P6.5 -- SQL-count guardrail: pins the fix so a future change can't
-# silently reintroduce the full-list-materialization pattern this pilot
-# closed.
+# SQL-count guardrail: pins the fix so a future change can't silently
+# reintroduce the full-list-materialization pattern.
 # ---------------------------------------------------------------------------
 
 

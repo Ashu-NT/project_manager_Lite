@@ -139,15 +139,8 @@ class RolePolicyReconciled:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class TenantMembershipProvisioned:
-    """A genuinely different creation path from `TenantMembershipActivated` (which is
-    anchored specifically to the invite -> accept aggregate transition, per
-    `TenantMembershipService._accept_membership`'s own docstring: "never emitted for
-    reinvite/issue_invitation"). Registration/bootstrap create an already-active
-    `UserTenantMembership` directly via `UserTenantMembership.create(...)` -- a separate,
-    first-class constructor, not an invitation that was ever extended or accepted. Reusing
-    `TenantMembershipActivated` here would misrepresent a transition that never happened;
-    this event states the true fact instead: system/admin-direct provisioning, no invitation
-    flow involved."""
+    """Direct system/admin provisioning (registration/bootstrap) -- distinct from
+    `TenantMembershipActivated`, which anchors specifically to an invite-accept transition."""
 
     membership_id: str
     tenant_id: str

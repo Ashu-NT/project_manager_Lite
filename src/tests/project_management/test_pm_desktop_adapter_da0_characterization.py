@@ -379,8 +379,8 @@ def test_da0_characterizes_duplicate_project_resource_rate_precedence() -> None:
 
 
 def _fake_capacity_fact(*, peak_utilization_percent: float, days: tuple) -> SimpleNamespace:
-    """Stand-in for TaskAssignmentCapacityFact (docs §44) -- only the
-    fields `build_assignment_preview` actually reads."""
+    """Stand-in for TaskAssignmentCapacityFact -- only the fields
+    `build_assignment_preview` actually reads."""
     return SimpleNamespace(
         effective_available_capacity_hours=Decimal("10"),
         existing_committed_capacity_hours=Decimal("6"),

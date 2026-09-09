@@ -255,9 +255,9 @@ def test_task_editor_dialog_populates_existing_milestone_flag() -> None:
 
 
 def test_task_editor_dialog_defaults_to_asap_and_omits_constraint_date() -> None:
-    """Phase N/O: a brand-new task with no prior constraint state must
-    default the picker to ASAP and never report a changed constraint on
-    create (constraintChanged only matters for the edit/update path)."""
+    """A brand-new task with no prior constraint state must default the
+    picker to ASAP and never report a changed constraint on create
+    (constraintChanged only matters for the edit/update path)."""
     controller = _FakeTasksWorkspaceController()
     _, root = _load_dialog(
         TASK_EDITOR_DIALOG,
@@ -323,10 +323,10 @@ def test_task_editor_dialog_dated_constraint_requires_date_before_submit() -> No
 
 
 def test_task_editor_dialog_populates_existing_constraint_and_expands_section() -> None:
-    """Phase N: an existing task that already carries a constraint must
-    auto-expand the collapsed Advanced scheduling section so the current
-    value is visible without an extra click, and must round-trip it back
-    unchanged if the user does not touch the picker."""
+    """An existing task that already carries a constraint must auto-expand
+    the collapsed Advanced scheduling section so the current value is
+    visible without an extra click, and must round-trip it back unchanged
+    if the user does not touch the picker."""
     controller = _FakeTasksWorkspaceController()
     _, root = _load_dialog(
         TASK_EDITOR_DIALOG,
@@ -448,9 +448,9 @@ def test_task_dependency_editor_dialog_submit_button_emits_create_payload() -> N
 
 
 def test_task_dependency_editor_dialog_submit_button_emits_edit_payload_with_version() -> None:
-    """Phase N10: edit mode only touches relationship type/lag, and must
-    thread the loaded version through so the backend can detect a stale
-    write (the two endpoints can't be changed via edit -- remove/re-add)."""
+    """Edit mode only touches relationship type/lag, and must thread the
+    loaded version through so the backend can detect a stale write (the
+    two endpoints can't be changed via edit -- remove/re-add)."""
     _, root = _load_dialog(
         TASK_DEPENDENCY_EDITOR_DIALOG,
         {

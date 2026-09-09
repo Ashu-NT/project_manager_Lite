@@ -1,7 +1,7 @@
-"""Phase N/N5: the Dependencies table must never display a raw task UUID,
-and the row-selection state must carry the related task's own dates so the
-Task Detail inspector (N6) can render "Related task dates" without QML
-computing or re-fetching anything itself.
+"""The Dependencies table must never display a raw task UUID, and the
+row-selection state must carry the related task's own dates so the Task
+Detail inspector can render "Related task dates" without QML computing
+or re-fetching anything itself.
 """
 from __future__ import annotations
 

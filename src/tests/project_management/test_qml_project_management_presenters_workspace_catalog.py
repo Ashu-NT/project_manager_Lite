@@ -31,7 +31,7 @@ def test_project_management_workspace_presenters_match_qml_routes() -> None:
         view_model = presenters[route.route_id].build_view_model()
         assert view_model.route_id == route.route_id
         assert view_model.title == route.title
-        # R2.7: the canonical shell route is a pure UI composition, not one
+        # The canonical shell route is a pure UI composition, not one
         # of the ten backend-tracked capability workspaces, so it has no
         # ProjectManagementWorkspaceDesktopApi descriptor/summary. That's
         # correct, not a gap -- assert the absence explicitly rather than
@@ -78,7 +78,7 @@ def test_project_management_workspace_catalog_returns_no_capabilities_without_ac
 
 
 def test_project_management_workspace_catalog_owns_navigation(services) -> None:
-    """R2.3: PMWorkspaceNavigationController is catalog-owned."""
+    """PMWorkspaceNavigationController is catalog-owned."""
     registry = build_desktop_api_registry(services)
     catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
 
@@ -86,10 +86,9 @@ def test_project_management_workspace_catalog_owns_navigation(services) -> None:
 
 
 def test_refresh_capabilities_and_all_workspaces_do_not_raise(services) -> None:
-    """R2.4: tenant/organization-change and reauthentication transitions
-    route through refreshCapabilities()/refreshAllWorkspaces() (see
-    shell/app.py's tenantSwitched/organizationsChanged wiring) -- must not
-    raise even with no active workspace controllers constructed yet."""
+    """Tenant/organization-change and reauthentication transitions route
+    through refreshCapabilities()/refreshAllWorkspaces() -- must not raise
+    even with no active workspace controllers constructed yet."""
     registry = build_desktop_api_registry(services)
     catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
 

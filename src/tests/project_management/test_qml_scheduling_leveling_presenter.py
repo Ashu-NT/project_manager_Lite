@@ -1,4 +1,4 @@
-"""R4.4Q -- presenter-layer shaping for the Resource Leveling tab:
+"""Presenter-layer shaping for the Resource Leveling tab:
 build_resource_leveling_state() turns the desktop API's DTO into the
 plain camelCase dict QML consumes, and
 ProjectSchedulingWorkspacePresenter.preview_resource_leveling/

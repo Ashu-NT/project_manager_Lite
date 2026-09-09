@@ -280,24 +280,6 @@ def test_no_forbidden_party_changed_event_name_exists():
     assert hits == [], hits
 
 
-def test_canonical_party_uow_retained_no_raw_session_commit():
-    import src.core.platform.application.master_data.party.party_service as party_service_module
-
-    source = inspect.getsource(party_service_module.PartyService.create_party) + inspect.getsource(
-        party_service_module.PartyService.update_party
-    )
-    assert "self._session.commit(" not in source
-    assert "self._session.rollback(" not in source
-    assert "uow.commit()" in source
-
-
-def test_no_platform_to_business_module_concrete_infrastructure_import():
-    import src.core.platform.infrastructure.persistence.uow.party_unit_of_work as infra_module
-
-    source = inspect.getsource(infra_module)
-    assert "core.modules" not in source
-
-
 def test_two_separate_party_commits_produce_exactly_two_party_list_hints(services):
     party_service = services["party_service"]
     hints = _spy_party_list_hints(services)

@@ -22,12 +22,9 @@ from src.core.modules.project_management.infrastructure.reporting import (
 
 class DashboardPortfolioMixin:
     def get_portfolio_data(self) -> DashboardData:
-        # Mirrors the batching DashboardService.get_dashboard_data() already
-        # does for a single project: fetch tasks/schedule/assignments/resources
-        # once per project (and resources once for the whole portfolio) and
-        # hand them to get_project_kpis()/_build_upcoming_tasks() via their
-        # existing optional overrides, instead of letting each helper re-fetch
-        # the same rows and re-run CPM redundantly for every project.
+        # Fetches tasks/schedule/assignments/resources once per project and passes them
+        # to get_project_kpis()/_build_upcoming_tasks() via their optional overrides,
+        # instead of letting each helper re-fetch rows and re-run CPM per project.
         require_permission(self._user_session, "report.view", operation_label="view portfolio dashboard")
         projects = filter_project_rows(
             self._projects.list_projects(),

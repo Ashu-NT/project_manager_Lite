@@ -1,4 +1,4 @@
-"""R4.4G -- movability policy unit tests."""
+"""Movability policy unit tests."""
 from __future__ import annotations
 
 from datetime import date

@@ -424,13 +424,9 @@ def test_receipt_and_stock_changes_roll_back_when_outbox_write_fails(
 
 
 def test_commitment_transactional_handler_runs_before_the_dispatcher_commits(services) -> None:
-    """The transactional handler must receive the actual canonical `UnitOfWork`
-    instance that owns this transaction -- never `ProcurementFinancialDispatcher` itself.
-    `ProcurementFinancialDispatcher` is not a `UnitOfWork` (no `record_event`/`commit`/
-    `__enter__`/`__exit__`); passing it as the handler's `uow` argument would be duck-typed
-    impersonation, not the canonical architecture. The handler instead receives a real
-    `SqlAlchemyUnitOfWorkBase` bound to the dispatcher's own session -- proven both by identity
-    (not the dispatcher) and by shape (implements the full `UnitOfWork` protocol)."""
+    """The transactional handler must receive a real `SqlAlchemyUnitOfWorkBase` bound to the
+    dispatcher's own session -- never the dispatcher itself impersonating a UnitOfWork (it has
+    no `record_event`/`commit`/`__enter__`/`__exit__`)."""
     from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
 
     dispatcher = services["procurement_financial_dispatcher"]

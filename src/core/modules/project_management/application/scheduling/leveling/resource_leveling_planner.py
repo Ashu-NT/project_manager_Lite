@@ -1,19 +1,15 @@
 """
 ``ResourceLevelingPlanner`` is a pure, in-memory, application-level
 component: it takes an already-loaded project's tasks/dependencies/
-assignments/resources and produces a typed ``LevelingProposal`` (§K).
+assignments/resources and produces a typed ``LevelingProposal``.
 It does not own persistence, does not commit, does not format for QML,
 and does not duplicate CPM/dependency/constraint/calendar math -- every
 feasibility check is a real call into ``run_cpm``/``ConstraintValidator``
-against an in-memory candidate task set (the "canonical feasibility
-seam," §D: this codebase's existing canonical scheduler IS the seam,
-there is no separate ``evaluate_placement`` formula to maintain).
+against an in-memory candidate task set, so there is no separate
+``evaluate_placement`` formula to maintain.
 
-Replaces the old ``ResourceLevelingMixin.auto_level_resources``'s
-"+1 working day, re-scan, +1 working day" loop (§J) with a bounded,
-in-memory nearest-legal-placement search per candidate task, and reuses
-its ``build_resource_conflicts``/``choose_auto_level_task``-adjacent
-day-bucketing (``leveling.py``) rather than re-deriving conflict
+Uses a bounded, in-memory nearest-legal-placement search per candidate task,
+reusing ``leveling.py``'s day-bucketing rather than re-deriving conflict
 detection.
 """
 from __future__ import annotations

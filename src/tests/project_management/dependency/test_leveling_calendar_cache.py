@@ -1,4 +1,4 @@
-"""R4.4W.1 -- MemoizingCalendarWindow must be a pure performance cache:
+"""MemoizingCalendarWindow must be a pure performance cache:
 every answer must exactly match the real, uncached calendar it wraps,
 both inside and outside the precomputed window. Uses the REAL
 services["work_calendar_engine"] (GlobalCalendarShim), not a synthetic

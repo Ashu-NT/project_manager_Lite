@@ -142,16 +142,11 @@ def _wbs_cycle_finding(session: Session, *, sample_limit: int) -> IntegrityFindi
 
 
 def _dependency_cycle_finding(session: Session, *, sample_limit: int) -> IntegrityFinding:
-    """Detect a persisted Task->Task dependency cycle -- creation-time
-    validation should prevent this, but two concurrently-approved requests
-    each valid at request time could still persist one. Left undetected,
-    it would only surface later as a `SCHEDULE_CYCLE` crash the next time
-    CPM ran for that project.
-
-    Uses the same DFS three-color cycle detection idiom as
-    ``_wbs_cycle_finding`` above, generalized from a single-parent tree
-    walk to a general graph (a task can have multiple predecessors and
-    successors, unlike the WBS parent chain)."""
+    """Detect a persisted Task->Task dependency cycle -- creation-time validation should
+    prevent this, but two concurrently-approved requests each valid at request time could
+    still persist one, surfacing later as a `SCHEDULE_CYCLE` crash the next time CPM runs.
+    DFS three-color cycle detection, generalized from ``_wbs_cycle_finding``'s single-parent
+    walk to a general graph."""
     edges = session.execute(
         select(
             TaskDependencyORM.id,

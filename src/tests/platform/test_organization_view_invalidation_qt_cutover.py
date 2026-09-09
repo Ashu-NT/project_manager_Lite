@@ -255,9 +255,9 @@ def test_real_tenant_switch_through_the_catalog_rewires_the_adapter_end_to_end(s
     unique constraint in this shared test database -- both pre-existing, unrelated to this
     hardening pass and to the adapter's own wiring, which is what this test actually verifies.
 
-    P5C-3 note: `_current_filters()` now resolves THIS adapter's own tracked subscription by id,
-    rather than scanning the whole channel for any `TenantWide` instance -- `RoleBindingViewInvalidationAdapter`
-    also holds a `TenantWide` subscription (P5C-3), so a channel-wide scan would conflate the two
+    `_current_filters()` resolves THIS adapter's own tracked subscription by id, rather than
+    scanning the whole channel for any `TenantWide` instance -- `RoleBindingViewInvalidationAdapter`
+    also holds a `TenantWide` subscription, so a channel-wide scan would conflate the two
     independent adapters' subscriptions."""
 
     catalog = _catalog(services)

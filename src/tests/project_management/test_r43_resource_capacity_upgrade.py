@@ -1,5 +1,5 @@
-"""R4.3 Resource -> ProjectResource -> TaskAssignment -> Time enterprise
-capacity upgrade -- targeted backend coverage (see docs §43/§80).
+"""Resource -> ProjectResource -> TaskAssignment -> Time enterprise capacity
+upgrade -- targeted backend coverage.
 
 Covers: ProjectResource optimistic concurrency, the centralized envelope
 policy, the ProjectResourceUsageFact reconciliation reader, Resource.is_active
@@ -302,7 +302,7 @@ def test_overallocation_strict_policy_still_allows_non_conflicting_allocation(se
 
 
 # ---------------------------------------------------------------------------
-# Resource.is_active enforcement at assignment creation (Defect §37)
+# Resource.is_active enforcement at assignment creation
 # ---------------------------------------------------------------------------
 
 
@@ -318,7 +318,7 @@ def test_assign_project_resource_rejects_inactive_resource(services):
 
 
 # ---------------------------------------------------------------------------
-# Deletion / lifecycle guards (Defect §30-32)
+# Deletion / lifecycle guards
 # ---------------------------------------------------------------------------
 
 
@@ -347,7 +347,7 @@ def test_delete_project_resource_without_actuals_still_succeeds(services):
 
 
 # ---------------------------------------------------------------------------
-# Dead bridge path removal (Defect §36)
+# Dead bridge path removal
 # ---------------------------------------------------------------------------
 
 
@@ -381,7 +381,7 @@ def test_assign_resource_bridge_requires_project_resource_repository():
 
 
 # ---------------------------------------------------------------------------
-# Project-scoped time authorization (Defect §26)
+# Project-scoped time authorization
 # ---------------------------------------------------------------------------
 
 
@@ -420,8 +420,7 @@ def test_logging_time_against_task_in_unauthorized_project_is_denied(services):
 
 
 # ---------------------------------------------------------------------------
-# Dead capacity/availability wiring -- now real (mid-pass follow-up), and
-# migrated onto the calendar-based capacity authority (docs §44).
+# Capacity/availability wiring migrated onto the calendar-based capacity authority.
 # ---------------------------------------------------------------------------
 
 
@@ -433,8 +432,8 @@ def test_resource_workload_service_is_wired_in_composition_root(services):
 def test_enterprise_resource_availability_service_is_wired_into_task_service_for_capacity_authority(
     services,
 ):
-    """DI-wiring proof for the calendar capacity migration (docs §44): the
-    SAME EnterpriseResourceAvailabilityService instance registered under
+    """DI-wiring proof for the calendar capacity migration: the SAME
+    EnterpriseResourceAvailabilityService instance registered under
     resource_availability_service must be the one TaskService itself holds
     and uses for `preview_assignment_capacity` -- one shared authority, so
     Task Assignment preview and save-time enforcement cannot disagree by
@@ -538,7 +537,7 @@ def test_resource_availability_display_returns_real_data_not_none(services):
 
 
 # ---------------------------------------------------------------------------
-# Query-count evidence for the changed N+1 paths (Defect §38/§D)
+# Query-count evidence for the changed N+1 paths
 # ---------------------------------------------------------------------------
 
 

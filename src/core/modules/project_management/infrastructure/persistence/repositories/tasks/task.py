@@ -505,15 +505,12 @@ class SqlAlchemyDependencyRepository(DependencyRepository):
             raise NotFoundError("Task not found.")
 
     def _ensure_same_project(self, predecessor_task_id: str, successor_task_id: str) -> None:
-        """Defense-in-depth (§9/§G5 of the R4.4 dependency audit): the
-        schema cannot express "both endpoints in the same project" --
-        task_dependencies has no project_id column and its FKs target
-        tasks.id alone, not the (project_id, id) composite tasks carries
-        for its own self-referential FK. A caller that reaches this
-        repository directly (bypassing TaskDependencyMixin's
-        DEPENDENCY_CROSS_PROJECT diagnostics check) would otherwise be able
-        to persist a cross-project edge as long as both tasks share a
-        tenant/org."""
+        """Defense-in-depth: the schema cannot express "both endpoints in the same project" --
+        task_dependencies has no project_id column and its FKs target tasks.id alone, not the
+        (project_id, id) composite tasks carries for its own self-referential FK. A caller that
+        reaches this repository directly (bypassing TaskDependencyMixin's
+        DEPENDENCY_CROSS_PROJECT diagnostics check) would otherwise be able to persist a
+        cross-project edge as long as both tasks share a tenant/org."""
         ctx = self._context()
         rows = self.session.execute(
             select(TaskORM.id, TaskORM.project_id)
@@ -560,10 +557,6 @@ class SqlAlchemyDependencyRepository(DependencyRepository):
             raise NotFoundError("Dependency not found.")
         self._ensure_task_in_scope(dependency.predecessor_task_id)
         self._ensure_task_in_scope(dependency.successor_task_id)
-        # Defense-in-depth (§G5): both endpoints must belong to the same
-        # project. The DB schema cannot express this (task_dependencies has
-        # no project_id column, and the FKs target tasks.id alone), so it
-        # is enforced here and in the application-layer diagnostics check.
         self._ensure_same_project(dependency.predecessor_task_id, dependency.successor_task_id)
         dependency.version = update_with_version_check(
             self.session,

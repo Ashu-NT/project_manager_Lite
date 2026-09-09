@@ -109,10 +109,8 @@ def _finance_export_context(request, *, as_of: date):
     )
     if request.finance_service is None:
         return None, None
-    # A caller with report.export but without finance.export/finance.read
-    # omits the Finance sheet/summary rather than failing the whole export —
-    # consistent with how the EVM/cost-breakdown/cost-sources sections below
-    # degrade for the same reason.
+    # A caller without finance.export/finance.read omits the Finance sheet/summary
+    # rather than failing the whole export, like the sections below.
     snapshot = _optional_report_call(
         request.finance_service.get_finance_export_snapshot,
         request.project_id,

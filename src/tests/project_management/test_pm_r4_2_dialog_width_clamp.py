@@ -1,12 +1,7 @@
-"""R4.2 follow-up: EntityDialog/CenteredDialog-based dialogs (Project Edit
-among them) set a fixed literal `width` per-instance (e.g. "width: 560"),
-which used to render past the edge of a narrower window -- section 11
-rule 5 requires a dialog to clamp to available width, never exceed it.
-CenteredDialog now corrects its own width after the fact once it's shown,
-the same technique already proven for AnchoredPopup. This is a real,
-windowed QML test (not offscreen-grab) since the earlier KpiStrip
-incident showed offscreen rendering doesn't reliably stand in for real
-window geometry."""
+"""CenteredDialog must clamp its width to the available window, correcting itself after
+being shown, so a fixed literal per-instance width (e.g. "width: 560") never overflows a
+narrower window. Uses a real windowed QML test, not an offscreen grab, since offscreen
+rendering doesn't reliably reflect real window geometry."""
 
 from __future__ import annotations
 

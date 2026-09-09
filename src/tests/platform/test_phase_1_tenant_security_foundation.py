@@ -1,4 +1,4 @@
-"""Tests for Phase 1: Tenant Security Foundation — user_tenants membership table.
+"""Tests for Tenant Security Foundation — user_tenants membership table.
 
 Covers:
   1. UserTenantMembership domain creation

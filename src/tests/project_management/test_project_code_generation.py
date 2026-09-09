@@ -1,4 +1,4 @@
-"""Project code auto-generation + uniqueness (Phase A/B backend)."""
+"""Project code auto-generation + uniqueness."""
 
 from __future__ import annotations
 

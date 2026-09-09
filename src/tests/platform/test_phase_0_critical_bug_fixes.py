@@ -1,4 +1,4 @@
-"""Tests for Phase 0 critical bug fixes.
+"""Critical early bug-fix regression tests.
 
 Fix 1 & 2: Organization service/repository scoping by tenant_id.
 Fix 3:     platform.admin permission seeded; admin role receives it.

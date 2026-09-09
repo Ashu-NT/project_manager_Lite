@@ -45,7 +45,7 @@ def test_successful_provisioning_persists_organization_and_entitlements_atomical
     # organization must reflect the module it was provisioned with.
     module_catalog = services["module_catalog_service"]
     tenant_context_service = services["tenant_context_service"]
-    # P10A: enabling and session-selecting are two separate, explicit steps.
+    # Enabling and session-selecting are two separate, explicit steps.
     organization_service.enable_organization(organization.id)
     tenant_context_service.set_active_organization(organization.id)
     assert module_catalog.is_enabled("project_management") is True

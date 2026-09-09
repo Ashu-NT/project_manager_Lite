@@ -271,11 +271,8 @@ def register_failed_login(
     """Records this failed attempt against the account's durable lockout state, atomically
     with its own required audit entry. Two concurrent failed logins against the same account
     race on `UserAccount`'s real CAS (`update_with_version_check`); the loser gets exactly one
-    bounded retry -- reload the latest state, reapply THIS attempt's increment against it, retry
-    the commit once. A second conflict (or any other failure) propagates as a canonical security
-    failure -- this attempt's state and audit are never silently discarded, unlike the prior
-    bare-except-and-return behavior every other Auth mutation function in this module never
-    had."""
+    bounded retry -- reload the latest state, reapply this attempt's increment, retry the
+    commit once. Any other failure propagates -- never silently discarded."""
     tenant_id, organization_id = _resolve_last_active_context(service, user)
     max_attempts = 2
     for attempt_number in range(1, max_attempts + 1):

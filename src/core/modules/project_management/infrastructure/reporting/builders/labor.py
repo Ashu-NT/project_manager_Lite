@@ -55,9 +55,8 @@ class ReportingLaborMixin:
     def calculate_project_labor_details(
         self, project_id: str, as_of: date | None = None
     ) -> LaborDetailsResult:
-        # Every row here identifies a specific resource alongside its
-        # hourly rate and cost — the finance.read_sensitive tier, matching
-        # FinanceService's own resource-identified labor redaction policy.
+        # Resource-identified rate/cost rows require the finance.read_sensitive tier,
+        # matching FinanceService's own redaction policy.
         self._require_finance_sensitive_view("view labor details", project_id=project_id)
         return self._make_labor_engine().calculate_project_labor_details(
             project_id, as_of or date.today()

@@ -186,8 +186,8 @@ def test_pm_workspace_does_not_keep_serving_org_a_data_after_current_org_access_
 
 
 def test_pm_workspace_does_not_keep_serving_org_a_data_after_current_org_is_disabled(services):
-    """Section 4 (disable): disabling the CURRENT session's active organization clears
-    `active_organization_id` (P10C's own fix). Same proof shape as the revocation test above."""
+    """Disabling the CURRENT session's active organization clears `active_organization_id`.
+    Same proof shape as the revocation test above."""
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     org = organization_service.create_organization(

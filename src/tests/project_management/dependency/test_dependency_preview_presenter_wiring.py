@@ -1,5 +1,5 @@
-"""Phase N/N9: the Task Detail Dependencies dialog surfaces the typed,
-non-persisting impact-preview backend (Phase K) instead of computing any
+"""The Task Detail Dependencies dialog surfaces the typed,
+non-persisting impact-preview backend instead of computing any
 schedule math itself. These tests pin the presenter-layer command-handler
 functions that translate a QML payload into a desktop-API preview call and
 back into a camelCase dict -- the same contract already established by

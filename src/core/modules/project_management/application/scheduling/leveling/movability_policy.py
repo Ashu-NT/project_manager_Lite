@@ -1,12 +1,10 @@
-"""R4.4G -- documented target movability policy for automatic resource
-leveling. One function, `task_movability`, is the single place this
-policy is encoded; the planner (`resource_leveling_planner.py`) never
-re-derives constraint semantics itself, it only asks this module
-whether a task may be considered as a leveling candidate and, if so,
-what ceiling (if any) bounds how far it may move.
+"""Target movability policy for automatic resource leveling. One function,
+`task_movability`, is the single place this policy is encoded; the planner
+(`resource_leveling_planner.py`) never re-derives constraint semantics itself,
+it only asks this module whether a task may be considered as a leveling
+candidate and, if so, what ceiling (if any) bounds how far it may move.
 
-Policy (see R4_4_PLANNING_SCHEDULING_IMPLEMENTATION_SUMMARY.md,
-"Movability policy," for the product rationale):
+Policy:
 
 - No constraint (ASAP): movable, no ceiling.
 - START_NO_EARLIER_THAN / FINISH_NO_EARLIER_THAN (floors): movable --

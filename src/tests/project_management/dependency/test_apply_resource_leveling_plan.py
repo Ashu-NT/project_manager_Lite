@@ -1,9 +1,9 @@
-"""R4.4M -- ApplyResourceLevelingPlanCommand (ResourceLevelingApplyMixin).
+"""ApplyResourceLevelingPlanCommand (ResourceLevelingApplyMixin).
 
 Persists a previously-computed LevelingProposal: writes each
 ProposedTaskMove's new_start onto Task.resource_leveling_not_before,
 re-syncs the canonical schedule, and rejects the whole apply if the
-schedule has drifted since the preview was built (R4.4L fingerprint).
+schedule has drifted since the preview was built (schedule fingerprint check).
 """
 from __future__ import annotations
 
@@ -67,8 +67,7 @@ class TestApplyHappyPath:
         assert persisted.resource_leveling_not_before == new_start
         assert persisted.start_date == new_start
 
-        # The floor must survive a SEPARATE, later recalculation too --
-        # this is the exact defect R4.4C's floor mechanism exists to fix.
+        # The floor must survive a separate, later recalculation too.
         services["scheduling_engine"].recalculate_project_schedule(project.id)
         assert ts.get_task(moved_task_id).start_date == new_start
 
@@ -110,7 +109,7 @@ class TestApplyHappyPath:
 
 class TestApplyRecordsPerTaskAudit:
     def test_apply_records_a_per_task_activity_entry_explaining_the_move(self, services):
-        """R4.4P: matching the entity_type='task' convention every other
+        """Matches the entity_type='task' convention every other
         schedule-affecting command uses (constraint updates, dependency
         updates, approved financial schedule changes), so the moved
         task's OWN activity feed explains why it moved -- not just a

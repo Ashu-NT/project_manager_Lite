@@ -57,10 +57,8 @@ class ReportingProfitabilityMixin:
     def get_project_commercial_projection(
         self, project_id: str
     ) -> ProjectCommercialProjection:
-        # contract/billable/invoiced/paid are ordinary Project Finance
-        # authority data (finance.read); the forecast-revenue/margin figures
-        # are further redacted without finance.read_profitability, matching
-        # the get_project_kpis mixed-content pattern.
+        # Forecast-revenue/margin figures are further redacted without
+        # finance.read_profitability, matching get_project_kpis's mixed-content pattern.
         self._require_finance_view(
             "view project commercial projection", project_id=project_id
         )
@@ -78,13 +76,10 @@ class ReportingProfitabilityMixin:
         for preparation in preparations:
             if preparation.status in _BILLABLE_STATUSES:
                 billable_amount += preparation.total_amount
-            # A preparation's invoice reference and its reconciliation are
-            # set on *different* events, not carried forward onto whichever
-            # event happens to be latest -- checking only the latest event
-            # (as a current-status projection does) would silently lose the invoice reference
-            # once a later RECONCILED event supersedes it. Aggregation needs
-            # the full history: has this preparation *ever* been invoiced /
-            # *ever* been reconciled.
+            # Invoice reference and reconciliation are set on different events, not
+            # carried forward -- checking only the latest event would lose the invoice
+            # reference once a later RECONCILED event supersedes it, so this needs the
+            # full history: has this preparation *ever* been invoiced/reconciled.
             events = self._billing_repo.list_external_events(preparation.id)
             if not events:
                 continue
@@ -103,10 +98,8 @@ class ReportingProfitabilityMixin:
         margin_amount: Decimal | None = None
         margin_percent: Decimal | None = None
         if profitability_detail_included and profile is not None:
-            # billing_method lives on ProjectFinancialProfile, not on the
-            # ProjectBillingProfile this mixin otherwise reads from --
-            # commercial billing method and finance configuration are
-            # separate aggregates.
+            # billing_method lives on ProjectFinancialProfile, a separate aggregate from
+            # the ProjectBillingProfile this mixin otherwise reads from.
             financial_profile = self._financial_profile_repo.get_by_project(project_id)
             if financial_profile is not None:
                 facts, policy = self._compose_finance_policy(

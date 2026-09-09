@@ -54,7 +54,7 @@ def build_project_view_invalidation_handler(channel: ViewInvalidationChannel):
     """`ProjectCreated`/`ProjectProfileUpdated`/`ProjectStatusChanged`/`ProjectRemoved` all stale
     the organization-wide Project collection/selector target; the latter three additionally stale
     the exact Project's own detail target (a not-yet-created Project has no existing detail view
-    to stale -- `ProjectCreated` maps to the list/selector target only, per the brief's own §34).
+    to stale -- `ProjectCreated` maps to the list/selector target only).
     `ProjectResourceAssignmentChanged` (a `resources`-module fact, not a Project field change)
     maps to the detail target only -- it never affects the Project list/selector."""
 

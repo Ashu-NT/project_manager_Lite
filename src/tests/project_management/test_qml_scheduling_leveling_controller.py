@@ -1,4 +1,4 @@
-"""R4.4Q/R4.4U -- ProjectManagementSchedulingWorkspaceController's new
+"""ProjectManagementSchedulingWorkspaceController's
 Resource Leveling surface: previewResourceLeveling()/
 applyResourceLeveling() Slots, and the levelingProposal/levelingMoveRows/
 levelingMovesTableModel Properties they update. Uses a REAL presenter

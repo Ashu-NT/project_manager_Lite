@@ -441,10 +441,10 @@ def test_repos_and_audit_share_one_session_within_one_operation(services):
 
 
 def test_no_platform_to_business_module_concrete_infrastructure_import_added():
-    """P18A §9: the Employee-driven Resource sync path must not import PM's concrete
-    ResourceMasterChanged event class into Platform code -- proven by the same AST-based
-    architecture guard this ADR already uses (test_platform_does_not_import_business_modules.py),
-    re-run here narrowly against the two files this phase touched."""
+    """The Employee-driven Resource sync path must not import PM's concrete
+    ResourceMasterChanged event class into Platform code -- the same AST-based
+    architecture guard as test_platform_does_not_import_business_modules.py,
+    re-run here narrowly against the files this path touches."""
     import ast
 
     from src.tests.path_rewrites import REPO_ROOT
@@ -464,7 +464,7 @@ def test_no_platform_to_business_module_concrete_infrastructure_import_added():
 
 
 # ---------------------------------------------------------------------------
-# Employee-driven Resource synchronization path (P18A §8)
+# Employee-driven Resource synchronization path
 # ---------------------------------------------------------------------------
 
 

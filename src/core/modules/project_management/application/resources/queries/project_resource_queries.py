@@ -85,10 +85,9 @@ class ProjectResourceQueryMixin:
         return row
 
     def get_usage(self, project_resource_id: str) -> ProjectResourceUsageFact:
-        """Authoritative planned/allocated/unallocated/actual/remaining
-        reconciliation for one ProjectResource -- see docs §43/§80 for the
-        semantics. Not derived from whatever page of tasks the caller
-        happens to have loaded."""
+        """Authoritative planned/allocated/unallocated/actual/remaining reconciliation for one
+        ProjectResource. Not derived from whatever page of tasks the caller happens to have
+        loaded."""
         require_permission(
             self._user_session,
             "project.read",

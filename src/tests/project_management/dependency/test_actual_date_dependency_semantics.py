@@ -111,8 +111,8 @@ class TestOwnActualIsAOneSidedFloorNeverEarlier:
 
 
 class TestDependencyActualVarianceReporting:
-    """The previously-missing signal: an explicit fact when a task's own
-    actual date violated what its dependency graph required."""
+    """An explicit fact when a task's own actual date violates what its
+    dependency graph required."""
 
     def test_successor_actual_start_earlier_than_required_is_reported(self):
         a = Task.create("p1", "Task A", start_date=MON, duration_days=3)
@@ -161,12 +161,8 @@ class TestDependencyActualVarianceReporting:
         result = run_cpm(CAL, {a.id: a, b.id: b}, [dep])
         variances = find_dependency_actual_variances({a.id: a, b.id: b}, result.schedule, CAL)
 
-        # For a duration-bearing task, the dependency-implied start and
-        # finish are linked by duration, so a task whose actual dates fall
-        # well short of an FF requirement can legitimately trip both the
-        # "start" and "finish" comparisons at once -- assert the "finish"
-        # one this test targets is present, without assuming it's the only
-        # one.
+        # A duration-bearing task can legitimately trip both "start" and "finish"
+        # comparisons at once -- assert "finish" is present without assuming it's the only one.
         by_direction = {v.direction: v for v in variances}
         assert "finish" in by_direction
         assert by_direction["finish"].task_id == b.id

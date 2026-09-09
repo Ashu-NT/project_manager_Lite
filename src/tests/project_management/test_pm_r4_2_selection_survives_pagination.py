@@ -1,13 +1,7 @@
-"""R4.2 checklist finding: `resolve_selected_project_id()` used to fall
-back to `filtered_projects[0].id` whenever the requested id wasn't present
-in the current page's items -- meaning a plain page turn (select a project
-on page 1, then navigate to page 2) silently reassigned the selection to
-an unrelated project the user never clicked. With the new inspector
-actually surfacing "the selected project" on screen, this was no longer a
-harmless no-op -- it would show the wrong project's details after a page
-turn. Selection must only ever change through an explicit selectProject()
-call; a refresh that can no longer see the previously selected row must
-clear the selection, never substitute a different one."""
+"""Selection must only ever change through an explicit `selectProject()` call.
+`resolve_selected_project_id()` must never fall back to `filtered_projects[0].id` when the
+requested id isn't in the current page's items -- a page turn that can no longer see the
+previously selected row must clear the selection, never substitute a different project."""
 
 from __future__ import annotations
 
