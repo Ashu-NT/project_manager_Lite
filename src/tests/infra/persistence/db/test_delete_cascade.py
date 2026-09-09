@@ -11,7 +11,7 @@ def test_project_delete_cascade(services):
 
     # Create task, resource, and assignment.
     t = ts.create_task(pid, "Task 1", start_date=date(2023, 11, 6), duration_days=2)
-    r = rs.create_resource("Dev", "Developer", 100.0)
+    r = rs.create_resource("Dev", "Developer", hourly_rate=100.0)
     ts.assign_resource(t.id, r.id, allocation_percent=50.0)
 
     # Confirm they exist in DB

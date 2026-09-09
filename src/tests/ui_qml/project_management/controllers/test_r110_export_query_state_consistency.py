@@ -214,6 +214,9 @@ class _OffsetService:
         self.calls.append(int(kwargs["offset"]))
         return [], 3
 
+    def can_create_manual_entry(self, _project_id: str) -> bool:
+        return True
+
 
 def test_finance_actual_and_commitment_queries_return_normalized_offset() -> None:
     actuals = _OffsetService()

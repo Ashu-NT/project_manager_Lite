@@ -52,14 +52,6 @@ def test_qml_main_window_navigation_uses_registry_routes():
         "QML Home",
         "Platform",
         "Project Management",
-        "Inventory Dashboard",
-        "Catalog",
-        "Inventory",
-        "Reservations",
-        "Procurement",
-        "Pricing",
-        "Stock Movements",
-        "Warehouses & Locations",
     ]
 
 

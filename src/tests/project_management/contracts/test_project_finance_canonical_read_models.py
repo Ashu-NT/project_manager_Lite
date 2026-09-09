@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
@@ -11,6 +12,23 @@ from src.core.modules.project_management.domain.financials.forecast import (
     ForecastLineSourceKind,
     ForecastLineSourceType,
 )
+
+
+def _become_independent_decider(services) -> None:
+    user_session = services["user_session"]
+    user_session.set_principal(
+        replace(
+            user_session.principal,
+            user_id="independent-cost-decider",
+            username="independent-cost-decider",
+        )
+    )
+
+
+def _login(services, username: str, password: str) -> None:
+    auth = services["auth_service"]
+    user = auth.authenticate(username, password)
+    services["user_session"].set_principal(auth.build_principal(user))
 
 
 def _approved_controls(services):
@@ -93,7 +111,9 @@ def _approved_controls(services):
         cost_code_id=code.id,
     )
     entry = entries.submit(entry.id, expected_version=entry.row_version)
+    _become_independent_decider(services)
     entries.approve(entry.id, expected_version=entry.row_version)
+    _login(services, "admin", "ChangeMe123!")
     entry = entries.get_entry(entry.id)
     entry = entries.post(
         entry.id,
