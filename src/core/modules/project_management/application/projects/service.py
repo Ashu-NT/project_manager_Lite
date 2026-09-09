@@ -24,6 +24,7 @@ from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 from src.core.shared.events.domain_event_context import DomainEventContext
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 
 class ProjectService(ProjectManagementModuleGuardMixin, ProjectLifecycleMixin, ProjectQueryMixin):
@@ -41,7 +42,7 @@ class ProjectService(ProjectManagementModuleGuardMixin, ProjectLifecycleMixin, P
         activity_service: ActivityService | None = None,
         enterprise_audit_service=None,
         module_catalog_service=None,
-        tenant_context_service=None,
+        tenant_context_service: TenantContextService | None =None,
         project_catalog_reader: ProjectCatalogReader | None = None,
         uow_factory: ProjectUnitOfWorkFactory | None = None,
         transactional_dispatcher=None,

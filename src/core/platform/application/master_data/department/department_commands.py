@@ -31,7 +31,7 @@ def create_department(
     service: DepartmentService,
     *,
     department_code: str,
-    name: str | None = None,
+    name: str ,
     display_name: str | None = None,
     description: str = "",
     site_id: str | None = None,

@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from src.application.runtime import build_desktop_api_registry
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.platform.presenters import PlatformRuntimePresenter
-from src.tests.platform._platform_test_helpers import FakePlatformRuntimeApi
+from src.tests.ui_qml.platform.presenters._platform_test_helpers import FakePlatformRuntimeApi
 
 
 def test_platform_runtime_presenter_uses_desktop_api_context() -> None:

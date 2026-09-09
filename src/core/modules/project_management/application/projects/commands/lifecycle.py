@@ -47,6 +47,7 @@ from src.core.platform.contract.repositories.time_management.time.contracts impo
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 logger = logging.getLogger(__name__)
 
@@ -106,8 +107,9 @@ class ProjectLifecycleMixin:
     _dependency_repo: DependencyRepository
     _assignment_repo: AssignmentRepository
     _time_entry_repo: TimeEntryRepository | None
-    _user_session: UserSessionContext
+    _user_session: UserSessionContext | None
     _uow_factory: ProjectUnitOfWorkFactory | None
+    _tenant_context_service: TenantContextService | None
 
     def _validate_project_name(
         self,
@@ -234,9 +236,10 @@ class ProjectLifecycleMixin:
             client_party_id=client_party_id,
             manager_user_id=manager_user_id,
         )
-        scope = self._tenant_context_service.require_active_scope_ids(
-            operation_label="create project"
-        )
+        if self._tenant_context_service:
+            scope = self._tenant_context_service.require_active_scope_ids(
+                operation_label="create project"
+            )
 
         try:
             with self._require_project_uow_factory().create(context=self._new_context()) as uow:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, TypeVar, cast, overload
+from typing import Any, Callable, TypeVar, cast, overload, dataclass_transform
 
 from pydantic import ConfigDict
 from pydantic.dataclasses import dataclass as pydantic_dataclass
@@ -20,6 +20,7 @@ def validated_dataclass(cls: ClassT, /) -> ClassT: ...
 def validated_dataclass(cls: None = None, /, **kwargs: Any) -> Callable[[ClassT], ClassT]: ...
 
 
+@dataclass_transform()
 def validated_dataclass(
     cls: ClassT | None = None,
     /,

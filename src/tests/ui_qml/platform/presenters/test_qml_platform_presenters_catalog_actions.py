@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
-from src.tests.platform._platform_test_helpers import build_connected_platform_registry
+from src.tests.ui_qml.platform.presenters._platform_test_helpers import build_connected_platform_registry
 
 
 def test_platform_workspace_catalog_runs_control_and_settings_actions() -> None:

@@ -53,7 +53,7 @@ class ViewInvalidationHint:
     entity_id: str | None = None
 
 
-H = TypeVar("H", bound=ViewInvalidationHint)
+H = TypeVar("H", bound=ViewInvalidationHint, contravariant=True)
 
 
 class ViewInvalidationHandler(Protocol[H]):
