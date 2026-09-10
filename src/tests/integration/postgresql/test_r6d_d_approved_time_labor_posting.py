@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from types import SimpleNamespace
@@ -344,18 +345,20 @@ def _build_dispatcher(postgres_test_environment):
     return source_session, outbox, dispatcher
 
 
-def _approved_time_envelope() -> IntegrationEventEnvelope:
+def _approved_time_envelope(suffix: str = "a") -> IntegrationEventEnvelope:
     work_date = date(2026, 9, 10)
     approved_at = datetime(2026, 9, 10, 10, 0, tzinfo=timezone.utc)
+    suffix_token = "" if suffix == "a" else f"-{suffix}"
+    time_entry_id = f"r6dd-time-entry-a{suffix_token}"
     facts = {
-        "timesheet_period_id": "r6dd-timesheet-period-a",
-        "time_entry_id": "r6dd-time-entry-a",
-        "work_allocation_id": "r6dd-work-allocation-a",
+        "timesheet_period_id": f"r6dd-timesheet-period-a{suffix_token}",
+        "time_entry_id": time_entry_id,
+        "work_allocation_id": f"r6dd-work-allocation-a{suffix_token}",
         "resource_id": RESOURCE_A,
         "project_id": PROJECT_A,
         "organization_id": ORG_A,
         "employee_id": None,
-        "assignment_id": "r6dd-assignment-a",
+        "assignment_id": f"r6dd-assignment-a{suffix_token}",
         "task_id": TASK_A,
         "work_date": work_date.isoformat(),
         "hours": DecimalQuantityPayload.from_domain(
@@ -364,22 +367,22 @@ def _approved_time_envelope() -> IntegrationEventEnvelope:
     }
     payload = ApprovedTimeEntryEventPayload(
         **facts,
-        approved_snapshot_id="r6dd-approved-snapshot-a",
+        approved_snapshot_id=f"r6dd-approved-snapshot-a{suffix_token}",
         source_revision=1,
         source_content_hash=canonical_json_sha256(facts),
         approved_at=approved_at,
     )
     return IntegrationEventEnvelope(
-        event_id="r6dd-approved-time-event-a",
+        event_id=f"r6dd-approved-time-event-a{suffix_token}",
         event_type=APPROVED_TIME_ENTRY_EVENT_TYPE,
         schema_version=1,
         tenant_id=TENANT_A,
         organization_id=ORG_A,
         aggregate_type="time_entry",
-        aggregate_id="r6dd-time-entry-a",
+        aggregate_id=time_entry_id,
         aggregate_version=1,
         occurred_at=approved_at,
-        correlation_id="r6dd-timesheet-period-a",
+        correlation_id=f"r6dd-timesheet-period-a{suffix_token}",
         payload=payload.model_dump(mode="json"),
     )
 
@@ -479,6 +482,52 @@ def test_runtime_worker_posts_under_rls_and_denies_hostile_scope_changes(
         foreign.rollback()
     finally:
         foreign.close()
+
+
+def test_two_runtime_workers_claim_one_event_and_create_one_financial_effect(
+    postgres_test_environment,
+):
+    source_a, outbox, dispatcher_a = _build_dispatcher(postgres_test_environment)
+    source_b, _, dispatcher_b = _build_dispatcher(postgres_test_environment)
+    envelope = _approved_time_envelope("claim-race")
+    try:
+        outbox.enqueue(envelope)
+        source_a.commit()
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(
+                executor.map(
+                    lambda dispatcher: dispatcher.dispatch_pending(limit=1),
+                    (dispatcher_a, dispatcher_b),
+                )
+            )
+        assert sum(results) == 1
+    finally:
+        source_a.close()
+        source_b.close()
+
+    with postgres_test_environment.admin_engine.connect() as connection:
+        assert connection.scalar(
+            text(
+                "SELECT count(*) FROM project_approved_time_labor_postings "
+                "WHERE time_entry_id=:time_entry_id"
+            ),
+            {"time_entry_id": envelope.aggregate_id},
+        ) == 1
+        assert connection.scalar(
+            text(
+                "SELECT count(*) FROM project_finance_inbox_receipts "
+                "WHERE event_id=:event_id AND status='processed'"
+            ),
+            {"event_id": envelope.event_id},
+        ) == 1
+        assert connection.scalar(
+            text(
+                "SELECT count(*) FROM project_cost_entries "
+                "WHERE source_module='platform_time' AND source_id=:source_id "
+                "AND status='posted'"
+            ),
+            {"source_id": envelope.aggregate_id},
+        ) == 1
 
 
 def test_labor_and_inbox_rls_are_forced_for_runtime_role(postgres_test_environment):

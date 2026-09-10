@@ -1,9 +1,29 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: audit complete; Phase A-D complete; Phase E in progress
-Last updated: 2026-08-11
+Status: implementation in progress; R6C closed; R6D-D complete; R6D-E next
+Last updated: 2026-09-10
 Scope: Project Management finance plus reusable platform financial foundations
-Current checkpoint: Phase D is complete. Project snapshot, cash flow,
+Current checkpoint: R6D-D Approved-Time Labor Posting Hardening is complete. The
+authoritative path is Time approval -> immutable Time financial outbox -> leased
+delivery -> Finance inbox -> fresh Finance worker UoW -> canonical cost-rate
+resolution -> immutable labor posting and posted `ProjectCostEntry` -> one commit
+-> typed post-commit invalidation -> eventual Time outbox acknowledgement. New
+postings preserve complete rate-selection and service-principal evidence;
+historical rows are marked truthfully incomplete and are never revalued. Exact
+replay is idempotent, corrections reverse and replace rather than overwrite,
+failures are durable, and the project-scoped `Posting Failures` subsection offers
+bounded read-only diagnosis with `finance.read_sensitive` redaction. PostgreSQL
+evidence runs through the `app_runtime` role with `NOSUPERUSER` and `NOBYPASSRLS`.
+
+The R6D-D ownership boundary is explicit: Time owns approved work facts and PM
+Finance owns their managerial project-cost valuation. PM Finance does not create
+general-ledger entries, journals, payables, payroll, official invoices, or other
+Accounting truth. Future Accounting integration remains an outward gateway under
+[ADR-PF-010](../architecture_decisions/ADR-PF-010-billing-and-accounting-boundary.md);
+the approved-time worker does not invoke or emulate that future module. R6D-E
+Commitment Projection Hardening has not started.
+
+Historical checkpoint: Phase D is complete. Project snapshot, cash flow,
 analytics, EVM, portfolio variance, desktop forecast, and commitment controls now consume approved
 budget/current-or-historical-approved forecast versions, posted actuals/reversals, and open
 commitments as Decimal Money. Excel and PDF now share one explicit as-of/currency/period/version
@@ -13,7 +33,7 @@ component, and deprecated export wrapper are deleted. Forecast/ETC, Change Contr
 Variance, and Reports now expose canonical version basis and source drill-down without desktop
 formulas. All registered Phase D float conversions and Float-backed PM money/rate/quantity columns
 are retired. ADR-PF-010 and the Phase E product decisions were accepted on
-2026-08-11; Phase E implementation is now in progress. See [TODO/README.md](TODO/README.md) for
+2026-08-11. See [TODO/README.md](TODO/README.md) for
 the concise execution checkpoint.
 
 Historical implementation checkpoint: Task-owned WBS, effective-dated rate cards (ADR-PF-005) with the
