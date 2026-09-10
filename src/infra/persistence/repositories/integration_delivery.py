@@ -158,7 +158,7 @@ class SqlAlchemyIntegrationInboxRepository(TenantScopedRepositorySupport):
         ctx = self._context(operation_label="record integration delivery")
         self._require_scope(receipt, ctx)
         envelope = receipt.envelope
-        self.session.add(self._orm_type(
+        values = dict(
             id=receipt.id, tenant_id=receipt.tenant_id, organization_id=receipt.organization_id,
             event_id=envelope.event_id, event_type=envelope.event_type,
             aggregate_type=envelope.aggregate_type, aggregate_id=envelope.aggregate_id,
@@ -174,7 +174,14 @@ class SqlAlchemyIntegrationInboxRepository(TenantScopedRepositorySupport):
             conflict_detected_at=receipt.conflict_detected_at,
             last_error_code=receipt.last_error_code, last_error_message=receipt.last_error_message,
             created_at=receipt.created_at, updated_at=receipt.updated_at, version=receipt.row_version,
-        ))
+        )
+        values.update(self._additional_insert_values(receipt))
+        self.session.add(self._orm_type(**values))
+
+    def _additional_insert_values(
+        self, receipt: IntegrationInboxReceipt
+    ) -> dict[str, Any]:
+        return {}
 
     def get(self, receipt_id: str) -> IntegrationInboxReceipt | None:
         row = self._get_in_scope(self._orm_type, receipt_id, operation_label="access integration inbox")

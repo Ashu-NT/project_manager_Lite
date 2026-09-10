@@ -14,6 +14,13 @@ from src.core.modules.project_management.contracts.reads.financials.finance_setu
 from src.core.modules.project_management.contracts.reads.financials.finance_lookup_reader import (
     FinanceLookupReader,
 )
+from src.core.modules.project_management.contracts.reads.financials.finance_integration_reader import (
+    FinanceIntegrationReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_integration_facts import (
+    ApprovedTimePostingFailurePage,
+    ApprovedTimePostingFailureQuery,
+)
 from src.core.modules.project_management.contracts.reads.financials.models.finance_setup_facts import (
     FinanceSetupCostCodeQuery,
     FinanceSetupFacts,
@@ -97,6 +104,7 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         rate_reader: FinanceRateReader | None = None,
         change_reader: FinanceChangeReader | None = None,
         billing_reader: FinanceBillingReader | None = None,
+        integration_reader: FinanceIntegrationReader | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
         module_catalog_service=None,
@@ -109,6 +117,7 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
         self._rate_reader = rate_reader
         self._change_reader = change_reader
         self._billing_reader = billing_reader
+        self._integration_reader = integration_reader
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
@@ -120,6 +129,50 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             operation_label="resolve Project Finance scope"
         )
         return scope.tenant_id, scope.organization_id
+
+    def list_approved_time_posting_failures(
+        self,
+        project_id: str,
+        *,
+        request: ApprovedTimePostingFailureQuery,
+    ) -> ApprovedTimePostingFailurePage:
+        require_permission(
+            self._user_session,
+            "finance.read",
+            operation_label="view approved-time posting failures",
+        )
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "finance.read",
+            operation_label="view approved-time posting failures",
+        )
+        if self._integration_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Finance Integration Reader is not configured.")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view approved-time posting failures"
+        )
+        page = self._integration_reader.list_approved_time_failures(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            request=request,
+        )
+        if self._has_project_permission(project_id, "finance.read_sensitive"):
+            return page
+        return replace(
+            page,
+            items=tuple(
+                replace(
+                    item,
+                    resource_id="",
+                    failure_message=(
+                        "Detailed integration evidence requires sensitive Finance access."
+                    ),
+                )
+                for item in page.items
+            ),
+        )
 
     def search_setup_cost_codes(
         self,

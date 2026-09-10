@@ -47,6 +47,9 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     FinanceLookupQuery,
     ManualActualCostCodeQuery,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.finance_integration_facts import (
+    ApprovedTimePostingFailureQuery,
+)
 from src.core.modules.project_management.contracts.reads.financials.models.finance_setup_facts import (
     FinanceSetupCostCodeQuery,
     FinanceSetupRestrictionQuery,
@@ -177,6 +180,8 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
     FinancialCostEntryDto,
     FinancialCostEntryPageDto,
     FinancialManualActualOptionsDto,
+    FinancialPostingFailureDto,
+    FinancialPostingFailurePageDto,
 )
 from src.core.modules.project_management.api.desktop.financials.builders.commitment_builder import (
     build_commitment_line_dto,
@@ -685,6 +690,54 @@ class ProjectManagementFinancialsDesktopApi:
             can_create_manual_actual=self._cost_entry_service.can_create_manual_entry(
                 project_id
             ),
+        )
+
+    def list_approved_time_posting_failures(
+        self,
+        project_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 50,
+        sort_key: str = "updated",
+        sort_direction: str = "desc",
+        status: str = "",
+    ) -> FinancialPostingFailurePageDto:
+        result = self._require_finance_workspace_query().list_approved_time_posting_failures(
+            project_id,
+            request=ApprovedTimePostingFailureQuery(
+                page=page,
+                page_size=page_size,
+                sort_key=sort_key,
+                sort_direction=sort_direction,
+                status=status,
+            ),
+        )
+        return FinancialPostingFailurePageDto(
+            items=tuple(
+                FinancialPostingFailureDto(
+                    id=item.id,
+                    event_id=item.event_id,
+                    source_id=item.source_id,
+                    source_revision=item.source_revision,
+                    resource_id=item.resource_id,
+                    work_date=item.work_date.isoformat() if item.work_date else "",
+                    status=item.status,
+                    failure_code=item.failure_code,
+                    failure_message=item.failure_message,
+                    failure_category=item.failure_category,
+                    corrective_action=item.corrective_action,
+                    attempt_count=item.attempt_count,
+                    max_attempts=item.max_attempts,
+                    retryable=item.retryable,
+                    updated_at=item.updated_at.isoformat(),
+                )
+                for item in result.items
+            ),
+            total=result.total,
+            page=result.page,
+            page_size=result.page_size,
+            sort_key=result.sort_key,
+            sort_direction=result.sort_direction,
         )
 
     def create_manual_actual(

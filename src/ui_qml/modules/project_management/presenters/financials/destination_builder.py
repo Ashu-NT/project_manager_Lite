@@ -29,6 +29,7 @@ from .change_workspace_builder import build_change_workspace_views
 from .forecast_workspace_builder import build_forecast_workspace_views
 from .rate_workspace_builder import build_rate_workspace_views
 from .ledger_builder import build_ledger_collection
+from .integration_failure_builder import build_posting_failure_collection
 from .performance_builder import (
     build_cost_phasing_views,
     build_evm_views,
@@ -51,7 +52,7 @@ FINANCE_DESTINATIONS = (
 FINANCE_SUBSECTIONS = {
     "overview": ("summary",),
     "planning": ("budgets", "planned_costs", "forecast"),
-    "costs": ("actuals", "commitments", "rates"),
+    "costs": ("actuals", "posting_failures", "commitments", "rates"),
     "performance": ("evm", "variance", "cost_phasing", "reports"),
     "commercial": ("billing", "profitability", "accounting"),
     "controls": ("setup", "changes", "activity"),
@@ -150,6 +151,10 @@ def build_destination_state(
     actual_sort_direction: str = "desc",
     actual_status: str = "",
     actual_source: str = "",
+    posting_failure_page: int = 1,
+    posting_failure_sort_key: str = "updated",
+    posting_failure_sort_direction: str = "desc",
+    posting_failure_status: str = "",
     commitment_sort_key: str = "metaText",
     commitment_sort_direction: str = "desc",
     selected_forecast_id: str | None = None,
@@ -384,6 +389,23 @@ def build_destination_state(
                 can_create_manual_actual=result.can_create_manual_actual,
                 actual_status=actual_status,
                 actual_source=actual_source,
+            )
+        if subsection == "posting_failures":
+            result = desktop_api.list_approved_time_posting_failures(
+                project_id,
+                page=posting_failure_page,
+                page_size=transaction_page_size,
+                sort_key=posting_failure_sort_key,
+                sort_direction=posting_failure_sort_direction,
+                status=posting_failure_status,
+            )
+            return FinancialsWorkspaceViewModel(
+                overview=state.overview,
+                selected_project_id=project_id,
+                posting_failures=build_posting_failure_collection(result),
+                posting_failure_sort_key=result.sort_key,
+                posting_failure_sort_direction=result.sort_direction,
+                posting_failure_status=posting_failure_status,
             )
         if subsection == "commitments":
             page_size = max(1, min(int(transaction_page_size), 200))

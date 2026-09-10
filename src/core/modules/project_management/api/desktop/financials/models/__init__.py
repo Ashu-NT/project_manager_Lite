@@ -32,6 +32,8 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
     FinancialCostEntryDto,
     FinancialCostEntryPageDto,
     FinancialManualActualOptionsDto,
+    FinancialPostingFailureDto,
+    FinancialPostingFailurePageDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.options import (
     FinancialLookupOptionDto,
@@ -106,6 +108,8 @@ __all__ = [
     "FinancialChangeWorkspaceDto",
     "FinancialBaselineVersionDto",
     "FinancialManualActualOptionsDto",
+    "FinancialPostingFailureDto",
+    "FinancialPostingFailurePageDto",
     "FinancialOverviewDto",
     "FinancialPeriodRowDto",
     "FinancialLookupOptionDto",

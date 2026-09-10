@@ -75,6 +75,35 @@ class FinancialsStateMixin:
         self._ledger_table_model.set_rows(ledger.get("items", []))
         self.ledgerChanged.emit()
 
+    def _set_posting_failures(self, value: FinancialsMap) -> None:
+        if value == self._posting_failures:
+            return
+        self._posting_failures = value
+        self._posting_failures_table_model.set_rows(value.get("items", []))
+        self.postingFailuresChanged.emit()
+
+    def _set_posting_failure_query_state(
+        self, *, sort_key: str, sort_direction: str, status: str
+    ) -> None:
+        direction = (
+            Qt.DescendingOrder.value
+            if sort_direction == "desc"
+            else Qt.AscendingOrder.value
+        )
+        values = (sort_key, direction, status)
+        current = (
+            self._posting_failure_sort_key,
+            self._posting_failure_sort_direction,
+            self._posting_failure_status,
+        )
+        if values != current:
+            (
+                self._posting_failure_sort_key,
+                self._posting_failure_sort_direction,
+                self._posting_failure_status,
+            ) = values
+            self.postingFailureQueryStateChanged.emit()
+
     def _set_activity(self, activity: FinancialsMap) -> None:
         if activity == self._activity:
             return

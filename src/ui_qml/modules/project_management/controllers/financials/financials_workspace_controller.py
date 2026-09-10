@@ -97,6 +97,8 @@ class ProjectManagementFinancialsWorkspaceController(
     reportDefinitionsChanged = Signal()
     performanceQueryStateChanged = Signal()
     ledgerChanged = Signal()
+    postingFailuresChanged = Signal()
+    postingFailureQueryStateChanged = Signal()
     activityChanged = Signal()
     actualSortKeyChanged = Signal()
     actualSortDirectionChanged = Signal()
@@ -206,6 +208,12 @@ class ProjectManagementFinancialsWorkspaceController(
         self._cost_phasing_date_to = today
         self._cost_phasing_granularity = "month"
         self._ledger = default_collection()
+        self._posting_failures = default_collection()
+        self._posting_failures_table_model = DynamicTableModel(self)
+        self._posting_failure_page = 1
+        self._posting_failure_sort_key = "updated"
+        self._posting_failure_sort_direction = Qt.DescendingOrder.value
+        self._posting_failure_status = ""
         self._activity = default_collection()
         self._actual_page = 1
         self._actual_sort_key = "metaText"
@@ -426,6 +434,23 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property(QObject, constant=True)
     def ledgerTableModel(self) -> DynamicTableModel: return self._ledger_table_model
+
+    @Property("QVariantMap", notify=postingFailuresChanged)
+    def postingFailures(self) -> FinancialsMap: return self._posting_failures
+
+    @Property(QObject, constant=True)
+    def postingFailuresTableModel(self) -> DynamicTableModel:
+        return self._posting_failures_table_model
+
+    @Property(str, notify=postingFailureQueryStateChanged)
+    def postingFailureSortKey(self) -> str: return self._posting_failure_sort_key
+
+    @Property(int, notify=postingFailureQueryStateChanged)
+    def postingFailureSortDirection(self) -> int:
+        return self._posting_failure_sort_direction
+
+    @Property(str, notify=postingFailureQueryStateChanged)
+    def postingFailureStatus(self) -> str: return self._posting_failure_status
 
     @Property(str, notify=actualSortKeyChanged)
     def actualSortKey(self) -> str: return self._actual_sort_key
@@ -1492,6 +1517,22 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str, str)
     def setActualFilters(self, status: str, source: str) -> None:
         self._set_actual_filters(status, source)
+
+    @Slot(int)
+    def setPostingFailurePage(self, page: int) -> None:
+        self._set_posting_failure_page(page)
+
+    @Slot(int)
+    def setPostingFailurePageSize(self, page_size: int) -> None:
+        self._set_posting_failure_page_size(page_size)
+
+    @Slot(str, int)
+    def setPostingFailureSort(self, sort_key: str, sort_direction: int) -> None:
+        self._set_posting_failure_sort(sort_key, sort_direction)
+
+    @Slot(str)
+    def setPostingFailureStatus(self, status: str) -> None:
+        self._set_posting_failure_status(status)
 
     @Slot(int)
     def setCommitmentPage(self, page: int) -> None: self._set_commitment_page(page)

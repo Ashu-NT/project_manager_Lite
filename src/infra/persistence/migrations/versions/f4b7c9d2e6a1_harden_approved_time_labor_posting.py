@@ -93,8 +93,53 @@ def upgrade() -> None:
         )
     _restore_sqlite_labor_guards()
 
+    with op.batch_alter_table("project_finance_inbox_receipts", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("source_project_id", sa.String(), nullable=True))
+        batch_op.add_column(sa.Column("source_resource_id", sa.String(), nullable=True))
+        batch_op.add_column(sa.Column("source_work_date", sa.Date(), nullable=True))
+        batch_op.add_column(sa.Column("source_revision", sa.Integer(), nullable=True))
+        batch_op.create_foreign_key(
+            "fk_pm_fin_inbox_scoped_source_project",
+            "projects",
+            ["tenant_id", "organization_id", "source_project_id"],
+            ["tenant_id", "organization_id", "id"],
+            ondelete="RESTRICT",
+        )
+        batch_op.create_foreign_key(
+            "fk_pm_fin_inbox_scoped_source_resource",
+            "resources",
+            ["tenant_id", "organization_id", "source_resource_id"],
+            ["tenant_id", "organization_id", "id"],
+            ondelete="RESTRICT",
+        )
+        batch_op.create_index(
+            "idx_pm_fin_inbox_approved_time_failures",
+            [
+                "tenant_id",
+                "organization_id",
+                "source_project_id",
+                "event_type",
+                "status",
+                "updated_at",
+            ],
+            unique=False,
+        )
+
 
 def downgrade() -> None:
+    with op.batch_alter_table("project_finance_inbox_receipts", schema=None) as batch_op:
+        batch_op.drop_index("idx_pm_fin_inbox_approved_time_failures")
+        batch_op.drop_constraint(
+            "fk_pm_fin_inbox_scoped_source_resource", type_="foreignkey"
+        )
+        batch_op.drop_constraint(
+            "fk_pm_fin_inbox_scoped_source_project", type_="foreignkey"
+        )
+        batch_op.drop_column("source_revision")
+        batch_op.drop_column("source_work_date")
+        batch_op.drop_column("source_resource_id")
+        batch_op.drop_column("source_project_id")
+
     with op.batch_alter_table(
         "project_approved_time_labor_postings", schema=None
     ) as batch_op:

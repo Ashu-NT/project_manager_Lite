@@ -609,6 +609,39 @@ class FinancialsSelectionMixin:
             self.actualFiltersChanged.emit()
             self.refresh()
 
+    def _set_posting_failure_page(self, page: int) -> None:
+        normalized = max(1, int(page))
+        if normalized != self._posting_failure_page:
+            self._posting_failure_page = normalized
+            self.refresh()
+
+    def _set_posting_failure_page_size(self, page_size: int) -> None:
+        normalized = max(1, min(int(page_size), 200))
+        if normalized != self._transaction_page_size:
+            self._transaction_page_size = normalized
+            self._posting_failure_page = 1
+            self.refresh()
+
+    def _set_posting_failure_sort(self, sort_key: str, sort_direction: int) -> None:
+        values = (str(sort_key or "").strip(), int(sort_direction))
+        current = (
+            self._posting_failure_sort_key,
+            self._posting_failure_sort_direction,
+        )
+        if values != current:
+            self._posting_failure_sort_key, self._posting_failure_sort_direction = values
+            self._posting_failure_page = 1
+            self.postingFailureQueryStateChanged.emit()
+            self.refresh()
+
+    def _set_posting_failure_status(self, status: str) -> None:
+        normalized = str(status or "").strip().lower()
+        if normalized != self._posting_failure_status:
+            self._posting_failure_status = normalized
+            self._posting_failure_page = 1
+            self.postingFailureQueryStateChanged.emit()
+            self.refresh()
+
     def _set_commitment_sort(self, sort_key: str, sort_direction: int) -> None:
         normalized_key = str(sort_key or "").strip()
         if (
