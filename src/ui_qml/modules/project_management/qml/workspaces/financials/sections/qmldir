@@ -6,6 +6,7 @@ FinancialsBudgetLinesSection 1.0 FinancialsBudgetLinesSection.qml
 FinancialsRateCardsSection 1.0 FinancialsRateCardsSection.qml
 FinancialsPlannedCostsSection 1.0 FinancialsPlannedCostsSection.qml
 FinancialsActualsSection 1.0 FinancialsActualsSection.qml
+FinancialsPostingFailuresSection 1.0 FinancialsPostingFailuresSection.qml
 FinancialsForecastSection 1.0 FinancialsForecastSection.qml
 FinancialsChangeSection 1.0 FinancialsChangeSection.qml
 FinancialsCommitmentsSection 1.0 FinancialsCommitmentsSection.qml

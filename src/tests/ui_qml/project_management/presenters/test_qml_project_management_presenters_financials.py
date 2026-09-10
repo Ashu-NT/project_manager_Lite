@@ -368,6 +368,26 @@ def test_actual_filters_reset_page_and_refresh_authoritative_query(controller):
     controller.refresh.assert_called_once_with()
 
 
+def test_posting_failure_query_changes_reset_page_and_refresh(controller):
+    controller.refresh = MagicMock()
+    controller._posting_failure_page = 4
+
+    controller.setPostingFailureSort("title", Qt.AscendingOrder.value)
+
+    assert controller.postingFailureSortKey == "title"
+    assert controller.postingFailureSortDirection == Qt.AscendingOrder.value
+    assert controller._posting_failure_page == 1
+    controller.refresh.assert_called_once_with()
+
+    controller.refresh.reset_mock()
+    controller._posting_failure_page = 3
+    controller.setPostingFailureStatus("quarantined")
+
+    assert controller.postingFailureStatus == "quarantined"
+    assert controller._posting_failure_page == 1
+    controller.refresh.assert_called_once_with()
+
+
 def test_create_cost_code_slot_delegates_and_invalidates_destinations(controller):
     controller._invalidate_destinations = MagicMock()
     payload = {

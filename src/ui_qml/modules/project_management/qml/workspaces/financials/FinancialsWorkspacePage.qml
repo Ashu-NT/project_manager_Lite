@@ -426,6 +426,16 @@ AppLayouts.WorkspaceFrame {
                     ledgerModel: root.ledgerModel
                     activityModel: root.activityModel
                     ledgerTableModel: root.workspaceController ? root.workspaceController.ledgerTableModel : null
+                    postingFailuresModel: root.workspaceController
+                        ? root.workspaceController.postingFailures : ({ "items": [] })
+                    postingFailuresTableModel: root.workspaceController
+                        ? root.workspaceController.postingFailuresTableModel : null
+                    postingFailureSortKey: root.workspaceController
+                        ? root.workspaceController.postingFailureSortKey : "metaText"
+                    postingFailureSortDirection: root.workspaceController
+                        ? root.workspaceController.postingFailureSortDirection : Qt.DescendingOrder
+                    postingFailureStatus: root.workspaceController
+                        ? root.workspaceController.postingFailureStatus : ""
                     selectedActualEntryId: root._selectedActualEntryId
                     actualSortKey: root.workspaceController ? root.workspaceController.actualSortKey : "metaText"
                     actualSortDirection: root.workspaceController ? root.workspaceController.actualSortDirection : Qt.DescendingOrder
@@ -677,6 +687,22 @@ AppLayouts.WorkspaceFrame {
                     onActualFiltersRequested: function(status, source) {
                         if (root.workspaceController !== null)
                             root.workspaceController.setActualFilters(status, source)
+                    }
+                    onPostingFailurePageRequested: function(page) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setPostingFailurePage(page)
+                    }
+                    onPostingFailurePageSizeRequested: function(pageSize) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setPostingFailurePageSize(pageSize)
+                    }
+                    onPostingFailureSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setPostingFailureSort(key, direction)
+                    }
+                    onPostingFailureStatusRequested: function(status) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setPostingFailureStatus(status)
                     }
                     onCommitmentPageRequested: function(page) {
                         if (root.workspaceController !== null) root.workspaceController.setCommitmentPage(page)

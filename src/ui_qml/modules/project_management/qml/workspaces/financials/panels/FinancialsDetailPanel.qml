@@ -23,6 +23,11 @@ Item {
     property var ledgerModel: ({ "items": [] })
     property var activityModel: ({ "items": [] })
     property var ledgerTableModel: null
+    property var postingFailuresModel: ({ "items": [] })
+    property var postingFailuresTableModel: null
+    property string postingFailureSortKey: "metaText"
+    property int postingFailureSortDirection: Qt.DescendingOrder
+    property string postingFailureStatus: ""
     property var overviewModel: ({ "title": "", "subtitle": "", "metrics": [] })
     property var forecastVersionsModel: ({ "items": [] })
     property var forecastLinesModel: ({ "items": [] })
@@ -238,6 +243,10 @@ Item {
     signal actualPageSizeRequested(int pageSize)
     signal actualSortRequested(string key, int direction)
     signal actualFiltersRequested(string status, string source)
+    signal postingFailurePageRequested(int page)
+    signal postingFailurePageSizeRequested(int pageSize)
+    signal postingFailureSortRequested(string key, int direction)
+    signal postingFailureStatusRequested(string status)
     signal commitmentPageRequested(int page)
     signal commitmentPageSizeRequested(int pageSize)
     signal commitmentSortRequested(string key, int direction)
@@ -250,6 +259,7 @@ Item {
         ]
         if (root.activeDestination === "costs") return [
             { "id": "actuals", "label": "Actuals" },
+            { "id": "posting_failures", "label": "Posting Failures" },
             { "id": "commitments", "label": "Commitments" },
             { "id": "rates", "label": "Rate Cards" }
         ]
@@ -286,6 +296,7 @@ Item {
         if (key === "planning:planned_costs") return plannedCostsComponent
         if (key === "planning:forecast") return forecastComponent
         if (key === "costs:actuals") return actualsComponent
+        if (key === "costs:posting_failures") return postingFailuresComponent
         if (key === "costs:commitments") return commitmentsComponent
         if (key === "costs:rates") return ratesComponent
         if (key === "performance:evm") return evmComponent
@@ -494,6 +505,29 @@ Item {
             onSortRequested: function(key, direction) { root.actualSortRequested(key, direction) }
             onFiltersRequested: function(status, source) {
                 root.actualFiltersRequested(status, source)
+            }
+        }
+    }
+
+    Component {
+        id: postingFailuresComponent
+        FinancialsPostingFailuresSection {
+            width: parent ? parent.width : 0
+            failuresModel: root.postingFailuresModel
+            failuresTableModel: root.postingFailuresTableModel
+            isBusy: root.isBusy
+            sortKey: root.postingFailureSortKey
+            sortDirection: root.postingFailureSortDirection
+            statusFilter: root.postingFailureStatus
+            onPageRequested: function(page) { root.postingFailurePageRequested(page) }
+            onPageSizeRequested: function(pageSize) {
+                root.postingFailurePageSizeRequested(pageSize)
+            }
+            onSortRequested: function(key, direction) {
+                root.postingFailureSortRequested(key, direction)
+            }
+            onStatusRequested: function(status) {
+                root.postingFailureStatusRequested(status)
             }
         }
     }

@@ -58,6 +58,16 @@ FINANCE_SUBSECTIONS = {
     "controls": ("setup", "changes", "activity"),
 }
 
+_POSTING_FAILURE_SORT_TO_QUERY = {
+    "title": "source",
+    "statusLabel": "status",
+    "subtitle": "failure",
+    "metaText": "updated",
+}
+_POSTING_FAILURE_SORT_TO_VIEW = {
+    value: key for key, value in _POSTING_FAILURE_SORT_TO_QUERY.items()
+}
+
 
 def normalize_destination(value: str | None) -> str:
     normalized = str(value or "").strip().lower()
@@ -152,7 +162,7 @@ def build_destination_state(
     actual_status: str = "",
     actual_source: str = "",
     posting_failure_page: int = 1,
-    posting_failure_sort_key: str = "updated",
+    posting_failure_sort_key: str = "metaText",
     posting_failure_sort_direction: str = "desc",
     posting_failure_status: str = "",
     commitment_sort_key: str = "metaText",
@@ -395,7 +405,10 @@ def build_destination_state(
                 project_id,
                 page=posting_failure_page,
                 page_size=transaction_page_size,
-                sort_key=posting_failure_sort_key,
+                sort_key=_POSTING_FAILURE_SORT_TO_QUERY.get(
+                    posting_failure_sort_key,
+                    "updated",
+                ),
                 sort_direction=posting_failure_sort_direction,
                 status=posting_failure_status,
             )
@@ -403,7 +416,10 @@ def build_destination_state(
                 overview=state.overview,
                 selected_project_id=project_id,
                 posting_failures=build_posting_failure_collection(result),
-                posting_failure_sort_key=result.sort_key,
+                posting_failure_sort_key=_POSTING_FAILURE_SORT_TO_VIEW.get(
+                    result.sort_key,
+                    "metaText",
+                ),
                 posting_failure_sort_direction=result.sort_direction,
                 posting_failure_status=posting_failure_status,
             )

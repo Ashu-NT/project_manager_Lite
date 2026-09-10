@@ -211,7 +211,7 @@ class ProjectManagementFinancialsWorkspaceController(
         self._posting_failures = default_collection()
         self._posting_failures_table_model = DynamicTableModel(self)
         self._posting_failure_page = 1
-        self._posting_failure_sort_key = "updated"
+        self._posting_failure_sort_key = "metaText"
         self._posting_failure_sort_direction = Qt.DescendingOrder.value
         self._posting_failure_status = ""
         self._activity = default_collection()

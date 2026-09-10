@@ -19,10 +19,14 @@ def build_posting_failure_collection(page) -> FinancialsCollectionViewModel:
                 id=row.id,
                 title=f"Time {row.source_id[:12]} | revision {row.source_revision}",
                 status_label=row.status.replace("_", " ").title(),
-                subtitle=f"{row.failure_category} | {row.failure_code}",
+                subtitle=(
+                    f"{row.failure_category} | {row.failure_code} | "
+                    f"{row.failure_message}"
+                ),
                 supporting_text=(
-                    f"{'Automatic retry' if row.retryable else 'Operator review'} | "
-                    f"attempt {row.attempt_count}/{row.max_attempts}"
+                    f"{row.corrective_action} | "
+                    f"{'Automatic retry' if row.retryable else 'Operator review'} "
+                    f"({row.attempt_count}/{row.max_attempts})"
                 ),
                 meta_text=row.work_date or row.updated_at[:10],
                 can_primary_action=False,

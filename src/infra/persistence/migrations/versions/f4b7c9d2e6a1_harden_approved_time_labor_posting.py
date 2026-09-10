@@ -18,6 +18,21 @@ down_revision: Union[str, Sequence[str], None] = "e9f2a5b8c4d1"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+_ENVELOPE_COLUMNS = (
+    "id",
+    "tenant_id",
+    "organization_id",
+    "event_id",
+    "event_type",
+    "aggregate_type",
+    "aggregate_id",
+    "aggregate_version",
+    "occurred_at",
+    "envelope_json",
+    "envelope_hash",
+    "created_at",
+)
+
 
 def _restore_sqlite_labor_guards() -> None:
     if op.get_bind().dialect.name != "sqlite":
@@ -29,6 +44,20 @@ def _restore_sqlite_labor_guards() -> None:
             f"BEFORE {operation} ON {table} BEGIN SELECT RAISE(ABORT, "
             f"'{table} rows are immutable'); END"
         )
+
+
+def _restore_sqlite_finance_inbox_guard() -> None:
+    if op.get_bind().dialect.name != "sqlite":
+        return
+    table = "project_finance_inbox_receipts"
+    comparisons = " OR ".join(
+        f"OLD.{column} IS NOT NEW.{column}" for column in _ENVELOPE_COLUMNS
+    )
+    op.execute(
+        f"CREATE TRIGGER trg_{table}_envelope_immutable BEFORE UPDATE ON {table} "
+        f"WHEN {comparisons} BEGIN SELECT RAISE(ABORT, "
+        f"'{table} envelope columns are immutable'); END"
+    )
 
 
 def upgrade() -> None:
@@ -124,6 +153,7 @@ def upgrade() -> None:
             ],
             unique=False,
         )
+    _restore_sqlite_finance_inbox_guard()
 
 
 def downgrade() -> None:
@@ -139,6 +169,7 @@ def downgrade() -> None:
         batch_op.drop_column("source_work_date")
         batch_op.drop_column("source_resource_id")
         batch_op.drop_column("source_project_id")
+    _restore_sqlite_finance_inbox_guard()
 
     with op.batch_alter_table(
         "project_approved_time_labor_postings", schema=None

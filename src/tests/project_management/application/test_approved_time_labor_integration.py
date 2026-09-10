@@ -14,10 +14,14 @@ from src.core.modules.project_management.application.financials.cost.entries.app
     APPROVED_TIME_FINANCE_PRINCIPAL_NAME,
 )
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
+from src.core.modules.project_management.contracts.reads.financials.models.finance_integration_facts import (
+    ApprovedTimePostingFailureQuery,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.labor_posting import ApprovedTimeLaborPostingORM
 from src.core.platform.integration import InboxProcessingStatus, OutboxDeliveryStatus
 from src.core.platform.integration import IntegrationEventEnvelope
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
+from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.platform.infrastructure.persistence.orm.time_management.time_financial_outbox import TimeFinancialOutboxORM
 from src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox import ProjectFinanceInboxORM
@@ -443,6 +447,87 @@ def test_missing_cost_rate_is_durable_and_never_posts_zero_actual(services) -> N
     assert inbox.status == InboxProcessingStatus.RETRY.value
     assert inbox.last_error_code == "RATE_CARD_NO_APPLICABLE_RATE"
     assert "No applicable rate" in inbox.last_error_message
+
+
+def test_posting_failure_read_is_bounded_scoped_and_sensitive_by_permission(
+    services,
+) -> None:
+    _, project, resource, _, assignment = _setup(services)
+    card = services["rate_card_service"].list_rate_cards(project_id=project.id)[0]
+    services["rate_card_service"].deactivate_rate_card(
+        card.id,
+        expected_version=card.version,
+    )
+    services["task_service"].add_time_entry(
+        assignment.id,
+        entry_date=date(2026, 5, 13),
+        hours=Decimal("2"),
+    )
+    submitted = services["timesheet_service"].submit_timesheet_period(
+        resource.id,
+        period_start=date(2026, 5, 1),
+    )
+    services["timesheet_service"].approve_timesheet_period(
+        submitted.period_id,
+        expected_version=submitted.version,
+    )
+
+    request = ApprovedTimePostingFailureQuery(
+        page=1,
+        page_size=1,
+        sort_key="source",
+        sort_direction="asc",
+        status="retry",
+    )
+    page = services["finance_workspace_query"].list_approved_time_posting_failures(
+        project.id,
+        request=request,
+    )
+    assert page.total == 1
+    assert page.page_size == 1
+    assert page.sort_key == "source"
+    assert page.sort_direction == "asc"
+    assert page.items[0].resource_id == resource.id
+    assert page.items[0].failure_code == "RATE_CARD_NO_APPLICABLE_RATE"
+    assert "No applicable rate" in page.items[0].failure_message
+
+    unrelated_project = services["project_service"].create_project(
+        "Unrelated Finance Project"
+    )
+    unrelated = services[
+        "finance_workspace_query"
+    ].list_approved_time_posting_failures(
+        unrelated_project.id,
+        request=request,
+    )
+    assert unrelated.total == 0
+
+    user_session = services["user_session"]
+    tenant_id = user_session.stored_active_tenant_id()
+    organization_id = user_session.stored_active_organization_id()
+    user_session.set_principal(
+        UserSessionPrincipal(
+            user_id="finance-reader",
+            username="finance-reader",
+            display_name="Finance Reader",
+            role_names=frozenset({"viewer"}),
+            permissions=frozenset({"finance.read"}),
+            project_access={project.id: frozenset({"finance.read"})},
+            active_tenant_id=tenant_id,
+            active_organization_id=organization_id,
+        )
+    )
+    redacted = services[
+        "finance_workspace_query"
+    ].list_approved_time_posting_failures(
+        project.id,
+        request=request,
+    )
+    assert redacted.total == 1
+    assert redacted.items[0].resource_id == ""
+    assert redacted.items[0].failure_message == (
+        "Detailed integration evidence requires sensitive Finance access."
+    )
 
 
 def test_rate_changes_do_not_revalue_existing_labor_provenance(services) -> None:

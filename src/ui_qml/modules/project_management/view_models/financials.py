@@ -100,7 +100,7 @@ class FinancialsWorkspaceViewModel:
     report_definitions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     ledger: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     posting_failures: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
-    posting_failure_sort_key: str = "updated"
+    posting_failure_sort_key: str = "metaText"
     posting_failure_sort_direction: str = "desc"
     posting_failure_status: str = ""
     activity: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
