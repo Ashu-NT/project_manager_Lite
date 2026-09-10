@@ -214,7 +214,8 @@ def test_approved_time_dispatcher_uses_canonical_unit_of_work():
     import src.infra.integration.approved_time_dispatcher as module
 
     source = inspect.getsource(module)
-    assert "SqlAlchemyUnitOfWorkBase" in source
+    assert "FinanceGovernanceUnitOfWorkFactory" in source
+    assert "self._uow_factory.create(" in source
     assert "uow.record_event(event)" in source
     assert "uow.commit()" in source
     assert "FinanceInvalidationScope" not in source
