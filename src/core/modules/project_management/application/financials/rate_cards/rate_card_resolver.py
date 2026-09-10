@@ -366,6 +366,9 @@ class RateCardResolver:
                     code="RATE_CARD_MODIFIER_NOT_CONFIGURED",
                 )
             amount = amount * multiplier
+        base_monetary_rate = MonetaryRate(
+            Money.of(line.rate_amount, line.rate_currency), line.unit
+        )
         monetary_rate = MonetaryRate(Money.of(amount, line.rate_currency), line.unit)
         return RateSelectionSnapshot(
             monetary_rate=monetary_rate,
@@ -378,6 +381,7 @@ class RateCardResolver:
             effective_date=as_of,
             modifier_applied=modifier,
             modifier_multiplier=multiplier,
+            base_monetary_rate=base_monetary_rate,
             resolved_at=self._clock.now(),
         )
 

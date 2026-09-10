@@ -9,6 +9,9 @@ import pytest
 import sqlalchemy as sa
 
 from src.core.modules.project_management.domain.financials.cost_entry import ProjectCostEntryStatus
+from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
+    APPROVED_TIME_FINANCE_PRINCIPAL_NAME,
+)
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.modules.project_management.infrastructure.persistence.orm.labor_posting import ApprovedTimeLaborPostingORM
 from src.core.platform.integration import InboxProcessingStatus, OutboxDeliveryStatus
@@ -16,9 +19,20 @@ from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.platform.infrastructure.persistence.orm.time_management.time_financial_outbox import TimeFinancialOutboxORM
 from src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox import ProjectFinanceInboxORM
+from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import AuditEntryORM
 
 
 def _setup(services):
+    principals = services["service_principal_service"].list_service_principals()
+    if not any(
+        principal.name == APPROVED_TIME_FINANCE_PRINCIPAL_NAME
+        for principal in principals
+    ):
+        services["service_principal_service"].create_service_principal(
+            name=APPROVED_TIME_FINANCE_PRINCIPAL_NAME,
+            description="Posts approved Time facts into PM Finance labor actuals.",
+            initial_role_name="viewer",
+        )
     organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         "Approved Time Finance", financial_currency_code=organization.base_currency
@@ -81,6 +95,25 @@ def test_approved_time_posts_once_and_correction_reverses_and_replaces(services)
     assert labor.source_revision == 1
     assert labor.hours == Decimal("4.0000")
     assert labor.rate_amount == Decimal("50.000000")
+    assert labor.rate_base_amount == Decimal("50.000000")
+    assert labor.rate_origin == "configured"
+    assert labor.rate_line_version == 1
+    assert labor.rate_provenance_complete is True
+    assert labor.worker_service_principal_id is not None
+    assert labor.source_event_id is not None
+    principal = services["service_principal_service"].resolve_execution_principal(
+        name=APPROVED_TIME_FINANCE_PRINCIPAL_NAME
+    )
+    assert labor.worker_service_principal_id == principal.id
+    audit = session.execute(
+        select(AuditEntryORM).where(
+            AuditEntryORM.operation == "project_cost_entry.post_approved_time"
+        )
+    ).scalar_one()
+    assert audit.actor_id == principal.id
+    assert audit.actor_type == "service_principal"
+    assert audit.actor_username == APPROVED_TIME_FINANCE_PRINCIPAL_NAME
+    assert audit.request_id == labor.correlation_id
     assert session.execute(select(TimeFinancialOutboxORM.status)).scalar_one() == OutboxDeliveryStatus.PUBLISHED.value
     assert session.execute(select(ProjectFinanceInboxORM.status)).scalar_one() == InboxProcessingStatus.PROCESSED.value
 
@@ -355,7 +388,7 @@ def test_approved_time_transactional_handler_receives_the_real_uow_not_the_dispa
     handler_uow = received_uows[0]
     assert handler_uow is not dispatcher, "must not be the dispatcher impersonating a UoW"
     assert isinstance(handler_uow, SqlAlchemyUnitOfWorkBase)
-    assert handler_uow._session is dispatcher._session
+    assert handler_uow._session is not dispatcher._session
 
 
 def test_approved_time_transactional_handler_failure_rolls_back_and_yields_zero_postcommit_event(

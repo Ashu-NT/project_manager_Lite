@@ -13,6 +13,12 @@ class ServicePrincipalORM(Base):
     __tablename__ = "service_principals"
     __table_args__ = (
         UniqueConstraint("tenant_id", "name", name="ux_service_principals_tenant_name"),
+        UniqueConstraint(
+            "tenant_id",
+            "organization_id",
+            "id",
+            name="uq_service_principals_scoped_id",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)

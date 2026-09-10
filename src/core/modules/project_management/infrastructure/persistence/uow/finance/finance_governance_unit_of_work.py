@@ -12,6 +12,8 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyProjectFinancialProfileRepository,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.cost_entries.cost_entry import SqlAlchemyProjectCostEntryRepository
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.cost_entries.labor_posting import SqlAlchemyApprovedTimeLaborPostingRepository
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.finance_inbox import SqlAlchemyProjectFinanceInboxRepository
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.financial_changes.financial_change import SqlAlchemyFinancialChangeRepository
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.forecasts.forecast import SqlAlchemyProjectForecastRepository
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.invoicing.billing import SqlAlchemyProjectBillingRepository
@@ -55,6 +57,8 @@ class SqlAlchemyFinanceGovernanceUnitOfWork(SqlAlchemyUnitOfWorkBase, FinanceGov
         self.project_resources = SqlAlchemyProjectResourceRepository(session)
         self.commitments = SqlAlchemyProjectCommitmentRepository(session)
         self.cost_entries = SqlAlchemyProjectCostEntryRepository(session)
+        self.labor_postings = SqlAlchemyApprovedTimeLaborPostingRepository(session)
+        self.finance_inbox = SqlAlchemyProjectFinanceInboxRepository(session)
         self.register_entries = SqlAlchemyRegisterEntryRepository(session)
         self.resources = SqlAlchemyResourceRepository(session)
         self.financial_periods = SqlAlchemyFinancialPeriodRepository(session)
@@ -65,6 +69,7 @@ class SqlAlchemyFinanceGovernanceUnitOfWork(SqlAlchemyUnitOfWorkBase, FinanceGov
             self.projects, self.tasks, self.budgets, self.forecasts, self.changes,
             self.profiles, self.cost_codes, self.planned_costs, self.assignments,
             self.project_resources, self.commitments, self.cost_entries,
+            self.labor_postings, self.finance_inbox,
             self.register_entries, self.resources, self.financial_periods,
             self.approvals, self.rate_cards, self.billing,
         )

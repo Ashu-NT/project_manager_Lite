@@ -24,6 +24,9 @@ class ServicePrincipalRepository(ABC):
     ) -> ServicePrincipal | None: ...
 
     @abstractmethod
+    def get_by_name(self, name: str) -> ServicePrincipal | None: ...
+
+    @abstractmethod
     def list_all(self) -> list[ServicePrincipal]: ...
 
 

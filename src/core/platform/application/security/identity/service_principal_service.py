@@ -127,6 +127,47 @@ class ServicePrincipalService:
         self._require_admin("list service principals")
         return self._principal_repo.list_all()
 
+    def resolve_execution_principal(self, *, name: str) -> ServicePrincipal:
+        """Resolve a configured non-human principal without interactive RBAC.
+
+        This is an internal worker trust boundary, not an operator command. It
+        validates the durable principal, owning organization, and service
+        account while leaving transaction ownership with the caller.
+        """
+        ctx = self._tenant_context_service.require_active_scope_ids(
+            operation_label="resolve integration worker identity"
+        )
+        principal = self._principal_repo.get_by_name(name)
+        if principal is None:
+            raise BusinessRuleError(
+                f"Required integration service principal '{name}' is not configured.",
+                code="INTEGRATION_SERVICE_PRINCIPAL_NOT_CONFIGURED",
+            )
+        if (
+            principal.tenant_id != ctx.tenant_id
+            or principal.organization_id != ctx.organization_id
+        ):
+            raise BusinessRuleError(
+                "Integration service principal is outside the active scope.",
+                code="INTEGRATION_SERVICE_PRINCIPAL_SCOPE_MISMATCH",
+            )
+        if principal.status != SERVICE_PRINCIPAL_STATUS_ACTIVE:
+            raise BusinessRuleError(
+                "Integration service principal is disabled.",
+                code="INTEGRATION_SERVICE_PRINCIPAL_DISABLED",
+            )
+        user = self._user_repo.get(principal.user_id)
+        if (
+            user is None
+            or not user.is_active
+            or user.account_type != ACCOUNT_TYPE_SERVICE
+        ):
+            raise BusinessRuleError(
+                "Integration service account is inactive or invalid.",
+                code="INTEGRATION_SERVICE_ACCOUNT_INVALID",
+            )
+        return principal
+
     def disable_service_principal(self, principal_id: str) -> ServicePrincipal:
         self._require_admin("disable a service principal")
         principal = self._require_principal(principal_id)

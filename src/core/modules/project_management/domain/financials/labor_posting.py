@@ -4,7 +4,7 @@ from dataclasses import field
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.pydantic import normalize_optional_identifier, normalize_required_text, validated_dataclass
@@ -45,6 +45,13 @@ class ApprovedTimeLaborPosting:
     rate_line_version: int | None = None
     rate_modifier: str | None = None
     rate_modifier_multiplier: Decimal | None = None
+    rate_base_amount: Decimal | None = None
+    rate_origin: str | None = None
+    rate_provenance_complete: bool = False
+    worker_service_principal_id: str | None = None
+    source_event_id: str | None = None
+    correlation_id: str | None = None
+    causation_id: str | None = None
     created_at: datetime = field(default_factory=_utc_now)
 
     @field_validator(
@@ -56,7 +63,16 @@ class ApprovedTimeLaborPosting:
     def _required(cls, value: object, info) -> str:
         return normalize_required_text(value, message=f"{info.field_name} is required.", code="LABOR_POSTING_ID_REQUIRED")
 
-    @field_validator("task_id", "employee_id", "reversal_cost_entry_id", mode="before")
+    @field_validator(
+        "task_id",
+        "employee_id",
+        "reversal_cost_entry_id",
+        "worker_service_principal_id",
+        "source_event_id",
+        "correlation_id",
+        "causation_id",
+        mode="before",
+    )
     @classmethod
     def _optional_id(cls, value: object) -> str | None:
         return normalize_optional_identifier(value)
@@ -75,6 +91,19 @@ class ApprovedTimeLaborPosting:
         amount = MONEY_STORAGE.validate(value)
         if amount < 0:
             raise ValidationError("Approved labor rate cannot be negative.", code="LABOR_POSTING_RATE_INVALID")
+        return amount
+
+    @field_validator("rate_base_amount", mode="before")
+    @classmethod
+    def _optional_base_rate(cls, value: object) -> Decimal | None:
+        if value is None:
+            return None
+        amount = MONEY_STORAGE.validate(value)
+        if amount < 0:
+            raise ValidationError(
+                "Approved labor base rate cannot be negative.",
+                code="LABOR_POSTING_RATE_INVALID",
+            )
         return amount
 
     @field_validator("rate_currency", mode="before")
@@ -109,6 +138,12 @@ class ApprovedTimeLaborPosting:
         normalized = str(value or "").strip().lower()
         return normalized or None
 
+    @field_validator("rate_origin", mode="before")
+    @classmethod
+    def _optional_origin(cls, value: object) -> str | None:
+        normalized = str(value or "").strip().lower()
+        return normalized or None
+
     @field_validator("rate_modifier_multiplier", mode="before")
     @classmethod
     def _optional_modifier_multiplier(cls, value: object) -> Decimal | None:
@@ -136,6 +171,24 @@ class ApprovedTimeLaborPosting:
         if len(normalized) != 64 or any(c not in "0123456789abcdef" for c in normalized):
             raise ValidationError("Labor source hash must be SHA-256.", code="LABOR_POSTING_HASH_INVALID")
         return normalized
+
+    @model_validator(mode="after")
+    def _complete_provenance(self) -> "ApprovedTimeLaborPosting":
+        if self.rate_provenance_complete and any(
+            value is None
+            for value in (
+                self.rate_line_version,
+                self.rate_base_amount,
+                self.rate_origin,
+                self.worker_service_principal_id,
+                self.source_event_id,
+            )
+        ):
+            raise ValidationError(
+                "Complete labor-rate provenance requires rate, worker, and source-event evidence.",
+                code="LABOR_POSTING_PROVENANCE_INCOMPLETE",
+            )
+        return self
 
 
 __all__ = ["ApprovedTimeLaborPosting"]

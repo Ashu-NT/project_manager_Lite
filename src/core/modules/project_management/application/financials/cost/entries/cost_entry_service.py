@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import date, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -89,6 +90,11 @@ from src.core.platform.common.exceptions import (
 from src.core.platform.domain.approval.policy import is_governance_required
 from src.core.platform.finance import EXCHANGE_RATE_STORAGE, Money
 
+if TYPE_CHECKING:
+    from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
+        ApprovedTimeExecutionContext,
+    )
+
 
 class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
     """Command boundary for canonical project actuals and reversals."""
@@ -133,7 +139,10 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         self._record_event = record_event
 
     def apply_approved_time_source(
-        self, source: ApprovedTimeFinancialSource
+        self,
+        source: ApprovedTimeFinancialSource,
+        *,
+        execution: ApprovedTimeExecutionContext,
     ) -> tuple[object, ...]:
         """Apply one trusted inbox delivery without committing the consumer transaction.
         Returns the real typed Cost Entry DomainEvent(s) produced -- a true replay (identical
@@ -147,8 +156,17 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             )
         context = self._require_full_context("post approved time labor cost")
         reference = source.reference
+        principal = execution.service_principal
         if reference.tenant_id != context.tenant_id or reference.organization_id != context.organization_id:
             raise BusinessRuleError("Approved Time source is outside the active scope.", code="APPROVED_TIME_SCOPE_MISMATCH")
+        if (
+            principal.tenant_id != reference.tenant_id
+            or principal.organization_id != reference.organization_id
+        ):
+            raise BusinessRuleError(
+                "Approved Time worker principal is outside the source scope.",
+                code="APPROVED_TIME_WORKER_SCOPE_MISMATCH",
+            )
         self._require_project(reference.project_id)
         profile = self._require_active_profile(reference.project_id)
         if not profile.default_cost_code_id:
@@ -164,8 +182,16 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
                 if existing is None:
                     raise BusinessRuleError("Approved labor posting lost its ledger entry.", code="APPROVED_TIME_LEDGER_INTEGRITY_FAILED")
                 return ()
-            if revision <= latest.source_revision:
-                raise BusinessRuleError("Approved Time revision is stale or conflicting.", code="APPROVED_TIME_REVISION_CONFLICT")
+            if revision == latest.source_revision:
+                raise BusinessRuleError(
+                    "Approved Time revision was reused with different content.",
+                    code="APPROVED_TIME_SOURCE_HASH_CONFLICT",
+                )
+            if revision < latest.source_revision:
+                raise BusinessRuleError(
+                    "Approved Time revision is older than the posted financial truth.",
+                    code="APPROVED_TIME_STALE_REVISION",
+                )
             if source.correction_of_revision != str(latest.source_revision):
                 raise BusinessRuleError("Approved Time correction does not reference the latest posting.", code="APPROVED_TIME_CORRECTION_CHAIN_INVALID")
         elif revision != 1 or source.correction_of_revision is not None:
@@ -201,7 +227,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         period = self._financial_period_service.require_open_period_for_integration(
             source.work_date
         )
-        actor_id = "integration:project_finance"
+        actor_id = principal.id
         now = self._clock.now()
         reversal = None
         if latest is not None:
@@ -280,16 +306,28 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             rate_line_version=snapshot.rate_line_version,
             rate_modifier=(snapshot.modifier_applied.value if snapshot.modifier_applied else None),
             rate_modifier_multiplier=snapshot.modifier_multiplier,
+            rate_base_amount=snapshot.selected_base_rate.money.amount,
+            rate_origin=snapshot.origin.value,
+            rate_provenance_complete=True,
             rate_precedence_level=snapshot.precedence_level,
             rate_effective_date=snapshot.effective_date, rate_resolved_at=snapshot.resolved_at,
             approved_at=source.approved_at, resource_id=source.resource_id,
             task_id=source.task_id, employee_id=source.employee_id, created_at=now,
+            worker_service_principal_id=principal.id,
+            source_event_id=execution.source_event_id,
+            correlation_id=execution.correlation_id,
+            causation_id=execution.causation_id,
         ))
         self._entry_repo.flush()
         self._labor_posting_repo.flush()
         events: list[object] = []
         if reversal is not None:
-            self._record_audit("create_approved_time_reversal", reversal)
+            self._record_approved_time_audit(
+                "create_approved_time_reversal",
+                reversal,
+                execution=execution,
+                prior_revision=latest.source_revision,
+            )
             reversal_event = CostEntryReversed(
                 tenant_id=original.tenant_id,
                 organization_id=original.organization_id,
@@ -301,7 +339,12 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             if self._record_event is not None:
                 self._record_event(reversal_event)
             events.append(reversal_event)
-        self._record_audit("post_approved_time", entry)
+        self._record_approved_time_audit(
+            "post_approved_time",
+            entry,
+            execution=execution,
+            prior_revision=latest.source_revision if latest is not None else None,
+        )
         recorded_event = CostEntryRecorded(
             tenant_id=entry.tenant_id,
             organization_id=entry.organization_id,
@@ -1161,6 +1204,34 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
 
     def _record_audit(self, operation: str, entry: ProjectCostEntry) -> None:
         record_project_cost_entry_audit(self, operation=operation, entry=entry)
+
+    def _record_approved_time_audit(
+        self,
+        operation: str,
+        entry: ProjectCostEntry,
+        *,
+        execution: ApprovedTimeExecutionContext,
+        prior_revision: int | None,
+    ) -> None:
+        principal = execution.service_principal
+        record_project_cost_entry_audit(
+            self,
+            operation=operation,
+            entry=entry,
+            actor_id=principal.id,
+            actor_type="service_principal",
+            actor_username=principal.name,
+            request_id=execution.correlation_id,
+            metadata={
+                "consumer_name": execution.consumer_name,
+                "service_account_user_id": principal.user_id,
+                "source_event_id": execution.source_event_id,
+                "source_revision": entry.source_revision,
+                "prior_source_revision": prior_revision,
+                "correlation_id": execution.correlation_id,
+                "causation_id": execution.causation_id,
+            },
+        )
 
 
 __all__ = ["ProjectCostEntryService"]

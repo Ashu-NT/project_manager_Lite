@@ -113,6 +113,9 @@ from src.infra.composition.project_registry import build_project_management_serv
 from src.infra.composition.repositories import build_repository_bundle
 from src.infra.integration.delivery import SystemDeliveryClock
 from src.infra.integration.approved_time_dispatcher import ApprovedTimeFinancialDispatcher
+from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
+    APPROVED_TIME_FINANCE_PRINCIPAL_NAME,
+)
 from src.infra.integration.procurement_financial_dispatcher import (
     ProcurementFinancialDispatcher,
 )
@@ -343,10 +346,11 @@ def build_service_graph(session: Session) -> ServiceGraph:
     _approved_time_financial_dispatcher = ApprovedTimeFinancialDispatcher(
         session=session,
         outbox_service=_time_financial_outbox_service,
-        inbox_service=_project_finance_inbox_service,
-        consumer=project_management_services.approved_time_labor_cost_consumer,
-        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
-        post_commit_bus=platform_services.platform_post_commit_bus,
+        uow_factory=project_management_services.approved_time_uow_factory,
+        consumer_factory=project_management_services.approved_time_consumer_factory,
+        principal_resolver=lambda: platform_services.service_principal_service.resolve_execution_principal(
+            name=APPROVED_TIME_FINANCE_PRINCIPAL_NAME
+        ),
     )
     _procurement_financial_dispatcher = ProcurementFinancialDispatcher(
         session=session,

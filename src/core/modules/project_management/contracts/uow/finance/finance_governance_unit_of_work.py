@@ -9,6 +9,7 @@ from src.core.modules.project_management.contracts.repositories.finance.configur
     ProjectFinancialProfileRepository,
 )
 from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import ProjectCostEntryRepository
+from src.core.modules.project_management.contracts.repositories.finance.cost_entries.labor_posting import ApprovedTimeLaborPostingRepository
 from src.core.modules.project_management.contracts.repositories.finance.financial_changes.financial_change import FinancialChangeRepository
 from src.core.modules.project_management.contracts.repositories.finance.forecasts.forecast import ProjectForecastRepository
 from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import ProjectBillingRepository
@@ -27,6 +28,7 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
 from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
 from src.core.platform.contract.repositories.approval.contracts import ApprovalRepository
 from src.core.platform.contract.repositories.finance import FinancialPeriodRepository
+from src.core.platform.contract.repositories.integration import IntegrationInboxRepository
 from src.core.shared.persistence.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 
@@ -45,6 +47,8 @@ class FinanceGovernanceUnitOfWork(UnitOfWork, Protocol):
     project_resources: ProjectResourceRepository
     commitments: ProjectCommitmentRepository
     cost_entries: ProjectCostEntryRepository
+    labor_postings: ApprovedTimeLaborPostingRepository
+    finance_inbox: IntegrationInboxRepository
     register_entries: RegisterEntryRepository
     resources: ResourceRepository
     financial_periods: FinancialPeriodRepository

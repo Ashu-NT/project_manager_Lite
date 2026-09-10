@@ -122,6 +122,18 @@ class SqlAlchemyServicePrincipalRepository(
         ).scalars().first()
         return _principal_from_orm(row) if row is not None else None
 
+    def get_by_name(self, name: str) -> ServicePrincipal | None:
+        ctx = self._context(operation_label="resolve service principal")
+        normalized = str(name or "").strip()
+        row = self.session.execute(
+            select(ServicePrincipalORM).where(
+                ServicePrincipalORM.tenant_id == ctx.tenant_id,
+                ServicePrincipalORM.organization_id == ctx.organization_id,
+                ServicePrincipalORM.name == normalized,
+            )
+        ).scalar_one_or_none()
+        return _principal_from_orm(row) if row is not None else None
+
     def _prepare_authentication_scope(self, tenant_id: str) -> None:
         _prepare_postgresql_authentication_scope(self.session, tenant_id)
 

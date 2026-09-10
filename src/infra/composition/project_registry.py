@@ -3,6 +3,7 @@ from __future__ import annotations
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from time import perf_counter
 
@@ -11,8 +12,10 @@ from sqlalchemy.orm import Session, sessionmaker
 from src.core.platform.access import ScopedRolePolicy
 from src.core.platform.application.finance.financial_period_service import FinancialPeriodService
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
+    SqlAlchemyFinanceGovernanceUnitOfWork,
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
 )
+from src.core.platform.domain.security.identity.service_principal import ServicePrincipal
 from src.core.modules.project_management.infrastructure.persistence.uow.resources.resource_unit_of_work import (
     SqlAlchemyResourceUnitOfWorkFactory,
 )
@@ -370,7 +373,11 @@ class ProjectManagementServiceBundle:
     rate_card_resolver: RateCardResolver
     budget_service: BudgetService
     cost_entry_service: ProjectCostEntryService
-    approved_time_labor_cost_consumer: ApprovedTimeLaborCostConsumer
+    approved_time_uow_factory: SqlAlchemyFinanceGovernanceUnitOfWorkFactory
+    approved_time_consumer_factory: Callable[
+        [SqlAlchemyFinanceGovernanceUnitOfWork, ServicePrincipal],
+        ApprovedTimeLaborCostConsumer,
+    ]
     procurement_financial_consumer: ProcurementFinancialConsumer
     commitment_service: ProjectCommitmentService
     planned_cost_service: PlannedCostService
@@ -750,7 +757,6 @@ def build_project_management_service_bundle(
         rate_resolver=rate_card_resolver,
         labor_posting_repo=repositories.approved_time_labor_posting_repo,
     )
-    approved_time_labor_cost_consumer = ApprovedTimeLaborCostConsumer(cost_entry_service)
     commitment_service = ProjectCommitmentService(
         session=session,
         commitment_repo=repositories.project_commitment_repo,
@@ -868,6 +874,44 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
+
+    def build_approved_time_consumer(
+        uow: SqlAlchemyFinanceGovernanceUnitOfWork,
+        principal: ServicePrincipal,
+    ) -> ApprovedTimeLaborCostConsumer:
+        worker_rate_resolver = RateCardResolver(
+            reader=SqlAlchemyRateResolutionReader(session=uow._session),
+            tenant_context_service=platform_services.tenant_context_service,
+            clock=system_clock,
+        )
+        worker_cost_service = ProjectCostEntryService(
+            session=uow._session,
+            entry_repo=uow.cost_entries,
+            project_repo=uow.projects,
+            financial_profile_repo=uow.profiles,
+            cost_code_repo=uow.cost_codes,
+            task_repo=uow.tasks,
+            resource_repo=uow.resources,
+            financial_period_service=FinancialPeriodService(
+                session=uow._session,
+                period_repo=uow.financial_periods,
+                tenant_context_service=platform_services.tenant_context_service,
+                user_session=platform_services.user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+            ),
+            clock=system_clock,
+            user_session=platform_services.user_session,
+            enterprise_audit_service=uow._enterprise_audit_service,
+            module_catalog_service=platform_services.module_catalog_service,
+            tenant_context_service=platform_services.tenant_context_service,
+            approval_service=platform_services.approval_service,
+            rate_resolver=worker_rate_resolver,
+            labor_posting_repo=uow.labor_postings,
+        )
+        return ApprovedTimeLaborCostConsumer(
+            worker_cost_service,
+            service_principal=principal,
+        )
     _forecast_view_invalidation_handler = build_forecast_view_invalidation_handler(
         platform_services.platform_view_invalidation_channel
     )
@@ -1554,7 +1598,8 @@ def build_project_management_service_bundle(
         rate_card_resolver=rate_card_resolver,
         budget_service=budget_service,
         cost_entry_service=cost_entry_service,
-        approved_time_labor_cost_consumer=approved_time_labor_cost_consumer,
+        approved_time_uow_factory=finance_governance_uow_factory,
+        approved_time_consumer_factory=build_approved_time_consumer,
         procurement_financial_consumer=procurement_financial_consumer,
         commitment_service=commitment_service,
         planned_cost_service=planned_cost_service,

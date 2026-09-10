@@ -62,7 +62,13 @@ class RateSelectionSnapshot:
     effective_date: date
     modifier_applied: RateModifier | None = None
     modifier_multiplier: Decimal | None = None
+    base_monetary_rate: MonetaryRate | None = None
     resolved_at: datetime = field(default_factory=_snapshot_utc_now)
+
+    @property
+    def selected_base_rate(self) -> MonetaryRate:
+        """Return the configured line rate before any approved modifier."""
+        return self.base_monetary_rate or self.monetary_rate
 
     @property
     def modifiers_applied(self) -> Mapping[str, Decimal]:

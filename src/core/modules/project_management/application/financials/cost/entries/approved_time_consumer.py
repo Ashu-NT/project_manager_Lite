@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import ProjectCostEntryService
 from src.core.modules.project_management.contracts.financial_sources.approved_time import (
     ApprovedTimeFinancialSource,
@@ -9,11 +11,30 @@ from src.core.modules.project_management.contracts.financial_sources.reference i
     FinancialSourceType,
 )
 from src.core.platform.integration import APPROVED_TIME_ENTRY_EVENT_TYPE, ApprovedTimeEntryEventPayload, IntegrationEventEnvelope
+from src.core.platform.domain.security.identity.service_principal import ServicePrincipal
+
+
+APPROVED_TIME_FINANCE_PRINCIPAL_NAME = "PM Finance Approved Time Worker"
+
+
+@dataclass(frozen=True, slots=True)
+class ApprovedTimeExecutionContext:
+    service_principal: ServicePrincipal
+    source_event_id: str
+    correlation_id: str | None
+    causation_id: str | None
+    consumer_name: str = "project_finance"
 
 
 class ApprovedTimeLaborCostConsumer:
-    def __init__(self, cost_entry_service: ProjectCostEntryService) -> None:
+    def __init__(
+        self,
+        cost_entry_service: ProjectCostEntryService,
+        *,
+        service_principal: ServicePrincipal,
+    ) -> None:
         self._cost_entry_service = cost_entry_service
+        self._service_principal = service_principal
 
     def consume(self, envelope: IntegrationEventEnvelope) -> tuple[object, ...]:
         if envelope.event_type != APPROVED_TIME_ENTRY_EVENT_TYPE:
@@ -44,7 +65,19 @@ class ApprovedTimeLaborCostConsumer:
             hours=payload.hours,
             correction_of_revision=(str(payload.correction_of_revision) if payload.correction_of_revision else None),
         )
-        return self._cost_entry_service.apply_approved_time_source(source)
+        return self._cost_entry_service.apply_approved_time_source(
+            source,
+            execution=ApprovedTimeExecutionContext(
+                service_principal=self._service_principal,
+                source_event_id=envelope.event_id,
+                correlation_id=envelope.correlation_id,
+                causation_id=envelope.causation_id,
+            ),
+        )
 
 
-__all__ = ["ApprovedTimeLaborCostConsumer"]
+__all__ = [
+    "APPROVED_TIME_FINANCE_PRINCIPAL_NAME",
+    "ApprovedTimeExecutionContext",
+    "ApprovedTimeLaborCostConsumer",
+]
