@@ -213,6 +213,9 @@ AppLayouts.WorkspaceFrame {
             Dialogs.FinancialsDialogHost {
                 selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
                 selectedProjectLabel: root._selectedProjectLabel()
+                selectedActualEntryId: root._selectedActualEntryId
+                focusFallbackTarget: root.detailPage
+                    ? root.detailPage.actualDialogFocusFallback : null
                 manualActualDefaults: root.workspaceController
                     ? (root.workspaceController.manualActualDefaults || {}) : ({})
                 workspaceController: root.workspaceController
@@ -227,6 +230,8 @@ AppLayouts.WorkspaceFrame {
         asynchronous: true
         sourceComponent: Component {
             AppWidgets.SectionDetailPage {
+                property alias actualDialogFocusFallback: projectScopeSelector
+
                 open: true
                 anchors.fill: parent
                 showHeader: false

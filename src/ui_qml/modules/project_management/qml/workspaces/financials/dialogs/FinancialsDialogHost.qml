@@ -6,6 +6,8 @@ Item {
     property var workspaceController: null
     property string selectedProjectId: ""
     property string selectedProjectLabel: ""
+    property string selectedActualEntryId: ""
+    property Item focusFallbackTarget: null
     property var manualActualDefaults: ({ "currencyCode": "", "entryKinds": [] })
 
     function _handleResult(dialog, result) {
@@ -28,7 +30,7 @@ Item {
         editorDialog.commandId = root.workspaceController
             ? root.workspaceController.newFinancialCommandId() : ""
         editorDialog.errorMessage = ""
-        editorDialog.open()
+        root._openSetupDialog(editorDialog)
     }
 
     function openEditManualActualDialog(entry) {
@@ -36,7 +38,7 @@ Item {
         editorDialog.entry = entry || null
         editorDialog.commandId = ""
         editorDialog.errorMessage = ""
-        editorDialog.open()
+        root._openSetupDialog(editorDialog)
     }
 
     function openCostCodeDialog(mode, costCode) {
@@ -166,7 +168,28 @@ Item {
         actualLifecycleDialog.commandId = root.workspaceController
             ? root.workspaceController.newFinancialCommandId() : ""
         actualLifecycleDialog.errorMessage = ""
-        actualLifecycleDialog.open()
+        root._openSetupDialog(actualLifecycleDialog)
+    }
+
+    function _editorEntryId() {
+        const entry = editorDialog.entry || ({})
+        const state = entry.state || ({})
+        return String(state.entryId || entry.id || "")
+    }
+
+    function _closeEntryBoundActualDialogs() {
+        if (editorDialog.opened && editorDialog.mode === "edit"
+                && root._editorEntryId() !== root.selectedActualEntryId)
+            editorDialog.close()
+        if (actualLifecycleDialog.opened
+                && actualLifecycleDialog.entryId !== root.selectedActualEntryId)
+            actualLifecycleDialog.close()
+    }
+
+    onSelectedActualEntryIdChanged: root._closeEntryBoundActualDialogs()
+    onSelectedProjectIdChanged: {
+        if (editorDialog.opened) editorDialog.close()
+        if (actualLifecycleDialog.opened) actualLifecycleDialog.close()
     }
 
     ManualActualEditorDialog {
@@ -176,6 +199,7 @@ Item {
         initialDefaults: root.manualActualDefaults
         workspaceController: root.workspaceController
         busy: root.workspaceController ? root.workspaceController.isBusy : false
+        focusFallbackTarget: root.focusFallbackTarget
 
         onSubmitted: function(payload) {
             if (!root.workspaceController) return
@@ -251,6 +275,7 @@ Item {
         id: actualLifecycleDialog
 
         busy: root.workspaceController ? root.workspaceController.isBusy : false
+        focusFallbackTarget: root.focusFallbackTarget
 
         onDecided: function(mode, payload) {
             if (!root.workspaceController) return

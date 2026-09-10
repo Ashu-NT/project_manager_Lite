@@ -13,6 +13,7 @@ Item {
     property alias validator: field.validator
     property alias readOnly: field.readOnly
     property alias font: field.font
+    readonly property var focusTarget: field
     property string format: "yyyy-MM-dd"
     property int minimumYear: new Date().getFullYear() - 15
     property int maximumYear: new Date().getFullYear() + 15
@@ -229,6 +230,7 @@ Item {
 
         TextField {
             id: field
+            objectName: root.objectName.length > 0 ? root.objectName + "Input" : ""
             Layout.fillWidth: true
             enabled: root.enabled
             background: Item {}

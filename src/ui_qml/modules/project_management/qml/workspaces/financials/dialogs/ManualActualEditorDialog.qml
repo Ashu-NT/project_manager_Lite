@@ -34,6 +34,8 @@ AppWidgets.EntityDialog {
     primaryEnabled: projectSelector.selectedId.length > 0
         && costCodeSelector.selectedId.length > 0
         && String(root.actualDefaults.currencyCode || "").length > 0
+    initialFocusTarget: root._isEdit || root.initialProjectId.length > 0
+        ? descriptionField : projectSelector
     infoMessage: projectSelector.selectedId.length === 0
         ? "Select an eligible project before creating a manual actual."
         : (costCodeSelector.selectedId.length === 0
@@ -174,18 +176,22 @@ AppWidgets.EntityDialog {
     function submitDialog() {
         if (projectSelector.selectedId.length === 0) {
             root.errorMessage = "Project is required."
+            projectSelector.forceActiveFocus()
             return
         }
         if (descriptionField.text.trim().length === 0) {
             root.errorMessage = "Description is required."
+            descriptionField.forceActiveFocus()
             return
         }
         if (amountField.text.trim().length === 0) {
             root.errorMessage = "Amount is required."
+            amountField.forceActiveFocus()
             return
         }
         if (costCodeSelector.selectedId.length === 0) {
             root.errorMessage = "Cost code is required."
+            costCodeSelector.forceActiveFocus()
             return
         }
         root.errorMessage = ""
@@ -230,6 +236,7 @@ AppWidgets.EntityDialog {
             required: true
             AppControls.TextField {
                 id: descriptionField
+                objectName: "manualActualDescriptionField"
                 Layout.fillWidth: true
                 placeholderText: "Supplier correction, travel expense, or approved adjustment"
             }
@@ -265,6 +272,7 @@ AppWidgets.EntityDialog {
             required: true
             AppControls.ComboBox {
                 id: entryKindCombo
+                objectName: "manualActualEntryKindField"
                 Layout.fillWidth: true
                 model: root.actualDefaults.entryKinds || []
                 textRole: "label"
@@ -325,6 +333,7 @@ AppWidgets.EntityDialog {
             required: true
             AppControls.TextField {
                 id: amountField
+                objectName: "manualActualAmountField"
                 Layout.fillWidth: true
                 inputMethodHints: Qt.ImhFormattedNumbersOnly
                 placeholderText: "0.00"
@@ -336,6 +345,7 @@ AppWidgets.EntityDialog {
             label: "Currency"
             required: true
             AppControls.TextField {
+                objectName: "manualActualCurrencyField"
                 Layout.fillWidth: true
                 text: String(root.actualDefaults.currencyCode || "")
                 readOnly: true
@@ -348,6 +358,7 @@ AppWidgets.EntityDialog {
             required: true
             AppControls.DateField {
                 id: transactionDateField
+                objectName: "manualActualTransactionDateField"
                 Layout.fillWidth: true
                 placeholderText: "YYYY-MM-DD"
                 onTextChanged: {

@@ -16,6 +16,7 @@ import App.Theme 1.0 as Theme
 // Only the fields the backend actually requires for that mode are shown.
 AppWidgets.EntityDialog {
     id: root
+    objectName: "actualLifecycleDialog"
 
     property string mode: "reject"
     property string entryId: ""
@@ -43,6 +44,9 @@ AppWidgets.EntityDialog {
             : "Create a signed reversal of this posted actual. The original entry becomes immutable once reversed."))
     primaryText: root._isDelete ? "Delete Draft" : (root._isReject ? "Reject" : (root._isPost ? "Post" : "Reverse"))
     primaryIcon: root._isDelete ? "delete" : (root._isReject ? "reject" : (root._isPost ? "save" : "delete"))
+    initialFocusTarget: root._isDelete
+        ? null
+        : ((root._isPost || root._isReverse) ? postingDateField.focusTarget : notesField)
 
     onAccepted: root.submitDialog()
     onRejected: root.close()
@@ -73,10 +77,12 @@ AppWidgets.EntityDialog {
     function submitDialog() {
         if ((root._isPost || root._isReverse) && postingDateField.text.trim().length === 0) {
             root.errorMessage = "Posting date is required."
+            postingDateField.focusTarget.forceActiveFocus()
             return
         }
         if (root._reasonRequired && notesField.text.trim().length === 0) {
             root.errorMessage = "A reversal reason is required."
+            notesField.forceActiveFocus()
             return
         }
         root.errorMessage = ""
@@ -96,6 +102,7 @@ AppWidgets.EntityDialog {
             required: true
             AppControls.DateField {
                 id: postingDateField
+                objectName: "actualPostingDateField"
                 Layout.fillWidth: true
                 placeholderText: "YYYY-MM-DD"
             }
@@ -108,12 +115,29 @@ AppWidgets.EntityDialog {
             required: root._reasonRequired
             AppControls.TextArea {
                 id: notesField
+                objectName: "actualDecisionNotesField"
                 Layout.fillWidth: true
                 Layout.preferredHeight: 80
                 wrapMode: TextEdit.WordWrap
                 placeholderText: root._isReverse
                     ? "Explain why this posted actual must be reversed."
                     : "Optional context for the submitter."
+                Keys.onPressed: function(event) {
+                    const isBacktab = event.key === Qt.Key_Backtab
+                        || (event.key === Qt.Key_Tab
+                            && Boolean(event.modifiers & Qt.ShiftModifier))
+                    if (isBacktab) {
+                        const previous = root._isReverse
+                            ? postingDateField.focusTarget
+                            : notesField.nextItemInFocusChain(false)
+                        if (previous) previous.forceActiveFocus()
+                        event.accepted = true
+                    } else if (event.key === Qt.Key_Tab) {
+                        const next = notesField.nextItemInFocusChain(true)
+                        if (next) next.forceActiveFocus()
+                        event.accepted = true
+                    }
+                }
             }
         }
     }

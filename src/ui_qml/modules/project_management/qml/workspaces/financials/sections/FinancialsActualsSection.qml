@@ -5,6 +5,7 @@ import App.Widgets 1.0 as AppWidgets
 
 Item {
     id: root
+    objectName: "financialsActualsSection"
 
     property var ledgerModel: ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
     property var ledgerTableModel: null
@@ -70,6 +71,7 @@ Item {
         AppWidgets.SectionHeading { width: parent.width; label: "Actuals" }
 
         AppWidgets.TableToolbar {
+            objectName: "financialsActualsFilterToolbar"
             width: parent.width
             showSearch: false
             showFilter: false
@@ -78,6 +80,7 @@ Item {
 
             AppControls.ComboBox {
                 id: statusCombo
+                objectName: "financialsActualsStatusFilter"
                 implicitWidth: 145
                 textRole: "label"
                 model: root._statusOptions
@@ -87,6 +90,7 @@ Item {
 
             AppControls.ComboBox {
                 id: sourceCombo
+                objectName: "financialsActualsSourceFilter"
                 implicitWidth: 190
                 textRole: "label"
                 model: root._sourceOptions
@@ -108,6 +112,7 @@ Item {
             visible: (root.ledgerModel.items || []).length > 0
 
             AppWidgets.DataTable {
+                objectName: "financialsActualsTable"
                 anchors.fill: parent
                 columns: root._columns
                 sourceModel: root.ledgerTableModel
@@ -128,6 +133,7 @@ Item {
         }
 
         AppWidgets.TablePaginationBar {
+            objectName: "financialsActualsPagination"
             width: parent.width
             visible: Number(root.ledgerModel.total || 0) > Number(root.ledgerModel.pageSize || 50)
             currentPage: Number(root.ledgerModel.page || 1)
