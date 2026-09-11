@@ -28,10 +28,26 @@ from src.core.platform.integration import (
     ProcurementCommitmentEventPayload,
     ProcurementReceiptAccrualEventPayload,
 )
+from src.core.platform.domain.security.identity.service_principal import ServicePrincipal
 from src.core.shared.events.domain_event import DomainEvent
 
 
-@dataclass(frozen=True)
+PROCUREMENT_FINANCE_PRINCIPAL_NAME = "PM Finance Procurement Worker"
+
+
+@dataclass(frozen=True, slots=True)
+class ProcurementExecutionContext:
+    service_principal: ServicePrincipal
+    source_event_id: str
+    source_event_type: str
+    source_aggregate_id: str
+    source_revision: int
+    correlation_id: str | None
+    causation_id: str | None
+    consumer_name: str = "project_finance"
+
+
+@dataclass(frozen=True, slots=True)
 class ProcurementFinancialConsumption:
     project_id: str
     commitment_events: tuple[DomainEvent, ...] = ()
@@ -45,10 +61,12 @@ class ProcurementFinancialConsumer:
         commitment_service: ProjectCommitmentService,
         cost_entry_service: ProjectCostEntryService,
         task_repo: TaskRepository,
+        service_principal: ServicePrincipal,
     ) -> None:
         self._commitment_service = commitment_service
         self._cost_entry_service = cost_entry_service
         self._task_repo = task_repo
+        self._service_principal = service_principal
 
     def consume(
         self, envelope: IntegrationEventEnvelope
@@ -95,7 +113,10 @@ class ProcurementFinancialConsumer:
             source_requisition_line_id=payload.source_requisition_line_id,
             task_id=task_id,
         )
-        event = self._commitment_service.apply_procurement_source(source)
+        event = self._commitment_service.apply_procurement_source(
+            source,
+            execution=self._execution(envelope, source_revision=payload.source_revision),
+        )
         return ProcurementFinancialConsumption(
             project_id=project_id,
             commitment_events=(event,) if event is not None else (),
@@ -132,8 +153,10 @@ class ProcurementFinancialConsumer:
             unit_cost=payload.unit_cost,
             task_id=task_id,
         )
+        execution = self._execution(envelope, source_revision=payload.source_revision)
         entry, cost_entry_events = self._cost_entry_service.apply_procurement_receipt_source(
-            source
+            source,
+            execution=execution,
         )
         event = self._commitment_service.apply_procurement_receipt_match(
             purchase_order_id=payload.purchase_order_id,
@@ -141,6 +164,7 @@ class ProcurementFinancialConsumer:
             cost_entry_id=entry.id,
             supplier_party_id=payload.supplier_party_id,
             site_id=payload.site_id,
+            execution=execution,
         )
         return ProcurementFinancialConsumption(
             project_id=project_id,
@@ -171,5 +195,26 @@ class ProcurementFinancialConsumer:
             code="PROCUREMENT_FINANCIAL_PROJECT_REQUIRED",
         )
 
+    def _execution(
+        self,
+        envelope: IntegrationEventEnvelope,
+        *,
+        source_revision: int,
+    ) -> ProcurementExecutionContext:
+        return ProcurementExecutionContext(
+            service_principal=self._service_principal,
+            source_event_id=envelope.event_id,
+            source_event_type=envelope.event_type,
+            source_aggregate_id=envelope.aggregate_id,
+            source_revision=source_revision,
+            correlation_id=envelope.correlation_id,
+            causation_id=envelope.causation_id,
+        )
 
-__all__ = ["ProcurementFinancialConsumer", "ProcurementFinancialConsumption"]
+
+__all__ = [
+    "PROCUREMENT_FINANCE_PRINCIPAL_NAME",
+    "ProcurementExecutionContext",
+    "ProcurementFinancialConsumer",
+    "ProcurementFinancialConsumption",
+]

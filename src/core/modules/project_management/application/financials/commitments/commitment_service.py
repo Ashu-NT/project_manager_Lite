@@ -4,6 +4,7 @@ import json
 from collections.abc import Callable
 from datetime import date, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -75,6 +76,11 @@ from src.core.platform.finance import (
 )
 from src.core.platform.integration.canonical_json import canonical_json_sha256
 from src.core.shared.audit import record_audit_entry
+
+if TYPE_CHECKING:
+    from src.core.modules.project_management.application.financials.procurement_consumer import (
+        ProcurementExecutionContext,
+    )
 
 
 _SOURCE_STATE_MAP = {
@@ -176,6 +182,7 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             exchange_rate_captured_at=exchange_rate_captured_at,
             actor_id=self._actor_id(),
             authorize=True,
+            execution=None,
         )
         return line
 
@@ -187,6 +194,7 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         exchange_rate_date: date | None = None,
         exchange_rate_source: str | None = None,
         exchange_rate_captured_at: datetime | None = None,
+        execution: ProcurementExecutionContext,
     ) -> CommitmentLineChanged | None:
         """Apply one trusted inbox delivery without committing its transaction."""
         profile = self._financial_profile_repo.get_by_project(source.reference.project_id)
@@ -207,8 +215,9 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             exchange_rate_date=exchange_rate_date,
             exchange_rate_source=exchange_rate_source,
             exchange_rate_captured_at=exchange_rate_captured_at,
-            actor_id="integration:project_finance",
+            actor_id=execution.service_principal.id,
             authorize=False,
+            execution=execution,
         )
         return event
 
@@ -223,6 +232,7 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         exchange_rate_captured_at: datetime | None,
         actor_id: str,
         authorize: bool,
+        execution: ProcurementExecutionContext | None,
     ) -> tuple[ProjectCommitmentLine, CommitmentLineChanged | None]:
 
         reference = source.reference
@@ -291,7 +301,7 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             ) from exc
         if replay:
             return line, None
-        self._record_line_audit(operation, line)
+        self._record_line_audit(operation, line, execution=execution)
         event = CommitmentLineChanged(
             tenant_id=context.tenant.id,
             organization_id=context.organization.id,
@@ -426,6 +436,7 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             line=line,
             entry=entry,
             actor_id=self._actor_id(),
+            execution=None,
         )
         return match
 
@@ -437,6 +448,7 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         cost_entry_id: str,
         supplier_party_id: str,
         site_id: str,
+        execution: ProcurementExecutionContext,
     ) -> CommitmentMatchChanged | None:
         """Match one trusted receipt posting without committing the inbox transaction."""
         line = self._commitment_repo.get_line_by_source(
@@ -469,7 +481,8 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         _match, event = self._create_match(
             line=line,
             entry=entry,
-            actor_id="integration:project_finance",
+            actor_id=execution.service_principal.id,
+            execution=execution,
         )
         return event
 
@@ -479,6 +492,7 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         line: ProjectCommitmentLine,
         entry,
         actor_id: str,
+        execution: ProcurementExecutionContext | None,
     ) -> tuple[ProjectCommitmentMatch, CommitmentMatchChanged | None]:
         if (
             entry.status != ProjectCostEntryStatus.POSTED
@@ -534,7 +548,7 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
                 "The cost entry was matched concurrently.",
                 code="PROJECT_COMMITMENT_MATCH_CONFLICT",
             ) from exc
-        self._record_match_audit("match", match, line)
+        self._record_match_audit("match", match, line, execution=execution)
         event = CommitmentMatchChanged(
             tenant_id=line.tenant_id,
             organization_id=line.organization_id,
@@ -609,7 +623,7 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
                 "The commitment match was reversed concurrently.",
                 code="PROJECT_COMMITMENT_MATCH_REVERSAL_CONFLICT",
             ) from exc
-        self._record_match_audit("reverse_match", reversal, line)
+        self._record_match_audit("reverse_match", reversal, line, execution=None)
         event = CommitmentMatchChanged(
             tenant_id=line.tenant_id,
             organization_id=line.organization_id,
@@ -843,7 +857,14 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         )
         return f"pcmatch:v1:{digest}"
 
-    def _record_line_audit(self, operation: str, line: ProjectCommitmentLine) -> None:
+    def _record_line_audit(
+        self,
+        operation: str,
+        line: ProjectCommitmentLine,
+        *,
+        execution: ProcurementExecutionContext | None,
+    ) -> None:
+        principal = execution.service_principal if execution is not None else None
         record_audit_entry(
             self,
             operation=f"project_commitment.{operation}",
@@ -851,6 +872,9 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             entity_id=line.id,
             entity_parent_id=line.project_id,
             module="project_management",
+            actor_id=principal.id if principal is not None else None,
+            actor_type="service_principal" if principal is not None else "user",
+            actor_username=principal.name if principal is not None else None,
             old_value=None,
             new_value=json.dumps(
                 {
@@ -870,17 +894,31 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
                 sort_keys=True,
             ),
             workspace_id=line.project_id,
-            source="application",
+            request_id=(
+                execution.correlation_id or execution.source_event_id
+                if execution is not None
+                else None
+            ),
+            source="integration_worker" if execution is not None else "application",
             severity="high",
             compliance_tag="financial",
-            metadata={"action": operation},
+            metadata={
+                "action": operation,
+                **(self._execution_audit_metadata(execution) if execution is not None else {}),
+            },
             commit=False,
             fail_closed=True,
         )
 
     def _record_match_audit(
-        self, operation: str, match: ProjectCommitmentMatch, line: ProjectCommitmentLine
+        self,
+        operation: str,
+        match: ProjectCommitmentMatch,
+        line: ProjectCommitmentLine,
+        *,
+        execution: ProcurementExecutionContext | None,
     ) -> None:
+        principal = execution.service_principal if execution is not None else None
         record_audit_entry(
             self,
             operation=f"project_commitment.{operation}",
@@ -888,6 +926,9 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             entity_id=match.id,
             entity_parent_id=line.project_id,
             module="project_management",
+            actor_id=principal.id if principal is not None else None,
+            actor_type="service_principal" if principal is not None else "user",
+            actor_username=principal.name if principal is not None else None,
             old_value=None,
             new_value=json.dumps(
                 {
@@ -901,13 +942,37 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
                 sort_keys=True,
             ),
             workspace_id=line.project_id,
-            source="application",
+            request_id=(
+                execution.correlation_id or execution.source_event_id
+                if execution is not None
+                else None
+            ),
+            source="integration_worker" if execution is not None else "application",
             severity="high",
             compliance_tag="financial",
-            metadata={"action": operation},
+            metadata={
+                "action": operation,
+                **(self._execution_audit_metadata(execution) if execution is not None else {}),
+            },
             commit=False,
             fail_closed=True,
         )
+
+    @staticmethod
+    def _execution_audit_metadata(
+        execution: ProcurementExecutionContext,
+    ) -> dict[str, object]:
+        return {
+            "consumer_name": execution.consumer_name,
+            "service_account_user_id": execution.service_principal.user_id,
+            "source_module": FinancialSourceModule.INVENTORY_PROCUREMENT.value,
+            "source_event_id": execution.source_event_id,
+            "source_event_type": execution.source_event_type,
+            "source_aggregate_id": execution.source_aggregate_id,
+            "source_revision": execution.source_revision,
+            "correlation_id": execution.correlation_id,
+            "causation_id": execution.causation_id,
+        }
 
 
 __all__ = ["ProjectCommitmentService"]

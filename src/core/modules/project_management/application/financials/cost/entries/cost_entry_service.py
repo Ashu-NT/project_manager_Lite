@@ -94,6 +94,9 @@ if TYPE_CHECKING:
     from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
         ApprovedTimeExecutionContext,
     )
+    from src.core.modules.project_management.application.financials.procurement_consumer import (
+        ProcurementExecutionContext,
+    )
 
 
 class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
@@ -359,7 +362,10 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         return tuple(events)
 
     def apply_procurement_receipt_source(
-        self, source: ProcurementReceiptAccrualFinancialSource
+        self,
+        source: ProcurementReceiptAccrualFinancialSource,
+        *,
+        execution: ProcurementExecutionContext,
     ) -> tuple[ProjectCostEntry, tuple[object, ...]]:
         """Post one trusted Procurement receipt fact without committing the inbox transaction.
         Returns the entry (its id is needed by the caller to match it to a Commitment line) and
@@ -410,7 +416,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         period = self._financial_period_service.require_open_period_for_integration(
             posting_date
         )
-        actor_id = "integration:project_finance"
+        actor_id = execution.service_principal.id
         now = self._clock.now()
         entry = ProjectCostEntry.create_draft(
             tenant_id=reference.tenant_id,
@@ -442,7 +448,11 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         )
         self._entry_repo.add(entry)
         self._entry_repo.flush()
-        self._record_audit("post_procurement_receipt", entry)
+        self._record_procurement_audit(
+            "post_procurement_receipt",
+            entry,
+            execution=execution,
+        )
         event = CostEntryRecorded(
             tenant_id=entry.tenant_id,
             organization_id=entry.organization_id,
@@ -1228,6 +1238,34 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
                 "source_event_id": execution.source_event_id,
                 "source_revision": entry.source_revision,
                 "prior_source_revision": prior_revision,
+                "correlation_id": execution.correlation_id,
+                "causation_id": execution.causation_id,
+            },
+        )
+
+    def _record_procurement_audit(
+        self,
+        operation: str,
+        entry: ProjectCostEntry,
+        *,
+        execution: ProcurementExecutionContext,
+    ) -> None:
+        principal = execution.service_principal
+        record_project_cost_entry_audit(
+            self,
+            operation=operation,
+            entry=entry,
+            actor_id=principal.id,
+            actor_type="service_principal",
+            actor_username=principal.name,
+            request_id=execution.correlation_id or execution.source_event_id,
+            metadata={
+                "consumer_name": execution.consumer_name,
+                "service_account_user_id": principal.user_id,
+                "source_event_id": execution.source_event_id,
+                "source_event_type": execution.source_event_type,
+                "source_aggregate_id": execution.source_aggregate_id,
+                "source_revision": execution.source_revision,
                 "correlation_id": execution.correlation_id,
                 "causation_id": execution.causation_id,
             },

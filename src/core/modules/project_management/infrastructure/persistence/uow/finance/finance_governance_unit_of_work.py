@@ -33,6 +33,8 @@ from src.core.platform.application.history.audit.enterprise_audit_service import
 from src.core.platform.infrastructure.persistence.repositories.approval.approval import SqlAlchemyApprovalRepository
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import SqlAlchemyAuditRepository
 from src.core.platform.infrastructure.persistence.repositories.finance import SqlAlchemyFinancialPeriodRepository
+from src.core.platform.infrastructure.persistence.repositories.master_data.party.party import SqlAlchemyPartyRepository
+from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import SqlAlchemySiteRepository
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_event_publisher import PostCommitEventPublisher, TransactionalEventDispatcher
 from src.infra.persistence.db.unit_of_work import SqlAlchemyUnitOfWorkBase, SqlAlchemyUnitOfWorkFactoryBase
@@ -59,6 +61,8 @@ class SqlAlchemyFinanceGovernanceUnitOfWork(SqlAlchemyUnitOfWorkBase, FinanceGov
         self.cost_entries = SqlAlchemyProjectCostEntryRepository(session)
         self.labor_postings = SqlAlchemyApprovedTimeLaborPostingRepository(session)
         self.finance_inbox = SqlAlchemyProjectFinanceInboxRepository(session)
+        self.parties = SqlAlchemyPartyRepository(session)
+        self.sites = SqlAlchemySiteRepository(session)
         self.register_entries = SqlAlchemyRegisterEntryRepository(session)
         self.resources = SqlAlchemyResourceRepository(session)
         self.financial_periods = SqlAlchemyFinancialPeriodRepository(session)
@@ -69,7 +73,7 @@ class SqlAlchemyFinanceGovernanceUnitOfWork(SqlAlchemyUnitOfWorkBase, FinanceGov
             self.projects, self.tasks, self.budgets, self.forecasts, self.changes,
             self.profiles, self.cost_codes, self.planned_costs, self.assignments,
             self.project_resources, self.commitments, self.cost_entries,
-            self.labor_postings, self.finance_inbox,
+            self.labor_postings, self.finance_inbox, self.parties, self.sites,
             self.register_entries, self.resources, self.financial_periods,
             self.approvals, self.rate_cards, self.billing,
         )

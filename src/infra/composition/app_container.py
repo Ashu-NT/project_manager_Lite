@@ -11,7 +11,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.core.platform.application.platform_runtime import PlatformRuntimeApplicationService
-from src.core.platform.application.integration import IntegrationInboxService, IntegrationOutboxService
+from src.core.platform.application.integration import IntegrationOutboxService
 from src.core.shared.events.view_invalidation import ViewInvalidationChannel
 from src.core.platform.access import AccessControlService
 from src.core.platform.integration.module_registry import ModuleRegistry
@@ -116,6 +116,9 @@ from src.infra.integration.approved_time_dispatcher import ApprovedTimeFinancial
 from src.core.modules.project_management.application.financials.cost.entries.approved_time_consumer import (
     APPROVED_TIME_FINANCE_PRINCIPAL_NAME,
 )
+from src.core.modules.project_management.application.financials.procurement_consumer import (
+    PROCUREMENT_FINANCE_PRINCIPAL_NAME,
+)
 from src.infra.integration.procurement_financial_dispatcher import (
     ProcurementFinancialDispatcher,
 )
@@ -134,7 +137,6 @@ class ServiceGraph:
     integration_resolver: IntegrationResolver
     time_financial_outbox_service: IntegrationOutboxService
     procurement_financial_outbox_service: IntegrationOutboxService
-    project_finance_inbox_service: IntegrationInboxService
     approved_time_financial_dispatcher: ApprovedTimeFinancialDispatcher
     procurement_financial_dispatcher: ProcurementFinancialDispatcher
     time_service: TimeService
@@ -218,7 +220,6 @@ class ServiceGraph:
             "integration_resolver": self.integration_resolver,
             "time_financial_outbox_service": self.time_financial_outbox_service,
             "procurement_financial_outbox_service": self.procurement_financial_outbox_service,
-            "project_finance_inbox_service": self.project_finance_inbox_service,
             "approved_time_financial_dispatcher": self.approved_time_financial_dispatcher,
             "procurement_financial_dispatcher": self.procurement_financial_dispatcher,
             "time_service": self.time_service,
@@ -338,15 +339,10 @@ def build_service_graph(session: Session) -> ServiceGraph:
     )
     _module_registry = ModuleRegistry(platform_services.module_catalog_service)
     _integration_resolver = IntegrationResolver(_module_registry)
-    _project_finance_inbox_service = IntegrationInboxService(
-        repository=repositories.project_finance_inbox_repo,
-        consumer_name="project_finance",
-        clock=_delivery_clock,
-    )
     _approved_time_financial_dispatcher = ApprovedTimeFinancialDispatcher(
         session=session,
         outbox_service=_time_financial_outbox_service,
-        uow_factory=project_management_services.approved_time_uow_factory,
+        uow_factory=project_management_services.finance_worker_uow_factory,
         consumer_factory=project_management_services.approved_time_consumer_factory,
         principal_resolver=lambda: platform_services.service_principal_service.resolve_execution_principal(
             name=APPROVED_TIME_FINANCE_PRINCIPAL_NAME
@@ -355,10 +351,11 @@ def build_service_graph(session: Session) -> ServiceGraph:
     _procurement_financial_dispatcher = ProcurementFinancialDispatcher(
         session=session,
         outbox_service=_procurement_financial_outbox_service,
-        inbox_service=_project_finance_inbox_service,
-        consumer=project_management_services.procurement_financial_consumer,
-        transactional_dispatcher=platform_services.platform_transactional_dispatcher,
-        post_commit_bus=platform_services.platform_post_commit_bus,
+        uow_factory=project_management_services.finance_worker_uow_factory,
+        consumer_factory=project_management_services.procurement_consumer_factory,
+        principal_resolver=lambda: platform_services.service_principal_service.resolve_execution_principal(
+            name=PROCUREMENT_FINANCE_PRINCIPAL_NAME
+        ),
     )
     project_management_services.time_service.set_approved_time_dispatcher(
         _approved_time_financial_dispatcher.dispatch_pending
@@ -382,7 +379,6 @@ def build_service_graph(session: Session) -> ServiceGraph:
         integration_resolver=_integration_resolver,
         time_financial_outbox_service=_time_financial_outbox_service,
         procurement_financial_outbox_service=_procurement_financial_outbox_service,
-        project_finance_inbox_service=_project_finance_inbox_service,
         approved_time_financial_dispatcher=_approved_time_financial_dispatcher,
         procurement_financial_dispatcher=_procurement_financial_dispatcher,
         time_service=project_management_services.time_service,

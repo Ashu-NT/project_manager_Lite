@@ -29,6 +29,8 @@ from src.core.platform.application.history.audit.enterprise_audit_service import
 from src.core.platform.contract.repositories.approval.contracts import ApprovalRepository
 from src.core.platform.contract.repositories.finance import FinancialPeriodRepository
 from src.core.platform.contract.repositories.integration import IntegrationInboxRepository
+from src.core.platform.contract.repositories.master_data.party.contracts import PartyRepository
+from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 from src.core.shared.persistence.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 
@@ -49,6 +51,8 @@ class FinanceGovernanceUnitOfWork(UnitOfWork, Protocol):
     cost_entries: ProjectCostEntryRepository
     labor_postings: ApprovedTimeLaborPostingRepository
     finance_inbox: IntegrationInboxRepository
+    parties: PartyRepository
+    sites: SiteRepository
     register_entries: RegisterEntryRepository
     resources: ResourceRepository
     financial_periods: FinancialPeriodRepository

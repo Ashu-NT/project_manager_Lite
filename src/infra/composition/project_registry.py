@@ -374,12 +374,15 @@ class ProjectManagementServiceBundle:
     rate_card_resolver: RateCardResolver
     budget_service: BudgetService
     cost_entry_service: ProjectCostEntryService
-    approved_time_uow_factory: SqlAlchemyFinanceGovernanceUnitOfWorkFactory
+    finance_worker_uow_factory: SqlAlchemyFinanceGovernanceUnitOfWorkFactory
     approved_time_consumer_factory: Callable[
         [SqlAlchemyFinanceGovernanceUnitOfWork, ServicePrincipal],
         ApprovedTimeLaborCostConsumer,
     ]
-    procurement_financial_consumer: ProcurementFinancialConsumer
+    procurement_consumer_factory: Callable[
+        [SqlAlchemyFinanceGovernanceUnitOfWork, ServicePrincipal],
+        ProcurementFinancialConsumer,
+    ]
     commitment_service: ProjectCommitmentService
     planned_cost_service: PlannedCostService
     finance_workspace_query: ProjectFinanceWorkspaceQuery
@@ -774,11 +777,6 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
-    procurement_financial_consumer = ProcurementFinancialConsumer(
-        commitment_service=commitment_service,
-        cost_entry_service=cost_entry_service,
-        task_repo=repositories.task_repo,
-    )
     planned_cost_service = PlannedCostService(
         session=session,
         planned_cost_repo=repositories.planned_cost_repo,
@@ -912,6 +910,64 @@ def build_project_management_service_bundle(
         )
         return ApprovedTimeLaborCostConsumer(
             worker_cost_service,
+            service_principal=principal,
+        )
+
+    def build_procurement_consumer(
+        uow: SqlAlchemyFinanceGovernanceUnitOfWork,
+        principal: ServicePrincipal,
+    ) -> ProcurementFinancialConsumer:
+        worker_rate_resolver = RateCardResolver(
+            reader=SqlAlchemyRateResolutionReader(session=uow._session),
+            tenant_context_service=platform_services.tenant_context_service,
+            clock=system_clock,
+        )
+        worker_cost_service = ProjectCostEntryService(
+            session=uow._session,
+            entry_repo=uow.cost_entries,
+            project_repo=uow.projects,
+            financial_profile_repo=uow.profiles,
+            cost_code_repo=uow.cost_codes,
+            task_repo=uow.tasks,
+            resource_repo=uow.resources,
+            financial_period_service=FinancialPeriodService(
+                session=uow._session,
+                period_repo=uow.financial_periods,
+                tenant_context_service=platform_services.tenant_context_service,
+                user_session=platform_services.user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+            ),
+            clock=system_clock,
+            user_session=platform_services.user_session,
+            enterprise_audit_service=uow._enterprise_audit_service,
+            module_catalog_service=platform_services.module_catalog_service,
+            tenant_context_service=platform_services.tenant_context_service,
+            approval_service=platform_services.approval_service,
+            rate_resolver=worker_rate_resolver,
+            labor_posting_repo=uow.labor_postings,
+            record_event=uow.record_event,
+        )
+        worker_commitment_service = ProjectCommitmentService(
+            session=uow._session,
+            commitment_repo=uow.commitments,
+            cost_entry_repo=uow.cost_entries,
+            project_repo=uow.projects,
+            financial_profile_repo=uow.profiles,
+            cost_code_repo=uow.cost_codes,
+            task_repo=uow.tasks,
+            party_repo=uow.parties,
+            site_repo=uow.sites,
+            clock=system_clock,
+            user_session=platform_services.user_session,
+            enterprise_audit_service=uow._enterprise_audit_service,
+            module_catalog_service=platform_services.module_catalog_service,
+            tenant_context_service=platform_services.tenant_context_service,
+            record_event=uow.record_event,
+        )
+        return ProcurementFinancialConsumer(
+            commitment_service=worker_commitment_service,
+            cost_entry_service=worker_cost_service,
+            task_repo=uow.tasks,
             service_principal=principal,
         )
     _forecast_view_invalidation_handler = build_forecast_view_invalidation_handler(
@@ -1145,8 +1201,8 @@ def build_project_management_service_bundle(
             financial_profile_repo=uow.profiles,
             cost_code_repo=uow.cost_codes,
             task_repo=uow.tasks,
-            party_repo=repositories.party_repo,
-            site_repo=repositories.site_repo,
+            party_repo=uow.parties,
+            site_repo=uow.sites,
             clock=system_clock,
             user_session=platform_services.user_session,
             enterprise_audit_service=uow._enterprise_audit_service,
@@ -1176,7 +1232,7 @@ def build_project_management_service_bundle(
             tenant_context_service=platform_services.tenant_context_service,
             approval_service=platform_services.approval_service,
             rate_resolver=rate_card_resolver,
-            labor_posting_repo=repositories.approved_time_labor_posting_repo,
+            labor_posting_repo=uow.labor_postings,
             record_event=uow.record_event,
         )
         billing_profile_operations = ProjectBillingProfileService(
@@ -1600,9 +1656,9 @@ def build_project_management_service_bundle(
         rate_card_resolver=rate_card_resolver,
         budget_service=budget_service,
         cost_entry_service=cost_entry_service,
-        approved_time_uow_factory=finance_governance_uow_factory,
+        finance_worker_uow_factory=finance_governance_uow_factory,
         approved_time_consumer_factory=build_approved_time_consumer,
-        procurement_financial_consumer=procurement_financial_consumer,
+        procurement_consumer_factory=build_procurement_consumer,
         commitment_service=commitment_service,
         planned_cost_service=planned_cost_service,
         finance_workspace_query=finance_workspace_query,
