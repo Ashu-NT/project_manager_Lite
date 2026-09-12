@@ -1,6 +1,6 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: implementation in progress; R6C closed; R6D-D complete; R6D-E in progress
+Status: implementation in progress; R6C closed; R6D-E complete for the current Procurement contract; R6D-F not started
 Last updated: 2026-09-12
 Scope: Project Management finance plus reusable platform financial foundations
 Current checkpoint: R6D-D Approved-Time Labor Posting Hardening is complete. The
@@ -24,7 +24,7 @@ the approved-time worker does not invoke or emulate that future module.
 
 ### R6D-E Commitment Projection Hardening checkpoint (2026-09-12)
 
-R6D-E is **in progress, not closed**. The current neutral Procurement source
+R6D-E is **closed for the currently defined neutral Procurement contract**. The contract
 contract publishes one PO-line financial-state fact and one posted receipt-line
 fact. It is not a whole-PO line-set snapshot. A second line is added by its own
 stable source-line ID; a missing line in another event is not interpreted as a
@@ -33,7 +33,7 @@ releasing open exposure. The Procurement producer module does not yet exist in
 this pre-release tree; these are contract/consumer tests, not a claim that a
 live Procurement product emits the facts.
 
-Implemented in the current R6D-E worktree:
+Implemented and verified for R6D-E:
 
 - Procurement outbox delivery uses a fresh Finance UoW and Finance-owned inbox
   for each event. Projection, source revision, receipt-derived posted
@@ -61,33 +61,46 @@ Implemented in the current R6D-E worktree:
   is characterized. Over-receipt remains a full posted Actual while only the
   available Commitment is matched; no negative open balance is created.
 - The existing paged, deterministically server-sorted read-only Commitments
-  list remains the active UX. No Finance-side PO/Commitment mutator, Accounting
-  write, retired signal, or generic Finance refresh was introduced.
+  list now has a server-side open/no-open exposure filter. Changing the filter
+  resets to page one; no page-local filtering or Finance-side PO/Commitment
+  mutator was added. The list is the bounded read surface; no selected-detail
+  preload, Accounting write, retired signal, or generic Finance refresh was
+  introduced.
+- PostgreSQL transaction-scoped locking serializes competing PO projections,
+  so a newer line revision wins even if two workers receive N and N+1
+  concurrently. Duplicate receipt workers produce one Actual and one Match;
+  a closure/receipt race preserves both historical facts and zero open exposure.
 
-Evidence run so far: 50 focused commitment/forecast/performance tests, 56
-related R6D-B/C/D/governance application tests, and 15 combined R6D-C/D/E live
-PostgreSQL tests passed. The PostgreSQL tests use non-owner `app_runtime`
+Focused evidence: 22 commitment/delivery tests, 47 R6D-B/C/R6C plus delivery
+tests, 21 approved-time R6D-D tests, 9 architecture/QML/migration checks, and
+18 combined R6D-C/D/E live PostgreSQL tests passed. The PostgreSQL tests use non-owner `app_runtime`
 (`NOSUPERUSER`, `NOBYPASSRLS`), prove valid worker delivery and two-dispatcher
 single-claim behavior, forced RLS, foreign-scope invisibility/DELETE no-op,
 and direct foreign-scope UPDATE/INSERT denial on header, line, source revision,
 match, Actual, and Finance inbox. A fault-injection test proves audit failure
 rolls back financial facts and leaves a durable retry without success hints.
+The changed Finance QML passes direct Qt `qmllint`; its checked-in controller
+type metadata now declares the active Commitment exposure and Posting Failures
+members. Representative seeded SQLite worker dispatches execute 32 SQL
+statements for create, 30 for revise, 30 for close, 38 for receipt, 9 for stale
+delivery, and 1 for published-event replay. These are characterization values,
+not a production-volume performance claim; high-volume EXPLAIN/benchmarking
+belongs to R6D-F.
 
-Remaining R6D-E closure gates, before starting R6D-F:
+Current-contract boundary: Procurement has no producer implementation in this
+pre-release tree and publishes no neutral accepted-receipt correction/reversal
+event. A changed receipt identity is durably quarantined, not silently applied
+to posted Actual. Therefore reversal/replacement, Match correction, and a
+correction race cannot be demonstrated for this source contract; they are
+**not claimed as implemented** and must be designed with the future Procurement
+correction contract before corrections can be enabled. This does not authorize
+Finance to invent Procurement lifecycle or Accounting records. The existing
+source event/line-set contract is per line, so absence from a different event
+never deletes an existing line; explicit terminal state retains history.
 
-1. Add PostgreSQL races for different source revisions and duplicate receipt
-   deliveries, including cancellation/receipt ordering where the current
-   source contract defines an outcome. Do not invent a receipt correction race
-   until Procurement publishes correction lineage.
-2. Characterize representative statement counts for create, revise, terminal
-   state, replay, stale event, and receipt. Final volume/EXPLAIN certification
-   belongs to R6D-F, not this checkpoint.
-3. Reconcile whether status/open-exposure filtering is justified for the
-   Commitments operator list. If added, it must be server-side and page-reset
-   correctly; do not add page-local filtering. A selected revision/match detail
-   is optional only if there is a real inspection need.
-4. Run final source-contract, architecture, migration, and relevant QML/read
-   regression checks; no QML has been changed in this slice.
+R6D-F remains unstarted. Its integrated security/events/performance work can
+build on this single production worker path without reviving interactive
+Commitment writes or introducing a second Finance ledger.
 
 The current desktop dispatcher resolves the principal and claims the source
 outbox in the active organization. The fresh Finance UoW/RLS context is scoped

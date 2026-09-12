@@ -191,6 +191,11 @@ Component {
     Property { name: "ledger"; type: "QVariantMap"; isReadonly: true }
     Property { name: "activity"; type: "QVariantMap"; isReadonly: true }
     Property { name: "ledgerTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "postingFailures"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "postingFailuresTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "postingFailureSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "postingFailureSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "postingFailureStatus"; type: "QString"; isReadonly: true }
     Property { name: "actualSortKey"; type: "QString"; isReadonly: true }
     Property { name: "actualSortDirection"; type: "int"; isReadonly: true }
     Property { name: "canCreateManualActual"; type: "bool"; isReadonly: true }
@@ -201,6 +206,7 @@ Component {
     Property { name: "commitmentsTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "commitmentSortKey"; type: "QString"; isReadonly: true }
     Property { name: "commitmentSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "commitmentExposure"; type: "QString"; isReadonly: true }
     Property { name: "selectedForecastId"; type: "QString"; isReadonly: true }
     Property { name: "forecastVersions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "forecastLines"; type: "QVariantMap"; isReadonly: true }
@@ -440,9 +446,14 @@ Component {
     Method { name: "setActualPageSize"; Parameter { name: "pageSize"; type: "int" } }
     Method { name: "setActualSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
     Method { name: "setActualFilters"; Parameter { name: "status"; type: "QString" } Parameter { name: "source"; type: "QString" } }
+    Method { name: "setPostingFailurePage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setPostingFailurePageSize"; Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "setPostingFailureSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
+    Method { name: "setPostingFailureStatus"; Parameter { name: "status"; type: "QString" } }
     Method { name: "setCommitmentPage"; Parameter { name: "page"; type: "int" } }
     Method { name: "setCommitmentPageSize"; Parameter { name: "pageSize"; type: "int" } }
     Method { name: "setCommitmentSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
+    Method { name: "setCommitmentExposure"; Parameter { name: "exposure"; type: "QString" } }
 }
 Component {
     name: "ProjectManagementPortfolioWorkspaceController"

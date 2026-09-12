@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import event, select
 
 from src.core.modules.project_management.application.financials.procurement_consumer import (
     PROCUREMENT_FINANCE_PRINCIPAL_NAME,
@@ -151,6 +151,47 @@ def _deliver(services, envelope):
     services["procurement_financial_outbox_service"].enqueue(envelope)
     services["session"].commit()
     return services["procurement_financial_dispatcher"].dispatch_pending()
+
+
+def _measure_delivery_statements(services, envelope):
+    services["procurement_financial_outbox_service"].enqueue(envelope)
+    services["session"].commit()
+    statements = []
+    engine = services["session"].get_bind()
+
+    def capture(_connection, _cursor, statement, _parameters, _context, _many):
+        statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", capture)
+    try:
+        processed = services["procurement_financial_dispatcher"].dispatch_pending()
+    finally:
+        event.remove(engine, "before_cursor_execute", capture)
+    return processed, len(statements)
+
+
+def test_procurement_delivery_records_bounded_statement_characterization(services):
+    organization, project, site, supplier = _setup(services)
+    counts = {}
+    events = {
+        "create": _commitment(organization, project, site, supplier),
+        "revise": _commitment(organization, project, site, supplier, revision=2, quantity="12"),
+        "close": _commitment(organization, project, site, supplier, revision=3, state="CLOSED", quantity="12"),
+        "stale": _commitment(organization, project, site, supplier, revision=1, quantity="11"),
+        "receipt": _receipt(organization, project, site, supplier),
+    }
+    for name in ("create", "revise", "close"):
+        processed, counts[name] = _measure_delivery_statements(services, events[name])
+        assert processed == 1
+    processed, counts["replay"] = _measure_delivery_statements(services, events["create"])
+    assert processed == 0
+    processed, counts["stale"] = _measure_delivery_statements(services, events["stale"])
+    assert processed == 0
+    processed, counts["receipt"] = _measure_delivery_statements(services, events["receipt"])
+    assert processed == 1
+
+    print("R6D-E delivery SQL statement counts:", dict(sorted(counts.items())))
+    assert all(0 < count < 200 for count in counts.values())
 
 
 def test_procurement_delivery_projects_receipt_actual_and_match_once(services):
