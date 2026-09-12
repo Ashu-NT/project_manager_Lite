@@ -450,21 +450,6 @@ class ProjectCommitmentLine:
         self.updated_by = _required(actor_id, field_name="updated_by")
         self.updated_at = _aware_utc(occurred_at, field_name="updated_at")
 
-    def reverse_match(self, amount: Money, *, actor_id: str, occurred_at: datetime) -> None:
-        if amount.currency.code != self.currency_code or amount.amount <= 0:
-            raise ValidationError(
-                "Match reversals require a positive amount in the commitment currency.",
-                code="PROJECT_COMMITMENT_MATCH_REVERSAL_MONEY_INVALID",
-            )
-        if amount.amount > self.matched_amount:
-            raise BusinessRuleError(
-                "Match reversal cannot exceed the currently matched amount.",
-                code="PROJECT_COMMITMENT_MATCH_REVERSAL_EXCESS",
-            )
-        self.matched_amount -= amount.amount
-        self.updated_by = _required(actor_id, field_name="updated_by")
-        self.updated_at = _aware_utc(occurred_at, field_name="updated_at")
-
 
 @validated_dataclass
 class ProjectCommitmentSourceRevision:

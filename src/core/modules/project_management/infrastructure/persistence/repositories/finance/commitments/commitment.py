@@ -230,17 +230,6 @@ class SqlAlchemyProjectCommitmentRepository(ProjectCommitmentRepository):
         self._require_scope(match, context)
         self.session.add(commitment_match_to_orm(match))
 
-    def get_match(self, match_id: str) -> ProjectCommitmentMatch | None:
-        context = self._context(operation_label="access project commitment match")
-        row = self.session.execute(
-            select(ProjectCommitmentMatchORM).where(
-                ProjectCommitmentMatchORM.id == match_id,
-                ProjectCommitmentMatchORM.tenant_id == context.tenant_id,
-                ProjectCommitmentMatchORM.organization_id == context.organization_id,
-            )
-        ).scalar_one_or_none()
-        return commitment_match_from_orm(row) if row else None
-
     def get_match_by_idempotency_key(
         self, idempotency_key: str
     ) -> ProjectCommitmentMatch | None:
@@ -267,30 +256,6 @@ class SqlAlchemyProjectCommitmentRepository(ProjectCommitmentRepository):
             )
         ).scalar_one_or_none()
         return commitment_match_from_orm(row) if row else None
-
-    def has_reversal_for_match(self, match_id: str) -> bool:
-        context = self._context(operation_label="check commitment match reversal")
-        row = self.session.execute(
-            select(ProjectCommitmentMatchORM.id).where(
-                ProjectCommitmentMatchORM.tenant_id == context.tenant_id,
-                ProjectCommitmentMatchORM.organization_id == context.organization_id,
-                ProjectCommitmentMatchORM.reverses_match_id == match_id,
-            )
-        ).scalar_one_or_none()
-        return row is not None
-
-    def list_matches_for_line(self, line_id: str) -> list[ProjectCommitmentMatch]:
-        context = self._context(operation_label="list project commitment matches")
-        rows = self.session.execute(
-            select(ProjectCommitmentMatchORM)
-            .where(
-                ProjectCommitmentMatchORM.tenant_id == context.tenant_id,
-                ProjectCommitmentMatchORM.organization_id == context.organization_id,
-                ProjectCommitmentMatchORM.commitment_line_id == line_id,
-            )
-            .order_by(ProjectCommitmentMatchORM.created_at.asc(), ProjectCommitmentMatchORM.id.asc())
-        ).scalars().all()
-        return [commitment_match_from_orm(row) for row in rows]
 
     def flush(self) -> None:
         self.session.flush()
