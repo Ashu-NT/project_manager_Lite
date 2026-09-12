@@ -1193,23 +1193,6 @@ def build_project_management_service_bundle(
             tenant_context_service=platform_services.tenant_context_service,
             record_event=uow.record_event,
         )
-        commitment_operations = ProjectCommitmentService(
-            session=uow._session,
-            commitment_repo=uow.commitments,
-            cost_entry_repo=uow.cost_entries,
-            project_repo=uow.projects,
-            financial_profile_repo=uow.profiles,
-            cost_code_repo=uow.cost_codes,
-            task_repo=uow.tasks,
-            party_repo=uow.parties,
-            site_repo=uow.sites,
-            clock=system_clock,
-            user_session=platform_services.user_session,
-            enterprise_audit_service=uow._enterprise_audit_service,
-            module_catalog_service=platform_services.module_catalog_service,
-            tenant_context_service=platform_services.tenant_context_service,
-            record_event=uow.record_event,
-        )
         cost_entry_operations = ProjectCostEntryService(
             session=uow._session,
             entry_repo=uow.cost_entries,
@@ -1277,7 +1260,6 @@ def build_project_management_service_bundle(
             financial_setup=setup_operations,
             rate_cards=rate_card_operations,
             planned_costs=planned_cost_operations,
-            commitments=commitment_operations,
             cost_entries=cost_entry_operations,
             billing_profiles=billing_profile_operations,
             billing_preparations=billing_preparation_operations,
@@ -1386,14 +1368,6 @@ def build_project_management_service_bundle(
         boundary=finance_governance_commands,
         family="planned_cost",
         mutations=frozenset({"calculate_snapshot"}),
-    )
-    commitment_service = FinanceGovernedServicePort(
-        read_service=commitment_service,
-        boundary=finance_governance_commands,
-        family="commitment",
-        mutations=frozenset(
-            {"ingest_procurement_source", "match_cost_entry", "reverse_match"}
-        ),
     )
     cost_entry_service = FinanceGovernedServicePort(
         read_service=cost_entry_service,

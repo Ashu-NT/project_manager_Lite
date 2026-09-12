@@ -8,9 +8,6 @@ from typing import Any, TypeVar
 from src.core.modules.project_management.application.financials.budgets.budget_service import (
     BudgetService,
 )
-from src.core.modules.project_management.application.financials.commitments.commitment_service import (
-    ProjectCommitmentService,
-)
 from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
     ProjectCostEntryService,
 )
@@ -61,7 +58,6 @@ class FinanceGovernanceOperations:
     financial_setup: FinancialConfigurationService
     rate_cards: ProjectRateCardService
     planned_costs: PlannedCostService
-    commitments: ProjectCommitmentService
     cost_entries: ProjectCostEntryService
     billing_profiles: ProjectBillingProfileService
     billing_preparations: ProjectBillingPreparationService
@@ -120,14 +116,6 @@ class FinanceGovernanceCommandBoundary:
     ) -> T:
         return self._execute(
             lambda operations: command(operations.planned_costs),
-        )
-
-    def commitment(
-        self,
-        command: Callable[[ProjectCommitmentService], T],
-    ) -> T:
-        return self._execute(
-            lambda operations: command(operations.commitments),
         )
 
     def cost_entry(

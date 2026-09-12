@@ -1,15 +1,4 @@
-"""Finance Commitment: the three UI-facing mutations (`ingest_procurement_source`,
-`match_cost_entry`, `reverse_match`) run inside `FinanceGovernanceUnitOfWork`. Two typed events,
-`CommitmentLineChanged` (CREATED/REVISED) and `CommitmentMatchChanged` (MATCHED/REVERSED), route
-through the project-scoped `commitment_list` ViewInvalidation target.
-
-The two Procurement-inbox-facing methods (`apply_procurement_source`,
-`apply_procurement_receipt_match`) stay on the dispatcher-owned `ProjectCommitmentService`
-instance and return the constructed typed event (or `None` on a true replay) instead of the
-entity, so `ProcurementFinancialDispatcher` can publish through the canonical post-commit bus.
-
-The defense-in-depth concurrency guard (pessimistic `for_update` row lock plus optimistic
-`expected_row_version` check) is unweakened."""
+"""Commitment projection events, invalidation, worker ownership, and concurrency guards."""
 
 from __future__ import annotations
 
@@ -29,6 +18,10 @@ from src.core.modules.project_management.application.financials.commitments.even
     COMMITMENT_CATEGORY,
     COMMITMENT_LIST_SCOPE_CODE,
     build_commitment_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.procurement_consumer import (
+    PROCUREMENT_FINANCE_PRINCIPAL_NAME,
+    ProcurementExecutionContext,
 )
 from src.core.modules.project_management.contracts.financial_sources.procurement import (
     ProcurementCommitmentFinancialSource,
@@ -74,6 +67,15 @@ def _commitment_hints(hints):
 
 
 def _setup(services):
+    if not any(
+        principal.name == PROCUREMENT_FINANCE_PRINCIPAL_NAME
+        for principal in services["service_principal_service"].list_service_principals()
+    ):
+        services["service_principal_service"].create_service_principal(
+            name=PROCUREMENT_FINANCE_PRINCIPAL_NAME,
+            description="Projects Procurement facts into PM Finance.",
+            initial_role_name="viewer",
+        )
     organization = services["tenant_context_service"].get_active_organization()
     project = services["project_service"].create_project(
         "P36 Commitment project", financial_currency_code=organization.base_currency
@@ -91,7 +93,37 @@ def _setup(services):
         code="P36-COMMIT-2026-08", name="August 2026", fiscal_year=2026, period_number=8,
         start_date=date(2026, 8, 1), end_date=date(2026, 8, 31),
     )
+    profile = services["financial_configuration_service"].get_profile(project.id)
+    services["financial_configuration_service"].configure_profile(
+        project.id,
+        expected_version=profile.version,
+        default_cost_code_id=cost_code.id,
+    )
     return organization, project, cost_code, site, supplier, period
+
+
+def _apply_source(services, source):
+    principal = services["service_principal_service"].resolve_execution_principal(
+        name=PROCUREMENT_FINANCE_PRINCIPAL_NAME
+    )
+    reference = source.reference
+    services["commitment_service"].apply_procurement_source(
+        source,
+        execution=ProcurementExecutionContext(
+            service_principal=principal,
+            source_event_id=f"event-{reference.idempotency_key}",
+            source_event_type="inventory_procurement.purchase_order_line.financial_state.v1",
+            source_aggregate_id=source.purchase_order_line_id,
+            source_revision=int(reference.source_revision),
+            correlation_id=f"correlation-{reference.idempotency_key}",
+            causation_id=None,
+        ),
+    )
+    services["session"].commit()
+    return services["commitment_service"]._commitment_repo.get_line_by_source(
+        source.purchase_order_id,
+        source.purchase_order_line_id,
+    )
 
 
 def _commitment_source(
@@ -266,182 +298,22 @@ def test_dedupe_by_target_within_one_transaction_across_both_event_types():
 
 
 # ---------------------------------------------------------------------------
-# Real producer path -- UI-direct, converged onto FinanceGovernanceUnitOfWork
-# ---------------------------------------------------------------------------
-
-
-def test_ingest_procurement_source_produces_created_then_revised_then_zero_on_replay(services):
-    organization, project, cost_code, site, supplier, _period = _setup(services)
-    service = services["commitment_service"]
-    hints = _spy_hints(services)
-
-    first_source = _commitment_source(
-        organization=organization, project=project, site=site, supplier=supplier, revision=1
-    )
-    first = service.ingest_procurement_source(first_source, cost_code_id=cost_code.id)
-    created_hints = _commitment_hints(hints)
-    assert len(created_hints) == 1
-    assert created_hints[0].scope_code == COMMITMENT_LIST_SCOPE_CODE
-    assert created_hints[0].entity_id == project.id
-
-    hints.clear()
-    revised = service.ingest_procurement_source(
-        _commitment_source(
-            organization=organization, project=project, site=site, supplier=supplier,
-            revision=2, state=ProcurementCommitmentState.PARTIALLY_RECEIVED, quantity="6",
-        ),
-        cost_code_id=cost_code.id,
-    )
-    assert revised.id == first.id
-    assert len(_commitment_hints(hints)) == 1
-
-    hints.clear()
-    replay = service.ingest_procurement_source(first_source, cost_code_id=cost_code.id)
-    assert replay.id == first.id
-    assert _commitment_hints(hints) == [], "a true replay is a zero-write, zero-event no-op"
-
-
-def test_match_and_reverse_produce_matched_then_reversed_hints(services):
-    organization, project, cost_code, site, supplier, period = _setup(services)
-    service = services["commitment_service"]
-    line = service.ingest_procurement_source(
-        _commitment_source(
-            organization=organization, project=project, site=site, supplier=supplier, revision=1
-        ),
-        cost_code_id=cost_code.id,
-    )
-    entry = _posted_receipt_entry(
-        services, organization=organization, project=project, cost_code=cost_code, period=period,
-    )
-
-    hints = _spy_hints(services)
-    match = service.match_cost_entry(line_id=line.id, cost_entry_id=entry.id)
-    match_hints = _commitment_hints(hints)
-    assert len(match_hints) == 1
-    assert match_hints[0].entity_id == project.id
-
-    hints.clear()
-    replay = service.match_cost_entry(line_id=line.id, cost_entry_id=entry.id)
-    assert replay.id == match.id
-    assert _commitment_hints(hints) == [], "a replayed match is a zero-write, zero-event no-op"
-
-    reversal_source = FinancialSourceReference(
-        tenant_id=organization.tenant_id,
-        organization_id=organization.id,
-        project_id=project.id,
-        source_module=FinancialSourceModule.INVENTORY_PROCUREMENT,
-        source_type=FinancialSourceType.RECEIPT_LINE,
-        source_id="p36-receipt-commit-1-reversal",
-        source_line_id="p36-receipt-line-commit-1-reversal",
-        source_revision="1",
-        content_hash="f" * 64,
-        posting_purpose=FinancialPostingPurpose.RECEIPT_ACCRUAL,
-    )
-    now = datetime(2026, 8, 12, 9, tzinfo=timezone.utc)
-    reversal_entry = ProjectCostEntry.create_posted_reversal(
-        original=entry,
-        reversal_id="p36-reversal-entry-1",
-        description="P36 reversal",
-        source=reversal_source,
-        posting_date=date(2026, 8, 12),
-        financial_period_id=period.id,
-        actor_id=services["user_session"].principal.user_id,
-        occurred_at=now,
-    )
-    services["cost_entry_service"]._entry_repo.add(reversal_entry)
-    services["session"].commit()
-
-    hints.clear()
-    reversal = service.reverse_match(
-        original_match_id=match.id, reversal_cost_entry_id=reversal_entry.id
-    )
-    reversal_hints = _commitment_hints(hints)
-    assert len(reversal_hints) == 1
-    assert reversal.reverses_match_id == match.id
-
-
-# ---------------------------------------------------------------------------
 # Real producer path -- Procurement-inbox (dispatcher-owned raw instance)
 # ---------------------------------------------------------------------------
 
 
-def test_dispatcher_facing_methods_return_typed_events_not_entities(services):
-    """`apply_procurement_source`/`apply_procurement_receipt_match` run on the raw,
-    dispatcher-owned `ProjectCommitmentService` (unchanged transaction ownership --
-    `ProcurementFinancialDispatcher` already wraps its own commit in a correct try/except/
-    rollback). What P36 changed is their return contract: a typed event (or `None` on a true
-    replay) instead of the mutated entity, so the dispatcher can publish through the canonical
-    post-commit bus in place of the legacy signal."""
-    organization, project, cost_code, site, supplier, period = _setup(services)
-    raw_service = services["procurement_financial_dispatcher"]._consumer._commitment_service
+def test_dispatcher_builds_procurement_consumer_inside_fresh_finance_uow(services):
+    dispatcher = services["procurement_financial_dispatcher"]
 
-    profile = services["financial_configuration_service"].get_profile(project.id)
-    services["financial_configuration_service"].configure_profile(
-        project.id, expected_version=profile.version, default_cost_code_id=cost_code.id,
-    )
-
-    source = _commitment_source(
-        organization=organization, project=project, site=site, supplier=supplier, revision=1
-    )
-    event = raw_service.apply_procurement_source(source)
-    assert isinstance(event, CommitmentLineChanged)
-    assert event.change_type == CommitmentLineChangeType.CREATED
-    services["session"].commit()
-
-    replay_event = raw_service.apply_procurement_source(source)
-    assert replay_event is None, "a true replay returns no event"
-    services["session"].commit()
-
-
-# ---------------------------------------------------------------------------
-# Transaction correctness -- the P36 core bug fix: commit-without-rollback is gone
-# ---------------------------------------------------------------------------
-
-
-def test_audit_failure_rolls_back_and_leaves_the_session_usable(services, monkeypatch):
-    """P36 §10/§11: the old `_commit()` called `self._session.commit()` with zero try/except/
-    rollback protection. Convergence onto `FinanceGovernanceUnitOfWork` means a failure anywhere
-    in the governed command (audit included) now runs inside `with uow_factory.create(...) as
-    uow:`, whose `__exit__` rolls back automatically on any exception -- exactly matching the
-    already-established pattern proven for every other Finance family sharing this same
-    `FinanceGovernanceCommandBoundary` (P35's own `test_audit_failure_raises_and_produces_zero_
-    hints`). This proves zero postcommit hints AND -- the part the old bug broke -- that the
-    shared session is not left poisoned: a subsequent legitimate operation on it still succeeds."""
-    organization, project, cost_code, site, supplier, _period = _setup(services)
+    assert not hasattr(dispatcher, "_consumer")
+    assert dispatcher._uow_factory is not None
+    assert callable(dispatcher._consumer_factory)
+    assert callable(dispatcher._principal_resolver)
     service = services["commitment_service"]
-
-    from src.core.platform.application.history.audit.enterprise_audit_service import (
-        EnterpriseAuditService,
-    )
-
-    def _boom(*_args, **_kwargs):
-        raise RuntimeError("audit backend unavailable")
-
-    monkeypatch.setattr(EnterpriseAuditService, "record", _boom)
-
-    hints = _spy_hints(services)
-    with pytest.raises(RuntimeError):
-        service.ingest_procurement_source(
-            _commitment_source(
-                organization=organization, project=project, site=site, supplier=supplier,
-                revision=1,
-            ),
-            cost_code_id=cost_code.id,
-        )
-    assert _commitment_hints(hints) == []
-
-    monkeypatch.undo()
-    recovered = service.ingest_procurement_source(
-        _commitment_source(
-            organization=organization, project=project, site=site, supplier=supplier, revision=1,
-            suffix="p36-recovered",
-        ),
-        cost_code_id=cost_code.id,
-    )
-    assert recovered.amount == Decimal("100.00"), (
-        "the shared session must remain usable for a subsequent legitimate operation -- "
-        "proof the prior failure did not leave it poisoned"
-    )
+    assert not hasattr(service, "ingest_procurement_source")
+    assert not hasattr(service, "match_cost_entry")
+    assert not hasattr(service, "reverse_match")
+    assert not hasattr(services["finance_governance_commands"], "commitment")
 
 
 # ---------------------------------------------------------------------------
@@ -461,11 +333,11 @@ def test_concurrent_line_update_second_writer_rejected(services, session):
 
     organization, project, cost_code, site, supplier, _period = _setup(services)
     service = services["commitment_service"]
-    line = service.ingest_procurement_source(
+    line = _apply_source(
+        services,
         _commitment_source(
             organization=organization, project=project, site=site, supplier=supplier, revision=1
         ),
-        cost_code_id=cost_code.id,
     )
     assert line.row_version == 1
 

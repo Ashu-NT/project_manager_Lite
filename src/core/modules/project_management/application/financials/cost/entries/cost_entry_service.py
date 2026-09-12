@@ -410,9 +410,14 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
                 "Procurement receipt accrual must be positive.",
                 code="PROCUREMENT_RECEIPT_AMOUNT_INVALID",
             )
-        existing = self._entry_repo.get_by_idempotency_key(reference.idempotency_key)
+        existing = self._entry_repo.get_by_source_identity(reference, for_update=True)
         if existing is not None:
-            return self._resolve_replay(existing, reference), ()
+            if existing.idempotency_key == reference.idempotency_key:
+                return self._resolve_replay(existing, reference), ()
+            raise BusinessRuleError(
+                "A changed receipt revision requires an explicit correction contract.",
+                code="PROCUREMENT_RECEIPT_CORRECTION_CONTRACT_REQUIRED",
+            )
         period = self._financial_period_service.require_open_period_for_integration(
             posting_date
         )

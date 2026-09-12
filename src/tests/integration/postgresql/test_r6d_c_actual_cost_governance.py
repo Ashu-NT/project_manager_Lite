@@ -308,7 +308,6 @@ def _boundary(postgres_test_environment):
             financial_setup=empty,
             rate_cards=empty,
             planned_costs=empty,
-            commitments=empty,
             cost_entries=cost_entries,
             billing_profiles=empty,
             billing_preparations=empty,

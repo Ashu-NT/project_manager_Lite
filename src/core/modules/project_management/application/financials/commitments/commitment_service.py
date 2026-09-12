@@ -161,31 +161,6 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             ),
         )
 
-    def ingest_procurement_source(
-        self,
-        source: ProcurementCommitmentFinancialSource,
-        *,
-        cost_code_id: str,
-        exchange_rate: Decimal | None = None,
-        exchange_rate_date: date | None = None,
-        exchange_rate_source: str | None = None,
-        exchange_rate_captured_at: datetime | None = None,
-    ) -> ProjectCommitmentLine:
-        """Apply one ordered PO-line revision; delivery transport is owned by Phase C.5."""
-
-        line, _event = self._ingest_procurement_source(
-            source,
-            cost_code_id=cost_code_id,
-            exchange_rate=exchange_rate,
-            exchange_rate_date=exchange_rate_date,
-            exchange_rate_source=exchange_rate_source,
-            exchange_rate_captured_at=exchange_rate_captured_at,
-            actor_id=self._actor_id(),
-            authorize=True,
-            execution=None,
-        )
-        return line
-
     def apply_procurement_source(
         self,
         source: ProcurementCommitmentFinancialSource,
@@ -216,7 +191,6 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             exchange_rate_source=exchange_rate_source,
             exchange_rate_captured_at=exchange_rate_captured_at,
             actor_id=execution.service_principal.id,
-            authorize=False,
             execution=execution,
         )
         return event
@@ -231,8 +205,7 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         exchange_rate_source: str | None,
         exchange_rate_captured_at: datetime | None,
         actor_id: str,
-        authorize: bool,
-        execution: ProcurementExecutionContext | None,
+        execution: ProcurementExecutionContext,
     ) -> tuple[ProjectCommitmentLine, CommitmentLineChanged | None]:
 
         reference = source.reference
@@ -244,10 +217,6 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             raise BusinessRuleError(
                 "Commitment source scope does not match the active organization.",
                 code="PROJECT_COMMITMENT_SOURCE_SCOPE_MISMATCH",
-            )
-        if authorize:
-            self._require_manage_permission(
-                reference.project_id, "synchronize project commitment"
             )
         self._require_dimensions(
             project_id=reference.project_id,
@@ -422,24 +391,6 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         self._commitment_repo.flush()
         return line, operation, False
 
-    def match_cost_entry(
-        self, *, line_id: str, cost_entry_id: str
-    ) -> ProjectCommitmentMatch:
-        line = self._require_line(line_id, for_update=True)
-        self._require_manage_permission(line.project_id, "match commitment actual")
-        entry = self._cost_entry_repo.get(cost_entry_id, for_update=True)
-        if entry is None:
-            raise NotFoundError(
-                "Project cost entry not found.", code="PROJECT_COST_ENTRY_NOT_FOUND"
-            )
-        match, _event = self._create_match(
-            line=line,
-            entry=entry,
-            actor_id=self._actor_id(),
-            execution=None,
-        )
-        return match
-
     def apply_procurement_receipt_match(
         self,
         *,
@@ -492,7 +443,7 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         line: ProjectCommitmentLine,
         entry,
         actor_id: str,
-        execution: ProcurementExecutionContext | None,
+        execution: ProcurementExecutionContext,
     ) -> tuple[ProjectCommitmentMatch, CommitmentMatchChanged | None]:
         if (
             entry.status != ProjectCostEntryStatus.POSTED
@@ -562,81 +513,6 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             self._record_event(event)
         self._session.flush()
         return match, event
-
-    def reverse_match(
-        self, *, original_match_id: str, reversal_cost_entry_id: str
-    ) -> ProjectCommitmentMatch:
-        original = self._commitment_repo.get_match(original_match_id)
-        if original is None or original.kind != ProjectCommitmentMatchKind.MATCH:
-            raise NotFoundError(
-                "Original commitment match not found.",
-                code="PROJECT_COMMITMENT_MATCH_NOT_FOUND",
-            )
-        line = self._require_line(original.commitment_line_id, for_update=True)
-        self._require_manage_permission(line.project_id, "reverse commitment match")
-        entry = self._cost_entry_repo.get(reversal_cost_entry_id, for_update=True)
-        if entry is None:
-            raise NotFoundError(
-                "Reversal cost entry not found.", code="PROJECT_COST_ENTRY_NOT_FOUND"
-            )
-        if (
-            entry.status != ProjectCostEntryStatus.POSTED
-            or entry.entry_kind != ProjectCostEntryKind.REVERSAL
-            or entry.reverses_entry_id != original.cost_entry_id
-            or abs(entry.amount) < original.amount
-            or entry.currency_code != original.currency_code
-        ):
-            raise BusinessRuleError(
-                "The reversal entry must reverse at least the matched commitment amount.",
-                code="PROJECT_COMMITMENT_MATCH_REVERSAL_INVALID",
-            )
-        idempotency_key = self._match_idempotency_key(
-            "reversal", original.id, entry.id
-        )
-        replay = self._commitment_repo.get_match_by_idempotency_key(idempotency_key)
-        if replay is not None:
-            return replay
-        if self._commitment_repo.has_reversal_for_match(original.id):
-            raise BusinessRuleError(
-                "This commitment match has already been reversed.",
-                code="PROJECT_COMMITMENT_MATCH_ALREADY_REVERSED",
-            )
-        actor_id = self._actor_id()
-        now = self._clock.now()
-        amount = Money.of(original.amount, original.currency_code)
-        expected_version = line.row_version
-        line.reverse_match(amount, actor_id=actor_id, occurred_at=now)
-        reversal = ProjectCommitmentMatch(
-            id=generate_id(), tenant_id=line.tenant_id, organization_id=line.organization_id,
-            project_id=line.project_id, commitment_line_id=line.id, cost_entry_id=entry.id,
-            kind=ProjectCommitmentMatchKind.REVERSAL, amount=-original.amount,
-            currency_code=original.currency_code, idempotency_key=idempotency_key,
-            reverses_match_id=original.id, created_by=actor_id, created_at=now,
-        )
-        try:
-            with self._session.begin_nested():
-                self._commitment_repo.update_line(line, expected_row_version=expected_version)
-                self._commitment_repo.add_match(reversal)
-                self._commitment_repo.flush()
-        except IntegrityError as exc:
-            raise BusinessRuleError(
-                "The commitment match was reversed concurrently.",
-                code="PROJECT_COMMITMENT_MATCH_REVERSAL_CONFLICT",
-            ) from exc
-        self._record_match_audit("reverse_match", reversal, line, execution=None)
-        event = CommitmentMatchChanged(
-            tenant_id=line.tenant_id,
-            organization_id=line.organization_id,
-            project_id=line.project_id,
-            commitment_line_id=line.id,
-            match_id=reversal.id,
-            change_type=CommitmentMatchChangeType.REVERSED,
-            occurred_at=now,
-        )
-        if self._record_event is not None:
-            self._record_event(event)
-        self._session.flush()
-        return reversal
 
     def _get_or_create_header(
         self,
@@ -819,12 +695,6 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             )
         return line
 
-    def _require_manage_permission(self, project_id: str, operation: str) -> None:
-        require_permission(self._user_session, "finance.manage", operation_label=operation)
-        require_project_permission(
-            self._user_session, project_id, "finance.manage", operation_label=operation
-        )
-
     def _require_full_context(self, operation: str):
         if self._tenant_context_service is None:
             raise BusinessRuleError(
@@ -841,15 +711,6 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             )
         return context
 
-    def _actor_id(self) -> str:
-        actor_id = getattr(getattr(self._user_session, "principal", None), "user_id", None)
-        if not actor_id:
-            raise BusinessRuleError(
-                "An authenticated actor is required for commitment commands.",
-                code="PROJECT_COMMITMENT_ACTOR_REQUIRED",
-            )
-        return str(actor_id)
-
     @staticmethod
     def _match_idempotency_key(operation: str, left_id: str, right_id: str) -> str:
         digest = canonical_json_sha256(
@@ -862,9 +723,9 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         operation: str,
         line: ProjectCommitmentLine,
         *,
-        execution: ProcurementExecutionContext | None,
+        execution: ProcurementExecutionContext,
     ) -> None:
-        principal = execution.service_principal if execution is not None else None
+        principal = execution.service_principal
         record_audit_entry(
             self,
             operation=f"project_commitment.{operation}",
@@ -872,9 +733,9 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             entity_id=line.id,
             entity_parent_id=line.project_id,
             module="project_management",
-            actor_id=principal.id if principal is not None else None,
-            actor_type="service_principal" if principal is not None else "user",
-            actor_username=principal.name if principal is not None else None,
+            actor_id=principal.id,
+            actor_type="service_principal",
+            actor_username=principal.name,
             old_value=None,
             new_value=json.dumps(
                 {
@@ -894,17 +755,13 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
                 sort_keys=True,
             ),
             workspace_id=line.project_id,
-            request_id=(
-                execution.correlation_id or execution.source_event_id
-                if execution is not None
-                else None
-            ),
-            source="integration_worker" if execution is not None else "application",
+            request_id=execution.correlation_id or execution.source_event_id,
+            source="integration_worker",
             severity="high",
             compliance_tag="financial",
             metadata={
                 "action": operation,
-                **(self._execution_audit_metadata(execution) if execution is not None else {}),
+                **self._execution_audit_metadata(execution),
             },
             commit=False,
             fail_closed=True,
@@ -916,9 +773,9 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         match: ProjectCommitmentMatch,
         line: ProjectCommitmentLine,
         *,
-        execution: ProcurementExecutionContext | None,
+        execution: ProcurementExecutionContext,
     ) -> None:
-        principal = execution.service_principal if execution is not None else None
+        principal = execution.service_principal
         record_audit_entry(
             self,
             operation=f"project_commitment.{operation}",
@@ -926,9 +783,9 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             entity_id=match.id,
             entity_parent_id=line.project_id,
             module="project_management",
-            actor_id=principal.id if principal is not None else None,
-            actor_type="service_principal" if principal is not None else "user",
-            actor_username=principal.name if principal is not None else None,
+            actor_id=principal.id,
+            actor_type="service_principal",
+            actor_username=principal.name,
             old_value=None,
             new_value=json.dumps(
                 {
@@ -942,17 +799,13 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
                 sort_keys=True,
             ),
             workspace_id=line.project_id,
-            request_id=(
-                execution.correlation_id or execution.source_event_id
-                if execution is not None
-                else None
-            ),
-            source="integration_worker" if execution is not None else "application",
+            request_id=execution.correlation_id or execution.source_event_id,
+            source="integration_worker",
             severity="high",
             compliance_tag="financial",
             metadata={
                 "action": operation,
-                **(self._execution_audit_metadata(execution) if execution is not None else {}),
+                **self._execution_audit_metadata(execution),
             },
             commit=False,
             fail_closed=True,

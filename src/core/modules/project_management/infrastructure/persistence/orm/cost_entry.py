@@ -251,6 +251,27 @@ Index(
     postgresql_where=ProjectCostEntryORM.reverses_entry_id.is_not(None),
     sqlite_where=ProjectCostEntryORM.reverses_entry_id.is_not(None),
 )
+Index(
+    "uq_project_cost_entries_procurement_receipt_source",
+    ProjectCostEntryORM.tenant_id,
+    ProjectCostEntryORM.organization_id,
+    ProjectCostEntryORM.source_module,
+    ProjectCostEntryORM.source_type,
+    ProjectCostEntryORM.source_id,
+    ProjectCostEntryORM.source_line_id,
+    ProjectCostEntryORM.posting_purpose,
+    unique=True,
+    postgresql_where=(
+        (ProjectCostEntryORM.source_module == "inventory_procurement")
+        & (ProjectCostEntryORM.source_type == "receipt_line")
+        & (ProjectCostEntryORM.posting_purpose == "receipt_accrual")
+    ),
+    sqlite_where=(
+        (ProjectCostEntryORM.source_module == "inventory_procurement")
+        & (ProjectCostEntryORM.source_type == "receipt_line")
+        & (ProjectCostEntryORM.posting_purpose == "receipt_accrual")
+    ),
+)
 
 
 __all__ = ["ProjectCostEntryORM"]

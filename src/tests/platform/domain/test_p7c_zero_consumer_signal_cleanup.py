@@ -191,7 +191,10 @@ def test_procurement_financial_dispatcher_emits_scoped_post_commit_hints():
     import src.infra.integration.procurement_financial_dispatcher as module
 
     source = inspect.getsource(module)
-    assert "SqlAlchemyUnitOfWorkBase" in source
+    assert "FinanceGovernanceUnitOfWorkFactory" in source
+    assert "self._uow_factory.create(" in source
+    assert "worker_tenant_scope(" in source
+    assert "self._consumer_factory(uow, principal)" in source
     assert "consumption.commitment_events" in source
     assert "consumption.cost_entry_events" in source
     assert "uow.record_event(event)" in source

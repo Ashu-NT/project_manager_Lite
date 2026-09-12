@@ -47,7 +47,6 @@ def test_finance_governance_boundary_has_one_transaction_contract() -> None:
         "forecast_generation",
         "financial_change",
         "planned_cost",
-        "commitment",
         "cost_entry",
         "financial_setup",
         "rate_card",

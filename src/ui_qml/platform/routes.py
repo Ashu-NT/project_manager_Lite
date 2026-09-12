@@ -11,17 +11,6 @@ def platform_qml_path(*parts: str) -> Path:
 
 def build_platform_routes() -> list[QmlRoute]:
     return [
-        # The single, unified, navigable Platform entry point. The 4 legacy
-        # per-surface routes (platform.admin/control/settings/tenants) that
-        # used to sit alongside this one were retired in R5.9, once every
-        # capability they hosted (or, for admin/control/settings, could be
-        # reached from) had its own standalone extraction and no longer
-        # depended on `platformCatalog.workspace("platform.<x>")` for header
-        # text. ControlWorkspacePage.qml/SettingsWorkspacePage.qml/
-        # TenantManagementWorkspacePage.qml themselves were NOT deleted --
-        # they're real, current content hosted directly by
-        # PlatformWorkspacePage.qml, reached without going through the route
-        # system at all.
         QmlRoute(
             route_id="platform.workspace",
             module_code="platform",

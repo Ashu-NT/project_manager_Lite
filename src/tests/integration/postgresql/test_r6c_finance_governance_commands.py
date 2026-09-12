@@ -270,7 +270,6 @@ def _boundary(postgres_test_environment, *, scope: _TenantContext):
                 record_event=uow.record_event,
             ),
             planned_costs=SimpleNamespace(),
-            commitments=SimpleNamespace(),
             cost_entries=SimpleNamespace(),
             billing_profiles=SimpleNamespace(),
             billing_preparations=SimpleNamespace(),

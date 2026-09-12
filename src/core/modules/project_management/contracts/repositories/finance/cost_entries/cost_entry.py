@@ -8,6 +8,7 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
 )
 from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialSourceModule,
+    FinancialSourceReference,
 )
 from src.core.modules.project_management.contracts.reads import ReadSort
 
@@ -21,6 +22,16 @@ class ProjectCostEntryRepository(ABC):
 
     @abstractmethod
     def get_by_idempotency_key(self, idempotency_key: str) -> ProjectCostEntry | None: ...
+
+    @abstractmethod
+    def get_by_source_identity(
+        self,
+        reference: FinancialSourceReference,
+        *,
+        for_update: bool = False,
+    ) -> ProjectCostEntry | None:
+        """Find an entry by semantic source identity, excluding source revision."""
+        ...
 
     @abstractmethod
     def list_for_project(
