@@ -24,7 +24,7 @@ the approved-time worker does not invoke or emulate that future module.
 
 ### R6D-E Commitment Projection Hardening checkpoint (2026-09-12)
 
-R6D-E is **closed for the currently defined neutral Procurement contract**. The contract
+R6D-E is **closed for the currently defined neutral Procurement contract**. The
 contract publishes one PO-line financial-state fact and one posted receipt-line
 fact. It is not a whole-PO line-set snapshot. A second line is added by its own
 stable source-line ID; a missing line in another event is not interpreted as a
@@ -72,8 +72,10 @@ Implemented and verified for R6D-E:
   a closure/receipt race preserves both historical facts and zero open exposure.
 
 Focused evidence: 22 commitment/delivery tests, 47 R6D-B/C/R6C plus delivery
-tests, 21 approved-time R6D-D tests, 9 architecture/QML/migration checks, and
-18 combined R6D-C/D/E live PostgreSQL tests passed. The PostgreSQL tests use non-owner `app_runtime`
+tests, 21 approved-time R6D-D tests, 9 existing architecture/QML/migration
+checks plus 2 new boundary guards, and
+18 combined R6D-C/D/E live PostgreSQL tests and 5 Commitment-section
+QML runtime width checks passed. The PostgreSQL tests use non-owner `app_runtime`
 (`NOSUPERUSER`, `NOBYPASSRLS`), prove valid worker delivery and two-dispatcher
 single-claim behavior, forced RLS, foreign-scope invisibility/DELETE no-op,
 and direct foreign-scope UPDATE/INSERT denial on header, line, source revision,
