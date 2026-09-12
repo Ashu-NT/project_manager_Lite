@@ -397,6 +397,33 @@ def test_exact_delivery_replay_after_finance_commit_has_one_monetary_effect(serv
     assert outbox.status == OutboxDeliveryStatus.PENDING.value
 
 
+def test_approved_time_worker_records_success_and_replay_statement_counts(services) -> None:
+    _, project, resource, _, assignment = _setup(services)
+    _, envelope = _approve_without_immediate_dispatch(
+        services, resource_id=resource.id, assignment_id=assignment.id
+    )
+    dispatcher = services["approved_time_financial_dispatcher"]
+    statements = []
+
+    def capture(_connection, _cursor, statement, _parameters, _context, _many):
+        statements.append(statement)
+
+    engine = services["session"].get_bind()
+    sa.event.listen(engine, "before_cursor_execute", capture)
+    try:
+        assert dispatcher._consume_under_unit_of_work(envelope).value == "ready"
+        posted = len(statements)
+        statements.clear()
+        assert dispatcher._consume_under_unit_of_work(envelope).value == "duplicate_processed"
+        replay = len(statements)
+    finally:
+        sa.event.remove(engine, "before_cursor_execute", capture)
+
+    print("R6D-F approved-Time worker SQL statements:", {"post": posted, "replay": replay})
+    assert posted > 0 and replay > 0
+    assert services["cost_entry_service"].list_for_project(project.id)[1] == 1
+
+
 def test_disabled_worker_identity_is_quarantined_without_posting(services) -> None:
     _, project, resource, _, assignment = _setup(services)
     principal = services["service_principal_service"].resolve_execution_principal(

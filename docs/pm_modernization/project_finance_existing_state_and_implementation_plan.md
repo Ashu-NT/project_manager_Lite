@@ -1,6 +1,6 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: implementation in progress; R6C closed; R6D-E complete for the current Procurement contract; R6D-F not started
+Status: implementation in progress; R6C closed; R6D-E complete for the current Procurement contract; R6D-F in progress
 Last updated: 2026-09-12
 Scope: Project Management finance plus reusable platform financial foundations
 Current checkpoint: R6D-D Approved-Time Labor Posting Hardening is complete. The
@@ -21,6 +21,18 @@ general-ledger entries, journals, payables, payroll, official invoices, or other
 Accounting truth. Future Accounting integration remains an outward gateway under
 [ADR-PF-010](../architecture_decisions/ADR-PF-010-billing-and-accounting-boundary.md);
 the approved-time worker does not invoke or emulate that future module.
+
+### R6D-F Integrated Hardening checkpoint (2026-09-12)
+
+R6D-F is **in progress, not closed**. The integrated evidence and remaining
+exit gates are tracked in [R6D-F integrated hardening](r6d_f_integrated_hardening.md).
+One concrete defect was fixed: Rate, Actual, and Commitment post-commit
+invalidation previously deduplicated on correlation ID. Independent worker
+commits can share a trace correlation, so later committed facts could omit
+view invalidation. Handlers now coalesce by the UoW-owned event-context
+instance, retaining one target hint per commit while notifying again for a
+separate commit with the same correlation. A real two-delivery Procurement
+test covers this case. R6D-G and R6E have not started.
 
 ### R6D-E Commitment Projection Hardening checkpoint (2026-09-12)
 
