@@ -95,6 +95,40 @@ class RateCardResolver:
         assert snapshot is not None
         return snapshot
 
+    def resolve_for_posting(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str | None,
+        resource_id: str,
+        rate_type: RateType | str,
+        as_of: date,
+        unit: str,
+    ) -> RateSelectionSnapshot:
+        """Hold the selected line until the worker commits; retry a raced edit."""
+        for _attempt in range(3):
+            snapshot = self.resolve(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+                resource_id=resource_id,
+                rate_type=rate_type,
+                as_of=as_of,
+                unit=unit,
+            )
+            line = self._reader.lock_line_for_posting(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                line_id=snapshot.rate_line_id,
+            )
+            if line is not None and line.version == snapshot.rate_line_version:
+                return snapshot
+        raise BusinessRuleError(
+            "The selected Rate Line changed during labor posting; retry delivery.",
+            code="APPROVED_TIME_RATE_SELECTION_RACE",
+        )
+
     def resolve_many(
         self,
         *,

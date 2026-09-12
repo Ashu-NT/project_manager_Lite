@@ -208,7 +208,7 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             resource_id=source.resource_id,
             organization_id=context.organization_id,
         )
-        snapshot = self._rate_resolver.resolve(
+        snapshot = self._rate_resolver.resolve_for_posting(
             tenant_id=context.tenant_id,
             organization_id=context.organization_id,
             project_id=reference.project_id,

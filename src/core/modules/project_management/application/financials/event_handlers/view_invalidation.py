@@ -42,7 +42,7 @@ def _project_scope_target(scope_code: str, scope: ResourceScope) -> _ProjectTarg
 
 def build_financial_profile_view_invalidation_handler(channel: ViewInvalidationChannel):
 
-    current_correlation_id: list[str | None] = [None]
+    current_context: list[DomainEventContext | None] = [None]
     notified_targets: set[_ProjectTarget] = set()
 
     def handle_financial_profile_event(
@@ -59,8 +59,8 @@ def build_financial_profile_view_invalidation_handler(channel: ViewInvalidationC
         ),
         context: DomainEventContext,
     ) -> None:
-        if context.correlation_id != current_correlation_id[0]:
-            current_correlation_id[0] = context.correlation_id
+        if context is not current_context[0]:
+            current_context[0] = context
             notified_targets.clear()
 
         is_profile = isinstance(

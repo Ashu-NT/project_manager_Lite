@@ -17,7 +17,7 @@ from src.core.modules.project_management.contracts.repositories.finance.rate_car
     RateResolutionCandidate,
     ResourceRateContext,
 )
-from src.core.modules.project_management.domain.financials.rate_cards import RateType
+from src.core.modules.project_management.domain.financials.rate_cards import RateCardLine, RateType
 from src.core.modules.project_management.infrastructure.persistence.mappers.rate_cards import (
     rate_card_line_from_orm,
 )
@@ -36,6 +36,22 @@ from src.core.modules.project_management.infrastructure.persistence.orm.skills i
 class SqlAlchemyRateResolutionReader:
     def __init__(self, session: Session) -> None:
         self._session = session
+
+    def lock_line_for_posting(
+        self, *, tenant_id: str, organization_id: str, line_id: str
+    ) -> RateCardLine | None:
+        statement = (
+            select(RateCardLineORM)
+            .where(
+                RateCardLineORM.id == line_id,
+                RateCardLineORM.tenant_id == tenant_id,
+                RateCardLineORM.organization_id == organization_id,
+            )
+            .with_for_update(read=True)
+            .execution_options(populate_existing=True)
+        )
+        row = self._session.execute(statement).scalar_one_or_none()
+        return rate_card_line_from_orm(row) if row else None
 
     def list_resource_contexts(
         self,

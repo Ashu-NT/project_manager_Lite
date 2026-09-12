@@ -253,7 +253,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         holiday_multiplier: Decimal | None | object = _UNSET,
         expected_card_version: int | None = None,
     ) -> RateCardLine:
-        current = self._require_line(line_id)
+        current = self._require_line(line_id, for_update=True)
         card = self._require_rate_card(current.rate_card_id)
         self._require_card_manage(card, "update rate card line")
         self._require_active_card(card)
@@ -312,7 +312,7 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
         expected_version: int,
         expected_card_version: int | None = None,
     ) -> RateCardLine:
-        current = self._require_line(line_id)
+        current = self._require_line(line_id, for_update=True)
         card = self._require_rate_card(current.rate_card_id)
         self._require_card_manage(card, "deactivate rate card line")
         self._require_active_card(card)
@@ -441,8 +441,8 @@ class ProjectRateCardService(ProjectManagementModuleGuardMixin):
             raise NotFoundError("Rate card not found.")
         return rate_card
 
-    def _require_line(self, line_id: str) -> RateCardLine:
-        line = self._rate_card_repo.get_line(line_id)
+    def _require_line(self, line_id: str, *, for_update: bool = False) -> RateCardLine:
+        line = self._rate_card_repo.get_line(line_id, for_update=for_update)
         if line is None:
             raise NotFoundError("Rate card line not found.")
         return line

@@ -37,6 +37,10 @@ class RateResolutionCandidate:
 
 
 class RateResolutionReader(Protocol):
+    def lock_line_for_posting(
+        self, *, tenant_id: str, organization_id: str, line_id: str
+    ) -> RateCardLine | None: ...
+
     def list_resource_contexts(
         self,
         *,

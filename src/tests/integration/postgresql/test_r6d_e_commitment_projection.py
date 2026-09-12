@@ -5,7 +5,7 @@ from datetime import date, datetime, timezone
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import event, select, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import sessionmaker
 
@@ -22,6 +22,9 @@ from src.core.modules.project_management.application.financials.procurement_cons
 )
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.commitments.commitment import (
+    SqlAlchemyProjectCommitmentRepository,
 )
 from src.core.platform.application.finance.financial_period_service import FinancialPeriodService
 from src.core.platform.application.integration import IntegrationOutboxService
@@ -206,6 +209,81 @@ def _event(event_type, payload, *, event_id, aggregate_id, revision=1):
         occurred_at=datetime(2026, 9, 10, tzinfo=timezone.utc),
         correlation_id="r6de-correlation", payload=payload.model_dump(mode="json"),
     )
+
+
+def test_r6d_f_commitment_read_plan_uses_scoped_bounded_query(postgres_test_environment):
+    now = datetime(2026, 9, 10, tzinfo=timezone.utc)
+    with postgres_test_environment.admin_engine.begin() as connection:
+        connection.execute(text(
+            "INSERT INTO project_commitments "
+            "(id, tenant_id, organization_id, project_id, purchase_order_id, "
+            "purchase_order_number, supplier_party_id, site_id, created_by, created_at) "
+            "VALUES ('r6df-plan-header', :tenant, :org, :project, 'r6df-plan-po', "
+            "'R6DF-PLAN', :supplier, :site, 'seed', :now)"
+        ), {"tenant": TENANT_A, "org": ORG_A, "project": PROJECT_A,
+            "supplier": SUPPLIER_A, "site": SITE_A, "now": now})
+        connection.execute(text(
+            "INSERT INTO project_commitment_lines "
+            "(id, tenant_id, organization_id, project_id, commitment_id, "
+            "purchase_order_line_id, cost_code_id, state, ordered_quantity, "
+            "quantity_unit, unit_price, amount, currency_code, base_amount, "
+            "base_currency_code, exchange_rate, exchange_rate_date, "
+            "exchange_rate_source, exchange_rate_captured_at, matched_amount, "
+            "order_date, expected_delivery_date, source_revision, "
+            "source_content_hash, source_idempotency_key, version, created_by, "
+            "created_at, updated_by, updated_at) "
+            "SELECT 'r6df-plan-line-' || n, :tenant, :org, :project, "
+            "'r6df-plan-header', 'r6df-source-line-' || n, :cost_code, "
+            "'sent', 10, 'EA', 10, 100, 'USD', 100, 'USD', 1, "
+            ":work_date, 'identity', :now, 0, :work_date, :work_date, 1, "
+            "repeat('a', 64), 'r6df-plan-idem-' || n, 1, 'seed', :now, "
+            "'seed', :now FROM generate_series(1, 1000) AS n"
+        ), {"tenant": TENANT_A, "org": ORG_A, "project": PROJECT_A,
+            "cost_code": COST_CODE_A, "work_date": date(2026, 9, 10), "now": now})
+    with postgres_test_environment.admin_engine.begin() as connection:
+        connection.execute(text("ANALYZE project_commitment_lines"))
+
+    session = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_A, organization_id=ORG_A
+    )
+    queries = []
+
+    def capture(_connection, _cursor, statement, parameters, _context, _many):
+        if statement.lstrip().upper().startswith("SELECT") and "project_commitment_lines" in statement:
+            queries.append((statement, parameters))
+
+    try:
+        validate_postgresql_execution_role(session)
+        repository = SqlAlchemyProjectCommitmentRepository(session)
+        repository._tenant_context_service = _TenantContext()
+        event.listen(postgres_test_environment.runtime_engine, "before_cursor_execute", capture)
+        try:
+            rows, total = repository.list_lines_for_project(
+                PROJECT_A, offset=0, limit=25, exposure="open"
+            )
+        finally:
+            event.remove(postgres_test_environment.runtime_engine, "before_cursor_execute", capture)
+        assert total >= 1000 and len(rows) == 25
+        assert len(queries) == 2
+        plans = []
+        for statement, parameters in queries:
+            assert "project_commitment_lines.tenant_id" in statement
+            assert "project_commitment_lines.organization_id" in statement
+            assert "project_commitment_lines.project_id" in statement
+            plan = session.connection().exec_driver_sql(
+                "EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT) " + statement, parameters
+            ).scalars().all()
+            plans.append("\n".join(plan))
+        assert all("Execution Time" in plan and "Buffers:" in plan for plan in plans)
+        assert "Limit" in plans[1]
+        print("R6D-F Commitment count plan:\n", plans[0])
+        print("R6D-F Commitment page plan:\n", plans[1])
+    finally:
+        session.close()
+        with postgres_test_environment.admin_engine.begin() as connection:
+            connection.execute(text(
+                "DELETE FROM project_commitments WHERE id = 'r6df-plan-header'"
+            ))
 
 
 def test_runtime_worker_and_child_rls(postgres_test_environment):

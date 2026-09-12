@@ -100,11 +100,12 @@ def test_dedupe_by_target_within_one_transaction():
     channel = _fake_channel()
     handler = build_timesheet_view_invalidation_handler(channel)
     event = _event(change_type=TimesheetPeriodStatusChangeType.LOCKED)
-    handler(event, DomainEventContext(correlation_id="same-tx"))
-    handler(event, DomainEventContext(correlation_id="same-tx"))
+    context = DomainEventContext(correlation_id="same-tx")
+    handler(event, context)
+    handler(event, context)
     assert len(channel.notified) == 4, "four distinct targets, each coalesced within one tx"
 
-    handler(event, DomainEventContext(correlation_id="next-tx"))
+    handler(event, DomainEventContext(correlation_id="same-tx"))
     assert len(channel.notified) == 8, "a new transaction is never coalesced with the previous one"
 
 

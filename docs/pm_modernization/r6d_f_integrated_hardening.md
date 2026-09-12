@@ -19,7 +19,7 @@ start R6D-G or R6E from this checkpoint.
   claim/ack commits and the Finance UoW commit are separate, intentional owners.
   `begin_nested()` in Commitment and Actual services translates local source
   identity/revision/reversal uniqueness races, not an outer commit.
-- The live R6D-C/D/E plus R6B Rate PostgreSQL selection passed **24 tests** via
+- The live R6D-C/D/E plus R6B Rate PostgreSQL selection passed **25 tests** via
   non-owner `app_runtime` with RLS. Those tests include supported parent/child
   negative paths, legal workers, duplicate deliveries, source revision races,
   and Rate Reader/overlap coverage. They are not yet the complete combined
@@ -35,11 +35,23 @@ start R6D-G or R6E from this checkpoint.
   R6D-E: create **32**, revise **30**, close **30**, receipt **38**, stale **9**,
   published-outbox replay **1**. Rate write counts are characterized in the
   R6D-B test. These are observations, not arbitrary production budgets.
+- The actual Commitment Reader count and page statements were captured and
+  explained under `app_runtime` with 1,000 scoped synthetic lines. The count
+  used a sequential scan (44 shared-buffer hits, 0.43 ms) and the `LIMIT 25`
+  page used a top-N heapsort (40 kB, 44 hits, 1.16 ms), without sort spill.
+  The scan is reasonable for this all-in-one-project sample; no index is
+  justified by this plan alone. A multi-project/selective volume and the
+  other R6D read families still need characterization.
 - `Posting Failures` is currently the **approved-Time** diagnostic only:
   its API queries approved-Time inbox evidence, its presenter title and QML
   section identify that scope, and it must not be described as a generic
   Procurement failure queue. Unsupported changed Procurement receipt semantics
   remain quarantinable, with no Finance-side correction invented.
+- The same trace-correlation invalidation defect also affected the approved-
+  Time and Finance setup handlers. They now use per-UoW context identity;
+  their focused fan-out/dedupe suite passed **27 tests**. Other Finance
+  capability handlers still use correlation-based dedupe and require separate
+  reconciliation before the broader R6D closure claim.
 - Decimal money/rate/quantity remains authoritative in R6D write paths.
   QML `Number()` hits in these screens are pagination/version/display values;
   `performance_query` and EVM float paths are current analytical authority
@@ -59,9 +71,9 @@ start R6D-G or R6E from this checkpoint.
    outboxes in one documented runtime-role execution. Direct foreign parent
    INSERT/UPDATE/DELETE coverage must be enumerated, not inferred from SELECT.
 4. Record Actual create/submit/approve/reject/post/reverse, Time correction and
-   no-Rate failure SQL counts. Run `EXPLAIN (ANALYZE, BUFFERS)` on current
-   effective-Rate, Actual, Commitment, Posting Failures, revision lookup and
-   open-Commitment queries with representative scoped volume. Only add indexes
+   no-Rate failure SQL counts. Extend `EXPLAIN (ANALYZE, BUFFERS)` to current
+   effective-Rate, Actual, selective multi-project Commitment, Posting Failures,
+   revision lookup and open-Commitment queries at representative scoped volume. Only add indexes
    if a real plan establishes need. Check batch N+1 and lock order/scope.
 5. Finish targeted invalidation, sensitive-redaction/project-isolation,
    Platform Approval, Time contract, Procurement neutral contract, R6B Reader,

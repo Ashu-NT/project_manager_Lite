@@ -25,6 +25,7 @@ from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import ConcurrencyError
 from src.core.platform.infrastructure.persistence.orm.time_management.time_financial_outbox import TimeFinancialOutboxORM
 from src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox import ProjectFinanceInboxORM
+from src.core.modules.project_management.infrastructure.persistence.orm.rate_cards import RateCardLineORM
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import AuditEntryORM
 
 
@@ -422,6 +423,35 @@ def test_approved_time_worker_records_success_and_replay_statement_counts(servic
     print("R6D-F approved-Time worker SQL statements:", {"post": posted, "replay": replay})
     assert posted > 0 and replay > 0
     assert services["cost_entry_service"].list_for_project(project.id)[1] == 1
+
+
+def test_approved_time_worker_no_rate_failure_statement_count(services) -> None:
+    _, project, resource, _, assignment = _setup(services)
+    line = services["session"].execute(select(RateCardLineORM)).scalar_one()
+    services["rate_card_service"].deactivate_line(
+        line.id, expected_version=line.version
+    )
+    _approve_without_immediate_dispatch(
+        services, resource_id=resource.id, assignment_id=assignment.id
+    )
+    statements = []
+
+    def capture(_connection, _cursor, statement, _parameters, _context, _many):
+        statements.append(statement)
+
+    engine = services["session"].get_bind()
+    sa.event.listen(engine, "before_cursor_execute", capture)
+    try:
+        assert services["approved_time_financial_dispatcher"].dispatch_pending(limit=1) == 0
+        failed = len(statements)
+    finally:
+        sa.event.remove(engine, "before_cursor_execute", capture)
+    assert failed > 0
+    assert services["cost_entry_service"].list_for_project(project.id)[1] == 0
+    failure = services["session"].execute(select(ProjectFinanceInboxORM)).scalar_one()
+    assert failure.status == "retry"
+    assert failure.last_error_code == "RATE_CARD_NO_APPLICABLE_RATE"
+    print("R6D-F approved-Time no-Rate dispatch SQL statements:", failed)
 
 
 def test_disabled_worker_identity_is_quarantined_without_posting(services) -> None:
