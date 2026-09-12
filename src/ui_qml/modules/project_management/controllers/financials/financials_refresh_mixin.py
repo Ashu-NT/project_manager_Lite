@@ -115,6 +115,7 @@ class FinancialsRefreshMixin:
                 ),
                 posting_failure_status=self._posting_failure_status,
                 commitment_sort_key=self._commitment_sort_key,
+                commitment_exposure=self._commitment_exposure,
                 commitment_sort_direction=self._sort_direction_name(
                     self._commitment_sort_direction
                 ),

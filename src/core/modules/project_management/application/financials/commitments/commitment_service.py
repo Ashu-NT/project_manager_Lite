@@ -146,11 +146,17 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         limit: int = 50,
         sort_key: str = "metaText",
         sort_direction: str = "desc",
+        exposure: str = "",
     ) -> tuple[list[ProjectCommitmentLine], int]:
         require_permission(self._user_session, "finance.read", operation_label="list commitments")
         require_project_permission(
             self._user_session, project_id, "finance.read", operation_label="list commitments"
         )
+        if exposure not in {"", "open", "none"}:
+            raise ValidationError(
+                "Commitment exposure filter is invalid.",
+                code="PROJECT_COMMITMENT_EXPOSURE_FILTER_INVALID",
+            )
         return self._commitment_repo.list_lines_for_project(
             project_id,
             offset=offset,
@@ -159,6 +165,7 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
                 key=sort_key,
                 direction=sort_direction,
             ),
+            exposure=exposure,
         )
 
     def apply_procurement_source(
@@ -244,6 +251,7 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         now = self._clock.now()
         snapshot_json = json.dumps(source.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
 
+        self._commitment_repo.lock_purchase_order(source.purchase_order_id)
         try:
             with self._session.begin_nested():
                 line, operation, replay = self._apply_source_projection(

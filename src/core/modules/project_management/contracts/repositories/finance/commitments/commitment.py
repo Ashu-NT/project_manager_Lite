@@ -13,6 +13,9 @@ from src.core.modules.project_management.contracts.reads import ReadSort
 
 class ProjectCommitmentRepository(ABC):
     @abstractmethod
+    def lock_purchase_order(self, purchase_order_id: str) -> None: ...
+
+    @abstractmethod
     def add(self, commitment: ProjectCommitment) -> None: ...
 
     @abstractmethod
@@ -42,6 +45,7 @@ class ProjectCommitmentRepository(ABC):
         offset: int = 0,
         limit: int = 50,
         sort: ReadSort | None = None,
+        exposure: str = "",
     ) -> tuple[list[ProjectCommitmentLine], int]: ...
 
     @abstractmethod

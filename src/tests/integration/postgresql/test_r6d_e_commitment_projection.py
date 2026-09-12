@@ -197,12 +197,12 @@ def _dispatcher(environment):
     )
 
 
-def _event(event_type, payload, *, event_id, aggregate_id):
+def _event(event_type, payload, *, event_id, aggregate_id, revision=1):
     return IntegrationEventEnvelope(
         event_id=event_id, event_type=event_type, schema_version=1,
         tenant_id=TENANT_A, organization_id=ORG_A,
         aggregate_type="purchase_order_line" if event_type == PROCUREMENT_COMMITMENT_EVENT_TYPE else "receipt_line",
-        aggregate_id=aggregate_id, aggregate_version=1,
+        aggregate_id=aggregate_id, aggregate_version=revision,
         occurred_at=datetime(2026, 9, 10, tzinfo=timezone.utc),
         correlation_id="r6de-correlation", payload=payload.model_dump(mode="json"),
     )
@@ -351,4 +351,166 @@ def test_two_runtime_dispatchers_claim_one_source_event(postgres_test_environmen
             "SELECT count(*) FROM project_commitment_source_revisions r "
             "JOIN project_commitment_lines l ON l.id=r.commitment_line_id "
             "WHERE l.purchase_order_line_id='r6de-race-line'"
+        )) == 1
+
+
+def test_concurrent_out_of_order_line_revisions_keep_newest_truth(postgres_test_environment):
+    source, outbox, first_dispatcher = _dispatcher(postgres_test_environment)
+    second_source, _second_outbox, second_dispatcher = _dispatcher(postgres_test_environment)
+    try:
+        for revision, quantity in ((2, "12"), (1, "10")):
+            payload = ProcurementCommitmentEventPayload(
+                project_id=PROJECT_A, purchase_order_id="r6de-order-po",
+                purchase_order_line_id="r6de-order-line", purchase_order_number="R6DE-ORDER",
+                supplier_party_id=SUPPLIER_A, site_id=SITE_A, state="SENT",
+                source_revision=revision, source_content_hash=f"{revision:064x}",
+                ordered_quantity=DecimalQuantityPayload(value=quantity, unit="EA"),
+                unit_price=MonetaryRatePayload(amount="10", currency="USD", per_unit="EA"),
+                order_date=date(2026, 9, 10),
+            )
+            outbox.enqueue(_event(
+                PROCUREMENT_COMMITMENT_EVENT_TYPE, payload,
+                event_id=f"r6de-order-event-{revision}", aggregate_id="r6de-order-line",
+                revision=revision,
+            ))
+        source.commit()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            tuple(pool.map(
+                lambda dispatcher: dispatcher.dispatch_pending(limit=1),
+                (first_dispatcher, second_dispatcher),
+            ))
+    finally:
+        source.close()
+        second_source.close()
+
+    with postgres_test_environment.admin_engine.connect() as connection:
+        line = connection.execute(text(
+            "SELECT source_revision, amount FROM project_commitment_lines "
+            "WHERE purchase_order_line_id='r6de-order-line'"
+        )).one()
+        assert line.source_revision == 2
+        assert line.amount == 120
+
+
+def test_concurrent_duplicate_receipt_has_one_actual_and_match(postgres_test_environment):
+    source, outbox, first_dispatcher = _dispatcher(postgres_test_environment)
+    second_source, _second_outbox, second_dispatcher = _dispatcher(postgres_test_environment)
+    try:
+        commitment = ProcurementCommitmentEventPayload(
+            project_id=PROJECT_A, purchase_order_id="r6de-receipt-race-po",
+            purchase_order_line_id="r6de-receipt-race-line",
+            purchase_order_number="R6DE-RECEIPT-RACE", supplier_party_id=SUPPLIER_A,
+            site_id=SITE_A, state="SENT", source_revision=1, source_content_hash="d" * 64,
+            ordered_quantity=DecimalQuantityPayload(value="10", unit="EA"),
+            unit_price=MonetaryRatePayload(amount="10", currency="USD", per_unit="EA"),
+            order_date=date(2026, 9, 10),
+        )
+        outbox.enqueue(_event(
+            PROCUREMENT_COMMITMENT_EVENT_TYPE, commitment,
+            event_id="r6de-receipt-race-commit", aggregate_id="r6de-receipt-race-line",
+        ))
+        source.commit()
+        assert first_dispatcher.dispatch_pending(limit=1) == 1
+
+        receipt = ProcurementReceiptAccrualEventPayload(
+            project_id=PROJECT_A, receipt_id="r6de-receipt-race",
+            receipt_line_id="r6de-receipt-race-source-line",
+            receipt_number="R6DE-RECEIPT-RACE", purchase_order_id="r6de-receipt-race-po",
+            purchase_order_line_id="r6de-receipt-race-line",
+            supplier_party_id=SUPPLIER_A, site_id=SITE_A,
+            source_revision=1, source_content_hash="e" * 64,
+            posted_at=datetime(2026, 9, 10, tzinfo=timezone.utc),
+            accepted_quantity=DecimalQuantityPayload(value="4", unit="EA"),
+            unit_cost=MonetaryRatePayload(amount="10", currency="USD", per_unit="EA"),
+        )
+        for event_id in ("r6de-receipt-race-event-a", "r6de-receipt-race-event-b"):
+            outbox.enqueue(_event(
+                PROCUREMENT_RECEIPT_ACCRUAL_EVENT_TYPE, receipt,
+                event_id=event_id, aggregate_id="r6de-receipt-race-source-line",
+            ))
+        source.commit()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            tuple(pool.map(
+                lambda dispatcher: dispatcher.dispatch_pending(limit=1),
+                (first_dispatcher, second_dispatcher),
+            ))
+    finally:
+        source.close()
+        second_source.close()
+
+    with postgres_test_environment.admin_engine.connect() as connection:
+        assert connection.scalar(text(
+            "SELECT count(*) FROM project_cost_entries "
+            "WHERE source_id='r6de-receipt-race' AND source_line_id='r6de-receipt-race-source-line'"
+        )) == 1
+        assert connection.scalar(text(
+            "SELECT count(*) FROM project_commitment_matches m "
+            "JOIN project_commitment_lines l ON l.id=m.commitment_line_id "
+            "WHERE l.purchase_order_line_id='r6de-receipt-race-line'"
+        )) == 1
+        assert connection.scalar(text(
+            "SELECT matched_amount FROM project_commitment_lines "
+            "WHERE purchase_order_line_id='r6de-receipt-race-line'"
+        )) == 40
+
+
+def test_closure_and_accepted_receipt_race_preserves_both_facts(postgres_test_environment):
+    source, outbox, first_dispatcher = _dispatcher(postgres_test_environment)
+    second_source, _second_outbox, second_dispatcher = _dispatcher(postgres_test_environment)
+    try:
+        def commitment_payload(revision, state):
+            return ProcurementCommitmentEventPayload(
+                project_id=PROJECT_A, purchase_order_id="r6de-close-po",
+                purchase_order_line_id="r6de-close-line", purchase_order_number="R6DE-CLOSE",
+                supplier_party_id=SUPPLIER_A, site_id=SITE_A, state=state,
+                source_revision=revision, source_content_hash=f"{revision + 200:064x}",
+                ordered_quantity=DecimalQuantityPayload(value="10", unit="EA"),
+                unit_price=MonetaryRatePayload(amount="10", currency="USD", per_unit="EA"),
+                order_date=date(2026, 9, 10),
+            )
+
+        outbox.enqueue(_event(
+            PROCUREMENT_COMMITMENT_EVENT_TYPE, commitment_payload(1, "SENT"),
+            event_id="r6de-close-initial", aggregate_id="r6de-close-line",
+        ))
+        source.commit()
+        assert first_dispatcher.dispatch_pending(limit=1) == 1
+
+        outbox.enqueue(_event(
+            PROCUREMENT_COMMITMENT_EVENT_TYPE, commitment_payload(2, "CLOSED"),
+            event_id="r6de-close-terminal", aggregate_id="r6de-close-line", revision=2,
+        ))
+        receipt = ProcurementReceiptAccrualEventPayload(
+            project_id=PROJECT_A, receipt_id="r6de-close-receipt",
+            receipt_line_id="r6de-close-receipt-line", receipt_number="R6DE-CLOSE-REC",
+            purchase_order_id="r6de-close-po", purchase_order_line_id="r6de-close-line",
+            supplier_party_id=SUPPLIER_A, site_id=SITE_A,
+            source_revision=1, source_content_hash="f" * 64,
+            posted_at=datetime(2026, 9, 10, tzinfo=timezone.utc),
+            accepted_quantity=DecimalQuantityPayload(value="4", unit="EA"),
+            unit_cost=MonetaryRatePayload(amount="10", currency="USD", per_unit="EA"),
+        )
+        outbox.enqueue(_event(
+            PROCUREMENT_RECEIPT_ACCRUAL_EVENT_TYPE, receipt,
+            event_id="r6de-close-receipt-event", aggregate_id="r6de-close-receipt-line",
+        ))
+        source.commit()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = tuple(pool.map(
+                lambda dispatcher: dispatcher.dispatch_pending(limit=1),
+                (first_dispatcher, second_dispatcher),
+            ))
+        assert sum(results) == 2
+    finally:
+        source.close()
+        second_source.close()
+
+    with postgres_test_environment.admin_engine.connect() as connection:
+        line = connection.execute(text(
+            "SELECT state, source_revision, matched_amount FROM project_commitment_lines "
+            "WHERE purchase_order_line_id='r6de-close-line'"
+        )).one()
+        assert (line.state, line.source_revision, line.matched_amount) == ("closed", 2, 40)
+        assert connection.scalar(text(
+            "SELECT count(*) FROM project_cost_entries WHERE source_id='r6de-close-receipt'"
         )) == 1

@@ -12,6 +12,9 @@ from src.core.modules.project_management.application.financials.procurement_cons
 from src.core.modules.project_management.application.financials.commitments.event_handlers.view_invalidation import (
     COMMITMENT_CATEGORY,
 )
+from src.core.modules.project_management.api.desktop.financials.api import (
+    ProjectManagementFinancialsDesktopApi,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.commitment import (
     ProjectCommitmentLineORM,
     ProjectCommitmentMatchORM,
@@ -275,6 +278,35 @@ def test_added_po_line_projects_once_without_replacing_existing_line(services):
         "po-line-delivery", "po-line-delivery-2"
     }
     assert len(session.execute(select(ProjectCommitmentSourceRevisionORM)).scalars().all()) == 2
+
+
+def test_exposure_filter_is_server_scoped_and_paged(services):
+    organization, project, site, supplier = _setup(services)
+    for line_id in ("po-line-delivery", "po-line-delivery-2", "po-line-delivery-3"):
+        assert _deliver(services, _commitment(
+            organization, project, site, supplier, line_id=line_id
+        )) == 1
+    assert _deliver(services, _commitment(
+        organization, project, site, supplier, line_id="po-line-delivery-2",
+        revision=2, state="CLOSED",
+    )) == 1
+
+    api = ProjectManagementFinancialsDesktopApi(
+        commitment_service=services["commitment_service"]
+    )
+    first = api.list_commitments(project.id, exposure="open", limit=1, offset=0)
+    second = api.list_commitments(project.id, exposure="open", limit=1, offset=1)
+    closed = api.list_commitments(project.id, exposure="none", limit=1)
+    assert first.total == second.total == 2
+    assert first.items[0].id != second.items[0].id
+    assert closed.total == 1
+    assert closed.items[0].id not in {first.items[0].id, second.items[0].id}
+
+    from src.core.platform.common.exceptions import ValidationError
+    import pytest
+
+    with pytest.raises(ValidationError):
+        api.list_commitments(project.id, exposure="unknown")
 
 
 def test_audit_failure_rolls_back_projection_and_retains_durable_retry(services, monkeypatch):

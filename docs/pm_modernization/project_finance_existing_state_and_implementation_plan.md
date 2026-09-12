@@ -1,7 +1,7 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: implementation in progress; R6C closed; R6D-D complete; R6D-E next
-Last updated: 2026-09-10
+Status: implementation in progress; R6C closed; R6D-D complete; R6D-E in progress
+Last updated: 2026-09-12
 Scope: Project Management finance plus reusable platform financial foundations
 Current checkpoint: R6D-D Approved-Time Labor Posting Hardening is complete. The
 authoritative path is Time approval -> immutable Time financial outbox -> leased
@@ -20,8 +20,80 @@ Finance owns their managerial project-cost valuation. PM Finance does not create
 general-ledger entries, journals, payables, payroll, official invoices, or other
 Accounting truth. Future Accounting integration remains an outward gateway under
 [ADR-PF-010](../architecture_decisions/ADR-PF-010-billing-and-accounting-boundary.md);
-the approved-time worker does not invoke or emulate that future module. R6D-E
-Commitment Projection Hardening has not started.
+the approved-time worker does not invoke or emulate that future module.
+
+### R6D-E Commitment Projection Hardening checkpoint (2026-09-12)
+
+R6D-E is **in progress, not closed**. The current neutral Procurement source
+contract publishes one PO-line financial-state fact and one posted receipt-line
+fact. It is not a whole-PO line-set snapshot. A second line is added by its own
+stable source-line ID; a missing line in another event is not interpreted as a
+deletion. Explicit `CLOSED`/`CANCELLED` state preserves historical rows while
+releasing open exposure. The Procurement producer module does not yet exist in
+this pre-release tree; these are contract/consumer tests, not a claim that a
+live Procurement product emits the facts.
+
+Implemented in the current R6D-E worktree:
+
+- Procurement outbox delivery uses a fresh Finance UoW and Finance-owned inbox
+  for each event. Projection, source revision, receipt-derived posted
+  `ProjectCostEntry`, immutable match, audit, domain events, and inbox completion
+  share one worker commit; source-outbox acknowledgement follows that commit.
+  A typed event is registered once, by the dispatcher, not again by inner
+  services. The worker uses a configured service principal and explicit
+  source-event/correlation audit evidence, not a fabricated human actor.
+- Interactive Finance `ingest_procurement_source`, `match_cost_entry`, and
+  `reverse_match` commands and their unused Finance governance family were
+  retired. Commitments remain read-only in Finance. Unused reversal callable
+  helpers were removed; immutable evidence columns remain available for a
+  future explicit correction contract, not as a second active write path.
+- The source contract permits increasing line revisions with gaps. Same
+  revision/same hash is a no-op; conflicting content and stale deliveries fail
+  closed. Exact inbox replay and the post-Finance-commit/source-ack crash window
+  do not create duplicate lines, revisions, Actuals, or matches. Receipt source
+  identity now has a partial unique database index. Since there is no neutral
+  receipt correction/reversal event, a changed revision for the same receipt
+  identity is quarantined rather than overwriting posted Actual.
+- `open_commitment_amount` is the shared Decimal authority for domain,
+  forecast, snapshot, performance, and portfolio Python reads. Closed/cancelled
+  rows contribute zero. A receipt Actual is kept separate from matched/open
+  Commitment; partial, cumulative-full, and over-commitment receipt behavior
+  is characterized. Over-receipt remains a full posted Actual while only the
+  available Commitment is matched; no negative open balance is created.
+- The existing paged, deterministically server-sorted read-only Commitments
+  list remains the active UX. No Finance-side PO/Commitment mutator, Accounting
+  write, retired signal, or generic Finance refresh was introduced.
+
+Evidence run so far: 50 focused commitment/forecast/performance tests, 56
+related R6D-B/C/D/governance application tests, and 15 combined R6D-C/D/E live
+PostgreSQL tests passed. The PostgreSQL tests use non-owner `app_runtime`
+(`NOSUPERUSER`, `NOBYPASSRLS`), prove valid worker delivery and two-dispatcher
+single-claim behavior, forced RLS, foreign-scope invisibility/DELETE no-op,
+and direct foreign-scope UPDATE/INSERT denial on header, line, source revision,
+match, Actual, and Finance inbox. A fault-injection test proves audit failure
+rolls back financial facts and leaves a durable retry without success hints.
+
+Remaining R6D-E closure gates, before starting R6D-F:
+
+1. Add PostgreSQL races for different source revisions and duplicate receipt
+   deliveries, including cancellation/receipt ordering where the current
+   source contract defines an outcome. Do not invent a receipt correction race
+   until Procurement publishes correction lineage.
+2. Characterize representative statement counts for create, revise, terminal
+   state, replay, stale event, and receipt. Final volume/EXPLAIN certification
+   belongs to R6D-F, not this checkpoint.
+3. Reconcile whether status/open-exposure filtering is justified for the
+   Commitments operator list. If added, it must be server-side and page-reset
+   correctly; do not add page-local filtering. A selected revision/match detail
+   is optional only if there is a real inspection need.
+4. Run final source-contract, architecture, migration, and relevant QML/read
+   regression checks; no QML has been changed in this slice.
+
+The current desktop dispatcher resolves the principal and claims the source
+outbox in the active organization. The fresh Finance UoW/RLS context is scoped
+to that event, but this is **not** an autonomous all-tenant daemon. A future
+multi-tenant worker host must explicitly enumerate/authorize scopes rather
+than treating the desktop user's active organization as a global queue drain.
 
 Historical checkpoint: Phase D is complete. Project snapshot, cash flow,
 analytics, EVM, portfolio variance, desktop forecast, and commitment controls now consume approved

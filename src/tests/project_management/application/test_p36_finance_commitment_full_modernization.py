@@ -316,6 +316,23 @@ def test_dispatcher_builds_procurement_consumer_inside_fresh_finance_uow(service
     assert not hasattr(services["finance_governance_commands"], "commitment")
 
 
+def test_commitment_exposure_change_resets_page_without_local_filtering(services):
+    catalog = _pm_catalog(services)
+    controller = catalog.financialsWorkspace
+    refreshes = []
+    controller.refresh = lambda: refreshes.append(True)
+    controller._commitment_page = 3
+
+    controller.setCommitmentExposure("open")
+    assert controller.commitmentExposure == "open"
+    assert controller._commitment_page == 1
+    assert refreshes == [True]
+
+    controller.setCommitmentExposure("invalid")
+    assert controller.commitmentExposure == "open"
+    assert refreshes == [True]
+
+
 # ---------------------------------------------------------------------------
 # Concurrency -- preserved, unweakened
 # ---------------------------------------------------------------------------

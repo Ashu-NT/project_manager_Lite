@@ -162,6 +162,7 @@ Item {
     property string actualSource: ""
     property string commitmentSortKey: "metaText"
     property int commitmentSortDirection: Qt.DescendingOrder
+    property string commitmentExposure: ""
 
     signal subsectionRequested(string subsection)
     signal configurationPageRequested(string collection, int page)
@@ -250,6 +251,7 @@ Item {
     signal commitmentPageRequested(int page)
     signal commitmentPageSizeRequested(int pageSize)
     signal commitmentSortRequested(string key, int direction)
+    signal commitmentExposureRequested(string exposure)
 
     readonly property var _tabs: {
         if (root.activeDestination === "planning") return [
@@ -542,9 +544,11 @@ Item {
             isBusy: root.isBusy
             sortKey: root.commitmentSortKey
             sortDirection: root.commitmentSortDirection
+            exposureFilter: root.commitmentExposure
             onPageRequested: function(page) { root.commitmentPageRequested(page) }
             onPageSizeRequested: function(pageSize) { root.commitmentPageSizeRequested(pageSize) }
             onSortRequested: function(key, direction) { root.commitmentSortRequested(key, direction) }
+            onExposureRequested: function(exposure) { root.commitmentExposureRequested(exposure) }
         }
     }
 

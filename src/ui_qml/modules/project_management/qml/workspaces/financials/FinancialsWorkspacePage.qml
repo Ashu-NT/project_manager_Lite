@@ -485,6 +485,7 @@ AppLayouts.WorkspaceFrame {
                     commitmentsTableModel: root.workspaceController ? root.workspaceController.commitmentsTableModel : null
                     commitmentSortKey: root.workspaceController ? root.workspaceController.commitmentSortKey : "metaText"
                     commitmentSortDirection: root.workspaceController ? root.workspaceController.commitmentSortDirection : Qt.DescendingOrder
+                    commitmentExposure: root.workspaceController ? root.workspaceController.commitmentExposure : ""
                     baselineVarianceModel: root.baselineVarianceModel
                     baselineVersionsModel: root.workspaceController ? root.workspaceController.baselineVersions : ({ "items": [] })
                     varianceBasisModel: root.workspaceController ? root.workspaceController.varianceBasis : ({ "fields": [] })
@@ -712,6 +713,9 @@ AppLayouts.WorkspaceFrame {
                     }
                     onCommitmentSortRequested: function(key, direction) {
                         if (root.workspaceController !== null) root.workspaceController.setCommitmentSort(key, direction)
+                    }
+                    onCommitmentExposureRequested: function(exposure) {
+                        if (root.workspaceController !== null) root.workspaceController.setCommitmentExposure(exposure)
                     }
                     onForecastSelected: function(forecastId) {
                         if (root.workspaceController !== null)

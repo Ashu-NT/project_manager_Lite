@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.finance.commitments.commitment import (
@@ -46,6 +46,17 @@ class SqlAlchemyProjectCommitmentRepository(ProjectCommitmentRepository):
     def __init__(self, session: Session) -> None:
         self.session = session
         self._tenant_context_service: TenantContextService | None = None
+
+    def lock_purchase_order(self, purchase_order_id: str) -> None:
+        context = self._context(operation_label="lock procurement commitment source")
+        if self.session.get_bind().dialect.name != "postgresql":
+            return
+        # Serialize only this scoped PO, including its first line/header creation.
+        key = f"project_commitment:{context.tenant_id}:{context.organization_id}:{purchase_order_id}"
+        self.session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:source_key, 0))"),
+            {"source_key": key},
+        )
 
     def add(self, commitment: ProjectCommitment) -> None:
         context = self._context(operation_label="create project commitment")
@@ -128,13 +139,27 @@ class SqlAlchemyProjectCommitmentRepository(ProjectCommitmentRepository):
         offset: int = 0,
         limit: int = 50,
         sort: ReadSort | None = None,
+        exposure: str = "",
     ) -> tuple[list[ProjectCommitmentLine], int]:
         context = self._context(operation_label="list project commitment lines")
-        filters = (
+        filters = [
             ProjectCommitmentLineORM.tenant_id == context.tenant_id,
             ProjectCommitmentLineORM.organization_id == context.organization_id,
             ProjectCommitmentLineORM.project_id == project_id,
+        ]
+        if exposure not in {"", "open", "none"}:
+            raise ValueError("Commitment exposure filter is invalid.")
+        has_open_exposure = and_(
+            ProjectCommitmentLineORM.state.notin_(("closed", "cancelled")),
+            ProjectCommitmentLineORM.amount > ProjectCommitmentLineORM.matched_amount,
         )
+        if exposure == "open":
+            filters.append(has_open_exposure)
+        elif exposure == "none":
+            filters.append(or_(
+                ProjectCommitmentLineORM.state.in_(("closed", "cancelled")),
+                ProjectCommitmentLineORM.amount <= ProjectCommitmentLineORM.matched_amount,
+            ))
         total = self.session.execute(
             select(func.count(ProjectCommitmentLineORM.id)).where(*filters)
         ).scalar_one()

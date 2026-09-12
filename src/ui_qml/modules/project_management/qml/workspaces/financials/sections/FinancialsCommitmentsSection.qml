@@ -18,10 +18,26 @@ Item {
     property bool isBusy: false
     property string sortKey: "metaText"
     property int sortDirection: Qt.DescendingOrder
+    property string exposureFilter: ""
 
     signal pageRequested(int page)
     signal pageSizeRequested(int pageSize)
     signal sortRequested(string key, int direction)
+    signal exposureRequested(string exposure)
+
+    readonly property var _exposureOptions: [
+        { "value": "", "label": "All exposures" },
+        { "value": "open", "label": "Open exposure" },
+        { "value": "none", "label": "No open exposure" }
+    ]
+
+    function _exposureIndex() {
+        for (let index = 0; index < root._exposureOptions.length; ++index) {
+            if (String(root._exposureOptions[index].value) === root.exposureFilter)
+                return index
+        }
+        return 0
+    }
 
     readonly property var _columns: [
         { "key": "title", "label": "Source line", "flex": 1.5, "sortable": true },
@@ -139,6 +155,27 @@ Item {
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.smallSize
                     wrapMode: Text.WordWrap
+                }
+
+                AppWidgets.TableToolbar {
+                    Layout.fillWidth: true
+                    showSearch: false
+                    showFilter: false
+                    showRefresh: false
+                    isBusy: root.isBusy
+
+                    AppControls.ComboBox {
+                        id: exposureCombo
+                        objectName: "financialsCommitmentExposureFilter"
+                        implicitWidth: 190
+                        textRole: "label"
+                        model: root._exposureOptions
+                        currentIndex: root._exposureIndex()
+                        onActivated: {
+                            const option = root._exposureOptions[currentIndex]
+                            root.exposureRequested(option ? String(option.value) : "")
+                        }
+                    }
                 }
 
                 AppWidgets.EmptyState {

@@ -655,4 +655,14 @@ class FinancialsSelectionMixin:
             self.commitmentSortDirectionChanged.emit()
             self.refresh()
 
+    def _set_commitment_exposure(self, exposure: str) -> None:
+        normalized = str(exposure or "").strip().lower()
+        if normalized not in {"", "open", "none"}:
+            return
+        if normalized != self._commitment_exposure:
+            self._commitment_exposure = normalized
+            self._commitment_page = 1
+            self.commitmentExposureChanged.emit()
+            self.refresh()
+
 __all__ = ["FinancialsSelectionMixin"]

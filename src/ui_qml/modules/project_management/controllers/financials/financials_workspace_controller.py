@@ -128,6 +128,7 @@ class ProjectManagementFinancialsWorkspaceController(
     commitmentsChanged = Signal()
     commitmentSortKeyChanged = Signal()
     commitmentSortDirectionChanged = Signal()
+    commitmentExposureChanged = Signal()
     baselineVarianceChanged = Signal()
     selectedBaselineIdChanged = Signal()
     baselineVersionsChanged = Signal()
@@ -266,6 +267,7 @@ class ProjectManagementFinancialsWorkspaceController(
         self._commitment_page = 1
         self._commitment_sort_key = "metaText"
         self._commitment_sort_direction = Qt.DescendingOrder.value
+        self._commitment_exposure = ""
         self._transaction_page_size = 50
         self._commitments_table_model = DynamicTableModel(self)
         self._baseline_variance: FinancialsObjectList = []
@@ -597,6 +599,9 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property(int, notify=commitmentSortDirectionChanged)
     def commitmentSortDirection(self) -> int: return self._commitment_sort_direction
+
+    @Property(str, notify=commitmentExposureChanged)
+    def commitmentExposure(self) -> str: return self._commitment_exposure
 
     @Property("QVariantList", notify=baselineVarianceChanged)
     def baselineVariance(self) -> FinancialsObjectList: return self._baseline_variance
@@ -1544,6 +1549,10 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str, int)
     def setCommitmentSort(self, sort_key: str, sort_direction: int) -> None:
         self._set_commitment_sort(sort_key, sort_direction)
+
+    @Slot(str)
+    def setCommitmentExposure(self, exposure: str) -> None:
+        self._set_commitment_exposure(exposure)
 
 
 __all__ = ["ProjectManagementFinancialsWorkspaceController"]

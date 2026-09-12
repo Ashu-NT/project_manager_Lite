@@ -167,6 +167,7 @@ def build_destination_state(
     posting_failure_status: str = "",
     commitment_sort_key: str = "metaText",
     commitment_sort_direction: str = "desc",
+    commitment_exposure: str = "",
     selected_forecast_id: str | None = None,
     forecast_version_page: int = 1,
     forecast_line_page: int = 1,
@@ -432,6 +433,7 @@ def build_destination_state(
                 limit=page_size,
                 sort_key=commitment_sort_key,
                 sort_direction=commitment_sort_direction,
+                exposure=commitment_exposure,
             )
             return FinancialsWorkspaceViewModel(
                 overview=state.overview,

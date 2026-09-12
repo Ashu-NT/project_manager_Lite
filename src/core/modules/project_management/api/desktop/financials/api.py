@@ -868,6 +868,7 @@ class ProjectManagementFinancialsDesktopApi:
         limit: int = 50,
         sort_key: str = "metaText",
         sort_direction: str = "desc",
+        exposure: str = "",
     ) -> FinancialCommitmentLinePageDto:
         sort = normalize_commitment_sort(key=sort_key, direction=sort_direction)
         if not project_id or self._commitment_service is None:
@@ -883,6 +884,7 @@ class ProjectManagementFinancialsDesktopApi:
             limit=limit,
             sort_key=sort.key,
             sort_direction=sort.direction.value,
+            exposure=exposure,
         )
         normalized_offset = normalize_offset_for_total(
             offset=offset,
@@ -896,6 +898,7 @@ class ProjectManagementFinancialsDesktopApi:
                 limit=limit,
                 sort_key=sort.key,
                 sort_direction=sort.direction.value,
+                exposure=exposure,
             )
         return FinancialCommitmentLinePageDto(
             items=tuple(build_commitment_line_dto(line) for line in lines),
