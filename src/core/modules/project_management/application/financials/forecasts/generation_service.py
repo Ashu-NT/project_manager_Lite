@@ -46,6 +46,7 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
 from src.core.modules.project_management.domain.financials.commitment import (
     ProjectCommitmentLine,
     ProjectCommitmentLineState,
+    open_commitment_amount,
 )
 from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntry,
@@ -636,16 +637,16 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
 
     @staticmethod
     def _commitment_amount(item: ProjectCommitmentLine, currency: str) -> Decimal:
-        if item.state in {ProjectCommitmentLineState.CLOSED, ProjectCommitmentLineState.CANCELLED}:
-            return Decimal("0")
-        if item.currency_code == currency:
-            return item.amount - item.matched_amount
-        if item.base_currency_code == currency:
-            matched_base = item.matched_amount * item.exchange_rate
-            return max(Decimal("0"), item.base_amount - matched_base)
-        raise BusinessRuleError(
-            "Commitment currency cannot be reconciled to the forecast currency.",
-            code="PROJECT_FORECAST_COMMITMENT_CURRENCY_MISMATCH",
+        return open_commitment_amount(
+            state=item.state,
+            amount=item.amount,
+            matched_amount=item.matched_amount,
+            currency_code=item.currency_code,
+            base_amount=item.base_amount,
+            base_currency_code=item.base_currency_code,
+            exchange_rate=item.exchange_rate,
+            target_currency=currency,
+            currency_mismatch_code="PROJECT_FORECAST_COMMITMENT_CURRENCY_MISMATCH",
         )
 
     @staticmethod

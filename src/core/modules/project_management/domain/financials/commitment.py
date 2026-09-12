@@ -38,6 +38,36 @@ class ProjectCommitmentMatchKind(str, Enum):
     REVERSAL = "reversal"
 
 
+def open_commitment_amount(
+    *,
+    state: ProjectCommitmentLineState | str,
+    amount: Decimal,
+    matched_amount: Decimal,
+    currency_code: str,
+    base_amount: Decimal,
+    base_currency_code: str,
+    exchange_rate: Decimal,
+    target_currency: str,
+    currency_mismatch_code: str = "PROJECT_COMMITMENT_CURRENCY_MISMATCH",
+) -> Decimal:
+    """Current financial exposure, never historical gross or posted Actual."""
+    status = state.value if isinstance(state, ProjectCommitmentLineState) else str(state)
+    if status in {"closed", "cancelled"}:
+        return Decimal("0")
+    currency = target_currency.strip().upper()
+    matched = Decimal(matched_amount or 0)
+    if currency_code.strip().upper() == currency:
+        remaining = Decimal(amount or 0) - matched
+    elif base_currency_code.strip().upper() == currency:
+        remaining = Decimal(base_amount or 0) - matched * Decimal(exchange_rate)
+    else:
+        raise BusinessRuleError(
+            "Commitment currency cannot be reconciled to the target currency.",
+            code=currency_mismatch_code,
+        )
+    return max(Decimal("0"), remaining)
+
+
 _ALLOWED_STATE_TRANSITIONS = {
     ProjectCommitmentLineState.SENT: {
         ProjectCommitmentLineState.SENT,
@@ -316,12 +346,19 @@ class ProjectCommitmentLine:
 
     @property
     def remaining_money(self) -> Money:
-        if self.state in {
-            ProjectCommitmentLineState.CLOSED,
-            ProjectCommitmentLineState.CANCELLED,
-        }:
-            return Money.zero(self.currency_code)
-        return Money.of(self.amount - self.matched_amount, self.currency_code)
+        return Money.of(
+            open_commitment_amount(
+                state=self.state,
+                amount=self.amount,
+                matched_amount=self.matched_amount,
+                currency_code=self.currency_code,
+                base_amount=self.base_amount,
+                base_currency_code=self.base_currency_code,
+                exchange_rate=self.exchange_rate,
+                target_currency=self.currency_code,
+            ),
+            self.currency_code,
+        )
 
     def apply_source_revision(
         self,

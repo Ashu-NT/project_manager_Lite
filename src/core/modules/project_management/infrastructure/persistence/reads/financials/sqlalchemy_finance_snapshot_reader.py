@@ -21,6 +21,9 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     FinanceOverviewFacts,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.modules.project_management.domain.financials.commitment import (
+    open_commitment_amount,
+)
 from .statements.finance_snapshot_statements import (
     actual_cost_facts_statement,
     actual_cost_total_statement,
@@ -511,17 +514,16 @@ class SqlAlchemyFinanceSnapshotReader:
 
     @staticmethod
     def _commitment_amount(row, project_currency: str) -> Decimal:
-        if str(row.state) in {"closed", "cancelled"}:
-            return Decimal("0")
-        matched = Decimal(row.matched_amount or 0)
-        if str(row.currency_code).upper() == project_currency:
-            return max(Decimal("0"), Decimal(row.amount or 0) - matched)
-        if str(row.base_currency_code).upper() == project_currency:
-            matched_base = matched * Decimal(row.exchange_rate or 0)
-            return max(Decimal("0"), Decimal(row.base_amount or 0) - matched_base)
-        raise BusinessRuleError(
-            "Commitment currency cannot be reconciled to project currency.",
-            code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
+        return open_commitment_amount(
+            state=row.state,
+            amount=row.amount,
+            matched_amount=row.matched_amount,
+            currency_code=row.currency_code,
+            base_amount=row.base_amount,
+            base_currency_code=row.base_currency_code,
+            exchange_rate=row.exchange_rate,
+            target_currency=project_currency,
+            currency_mismatch_code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
         )
 
 

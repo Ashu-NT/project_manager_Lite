@@ -945,7 +945,6 @@ def build_project_management_service_bundle(
             approval_service=platform_services.approval_service,
             rate_resolver=worker_rate_resolver,
             labor_posting_repo=uow.labor_postings,
-            record_event=uow.record_event,
         )
         worker_commitment_service = ProjectCommitmentService(
             session=uow._session,
@@ -962,7 +961,6 @@ def build_project_management_service_bundle(
             enterprise_audit_service=uow._enterprise_audit_service,
             module_catalog_service=platform_services.module_catalog_service,
             tenant_context_service=platform_services.tenant_context_service,
-            record_event=uow.record_event,
         )
         return ProcurementFinancialConsumer(
             commitment_service=worker_commitment_service,
