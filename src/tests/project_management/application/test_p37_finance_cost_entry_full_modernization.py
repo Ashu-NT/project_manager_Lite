@@ -194,11 +194,12 @@ def test_dedupe_by_target_within_one_transaction():
     event = CostEntryUpdated(
         tenant_id="t1", organization_id="o1", project_id="p1", cost_entry_id="e1", occurred_at=now
     )
-    handler(event, DomainEventContext(correlation_id="same-tx"))
-    handler(event, DomainEventContext(correlation_id="same-tx"))
+    context = DomainEventContext(correlation_id="same-tx")
+    handler(event, context)
+    handler(event, context)
     assert len(channel.notified) == 1, "same target within one transaction coalesces"
 
-    handler(event, DomainEventContext(correlation_id="next-tx"))
+    handler(event, DomainEventContext(correlation_id="same-tx"))
     assert len(channel.notified) == 2, "a new transaction is never coalesced with the previous one"
 
 

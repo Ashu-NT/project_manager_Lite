@@ -241,6 +241,27 @@ def test_procurement_delivery_projects_receipt_actual_and_match_once(services):
     assert len(session.execute(select(ProjectCommitmentMatchORM)).scalars().all()) == 1
 
 
+def test_separate_procurement_commits_with_one_correlation_each_invalidate(services):
+    organization, project, site, supplier = _setup(services)
+    hints = []
+
+    class _AnyOrgFilter:
+        def matches(self, scope):
+            return True
+
+    services["platform_view_invalidation_channel"].subscribe(
+        _AnyOrgFilter(), hints.append
+    )
+    first = _commitment(organization, project, site, supplier)
+    second = _commitment(
+        organization, project, site, supplier, line_id="po-line-delivery-2"
+    ).model_copy(update={"correlation_id": first.correlation_id})
+
+    assert _deliver(services, first) == 1
+    assert _deliver(services, second) == 1
+    assert len([hint for hint in hints if hint.category == COMMITMENT_CATEGORY]) == 2
+
+
 def test_changed_receipt_revision_quarantines_without_double_actual(services):
     organization, project, site, supplier = _setup(services)
     assert _deliver(services, _commitment(organization, project, site, supplier)) == 1

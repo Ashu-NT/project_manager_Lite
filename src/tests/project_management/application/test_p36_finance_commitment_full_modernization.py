@@ -267,13 +267,14 @@ def test_dedupe_by_target_within_one_transaction_across_both_event_types():
     channel = _fake_channel()
     handler = build_commitment_view_invalidation_handler(channel)
     now = datetime.now(timezone.utc)
+    context = DomainEventContext(correlation_id="same-tx")
     handler(
         CommitmentLineChanged(
             tenant_id="t1", organization_id="o1", project_id="p1",
             commitment_line_id="line-1", change_type=CommitmentLineChangeType.CREATED,
             occurred_at=now,
         ),
-        DomainEventContext(correlation_id="same-tx"),
+        context,
     )
     handler(
         CommitmentMatchChanged(
@@ -282,7 +283,7 @@ def test_dedupe_by_target_within_one_transaction_across_both_event_types():
             change_type=CommitmentMatchChangeType.MATCHED,
             occurred_at=now,
         ),
-        DomainEventContext(correlation_id="same-tx"),
+        context,
     )
     assert len(channel.notified) == 1, "same project target within one transaction coalesces"
 
@@ -292,7 +293,7 @@ def test_dedupe_by_target_within_one_transaction_across_both_event_types():
             commitment_line_id="line-1", change_type=CommitmentLineChangeType.REVISED,
             occurred_at=now,
         ),
-        DomainEventContext(correlation_id="next-tx"),
+        DomainEventContext(correlation_id="same-tx"),
     )
     assert len(channel.notified) == 2, "a new transaction is never coalesced with the previous one"
 
