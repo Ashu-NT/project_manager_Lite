@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
+from time import monotonic, sleep
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from types import SimpleNamespace
@@ -47,9 +48,11 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     ApprovedTimePostingFailureQuery,
 )
 from src.core.modules.project_management.contracts.financial_sources.reference import (
+    FinancialSourceModule,
     FinancialSourceReference,
 )
 from src.core.modules.project_management.domain.financials.cost_entry import ProjectCostEntryStatus
+from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
 )
@@ -121,8 +124,7 @@ class _TenantContext:
         return ORG_A
 
 
-@pytest.fixture(scope="module", autouse=True)
-def seeded_approved_time_scope(postgres_test_environment):
+def seed_approved_time_scope(postgres_test_environment):
     now = datetime(2026, 9, 10, 9, 0, tzinfo=timezone.utc)
     with postgres_test_environment.admin_engine.begin() as connection:
         for tenant_id, code in ((TENANT_A, "R6DD-A"), (TENANT_B, "R6DD-B")):
@@ -294,6 +296,17 @@ def seeded_approved_time_scope(postgres_test_environment):
         )
 
 
+@pytest.fixture(scope="module", autouse=True)
+def seeded_approved_time_scope(postgres_test_environment):
+    with postgres_test_environment.admin_engine.connect() as connection:
+        exists = connection.scalar(
+            text("SELECT EXISTS (SELECT 1 FROM tenants WHERE id=:id)"),
+            {"id": TENANT_A},
+        )
+    if not exists:
+        seed_approved_time_scope(postgres_test_environment)
+
+
 def _build_dispatcher(postgres_test_environment):
     tenant_context = _TenantContext()
     user_session = UserSessionContext()
@@ -420,7 +433,9 @@ def _approved_time_envelope(
 
 def _governed_rate_boundary(environment):
     scope = _TenantContext()
-    permissions = frozenset({"finance.read", "finance.manage"})
+    permissions = frozenset({
+        "finance.read", "finance.manage", "project_cost.create",
+    })
     user_session = UserSessionContext()
     user_session.set_principal(UserSessionPrincipal(
         user_id="r6df-rate-editor", username="r6df-rate-editor",
@@ -439,16 +454,61 @@ def _governed_rate_boundary(environment):
     )
 
     def operations(uow):
-        return SimpleNamespace(post_commit_actions=(), rate_cards=ProjectRateCardService(
-            session=uow._session, rate_card_repo=uow.rate_cards,
-            project_repo=uow.projects, user_session=user_session,
+        period_service = FinancialPeriodService(
+            session=uow._session, period_repo=uow.financial_periods,
+            tenant_context_service=scope, user_session=user_session,
             enterprise_audit_service=uow._enterprise_audit_service,
-            tenant_context_service=scope, record_event=uow.record_event,
-        ))
+        )
+        return SimpleNamespace(
+            post_commit_actions=(),
+            rate_cards=ProjectRateCardService(
+                session=uow._session, rate_card_repo=uow.rate_cards,
+                project_repo=uow.projects, user_session=user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                tenant_context_service=scope, record_event=uow.record_event,
+            ),
+            cost_entries=ProjectCostEntryService(
+                session=uow._session, entry_repo=uow.cost_entries,
+                project_repo=uow.projects, financial_profile_repo=uow.profiles,
+                cost_code_repo=uow.cost_codes, task_repo=uow.tasks,
+                resource_repo=uow.resources,
+                financial_period_service=period_service,
+                clock=SystemClock(), user_session=user_session,
+                enterprise_audit_service=uow._enterprise_audit_service,
+                tenant_context_service=scope, record_event=uow.record_event,
+            ),
+        )
 
     return FinanceGovernanceCommandBoundary(
         uow_factory=factory, operations_factory=operations
     )
+
+
+def _seed_rate_race_line(environment, *, resource_id: str, line_id: str, code: str):
+    now = datetime(2026, 9, 10, 9, 0, tzinfo=timezone.utc)
+    with environment.admin_engine.begin() as connection:
+        connection.execute(text(
+            "INSERT INTO users (id, username, password_hash, account_type, is_active, "
+            "created_at, updated_at, version) VALUES "
+            "('r6df-rate-editor', 'r6df-rate-editor', 'not-login-capable', "
+            "'human', true, :now, :now, 1) ON CONFLICT (id) DO NOTHING"
+        ), {"now": now})
+        connection.execute(text(
+            "INSERT INTO resources "
+            "(id, tenant_id, organization_id, resource_code, name, kind, role, "
+            "hourly_rate, is_active, capacity_percent, cost_type, worker_type, version) "
+            "VALUES (:id, :tenant, :org, :code, 'Rate race resource', 'PERSON', "
+            "'Engineer', 999, true, 100, 'LABOR', 'EXTERNAL', 1)"
+        ), {"id": resource_id, "tenant": TENANT_A, "org": ORG_A, "code": code})
+        connection.execute(text(
+            "INSERT INTO project_finance_rate_card_lines "
+            "(id, tenant_id, organization_id, rate_card_id, rate_type, origin, "
+            "resource_id, is_active, unit, rate_amount, rate_currency, version, "
+            "created_at, updated_at) VALUES "
+            "(:id, :tenant, :org, :card, 'cost', 'configured', :resource, true, "
+            "'HOUR', 42.12500000, 'USD', 1, :now, :now)"
+        ), {"id": line_id, "tenant": TENANT_A, "org": ORG_A,
+            "card": RATE_CARD_A, "resource": resource_id, "now": now})
 
 
 def test_runtime_worker_posts_under_rls_and_denies_hostile_scope_changes(
@@ -621,30 +681,10 @@ def test_labor_and_inbox_rls_are_forced_for_runtime_role(postgres_test_environme
 def test_governed_rate_edit_races_labor_post_without_mixed_provenance(
     postgres_test_environment, monkeypatch
 ):
-    now = datetime(2026, 9, 10, 9, 0, tzinfo=timezone.utc)
-    with postgres_test_environment.admin_engine.begin() as connection:
-        connection.execute(text(
-            "INSERT INTO users (id, username, password_hash, account_type, is_active, "
-            "created_at, updated_at, version) VALUES "
-            "('r6df-rate-editor', 'r6df-rate-editor', 'not-login-capable', "
-            "'human', true, :now, :now, 1)"
-        ), {"now": now})
-        connection.execute(text(
-            "INSERT INTO resources "
-            "(id, tenant_id, organization_id, resource_code, name, kind, role, "
-            "hourly_rate, is_active, capacity_percent, cost_type, worker_type, version) "
-            "VALUES (:id, :tenant, :org, 'R6DF-RACE', 'Rate race resource', 'PERSON', "
-            "'Engineer', 999, true, 100, 'LABOR', 'EXTERNAL', 1)"
-        ), {"id": RESOURCE_RACE, "tenant": TENANT_A, "org": ORG_A})
-        connection.execute(text(
-            "INSERT INTO project_finance_rate_card_lines "
-            "(id, tenant_id, organization_id, rate_card_id, rate_type, origin, "
-            "resource_id, is_active, unit, rate_amount, rate_currency, version, "
-            "created_at, updated_at) VALUES "
-            "(:id, :tenant, :org, :card, 'cost', 'configured', :resource, true, "
-            "'HOUR', 42.12500000, 'USD', 1, :now, :now)"
-        ), {"id": RATE_LINE_RACE, "tenant": TENANT_A, "org": ORG_A,
-            "card": RATE_CARD_A, "resource": RESOURCE_RACE, "now": now})
+    _seed_rate_race_line(
+        postgres_test_environment, resource_id=RESOURCE_RACE,
+        line_id=RATE_LINE_RACE, code="R6DF-RACE",
+    )
 
     source, outbox, dispatcher = _build_dispatcher(postgres_test_environment)
     boundary = _governed_rate_boundary(postgres_test_environment)
@@ -686,14 +726,24 @@ def test_governed_rate_edit_races_labor_post_without_mixed_provenance(
             assert posting is not None
             actual = session.get(ProjectCostEntryORM, posting.actual_cost_entry_id)
             assert actual is not None
+            assert posting.rate_card_id == RATE_CARD_A
+            assert posting.rate_card_version == 1
             assert posting.rate_line_id == RATE_LINE_RACE
             assert posting.rate_line_version == 2
             assert posting.rate_amount == Decimal("52.125000")
             assert posting.rate_base_amount == Decimal("52.125000")
+            assert posting.rate_currency == "USD"
+            assert posting.rate_origin == "configured"
+            assert posting.rate_provenance_complete is True
+            assert posting.rate_resolved_at is not None
             assert actual.amount == Decimal("123.80")
             original_evidence = (
+                posting.rate_card_id, posting.rate_card_version,
+                posting.rate_line_id, posting.rate_line_version,
                 posting.rate_amount, posting.rate_base_amount,
-                posting.rate_line_version, actual.amount,
+                posting.rate_currency, posting.rate_origin,
+                posting.rate_provenance_complete, posting.rate_resolved_at,
+                actual.amount,
             )
         finally:
             session.close()
@@ -707,13 +757,94 @@ def test_governed_rate_edit_races_labor_post_without_mixed_provenance(
         ))
         with postgres_test_environment.admin_engine.connect() as connection:
             persisted = connection.execute(text(
-                "SELECT p.rate_amount, p.rate_base_amount, p.rate_line_version, c.amount "
+                "SELECT p.rate_card_id, p.rate_card_version, p.rate_line_id, "
+                "p.rate_line_version, p.rate_amount, p.rate_base_amount, "
+                "p.rate_currency, p.rate_origin, p.rate_provenance_complete, "
+                "p.rate_resolved_at, c.amount "
                 "FROM project_approved_time_labor_postings p "
                 "JOIN project_cost_entries c ON c.id = p.actual_cost_entry_id "
                 "WHERE p.source_event_id = :event_id"
             ), {"event_id": envelope.event_id}).one()
         assert tuple(persisted) == original_evidence
     finally:
+        source.close()
+
+
+def test_worker_share_lock_blocks_governed_economic_edit_until_posted(
+    postgres_test_environment, monkeypatch
+):
+    resource_id = "r6df-resource-worker-first"
+    line_id = "r6df-rate-line-worker-first"
+    _seed_rate_race_line(
+        postgres_test_environment, resource_id=resource_id,
+        line_id=line_id, code="R6DF-WORKER-FIRST",
+    )
+    source, outbox, dispatcher = _build_dispatcher(postgres_test_environment)
+    boundary = _governed_rate_boundary(postgres_test_environment)
+    envelope = _approved_time_envelope("worker-first", resource_id=resource_id)
+    outbox.enqueue(envelope)
+    source.commit()
+    locked = Event()
+    release = Event()
+    editing = Event()
+    original_lock = SqlAlchemyRateResolutionReader.lock_line_for_posting
+
+    def pause_with_share_lock(reader, **kwargs):
+        line = original_lock(reader, **kwargs)
+        locked.set()
+        assert release.wait(timeout=10), "posting was not released"
+        return line
+
+    monkeypatch.setattr(
+        SqlAlchemyRateResolutionReader, "lock_line_for_posting", pause_with_share_lock
+    )
+
+    def governed_edit():
+        editing.set()
+        return boundary.rate_card(lambda service: service.update_line(
+            line_id, expected_version=1, rate_amount=Decimal("60")
+        ))
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            posting = pool.submit(dispatcher.dispatch_pending, limit=1)
+            assert locked.wait(timeout=10), "worker did not acquire the Rate share lock"
+            mutation = pool.submit(governed_edit)
+            assert editing.wait(timeout=10)
+            try:
+                deadline = monotonic() + 5
+                blocked = False
+                while monotonic() < deadline:
+                    with postgres_test_environment.admin_engine.connect() as connection:
+                        blocked = bool(connection.scalar(text(
+                            "SELECT EXISTS (SELECT 1 FROM pg_stat_activity "
+                            "WHERE wait_event_type='Lock' "
+                            "AND query ILIKE '%project_finance_rate_card_lines%')"
+                        )))
+                    if blocked:
+                        break
+                    sleep(0.05)
+                assert blocked, "governed edit never waited on the worker's Rate lock"
+            finally:
+                release.set()
+            assert posting.result(timeout=15) == 1
+            with pytest.raises(BusinessRuleError, match="historical financial use"):
+                mutation.result(timeout=15)
+
+        with postgres_test_environment.admin_engine.connect() as connection:
+            row = connection.execute(text(
+                "SELECT p.rate_amount, p.rate_line_version, c.amount, l.rate_amount "
+                "FROM project_approved_time_labor_postings p "
+                "JOIN project_cost_entries c ON c.id=p.actual_cost_entry_id "
+                "JOIN project_finance_rate_card_lines l ON l.id=p.rate_line_id "
+                "WHERE p.source_event_id=:event_id"
+            ), {"event_id": envelope.event_id}).one()
+            assert row.rate_amount == Decimal("42.125000")
+            assert row.rate_line_version == 1
+            assert row.amount == Decimal("100.05")
+            assert row[3] == Decimal("42.125000")
+    finally:
+        release.set()
         source.close()
 
 
@@ -811,7 +942,9 @@ def test_actual_and_posting_failure_read_plans_under_runtime_scope(
         event.listen(postgres_test_environment.runtime_engine, "before_cursor_execute", capture)
         try:
             actuals, actual_total = actual_reader.list_for_project(
-                PROJECT_A, status=ProjectCostEntryStatus.DRAFT, offset=0, limit=25
+                PROJECT_A, status=ProjectCostEntryStatus.DRAFT,
+                source_module=FinancialSourceModule.PLATFORM_TIME,
+                offset=0, limit=25,
             )
             actual_queries = list(queries)
             queries.clear()
@@ -833,6 +966,10 @@ def test_actual_and_posting_failure_read_plans_under_runtime_scope(
             statement, parameters = captured[1]
             assert "tenant_id" in statement and "organization_id" in statement
             assert "LIMIT" in statement.upper() and "ORDER BY" in statement.upper()
+            if label == "Actual":
+                assert "source_module" in statement and "status" in statement
+            else:
+                assert "event_type" in statement and "status" in statement
             plan = "\n".join(session.connection().exec_driver_sql(
                 "EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT) " + statement, parameters
             ).scalars())
@@ -847,3 +984,40 @@ def test_actual_and_posting_failure_read_plans_under_runtime_scope(
             connection.execute(text(
                 "DELETE FROM project_cost_entries WHERE id LIKE 'r6df-actual-plan-%'"
             ))
+
+
+def test_approved_time_rate_candidate_lookup_plan_under_runtime_scope(
+    postgres_test_environment,
+):
+    session = postgres_test_environment.runtime_session(
+        tenant_id=TENANT_A, organization_id=ORG_A
+    )
+    candidates = []
+
+    def capture(_connection, _cursor, statement, parameters, _context, _many):
+        if "project_finance_rate_card_lines" in statement and "JOIN" in statement:
+            candidates.append((statement, parameters))
+
+    try:
+        validate_postgresql_execution_role(session)
+        reader = SqlAlchemyRateResolutionReader(session=session)
+        event.listen(postgres_test_environment.runtime_engine, "before_cursor_execute", capture)
+        try:
+            result = reader.list_candidates(
+                tenant_id=TENANT_A, organization_id=ORG_A,
+                project_id=PROJECT_A, rate_type=RateType.COST,
+                unit="HOUR", as_of=date(2026, 9, 10),
+            )
+        finally:
+            event.remove(postgres_test_environment.runtime_engine, "before_cursor_execute", capture)
+        assert result and len(candidates) == 1
+        statement, parameters = candidates[0]
+        assert "tenant_id" in statement and "organization_id" in statement
+        assert "effective_from" in statement and "effective_to" in statement
+        plan = "\n".join(session.connection().exec_driver_sql(
+            "EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT) " + statement, parameters
+        ).scalars())
+        assert "Execution Time" in plan and "Buffers:" in plan
+        print(f"R6D-F approved-Time Rate candidate plan:\n{plan}")
+    finally:
+        session.close()

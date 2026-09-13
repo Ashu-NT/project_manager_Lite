@@ -454,6 +454,64 @@ def test_approved_time_worker_no_rate_failure_statement_count(services) -> None:
     print("R6D-F approved-Time no-Rate dispatch SQL statements:", failed)
 
 
+def test_approved_time_correction_worker_statement_count(services) -> None:
+    _, project, resource, _, assignment = _setup(services)
+    tasks = services["task_service"]
+    time = services["timesheet_service"]
+    entry = tasks.add_time_entry(
+        assignment.id, entry_date=date(2026, 5, 4), hours=Decimal("4")
+    )
+    submitted = time.submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
+    approved = time.approve_timesheet_period(
+        submitted.period_id, expected_version=submitted.version
+    )
+    locked = time.lock_timesheet_period(
+        approved.period_id, expected_version=approved.version
+    )
+    unlocked = time.unlock_timesheet_period(
+        locked.period_id, expected_version=locked.version, note="Correction"
+    )
+    reopened = time.reopen_approved_timesheet_period_for_correction(
+        unlocked.period_id, expected_version=unlocked.version, note="Correct hours"
+    )
+    assert reopened.status is TimesheetPeriodStatus.OPEN
+    tasks.update_time_entry(
+        entry.id, expected_version=entry.version, hours=Decimal("5")
+    )
+    resubmitted = time.submit_timesheet_period(
+        resource.id, period_start=date(2026, 5, 1)
+    )
+    time.set_approved_time_dispatcher(None)
+    time.approve_timesheet_period(
+        resubmitted.period_id, expected_version=resubmitted.version
+    )
+    outbox = services["session"].execute(
+        select(TimeFinancialOutboxORM).order_by(
+            TimeFinancialOutboxORM.aggregate_version.desc()
+        )
+    ).scalars().first()
+    assert outbox is not None and outbox.aggregate_version == 2
+    envelope = IntegrationEventEnvelope.model_validate_json(outbox.envelope_json)
+    statements = []
+
+    def capture(_connection, _cursor, statement, _parameters, _context, _many):
+        statements.append(statement)
+
+    engine = services["session"].get_bind()
+    sa.event.listen(engine, "before_cursor_execute", capture)
+    try:
+        assert (
+            services["approved_time_financial_dispatcher"]
+            ._consume_under_unit_of_work(envelope).value == "ready"
+        )
+        correction = len(statements)
+    finally:
+        sa.event.remove(engine, "before_cursor_execute", capture)
+    assert correction > 0
+    assert services["cost_entry_service"].list_for_project(project.id)[1] == 3
+    print("R6D-F approved-Time correction worker SQL statements:", correction)
+
+
 def test_disabled_worker_identity_is_quarantined_without_posting(services) -> None:
     _, project, resource, _, assignment = _setup(services)
     principal = services["service_principal_service"].resolve_execution_principal(

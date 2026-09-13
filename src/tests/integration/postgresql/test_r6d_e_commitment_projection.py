@@ -82,8 +82,7 @@ class _TenantContext:
         return ORG_A
 
 
-@pytest.fixture(scope="module", autouse=True)
-def seeded_procurement_scope(postgres_test_environment):
+def seed_procurement_scope(postgres_test_environment):
     now = datetime(2026, 9, 10, tzinfo=timezone.utc)
     with postgres_test_environment.admin_engine.begin() as connection:
         for tenant, org, project, suffix in (
@@ -141,6 +140,17 @@ def seeded_procurement_scope(postgres_test_environment):
             "(:id, :tenant, :org, :user, :name, 'Procurement worker', 'active', :now, :now)"
         ), {"id": SERVICE_PRINCIPAL_A, "tenant": TENANT_A, "org": ORG_A,
             "user": SERVICE_USER_A, "name": PROCUREMENT_FINANCE_PRINCIPAL_NAME, "now": now})
+
+
+@pytest.fixture(scope="module", autouse=True)
+def seeded_procurement_scope(postgres_test_environment):
+    with postgres_test_environment.admin_engine.connect() as connection:
+        exists = connection.scalar(
+            text("SELECT EXISTS (SELECT 1 FROM tenants WHERE id=:id)"),
+            {"id": TENANT_A},
+        )
+    if not exists:
+        seed_procurement_scope(postgres_test_environment)
 
 
 def _dispatcher(environment):
