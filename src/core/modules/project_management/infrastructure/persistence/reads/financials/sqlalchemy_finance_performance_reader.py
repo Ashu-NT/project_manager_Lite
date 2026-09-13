@@ -12,16 +12,15 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     CostPhasingQuery,
     CostPhasingSeriesAvailabilityFact,
 )
-from src.core.modules.project_management.domain.financials.commitment import (
-    open_commitment_amount,
-)
 from src.core.modules.project_management.infrastructure.persistence.reads.financials.statements.finance_snapshot_statements import (
     actual_cost_phasing_statement,
     approved_forecast_facts_statement,
-    approved_forecast_line_facts_statement,
-    commitment_facts_statement,
+    commitment_cost_phasing_statement,
+    commitment_unphased_cost_statement,
     evm_baseline_statement,
     evm_baseline_task_facts_statement,
+    forecast_cost_phasing_statement,
+    forecast_unphased_cost_statement,
     project_fact_statement,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
@@ -143,45 +142,53 @@ class SqlAlchemyFinancePerformanceReader:
             )
 
         if forecast is not None:
-            unphased_forecast = False
             phased_forecast = Decimal(0)
-            unphased_forecast_amount = Decimal(0)
             for row in self._session.execute(
-                approved_forecast_line_facts_statement(
+                forecast_cost_phasing_statement(
                     tenant_id=tenant_id,
                     organization_id=organization_id,
                     project_id=project_id,
                     forecast_id=str(forecast.id),
                     date_from=query.date_from,
                     date_to=query.date_to,
+                    project_currency=currency,
                 )
             ):
-                if row.period_start is None or row.period_end is None:
-                    unphased_forecast = True
-                    unphased_forecast_amount += self._project_currency_amount(
-                        row.amount, row.currency_code, currency, "Approved forecast"
+                if int(row.currency_mismatch_count or 0) != 0:
+                    raise BusinessRuleError(
+                        "Approved forecast currency cannot be reconciled to project currency.",
+                        code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
                     )
-                    continue
-                if (
-                    self._period_bounds(row.period_start, query.granularity)[0]
-                    != self._period_bounds(row.period_end, query.granularity)[0]
-                ):
-                    unphased_forecast = True
-                    unphased_forecast_amount += self._project_currency_amount(
-                        row.amount, row.currency_code, currency, "Approved forecast"
-                    )
-                    continue
-                amount = self._project_currency_amount(
-                    row.amount, row.currency_code, currency, "Approved forecast"
-                )
+                amount = Decimal(row.total_amount or 0)
                 phased_forecast += amount
-                add("forecast", row.period_start, amount)
+                add(
+                    "forecast",
+                    date(int(row.period_year), int(row.period_month), 1),
+                    amount,
+                )
+            unphased_forecast_row = self._session.execute(
+                forecast_unphased_cost_statement(
+                    tenant_id=tenant_id,
+                    organization_id=organization_id,
+                    project_id=project_id,
+                    forecast_id=str(forecast.id),
+                    project_currency=currency,
+                )
+            ).one()
+            if int(unphased_forecast_row.currency_mismatch_count or 0) != 0:
+                raise BusinessRuleError(
+                    "Approved forecast currency cannot be reconciled to project currency.",
+                    code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
+                )
+            unphased_forecast_amount = Decimal(unphased_forecast_row.total_amount or 0)
             availability["forecast"] = CostPhasingSeriesAvailabilityFact(
                 series_code="forecast",
-                availability="partially_unphased" if unphased_forecast else "available",
+                availability="partially_unphased"
+                if unphased_forecast_amount
+                else "available",
                 unavailable_reason=(
-                    "Some approved Forecast lines span multiple periods or have no period evidence; they are not fabricated into monthly values."
-                    if unphased_forecast
+                    "Some approved Forecast lines span multiple months or have no period evidence; they are not fabricated into monthly values."
+                    if unphased_forecast_amount
                     else ""
                 ),
                 phased_amount=phased_forecast,
@@ -194,31 +201,53 @@ class SqlAlchemyFinancePerformanceReader:
                 unavailable_reason="No approved Forecast exists for this as-of date.",
             )
 
-        unphased_commitment = False
         phased_commitment = Decimal(0)
-        unphased_commitment_amount = Decimal(0)
         for row in self._session.execute(
-            commitment_facts_statement(
+            commitment_cost_phasing_statement(
                 tenant_id=tenant_id,
                 organization_id=organization_id,
                 project_id=project_id,
                 as_of=query.date_to,
                 date_from=query.date_from,
+                date_to=query.date_to,
+                project_currency=currency,
             )
         ):
-            if row.expected_delivery_date is None:
-                unphased_commitment = True
-                unphased_commitment_amount += self._commitment_amount(row, currency)
-                continue
-            amount = self._commitment_amount(row, currency)
+            if int(row.currency_mismatch_count or 0) != 0:
+                raise BusinessRuleError(
+                    "Open Commitment currency cannot be reconciled to project currency.",
+                    code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
+                )
+            amount = Decimal(row.total_amount or 0)
             phased_commitment += amount
-            add("committed", row.expected_delivery_date, amount)
+            add(
+                "committed",
+                date(int(row.period_year), int(row.period_month), 1),
+                amount,
+            )
+        unphased_commitment_row = self._session.execute(
+            commitment_unphased_cost_statement(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+                as_of=query.date_to,
+                project_currency=currency,
+            )
+        ).one()
+        if int(unphased_commitment_row.currency_mismatch_count or 0) != 0:
+            raise BusinessRuleError(
+                "Open Commitment currency cannot be reconciled to project currency.",
+                code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
+            )
+        unphased_commitment_amount = Decimal(unphased_commitment_row.total_amount or 0)
         availability["commitment"] = CostPhasingSeriesAvailabilityFact(
             series_code="commitment",
-            availability="partially_unphased" if unphased_commitment else "available",
+            availability="partially_unphased"
+            if unphased_commitment_amount
+            else "available",
             unavailable_reason=(
                 "Some open Commitments have no expected delivery date and are excluded from period allocation."
-                if unphased_commitment
+                if unphased_commitment_amount
                 else ""
             ),
             phased_amount=phased_commitment,
@@ -359,34 +388,6 @@ class SqlAlchemyFinancePerformanceReader:
                 anchor.month,
                 monthrange(anchor.year, anchor.month)[1],
             ),
-        )
-
-    @staticmethod
-    def _project_currency_amount(
-        amount: object,
-        currency_code: str | None,
-        project_currency: str,
-        source_label: str,
-    ) -> Decimal:
-        if str(currency_code or "").strip().upper() != project_currency:
-            raise BusinessRuleError(
-                f"{source_label} currency cannot be reconciled to project currency.",
-                code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
-            )
-        return Decimal(amount or 0)
-
-    @staticmethod
-    def _commitment_amount(row: object, project_currency: str) -> Decimal:
-        return open_commitment_amount(
-            state=row.state,
-            amount=row.amount,
-            matched_amount=row.matched_amount,
-            currency_code=row.currency_code,
-            base_amount=row.base_amount,
-            base_currency_code=row.base_currency_code,
-            exchange_rate=row.exchange_rate,
-            target_currency=project_currency,
-            currency_mismatch_code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
         )
 
 

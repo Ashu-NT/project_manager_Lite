@@ -288,12 +288,26 @@ is now grouped by posting month in SQL with currency reconciliation performed
 in that same bounded query; application code only rolls those source groups
 into the requested display grain.
 
-Remaining R6E-D closure work is the equivalent SQL-first aggregation for
-Forecast and Commitment, explicit range semantics for future-dated
-Commitments, reconciliation/source-lifecycle evidence, representative
-PostgreSQL query-plan characterization, and the full focused matrix. R6E-E,
-R6F-R6H, Billing, Accounting, FX, and Procurement correction semantics are not
-started. No commit was made.
+Remaining R6E-D closure work is reconciliation/source-lifecycle evidence,
+representative PostgreSQL query-plan characterization, and the full focused
+matrix. R6E-E, R6F-R6H, Billing, Accounting, FX, and Procurement correction
+semantics are not started. No commit was made.
+
+### R6E-D final aggregation checkpoint (2026-09-13)
+
+Forecast and Commitment now also use bounded SQL monthly aggregation. A Cost
+Phasing request treats `as_of_date` as the authoritative information cutoff and
+`date_from`/`date_to` as the display window. Consequently a Commitment known at
+the cutoff may phase into a later expected-delivery month when that month is in
+the window. Facts outside the window are not shifted into a visible bucket;
+missing delivery timing remains explicitly unphased. The normal request
+executes eight fixed statements: project/forecast/baseline authority plus
+Actual, phaseable and unphased Forecast, and phaseable and unphased Commitment
+aggregates. This count does
+not grow with Cost Entry, Forecast Line, Commitment Line, or period counts.
+
+The remaining R6E-D blockers are PostgreSQL EXPLAIN/reconciliation evidence and
+the final lifecycle/range/consumer focused matrix. R6E-E remains not started.
 
 The R6D authority map remains: Rate Card/Line and the canonical resolver for
 Finance rates; `ProjectCostEntry` for managerial Actual; Time for worked/approved

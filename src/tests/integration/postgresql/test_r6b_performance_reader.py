@@ -14,7 +14,6 @@ from src.core.modules.project_management.infrastructure.persistence.reads.financ
 )
 from src.infra.persistence.db.postgresql_rls import validate_postgresql_execution_role
 
-
 pytestmark = pytest.mark.postgresql_integration
 
 TENANT_A = "r6b-performance-tenant-a"
@@ -25,7 +24,9 @@ PROJECT_A = "r6b-performance-project-a"
 PROJECT_B = "r6b-performance-project-b"
 
 
-def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str) -> None:
+def _seed_scope(
+    connection, *, suffix: str, tenant_id: str, organization_id: str
+) -> None:
     now = datetime(2026, 8, 28, 12, 0, tzinfo=timezone.utc)
     project_id = f"r6b-performance-project-{suffix}"
     profile_id = f"r6b-performance-profile-{suffix}"
@@ -196,7 +197,10 @@ def test_performance_reader_is_bounded_through_runtime_rls_role(
             ),
         )
 
-        assert statement_count == 6
+        # Project/Forecast/baseline authority plus Actual, phaseable Forecast,
+        # unphased Forecast, phaseable Commitment, and unphased Commitment
+        # aggregates. It must not grow with source row counts.
+        assert statement_count == 8
         assert facts is not None
         assert facts.currency_code == "USD"
         assert facts.approved_forecast_id == "r6b-performance-forecast-a"
@@ -228,24 +232,33 @@ def test_performance_reader_and_child_tables_deny_cross_scope_access(
             ),
         )
         assert foreign is None
-        assert session.scalar(
-            text(
-                "SELECT count(*) FROM project_finance_profiles "
-                "WHERE id = 'r6b-performance-profile-b'"
+        assert (
+            session.scalar(
+                text(
+                    "SELECT count(*) FROM project_finance_profiles "
+                    "WHERE id = 'r6b-performance-profile-b'"
+                )
             )
-        ) == 0
-        assert session.scalar(
-            text(
-                "SELECT count(*) FROM project_finance_forecasts "
-                "WHERE id = 'r6b-performance-forecast-b'"
+            == 0
+        )
+        assert (
+            session.scalar(
+                text(
+                    "SELECT count(*) FROM project_finance_forecasts "
+                    "WHERE id = 'r6b-performance-forecast-b'"
+                )
             )
-        ) == 0
-        assert session.scalar(
-            text(
-                "SELECT count(*) FROM project_finance_forecast_lines "
-                "WHERE id = 'r6b-performance-forecast-line-b'"
+            == 0
+        )
+        assert (
+            session.scalar(
+                text(
+                    "SELECT count(*) FROM project_finance_forecast_lines "
+                    "WHERE id = 'r6b-performance-forecast-line-b'"
+                )
             )
-        ) == 0
+            == 0
+        )
     finally:
         session.close()
 

@@ -628,6 +628,236 @@ def actual_cost_phasing_statement(
     )
 
 
+def forecast_cost_phasing_statement(
+    *,
+    tenant_id: str,
+    organization_id: str,
+    project_id: str,
+    forecast_id: str,
+    date_from: date,
+    date_to: date,
+    project_currency: str,
+) -> SqlSelect:
+    """Aggregate only authoritative, exactly month-timed Forecast lines."""
+    currency_matches = func.upper(ForecastLineORM.currency_code) == project_currency
+    start_year = func.extract("year", ForecastLineORM.period_start)
+    start_month = func.extract("month", ForecastLineORM.period_start)
+    end_year = func.extract("year", ForecastLineORM.period_end)
+    end_month = func.extract("month", ForecastLineORM.period_end)
+    year = start_year.label("period_year")
+    month = start_month.label("period_month")
+    return (
+        select(
+            year,
+            month,
+            func.coalesce(
+                func.sum(case((currency_matches, ForecastLineORM.amount), else_=0)), 0
+            ).label("total_amount"),
+            func.coalesce(func.sum(case((currency_matches, 0), else_=1)), 0).label(
+                "currency_mismatch_count"
+            ),
+        )
+        .join(ProjectForecastORM, ProjectForecastORM.id == ForecastLineORM.forecast_id)
+        .join(ProjectORM, ProjectORM.id == ForecastLineORM.project_id)
+        .where(
+            ForecastLineORM.tenant_id == tenant_id,
+            ForecastLineORM.organization_id == organization_id,
+            ForecastLineORM.project_id == project_id,
+            ForecastLineORM.forecast_id == forecast_id,
+            ProjectForecastORM.status == "approved",
+            ForecastLineORM.period_start.is_not(None),
+            ForecastLineORM.period_end.is_not(None),
+            start_year == end_year,
+            start_month == end_month,
+            ForecastLineORM.period_start.between(date_from, date_to),
+            _project_scope(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+            ),
+        )
+        .group_by(year, month)
+        .order_by(year, month)
+    )
+
+
+def forecast_unphased_cost_statement(
+    *,
+    tenant_id: str,
+    organization_id: str,
+    project_id: str,
+    forecast_id: str,
+    project_currency: str,
+) -> SqlSelect:
+    """Return the approved Forecast amount that lacks a canonical month."""
+    currency_matches = func.upper(ForecastLineORM.currency_code) == project_currency
+    start_year = func.extract("year", ForecastLineORM.period_start)
+    start_month = func.extract("month", ForecastLineORM.period_start)
+    end_year = func.extract("year", ForecastLineORM.period_end)
+    end_month = func.extract("month", ForecastLineORM.period_end)
+    lacks_month = or_(
+        ForecastLineORM.period_start.is_(None),
+        ForecastLineORM.period_end.is_(None),
+        start_year != end_year,
+        start_month != end_month,
+    )
+    return (
+        select(
+            func.coalesce(
+                func.sum(case((currency_matches, ForecastLineORM.amount), else_=0)), 0
+            ).label("total_amount"),
+            func.coalesce(func.sum(case((currency_matches, 0), else_=1)), 0).label(
+                "currency_mismatch_count"
+            ),
+        )
+        .join(ProjectForecastORM, ProjectForecastORM.id == ForecastLineORM.forecast_id)
+        .join(ProjectORM, ProjectORM.id == ForecastLineORM.project_id)
+        .where(
+            ForecastLineORM.tenant_id == tenant_id,
+            ForecastLineORM.organization_id == organization_id,
+            ForecastLineORM.project_id == project_id,
+            ForecastLineORM.forecast_id == forecast_id,
+            ProjectForecastORM.status == "approved",
+            lacks_month,
+            _project_scope(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+            ),
+        )
+    )
+
+
+def commitment_cost_phasing_statement(
+    *,
+    tenant_id: str,
+    organization_id: str,
+    project_id: str,
+    as_of: date,
+    date_from: date,
+    date_to: date,
+    project_currency: str,
+) -> SqlSelect:
+    """Aggregate open Commitment remaining amounts by expected-delivery month.
+
+    ``as_of`` limits source knowledge; delivery dates may intentionally be
+    later than it when they fall in the requested analytical window.
+    """
+    transaction_matches = (
+        func.upper(ProjectCommitmentLineORM.currency_code) == project_currency
+    )
+    base_matches = (
+        func.upper(ProjectCommitmentLineORM.base_currency_code) == project_currency
+    )
+    transaction_remaining = (
+        ProjectCommitmentLineORM.amount - ProjectCommitmentLineORM.matched_amount
+    )
+    base_remaining = ProjectCommitmentLineORM.base_amount - (
+        ProjectCommitmentLineORM.matched_amount * ProjectCommitmentLineORM.exchange_rate
+    )
+    amount = case(
+        (
+            transaction_matches,
+            case((transaction_remaining > 0, transaction_remaining), else_=0),
+        ),
+        (base_matches, case((base_remaining > 0, base_remaining), else_=0)),
+        else_=0,
+    )
+    currency_matches = or_(transaction_matches, base_matches)
+    year = func.extract("year", ProjectCommitmentLineORM.expected_delivery_date).label(
+        "period_year"
+    )
+    month = func.extract(
+        "month", ProjectCommitmentLineORM.expected_delivery_date
+    ).label("period_month")
+    return (
+        select(
+            year,
+            month,
+            func.coalesce(func.sum(amount), 0).label("total_amount"),
+            func.coalesce(func.sum(case((currency_matches, 0), else_=1)), 0).label(
+                "currency_mismatch_count"
+            ),
+        )
+        .join(ProjectORM, ProjectORM.id == ProjectCommitmentLineORM.project_id)
+        .where(
+            ProjectCommitmentLineORM.tenant_id == tenant_id,
+            ProjectCommitmentLineORM.organization_id == organization_id,
+            ProjectCommitmentLineORM.project_id == project_id,
+            ProjectCommitmentLineORM.state.not_in(("closed", "cancelled")),
+            or_(
+                ProjectCommitmentLineORM.order_date.is_(None),
+                ProjectCommitmentLineORM.order_date <= as_of,
+            ),
+            ProjectCommitmentLineORM.expected_delivery_date.between(date_from, date_to),
+            _project_scope(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+            ),
+        )
+        .group_by(year, month)
+        .order_by(year, month)
+    )
+
+
+def commitment_unphased_cost_statement(
+    *,
+    tenant_id: str,
+    organization_id: str,
+    project_id: str,
+    as_of: date,
+    project_currency: str,
+) -> SqlSelect:
+    """Return the current authoritative open amount with no delivery timing."""
+    transaction_matches = (
+        func.upper(ProjectCommitmentLineORM.currency_code) == project_currency
+    )
+    base_matches = (
+        func.upper(ProjectCommitmentLineORM.base_currency_code) == project_currency
+    )
+    transaction_remaining = (
+        ProjectCommitmentLineORM.amount - ProjectCommitmentLineORM.matched_amount
+    )
+    base_remaining = ProjectCommitmentLineORM.base_amount - (
+        ProjectCommitmentLineORM.matched_amount * ProjectCommitmentLineORM.exchange_rate
+    )
+    amount = case(
+        (
+            transaction_matches,
+            case((transaction_remaining > 0, transaction_remaining), else_=0),
+        ),
+        (base_matches, case((base_remaining > 0, base_remaining), else_=0)),
+        else_=0,
+    )
+    currency_matches = or_(transaction_matches, base_matches)
+    return (
+        select(
+            func.coalesce(func.sum(amount), 0).label("total_amount"),
+            func.coalesce(func.sum(case((currency_matches, 0), else_=1)), 0).label(
+                "currency_mismatch_count"
+            ),
+        )
+        .join(ProjectORM, ProjectORM.id == ProjectCommitmentLineORM.project_id)
+        .where(
+            ProjectCommitmentLineORM.tenant_id == tenant_id,
+            ProjectCommitmentLineORM.organization_id == organization_id,
+            ProjectCommitmentLineORM.project_id == project_id,
+            ProjectCommitmentLineORM.state.not_in(("closed", "cancelled")),
+            or_(
+                ProjectCommitmentLineORM.order_date.is_(None),
+                ProjectCommitmentLineORM.order_date <= as_of,
+            ),
+            ProjectCommitmentLineORM.expected_delivery_date.is_(None),
+            _project_scope(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+            ),
+        )
+    )
+
+
 def commitment_total_statement(
     *,
     tenant_id: str,
@@ -788,10 +1018,14 @@ __all__ = [
     "approved_forecast_line_facts_statement",
     "approved_forecast_total_statement",
     "assignment_facts_statement",
+    "commitment_cost_phasing_statement",
     "commitment_facts_statement",
     "commitment_total_statement",
+    "commitment_unphased_cost_statement",
     "evm_baseline_statement",
     "evm_baseline_task_facts_statement",
+    "forecast_cost_phasing_statement",
+    "forecast_unphased_cost_statement",
     "planned_cost_facts_statement",
     "project_fact_statement",
     "project_resource_facts_statement",
