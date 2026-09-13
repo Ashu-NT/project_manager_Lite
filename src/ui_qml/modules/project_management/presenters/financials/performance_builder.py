@@ -49,7 +49,7 @@ def build_evm_views(dto) -> dict[str, object]:
         status_label=dto.availability.replace("_", " ").title(),
         subtitle=(
             dto.unavailable_reason
-            or "Existing EVM authority isolated behind the Performance read boundary."
+            or "Canonical Decimal EVM authority at the selected as-of date."
         ),
         description=dto.notes,
         empty_state=dto.unavailable_reason,
@@ -68,8 +68,8 @@ def build_evm_views(dto) -> dict[str, object]:
             ),
             FinancialsDetailFieldViewModel(
                 "Calculation precision",
-                "Current binary-float authority",
-                "R6E owns the canonical Decimal replacement; this R6B read does not change formulas.",
+                "Canonical Decimal authority",
+                "Money and ratios remain Decimal until a presentation boundary.",
             ),
         ),
         state={"availability": dto.availability},
@@ -89,7 +89,7 @@ def build_variance_views(dto) -> dict[str, object]:
     return {
         "variance_metrics": _metric_collection(
             "Variance Measures",
-            "Each measure carries its own formula identity and sign convention.",
+            "Each measure has an authoritative formula, availability reason, and favorability state.",
             dto.metrics,
         ),
         "selected_baseline_id": baseline_id,

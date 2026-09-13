@@ -49,9 +49,10 @@ def _basis(**overrides):
     values = {
         "currency_code": "XAF",
         "approved_budget_revision": 2,
+        "approved_budget_id": "budget-1",
+        "approved_budget": Decimal("1_000"),
         "approved_forecast_revision": 3,
         "approved_forecast_as_of": date(2026, 8, 1),
-        "variance_at_completion": Decimal("125"),
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -75,7 +76,29 @@ def _query(monkeypatch, *, reader=None, evm=None, baseline=None):
     return ProjectFinancePerformanceQuery(
         performance_reader=reader or MagicMock(),
         overview_reader=overview,
-        earned_value_authority=evm or MagicMock(),
+        earned_value_authority=evm or SimpleNamespace(
+            get_earned_value=MagicMock(
+                return_value=SimpleNamespace(
+                    availability="available",
+                    unavailable_reason="",
+                    baseline_id="baseline-1",
+                    BAC=Decimal("900"),
+                    PV=Decimal("500"),
+                    EV=Decimal("600"),
+                    AC=Decimal("550"),
+                    CV=Decimal("50"),
+                    SV=Decimal("100"),
+                    CPI=Decimal("1.09"),
+                    SPI=Decimal("1.20"),
+                    ETC=Decimal("350"),
+                    EAC=Decimal("900"),
+                    VAC=Decimal("0"),
+                    TCPI_to_BAC=Decimal("1"),
+                    TCPI_to_EAC=Decimal("1"),
+                    notes="",
+                )
+            )
+        ),
         baseline_variance_authority=baseline or MagicMock(
             list_baselines=MagicMock(return_value=[])
         ),
@@ -176,16 +199,20 @@ def test_evm_calculator_failure_is_contained_but_permission_denial_is_not(monkey
         query.get_evm("project-1", as_of_date=date(2026, 8, 28))
 
 
-def test_variance_metrics_keep_vac_and_budget_pressure_distinct(monkeypatch) -> None:
+def test_variance_metrics_consume_canonical_evm_and_approved_budget(monkeypatch) -> None:
     query = _query(monkeypatch)
 
     facts = query.get_variance("project-1", as_of_date=date(2026, 8, 28))
     metrics = {item.metric_code: item for item in facts.metrics}
 
-    assert metrics["vac"].value == Decimal("125")
-    assert metrics["budget_pressure"].value == Decimal("-125")
-    assert "favorable" in metrics["vac"].sign_convention
-    assert "overrun" in metrics["budget_pressure"].sign_convention
+    assert metrics["cost_variance"].value == Decimal("50")
+    assert metrics["cost_variance"].favorability == "favorable"
+    assert metrics["schedule_variance"].value == Decimal("100")
+    assert metrics["schedule_variance"].favorability == "favorable"
+    assert metrics["vac"].value == Decimal("0")
+    assert metrics["vac"].favorability == "on_target"
+    assert metrics["budget_pressure"].value == Decimal("-100")
+    assert metrics["budget_pressure"].favorability == "favorable"
     assert metrics["period_actual_vs_planned"].availability == "period_required"
 
 
@@ -249,6 +276,31 @@ def test_evm_reader_is_bounded_and_rejects_draft_baselines(services, session) ->
 
     assert result.availability == "baseline_unavailable"
     assert len(statements) <= 10
+
+
+def test_variance_reader_is_bounded_without_per_task_queries(services, session) -> None:
+    project = services["project_service"].create_project(
+        "R6E Variance reader", financial_currency_code="XAF"
+    )
+    for number in range(8):
+        services["task_service"].create_task(
+            project.id,
+            f"Variance task {number}",
+            start_date=date(2026, 1, 1),
+            duration_days=2,
+        )
+    services["baseline_service"].create_baseline(
+        project.id, "Variance baseline", rate_as_of=date(2026, 1, 1)
+    )
+
+    with _statement_count(session) as statements:
+        facts = services["finance_performance_query"].get_variance(
+            project.id, as_of_date=date(2026, 1, 31)
+        )
+
+    assert facts.project_id == project.id
+    # Includes bounded entitlement/context checks and one canonical EVM assembly.
+    assert len(statements) <= 17
 
 
 @pytest.mark.parametrize(

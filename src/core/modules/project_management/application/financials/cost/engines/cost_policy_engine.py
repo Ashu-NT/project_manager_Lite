@@ -45,7 +45,7 @@ class CostControlTotals:
     actual: Decimal
     forecast_etc: Decimal | None
     estimate_at_completion: Decimal | None
-    variance_at_completion: Decimal | None
+    budget_headroom: Decimal | None
     exposure: Decimal
     available: Decimal | None
     unresolved_labor_rates: tuple[UnresolvedLaborRate, ...] = ()
@@ -182,7 +182,7 @@ class CostPolicyEngine:
         exposure = actual + committed
         forecast_etc = facts.control.forecast_etc
         estimate_at_completion = facts.control.estimate_at_completion
-        variance_at_completion = facts.control.variance_at_completion
+        budget_headroom = facts.control.budget_headroom
         return CostControlTotals(
             project_id=snapshot.project_id,
             project_currency=snapshot.project_currency,
@@ -192,7 +192,7 @@ class CostPolicyEngine:
             actual=actual,
             forecast_etc=forecast_etc,
             estimate_at_completion=estimate_at_completion,
-            variance_at_completion=variance_at_completion,
+            budget_headroom=budget_headroom,
             exposure=exposure,
             available=(snapshot.budget - exposure if snapshot.budget > 0 else None),
             unresolved_labor_rates=snapshot.unresolved_labor_rates,

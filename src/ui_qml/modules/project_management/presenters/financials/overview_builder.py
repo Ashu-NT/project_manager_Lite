@@ -67,9 +67,9 @@ def build_overview(
                 supporting_text="Posted actual plus approved forecast ETC.",
             ),
             FinancialsMetricViewModel(
-                label="VAC",
-                value=snapshot.variance_at_completion_label,
-                supporting_text="Approved budget less estimate at completion.",
+                label="Budget headroom",
+                value=snapshot.budget_headroom_label,
+                supporting_text="Approved budget less estimate at completion. This is not EVM VAC.",
             ),
         ),
     )

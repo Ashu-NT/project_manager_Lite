@@ -82,6 +82,8 @@ class PerformanceVarianceMetricFact:
     as_of_date: date
     source_revision: str
     availability: str
+    favorability: str
+    semantic_tooltip: str
     unavailable_reason: str = ""
 
 

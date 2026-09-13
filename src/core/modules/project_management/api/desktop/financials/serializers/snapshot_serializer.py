@@ -33,8 +33,8 @@ def serialize_overview(project_id: str, facts) -> FinancialOverviewDto:
         forecast_etc_label=optional_label(facts.forecast_etc, "Not approved"),
         estimate_at_completion=optional_amount(facts.estimate_at_completion),
         estimate_at_completion_label=optional_label(facts.estimate_at_completion, "Not available"),
-        variance_at_completion=optional_amount(facts.variance_at_completion),
-        variance_at_completion_label=optional_label(facts.variance_at_completion, "Not available"),
+        budget_headroom=optional_amount(facts.budget_headroom),
+        budget_headroom_label=optional_label(facts.budget_headroom, "Not available"),
         approved_budget_id=facts.approved_budget_id or "",
         approved_budget_revision=facts.approved_budget_revision,
         approved_budget_at=facts.approved_budget_at,
@@ -61,8 +61,8 @@ def empty_overview(*, project_id: str) -> FinancialOverviewDto:
         forecast_etc_label="Not approved",
         estimate_at_completion=None,
         estimate_at_completion_label="Not available",
-        variance_at_completion=None,
-        variance_at_completion_label="Not available",
+        budget_headroom=None,
+        budget_headroom_label="Not available",
     )
 
 

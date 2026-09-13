@@ -61,7 +61,7 @@ def finance_summary_rows(ctx: ReportExportContext) -> tuple[tuple[str, Decimal |
         ("Posted actual", snapshot.actual),
         ("Approved forecast ETC", snapshot.forecast_etc),
         ("Estimate at completion", snapshot.estimate_at_completion),
-        ("Variance at completion", snapshot.variance_at_completion),
+        ("Budget headroom after forecast", snapshot.budget_headroom),
         ("Current exposure", snapshot.exposure),
         ("Available after actuals and commitments", snapshot.available),
     )

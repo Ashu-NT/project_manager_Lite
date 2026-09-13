@@ -216,7 +216,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             actual=totals.actual,
             forecast_etc=totals.forecast_etc,
             estimate_at_completion=totals.estimate_at_completion,
-            variance_at_completion=totals.variance_at_completion,
+            budget_headroom=totals.budget_headroom,
             exposure=totals.exposure,
             available=totals.available,
             as_of=as_of,

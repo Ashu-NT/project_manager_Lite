@@ -21,8 +21,8 @@ class FinancialOverviewDto:
     forecast_etc_label: str
     estimate_at_completion: str | None
     estimate_at_completion_label: str
-    variance_at_completion: str | None
-    variance_at_completion_label: str
+    budget_headroom: str | None
+    budget_headroom_label: str
     approved_budget_id: str = ""
     approved_budget_revision: int | None = None
     approved_budget_at: datetime | None = None

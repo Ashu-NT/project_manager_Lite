@@ -108,7 +108,7 @@ class FinanceSnapshot:
     actual: Decimal
     forecast_etc: Decimal | None
     estimate_at_completion: Decimal | None
-    variance_at_completion: Decimal | None
+    budget_headroom: Decimal | None
     exposure: Decimal
     available: Decimal | None
     as_of: date

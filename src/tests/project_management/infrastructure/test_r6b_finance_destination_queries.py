@@ -91,8 +91,8 @@ def _overview() -> FinancialOverviewDto:
         forecast_etc_label="XAF 500.00",
         estimate_at_completion="700",
         estimate_at_completion_label="XAF 700.00",
-        variance_at_completion="300",
-        variance_at_completion_label="XAF 300.00",
+        budget_headroom="300",
+        budget_headroom_label="XAF 300.00",
     )
 
 
@@ -1287,6 +1287,6 @@ def test_finance_overview_reader_is_bounded_and_uses_canonical_controls(services
     assert facts.open_commitment == Decimal("0")
     assert facts.forecast_etc == Decimal("250")
     assert facts.estimate_at_completion == Decimal("250")
-    assert facts.variance_at_completion == Decimal("750")
+    assert facts.budget_headroom == Decimal("750")
     assert facts.approved_budget_revision == 1
     assert facts.approved_forecast_revision == 1

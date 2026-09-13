@@ -90,10 +90,25 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
         self._authorize_finance(project_id, "view earned value performance")
         resolved_as_of = as_of_date or date.today()
         basis = self._read_basis(project_id, resolved_as_of)
+        return self._read_evm(
+            project_id=project_id,
+            as_of_date=resolved_as_of,
+            basis=basis,
+            baseline_id=baseline_id,
+        )
+
+    def _read_evm(
+        self,
+        *,
+        project_id: str,
+        as_of_date: date,
+        basis: object,
+        baseline_id: str | None,
+    ) -> PerformanceEvmFact:
         try:
             metrics = self._earned_value_authority.get_earned_value(
                 project_id,
-                as_of=resolved_as_of,
+                as_of=as_of_date,
                 baseline_id=baseline_id,
             )
         except BusinessRuleError as exc:
@@ -101,7 +116,7 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
                 raise
             return self._unavailable_evm(
                 project_id=project_id,
-                as_of_date=resolved_as_of,
+                as_of_date=as_of_date,
                 basis=basis,
                 availability=self._evm_availability(exc),
                 reason=str(exc),
@@ -111,11 +126,11 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
             logger.exception(
                 "PM Performance EVM calculation unavailable project=%s as_of=%s",
                 project_id,
-                resolved_as_of,
+                as_of_date,
             )
             return self._unavailable_evm(
                 project_id=project_id,
-                as_of_date=resolved_as_of,
+                as_of_date=as_of_date,
                 basis=basis,
                 availability="calculator_error",
                 reason="Earned value is temporarily unavailable.",
@@ -125,7 +140,7 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
         etc = self._optional_decimal(getattr(metrics, "ETC", None))
         return PerformanceEvmFact(
             project_id=project_id,
-            as_of_date=resolved_as_of,
+            as_of_date=as_of_date,
             availability=str(getattr(metrics, "availability", "available")),
             unavailable_reason=str(getattr(metrics, "unavailable_reason", "") or ""),
             baseline_id=str(getattr(metrics, "baseline_id", "") or "") or None,
@@ -192,35 +207,46 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
             if selected is not None
             else ()
         )
-        vac = basis.variance_at_completion
+        evm = self._read_evm(
+            project_id=project_id,
+            as_of_date=resolved_as_of,
+            basis=basis,
+            baseline_id=None,
+        )
         revision = self._revision_label(
             basis.approved_budget_revision,
             basis.approved_forecast_revision,
         )
         metrics = (
-            PerformanceVarianceMetricFact(
+            self._evm_variance_metric(
+                metric_code="cost_variance",
+                display_name="Cost Variance (CV)",
+                value=evm.cv,
+                evm=evm,
+                sign_convention="Positive is favorable; negative is unfavorable.",
+                semantic_tooltip="Earned Value minus Actual Cost (EV - AC).",
+            ),
+            self._evm_variance_metric(
+                metric_code="schedule_variance",
+                display_name="Schedule Variance (SV)",
+                value=evm.sv,
+                evm=evm,
+                sign_convention="Positive is ahead in earned-value terms; negative is behind.",
+                semantic_tooltip="Earned Value minus Planned Value (EV - PV); this is monetary EVM variance, not schedule days.",
+            ),
+            self._evm_variance_metric(
                 metric_code="vac",
                 display_name="Variance at Completion (VAC)",
-                value=vac,
-                currency_code=basis.currency_code,
-                unit="money",
-                sign_convention="Positive is favorable remaining Budget; negative is projected overrun.",
-                as_of_date=resolved_as_of,
-                source_revision=revision,
-                availability="available" if vac is not None else "forecast_unavailable",
-                unavailable_reason="No approved Forecast exists for this as-of date." if vac is None else "",
+                value=evm.vac,
+                evm=evm,
+                sign_convention="Positive is favorable; negative is projected overrun.",
+                semantic_tooltip="Budget at Completion minus Estimate at Completion (BAC - EAC).",
             ),
-            PerformanceVarianceMetricFact(
-                metric_code="budget_pressure",
-                display_name="Budget Pressure",
-                value=None if vac is None else -vac,
-                currency_code=basis.currency_code,
-                unit="money",
-                sign_convention="Positive is projected overrun; negative is favorable headroom.",
+            self._budget_pressure_metric(
+                basis=basis,
+                evm=evm,
                 as_of_date=resolved_as_of,
-                source_revision=revision,
-                availability="available" if vac is not None else "forecast_unavailable",
-                unavailable_reason="No approved Forecast exists for this as-of date." if vac is None else "",
+                revision=revision,
             ),
             PerformanceVarianceMetricFact(
                 metric_code="period_actual_vs_planned",
@@ -232,19 +258,9 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
                 as_of_date=resolved_as_of,
                 source_revision="Select a bounded Cost Phasing period",
                 availability="period_required",
+                favorability="unavailable",
+                semantic_tooltip="Period Actual versus Planned requires the bounded Cost Phasing authority and is not inferred by Variance.",
                 unavailable_reason="A bounded comparison period is required; no value is inferred here.",
-            ),
-            PerformanceVarianceMetricFact(
-                metric_code="schedule_variance",
-                display_name="EVM Schedule Variance",
-                value=None,
-                currency_code=basis.currency_code,
-                unit="money",
-                sign_convention="Positive is ahead of the cost-loaded baseline schedule.",
-                as_of_date=resolved_as_of,
-                source_revision="EVM authority",
-                availability="evm_required",
-                unavailable_reason="Review the EVM subsection; baseline movement below is plan-to-plan history, not EVM SV.",
             ),
         )
         return PerformanceVarianceFacts(
@@ -399,6 +415,88 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
             f"Budget r{budget_revision if budget_revision is not None else 'N/A'} / "
             f"Forecast r{forecast_revision if forecast_revision is not None else 'N/A'}"
         )
+
+    @staticmethod
+    def _evm_variance_metric(
+        *,
+        metric_code: str,
+        display_name: str,
+        value: Decimal | None,
+        evm: PerformanceEvmFact,
+        sign_convention: str,
+        semantic_tooltip: str,
+    ) -> PerformanceVarianceMetricFact:
+        unavailable_reason = "" if value is not None else evm.unavailable_reason
+        return PerformanceVarianceMetricFact(
+            metric_code=metric_code,
+            display_name=display_name,
+            value=value,
+            currency_code=evm.currency_code,
+            unit="money",
+            sign_convention=sign_convention,
+            as_of_date=evm.as_of_date,
+            source_revision="Canonical Decimal EVM",
+            availability="available" if value is not None else evm.availability,
+            favorability=ProjectFinancePerformanceQuery._favorable_state(value),
+            semantic_tooltip=semantic_tooltip,
+            unavailable_reason=unavailable_reason,
+        )
+
+    @staticmethod
+    def _budget_pressure_metric(
+        *,
+        basis: object,
+        evm: PerformanceEvmFact,
+        as_of_date: date,
+        revision: str,
+    ) -> PerformanceVarianceMetricFact:
+        approved_budget_id = getattr(basis, "approved_budget_id", None)
+        if not approved_budget_id:
+            value = None
+            availability = "budget_unavailable"
+            unavailable_reason = "No approved Budget exists for this as-of date."
+        elif evm.eac is None:
+            value = None
+            availability = evm.availability
+            unavailable_reason = evm.unavailable_reason or "EAC is unavailable."
+        else:
+            value = evm.eac - Decimal(str(getattr(basis, "approved_budget", "0")))
+            availability = "available"
+            unavailable_reason = ""
+        return PerformanceVarianceMetricFact(
+            metric_code="budget_pressure",
+            display_name="Budget Pressure",
+            value=value,
+            currency_code=evm.currency_code,
+            unit="money",
+            sign_convention="Positive is projected pressure; negative is favorable headroom.",
+            as_of_date=as_of_date,
+            source_revision=revision,
+            availability=availability,
+            favorability=ProjectFinancePerformanceQuery._pressure_state(value),
+            semantic_tooltip="Estimate at Completion minus the exact total of the approved Budget (EAC - Approved Budget).",
+            unavailable_reason=unavailable_reason,
+        )
+
+    @staticmethod
+    def _favorable_state(value: Decimal | None) -> str:
+        if value is None:
+            return "unavailable"
+        if value > 0:
+            return "favorable"
+        if value < 0:
+            return "unfavorable"
+        return "on_target"
+
+    @staticmethod
+    def _pressure_state(value: Decimal | None) -> str:
+        if value is None:
+            return "unavailable"
+        if value > 0:
+            return "unfavorable"
+        if value < 0:
+            return "favorable"
+        return "on_target"
 
     @staticmethod
     def _unavailable_evm(

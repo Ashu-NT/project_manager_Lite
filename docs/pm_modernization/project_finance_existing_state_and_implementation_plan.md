@@ -1,6 +1,6 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: R6C closed; R6D-A through R6D-G complete; R6D CLOSED; R6E-A/B COMPLETE; R6E-C next, not started
+Status: R6C closed; R6D-A through R6D-G complete; R6D CLOSED; R6E-A/B/C COMPLETE; R6E-D next, not started
 Last updated: 2026-09-13
 Scope: Project Management finance plus reusable platform financial foundations
 Current checkpoint: R6D-G final regression and repository reconciliation are complete. The
@@ -216,6 +216,55 @@ changed, so no QML lint was required. The full PM/PostgreSQL suite was not run
 because this phase used targeted evidence only. R6E-C (consumer/display
 refinement), R6F-R6H, Cost Phasing redesign, Billing, Accounting, FX, and
 Procurement correction semantics are **not started**. No commit was made.
+
+### R6E-C Variance taxonomy and analytical read migration closure (2026-09-13)
+
+R6E-C is **complete**. R6E-B remains closed and its canonical Decimal EVM
+authority was not redesigned. The Performance Variance subsection consumes that
+authority once for the same explicit project/as-of date and combines it only
+with the authoritative approved-Budget projection needed for Budget Pressure.
+The subsection, desktop serializer, presenter, and QML remain read-only; QML
+has no financial formula or sign interpretation.
+
+- **Canonical taxonomy:** CV is `EV - AC`, SV is `EV - PV` (a monetary EVM
+  value variance, never schedule days), and VAC is `BAC - EAC`. All three are
+  canonical EVM results. Budget Pressure is separately `EAC - Approved Budget`.
+  Its inverse sign convention is explicit: positive is unfavorable pressure,
+  zero is on target, and negative is favorable headroom. Period Actual versus
+  Planned remains unavailable by design until R6E-D bounded Cost Phasing; no
+  unbounded or guessed period value was introduced. The Dashboard's former
+  generic `Forecast Var.` label now identifies `EVM VAC` precisely.
+- **Control rename and deletion:** the former control/overview field named
+  `variance_at_completion` was approved-Budget minus EAC, not EVM VAC. It is
+  now `budget_headroom` through immutable facts, cost-policy, overview DTO,
+  Finance snapshot, presenter, and finance export projection. No compatibility
+  alias remains. Baseline plan-to-plan records retain their distinct
+  schedule/planned-cost movement semantics and remain visibly separate from
+  EVM SV/CV/VAC.
+- **Contract and availability:** immutable `PerformanceVarianceMetricFact` now
+  carries server-authored favorability, a concise semantic tooltip, Decimal
+  value, currency, source revision, availability, and unavailable reason.
+  Missing baseline/forecast facts propagate canonical unavailable states; a
+  missing approved Budget makes only Budget Pressure unavailable. Neither null
+  nor unavailable becomes zero.
+- **Scope/money/performance:** Finance/project permissions, explicit
+  tenant/organization/project scope, project currency, and the canonical
+  as-of date are preserved. A live eight-task Variance request is bounded at 17
+  statements, including entitlement/context checks and one canonical EVM
+  assembly, with no per-task/cost-entry loop; no index was needed.
+- **Consumer audit:** Finance Performance is the active Variance destination.
+  Reporting/export baseline history remains a distinct schedule comparison; no
+  report or export independently computes CV/SV/VAC/Budget Pressure. Existing
+  EVM chart/export consumers continue to use canonical EVM facts and cross a
+  float boundary only in presentation.
+
+R6E-C focused evidence: 7 taxonomy/availability/Decimal/desktop-tone tests, 28
+Performance reader/QML viewport tests, 30 Finance destination-query tests, 6
+immutable Finance-read contract tests, and 35 architecture/Forecast/Actual
+governance regressions passed. Targeted Ruff, compilation, QML lint, and `git
+diff --check` passed. R6E-D Cost Phasing,
+R6F-R6H, Billing, Accounting, FX, and Procurement correction semantics remain
+**not started**. No commit was made.
 
 The R6D authority map remains: Rate Card/Line and the canonical resolver for
 Finance rates; `ProjectCostEntry` for managerial Actual; Time for worked/approved

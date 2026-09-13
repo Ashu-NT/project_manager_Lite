@@ -69,7 +69,7 @@ def serialize_performance_evm(fact) -> FinancialEvmDto:
             _evm_ratio_metric("spi", "Schedule Performance Index (SPI)", fact.spi, "EV / PV; unavailable when PV is zero."),
             _evm_money_metric("etc", "Estimate to Complete (ETC)", fact.etc, currency, "Approved Forecast ETC authority."),
             _evm_money_metric("eac", "Estimate at Completion (EAC)", fact.eac, currency, "Existing authority: AC + approved Forecast ETC."),
-            _evm_money_metric("vac", "Variance at Completion (VAC)", fact.vac, currency, "Existing authority: BAC - EAC; positive is favorable."),
+            _evm_money_metric("vac", "Variance at Completion (VAC)", fact.vac, currency, "Canonical EVM: BAC - EAC; positive is favorable."),
             _evm_ratio_metric("tcpi_bac", "TCPI to BAC", fact.tcpi_bac, "Required cost efficiency to meet BAC."),
             _evm_ratio_metric("tcpi_eac", "TCPI to EAC", fact.tcpi_eac, "Required cost efficiency to meet EAC."),
         ),
@@ -84,13 +84,14 @@ def serialize_performance_variance(facts) -> FinancialVarianceWorkspaceDto:
             label=item.display_name,
             value=None if item.value is None else canonical_decimal_text(item.value),
             value_label="Not available" if item.value is None else format_money(item.value, item.currency_code),
-            supporting_text=" | ".join(part for part in (item.sign_convention, item.source_revision, item.unavailable_reason) if part),
+            supporting_text=" | ".join(part for part in (item.semantic_tooltip, item.sign_convention, item.source_revision, item.unavailable_reason) if part),
             availability=item.availability,
-            tone=(
-                "danger" if item.metric_code == "budget_pressure" and (item.value or 0) > 0
-                else "success" if item.metric_code == "vac" and (item.value or 0) > 0
-                else "default"
-            ),
+            tone={
+                "favorable": "success",
+                "unfavorable": "danger",
+                "on_target": "default",
+                "unavailable": "default",
+            }.get(item.favorability, "default"),
         )
         for item in facts.metrics
     )

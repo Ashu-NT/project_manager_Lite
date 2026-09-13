@@ -134,7 +134,7 @@ def test_snapshot_reconciles_approved_budget_forecast_and_posted_actual(services
     assert snapshot.actual == Decimal("25")
     assert snapshot.forecast_etc == Decimal("80")
     assert snapshot.estimate_at_completion == Decimal("105")
-    assert snapshot.variance_at_completion == Decimal("-5")
+    assert snapshot.budget_headroom == Decimal("-5")
     assert snapshot.approved_budget_id == budget.id
     assert snapshot.approved_forecast_id == forecast.id
     assert snapshot.approved_forecast_revision == forecast.revision
@@ -241,7 +241,7 @@ def test_snapshot_has_no_eac_or_vac_before_the_approved_forecast_basis(services)
     assert snapshot.actual == Decimal("0")
     assert snapshot.forecast_etc is None
     assert snapshot.estimate_at_completion is None
-    assert snapshot.variance_at_completion is None
+    assert snapshot.budget_headroom is None
     assert snapshot.approved_forecast_id is None
 
 

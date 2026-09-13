@@ -94,7 +94,13 @@ class FinanceControlFact:
         return self.posted_actual + self.forecast_etc
 
     @property
-    def variance_at_completion(self) -> Decimal | None:
+    def budget_headroom(self) -> Decimal | None:
+        """Approved budget remaining after the governed forecast EAC.
+
+        This is a Finance control projection, not EVM VAC.  EVM VAC uses the
+        approved cost-loaded baseline BAC and is produced only by the canonical
+        earned-value authority.
+        """
         eac = self.estimate_at_completion
         return None if eac is None else self.approved_budget - eac
 

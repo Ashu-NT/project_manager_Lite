@@ -82,7 +82,7 @@ Item {
         AppWidgets.InlineMessage {
             Layout.fillWidth: true
             tone: "info"
-            message: "Isolates the existing EVM authority. Its known binary-float precision and no-duration fallback defects remain explicit R6E debt; no formula is recalculated in QML."
+            message: "Uses the canonical Decimal EVM authority. Values and availability are supplied by the Finance read contract; no formula is recalculated in QML."
         }
     }
 }

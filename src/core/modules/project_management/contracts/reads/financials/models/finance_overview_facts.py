@@ -43,8 +43,8 @@ class FinanceOverviewFacts:
         return self.control.estimate_at_completion
 
     @property
-    def variance_at_completion(self) -> Decimal | None:
-        return self.control.variance_at_completion
+    def budget_headroom(self) -> Decimal | None:
+        return self.control.budget_headroom
 
     @property
     def available_after_commitment(self) -> Decimal:
