@@ -4,12 +4,15 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from src.core.modules.project_management.contracts.reads.financials.models.finance_performance_facts import (
+    CostPhasingSeriesAvailabilityFact,
+)
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
     UnresolvedLaborRate,
 )
 
-
 # ── Finance snapshot DTOs ─────────────────────────────────────────────────────
+
 
 @dataclass(frozen=True)
 class FinanceLedgerRow:
@@ -89,10 +92,7 @@ class FinanceReconciliation:
             self.posted_actual_delta == 0
             and self.open_commitment_delta == 0
             and (
-                (
-                    self.forecast_etc_control is None
-                    and self.forecast_etc_ledger is None
-                )
+                (self.forecast_etc_control is None and self.forecast_etc_ledger is None)
                 or self.forecast_etc_delta == 0
             )
         )
@@ -123,6 +123,7 @@ class FinanceSnapshot:
     reconciliation: FinanceReconciliation
     ledger: list[FinanceLedgerRow]
     cost_phasing: list[FinancePeriodRow]
+    cost_phasing_availability: tuple[CostPhasingSeriesAvailabilityFact, ...]
     by_source: list[FinanceAnalyticsRow]
     by_cost_type: list[FinanceAnalyticsRow]
     by_resource: list[FinanceAnalyticsRow]
@@ -133,11 +134,12 @@ class FinanceSnapshot:
     @property
     def commitment_rate_percent(self) -> Decimal:
         if self.budget <= 0:
-            return Decimal("0")
-        return (self.committed / self.budget) * Decimal("100")
+            return Decimal(0)
+        return (self.committed / self.budget) * Decimal(100)
 
 
 # ── Cost DTOs ─────────────────────────────────────────────────────────────────
+
 
 @dataclass
 class CostSourceRow:
@@ -170,6 +172,7 @@ class CostBreakdownRow:
 
 # ── Commercial / profitability DTOs ───────────────────────────────
 
+
 @dataclass(frozen=True)
 class ProjectCommercialProjection:
     """contract_value/billable_amount/externally_invoiced_amount/
@@ -193,6 +196,7 @@ class ProjectCommercialProjection:
 
 
 # ── Labor DTOs ────────────────────────────────────────────────────────────────
+
 
 @dataclass
 class LaborAssignmentRow:
@@ -247,6 +251,7 @@ class LaborDetailsResult:
 
 
 # ── Earned Value DTOs ─────────────────────────────────────────────────────────
+
 
 @dataclass(frozen=True, slots=True)
 class EvmSeriesPoint:

@@ -279,13 +279,21 @@ Commitment timing are marked `partially_unphased`, never fabricated. These
 series are distinct and non-additive; Cost Phasing remains explicitly separate
 from cash flow, Billing, Accounting, and FX.
 
-Remaining R6E-D closure work is intentionally tracked as active, not temporary
-compatibility: replace the snapshot-ledger `build_period_cost_phasing` export
-path with this reader, move owned report/export consumers, finish SQL-first
-period aggregation and reconciliation tests, characterize representative query
-plans, add the full source/lifecycle test matrix, then delete the superseded
-builder and its tests in the same cutover. R6E-E, R6F-R6H, Billing, Accounting,
-FX, and Procurement correction semantics are not started. No commit was made.
+The snapshot, desktop, and export-backed snapshot paths now consume the one
+canonical reader; `build_period_cost_phasing` and its package export were
+deleted with no source references or compatibility wrapper. Forecast and
+Commitment availability carries exact phased and unphased Decimal totals all
+the way through the desktop and export metadata contracts. Actual Cost Phasing
+is now grouped by posting month in SQL with currency reconciliation performed
+in that same bounded query; application code only rolls those source groups
+into the requested display grain.
+
+Remaining R6E-D closure work is the equivalent SQL-first aggregation for
+Forecast and Commitment, explicit range semantics for future-dated
+Commitments, reconciliation/source-lifecycle evidence, representative
+PostgreSQL query-plan characterization, and the full focused matrix. R6E-E,
+R6F-R6H, Billing, Accounting, FX, and Procurement correction semantics are not
+started. No commit was made.
 
 The R6D authority map remains: Rate Card/Line and the canonical resolver for
 Finance rates; `ProjectCostEntry` for managerial Actual; Time for worked/approved

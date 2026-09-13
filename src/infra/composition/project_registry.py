@@ -826,9 +826,14 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )
+    finance_performance_reader = SqlAlchemyFinancePerformanceReader(
+        session=session,
+        calendar=platform_services.global_calendar_shim,
+    )
     finance_service = FinanceService(
         rate_resolver=rate_card_resolver,
         finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session),
+        finance_performance_reader=finance_performance_reader,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
@@ -1550,10 +1555,7 @@ def build_project_management_service_bundle(
         uow_factory=baseline_uow_factory.create,
     )
     finance_performance_query = ProjectFinancePerformanceQuery(
-        performance_reader=SqlAlchemyFinancePerformanceReader(
-            session=session,
-            calendar=platform_services.global_calendar_shim,
-        ),
+        performance_reader=finance_performance_reader,
         overview_reader=SqlAlchemyFinanceSnapshotReader(session=session),
         earned_value_authority=reporting_service,
         baseline_variance_authority=baseline_service,

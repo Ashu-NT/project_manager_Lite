@@ -30,6 +30,8 @@ class CostPhasingSeriesAvailabilityFact:
     series_code: str
     availability: str
     unavailable_reason: str = ""
+    phased_amount: Decimal | None = None
+    unphased_amount: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)

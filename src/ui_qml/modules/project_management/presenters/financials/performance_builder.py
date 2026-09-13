@@ -189,7 +189,7 @@ def build_cost_phasing_views(dto) -> dict[str, object]:
                         availability.replace("_", " ").title(),
                         reason,
                     )
-                    for code, availability, reason in dto.series_availability
+                    for code, availability, reason, phased_amount, unphased_amount in dto.series_availability
                 ),
             ),
         ),
