@@ -26,6 +26,13 @@ class CostPhasingPeriodFact:
 
 
 @dataclass(frozen=True, slots=True)
+class CostPhasingSeriesAvailabilityFact:
+    series_code: str
+    availability: str
+    unavailable_reason: str = ""
+
+
+@dataclass(frozen=True, slots=True)
 class CostPhasingFacts:
     tenant_id: str
     organization_id: str
@@ -41,6 +48,7 @@ class CostPhasingFacts:
     approved_forecast_revision: int | None
     approved_forecast_as_of: date | None
     periods: tuple[CostPhasingPeriodFact, ...]
+    series_availability: tuple[CostPhasingSeriesAvailabilityFact, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,6 +136,7 @@ __all__ = [
     "CostPhasingFacts",
     "CostPhasingPeriodFact",
     "CostPhasingQuery",
+    "CostPhasingSeriesAvailabilityFact",
     "PerformanceEvmFact",
     "PerformanceReportDefinitionFact",
     "PerformanceReportsFacts",

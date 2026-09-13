@@ -124,6 +124,10 @@ def serialize_cost_phasing(facts) -> FinancialCostPhasingDto:
         approved_forecast_id=facts.approved_forecast_id or "",
         approved_forecast_revision=facts.approved_forecast_revision,
         approved_forecast_as_of=facts.approved_forecast_as_of,
+        series_availability=tuple(
+            (item.series_code, item.availability, item.unavailable_reason)
+            for item in facts.series_availability
+        ),
         periods=tuple(
             FinancialPeriodRowDto(
                 period_key=item.period_key,

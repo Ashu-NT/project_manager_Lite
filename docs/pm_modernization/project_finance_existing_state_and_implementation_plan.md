@@ -1,6 +1,6 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: R6C closed; R6D-A through R6D-G complete; R6D CLOSED; R6E-A/B/C COMPLETE; R6E-D next, not started
+Status: R6C closed; R6D-A through R6D-G complete; R6D CLOSED; R6E-A/B/C COMPLETE; R6E-D IN PROGRESS
 Last updated: 2026-09-13
 Scope: Project Management finance plus reusable platform financial foundations
 Current checkpoint: R6D-G final regression and repository reconciliation are complete. The
@@ -265,6 +265,27 @@ governance regressions passed. Targeted Ruff, compilation, QML lint, and `git
 diff --check` passed. R6E-D Cost Phasing,
 R6F-R6H, Billing, Accounting, FX, and Procurement correction semantics remain
 **not started**. No commit was made.
+
+### R6E-D Cost Phasing implementation checkpoint (2026-09-13)
+
+R6E-D is **in progress, not closed**. The Performance Cost Phasing contract now
+carries immutable per-series availability facts. Its scoped reader has begun the
+authoritative source cutover: planned cost uses only an approved cost-loaded
+baseline and the shared enterprise calendar; Actual uses posted/reversed cost
+entries by posting date; Forecast uses only approved lines with complete
+same-period timing evidence; and open Commitment uses only its remaining amount
+at `expected_delivery_date`. Missing or cross-period Forecast timing and missing
+Commitment timing are marked `partially_unphased`, never fabricated. These
+series are distinct and non-additive; Cost Phasing remains explicitly separate
+from cash flow, Billing, Accounting, and FX.
+
+Remaining R6E-D closure work is intentionally tracked as active, not temporary
+compatibility: replace the snapshot-ledger `build_period_cost_phasing` export
+path with this reader, move owned report/export consumers, finish SQL-first
+period aggregation and reconciliation tests, characterize representative query
+plans, add the full source/lifecycle test matrix, then delete the superseded
+builder and its tests in the same cutover. R6E-E, R6F-R6H, Billing, Accounting,
+FX, and Procurement correction semantics are not started. No commit was made.
 
 The R6D authority map remains: Rate Card/Line and the canonical resolver for
 Finance rates; `ProjectCostEntry` for managerial Actual; Time for worked/approved

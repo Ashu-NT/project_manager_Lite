@@ -1550,7 +1550,10 @@ def build_project_management_service_bundle(
         uow_factory=baseline_uow_factory.create,
     )
     finance_performance_query = ProjectFinancePerformanceQuery(
-        performance_reader=SqlAlchemyFinancePerformanceReader(session=session),
+        performance_reader=SqlAlchemyFinancePerformanceReader(
+            session=session,
+            calendar=platform_services.global_calendar_shim,
+        ),
         overview_reader=SqlAlchemyFinanceSnapshotReader(session=session),
         earned_value_authority=reporting_service,
         baseline_variance_authority=baseline_service,

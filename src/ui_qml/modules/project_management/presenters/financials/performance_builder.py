@@ -183,6 +183,14 @@ def build_cost_phasing_views(dto) -> dict[str, object]:
                 FinancialsDetailFieldViewModel("Currency", dto.currency_code or "Not configured"),
                 FinancialsDetailFieldViewModel("Budget revision", "Not approved" if dto.approved_budget_revision is None else f"r{dto.approved_budget_revision}"),
                 FinancialsDetailFieldViewModel("Forecast revision", "Not approved" if dto.approved_forecast_revision is None else f"r{dto.approved_forecast_revision}"),
+                *tuple(
+                    FinancialsDetailFieldViewModel(
+                        f"{code.title()} series",
+                        availability.replace("_", " ").title(),
+                        reason,
+                    )
+                    for code, availability, reason in dto.series_availability
+                ),
             ),
         ),
     }

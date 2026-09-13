@@ -64,6 +64,7 @@ class FinancialCostPhasingDto:
     approved_forecast_id: str = ""
     approved_forecast_revision: int | None = None
     approved_forecast_as_of: date | None = None
+    series_availability: tuple[tuple[str, str, str], ...] = field(default_factory=tuple)
     periods: tuple[FinancialPeriodRowDto, ...] = field(default_factory=tuple)
 
 

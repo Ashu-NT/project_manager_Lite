@@ -392,6 +392,7 @@ def commitment_facts_statement(
             ProjectCommitmentLineORM.exchange_rate,
             ProjectCommitmentLineORM.matched_amount,
             ProjectCommitmentLineORM.order_date,
+            ProjectCommitmentLineORM.expected_delivery_date,
         )
         .join(ProjectORM, ProjectORM.id == ProjectCommitmentLineORM.project_id)
         .where(
@@ -403,7 +404,7 @@ def commitment_facts_statement(
                 organization_id=organization_id,
                 project_id=project_id,
             ),
-            ProjectCommitmentLineORM.state != "cancelled",
+            ProjectCommitmentLineORM.state.not_in(("closed", "cancelled")),
             or_(ProjectCommitmentLineORM.order_date.is_(None), ProjectCommitmentLineORM.order_date <= as_of),
         )
         .order_by(ProjectCommitmentLineORM.id)
@@ -411,8 +412,8 @@ def commitment_facts_statement(
     if date_from is not None:
         stmt = stmt.where(
             or_(
-                ProjectCommitmentLineORM.order_date.is_(None),
-                ProjectCommitmentLineORM.order_date >= date_from,
+                ProjectCommitmentLineORM.expected_delivery_date.is_(None),
+                ProjectCommitmentLineORM.expected_delivery_date >= date_from,
             )
         )
     return stmt
