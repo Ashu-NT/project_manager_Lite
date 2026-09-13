@@ -378,9 +378,6 @@ def test_financial_change_application_produces_budget_and_financial_change_facts
     """One ApprovalService transaction produces both a typed `FinancialChangeChanged` fact and
     typed Budget facts (`BudgetVersionCreated` for the new successor,
     `BudgetStatusChanged(SUPERSEDED)` for the base) in the same commit."""
-    from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
-        FinancialChangeChanged,
-    )
     from src.core.modules.project_management.domain.financials.financial_change import (
         FinancialChangeImpactType,
     )

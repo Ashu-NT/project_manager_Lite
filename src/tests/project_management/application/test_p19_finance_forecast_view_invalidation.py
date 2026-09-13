@@ -346,7 +346,7 @@ def _seed_approved_finance_for_change(services):
     project, code = _seed_project_and_cost_code(services)
     budgets = services["budget_service"]
     budget = budgets.create_budget(project.id, "Approved control budget")
-    budget_line = budgets.add_line(
+    budgets.add_line(
         budget.id, cost_code_id=code.id, description="Approved scope", amount=Decimal("100"),
         expected_budget_version=budget.row_version,
     )

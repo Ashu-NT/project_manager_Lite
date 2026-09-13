@@ -1,9 +1,9 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: implementation in progress; R6C closed; R6D-A through R6D-F complete; R6D-G final closure validation in progress
+Status: R6C closed; R6D-A through R6D-G complete; R6D CLOSED; R6E next, not started
 Last updated: 2026-09-13
 Scope: Project Management finance plus reusable platform financial foundations
-Current checkpoint: R6D-G final regression and repository reconciliation. The
+Current checkpoint: R6D-G final regression and repository reconciliation are complete. The
 R6D-D Approved-Time Labor Posting Hardening path is complete. The
 authoritative path is Time approval -> immutable Time financial outbox -> leased
 delivery -> Finance inbox -> fresh Finance worker UoW -> canonical cost-rate
@@ -25,15 +25,14 @@ the approved-time worker does not invoke or emulate that future module.
 
 ### R6D-G Final closure checkpoint (2026-09-13)
 
-R6D-G is **in progress, not closed** until the current full Project Management
-suite rerun and final quality gates pass. Commit `9e392e48a913de9f74f31d43f9359ab88cd2c861`
+R6D-G is **complete; R6D CLOSED**. Commit `9e392e48a913de9f74f31d43f9359ab88cd2c861`
 (`update rate card`, Ashu, 2026-09-12 23:14:53 +02:00, parent
 `07227df5d11bfc3132826aaba40e2f0d7d51291f`) contains R6D Rate/Actual/
 Commitment and invalidation work. Git proves the commit metadata and contents,
 not which external process created it. Preserve it; no history rewrite. The
-working tree was clean at the start of G. A later external commit `e32a05458`
-captured the five Finance invalidation-handler and characterization edits during
-this run; this agent did not commit it.
+working tree was clean at the start of G. Later external commits `e32a05458`
+and `5b7ff2900` captured this run's Finance invalidation, Finance UoW,
+test-fixture, and checkpoint work. This agent created no commit.
 
 The R6D authority map remains: Rate Card/Line and the canonical resolver for
 Finance rates; `ProjectCostEntry` for managerial Actual; Time for worked/approved
@@ -57,20 +56,73 @@ presentation fallback, Resource rate metadata, and R6E analytical code remain.
 
 The full PM suite's first pass found an R6D-owned SQLite audit-atomicity defect:
 a released SAVEPOINT could escape an outer session rollback without a physical
-SQLite `BEGIN`. The shared UoW now starts that outer transaction on entry;
-a new savepoint rollback regression and the failed Manual Actual audit test
-pass. A stale Commitment desktop test double now accepts the authoritative
+SQLite `BEGIN`. The Finance governance UoW now starts that outer transaction
+on entry; the failed Manual Actual audit-rollback test passes without changing
+the shared UoW. A stale Commitment desktop test double now accepts the authoritative
 `exposure` query parameter. An older R6B live Financial Change seed now writes
 the schema-required `updated_at`; this changed only the test fixture.
 
-Evidence so far: live R6D/R6B PostgreSQL selection **30 passed**; fresh-schema
+Final evidence: live R6D/R6B PostgreSQL selection **30 passed** after the
+Finance UoW fix; fresh-schema
 PostgreSQL security **14 passed**; live R6C/R6B readers **23 passed** after the
 fixture repair; Finance invalidation **79 passed, 1 skipped**; Platform Approval,
 shared QML, architecture, and SQLite migration guards **87 passed**; shared
-UoW/platform transaction guards **57 passed**; direct Finance QML lint clean;
+UoW/platform transaction guards **56 passed** after the narrowed fix; direct Finance QML lint clean;
 Python compilation clean. The first full PM run had **2245 passed, 2 skipped,
-2 failed**; both failures were fixed and pass in isolation. `ruff` remains
-unavailable in `pmenv`. Final full-suite rerun is in progress.
+2 failed**; both failures were fixed. The final full PM suite passed **2247,
+2 skipped**. Three lint-only test edits were then verified with **42 passed,
+1 skipped**. `ruff 0.16.7` is available in `pmenv`: isolated correctness rules
+`E4,E7,E9,F` pass on all changed Python files. Repository-default Ruff still
+reports 54 pre-existing style findings in those files (39 verbose Decimal
+constructors, 9 import-order, 4 `__all__` order, 2 unused unpacked values);
+these are not new R6D behavior defects and were not mass-reformatted in G.
+
+#### R6D-G closure inventory
+
+- **Write and transaction owners:** interactive Rate and Manual Actual commands
+  use the typed desktop API and `FinanceGovernanceCommandBoundary`; the fresh
+  Finance UoW alone commits. Approved-Time and Procurement dispatchers own
+  their respective source-outbox claim/ack transaction and fresh Finance worker
+  UoW. Inner Rate, Actual, and Commitment services do not commit or roll back.
+  Four retained R6D savepoints have local roles only: Commitment source-revision
+  race, Commitment match race, Actual source-idempotency race, and immutable
+  Actual reversal race. Audit, inbox completion, and financial facts share the
+  Finance commit; typed view hints publish after it. No interactive Commitment
+  mutation remains.
+- **Events and diagnostics:** Rate, Actual, Commitment, Budget, Forecast,
+  Planned Cost, Financial Change, Billing, approved-Time, and setup Finance
+  invalidation handlers use operation-context identity for target coalescing,
+  not a trace correlation as a commit key. Relevant event subscriptions have
+  one producer/handler registration per type. `Posting Failures` remains a
+  bounded, project-scoped, sensitive-permission-redacted, read-only
+  **approved-Time** diagnostic, not a Procurement failure queue or replay
+  shortcut. The retired `cost_entries_changed` signal is absent.
+- **Database/security/read:** R6D migration lineage includes
+  `e9f2a5b8c4d1` (Rate provenance), `f4b7c9d2e6a1` (approved-Time posting),
+  and `b7d2e4f9a6c1` (Procurement Commitment). SQLite migration/ORM guard
+  tests and fresh Alembic-to-head PostgreSQL runs pass. Live RLS evidence uses
+  non-owner `app_runtime` (`NOSUPERUSER`, `NOBYPASSRLS`) over all nine current
+  R6D Finance tables, denies foreign-scope and forged-parent writes, and
+  preserves legal same-scope command/worker paths. Rate, Actual, Commitment,
+  and Posting Failures readers stay bounded; Actual and Posting Failures use
+  one scoped count plus one limited page query. R6D-F representative plans
+  justify no new index, and none was added here.
+- **Authority and cleanup:** authoritative Rate/Actual/Commitment amounts use
+  Decimal/Money/MonetaryRate, explicit currency, and immutable Rate selection
+  evidence; no Resource-rate posting fallback or new FX subsystem was added.
+  Historical posted Actual changes use reversal/replacement, not overwrite.
+  The focused production legacy/DI/controller/QML search found zero
+  superseded R6D read/write paths to delete. `old_value` audit fields,
+  presentation fallbacks, operational Resource rates, and current float-based
+  R6E analytical code have different active semantics and were retained.
+  No source or documentation file was created or deleted in G.
+- **Boundary and next phase:** R6D Commitment integration is closed **only for
+  the current neutral Procurement contract**. Without an authoritative future
+  receipt-correction/reversal linkage, changed receipt semantics remain
+  rejected/quarantinable and non-posting. Finance does not manufacture PO,
+  Accounting, journals, AP, payroll, invoice-issuance, or other statutory
+  truth. Existing managerial Billing preparation was not expanded. R6C stays
+  closed; R6E (EVM/Variance/Cost Phasing) is next and has not started.
 
 ### R6D-F Integrated Hardening checkpoint (2026-09-12)
 
@@ -82,7 +134,7 @@ commits can share a trace correlation, so later committed facts could omit
 view invalidation. Handlers now coalesce by the UoW-owned event-context
 instance, retaining one target hint per commit while notifying again for a
 separate commit with the same correlation. A real two-delivery Procurement
-test covers this case. R6D-G is in final validation; R6E has not started.
+test covers this case. R6D-G is closed; R6E has not started.
 
 ### R6D-E Commitment Projection Hardening checkpoint (2026-09-12)
 

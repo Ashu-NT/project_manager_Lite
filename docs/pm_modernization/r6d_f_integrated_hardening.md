@@ -1,6 +1,6 @@
 # R6D-F Integrated Hardening
 
-Status: COMPLETE (2026-09-12). R6D-G final closure validation is in progress.
+Status: COMPLETE (2026-09-12). R6D-G and R6D are closed in the active Finance plan.
 
 R6D-F is an integrated proof phase, not a new Finance feature. R6C stays closed;
 R6D-E remains closed only for its current neutral Procurement contract. Do not
