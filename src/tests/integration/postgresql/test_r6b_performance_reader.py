@@ -12,6 +12,11 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
 from src.core.modules.project_management.infrastructure.persistence.reads.financials.sqlalchemy_finance_performance_reader import (
     SqlAlchemyFinancePerformanceReader,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.financials.statements.finance_snapshot_statements import (
+    actual_cost_phasing_statement,
+    commitment_cost_phasing_statement,
+    forecast_cost_phasing_statement,
+)
 from src.infra.persistence.db.postgresql_rls import validate_postgresql_execution_role
 
 pytestmark = pytest.mark.postgresql_integration
@@ -271,40 +276,44 @@ def test_performance_reader_postgresql_plans_are_inspected(
         organization_id=ORG_A,
     )
     try:
-        params = {
-            "tenant": TENANT_A,
-            "organization": ORG_A,
-            "project": PROJECT_A,
-            "forecast": "r6b-performance-forecast-a",
-            "date_from": date(2026, 7, 1),
-            "date_to": date(2026, 9, 30),
-        }
         statements = {
-            "project": (
-                "SELECT p.id, fp.currency_code FROM projects p "
-                "JOIN project_finance_profiles fp ON fp.project_id = p.id "
-                "AND fp.tenant_id = p.tenant_id "
-                "AND fp.organization_id = p.organization_id "
-                "WHERE p.tenant_id = :tenant AND p.organization_id = :organization "
-                "AND p.id = :project"
+            "actual": actual_cost_phasing_statement(
+                tenant_id=TENANT_A,
+                organization_id=ORG_A,
+                project_id=PROJECT_A,
+                date_from=date(2026, 7, 1),
+                date_to=date(2026, 9, 30),
+                project_currency="USD",
             ),
-            "cost_phasing": (
-                "SELECT l.id, l.period_start, l.amount, l.currency_code "
-                "FROM project_finance_forecast_lines l "
-                "JOIN project_finance_forecasts f ON f.id = l.forecast_id "
-                "WHERE l.tenant_id = :tenant AND l.organization_id = :organization "
-                "AND l.project_id = :project AND l.forecast_id = :forecast "
-                "AND (l.period_end IS NULL OR l.period_end >= :date_from) "
-                "AND (l.period_start IS NULL OR l.period_start <= :date_to) "
-                "ORDER BY l.period_start, l.id"
+            "forecast": forecast_cost_phasing_statement(
+                tenant_id=TENANT_A,
+                organization_id=ORG_A,
+                project_id=PROJECT_A,
+                forecast_id="r6b-performance-forecast-a",
+                date_from=date(2026, 7, 1),
+                date_to=date(2026, 9, 30),
+                project_currency="USD",
+            ),
+            "commitment": commitment_cost_phasing_statement(
+                tenant_id=TENANT_A,
+                organization_id=ORG_A,
+                project_id=PROJECT_A,
+                as_of=date(2026, 9, 13),
+                date_from=date(2026, 7, 1),
+                date_to=date(2026, 11, 30),
+                project_currency="USD",
             ),
         }
         plans = {}
         for name, statement in statements.items():
-            plan = session.scalar(
-                text(f"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {statement}"),
-                params,
-            )[0]
+            compiled = statement.compile(
+                dialect=session.get_bind().dialect,
+                compile_kwargs={"render_postcompile": True},
+            )
+            plan = session.connection().exec_driver_sql(
+                f"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {compiled}",
+                compiled.params,
+            ).scalar()[0]
             plans[name] = plan
             assert float(plan.get("Execution Time", -1)) >= 0
             assert plan.get("Plan") is not None

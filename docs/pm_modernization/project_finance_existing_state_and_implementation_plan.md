@@ -309,6 +309,17 @@ not grow with Cost Entry, Forecast Line, Commitment Line, or period counts.
 The remaining R6E-D blockers are PostgreSQL EXPLAIN/reconciliation evidence and
 the final lifecycle/range/consumer focused matrix. R6E-E remains not started.
 
+### R6E-D PostgreSQL aggregate evidence (2026-09-13)
+
+The existing dedicated PostgreSQL integration environment was executed through
+the `app_runtime` role with RLS context. The final production Actual, Forecast,
+and Commitment aggregate statement builders were each inspected with `EXPLAIN
+(ANALYZE, BUFFERS, FORMAT JSON)`: all produced aggregate plan roots on the
+representative fixture, with execution times of 0.085 ms, 0.108 ms, and 0.088
+ms respectively. The fixture is intentionally small, so its plan does not
+demonstrate an index deficiency; **no index change is required**. The reader
+has a fixed eight-statement shape and no source-row N+1 path.
+
 The R6D authority map remains: Rate Card/Line and the canonical resolver for
 Finance rates; `ProjectCostEntry` for managerial Actual; Time for worked/approved
 hours; Procurement for PO and receipt source truth; Finance Commitment/Match
