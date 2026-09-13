@@ -208,9 +208,17 @@ def test_financial_change_event_invalidation_is_typed_and_effect_specific() -> N
         applied_effects=("budget",),
     )
 
-    handler(event, DomainEventContext(correlation_id="command-1"))
+    context = DomainEventContext(correlation_id="command-1")
+    handler(event, context)
 
     assert [hint.scope_code for hint in channel.hints] == [
+        FINANCIAL_CHANGE_WORKSPACE_SCOPE_CODE,
+        FINANCIAL_CHANGE_BUDGET_SCOPE_CODE,
+    ]
+    handler(event, context)
+    assert len(channel.hints) == 2
+    handler(event, DomainEventContext(correlation_id="command-1"))
+    assert [hint.scope_code for hint in channel.hints[2:]] == [
         FINANCIAL_CHANGE_WORKSPACE_SCOPE_CODE,
         FINANCIAL_CHANGE_BUDGET_SCOPE_CODE,
     ]

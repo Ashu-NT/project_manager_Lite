@@ -1,7 +1,7 @@
 """Finance Forecast ViewInvalidation: `ForecastVersionChanged`/`ForecastLineChanged`/
 `ForecastDraftGenerated` -> `forecast_planning`/`forecast_approved_basis` at project scope
 (`ResourceScope(module_code="project_management", entity_type="project")`), deduped by
-(transaction correlation_id, target identity), no-op semantics on `update_line`, the
+(committed-operation context identity, target identity), no-op semantics on `update_line`, the
 financial-change-apply forecast-successor path reporting the same `ForecastVersionChanged(APPROVED)`
 vocabulary via `ApprovalHandlerResult.domain_events`, and the FinancialsWorkspaceController's
 narrow per-target destination invalidation.
@@ -176,19 +176,20 @@ def test_dedupe_by_target_within_one_transaction_not_by_raw_event_fields():
     channel = _fake_channel()
     handler = build_forecast_view_invalidation_handler(channel)
     now = datetime.now(timezone.utc)
+    context = _context("same-tx")
     handler(
         ForecastLineChanged(
             tenant_id="t1", organization_id="o1", project_id="p1", forecast_id="f1", line_id="l1",
             change_type=ForecastLineChangeType.ADDED, occurred_at=now,
         ),
-        _context("same-tx"),
+        context,
     )
     handler(
         ForecastLineChanged(
             tenant_id="t1", organization_id="o1", project_id="p1", forecast_id="f1", line_id="l2",
             change_type=ForecastLineChangeType.ADDED, occurred_at=now,
         ),
-        _context("same-tx"),
+        context,
     )
     assert len(channel.notified) == 1, "same project target within one transaction coalesces"
 
@@ -197,7 +198,7 @@ def test_dedupe_by_target_within_one_transaction_not_by_raw_event_fields():
             tenant_id="t1", organization_id="o1", project_id="p1", forecast_id="f1",
             change_type=ForecastVersionChangeType.APPROVED, occurred_at=now,
         ),
-        _context("same-tx"),
+        context,
     )
     assert len(channel.notified) == 2, "a distinct target within the same transaction is separate"
 
@@ -223,17 +224,18 @@ def test_approved_events_two_targets_never_coalesce_but_repeats_of_each_do():
         change_type=ForecastVersionChangeType.APPROVED, occurred_at=now,
     )
 
-    handler(event, _context("tx-a"))
+    context = _context("tx-a")
+    handler(event, context)
     assert len(channel.notified) == 2
     assert {h.scope_code for h in channel.notified} == {
         FORECAST_PLANNING_SCOPE_CODE, FORECAST_APPROVED_BASIS_SCOPE_CODE,
     }
 
-    handler(event, _context("tx-a"))
+    handler(event, context)
     assert len(channel.notified) == 2, "same two targets repeated in one transaction coalesce"
 
-    handler(event, _context("tx-b"))
-    assert len(channel.notified) == 4, "a new transaction re-notifies both targets"
+    handler(event, _context("tx-a"))
+    assert len(channel.notified) == 4, "a separate commit with the same trace re-notifies both targets"
 
 
 # ---------------------------------------------------------------------------

@@ -135,12 +135,13 @@ def test_dedupe_by_target_within_one_transaction():
     event = BudgetProfileUpdated(
         tenant_id="t1", organization_id="o1", project_id="p1", budget_id="b1", occurred_at=now
     )
-    handler(event, DomainEventContext(correlation_id="same-tx"))
-    handler(event, DomainEventContext(correlation_id="same-tx"))
+    context = DomainEventContext(correlation_id="same-tx")
+    handler(event, context)
+    handler(event, context)
     assert len(channel.notified) == 2, "same two targets within one transaction coalesce"
 
-    handler(event, DomainEventContext(correlation_id="next-tx"))
-    assert len(channel.notified) == 4, "a new transaction is never coalesced with the previous one"
+    handler(event, DomainEventContext(correlation_id="same-tx"))
+    assert len(channel.notified) == 4, "a separate commit with the same trace must notify again"
 
 
 # ---------------------------------------------------------------------------

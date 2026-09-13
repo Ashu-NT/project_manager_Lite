@@ -135,19 +135,20 @@ def test_dedupe_by_target_within_one_transaction():
     channel = _fake_channel()
     handler = build_planned_cost_view_invalidation_handler(channel)
     now = datetime.now(timezone.utc)
+    context = DomainEventContext(correlation_id="same-tx")
     handler(
         PlannedCostSnapshotCalculated(
             tenant_id="t1", organization_id="o1", project_id="p1",
             planned_cost_version_id="v1", occurred_at=now,
         ),
-        DomainEventContext(correlation_id="same-tx"),
+        context,
     )
     handler(
         PlannedCostSnapshotCalculated(
             tenant_id="t1", organization_id="o1", project_id="p1",
             planned_cost_version_id="v1", occurred_at=now,
         ),
-        DomainEventContext(correlation_id="same-tx"),
+        context,
     )
     assert len(channel.notified) == 1, "same target within one transaction coalesces"
 
@@ -156,7 +157,7 @@ def test_dedupe_by_target_within_one_transaction():
             tenant_id="t1", organization_id="o1", project_id="p1",
             planned_cost_version_id="v2", occurred_at=now,
         ),
-        DomainEventContext(correlation_id="next-tx"),
+        DomainEventContext(correlation_id="same-tx"),
     )
     assert len(channel.notified) == 2, "a new transaction is never coalesced with the previous one"
 

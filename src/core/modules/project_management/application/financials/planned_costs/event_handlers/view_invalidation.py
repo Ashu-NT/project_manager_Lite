@@ -42,15 +42,15 @@ def _project_scope(*, tenant_id: str, organization_id: str, project_id: str) -> 
 
 def build_planned_cost_view_invalidation_handler(channel: ViewInvalidationChannel):
 
-    current_correlation_id: list[str | None] = [None]
+    current_context: list[DomainEventContext | None] = [None]
     notified_targets: set[_ProjectTarget] = set()
 
     def handle_planned_cost_event(
         event: PlannedCostSnapshotCalculated,
         context: DomainEventContext,
     ) -> None:
-        if context.correlation_id != current_correlation_id[0]:
-            current_correlation_id[0] = context.correlation_id
+        if context is not current_context[0]:
+            current_context[0] = context
             notified_targets.clear()
 
         scope = _project_scope(

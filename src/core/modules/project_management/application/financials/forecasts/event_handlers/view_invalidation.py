@@ -46,7 +46,7 @@ def _project_scope(*, tenant_id: str, organization_id: str, project_id: str) -> 
 
 def build_forecast_view_invalidation_handler(channel: ViewInvalidationChannel):
 
-    current_correlation_id: list[str | None] = [None]
+    current_context: list[DomainEventContext | None] = [None]
     notified_targets: set[_ProjectTarget] = set()
 
     def _notify(scope_code: str, *, tenant_id: str, organization_id: str, project_id: str) -> None:
@@ -71,8 +71,8 @@ def build_forecast_view_invalidation_handler(channel: ViewInvalidationChannel):
         event: ForecastVersionChanged | ForecastLineChanged | ForecastDraftGenerated,
         context: DomainEventContext,
     ) -> None:
-        if context.correlation_id != current_correlation_id[0]:
-            current_correlation_id[0] = context.correlation_id
+        if context is not current_context[0]:
+            current_context[0] = context
             notified_targets.clear()
 
         scope_codes = (FORECAST_PLANNING_SCOPE_CODE,)
