@@ -320,6 +320,14 @@ ms respectively. The fixture is intentionally small, so its plan does not
 demonstrate an index deficiency; **no index change is required**. The reader
 has a fixed eight-statement shape and no source-row N+1 path.
 
+R6E-D focused lifecycle and regression evidence is green in completed batches:
+14 Commitment/Actual lifecycle and partial-match tests, 19 Forecast and
+canonical snapshot/export tests, and 75 Performance-reader, Rate-governance,
+and Finance authorization tests (108 total). These cover posted and reversed
+Actuals, commitment remaining-amount semantics, Forecast approval/supersession,
+snapshot/export lineage, tenant scope, and rate governance. No R6E-D-owned
+report consumer exists beyond snapshot-backed PDF/Excel rendering.
+
 The R6D authority map remains: Rate Card/Line and the canonical resolver for
 Finance rates; `ProjectCostEntry` for managerial Actual; Time for worked/approved
 hours; Procurement for PO and receipt source truth; Finance Commitment/Match

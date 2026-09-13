@@ -383,6 +383,14 @@ def test_posted_receipt_actual_matches_once_and_reduces_remaining(services) -> N
     assert snapshot.committed == Decimal("60.00")
     assert snapshot.actual == Decimal("40.00")
     assert snapshot.exposure == Decimal("100.00")
+    phasing = services["finance_performance_query"].get_cost_phasing(
+        project.id,
+        date_from=date(2026, 8, 1),
+        date_to=date(2026, 8, 31),
+    )
+    assert len(phasing.periods) == 1
+    assert phasing.periods[0].posted_actual == Decimal("40.00")
+    assert phasing.periods[0].open_commitment == Decimal("60.00")
 
 
 def test_commitment_repository_isolates_active_organization(services) -> None:
