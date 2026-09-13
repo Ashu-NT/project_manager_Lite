@@ -30,8 +30,9 @@ from src.core.modules.project_management.application.financials.cost.engines.cos
     CostPolicySnapshot,
 )
 from src.core.modules.project_management.application.financials.cost.engines.labor_cost import LaborCostEngine
-from src.core.modules.project_management.application.financials.earned_value.evm_calculator import (
-    EarnedValueCalculator,
+from src.core.modules.project_management.application.financials.earned_value.canonical import (
+    CanonicalEarnedValueCalculator,
+    EvmCalculationInput,
 )
 from src.core.modules.project_management.application.financials.earned_value.evm_series import (
     EarnedValueSeriesCalculator,
@@ -90,8 +91,9 @@ __all__ = [
     "CostPolicySnapshot",
     "CostEntryApprovalOutcome",
     "CostEntryApprovalResult",
-    "EarnedValueCalculator",
+    "CanonicalEarnedValueCalculator",
     "EarnedValueSeriesCalculator",
+    "EvmCalculationInput",
     "FinanceAnalyticsRow",
     "FinanceLedgerRow",
     "FinancePeriodRow",

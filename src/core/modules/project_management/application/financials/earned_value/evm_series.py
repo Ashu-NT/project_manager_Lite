@@ -7,20 +7,17 @@ from __future__ import annotations
 
 import calendar
 from datetime import date
+from decimal import Decimal
 
-from src.core.modules.project_management.application.financials.cost.engines.cost_policy_engine import (
-    CostPolicyEngine,
-)
-from src.core.modules.project_management.application.financials.cost.engines.labor_cost import (
-    LaborCostEngine,
-)
-from src.core.modules.project_management.application.financials.earned_value.evm_calculator import (
-    EarnedValueCalculator,
+from src.core.modules.project_management.application.financials.earned_value.canonical import (
+    CanonicalEarnedValueCalculator,
+    EvmCalculationInput,
 )
 from src.core.modules.project_management.contracts.reads.financials.evm_series_reader import (
     EvmSeriesReader,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 
 from src.core.modules.project_management.application.financials.models.finance_models import (
     EvmSeriesPoint,
@@ -37,15 +34,13 @@ class EarnedValueSeriesCalculator:
         *,
         reader: EvmSeriesReader,
         tenant_context_service: TenantContextService,
-        labor_engine: LaborCostEngine,
-        cost_policy_engine: CostPolicyEngine,
-        evm_calculator: EarnedValueCalculator,
+        calendar: CalendarProtocol,
+        calculator: CanonicalEarnedValueCalculator,
     ) -> None:
         self._reader = reader
         self._tenant_context_service = tenant_context_service
-        self._labor_engine = labor_engine
-        self._cost_policy_engine = cost_policy_engine
-        self._calculator = evm_calculator
+        self._calendar = calendar
+        self._calculator = calculator
 
     def build_series(
         self,
@@ -70,6 +65,8 @@ class EarnedValueSeriesCalculator:
             as_of=as_of,
         )
         if facts is None:
+            return []
+        if facts.baseline_id is None or not facts.baseline_tasks:
             return []
 
         start = facts.finance.project.start_date or as_of
@@ -99,44 +96,70 @@ class EarnedValueSeriesCalculator:
         calendar_ends.extend(
             task.baseline_finish for task in b_tasks if task.baseline_finish is not None
         )
-        working_days_between = self._calculator.prepare_working_days(
-            starts_on=min(calendar_starts),
-            ends_on=max(calendar_ends),
+        working_days_between = self._prepare_working_days(
+            starts_on=min(calendar_starts), ends_on=max(calendar_ends)
         )
 
-        labor_by_date = dict(
-            self._labor_engine.calculate_project_labor_series(
-                project_id,
-                as_of_dates=tuple(points),
-                facts=facts.finance,
-            )
-        )
         out: list[EvmSeriesPoint] = []
         for pe in points:
-            policy = self._cost_policy_engine.compose_from_facts_at(
-                facts.finance,
-                labor_by_date[pe],
-                as_of=pe,
+            posted_actual = sum(
+                (
+                    entry.amount
+                    for entry in facts.finance.ledger_entries
+                    if entry.stage == "actual"
+                    and entry.occurred_on is not None
+                    and entry.occurred_on <= pe
+                ),
+                start=Decimal("0"),
+            )
+            approved_forecast_etc = (
+                None
+                if facts.finance.approved_forecast is None
+                or facts.finance.approved_forecast.as_of_date > pe
+                else facts.finance.approved_forecast.etc_total
             )
             evm = self._calculator.calculate(
-                project_id,
-                as_of=pe,
-                prepared_facts=facts,
-                actual_cost=policy.totals.actual,
-                approved_forecast_etc=policy.totals.forecast_etc,
+                EvmCalculationInput(
+                    project_id=project_id,
+                    as_of_date=pe,
+                    currency_code=facts.finance.project.currency_code,
+                    baseline_id=facts.baseline_id,
+                    baseline_tasks=facts.baseline_tasks,
+                    task_progress=tuple(
+                        (task.task_id, task.percent_complete)
+                        for task in facts.finance.tasks
+                    ),
+                    posted_actual=posted_actual,
+                    approved_forecast_etc=approved_forecast_etc,
+                ),
                 working_days_between=working_days_between,
             )
             out.append(EvmSeriesPoint(
                 period_end=pe,
-                PV=float(getattr(evm, "PV", 0.0) or 0.0),
-                EV=float(getattr(evm, "EV", 0.0) or 0.0),
-                AC=float(getattr(evm, "AC", 0.0) or 0.0),
-                BAC=float(getattr(evm, "BAC", 0.0) or 0.0),
-                CPI=float(getattr(evm, "CPI", 0.0) or 0.0),
-                SPI=float(getattr(evm, "SPI", 0.0) or 0.0),
+                PV=evm.PV,
+                EV=evm.EV,
+                AC=evm.AC,
+                BAC=evm.BAC,
+                CPI=evm.CPI,
+                SPI=evm.SPI,
             ))
 
         return out
+
+    def _prepare_working_days(
+        self, *, starts_on: date, ends_on: date
+    ):
+        loader = getattr(self._calendar, "working_day_dates_between", None)
+        if not callable(loader):
+            return self._calendar.working_days_between
+        working_dates = tuple(loader(starts_on, ends_on))
+
+        def _count(start: date, end: date) -> int:
+            if end < start:
+                return 0
+            return sum(1 for day in working_dates if start <= day <= end)
+
+        return _count
 
 
 def _month_end(d: date) -> date:

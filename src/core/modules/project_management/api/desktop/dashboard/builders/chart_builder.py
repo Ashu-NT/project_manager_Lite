@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from datetime import date
+from decimal import Decimal
 from typing import Any
 
 from src.core.modules.project_management.api.desktop.dashboard.models.charts import (
@@ -120,7 +121,7 @@ def _build_schedule_trend_chart(
         series_length = len(series)
         return ProjectDashboardChartDescriptor(
             title="Schedule Trend", subtitle="Earned value against planned value across the selected period.", chart_type="line",
-            points=tuple(_PT(label=fmt_period_axis_label(p.period_end, selected_period_key=selected_period_key, series_length=series_length), value=float(p.EV or 0.0), value_label=fmt_float(p.EV, 0), supporting_text=p.period_end.strftime("%Y-%m-%d"), target_value=float(p.PV or 0.0), tone="danger" if float(p.SPI or 0.0) < 0.95 else "accent") for p in series),
+            points=tuple(_PT(label=fmt_period_axis_label(p.period_end, selected_period_key=selected_period_key, series_length=series_length), value=float(p.EV), value_label=fmt_float(p.EV, 0), supporting_text=p.period_end.strftime("%Y-%m-%d"), target_value=float(p.PV), tone="danger" if p.SPI is not None and p.SPI < Decimal("0.95") else "accent") for p in series if p.EV is not None and p.PV is not None),
         )
     return _build_burndown_fallback_chart(dashboard_data)
 
@@ -136,7 +137,7 @@ def _build_cost_trend_chart(
         series_length = len(series)
         return ProjectDashboardChartDescriptor(
             title="Cost Trend", subtitle="Actual cost against earned value across the selected period.", chart_type="line",
-            points=tuple(_PT(label=fmt_period_axis_label(p.period_end, selected_period_key=selected_period_key, series_length=series_length), value=float(p.AC or 0.0), value_label=fmt_float(p.AC, 0), supporting_text=p.period_end.strftime("%Y-%m-%d"), target_value=float(p.EV or 0.0), tone="danger" if float(p.AC or 0.0) > float(p.EV or 0.0) else "accent") for p in series),
+            points=tuple(_PT(label=fmt_period_axis_label(p.period_end, selected_period_key=selected_period_key, series_length=series_length), value=float(p.AC), value_label=fmt_float(p.AC, 0), supporting_text=p.period_end.strftime("%Y-%m-%d"), target_value=float(p.EV), tone="danger" if p.AC > p.EV else "accent") for p in series if p.AC is not None and p.EV is not None),
         )
     sources = getattr(dashboard_data, "cost_sources", None)
     source_rows = tuple(getattr(sources, "rows", []) or []) if sources is not None else ()

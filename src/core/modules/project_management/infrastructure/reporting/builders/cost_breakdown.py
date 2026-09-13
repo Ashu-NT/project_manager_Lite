@@ -26,11 +26,12 @@ class ReportingCostBreakdownMixin(ReportingCostPolicyMixin):
     ) -> list[CostBreakdownRow]:
         self._require_finance_view("view cost breakdown report", project_id=project_id)
         resolved_as_of = as_of or date.today()
-        facts, policy = self._compose_evm_policy(
+        facts = self._read_evm_facts(
             project_id,
             baseline_id=baseline_id,
             as_of=resolved_as_of,
         )
+        _, policy = self._compose_finance_policy(project_id, as_of=resolved_as_of)
         engine = CostBreakdownEngine(
             cost_policy_engine=self._make_cost_policy_engine(),
         )

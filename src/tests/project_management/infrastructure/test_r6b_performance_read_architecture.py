@@ -11,10 +11,7 @@ from PySide6.QtCore import QObject, QUrl
 from PySide6.QtQml import QQmlComponent
 from sqlalchemy import event
 
-from src.core.modules.project_management.api.desktop.financials.models.performance import (
-    FinancialCostPhasingDto,
-    FinancialEvmDto,
-)
+from src.core.modules.project_management.api.desktop.financials.models.performance import FinancialEvmDto
 from src.core.modules.project_management.application.financials.performance_query import (
     ProjectFinancePerformanceQuery,
 )
@@ -232,6 +229,26 @@ def test_sql_cost_phasing_reader_is_bounded_and_rejects_wrong_scope(services, se
             date_to=date(2026, 12, 31),
         ),
     ) is None
+
+
+def test_evm_reader_is_bounded_and_rejects_draft_baselines(services, session) -> None:
+    project = services["project_service"].create_project(
+        "R6E Decimal EVM reader", financial_currency_code="XAF"
+    )
+    services["task_service"].create_task(
+        project.id, "Draft baseline task", start_date=date(2026, 1, 1), duration_days=2
+    )
+    services["baseline_service"].create_baseline(
+        project.id, "Draft EVM baseline", rate_as_of=date(2026, 1, 1)
+    )
+
+    with _statement_count(session) as statements:
+        result = services["reporting_service"].get_earned_value(
+            project.id, as_of=date(2026, 1, 31)
+        )
+
+    assert result.availability == "baseline_unavailable"
+    assert len(statements) <= 10
 
 
 @pytest.mark.parametrize(

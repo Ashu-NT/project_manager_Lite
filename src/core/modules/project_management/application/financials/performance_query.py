@@ -107,7 +107,7 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
                 reason=str(exc),
                 baseline_id=baseline_id,
             )
-        except Exception as exc:  # R6E owns replacement of the current calculator.
+        except Exception:
             logger.exception(
                 "PM Performance EVM calculation unavailable project=%s as_of=%s",
                 project_id,
@@ -122,32 +122,30 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
                 baseline_id=baseline_id,
             )
 
-        etc = self._optional_float(getattr(metrics, "ETC", None))
+        etc = self._optional_decimal(getattr(metrics, "ETC", None))
         return PerformanceEvmFact(
             project_id=project_id,
             as_of_date=resolved_as_of,
-            availability="available" if etc is not None else "forecast_unavailable",
-            unavailable_reason=(
-                "" if etc is not None else "No approved Forecast exists for this as-of date; ETC, EAC, and VAC are unavailable."
-            ),
+            availability=str(getattr(metrics, "availability", "available")),
+            unavailable_reason=str(getattr(metrics, "unavailable_reason", "") or ""),
             baseline_id=str(getattr(metrics, "baseline_id", "") or "") or None,
             budget_revision=basis.approved_budget_revision,
             forecast_revision=basis.approved_forecast_revision,
             forecast_as_of=basis.approved_forecast_as_of,
             currency_code=basis.currency_code,
-            bac=self._optional_float(getattr(metrics, "BAC", None)),
-            pv=self._optional_float(getattr(metrics, "PV", None)),
-            ev=self._optional_float(getattr(metrics, "EV", None)),
-            ac=self._optional_float(getattr(metrics, "AC", None)),
-            cv=None,
-            sv=None,
-            cpi=self._optional_float(getattr(metrics, "CPI", None)),
-            spi=self._optional_float(getattr(metrics, "SPI", None)),
+            bac=self._optional_decimal(getattr(metrics, "BAC", None)),
+            pv=self._optional_decimal(getattr(metrics, "PV", None)),
+            ev=self._optional_decimal(getattr(metrics, "EV", None)),
+            ac=self._optional_decimal(getattr(metrics, "AC", None)),
+            cv=self._optional_decimal(getattr(metrics, "CV", None)),
+            sv=self._optional_decimal(getattr(metrics, "SV", None)),
+            cpi=self._optional_decimal(getattr(metrics, "CPI", None)),
+            spi=self._optional_decimal(getattr(metrics, "SPI", None)),
             etc=etc,
-            eac=self._optional_float(getattr(metrics, "EAC", None)),
-            vac=self._optional_float(getattr(metrics, "VAC", None)),
-            tcpi_bac=self._optional_float(getattr(metrics, "TCPI_to_BAC", None)),
-            tcpi_eac=self._optional_float(getattr(metrics, "TCPI_to_EAC", None)),
+            eac=self._optional_decimal(getattr(metrics, "EAC", None)),
+            vac=self._optional_decimal(getattr(metrics, "VAC", None)),
+            tcpi_bac=self._optional_decimal(getattr(metrics, "TCPI_to_BAC", None)),
+            tcpi_eac=self._optional_decimal(getattr(metrics, "TCPI_to_EAC", None)),
             notes=str(getattr(metrics, "notes", "") or ""),
         )
 
@@ -382,15 +380,14 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
         return basis
 
     @staticmethod
-    def _optional_float(value: object) -> float | None:
-        return None if value is None else float(value)
+    def _optional_decimal(value: object) -> Decimal | None:
+        return None if value is None else Decimal(str(value))
 
     @staticmethod
     def _evm_availability(exc: BusinessRuleError) -> str:
         return {
             "NO_BASELINE": "baseline_unavailable",
             "BASELINE_EMPTY": "baseline_unavailable",
-            "ACTUAL_COST_INCOMPLETE": "actual_cost_unavailable",
         }.get(str(getattr(exc, "code", "")), "prerequisite_unavailable")
 
     @staticmethod

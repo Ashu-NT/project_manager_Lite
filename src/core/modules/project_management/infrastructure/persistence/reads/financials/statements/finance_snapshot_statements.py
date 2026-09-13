@@ -41,6 +41,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskAssignmentORM,
     TaskORM,
 )
+from src.core.modules.project_management.domain.scheduling.baseline import BaselineStatus
 
 SqlSelect = Select[tuple[Any, ...]]
 
@@ -249,7 +250,9 @@ def task_facts_statement(*, tenant_id: str, organization_id: str, project_id: st
             TaskORM.actual_end,
         )
         .join(ProjectORM, ProjectORM.id == TaskORM.project_id)
-        .where(_project_scope(tenant_id=tenant_id, organization_id=organization_id, project_id=project_id))
+        .where(
+            _project_scope(tenant_id=tenant_id, organization_id=organization_id, project_id=project_id),
+        )
         .order_by(TaskORM.id)
     )
 
@@ -260,11 +263,14 @@ def evm_baseline_statement(
     stmt = (
         select(ProjectBaselineORM.id)
         .join(ProjectORM, ProjectORM.id == ProjectBaselineORM.project_id)
-        .where(_project_scope(tenant_id=tenant_id, organization_id=organization_id, project_id=project_id))
+        .where(
+            _project_scope(tenant_id=tenant_id, organization_id=organization_id, project_id=project_id),
+            ProjectBaselineORM.status == BaselineStatus.APPROVED.value,
+        )
     )
     if baseline_id is not None:
         return stmt.where(ProjectBaselineORM.id == baseline_id)
-    return stmt.order_by(ProjectBaselineORM.created_at.desc()).limit(1)
+    return stmt.order_by(ProjectBaselineORM.approved_at.desc(), ProjectBaselineORM.id).limit(1)
 
 
 def evm_baseline_task_facts_statement(

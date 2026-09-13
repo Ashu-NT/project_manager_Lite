@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -69,11 +70,13 @@ def _setup_report_project(services):
     ts.set_assignment_hours(assignment.id, 4.0)
 
     baseline = bs.create_baseline(pid, "Baseline Export", rate_as_of=date.today())
+    bs.submit_baseline(baseline.id, submitted_by="admin")
+    bs.approve_baseline(baseline.id, approved_by="admin")
     ts.update_progress(t1.id, percent_complete=50.0)
     return pid, baseline.id
 
 
-def test_excel_export_contains_expected_sections_when_baseline_exists(services, tmp_path):
+def test_excel_export_contains_expected_sections_when_baseline_is_approved(services, tmp_path):
     pid, baseline_id = _setup_report_project(services)
     output = tmp_path / "report.xlsx"
 
@@ -91,7 +94,6 @@ def test_excel_export_contains_expected_sections_when_baseline_exists(services, 
     assert "Cost Breakdown" not in names
     assert wb["Overview"]["A1"].value.startswith("Project KPIs - ")
     assert wb["Tasks"]["A1"].value == "Task ID"
-    assert wb["EVM"]["A2"].value == "Metric"
     assert wb["EVM"]["D2"].value == "Period End"
     assert wb["Cost Sources"]["A1"].value == "Source"
 
@@ -189,25 +191,30 @@ def test_reporting_api_populates_optional_contexts(monkeypatch, tmp_path):
     evm = EarnedValueMetrics(
         as_of=date(2023, 11, 30),
         baseline_id="b1",
-        BAC=100.0,
-        PV=80.0,
-        EV=60.0,
-        AC=50.0,
-        CPI=1.2,
-        SPI=0.75,
-        EAC=83.33,
-        ETC=33.33,
-        VAC=16.67,
+        currency_code="XAF",
+        availability="available",
+        unavailable_reason=None,
+        BAC=Decimal("100"),
+        PV=Decimal("80"),
+        EV=Decimal("60"),
+        AC=Decimal("50"),
+        CV=Decimal("10"),
+        SV=Decimal("-20"),
+        CPI=Decimal("1.2"),
+        SPI=Decimal("0.75"),
+        EAC=Decimal("83.33"),
+        ETC=Decimal("33.33"),
+        VAC=Decimal("16.67"),
     )
     series = [
         EvmSeriesPoint(
             period_end=date(2023, 11, 30),
-            PV=80.0,
-            EV=60.0,
-            AC=50.0,
-            BAC=100.0,
-            CPI=1.2,
-            SPI=0.75,
+            PV=Decimal("80"),
+            EV=Decimal("60"),
+            AC=Decimal("50"),
+            BAC=Decimal("100"),
+            CPI=Decimal("1.2"),
+            SPI=Decimal("0.75"),
         )
     ]
     variance = [

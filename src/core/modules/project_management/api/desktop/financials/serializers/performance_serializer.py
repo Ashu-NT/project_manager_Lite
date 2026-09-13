@@ -19,13 +19,12 @@ from src.core.modules.project_management.api.desktop.financials.serializers.base
 from src.core.platform.finance.money import canonical_decimal_text
 
 
-def _evm_float_text(value: float | None) -> str | None:
-    # Presentation-only adaptation of the pre-existing EVM float authority.
-    return None if value is None else canonical_decimal_text(Decimal(str(value)))
+def _evm_decimal_text(value: Decimal | None) -> str | None:
+    return None if value is None else canonical_decimal_text(value)
 
 
 def _evm_money_metric(code, label, value, currency, supporting_text):
-    text = _evm_float_text(value)
+    text = _evm_decimal_text(value)
     return FinancialPerformanceMetricDto(
         code=code,
         label=label,
@@ -37,7 +36,7 @@ def _evm_money_metric(code, label, value, currency, supporting_text):
 
 
 def _evm_ratio_metric(code, label, value, supporting_text):
-    text = _evm_float_text(value)
+    text = _evm_decimal_text(value)
     return FinancialPerformanceMetricDto(
         code=code,
         label=label,

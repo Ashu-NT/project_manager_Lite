@@ -30,7 +30,7 @@ class FinancialEvmDto:
     forecast_revision: int | None = None
     forecast_as_of: date | None = None
     currency_code: str = ""
-    calculation_precision: str = "binary_float_r6e_debt"
+    calculation_precision: str = "decimal"
     metrics: tuple[FinancialPerformanceMetricDto, ...] = field(default_factory=tuple)
     notes: str = ""
 

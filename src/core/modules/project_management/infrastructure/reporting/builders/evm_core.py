@@ -1,6 +1,6 @@
 """EVM core mixin — thin reporting delegate.
 
-Business logic lives in financials/earned_value/evm_calculator.py.
+Business logic delegates to the canonical Decimal EVM authority.
 """
 
 from __future__ import annotations
@@ -8,9 +8,9 @@ from __future__ import annotations
 from datetime import date
 
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.modules.project_management.application.financials.earned_value.evm_calculator import (
-    EarnedValueCalculator,
+from src.core.modules.project_management.application.financials.earned_value.canonical import (
+    CanonicalEarnedValueCalculator,
+    EvmCalculationInput,
 )
 from src.core.modules.project_management.infrastructure.reporting.builders.cost_policy import (
     ReportingCostPolicyMixin,
@@ -22,10 +22,8 @@ from src.core.modules.project_management.infrastructure.reporting.models.report_
 class ReportingEvmCoreMixin(ReportingCostPolicyMixin):
     _calendar: CalendarProtocol
 
-    def _make_evm_calculator(self) -> EarnedValueCalculator:
-        return EarnedValueCalculator(
-            calendar=self._calendar,
-        )
+    def _make_evm_calculator(self) -> CanonicalEarnedValueCalculator:
+        return CanonicalEarnedValueCalculator()
 
     def get_earned_value(
         self,
@@ -35,21 +33,23 @@ class ReportingEvmCoreMixin(ReportingCostPolicyMixin):
     ) -> EarnedValueMetrics:
         self._require_finance_view("view earned value report", project_id=project_id)
         resolved_as_of = as_of or date.today()
-        facts, policy = self._compose_evm_policy(
+        facts = self._read_evm_facts(
             project_id,
             baseline_id=baseline_id,
             as_of=resolved_as_of,
         )
-        if policy.snapshot.unresolved_labor_rates:
-            raise BusinessRuleError(
-                "Actual cost cannot be calculated because one or more labor "
-                "rates could not be resolved.",
-                code="ACTUAL_COST_INCOMPLETE",
-            )
         return self._make_evm_calculator().calculate(
-            project_id,
-            as_of=resolved_as_of,
-            prepared_facts=facts,
-            actual_cost=policy.totals.actual,
-            approved_forecast_etc=policy.totals.forecast_etc,
+            EvmCalculationInput(
+                project_id=project_id,
+                as_of_date=resolved_as_of,
+                currency_code=facts.finance.project.currency_code,
+                baseline_id=facts.baseline_id,
+                baseline_tasks=facts.baseline_tasks,
+                task_progress=tuple(
+                    (task.task_id, task.percent_complete) for task in facts.finance.tasks
+                ),
+                posted_actual=facts.finance.control.posted_actual,
+                approved_forecast_etc=facts.finance.control.forecast_etc,
+            ),
+            working_days_between=self._calendar.working_days_between,
         )

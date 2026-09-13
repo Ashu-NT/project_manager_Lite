@@ -1,6 +1,6 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: R6C closed; R6D-A through R6D-G complete; R6D CLOSED; R6E next, not started
+Status: R6C closed; R6D-A through R6D-G complete; R6D CLOSED; R6E-A/B COMPLETE; R6E-C next, not started
 Last updated: 2026-09-13
 Scope: Project Management finance plus reusable platform financial foundations
 Current checkpoint: R6D-G final regression and repository reconciliation are complete. The
@@ -33,6 +33,189 @@ not which external process created it. Preserve it; no history rewrite. The
 working tree was clean at the start of G. Later external commits `e32a05458`
 and `5b7ff2900` captured this run's Finance invalidation, Finance UoW,
 test-fixture, and checkpoint work. This agent created no commit.
+
+### R6E-A EVM, Variance and Cost Phasing authority characterization (2026-09-13)
+
+R6E-A is **complete**. This was a read-only, characterization-first audit: no
+production implementation changed, no earlier Finance phase was reopened, and
+no commit was created. R6E-B must replace the current EVM authority rather
+than retain it as a compatibility path. Project Finance remains a managerial
+project-cost consumer; it does not create Accounting, payroll, AP, AR, cash,
+or statutory truth.
+
+#### Authority map
+
+| Concept | Current evidence | R6E decision |
+| --- | --- | --- |
+| BAC | `EarnedValueCalculator` sums `BaselineTask.baseline_planned_cost`. | Retain an approved, cost-loaded baseline as EVM BAC; reject incomplete/non-cost-loaded baseline input rather than duration-allocating a different budget. |
+| PV | The calculator interpolates baseline task start/finish dates by injected enterprise-calendar working days. | Retain calendar semantics, make the calendar/baseline basis explicit in Decimal facts, and report unavailable when required facts are absent. |
+| EV | Cost-loaded baseline task cost times current `TaskFact.percent_complete`. | Retain task-progress ownership; convert progress to Decimal at the reader boundary and declare the method in result metadata. |
+| AC | `SqlAlchemyFinanceSnapshotReader` reads posted/reversed `ProjectCostEntry`; `CostPolicyEngine` totals that immutable ledger. | This is the sole AC authority. Never revalue posted labor from a current rate. |
+| ETC/EAC | Approved Forecast ETC; `EAC = AC + ETC`; no CPI extrapolation. | Retain governed Forecast authority and typed unavailable state if no approved Forecast exists. |
+| CV/SV/CPI/SPI/VAC/TCPI | Current calculator computes CPI/SPI/VAC/TCPI, while the Performance query publishes `cv=None` and `sv=None`. | Publish Decimal CV (`EV - AC`) and SV (`EV - PV`) with typed denominator/unavailable behavior. Keep both TCPI variants distinct. |
+| Control variance | `FinanceControlFact.VAC` is approved Budget minus EAC, not baseline BAC minus EAC. | Rename it to a control/forecast variance or budget headroom. It must not share EVM `VAC` code/label. |
+| Cost Phasing | `SqlAlchemyFinancePerformanceReader` is the scoped Decimal desktop reader; `FinanceService` separately builds snapshot-ledger phasing for reporting/export. | Migrate reporting/export to one explicit bounded Decimal phasing contract, then delete the old snapshot-ledger builder/service surface. |
+
+#### Confirmed defects and risk priority
+
+1. **P0 - binary-float authority.** `EarnedValueCalculator`,
+   `EarnedValueMetrics`, `EvmSeriesPoint`, `DashboardEVM`, and
+   `PerformanceEvmFact` use floats for Money/ratios. The desktop serializer's
+   `Decimal(str(value))` formats but cannot recover precision. R6E-B/C must
+   introduce one scoped Decimal EVM fact/result and remove all float consumers.
+2. **P0 - reachable undefined fallback.** `evm_calculator.py` references an
+   undefined `project` variable in its duration fallback. The Performance query
+   contains it as `calculator_error`, so QML does not crash, but valid edge
+   data can lose EVM. Delete this fallback; do not turn it into another BAC
+   authority.
+3. **P0 - baseline lifecycle bypass.** `evm_baseline_statement` scopes tenant,
+   organization, and project but selects the newest baseline regardless of
+   status; an explicit ID is also unrestricted. The domain supports draft,
+   submitted, approved, rejected, and superseded. R6E-B must require an
+   approved baseline, with an intentional approved/superseded historical
+   as-of policy.
+4. **P0 - AC is incorrectly gated by current rate setup.**
+   `ReportingEvmCoreMixin` rejects EVM for unresolved `LaborCostEngine` rates,
+   even though the policy obtains AC from posted/reversed cost entries. Valid
+   historical actuals can therefore disappear after a rate-card change. Remove
+   `LaborCostEngine` from EVM/EVM-series composition; retain it only for a
+   separately justified, explicitly labeled analytical consumer.
+5. **P1 - unavailable series becomes zero.** `EarnedValueSeriesCalculator`
+   coerces missing values with `or 0.0`; charts/tone can then display an
+   unavailable value as real zero. It also accepts `freq` but always returns
+   monthly points. R6E-C must preserve nullability and make frequency real or
+   remove it.
+6. **P1 - variance taxonomy is misleading.** The Variance destination calls
+   approved-Budget-minus-EAC `VAC`, while EVM calls baseline-BAC-minus-EAC
+   `VAC`; EVM CV/SV are not published. Baseline movement records are correctly
+   distinct plan-to-plan history and must remain separate.
+7. **P1 - Cost Phasing is bounded but not truthful planned-time phasing.**
+   Actuals use posted/reversed entries by posting date; commitments use open
+   exposure; forecasts use approved facts. Planned cost selects one latest
+   snapshot and anchors every row to its snapshot date; unperiodized Forecast
+   rows land at forecast as-of. R6E-D must introduce authoritative allocation
+   facts or label these as point-in-time snapshots, never distributed cash flow.
+8. **P2 - scale is unproven.** Cost Phasing caps requests at 36 months but
+   buckets materialized facts in Python. EVM materializes project facts and
+   repeats policy/calculation per month. Preloaded calendar dates avoid repeat
+   reads, but per-task counting remains linear. R6E-E needs bounded SQL,
+   EXPLAIN/index evidence, statement budgets, and 10k/50k fixtures.
+
+#### Scope, currency, calendar, and unavailable invariants
+
+Current Performance and Reporting reads carry tenant, organization, and
+project scope and require Finance/project permissions. Readers fail closed on
+project-currency mismatch; Portfolio does not roll project EVM across
+currencies. R6E preserves: no cross-project/cross-currency EVM total, no
+implicit FX, no raw error to QML, and no conversion of unavailable into zero.
+The injected enterprise calendar remains the working-day authority. R6E-B
+must characterize non-working days, zero/missing durations, as-of boundaries,
+reversals, no Forecast, and scope isolation.
+
+#### Consumer and deletion map
+
+| Consumer/path | Current role | Required R6E action |
+| --- | --- | --- |
+| `ReportingService.get_earned_value` and `DashboardEvmMixin` | Project-scoped EVM authority/dashboard adapter. | Move to Decimal authority in R6E-C; retain project-only dashboard scope. |
+| `EarnedValueSeriesCalculator`, dashboard charts, PDF/XLSX renderers | Trend/export consumers. | Migrate to nullable Decimal series; convert only at chart/PDF/XLSX presentation edges. |
+| Performance query, desktop serializer, presenter, Finance QML | Desktop Performance surface. | Migrate contracts/labels in R6E-C/D; keep QML display-only. |
+| `SqlAlchemyFinancePerformanceReader` | Active Decimal Cost Phasing reader. | Evolve in R6E-D as the sole Performance phasing reader. |
+| `FinanceService.get_finance_snapshot` and `build_period_cost_phasing` | Separate snapshot/export phasing, still used by reporting/export infrastructure. | Migrate every reporting/export caller in R6E-D, then delete builder, obsolete snapshot phasing members, DI, and retired-behavior tests. Do not delete before migration. |
+| `LaborCostEngine` in `_compose_evm_policy` | Incorrect current-rate gate on posted-ledger AC. | Remove from EVM/EVM-series in R6E-B/C. Retain only independently justified consumers. |
+| Float EVM models and `binary_float_*` labels | Temporary legacy authority markers. | Delete after Decimal parity and consumer cutover. No pre-release compatibility facade remains. |
+
+#### R6E delivery sequence and exit gates
+
+**R6E-B - Decimal EVM authority:** add immutable scoped Decimal input/result
+facts with lifecycle, currency, calendar, progress, and reason metadata.
+Replace float arithmetic and the duration fallback with cost-loaded-baseline
+validation. Use only posted/reversed AC and approved Forecast ETC. Test
+BAC/PV/EV/AC/CV/SV/CPI/SPI/ETC/EAC/VAC/TCPI, zero denominators, calendar edge
+cases, reversal, no Forecast/baseline, tenant/org isolation.
+
+**R6E-C - consumer cutover/float retirement:** migrate Reporting, dashboard,
+desktop API/serializer, QML presenter, trend/export to Decimal facts and
+preserved unavailable values. Delete `EarnedValueCalculator`, float EVM models,
+and the EVM `LaborCostEngine` gate only after all active consumers are green.
+
+**R6E-D - variance/Cost Phasing truth:** separate EVM CV/SV/VAC, approved-Budget
+control variance, and baseline-history variance in contracts and UI. Define
+truthful planned/forecast allocation, move reporting/export off snapshot
+phasing, then delete `build_period_cost_phasing` and superseded snapshot API.
+Continue excluding receipts, payments, liquidity, AR, AP, and Accounting.
+
+**R6E-E - performance/final closure:** prove RLS negative cases through
+`app_runtime`, Decimal/currency guards, deterministic series ordering, bounded
+SQL/materialization, EXPLAIN plans, and 10k/50k performance. Run targeted
+domain, reader, desktop, dashboard, exporter, QML, SQLite, and PostgreSQL
+tests. Delete every temporary adapter/dead test in the same cutover. Close
+only with one EVM authority, one Performance read path, one desktop path, and
+no float/legacy compatibility surface.
+
+R6E-A evidence is source/contract inspection plus the existing R6D closure
+evidence; no executable behavior changed, so no new test was necessary.
+`ruff 0.16.7` is available in `pmenv`. Its isolated `E4,E7,E9,F` audit of the
+current EVM/Performance files intentionally fails with six `F821` occurrences
+of the documented undefined `project` fallback and one `F841` unused exception
+binding in the containment path. R6E-B must remove those defects as part of the
+authoritative replacement and run the same correctness rules on every changed
+Python file.
+
+### R6E-B Canonical Decimal EVM authority closure (2026-09-13)
+
+R6E-B is **complete**. R6D remains closed. One new pure calculation authority,
+`CanonicalEarnedValueCalculator`, consumes immutable `EvmCalculationInput`
+facts and returns immutable Decimal `EarnedValueMetrics`; no ORM, repository,
+desktop, QML, Rate Card, or Time revaluation is reachable from the formula
+layer. The explicit as-of date is part of the input and all money and ratios
+remain Decimal until a chart or document renderer crosses its presentation
+boundary.
+
+- **Formula/source contract:** BAC is the sum of approved cost-loaded baseline
+  task cost; PV is enterprise-calendar working-day interpolation of those
+  baseline dates; EV is that same baseline cost weighted by current task
+  progress; AC is only scoped posted/reversed `ProjectCostEntry` total;
+  ETC is only approved Forecast ETC; EAC is `AC + ETC`; EVM VAC is
+  `BAC - EAC`; CV is `EV - AC`; SV is `EV - PV`; CPI, SPI, TCPI(BAC), and
+  TCPI(EAC) are Decimal ratios. No CPI/Rate/current-plan fallback was added.
+- **Availability:** no approved baseline, an empty/uncosted baseline, incomplete
+  baseline dates, or missing current progress returns structured unavailable
+  facts, never fabricated zero. A missing approved Forecast leaves BAC/PV/EV/AC
+  available but makes ETC/EAC/VAC/TCPI(EAC) unavailable. Zero AC/PV yields a
+  null CPI/SPI respectively; zero remains distinct from unavailable.
+- **Lifecycle/security/currency:** `evm_baseline_statement` now scopes tenant,
+  organization, and project and only admits `approved` baselines, both implicit
+  and explicit. Draft/rejected/superseded baselines cannot silently become the
+  current EVM basis. Project-currency fail-closed reader behavior and existing
+  Finance/project authorization remain unchanged; no FX, EVM persistence, or
+  sensitive Rate evidence was introduced.
+- **Actual safety:** EVM now reads `FinanceControlFact.posted_actual` directly.
+  The prior `LaborCostEngine`/current-Rate dependency and
+  `ACTUAL_COST_INCOMPLETE` gate are removed from EVM snapshots and series.
+  Manual, approved-Time, Procurement-supported, and signed reversal Actuals
+  contribute only through their already-posted `ProjectCostEntry` facts.
+  `Resource.hourly_rate` is not read by the new authority.
+- **Consumer/deletion cutover:** Reporting, Dashboard, Performance query,
+  desktop serializer/DTOs, EVM series, chart/export edges, and tests now use
+  Decimal facts. Deleted
+  `application/financials/earned_value/evm_calculator.py`; no adapter, old/new
+  routing, undefined `project` branch, binary-float EVM DTO field, old float
+  serializer helper, or compatibility calculator remains. Finance snapshot
+  Cost Phasing is intentionally untouched for R6E-D.
+- **Performance:** one draft-baseline EVM snapshot is characterized at at most
+  **10 SQL statements**, including the entitlement guard, with one scoped EVM
+  fact read and no per-task/Rate query loop. No index was added. Series keeps a
+  single scoped fact read and the existing calendar bulk-day capability, without
+  Rate/policy recomposition.
+
+R6E-B evidence: 51 architecture/Decimal/R6B Performance tests, 13 EVM/export
+tests, 15 business-rule tests, and 14 R6C Forecast/R6D Actual governance tests
+passed in focused runs. Targeted `ruff --select E4,E7,E9,F` is clean for every
+changed Python file; compilation and `git diff --check` are clean. No QML file
+changed, so no QML lint was required. The full PM/PostgreSQL suite was not run
+because this phase used targeted evidence only. R6E-C (consumer/display
+refinement), R6F-R6H, Cost Phasing redesign, Billing, Accounting, FX, and
+Procurement correction semantics are **not started**. No commit was made.
 
 The R6D authority map remains: Rate Card/Line and the canonical resolver for
 Finance rates; `ProjectCostEntry` for managerial Actual; Time for worked/approved

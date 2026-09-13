@@ -35,7 +35,6 @@ from src.core.modules.project_management.application.financials.cost.engines.lab
 # Re-export so existing imports of these from reporting.builders.cost_policy still work.
 from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     CostSourceBreakdown,
-    CostSourceRow,
 )
 
 CostBucketKey = tuple[CostType, str]
@@ -122,13 +121,13 @@ class ReportingCostPolicyMixin:
         ).compose_from_facts(facts, labor)
         return facts, policy
 
-    def _compose_evm_policy(
+    def _read_evm_facts(
         self,
         project_id: str,
         *,
         baseline_id: str | None,
         as_of: date,
-    ) -> tuple[EvmSeriesFacts, CostPolicyComposition]:
+    ) -> EvmSeriesFacts:
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="read reporting EVM facts"
         )
@@ -141,19 +140,7 @@ class ReportingCostPolicyMixin:
         )
         if facts is None:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
-        labor = LaborCostEngine.for_facts(
-            rate_resolver=self._rate_resolver,
-            tenant_context_service=self._tenant_context_service,
-        ).calculate_project_labor_details(
-            project_id,
-            as_of,
-            facts=facts.finance,
-        )
-        policy = CostPolicyEngine.for_facts(
-            rate_resolver=self._rate_resolver,
-            tenant_context_service=self._tenant_context_service,
-        ).compose_from_facts(facts.finance, labor)
-        return facts, policy
+        return facts
 
     # Proxy helpers for mixins that call self._xxx() ─────────────────────────
 

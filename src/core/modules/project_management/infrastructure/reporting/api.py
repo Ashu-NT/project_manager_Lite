@@ -91,6 +91,10 @@ def _optional_report_call(func, *args, **kwargs):
         raise
 
 
+def _available_evm(value):
+    return None if getattr(value, "availability", "available") == "baseline_unavailable" else value
+
+
 def _resolved_as_of(value: date | None) -> date:
     return value or date.today()
 
@@ -154,15 +158,16 @@ def _build_excel_context(request: ExcelReportRequest) -> ExcelReportContext:
         request,
         as_of=as_of,
     )
+    evm = (
+        _optional_report_call(get_evm, request.project_id, baseline_id=request.baseline_id, as_of=as_of)
+        if callable(get_evm)
+        else None
+    )
     return ExcelReportContext(
         kpi=reporting_service.get_project_kpis(request.project_id),
         gantt=reporting_service.get_gantt_data(request.project_id),
         resources=reporting_service.get_resource_load_summary(request.project_id),
-        evm=(
-            _optional_report_call(get_evm, request.project_id, baseline_id=request.baseline_id, as_of=as_of)
-            if callable(get_evm)
-            else None
-        ),
+        evm=_available_evm(evm),
         evm_series=(
             _optional_report_call(get_series, request.project_id, baseline_id=request.baseline_id, as_of=as_of)
             if callable(get_series)
@@ -200,15 +205,16 @@ def _build_pdf_context(request: PdfReportRequest, gantt_path: Path | None) -> Pd
         request,
         as_of=as_of,
     )
+    evm = (
+        _optional_report_call(get_evm, request.project_id, baseline_id=request.baseline_id, as_of=as_of)
+        if callable(get_evm)
+        else None
+    )
     return PdfReportContext(
         kpi=reporting_service.get_project_kpis(request.project_id),
         gantt_png_path=str(gantt_path) if gantt_path else "",
         resources=reporting_service.get_resource_load_summary(request.project_id),
-        evm=(
-            _optional_report_call(get_evm, request.project_id, baseline_id=request.baseline_id, as_of=as_of)
-            if callable(get_evm)
-            else None
-        ),
+        evm=_available_evm(evm),
         evm_series=(
             _optional_report_call(get_series, request.project_id, baseline_id=request.baseline_id, as_of=as_of)
             if callable(get_series)

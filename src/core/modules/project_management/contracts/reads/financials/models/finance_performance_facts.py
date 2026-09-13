@@ -54,21 +54,21 @@ class PerformanceEvmFact:
     forecast_revision: int | None
     forecast_as_of: date | None
     currency_code: str
-    bac: float | None
-    pv: float | None
-    ev: float | None
-    ac: float | None
-    cv: float | None
-    sv: float | None
-    cpi: float | None
-    spi: float | None
-    etc: float | None
-    eac: float | None
-    vac: float | None
-    tcpi_bac: float | None
-    tcpi_eac: float | None
+    bac: Decimal | None
+    pv: Decimal | None
+    ev: Decimal | None
+    ac: Decimal | None
+    cv: Decimal | None
+    sv: Decimal | None
+    cpi: Decimal | None
+    spi: Decimal | None
+    etc: Decimal | None
+    eac: Decimal | None
+    vac: Decimal | None
+    tcpi_bac: Decimal | None
+    tcpi_eac: Decimal | None
     notes: str
-    calculation_precision: str = "binary_float_debt"
+    calculation_precision: str = "decimal"
 
 
 @dataclass(frozen=True, slots=True)

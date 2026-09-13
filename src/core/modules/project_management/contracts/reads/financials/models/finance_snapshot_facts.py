@@ -24,7 +24,7 @@ class FinanceProjectFact:
 class TaskFact:
     task_id: str
     name: str
-    percent_complete: float
+    percent_complete: Decimal
     start_date: date | None
     end_date: date | None
     actual_start: date | None

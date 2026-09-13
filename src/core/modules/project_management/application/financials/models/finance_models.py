@@ -248,34 +248,39 @@ class LaborDetailsResult:
 
 # ── Earned Value DTOs ─────────────────────────────────────────────────────────
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class EvmSeriesPoint:
     period_end: date
-    PV: float
-    EV: float
-    AC: float
-    BAC: float
-    CPI: float
-    SPI: float
+    PV: Decimal | None
+    EV: Decimal | None
+    AC: Decimal | None
+    BAC: Decimal | None
+    CPI: Decimal | None
+    SPI: Decimal | None
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class EarnedValueMetrics:
     as_of: date
-    baseline_id: str
+    baseline_id: str | None
+    currency_code: str
+    availability: str
+    unavailable_reason: str | None
 
-    BAC: float
-    PV: float
-    EV: float
-    AC: float
+    BAC: Decimal | None
+    PV: Decimal | None
+    EV: Decimal | None
+    AC: Decimal | None
 
-    CPI: float | None
-    SPI: float | None
-    EAC: float | None
-    ETC: float | None
-    VAC: float | None
-    TCPI_to_BAC: float | None = None
-    TCPI_to_EAC: float | None = None
+    CV: Decimal | None
+    SV: Decimal | None
+    CPI: Decimal | None
+    SPI: Decimal | None
+    EAC: Decimal | None
+    ETC: Decimal | None
+    VAC: Decimal | None
+    TCPI_to_BAC: Decimal | None = None
+    TCPI_to_EAC: Decimal | None = None
     notes: str | None = None
 
 
