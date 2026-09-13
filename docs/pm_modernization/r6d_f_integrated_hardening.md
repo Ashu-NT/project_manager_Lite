@@ -1,10 +1,10 @@
 # R6D-F Integrated Hardening
 
-Status: COMPLETE (2026-09-12). R6D-G is not started.
+Status: COMPLETE (2026-09-12). R6D-G final closure validation is in progress.
 
 R6D-F is an integrated proof phase, not a new Finance feature. R6C stays closed;
 R6D-E remains closed only for its current neutral Procurement contract. Do not
-start R6D-G or R6E from this checkpoint.
+use this historical checkpoint to infer R6D-G or R6E closure.
 
 ## Verified So Far
 
@@ -49,9 +49,9 @@ start R6D-G or R6E from this checkpoint.
   remain quarantinable, with no Finance-side correction invented.
 - The same trace-correlation invalidation defect also affected the approved-
   Time and Finance setup handlers. They now use per-UoW context identity;
-  their focused fan-out/dedupe suite passed **27 tests**. Other Finance
-  capability handlers still use correlation-based dedupe and require separate
-  reconciliation before the broader R6D closure claim.
+  their focused fan-out/dedupe suite passed **27 tests**. The five other
+  Finance capability handlers were reconciled in R6D-G; see the active Finance
+  implementation plan for that work and its regression evidence.
 - Decimal money/rate/quantity remains authoritative in R6D write paths.
   QML `Number()` hits in these screens are pagination/version/display values;
   `performance_query` and EVM float paths are current analytical authority

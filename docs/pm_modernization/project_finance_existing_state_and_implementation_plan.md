@@ -1,9 +1,10 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: implementation in progress; R6C closed; R6D-E complete for the current Procurement contract; R6D-F in progress
-Last updated: 2026-09-12
+Status: implementation in progress; R6C closed; R6D-A through R6D-F complete; R6D-G final closure validation in progress
+Last updated: 2026-09-13
 Scope: Project Management finance plus reusable platform financial foundations
-Current checkpoint: R6D-D Approved-Time Labor Posting Hardening is complete. The
+Current checkpoint: R6D-G final regression and repository reconciliation. The
+R6D-D Approved-Time Labor Posting Hardening path is complete. The
 authoritative path is Time approval -> immutable Time financial outbox -> leased
 delivery -> Finance inbox -> fresh Finance worker UoW -> canonical cost-rate
 resolution -> immutable labor posting and posted `ProjectCostEntry` -> one commit
@@ -22,17 +23,66 @@ Accounting truth. Future Accounting integration remains an outward gateway under
 [ADR-PF-010](../architecture_decisions/ADR-PF-010-billing-and-accounting-boundary.md);
 the approved-time worker does not invoke or emulate that future module.
 
+### R6D-G Final closure checkpoint (2026-09-13)
+
+R6D-G is **in progress, not closed** until the current full Project Management
+suite rerun and final quality gates pass. Commit `9e392e48a913de9f74f31d43f9359ab88cd2c861`
+(`update rate card`, Ashu, 2026-09-12 23:14:53 +02:00, parent
+`07227df5d11bfc3132826aaba40e2f0d7d51291f`) contains R6D Rate/Actual/
+Commitment and invalidation work. Git proves the commit metadata and contents,
+not which external process created it. Preserve it; no history rewrite. The
+working tree was clean at the start of G. A later external commit `e32a05458`
+captured the five Finance invalidation-handler and characterization edits during
+this run; this agent did not commit it.
+
+The R6D authority map remains: Rate Card/Line and the canonical resolver for
+Finance rates; `ProjectCostEntry` for managerial Actual; Time for worked/approved
+hours; Procurement for PO and receipt source truth; Finance Commitment/Match
+as a projection; Accounting remains a future outward boundary. The old
+`cost_entries_changed` signal and interactive Commitment mutations are absent.
+`Resource.hourly_rate` remains resource/planning metadata and is not a Finance
+posting fallback. Current float-based EVM/LaborCost analytical work belongs to
+R6E and is not a second ledger authority. No future Procurement receipt
+correction producer or Accounting functionality was invented; changed receipt
+semantics unsupported by the neutral contract remain quarantinable/non-posting.
+
+R6D-G corrected five remaining Finance invalidation handlers (Budget, Forecast,
+Planned Cost, Financial Change, Billing) to coalesce by committed-operation
+`DomainEventContext` identity, not trace correlation. One commit still coalesces
+repeated targets; two commits sharing a trace each notify. Existing Rate,
+Actual, Commitment, approved-Time, and setup handlers already used this rule.
+No duplicate production read/write path or D-class superseded R6D code was
+found in the focused legacy/DI/action search; legitimate `old_value` audit,
+presentation fallback, Resource rate metadata, and R6E analytical code remain.
+
+The full PM suite's first pass found an R6D-owned SQLite audit-atomicity defect:
+a released SAVEPOINT could escape an outer session rollback without a physical
+SQLite `BEGIN`. The shared UoW now starts that outer transaction on entry;
+a new savepoint rollback regression and the failed Manual Actual audit test
+pass. A stale Commitment desktop test double now accepts the authoritative
+`exposure` query parameter. An older R6B live Financial Change seed now writes
+the schema-required `updated_at`; this changed only the test fixture.
+
+Evidence so far: live R6D/R6B PostgreSQL selection **30 passed**; fresh-schema
+PostgreSQL security **14 passed**; live R6C/R6B readers **23 passed** after the
+fixture repair; Finance invalidation **79 passed, 1 skipped**; Platform Approval,
+shared QML, architecture, and SQLite migration guards **87 passed**; shared
+UoW/platform transaction guards **57 passed**; direct Finance QML lint clean;
+Python compilation clean. The first full PM run had **2245 passed, 2 skipped,
+2 failed**; both failures were fixed and pass in isolation. `ruff` remains
+unavailable in `pmenv`. Final full-suite rerun is in progress.
+
 ### R6D-F Integrated Hardening checkpoint (2026-09-12)
 
-R6D-F is **in progress, not closed**. The integrated evidence and remaining
-exit gates are tracked in [R6D-F integrated hardening](r6d_f_integrated_hardening.md).
+R6D-F is **complete**. Its integrated evidence and exit gates are tracked in
+[R6D-F integrated hardening](r6d_f_integrated_hardening.md).
 One concrete defect was fixed: Rate, Actual, and Commitment post-commit
 invalidation previously deduplicated on correlation ID. Independent worker
 commits can share a trace correlation, so later committed facts could omit
 view invalidation. Handlers now coalesce by the UoW-owned event-context
 instance, retaining one target hint per commit while notifying again for a
 separate commit with the same correlation. A real two-delivery Procurement
-test covers this case. R6D-G and R6E have not started.
+test covers this case. R6D-G is in final validation; R6E has not started.
 
 ### R6D-E Commitment Projection Hardening checkpoint (2026-09-12)
 
@@ -112,9 +162,9 @@ Finance to invent Procurement lifecycle or Accounting records. The existing
 source event/line-set contract is per line, so absence from a different event
 never deletes an existing line; explicit terminal state retains history.
 
-R6D-F remains unstarted. Its integrated security/events/performance work can
-build on this single production worker path without reviving interactive
-Commitment writes or introducing a second Finance ledger.
+R6D-F later completed integrated security/events/performance work on this
+single production worker path without reviving interactive Commitment writes
+or introducing a second Finance ledger.
 
 The current desktop dispatcher resolves the principal and claims the source
 outbox in the active organization. The fresh Finance UoW/RLS context is scoped

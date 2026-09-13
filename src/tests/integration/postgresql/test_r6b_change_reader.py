@@ -127,9 +127,10 @@ def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str
             text(
                 "INSERT INTO project_finance_change_impacts "
                 "(id, tenant_id, organization_id, change_request_id, project_id, "
-                "impact_type, description, amount, currency_code, cost_code_id, created_at) "
+                "impact_type, description, amount, currency_code, cost_code_id, "
+                "created_at, updated_at) "
                 "VALUES (:id, :tenant, :organization, :change, :project, :type, "
-                ":description, :amount, 'USD', :code, :now)"
+                ":description, :amount, 'USD', :code, :now, :now)"
             ),
             {
                 "id": f"r6b-change-impact-{suffix}-{index}",

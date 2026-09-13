@@ -41,10 +41,12 @@ class _CommitmentService:
         limit,
         sort_key,
         sort_direction,
+        exposure,
     ):
         assert project_id == "project-1"
         assert (offset, limit) == (10, 20)
         assert (sort_key, sort_direction) == ("metaText", "desc")
+        assert exposure == ""
         return [
             SimpleNamespace(
                 id="commitment-line-1",

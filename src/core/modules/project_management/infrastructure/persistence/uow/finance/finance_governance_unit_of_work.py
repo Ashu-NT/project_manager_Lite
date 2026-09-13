@@ -42,6 +42,15 @@ from src.infra.persistence.db.postgresql_rls import configure_session_rls_contex
 
 
 class SqlAlchemyFinanceGovernanceUnitOfWork(SqlAlchemyUnitOfWorkBase, FinanceGovernanceUnitOfWork):
+    def __enter__(self):
+        if self._session.get_bind().dialect.name == "sqlite":
+            connection = self._session.connection()
+            # source-identity savepoints must remain inside a physical
+            # outer transaction, even with SQLite's deferred BEGIN behavior.
+            if not connection.connection.driver_connection.in_transaction:
+                connection.exec_driver_sql("BEGIN")
+        return super().__enter__()
+
     def __init__(self, *, session: Session, transactional_dispatcher: TransactionalEventDispatcher,
                  post_commit_bus: PostCommitEventPublisher, context: DomainEventContext,
                  tenant_context_service, user_session) -> None:
