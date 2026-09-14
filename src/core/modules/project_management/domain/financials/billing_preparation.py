@@ -7,7 +7,9 @@ from enum import Enum
 
 from pydantic import field_validator, model_validator
 
-from src.core.modules.project_management.domain.financials.configuration import BillingMethod
+from src.core.modules.project_management.domain.financials.configuration import (
+    BillingMethod,
+)
 from src.core.modules.project_management.domain.identifiers import generate_id
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.common.pydantic import (
@@ -234,6 +236,11 @@ class ProjectBillingPreparation:
             raise BusinessRuleError(
                 "Only a submitted billing preparation can be approved.",
                 code="BILLING_PREPARATION_APPROVAL_INVALID",
+            )
+        if approved_by == self.created_by:
+            raise BusinessRuleError(
+                "The preparation creator cannot approve their own billing preparation.",
+                code="BILLING_PREPARATION_CREATOR_SELF_APPROVAL",
             )
         self.status = BillingPreparationStatus.APPROVED
         self.approved_by = approved_by

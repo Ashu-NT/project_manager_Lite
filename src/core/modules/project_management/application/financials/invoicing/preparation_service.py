@@ -8,21 +8,36 @@ from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.modules.project_management.access.scope_permissions import (
+    require_project_permission,
+)
 from src.core.modules.project_management.application.common.clock import Clock
-from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.financials.invoicing.billing_events import (
     BillingPreparationCreated,
     BillingPreparationExternalOutcomeRecorded,
     BillingPreparationLineAdded,
-    BillingPreparationStatusChangeType,
+    BillingPreparationLineRemoved,
     BillingPreparationStatusChanged,
+    BillingPreparationStatusChangeType,
 )
-from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import RateCardResolver
-from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import ProjectBillingRepository
-from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import ProjectCostEntryRepository
-from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import ProjectFinancialProfileRepository
-from src.core.modules.project_management.contracts.repositories.finance.cost_entries.labor_posting import ApprovedTimeLaborPostingRepository
+from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import (
+    RateCardResolver,
+)
+from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
+    ProjectFinancialProfileRepository,
+)
+from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
+    ProjectCostEntryRepository,
+)
+from src.core.modules.project_management.contracts.repositories.finance.cost_entries.labor_posting import (
+    ApprovedTimeLaborPostingRepository,
+)
+from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import (
+    ProjectBillingRepository,
+)
 from src.core.modules.project_management.domain.financials.billing_preparation import (
     BillableSourceType,
     BillingExternalEventType,
@@ -36,8 +51,12 @@ from src.core.modules.project_management.domain.financials.billing_profile impor
     BillingProfileStatus,
     BillingScheduleLineStatus,
 )
-from src.core.modules.project_management.domain.financials.configuration import BillingMethod
-from src.core.modules.project_management.domain.financials.cost_entry import ProjectCostEntryStatus
+from src.core.modules.project_management.domain.financials.configuration import (
+    BillingMethod,
+)
+from src.core.modules.project_management.domain.financials.cost_entry import (
+    ProjectCostEntryStatus,
+)
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.modules.project_management.gateway.billing.accounting_billing import (
     BillingPreparationLinePayload,
@@ -47,9 +66,15 @@ from src.core.platform.application.approval.approval_mutation_participant import
     request_approval_using,
 )
 from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.application.finance.financial_period_service import FinancialPeriodService
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.finance.financial_period_service import (
+    FinancialPeriodService,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.finance import DecimalQuantity, Money
 from src.core.platform.integration.canonical_json import canonical_json_sha256
@@ -321,6 +346,81 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             markup_percent=profile.cost_plus_markup_percent,
         )
         return self._reserve(preparation, line, expected_row_version)
+
+    def remove_draft_line(
+        self, preparation_id: str, *, line_id: str, expected_row_version: int
+    ) -> ProjectBillingPreparation:
+        preparation = self._require_preparation(preparation_id)
+        self._require(preparation.project_id, "finance.manage", "remove draft billing source")
+        preparation.ensure_draft()
+        if preparation.row_version != expected_row_version:
+            raise BusinessRuleError("Billing preparation changed.", code="STALE_WRITE")
+        lines = self._billing_repo.list_preparation_lines(preparation_id)
+        line = next((item for item in lines if item.id == line_id), None)
+        if line is None:
+            raise NotFoundError("Billing preparation line not found.", code="BILLING_LINE_NOT_FOUND")
+        now = self._clock.now()
+        remaining = [item for item in lines if item.id != line_id]
+        preparation.replace_totals(
+            line_count=len(remaining),
+            total_amount=sum((item.net_amount for item in remaining), Decimal("0")),
+            occurred_at=now,
+        )
+        event = BillingPreparationLineRemoved(
+            tenant_id=preparation.tenant_id,
+            organization_id=preparation.organization_id,
+            project_id=preparation.project_id,
+            billing_preparation_id=preparation.id,
+            preparation_line_id=line.id,
+            source_type=line.source_type,
+            occurred_at=now,
+        )
+        return self._write(
+            "remove_draft_line",
+            preparation,
+            lambda: (
+                self._billing_repo.remove_draft_line(preparation.id, line.id),
+                self._billing_repo.update_preparation(
+                    preparation, expected_row_version=expected_row_version
+                ),
+            ),
+            event,
+        )
+
+    def cancel_draft_preparation(
+        self, preparation_id: str, *, expected_row_version: int
+    ) -> ProjectBillingPreparation:
+        preparation = self._require_preparation(preparation_id)
+        self._require(preparation.project_id, "finance.manage", "cancel draft billing preparation")
+        preparation.ensure_draft()
+        if preparation.row_version != expected_row_version:
+            raise BusinessRuleError("Billing preparation changed.", code="STALE_WRITE")
+        now = self._clock.now()
+        preparation.cancel(occurred_at=now)
+        locks = self._billing_repo.list_source_locks(preparation.id)
+        for lock in locks:
+            lock.release(occurred_at=now)
+        event = BillingPreparationStatusChanged(
+            tenant_id=preparation.tenant_id,
+            organization_id=preparation.organization_id,
+            project_id=preparation.project_id,
+            billing_preparation_id=preparation.id,
+            change_type=BillingPreparationStatusChangeType.CANCELLED,
+            occurred_at=now,
+        )
+        def persist_cancellation() -> None:
+            for lock in locks:
+                self._billing_repo.update_source_lock(lock)
+            self._billing_repo.update_preparation(
+                preparation, expected_row_version=expected_row_version
+            )
+
+        return self._write(
+            "cancel_draft",
+            preparation,
+            persist_cancellation,
+            event,
+        )
 
     def submit_preparation(
         self, preparation_id: str, *, expected_row_version: int

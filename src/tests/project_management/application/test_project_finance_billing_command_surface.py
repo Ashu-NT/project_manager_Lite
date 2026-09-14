@@ -5,7 +5,6 @@ from decimal import Decimal
 
 import pytest
 
-from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.modules.project_management.api.desktop.financials.api import (
     ProjectManagementFinancialsDesktopApi,
 )
@@ -19,8 +18,11 @@ from src.core.modules.project_management.api.desktop.financials.commands.billing
     FinancialMarkBillingScheduleLineReadyCommand,
     FinancialVersionedBillingPreparationCommand,
 )
-from src.core.modules.project_management.domain.financials.configuration import BillingMethod
+from src.core.modules.project_management.domain.financials.configuration import (
+    BillingMethod,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 
 def _build_api(services) -> ProjectManagementFinancialsDesktopApi:
@@ -163,9 +165,10 @@ def test_desktop_billing_preparation_fixed_price_lifecycle_through_delivery_requ
     assert source_line.preparation_id == preparation.id
     assert Decimal(source_line.net_amount) == Decimal("24000")
 
-    # Submit as a distinct requester, then decide as the default admin
-    # session -- approve_and_apply forbids a principal deciding its own
-    # governance request.
+    # Creator, requester, and approver are independent actors.
+    services["auth_service"].register_user(
+        "billing-independent-reviewer", "StrongPass123", role_names=["approver"]
+    )
     _register_and_login(services, "billing-requester", role_names=["finance_controller"])
     submitted = api.submit_billing_preparation(
         FinancialVersionedBillingPreparationCommand(
@@ -175,11 +178,18 @@ def test_desktop_billing_preparation_fixed_price_lifecycle_through_delivery_requ
     assert submitted.status == "submitted"
     assert Decimal(submitted.total_amount) == Decimal("24000")
 
+    reviewer = services["auth_service"].authenticate(
+        "billing-independent-reviewer", "StrongPass123"
+    )
+    services["user_session"].set_principal(
+        services["auth_service"].build_principal(reviewer)
+    )
+    request = services["approval_service"].list_pending(project_id=project.id)[0]
+    services["approval_service"].approve_and_apply(request.id, note="Approved for delivery")
+
     auth = services["auth_service"]
     admin = auth.authenticate("admin", "ChangeMe123!")
     services["user_session"].set_principal(auth.build_principal(admin))
-    request = services["approval_service"].list_pending(project_id=project.id)[0]
-    services["approval_service"].approve_and_apply(request.id, note="Approved for delivery")
 
     delivered_request = api.request_billing_delivery(
         FinancialVersionedBillingPreparationCommand(

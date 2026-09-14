@@ -4,6 +4,7 @@ from src.core.modules.project_management.application.financials.invoicing.billin
     BillingPreparationCreated,
     BillingPreparationExternalOutcomeRecorded,
     BillingPreparationLineAdded,
+    BillingPreparationLineRemoved,
     BillingPreparationStatusChanged,
     BillingProfileActivated,
     BillingProfileCreated,
@@ -31,6 +32,7 @@ _BillingEvent = (
     | BillingScheduleLineMarkedReady
     | BillingPreparationCreated
     | BillingPreparationLineAdded
+    | BillingPreparationLineRemoved
     | BillingPreparationStatusChanged
     | BillingPreparationExternalOutcomeRecorded
 )

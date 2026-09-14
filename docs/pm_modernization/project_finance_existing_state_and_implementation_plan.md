@@ -1,8 +1,47 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F-A COMPLETE; R6F-B COMPLETE; R6F-C NEXT (NOT STARTED)
+Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F-A COMPLETE; R6F-B COMPLETE; R6F-C IN PROGRESS (NOT CLOSED)
 Last updated: 2026-09-14
 Scope: Project Management finance plus reusable platform financial foundations
+
+## R6F-C Governed Billing Preparation Progress (2026-09-14)
+
+R6F-C is **not closed**. The existing domain already makes draft the only
+mutable state, submission creates a Platform Approval request, approval
+finalizes source locks, rejection releases them, and approved preparation
+lines remain immutable. A domain-level creator-versus-approver check now
+rejects self-approval even when another user submitted the request; the
+distinct-actor regression passes. Existing success fixtures now use a truly
+independent reviewer rather than the creator.
+
+The coupled source-lock defect was resolved with a forward migration and
+active-only partial unique index on tenant/org/source identity. A released
+lock remains historical evidence but no longer blocks reuse; a reserved or
+finalized lock still blocks a duplicate. The repository's active-lock lookup
+excludes released history. Draft-line removal atomically deletes the
+unapproved line/reservation, recalculates Decimal totals and version, audits,
+and emits a typed Commercial event. Draft cancellation retains the preparation
+and its lines, releases reserved locks in the governed UoW, and emits a typed
+status event. Both reject stale versions or non-draft state. Tests prove source
+reuse after rejection, removal, and cancellation. A database partial unique
+index also prohibits two non-rejected/non-cancelled corrections from the same
+predecessor, permitting a rejected/cancelled attempt to be retried. The
+fresh-schema Alembic index test passes. PostgreSQL RLS/concurrency and
+correction-chain application tests remain pending; these indexes alone do not
+close those gates.
+
+Focused verification at this checkpoint: 43 Billing domain/application/
+desktop/approval/migration tests passed. Targeted Ruff F/I, Python compilation,
+and `git diff --check` passed. No QML changed in this slice, so visual,
+viewport, keyboard, and QML workflow gates remain open. PostgreSQL runtime
+role/RLS and concurrent-writer integration remain unverified.
+
+Remaining R6F-C work includes any required draft metadata/replacement editing,
+bounded source selectors, profile/schedule/preparation write UX with server
+capabilities, correction-chain application/race proofs, PostgreSQL RLS tests,
+responsive and keyboard checks, and the full regression matrix. Do not mark
+R6F-C complete or begin R6F-D based on the SoD fix alone. No Accounting
+publisher or invoice/payment authority was added.
 
 ## R6F-B Commercial Read Truth and Setup Closure (2026-09-14)
 

@@ -91,7 +91,19 @@ class BillingPreparationLineAdded:
     occurred_at: datetime
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BillingPreparationLineRemoved:
+    tenant_id: str
+    organization_id: str
+    project_id: str
+    billing_preparation_id: str
+    preparation_line_id: str
+    source_type: BillableSourceType
+    occurred_at: datetime
+
+
 class BillingPreparationStatusChangeType(str, Enum):
+    CANCELLED = "CANCELLED"
     SUBMITTED = "SUBMITTED"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
@@ -108,8 +120,7 @@ class BillingPreparationStatusChanged:
     changed), differentiated by `change_type`. `request_delivery` produces no separate durable
     fact: it returns an in-memory delivery payload and persists nothing else. Some
     `record_external_outcome` outcomes (e.g. DELIVERY_ACCEPTED) transition status twice in one
-    call (`mark_delivered` then `acknowledge`), each persisted as its own fact. `CANCELLED` has
-    no service-layer command and is not represented."""
+    call (`mark_delivered` then `acknowledge`), each persisted as its own fact."""
 
     tenant_id: str
     organization_id: str
@@ -142,6 +153,7 @@ __all__ = [
     "BillingScheduleLineMarkedReady",
     "BillingPreparationCreated",
     "BillingPreparationLineAdded",
+    "BillingPreparationLineRemoved",
     "BillingPreparationStatusChangeType",
     "BillingPreparationStatusChanged",
     "BillingPreparationExternalOutcomeRecorded",

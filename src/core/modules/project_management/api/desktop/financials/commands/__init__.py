@@ -1,12 +1,16 @@
 """Financial desktop commands."""
 
-from src.core.modules.project_management.api.desktop.financials.commands.configuration import (
-    FinancialChangeCostCodeStatusCommand,
-    FinancialCostCodeRestrictionCommand,
-    FinancialCreateCostCodeCommand,
-    FinancialTransitionProfileCommand,
-    FinancialUpdateCostCodeCommand,
-    FinancialUpdateProfileCommand,
+from src.core.modules.project_management.api.desktop.financials.commands.billing import (
+    FinancialActivateBillingProfileCommand,
+    FinancialAddApprovedTimeBillingSourceCommand,
+    FinancialAddBillingScheduleLineCommand,
+    FinancialAddCostPlusBillingSourceCommand,
+    FinancialAddFixedPriceBillingSourceCommand,
+    FinancialCreateBillingPreparationCommand,
+    FinancialCreateBillingProfileCommand,
+    FinancialMarkBillingScheduleLineReadyCommand,
+    FinancialRemoveDraftBillingLineCommand,
+    FinancialVersionedBillingPreparationCommand,
 )
 from src.core.modules.project_management.api.desktop.financials.commands.budgets import (
     FinancialAddBudgetLineCommand,
@@ -16,6 +20,22 @@ from src.core.modules.project_management.api.desktop.financials.commands.budgets
     FinancialUpdateBudgetCommand,
     FinancialUpdateBudgetLineCommand,
     FinancialVersionedBudgetCommand,
+)
+from src.core.modules.project_management.api.desktop.financials.commands.changes import (
+    FinancialChangeImpactCommand,
+    FinancialCreateChangeCommand,
+    FinancialRemoveChangeImpactCommand,
+    FinancialSubmitChangeCommand,
+    FinancialUpdateChangeCommand,
+    FinancialUpdateChangeImpactCommand,
+)
+from src.core.modules.project_management.api.desktop.financials.commands.configuration import (
+    FinancialChangeCostCodeStatusCommand,
+    FinancialCostCodeRestrictionCommand,
+    FinancialCreateCostCodeCommand,
+    FinancialTransitionProfileCommand,
+    FinancialUpdateCostCodeCommand,
+    FinancialUpdateProfileCommand,
 )
 from src.core.modules.project_management.api.desktop.financials.commands.cost_entries import (
     FinancialCreateManualActualCommand,
@@ -30,25 +50,6 @@ from src.core.modules.project_management.api.desktop.financials.commands.forecas
     FinancialManualEtcCommand,
     FinancialRiskContingencyCommand,
     FinancialVersionedForecastCommand,
-)
-from src.core.modules.project_management.api.desktop.financials.commands.billing import (
-    FinancialActivateBillingProfileCommand,
-    FinancialAddApprovedTimeBillingSourceCommand,
-    FinancialAddBillingScheduleLineCommand,
-    FinancialAddCostPlusBillingSourceCommand,
-    FinancialAddFixedPriceBillingSourceCommand,
-    FinancialCreateBillingPreparationCommand,
-    FinancialCreateBillingProfileCommand,
-    FinancialMarkBillingScheduleLineReadyCommand,
-    FinancialVersionedBillingPreparationCommand,
-)
-from src.core.modules.project_management.api.desktop.financials.commands.changes import (
-    FinancialChangeImpactCommand,
-    FinancialCreateChangeCommand,
-    FinancialRemoveChangeImpactCommand,
-    FinancialSubmitChangeCommand,
-    FinancialUpdateChangeCommand,
-    FinancialUpdateChangeImpactCommand,
 )
 from src.core.modules.project_management.api.desktop.financials.commands.rates import (
     FinancialAddRateLineCommand,
@@ -86,6 +87,7 @@ __all__ = [
     "FinancialDecideActualCommand",
     "FinancialDeleteBudgetLineCommand",
     "FinancialMarkBillingScheduleLineReadyCommand",
+    "FinancialRemoveDraftBillingLineCommand",
     "FinancialGenerateForecastCommand",
     "FinancialManualEtcCommand",
     "FinancialRiskContingencyCommand",

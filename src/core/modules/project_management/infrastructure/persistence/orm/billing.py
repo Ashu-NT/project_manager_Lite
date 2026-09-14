@@ -26,7 +26,6 @@ from src.infra.persistence.db.financial_numeric import (
 )
 from src.infra.persistence.orm.base import Base
 
-
 _SCOPE_INFO = {"info": {"rls_scope": "tenant_organization"}}
 
 
@@ -316,6 +315,22 @@ Index(
     ProjectBillingPreparationORM.project_id,
 )
 Index("idx_billing_preparations_status", ProjectBillingPreparationORM.status)
+Index(
+    "uq_billing_preparations_active_correction",
+    ProjectBillingPreparationORM.tenant_id,
+    ProjectBillingPreparationORM.organization_id,
+    ProjectBillingPreparationORM.project_id,
+    ProjectBillingPreparationORM.correction_of_preparation_id,
+    unique=True,
+    postgresql_where=(
+        ProjectBillingPreparationORM.correction_of_preparation_id.is_not(None)
+        & ProjectBillingPreparationORM.status.not_in(("rejected", "cancelled"))
+    ),
+    sqlite_where=(
+        ProjectBillingPreparationORM.correction_of_preparation_id.is_not(None)
+        & ProjectBillingPreparationORM.status.not_in(("rejected", "cancelled"))
+    ),
+)
 
 
 class ProjectBillingPreparationLineORM(Base):
@@ -464,13 +479,6 @@ class ProjectBillingSourceLockORM(Base):
             name="fk_billing_locks_line",
             ondelete="CASCADE",
         ),
-        UniqueConstraint(
-            "tenant_id",
-            "organization_id",
-            "source_type",
-            "source_id",
-            name="uq_billing_locks_source",
-        ),
         CheckConstraint(
             "status IN ('reserved', 'finalized', 'released')",
             name="ck_billing_locks_status",
@@ -501,6 +509,16 @@ Index(
     ProjectBillingSourceLockORM.tenant_id,
     ProjectBillingSourceLockORM.organization_id,
     ProjectBillingSourceLockORM.preparation_id,
+)
+Index(
+    "uq_billing_locks_active_source",
+    ProjectBillingSourceLockORM.tenant_id,
+    ProjectBillingSourceLockORM.organization_id,
+    ProjectBillingSourceLockORM.source_type,
+    ProjectBillingSourceLockORM.source_id,
+    unique=True,
+    postgresql_where=ProjectBillingSourceLockORM.status != "released",
+    sqlite_where=ProjectBillingSourceLockORM.status != "released",
 )
 
 

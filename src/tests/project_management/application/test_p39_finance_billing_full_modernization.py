@@ -10,8 +10,8 @@ from src.core.modules.project_management.application.financials.invoicing.billin
     BillingPreparationCreated,
     BillingPreparationExternalOutcomeRecorded,
     BillingPreparationLineAdded,
-    BillingPreparationStatusChangeType,
     BillingPreparationStatusChanged,
+    BillingPreparationStatusChangeType,
     BillingProfileActivated,
     BillingProfileCreated,
     BillingScheduleLineAdded,
@@ -26,16 +26,21 @@ from src.core.modules.project_management.domain.financials.billing_preparation i
     BillableSourceType,
     BillingExternalEventType,
     BillingPreparationStatus,
+    ProjectBillingPreparation,
 )
 from src.core.modules.project_management.domain.financials.billing_profile import (
     BillingProfileStatus,
     BillingScheduleLineStatus,
 )
-from src.core.modules.project_management.domain.financials.configuration import BillingMethod
+from src.core.modules.project_management.domain.financials.configuration import (
+    BillingMethod,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.view_invalidation import ResourceScope
-from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.context import (
+    ProjectManagementWorkspaceCatalog,
+)
 
 _COUNTER = {"n": 0}
 
@@ -345,6 +350,35 @@ def _submitted_preparation(services, project, line):
     )
 
 
+def test_preparation_creator_cannot_approve_when_another_user_submitted():
+    preparation = ProjectBillingPreparation.create(
+        tenant_id="tenant-1",
+        organization_id="organization-1",
+        project_id="project-1",
+        billing_profile_id="profile-1",
+        preparation_number="BP-1",
+        billing_method=BillingMethod.FIXED_PRICE,
+        period_start=date(2026, 8, 1),
+        period_end=date(2026, 8, 31),
+        currency_code="XAF",
+        idempotency_key="preparation-1",
+        created_by="creator-1",
+        line_count=1,
+        total_amount=Decimal("100"),
+    )
+    preparation.submit(
+        submitted_by="submitter-2",
+        submitted_at=datetime.now(timezone.utc),
+        approval_request_id="request-1",
+    )
+    with pytest.raises(BusinessRuleError) as exc:
+        preparation.approve(
+            approved_by="creator-1", approved_at=datetime.now(timezone.utc)
+        )
+    assert exc.value.code == "BILLING_PREPARATION_CREATOR_SELF_APPROVAL"
+    assert preparation.status is BillingPreparationStatus.SUBMITTED
+
+
 def test_governed_approval_produces_status_changed_approved(services):
     _login(services, "admin", "ChangeMe123!")
     _, project, _cost_code = _setup_billable_project(services)
@@ -381,6 +415,123 @@ def test_governed_rejection_produces_status_changed_rejected(services):
     rejected = services["billing_preparation_service"].get_preparation(submitted.id)
     assert rejected.status == BillingPreparationStatus.REJECTED
     assert len(_billing_hints(hints)) == 1
+
+
+def test_rejected_preparation_releases_source_for_new_draft(services):
+    _login(services, "admin", "ChangeMe123!")
+    _, project, _cost_code = _setup_billable_project(services)
+    _, schedule_line = _ready_schedule_line(services, project)
+    submitted = _submitted_preparation(services, project, schedule_line)
+    request = services["approval_service"].list_pending(project_id=project.id)[0]
+
+    reviewer = _unique("billing-release-reviewer")
+    services["auth_service"].register_user(
+        reviewer, "StrongPass123", role_names=["approver"]
+    )
+    _login(services, reviewer, "StrongPass123")
+    services["approval_service"].reject(request.id, note="Revise the claim")
+
+    _login(services, "admin", "ChangeMe123!")
+    service = services["billing_preparation_service"]
+    replacement = service.create_preparation(
+        project.id,
+        preparation_number=_unique("BP"),
+        period_start=date(2026, 8, 1),
+        period_end=date(2026, 8, 31),
+        idempotency_key=_unique("bp-key"),
+    )
+    line = service.add_fixed_price_source(
+        replacement.id,
+        schedule_line_id=schedule_line.id,
+        expected_row_version=replacement.row_version,
+    )
+    assert line.source_id == schedule_line.id
+    assert service.get_preparation(submitted.id).status is BillingPreparationStatus.REJECTED
+
+
+def test_draft_line_removal_updates_totals_and_frees_source(services):
+    _login(services, "admin", "ChangeMe123!")
+    _, project, _cost_code = _setup_billable_project(services)
+    _, schedule_line = _ready_schedule_line(services, project)
+    service = services["billing_preparation_service"]
+    preparation = service.create_preparation(
+        project.id,
+        preparation_number=_unique("BP"),
+        period_start=date(2026, 8, 1),
+        period_end=date(2026, 8, 31),
+        idempotency_key=_unique("bp-key"),
+    )
+    line = service.add_fixed_price_source(
+        preparation.id,
+        schedule_line_id=schedule_line.id,
+        expected_row_version=preparation.row_version,
+    )
+    preparation = service.get_preparation(preparation.id)
+    with pytest.raises(BusinessRuleError) as stale:
+        service.remove_draft_line(
+            preparation.id, line_id=line.id, expected_row_version=preparation.row_version - 1
+        )
+    assert stale.value.code == "STALE_WRITE"
+    updated = service.remove_draft_line(
+        preparation.id, line_id=line.id, expected_row_version=preparation.row_version
+    )
+    assert updated.line_count == 0
+    assert updated.total_amount == 0
+    assert service.list_lines(preparation.id) == []
+
+    replacement = service.create_preparation(
+        project.id,
+        preparation_number=_unique("BP"),
+        period_start=date(2026, 8, 1),
+        period_end=date(2026, 8, 31),
+        idempotency_key=_unique("bp-key"),
+    )
+    replacement_line = service.add_fixed_price_source(
+        replacement.id,
+        schedule_line_id=schedule_line.id,
+        expected_row_version=replacement.row_version,
+    )
+    assert replacement_line.source_id == schedule_line.id
+
+
+def test_cancel_draft_preserves_history_and_releases_source(services):
+    _login(services, "admin", "ChangeMe123!")
+    _, project, _cost_code = _setup_billable_project(services)
+    _, schedule_line = _ready_schedule_line(services, project)
+    service = services["billing_preparation_service"]
+    preparation = service.create_preparation(
+        project.id,
+        preparation_number=_unique("BP"),
+        period_start=date(2026, 8, 1),
+        period_end=date(2026, 8, 31),
+        idempotency_key=_unique("bp-key"),
+    )
+    service.add_fixed_price_source(
+        preparation.id,
+        schedule_line_id=schedule_line.id,
+        expected_row_version=preparation.row_version,
+    )
+    preparation = service.get_preparation(preparation.id)
+    cancelled = service.cancel_draft_preparation(
+        preparation.id, expected_row_version=preparation.row_version
+    )
+    assert cancelled.status is BillingPreparationStatus.CANCELLED
+    assert len(service.list_lines(cancelled.id)) == 1
+    with pytest.raises(BusinessRuleError):
+        service.submit_preparation(cancelled.id, expected_row_version=cancelled.row_version)
+
+    replacement = service.create_preparation(
+        project.id,
+        preparation_number=_unique("BP"),
+        period_start=date(2026, 8, 1),
+        period_end=date(2026, 8, 31),
+        idempotency_key=_unique("bp-key"),
+    )
+    assert service.add_fixed_price_source(
+        replacement.id,
+        schedule_line_id=schedule_line.id,
+        expected_row_version=replacement.row_version,
+    ).source_id == schedule_line.id
 
 
 def test_request_delivery_produces_status_changed_delivery_pending(services):

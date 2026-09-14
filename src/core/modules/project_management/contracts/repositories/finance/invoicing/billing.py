@@ -75,6 +75,11 @@ class ProjectBillingRepository(ABC):
     ) -> list[ProjectBillingPreparationLine]: ...
 
     @abstractmethod
+    def remove_draft_line(
+        self, preparation_id: str, line_id: str
+    ) -> None: ...
+
+    @abstractmethod
     def get_source_lock(
         self, *, source_type: BillableSourceType, source_id: str
     ) -> ProjectBillingSourceLock | None: ...

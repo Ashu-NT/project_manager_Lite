@@ -72,6 +72,13 @@ class FinancialAddCostPlusBillingSourceCommand:
 
 
 @dataclass(frozen=True, slots=True)
+class FinancialRemoveDraftBillingLineCommand:
+    preparation_id: str
+    line_id: str
+    expected_version: int
+
+
+@dataclass(frozen=True, slots=True)
 class FinancialVersionedBillingPreparationCommand:
     preparation_id: str
     expected_version: int
@@ -86,5 +93,6 @@ __all__ = [
     "FinancialCreateBillingPreparationCommand",
     "FinancialCreateBillingProfileCommand",
     "FinancialMarkBillingScheduleLineReadyCommand",
+    "FinancialRemoveDraftBillingLineCommand",
     "FinancialVersionedBillingPreparationCommand",
 ]

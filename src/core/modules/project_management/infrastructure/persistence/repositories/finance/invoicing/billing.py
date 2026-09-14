@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import (
@@ -39,7 +39,9 @@ from src.core.modules.project_management.infrastructure.persistence.orm.billing 
     ProjectBillingScheduleLineORM,
     ProjectBillingSourceLockORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     ActiveScopeIds,
     TenantContextService,
@@ -347,6 +349,37 @@ class SqlAlchemyProjectBillingRepository(ProjectBillingRepository):
         ).scalars().all()
         return [preparation_line_from_orm(row) for row in rows]
 
+    def remove_draft_line(self, preparation_id: str, line_id: str) -> None:
+        context = self._context(operation_label="remove draft billing source")
+        preparation = self._preparation_row(preparation_id, context)
+        if preparation.status != "draft":
+            raise BusinessRuleError(
+                "Only draft billing sources can be removed.",
+                code="BILLING_PREPARATION_IMMUTABLE",
+            )
+        filters = (
+            ProjectBillingPreparationLineORM.id == line_id,
+            ProjectBillingPreparationLineORM.preparation_id == preparation_id,
+            ProjectBillingPreparationLineORM.project_id == preparation.project_id,
+            ProjectBillingPreparationLineORM.tenant_id == context.tenant_id,
+            ProjectBillingPreparationLineORM.organization_id == context.organization_id,
+        )
+        lock_filters = (
+            ProjectBillingSourceLockORM.preparation_line_id == line_id,
+            ProjectBillingSourceLockORM.preparation_id == preparation_id,
+            ProjectBillingSourceLockORM.project_id == preparation.project_id,
+            ProjectBillingSourceLockORM.tenant_id == context.tenant_id,
+            ProjectBillingSourceLockORM.organization_id == context.organization_id,
+            ProjectBillingSourceLockORM.status == "reserved",
+        )
+        if self.session.execute(delete(ProjectBillingSourceLockORM).where(*lock_filters)).rowcount != 1:
+            raise BusinessRuleError(
+                "The draft source reservation is unavailable.",
+                code="BILLING_SOURCE_RESERVATION_MISSING",
+            )
+        if self.session.execute(delete(ProjectBillingPreparationLineORM).where(*filters)).rowcount != 1:
+            raise NotFoundError("Billing preparation line not found.", code="BILLING_LINE_NOT_FOUND")
+
     def get_source_lock(
         self, *, source_type: BillableSourceType, source_id: str
     ) -> ProjectBillingSourceLock | None:
@@ -357,6 +390,7 @@ class SqlAlchemyProjectBillingRepository(ProjectBillingRepository):
                 ProjectBillingSourceLockORM.source_id == source_id,
                 ProjectBillingSourceLockORM.tenant_id == context.tenant_id,
                 ProjectBillingSourceLockORM.organization_id == context.organization_id,
+                ProjectBillingSourceLockORM.status != "released",
             )
         ).scalar_one_or_none()
         return source_lock_from_orm(row) if row else None

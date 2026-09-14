@@ -18,6 +18,7 @@ from src.core.modules.project_management.api.desktop.financials.commands.billing
     FinancialCreateBillingPreparationCommand,
     FinancialCreateBillingProfileCommand,
     FinancialMarkBillingScheduleLineReadyCommand,
+    FinancialRemoveDraftBillingLineCommand,
     FinancialVersionedBillingPreparationCommand,
 )
 from src.core.modules.project_management.api.desktop.financials.commands.budgets import (
@@ -2031,6 +2032,24 @@ class ProjectManagementFinancialsDesktopApi:
             expected_row_version=command.expected_version,
         )
         return serialize_billing_preparation_line(line)
+
+    def remove_draft_billing_line(
+        self, command: FinancialRemoveDraftBillingLineCommand
+    ) -> FinancialBillingPreparationDto:
+        preparation = self._require_billing_preparation_service().remove_draft_line(
+            command.preparation_id,
+            line_id=command.line_id,
+            expected_row_version=command.expected_version,
+        )
+        return serialize_billing_preparation(preparation)
+
+    def cancel_draft_billing_preparation(
+        self, command: FinancialVersionedBillingPreparationCommand
+    ) -> FinancialBillingPreparationDto:
+        preparation = self._require_billing_preparation_service().cancel_draft_preparation(
+            command.preparation_id, expected_row_version=command.expected_version
+        )
+        return serialize_billing_preparation(preparation)
 
     def submit_billing_preparation(
         self, command: FinancialVersionedBillingPreparationCommand
