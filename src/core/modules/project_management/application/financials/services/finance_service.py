@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import cast
 
@@ -113,7 +113,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             "finance.read",
             operation_label="view finance overview",
         )
-        as_of = as_of or date.today()
+        as_of = as_of or datetime.now(timezone.utc).astimezone().date()
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="build finance overview"
         )
@@ -143,7 +143,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             "finance.read",
             operation_label="view finance snapshot",
         )
-        as_of = as_of or date.today()
+        as_of = as_of or datetime.now(timezone.utc).astimezone().date()
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="build finance snapshot"
         )
@@ -284,7 +284,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
     def _read_canonical_cost_phasing(
         self, *, scope, facts, project_id: str, as_of: date
     ) -> tuple[list[FinancePeriodRow], tuple[CostPhasingSeriesAvailabilityFact, ...]]:
-        date_from = facts.project.start_date or as_of
+        date_from = facts.project.start_date or date(as_of.year, 1, 1)
         result = self._finance_performance_reader.read_cost_phasing(
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
@@ -293,6 +293,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
                 date_from=min(date_from, as_of),
                 date_to=as_of,
                 granularity="month",
+                as_of_date=as_of,
             ),
         )
         if result is None:

@@ -60,12 +60,13 @@ class SqlAlchemyFinancePerformanceReader:
             return None
 
         currency = str(project.currency_code or "").strip().upper()
+        as_of_date = query.as_of_date or query.date_to
         forecast = self._session.execute(
             approved_forecast_facts_statement(
                 tenant_id=tenant_id,
                 organization_id=organization_id,
                 project_id=project_id,
-                as_of=query.date_to,
+                as_of=as_of_date,
             )
         ).one_or_none()
         buckets: dict[str, dict[str, object]] = {}
@@ -73,8 +74,6 @@ class SqlAlchemyFinancePerformanceReader:
 
         def add(stage: str, anchor: date | None, amount: Decimal) -> None:
             resolved_anchor = anchor or query.date_to
-            if resolved_anchor < query.date_from or resolved_anchor > query.date_to:
-                return
             key, starts_on, ends_on = self._period_bounds(
                 resolved_anchor,
                 query.granularity,
@@ -207,7 +206,7 @@ class SqlAlchemyFinancePerformanceReader:
                 tenant_id=tenant_id,
                 organization_id=organization_id,
                 project_id=project_id,
-                as_of=query.date_to,
+                as_of=as_of_date,
                 date_from=query.date_from,
                 date_to=query.date_to,
                 project_currency=currency,
@@ -230,7 +229,7 @@ class SqlAlchemyFinancePerformanceReader:
                 tenant_id=tenant_id,
                 organization_id=organization_id,
                 project_id=project_id,
-                as_of=query.date_to,
+                as_of=as_of_date,
                 project_currency=currency,
             )
         ).one()
@@ -260,7 +259,7 @@ class SqlAlchemyFinancePerformanceReader:
                 organization_id=organization_id,
                 project_id=project_id,
                 date_from=query.date_from,
-                date_to=query.date_to,
+                date_to=min(query.date_to, as_of_date),
                 project_currency=currency,
             )
         ):
@@ -298,7 +297,7 @@ class SqlAlchemyFinancePerformanceReader:
             tenant_id=tenant_id,
             organization_id=organization_id,
             project_id=project_id,
-            as_of_date=query.date_to,
+            as_of_date=as_of_date,
             date_from=query.date_from,
             date_to=query.date_to,
             granularity=query.granularity,

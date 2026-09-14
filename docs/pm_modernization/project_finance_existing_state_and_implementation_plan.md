@@ -1,6 +1,6 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: R6C closed; R6D-A through R6D-G complete; R6D CLOSED; R6E-A/B/C COMPLETE; R6E-D IN PROGRESS
+Status: R6C closed; R6D CLOSED; R6E-A/B/C/D/E COMPLETE; R6E CLOSED; R6F NEXT (NOT STARTED)
 Last updated: 2026-09-13
 Scope: Project Management finance plus reusable platform financial foundations
 Current checkpoint: R6D-G final regression and repository reconciliation are complete. The
@@ -328,14 +328,98 @@ Actuals, commitment remaining-amount semantics, Forecast approval/supersession,
 snapshot/export lineage, tenant scope, and rate governance. No R6E-D-owned
 report consumer exists beyond snapshot-backed PDF/Excel rendering.
 
+### R6E-D closure evidence (2026-09-13)
+
+**R6E-D COMPLETE.** The preceding in-progress entries are historical checkpoints,
+not the current gate status. The canonical scoped Reader is the sole Cost Phasing
+calculation authority; snapshot and Excel/PDF export consume its monthly facts.
+No independent R6E-D report calculation exists. The retired
+`build_period_cost_phasing` authority has no production references.
+
+Lifecycle and boundary characterization covers approved-only cost-loaded
+baselines with exact enterprise-calendar allocation across December/January;
+posted and reversed Actuals, excluding draft/submitted/approved-but-unposted
+entries; approved Forecast selection including a subsequently superseded
+historical version; and open, matched, closed, and cancelled Commitments.
+Display range and `as_of_date` are separate: future delivery can phase in a
+future bucket if known by the cutoff, Actual after the cutoff is excluded,
+outside-window facts are not shifted, and missing timing remains unphased.
+First/last month days, a mid-month range, and the year boundary are exercised.
+
+Exact `Decimal` assertions reconcile planned calendar allocation, Actual
+monthly facts (26.70 total in the boundary fixture), a 25/-25 reversal,
+Forecast phased/unphased 80.10 + 0.50 = 80.60, and Commitment phased/unphased
+100 + 100 = 200. A 100 Commitment partially matched by a 30 posted Actual
+leaves 70 open; combined exposure is 100, not 130. Changing/deactivating
+the current Rate Card after posting does not change historical Actual phasing.
+For the same project, as-of, and monthly window, canonical Reader facts agree
+with snapshot rows and Excel period rows; PDF uses the same snapshot basis.
+
+Focused verification: 37 canonical/read-architecture, 28
+commitment/cost/Forecast lifecycle, 58 Decimal EVM/variance/Rate/security,
+25 R6C/R6D governance, 35 destination/dashboard, 3 live PostgreSQL RLS,
+and 21 finance architecture-guard tests passed (207 non-overlapping tests).
+Targeted Ruff and Python compilation passed. PostgreSQL aggregate EXPLAIN,
+bounded query count, and index analysis are recorded above. R6E-E was not
+started at this checkpoint; no commit was made in this work session.
+
+### R6E-E integrated hardening and final R6E closure (2026-09-14)
+
+**R6E-E COMPLETE; R6E CLOSED.** The final authorities are the governed approved
+cost-loaded baseline for BAC/PV/EV and planned phasing, posted/reversed
+`ProjectCostEntry` for AC, approved Forecast for ETC, R6D Commitment projection
+for open Commitment, and Scheduling/calendar for working-time facts. The
+canonical Decimal EVM calculator owns EVM formulas; Variance delegates to its
+facts (CV = EV - AC, SV = EV - PV, VAC = BAC - EAC); the scoped Finance
+Performance Reader owns Cost Phasing. Budget Pressure is EAC minus approved
+Budget; Budget Headroom is its inverse. Commitment is not added blindly to
+Forecast ETC, and Receipt-derived Actual reduces matched open Commitment.
+
+An integrated approved-baseline project now proves matching Performance,
+Variance, Cost Phasing, snapshot, and reporting EVM for the same project and
+as-of date. The scenario exposed and fixed a live Variance contract defect:
+`BaselineService.list_variance_records` did not accept the caller's
+`expected_project_id`. The service now verifies that project before returning
+records; a wrong-project request raises `BASELINE_NOT_FOUND`. Dedicated R6D
+and R6E-D tests provide complementary approved-Time posting, reversal,
+partial-match, future/unphased Commitment, Forecast lifecycle, and export
+parity evidence. Missing baseline/Forecast and zero-denominator ratios remain
+structured unavailable rather than monetary zero; timed and unphased amounts
+remain distinct. Money stays Decimal in project currency; ratios use canonical
+Decimal/optional representation. No FX or analytical truth table was added.
+
+Production consumer review: Performance and reporting call the canonical EVM
+authority; Dashboard delegates to reporting; Variance consumes the canonical
+EVM facts; snapshot and Excel/PDF export consume the canonical phasing Reader;
+QML and presenters serialize/display rather than recalculate financial truth.
+Subsection reads remain lazy, and existing generation/context guards and
+committed-operation invalidation tests remain green. Static float search of
+R6E-owned EVM/Variance/Reader/reporting paths found no authoritative binary
+float usage; QML `Number()` hits are pagination/version or display concerns,
+not monetary authority. The old EVM calculator and old phasing builder are
+absent; no R6E-owned compatibility calculator remains. No R6E schema migration
+or duplicate persisted current-EVM fields were introduced.
+
+Final verification: complete Project Management suite **1,621 passed, 2
+skipped**; 42 impacted baseline/canonical/read tests passed after the service
+fix; 39 finance/CQRS architecture guards passed; 65 Finance presenter,
+controller, and platform-approval tests passed; 17 scheduling/approval/SQLite
+integration tests passed; 8 live PostgreSQL approved-Time/RLS tests passed.
+Finance QML lint passed with repository import paths; five standard viewport
+sizes are covered by the Performance-section tests in the full PM suite.
+Targeted Ruff, Python compilation, retired-path search, and `git diff --check`
+passed. R6D remains closed. R6F Billing Preparation / Projected Commercial
+Revenue / Profitability is next but not started; Billing, Accounting, FX, and
+Procurement correction semantics were not expanded. No commit was created.
+
 The R6D authority map remains: Rate Card/Line and the canonical resolver for
 Finance rates; `ProjectCostEntry` for managerial Actual; Time for worked/approved
 hours; Procurement for PO and receipt source truth; Finance Commitment/Match
 as a projection; Accounting remains a future outward boundary. The old
 `cost_entries_changed` signal and interactive Commitment mutations are absent.
 `Resource.hourly_rate` remains resource/planning metadata and is not a Finance
-posting fallback. Current float-based EVM/LaborCost analytical work belongs to
-R6E and is not a second ledger authority. No future Procurement receipt
+posting fallback. The former float-based EVM authority was retired in R6E-B;
+remaining LaborCost work is not a second EVM ledger authority. No future Procurement receipt
 correction producer or Accounting functionality was invented; changed receipt
 semantics unsupported by the neutral contract remain quarantinable/non-posting.
 

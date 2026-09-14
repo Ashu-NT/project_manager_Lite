@@ -664,7 +664,7 @@ def forecast_cost_phasing_statement(
             ForecastLineORM.organization_id == organization_id,
             ForecastLineORM.project_id == project_id,
             ForecastLineORM.forecast_id == forecast_id,
-            ProjectForecastORM.status == "approved",
+            ProjectForecastORM.status.in_(("approved", "superseded")),
             ForecastLineORM.period_start.is_not(None),
             ForecastLineORM.period_end.is_not(None),
             start_year == end_year,
@@ -717,7 +717,7 @@ def forecast_unphased_cost_statement(
             ForecastLineORM.organization_id == organization_id,
             ForecastLineORM.project_id == project_id,
             ForecastLineORM.forecast_id == forecast_id,
-            ProjectForecastORM.status == "approved",
+            ProjectForecastORM.status.in_(("approved", "superseded")),
             lacks_month,
             _project_scope(
                 tenant_id=tenant_id,

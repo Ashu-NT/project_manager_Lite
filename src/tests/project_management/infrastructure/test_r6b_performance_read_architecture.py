@@ -5,6 +5,7 @@ from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call
+from uuid import uuid4
 
 import pytest
 from PySide6.QtCore import QObject, QUrl
@@ -21,6 +22,10 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     CostPhasingFacts,
     CostPhasingPeriodFact,
     CostPhasingQuery,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.baseline import (
+    BaselineTaskORM,
+    ProjectBaselineORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.financials.sqlalchemy_finance_performance_reader import (
     SqlAlchemyFinancePerformanceReader,
@@ -171,6 +176,7 @@ def test_cost_phasing_query_preserves_scope_range_and_decimal_facts(
         "project-1",
         date_from=date(2026, 1, 1),
         date_to=date(2026, 8, 28),
+        as_of_date=date(2026, 8, 15),
     )
 
     assert result.periods[0].planned_cost == Decimal("10.25")
@@ -182,6 +188,7 @@ def test_cost_phasing_query_preserves_scope_range_and_decimal_facts(
             date_from=date(2026, 1, 1),
             date_to=date(2026, 8, 28),
             granularity="month",
+            as_of_date=date(2026, 8, 15),
         ),
     )
 
@@ -233,6 +240,54 @@ def test_cost_phasing_quarter_boundaries_are_calendar_quarters() -> None:
     assert key == "2026-Q3"
     assert starts_on == date(2026, 7, 1)
     assert ends_on == date(2026, 9, 30)
+
+
+def test_cost_phasing_approved_baseline_calendar_allocation_is_exact(services, session) -> None:
+    project = services["project_service"].create_project(
+        "R6E baseline lifecycle", financial_currency_code="XAF"
+    )
+    approved_id = str(uuid4())
+    for status in ("draft", "submitted", "rejected", "superseded", "approved"):
+        baseline_id = approved_id if status == "approved" else str(uuid4())
+        session.add(ProjectBaselineORM(
+            id=baseline_id,
+            project_id=project.id,
+            name=status,
+            created_at=date(2026, 12, 1),
+            status=status,
+            approved_at=date(2026, 12, 1) if status == "approved" else None,
+        ))
+        session.flush()
+        session.add(BaselineTaskORM(
+            id=str(uuid4()),
+            baseline_id=baseline_id,
+            task_id=str(uuid4()),
+            baseline_start=date(2026, 12, 30),
+            baseline_finish=date(2027, 1, 1),
+            baseline_duration_days=3,
+            baseline_planned_cost=Decimal("0.10") if status == "approved" else Decimal(100),
+        ))
+    session.flush()
+    calendar = SimpleNamespace(working_day_dates_between=lambda _start, _end: (
+        date(2026, 12, 30), date(2026, 12, 31), date(2027, 1, 1)
+    ))
+    scope = services["tenant_context_service"].require_active_scope_ids(
+        operation_label="test baseline phasing"
+    )
+    facts = SqlAlchemyFinancePerformanceReader(session=session, calendar=calendar).read_cost_phasing(
+        tenant_id=scope.tenant_id,
+        organization_id=scope.organization_id,
+        project_id=project.id,
+        query=CostPhasingQuery(
+            date_from=date(2026, 12, 30),
+            date_to=date(2027, 1, 1),
+            as_of_date=date(2026, 12, 31),
+        ),
+    )
+    assert [row.period_key for row in facts.periods] == ["2026-12", "2027-01"]
+    assert sum((row.planned_cost for row in facts.periods), Decimal(0)) == Decimal("0.10")
+    assert all(row.planned_cost < Decimal(1) for row in facts.periods)
+    assert facts.series_availability[0].availability == "available"
 
 
 def test_sql_cost_phasing_reader_is_bounded_and_rejects_wrong_scope(

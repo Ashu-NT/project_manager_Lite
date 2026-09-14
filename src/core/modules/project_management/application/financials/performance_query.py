@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Protocol
 
@@ -33,7 +33,6 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +87,7 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
         baseline_id: str | None = None,
     ) -> PerformanceEvmFact:
         self._authorize_finance(project_id, "view earned value performance")
-        resolved_as_of = as_of_date or date.today()
+        resolved_as_of = as_of_date or datetime.now(timezone.utc).astimezone().date()
         basis = self._read_basis(project_id, resolved_as_of)
         return self._read_evm(
             project_id=project_id,
@@ -172,7 +171,7 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
         selected_baseline_id: str | None = None,
     ) -> PerformanceVarianceFacts:
         self._authorize_finance(project_id, "view finance variance")
-        resolved_as_of = as_of_date or date.today()
+        resolved_as_of = as_of_date or datetime.now(timezone.utc).astimezone().date()
         basis = self._read_basis(project_id, resolved_as_of)
         baselines = tuple(
             item
@@ -197,7 +196,7 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
             tuple(
                 sorted(
                     self._baseline_variance_authority.list_variance_records(
-                        str(getattr(selected, "id")),
+                        str(selected.id),
                         expected_project_id=project_id,
                     ),
                     key=lambda row: abs(Decimal(getattr(row, "cost_variance", 0) or 0)),
@@ -270,7 +269,7 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
             budget_revision=basis.approved_budget_revision,
             forecast_revision=basis.approved_forecast_revision,
             forecast_as_of=basis.approved_forecast_as_of,
-            selected_baseline_id=("" if selected is None else str(getattr(selected, "id"))),
+            selected_baseline_id=("" if selected is None else str(selected.id)),
             selected_baseline_label=(
                 ""
                 if selected is None
@@ -293,6 +292,7 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
         date_from: date,
         date_to: date,
         granularity: str = "month",
+        as_of_date: date | None = None,
     ) -> CostPhasingFacts:
         self._authorize_finance(project_id, "view project cost phasing")
         normalized_granularity = str(granularity or "").strip().lower()
@@ -323,6 +323,7 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
                 date_from=date_from,
                 date_to=date_to,
                 granularity=normalized_granularity,
+                as_of_date=as_of_date,
             ),
         )
         if facts is None:
@@ -347,7 +348,7 @@ class ProjectFinancePerformanceQuery(ProjectManagementModuleGuardMixin):
             operation_label="view project finance reports",
         )
         self._authorize_finance(project_id, "view project finance report basis")
-        resolved_as_of = as_of_date or date.today()
+        resolved_as_of = as_of_date or datetime.now(timezone.utc).astimezone().date()
         basis = self._read_basis(project_id, resolved_as_of)
         return PerformanceReportsFacts(
             project_id=project_id,

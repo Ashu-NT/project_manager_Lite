@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import calendar
-from datetime import date
+from datetime import date, datetime, timezone
 
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementFinancialsDesktopApi,
@@ -23,22 +23,21 @@ from .billing_workspace_builder import (
     build_accounting_status_collection,
     build_billing_workspace_views,
 )
+from .change_workspace_builder import build_change_workspace_views
 from .commitment_builder import build_commitment_collection, build_commitment_summary
 from .configuration_builder import build_finance_configuration_views
-from .change_workspace_builder import build_change_workspace_views
 from .forecast_workspace_builder import build_forecast_workspace_views
-from .rate_workspace_builder import build_rate_workspace_views
-from .ledger_builder import build_ledger_collection
 from .integration_failure_builder import build_posting_failure_collection
+from .ledger_builder import build_ledger_collection
+from .overview_builder import build_overview
 from .performance_builder import (
     build_cost_phasing_views,
     build_evm_views,
     build_reports_views,
     build_variance_views,
 )
-from .overview_builder import build_overview
+from .rate_workspace_builder import build_rate_workspace_views
 from .selection import resolve_project_id
-
 
 FINANCE_DESTINATIONS = (
     "overview",
@@ -486,7 +485,7 @@ def build_destination_state(
         )
 
     if destination == "performance":
-        as_of_date = performance_as_of_date or date.today()
+        as_of_date = performance_as_of_date or datetime.now(timezone.utc).astimezone().date()
         if subsection == "evm":
             views = build_evm_views(
                 desktop_api.get_performance_evm(
@@ -527,6 +526,7 @@ def build_destination_state(
                     date_from=range_from,
                     date_to=range_to,
                     granularity=cost_phasing_granularity,
+                    as_of_date=as_of_date,
                 )
             )
             return FinancialsWorkspaceViewModel(

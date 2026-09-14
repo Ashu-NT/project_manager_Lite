@@ -10,6 +10,7 @@ class CostPhasingQuery:
     date_from: date
     date_to: date
     granularity: str = "month"
+    as_of_date: date | None = None
 
 
 @dataclass(frozen=True, slots=True)
