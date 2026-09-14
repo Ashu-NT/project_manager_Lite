@@ -6,7 +6,6 @@ from decimal import Decimal
 
 from .finance_budget_facts import FinancePageFacts
 
-
 _SCHEDULE_SORT_KEYS = {"title", "statusLabel", "subtitle", "supportingText", "metaText"}
 _PREPARATION_SORT_KEYS = {"title", "statusLabel", "subtitle", "supportingText", "metaText"}
 _LINE_SORT_KEYS = {"title", "statusLabel", "subtitle", "supportingText", "metaText"}
@@ -223,7 +222,7 @@ class BillingPreparationLineFact:
     source_date: date
     quantity: Decimal
     unit: str
-    unit_rate: Decimal
+    unit_rate: Decimal | None
     net_amount: Decimal
     currency_code: str
     task_id: str | None

@@ -175,19 +175,16 @@ class CostBreakdownRow:
 
 @dataclass(frozen=True)
 class ProjectCommercialProjection:
-    """contract_value/billable_amount/externally_invoiced_amount/
-    externally_paid_amount are ordinary Project Finance authority data
-    (finance.read); forecast_revenue_at_completion/revenue_basis/
+    """Contract and approved preparation amounts are managerial PM facts.
+
+    forecast_revenue_at_completion/revenue_basis/
     projected_margin_* are further redacted without finance.read_profitability
     (profitability_detail_included is False, all four are None/"")."""
 
     project_id: str
     project_currency: str | None
     contract_value: Decimal | None
-    billable_amount: Decimal
-    externally_invoiced_amount: Decimal
-    externally_paid_amount: Decimal
-    external_accounting_data_available: bool
+    approved_preparation_amount: Decimal
     forecast_revenue_at_completion: Decimal | None
     revenue_basis: str
     projected_margin_amount: Decimal | None

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,10 +70,7 @@ class FinancialCommercialProjectionDto:
     project_id: str = ""
     project_currency: str = ""
     contract_value: str = ""
-    billable_amount: str = "0"
-    externally_invoiced_amount: str = "0"
-    externally_paid_amount: str = "0"
-    external_accounting_data_available: bool = False
+    approved_preparation_amount: str = "0"
     forecast_revenue_at_completion: str = ""
     revenue_basis: str = ""
     projected_margin_amount: str = ""

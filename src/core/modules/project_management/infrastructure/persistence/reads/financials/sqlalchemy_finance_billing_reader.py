@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
@@ -26,9 +28,12 @@ from src.core.modules.project_management.infrastructure.persistence.orm.billing 
     ProjectBillingScheduleLineORM,
     ProjectBillingSourceLockORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
-from src.core.platform.infrastructure.persistence.orm.approval.approval import ApprovalRequestORM
-
+from src.core.modules.project_management.infrastructure.persistence.orm.task import (
+    TaskORM,
+)
+from src.core.platform.infrastructure.persistence.orm.approval.approval import (
+    ApprovalRequestORM,
+)
 
 _SCHEDULE_STATUSES = {"planned", "ready", "billed", "cancelled"}
 _PREPARATION_STATUSES = {
@@ -47,6 +52,22 @@ class SqlAlchemyFinanceBillingReader:
 
     def __init__(self, *, session: Session) -> None:
         self._session = session
+
+    def approved_preparation_amount(
+        self, *, tenant_id: str, organization_id: str, project_id: str
+    ) -> Decimal:
+        # Corrections are incremental source-locked preparations, not replacement copies.
+        amount = self._session.scalar(
+            select(func.sum(ProjectBillingPreparationORM.total_amount)).where(
+                ProjectBillingPreparationORM.tenant_id == tenant_id,
+                ProjectBillingPreparationORM.organization_id == organization_id,
+                ProjectBillingPreparationORM.project_id == project_id,
+                ProjectBillingPreparationORM.status.in_(
+                    ("approved", "delivery_pending", "delivered", "acknowledged", "reconciled")
+                ),
+            )
+        )
+        return amount if amount is not None else Decimal(0)
 
     def list_accounting_statuses(
         self,

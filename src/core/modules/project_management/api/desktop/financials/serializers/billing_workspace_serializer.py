@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from src.core.modules.project_management.api.desktop.common.financial_formatting import format_money
+from src.core.modules.project_management.api.desktop.common.financial_formatting import (
+    format_money,
+)
 from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
     FinancialBillingDetailDto,
     FinancialBillingReadWorkspaceDto,
@@ -182,7 +184,10 @@ def _preparation_detail(item: BillingPreparationDetailFact) -> FinancialBillingD
 
 
 def _line_record(item: BillingPreparationLineFact) -> FinancialBillingTableRecordDto:
-    snapshot = f"{item.quantity} {item.unit} @ {item.unit_rate} {item.currency_code}"
+    snapshot = (
+        f"{item.quantity} {item.unit} @ {item.unit_rate} {item.currency_code}"
+        if item.unit_rate is not None else "Rate evidence restricted"
+    )
     source = f"{_label(item.source_type)} | {item.source_id} rev {item.source_revision}"
     return FinancialBillingTableRecordDto(
         id=item.id,
@@ -197,7 +202,7 @@ def _line_record(item: BillingPreparationLineFact) -> FinancialBillingTableRecor
             "sourceRevision": item.source_revision,
             "sourceState": item.source_state,
             "quantity": str(item.quantity),
-            "unitRate": str(item.unit_rate),
+            "unitRate": str(item.unit_rate) if item.unit_rate is not None else "",
             "netAmount": str(item.net_amount),
             "currency": item.currency_code,
             "taskId": item.task_id or "",

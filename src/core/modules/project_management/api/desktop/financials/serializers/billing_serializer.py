@@ -113,10 +113,7 @@ def serialize_commercial_projection(
             if projection.contract_value is not None
             else ""
         ),
-        billable_amount=format(projection.billable_amount, "f"),
-        externally_invoiced_amount=format(projection.externally_invoiced_amount, "f"),
-        externally_paid_amount=format(projection.externally_paid_amount, "f"),
-        external_accounting_data_available=projection.external_accounting_data_available,
+        approved_preparation_amount=format(projection.approved_preparation_amount, "f"),
         forecast_revenue_at_completion=(
             format(projection.forecast_revenue_at_completion, "f")
             if projection.forecast_revenue_at_completion is not None

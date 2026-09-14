@@ -2054,12 +2054,15 @@ class ProjectManagementFinancialsDesktopApi:
         return serialize_billing_preparation(preparation)
 
     def get_commercial_projection(
-        self, project_id: str
+        self, project_id: str, *, as_of_date: date | None = None
     ) -> FinancialCommercialProjectionDto:
         if not project_id or self._reporting_service is None:
             return FinancialCommercialProjectionDto()
+        resolved_as_of = as_of_date or datetime.now(timezone.utc).astimezone().date()
         return serialize_commercial_projection(
-            self._reporting_service.get_project_commercial_projection(project_id)
+            self._reporting_service.get_project_commercial_projection(
+                project_id, as_of_date=resolved_as_of
+            )
         )
 
     def _require_cost_entry_service(self) -> ProjectCostEntryService:

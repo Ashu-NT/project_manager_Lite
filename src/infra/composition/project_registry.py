@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -9,19 +7,212 @@ from time import perf_counter
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.core.platform.access import ScopedRolePolicy
-from src.core.platform.application.finance.financial_period_service import FinancialPeriodService
-from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
-    SqlAlchemyFinanceGovernanceUnitOfWork,
-    SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
+from src.core.modules.project_management.access.policy import (
+    PROJECT_SCOPE_ROLE_CHOICES,
+    normalize_project_scope_role,
+    resolve_project_scope_permissions,
 )
-from src.core.platform.domain.security.identity.service_principal import ServicePrincipal
-from src.core.modules.project_management.infrastructure.persistence.uow.resources.resource_unit_of_work import (
-    SqlAlchemyResourceUnitOfWorkFactory,
+from src.core.modules.project_management.application.collaboration import (
+    CollaborationService,
 )
-from src.core.modules.project_management.infrastructure.persistence.uow.tasks.task_unit_of_work import (
-    SqlAlchemyTaskUnitOfWorkFactory,
+from src.core.modules.project_management.application.collaboration.collaboration_events import (
+    TaskCommentChanged,
+    TaskCommentReactionChanged,
+    TaskCommentReadStateChanged,
 )
+from src.core.modules.project_management.application.collaboration.event_handlers.view_invalidation import (
+    build_task_comment_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.common.clock import SystemClock
+from src.core.modules.project_management.application.dashboard import DashboardService
+from src.core.modules.project_management.application.financials import (
+    ApprovedTimeLaborCostConsumer,
+    BudgetService,
+    FinanceService,
+    FinancialChangeService,
+    FinancialConfigurationService,
+    ForecastGenerationService,
+    ForecastVersionService,
+    PlannedCostService,
+    ProcurementFinancialConsumer,
+    ProjectBillingPreparationService,
+    ProjectBillingProfileService,
+    ProjectCommitmentService,
+    ProjectCostEntryService,
+    ProjectFinancePerformanceQuery,
+    ProjectFinanceWorkspaceQuery,
+    ProjectRateCardService,
+    RateCardResolver,
+)
+from src.core.modules.project_management.application.financials.budgets.budget_events import (
+    BudgetLineChanged,
+    BudgetProfileUpdated,
+    BudgetRemoved,
+    BudgetStatusChanged,
+    BudgetVersionCreated,
+)
+from src.core.modules.project_management.application.financials.budgets.event_handlers.view_invalidation import (
+    build_budget_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.commitments.commitment_events import (
+    CommitmentLineChanged,
+    CommitmentMatchChanged,
+)
+from src.core.modules.project_management.application.financials.commitments.event_handlers.view_invalidation import (
+    build_commitment_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.configuration_events import (
+    CostCodeActivated,
+    CostCodeCreated,
+    CostCodeDeactivated,
+    CostCodeProfileUpdated,
+    ProjectCostCodeRestrictionAdded,
+    ProjectCostCodeRestrictionRemoved,
+    ProjectFinancialProfileCreated,
+    ProjectFinancialProfileTransitioned,
+    ProjectFinancialProfileUpdated,
+)
+from src.core.modules.project_management.application.financials.cost.entries.cost_entry_events import (
+    CostEntryRecorded,
+    CostEntryRemoved,
+    CostEntryReversed,
+    CostEntryStatusChanged,
+    CostEntryUpdated,
+)
+from src.core.modules.project_management.application.financials.cost.entries.event_handlers.view_invalidation import (
+    build_cost_entry_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.event_handlers.view_invalidation import (
+    build_financial_profile_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.financial_changes.event_handlers.view_invalidation import (
+    build_financial_change_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
+    FinancialChangeChanged,
+)
+from src.core.modules.project_management.application.financials.forecasts.event_handlers.view_invalidation import (
+    build_forecast_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
+    ForecastDraftGenerated,
+    ForecastLineChanged,
+    ForecastVersionChanged,
+)
+from src.core.modules.project_management.application.financials.governance import (
+    FinanceGovernanceCommandBoundary,
+    FinanceGovernanceOperations,
+    FinanceGovernedServicePort,
+)
+from src.core.modules.project_management.application.financials.invoicing.billing_events import (
+    BillingPreparationCreated,
+    BillingPreparationExternalOutcomeRecorded,
+    BillingPreparationLineAdded,
+    BillingPreparationStatusChanged,
+    BillingProfileActivated,
+    BillingProfileCreated,
+    BillingScheduleLineAdded,
+    BillingScheduleLineMarkedReady,
+)
+from src.core.modules.project_management.application.financials.invoicing.event_handlers.view_invalidation import (
+    build_billing_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.planned_costs.event_handlers.view_invalidation import (
+    build_planned_cost_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.planned_costs.planned_cost_events import (
+    PlannedCostSnapshotCalculated,
+)
+from src.core.modules.project_management.application.financials.rate_cards.event_handlers.view_invalidation import (
+    build_rate_card_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.financials.rate_cards.rate_card_events import (
+    RateCardCreated,
+    RateCardDeactivated,
+    RateCardLineAdded,
+    RateCardLineDeactivated,
+    RateCardLineUpdated,
+    RateCardUpdated,
+)
+from src.core.modules.project_management.application.portfolio import PortfolioService
+from src.core.modules.project_management.application.portfolio.event_handlers.view_invalidation import (
+    build_portfolio_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.portfolio.portfolio_events import (
+    PortfolioIntakeItemChanged,
+    PortfolioProjectDependencyChanged,
+    PortfolioScenarioChanged,
+    PortfolioScoringTemplateChanged,
+)
+from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects.event_handlers.view_invalidation import (
+    build_project_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.projects.project_events import (
+    ProjectCreated,
+    ProjectProfileUpdated,
+    ProjectRemoved,
+    ProjectStatusChanged,
+)
+from src.core.modules.project_management.application.resources import (
+    ProjectResourceService,
+    ResourceService,
+)
+from src.core.modules.project_management.application.resources.assignment_validation import (
+    AssignmentSkillValidator,
+)
+from src.core.modules.project_management.application.resources.enterprise_resource_availability import (
+    EnterpriseResourceAvailabilityService,
+)
+from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
+    build_resource_capabilities_view_invalidation_handler,
+    build_resource_list_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import (
+    PortfolioResourcePoolService,
+)
+from src.core.modules.project_management.application.resources.project_resource_events import (
+    ProjectResourceAssignmentChanged,
+)
+from src.core.modules.project_management.application.resources.resource_capability_events import (
+    ResourceCapabilityChanged,
+)
+from src.core.modules.project_management.application.resources.resource_capacity_calculator import (
+    ResourceCapacityCalculator,
+)
+from src.core.modules.project_management.application.resources.resource_master_events import (
+    ResourceMasterChanged,
+)
+from src.core.modules.project_management.application.resources.resource_workload_service import (
+    ResourceWorkloadService,
+)
+from src.core.modules.project_management.application.risk import RegisterService
+from src.core.modules.project_management.application.risk.event_handlers.view_invalidation import (
+    build_register_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.risk.register_events import (
+    RegisterEntryChanged,
+)
+from src.core.modules.project_management.application.scheduling import (
+    SchedulingEngine,
+)
+from src.core.modules.project_management.application.scheduling.baselines.baseline_events import (
+    ProjectBaselineApproved,
+    ProjectBaselineCreated,
+    ProjectBaselineDeleted,
+    ProjectBaselineRejected,
+    ProjectBaselineSubmitted,
+)
+from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
+    BaselineService,
+)
+from src.core.modules.project_management.application.scheduling.baselines.event_handlers.view_invalidation import (
+    build_baseline_view_invalidation_handler,
+)
+from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
+    ProjectCalendarAdapter,
+)
+from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.tasks.event_handlers.view_invalidation import (
     build_task_view_invalidation_handler,
 )
@@ -36,170 +227,7 @@ from src.core.modules.project_management.application.tasks.task_events import (
     TaskScheduleChanged,
     TaskStatusChanged,
 )
-from src.core.modules.project_management.application.resources.event_handlers.view_invalidation import (
-    build_resource_capabilities_view_invalidation_handler,
-    build_resource_list_view_invalidation_handler,
-)
-from src.core.platform.application.time_management.time.event_handlers.view_invalidation import (
-    build_timesheet_view_invalidation_handler,
-)
-from src.core.platform.application.time_management.time.timesheet_events import (
-    TimesheetPeriodStatusChanged,
-)
-from src.core.modules.project_management.application.risk.event_handlers.view_invalidation import (
-    build_register_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.risk.register_events import (
-    RegisterEntryChanged,
-)
-from src.core.modules.project_management.infrastructure.persistence.uow.register.register_unit_of_work import (
-    SqlAlchemyRegisterUnitOfWorkFactory,
-)
-from src.core.modules.project_management.application.projects.event_handlers.view_invalidation import (
-    build_project_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.projects.project_events import (
-    ProjectCreated,
-    ProjectProfileUpdated,
-    ProjectRemoved,
-    ProjectStatusChanged,
-)
-from src.core.modules.project_management.application.resources.project_resource_events import (
-    ProjectResourceAssignmentChanged,
-)
-from src.core.modules.project_management.infrastructure.persistence.uow.projects.project_unit_of_work import (
-    SqlAlchemyProjectUnitOfWorkFactory,
-)
-from src.core.modules.project_management.application.collaboration.event_handlers.view_invalidation import (
-    build_task_comment_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.collaboration.collaboration_events import (
-    TaskCommentChanged,
-    TaskCommentReactionChanged,
-    TaskCommentReadStateChanged,
-)
-from src.core.modules.project_management.infrastructure.persistence.uow.collaboration.collaboration_unit_of_work import (
-    SqlAlchemyCollaborationUnitOfWorkFactory,
-)
-from src.core.modules.project_management.application.portfolio.event_handlers.view_invalidation import (
-    build_portfolio_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.portfolio.portfolio_events import (
-    PortfolioIntakeItemChanged,
-    PortfolioProjectDependencyChanged,
-    PortfolioScenarioChanged,
-    PortfolioScoringTemplateChanged,
-)
-from src.core.modules.project_management.infrastructure.persistence.uow.portfolio.portfolio_unit_of_work import (
-    SqlAlchemyPortfolioUnitOfWorkFactory,
-)
-from src.core.modules.project_management.application.resources.resource_capability_events import (
-    ResourceCapabilityChanged,
-)
-from src.core.modules.project_management.application.resources.resource_master_events import (
-    ResourceMasterChanged,
-)
-from src.core.modules.project_management.application.financials.forecasts.event_handlers.view_invalidation import (
-    build_forecast_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.financials.forecasts.forecast_events import (
-    ForecastDraftGenerated,
-    ForecastLineChanged,
-    ForecastVersionChanged,
-)
-from src.core.modules.project_management.application.financials.financial_changes.event_handlers.view_invalidation import (
-    build_financial_change_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.financials.financial_changes.financial_change_events import (
-    FinancialChangeChanged,
-)
-from src.core.modules.project_management.application.financials.planned_costs.event_handlers.view_invalidation import (
-    build_planned_cost_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.financials.planned_costs.planned_cost_events import (
-    PlannedCostSnapshotCalculated,
-)
-from src.core.modules.project_management.application.financials.commitments.event_handlers.view_invalidation import (
-    build_commitment_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.financials.commitments.commitment_events import (
-    CommitmentLineChanged,
-    CommitmentMatchChanged,
-)
-from src.core.modules.project_management.application.financials.cost.entries.event_handlers.view_invalidation import (
-    build_cost_entry_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.financials.cost.entries.cost_entry_events import (
-    CostEntryRecorded,
-    CostEntryRemoved,
-    CostEntryReversed,
-    CostEntryStatusChanged,
-    CostEntryUpdated,
-)
-from src.core.modules.project_management.application.financials.budgets.event_handlers.view_invalidation import (
-    build_budget_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.financials.budgets.budget_events import (
-    BudgetLineChanged,
-    BudgetProfileUpdated,
-    BudgetRemoved,
-    BudgetStatusChanged,
-    BudgetVersionCreated,
-)
-from src.core.modules.project_management.application.financials.invoicing.event_handlers.view_invalidation import (
-    build_billing_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.financials.invoicing.billing_events import (
-    BillingPreparationCreated,
-    BillingPreparationExternalOutcomeRecorded,
-    BillingPreparationLineAdded,
-    BillingPreparationStatusChanged,
-    BillingProfileActivated,
-    BillingProfileCreated,
-    BillingScheduleLineAdded,
-    BillingScheduleLineMarkedReady,
-)
-from src.core.modules.project_management.application.financials.event_handlers.view_invalidation import (
-    build_financial_profile_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.financials.configuration_events import (
-    CostCodeActivated,
-    CostCodeCreated,
-    CostCodeDeactivated,
-    CostCodeProfileUpdated,
-    ProjectCostCodeRestrictionAdded,
-    ProjectCostCodeRestrictionRemoved,
-    ProjectFinancialProfileCreated,
-    ProjectFinancialProfileTransitioned,
-    ProjectFinancialProfileUpdated,
-)
-from src.core.modules.project_management.application.financials.rate_cards.event_handlers.view_invalidation import (
-    build_rate_card_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.financials.rate_cards.rate_card_events import (
-    RateCardCreated,
-    RateCardDeactivated,
-    RateCardUpdated,
-    RateCardLineAdded,
-    RateCardLineDeactivated,
-    RateCardLineUpdated,
-)
-from src.core.modules.project_management.application.scheduling.baselines.event_handlers.view_invalidation import (
-    build_baseline_view_invalidation_handler,
-)
-from src.core.modules.project_management.application.scheduling.baselines.baseline_events import (
-    ProjectBaselineApproved,
-    ProjectBaselineCreated,
-    ProjectBaselineDeleted,
-    ProjectBaselineRejected,
-    ProjectBaselineSubmitted,
-)
-from src.core.modules.project_management.infrastructure.persistence.uow.scheduling.baseline_unit_of_work import (
-    SqlAlchemyBaselineUnitOfWorkFactory,
-)
-from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
-    SqlAlchemyProjectRepository,
-)
+from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.modules.project_management.infrastructure.approval.baseline_apply_participant import (
     BaselineApprovalParticipant,
 )
@@ -209,11 +237,11 @@ from src.core.modules.project_management.infrastructure.approval.billing_prepara
 from src.core.modules.project_management.infrastructure.approval.budget_apply_participant import (
     BudgetApprovalParticipant,
 )
-from src.core.modules.project_management.infrastructure.approval.forecast_apply_participant import (
-    ForecastApprovalParticipant,
-)
 from src.core.modules.project_management.infrastructure.approval.financial_change_apply_participant import (
     FinancialChangeApprovalParticipant,
+)
+from src.core.modules.project_management.infrastructure.approval.forecast_apply_participant import (
+    ForecastApprovalParticipant,
 )
 from src.core.modules.project_management.infrastructure.approval.project_cost_apply_participant import (
     ProjectCostApprovalParticipant,
@@ -221,97 +249,26 @@ from src.core.modules.project_management.infrastructure.approval.project_cost_ap
 from src.core.modules.project_management.infrastructure.approval.task_apply_participant import (
     TaskApprovalParticipant,
 )
-from src.infra.composition.approval_apply_dependencies.baseline import build_baseline_approval_deps
-from src.infra.composition.approval_apply_dependencies.billing_preparation import (
-    build_billing_preparation_approval_deps,
+from src.core.modules.project_management.infrastructure.importers import (
+    DataImportService,
 )
-from src.infra.composition.approval_apply_dependencies.budget import build_budget_approval_deps
-from src.infra.composition.approval_apply_dependencies.forecast import (
-    build_forecast_approval_deps,
-)
-from src.infra.composition.approval_apply_dependencies.financial_change import (
-    build_financial_change_approval_deps,
-)
-from src.infra.composition.approval_apply_dependencies.project_cost import (
-    build_project_cost_approval_deps,
-)
-from src.infra.composition.approval_apply_dependencies.task import build_task_approval_deps
-from src.core.modules.project_management.access.policy import (
-    PROJECT_SCOPE_ROLE_CHOICES,
-    normalize_project_scope_role,
-    resolve_project_scope_permissions,
-)
-from src.core.platform.application.time_management.time import TimeService
-from src.core.platform.application.integration import IntegrationOutboxService
-from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
-    BaselineService,
-)
-from src.core.modules.project_management.application.common.clock import SystemClock
-from src.core.modules.project_management.application.dashboard import DashboardService
-from src.core.modules.project_management.application.financials import (
-    ApprovedTimeLaborCostConsumer,
-    BudgetService,
-    FinancialConfigurationService,
-    FinanceService,
-    FinancialChangeService,
-    ForecastGenerationService,
-    ForecastVersionService,
-    PlannedCostService,
-    ProjectCostEntryService,
-    ProjectCommitmentService,
-    ProjectBillingPreparationService,
-    ProjectBillingProfileService,
-    ProcurementFinancialConsumer,
-    ProjectFinanceWorkspaceQuery,
-    ProjectFinancePerformanceQuery,
-    ProjectRateCardService,
-    RateCardResolver,
-)
-from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_resolution_reader import (
-    SqlAlchemyRateResolutionReader,
+from src.core.modules.project_management.infrastructure.persistence.reads.collaboration import (
+    SqlAlchemyCollaborationWorkspaceReader,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.financials import (
     SqlAlchemyEvmSeriesReader,
-    SqlAlchemyFinanceBudgetReader,
-    SqlAlchemyFinancePlannedCostReader,
-    SqlAlchemyFinanceForecastReader,
-    SqlAlchemyFinanceRateReader,
-    SqlAlchemyFinanceChangeReader,
     SqlAlchemyFinanceBillingReader,
-    SqlAlchemyFinancePerformanceReader,
-    SqlAlchemyFinanceSetupReader,
-    SqlAlchemyFinanceLookupReader,
+    SqlAlchemyFinanceBudgetReader,
+    SqlAlchemyFinanceChangeReader,
+    SqlAlchemyFinanceForecastReader,
     SqlAlchemyFinanceIntegrationReader,
+    SqlAlchemyFinanceLookupReader,
+    SqlAlchemyFinancePerformanceReader,
+    SqlAlchemyFinancePlannedCostReader,
+    SqlAlchemyFinanceRateReader,
+    SqlAlchemyFinanceSetupReader,
     SqlAlchemyFinanceSnapshotReader,
 )
-from src.core.modules.project_management.application.financials.governance import (
-    FinanceGovernanceCommandBoundary,
-    FinanceGovernanceOperations,
-    FinanceGovernedServicePort,
-)
-from src.core.modules.project_management.application.portfolio import PortfolioService
-from src.core.modules.project_management.application.projects import ProjectService
-from src.core.modules.project_management.application.resources import (
-    ProjectResourceService,
-    ResourceService,
-)
-from src.core.modules.project_management.application.risk import RegisterService
-from src.core.modules.project_management.application.scheduling import (
-    SchedulingEngine,
-)
-from src.core.modules.project_management.infrastructure.importers import DataImportService
-from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.modules.project_management.application.collaboration import CollaborationService
-from src.core.modules.project_management.application.tasks import TaskService
-from src.core.modules.project_management.application.timesheets import TimesheetService
-from src.core.modules.project_management.application.resources.assignment_validation import (
-    AssignmentSkillValidator,
-)
-from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import ProjectCalendarAdapter
-from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
-from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
-from src.core.modules.project_management.application.resources.resource_workload_service import ResourceWorkloadService
-from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import PortfolioResourcePoolService
 from src.core.modules.project_management.infrastructure.persistence.reads.portfolio import (
     SqlAlchemyPortfolioHeatmapReader,
     SqlAlchemyPortfolioResourcePoolReader,
@@ -320,28 +277,97 @@ from src.core.modules.project_management.infrastructure.persistence.reads.portfo
 from src.core.modules.project_management.infrastructure.persistence.reads.projects import (
     SqlAlchemyProjectCatalogReader,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.register import (
+    SqlAlchemyRegisterCatalogReader,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.resources import (
     SqlAlchemyResourceCatalogReader,
     SqlAlchemyResourceContextReader,
     SqlAlchemyResourceIdentityReader,
     SqlAlchemyResourceWorkloadDemandReader,
 )
-from src.core.modules.project_management.infrastructure.persistence.reads.register import (
-    SqlAlchemyRegisterCatalogReader,
+from src.core.modules.project_management.infrastructure.persistence.reads.tasks import (
+    SqlAlchemyTaskWorkspaceReader,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.timesheets import (
     SqlAlchemyTimesheetReviewReader,
     SqlAlchemyTimesheetWorkspaceReader,
 )
-from src.core.modules.project_management.infrastructure.persistence.reads.tasks import (
-    SqlAlchemyTaskWorkspaceReader,
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_resolution_reader import (
+    SqlAlchemyRateResolutionReader,
 )
-from src.core.modules.project_management.infrastructure.persistence.reads.collaboration import (
-    SqlAlchemyCollaborationWorkspaceReader,
+from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
+    SqlAlchemyProjectRepository,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.collaboration.collaboration_unit_of_work import (
+    SqlAlchemyCollaborationUnitOfWorkFactory,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
+    SqlAlchemyFinanceGovernanceUnitOfWork,
+    SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.portfolio.portfolio_unit_of_work import (
+    SqlAlchemyPortfolioUnitOfWorkFactory,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.projects.project_unit_of_work import (
+    SqlAlchemyProjectUnitOfWorkFactory,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.register.register_unit_of_work import (
+    SqlAlchemyRegisterUnitOfWorkFactory,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.resources.resource_unit_of_work import (
+    SqlAlchemyResourceUnitOfWorkFactory,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.scheduling.baseline_unit_of_work import (
+    SqlAlchemyBaselineUnitOfWorkFactory,
+)
+from src.core.modules.project_management.infrastructure.persistence.uow.tasks.task_unit_of_work import (
+    SqlAlchemyTaskUnitOfWorkFactory,
+)
+from src.core.modules.project_management.infrastructure.reporting import (
+    ReportingService,
+)
+from src.core.platform.access import ScopedRolePolicy
+from src.core.platform.application.finance.financial_period_service import (
+    FinancialPeriodService,
+)
+from src.core.platform.application.integration import IntegrationOutboxService
+from src.core.platform.application.time_management.time import TimeService
+from src.core.platform.application.time_management.time.event_handlers.view_invalidation import (
+    build_timesheet_view_invalidation_handler,
+)
+from src.core.platform.application.time_management.time.timesheet_events import (
+    TimesheetPeriodStatusChanged,
+)
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import (
+    CalendarProtocol,
+)
+from src.core.platform.domain.security.identity.service_principal import (
+    ServicePrincipal,
+)
+from src.infra.composition.approval_apply_dependencies.baseline import (
+    build_baseline_approval_deps,
+)
+from src.infra.composition.approval_apply_dependencies.billing_preparation import (
+    build_billing_preparation_approval_deps,
+)
+from src.infra.composition.approval_apply_dependencies.budget import (
+    build_budget_approval_deps,
+)
+from src.infra.composition.approval_apply_dependencies.financial_change import (
+    build_financial_change_approval_deps,
+)
+from src.infra.composition.approval_apply_dependencies.forecast import (
+    build_forecast_approval_deps,
+)
+from src.infra.composition.approval_apply_dependencies.project_cost import (
+    build_project_cost_approval_deps,
+)
+from src.infra.composition.approval_apply_dependencies.task import (
+    build_task_approval_deps,
 )
 from src.infra.composition.platform_registry import PlatformServiceBundle
 from src.infra.composition.repositories import RepositoryBundle
-
 
 logger = logging.getLogger(__name__)
 
@@ -823,6 +849,7 @@ def build_project_management_service_bundle(
         finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session),
         financial_profile_repo=repositories.project_financial_profile_repo,
         billing_repo=repositories.project_billing_repo,
+        billing_reader=SqlAlchemyFinanceBillingReader(session=session),
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )

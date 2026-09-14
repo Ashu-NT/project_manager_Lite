@@ -547,21 +547,21 @@ def build_destination_state(
 
     if destination == "commercial":
         if subsection == "profitability":
-            projection = desktop_api.get_commercial_projection(project_id)
+            projection = desktop_api.get_commercial_projection(project_id, as_of_date=as_of_date)
             fields = (
                 FinancialsDetailFieldViewModel(
                     "Contract value",
-                    f"{projection.contract_value or 'Not configured'} {projection.project_currency}".strip(),
+                    f"{projection.contract_value if projection.contract_value != '' else 'Not configured'} {projection.project_currency}".strip(),
                 ),
                 FinancialsDetailFieldViewModel(
-                    "Billable amount",
-                    f"{projection.billable_amount} {projection.project_currency}".strip(),
+                    "Approved preparation amount",
+                    f"{projection.approved_preparation_amount} {projection.project_currency}".strip(),
                 ),
                 FinancialsDetailFieldViewModel(
                     "Projected commercial revenue at completion",
                     (
                         f"{projection.forecast_revenue_at_completion} {projection.project_currency}".strip()
-                        if projection.forecast_revenue_at_completion
+                        if projection.forecast_revenue_at_completion != ""
                         else "Restricted or unavailable"
                     ),
                     projection.revenue_basis,
@@ -570,12 +570,12 @@ def build_destination_state(
                     "Projected commercial margin",
                     (
                         f"{projection.projected_margin_amount} {projection.project_currency}"
-                        if projection.projected_margin_amount
+                        if projection.projected_margin_amount != ""
                         else "Restricted or unavailable"
                     ),
                     (
                         f"{projection.projected_margin_percent}%"
-                        if projection.projected_margin_percent
+                        if projection.projected_margin_percent != ""
                         else ""
                     ),
                 ),

@@ -8,72 +8,32 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.contracts.reads.financials.finance_setup_reader import (
-    FinanceSetupReader,
-)
-from src.core.modules.project_management.contracts.reads.financials.finance_lookup_reader import (
-    FinanceLookupReader,
-)
-from src.core.modules.project_management.contracts.reads.financials.finance_integration_reader import (
-    FinanceIntegrationReader,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_integration_facts import (
-    ApprovedTimePostingFailurePage,
-    ApprovedTimePostingFailureQuery,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_setup_facts import (
-    FinanceSetupCostCodeQuery,
-    FinanceSetupFacts,
-    FinanceSetupRestrictionQuery,
-    FinanceSetupWorkspaceFacts,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_lookup_facts import (
-    FinanceLookupOptionFact,
-    FinanceLookupPageFacts,
-    FinanceLookupQuery,
-    ManualActualCostCodeQuery,
-    ManualActualDefaultsFacts,
+from src.core.modules.project_management.contracts.reads.financials.finance_billing_reader import (
+    FinanceBillingReader,
 )
 from src.core.modules.project_management.contracts.reads.financials.finance_budget_reader import (
     FinanceBudgetReader,
 )
-from src.core.modules.project_management.contracts.reads.financials.finance_planned_cost_reader import (
-    FinancePlannedCostReader,
+from src.core.modules.project_management.contracts.reads.financials.finance_change_reader import (
+    FinanceChangeReader,
 )
 from src.core.modules.project_management.contracts.reads.financials.finance_forecast_reader import (
     FinanceForecastReader,
 )
+from src.core.modules.project_management.contracts.reads.financials.finance_integration_reader import (
+    FinanceIntegrationReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.finance_lookup_reader import (
+    FinanceLookupReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.finance_planned_cost_reader import (
+    FinancePlannedCostReader,
+)
 from src.core.modules.project_management.contracts.reads.financials.finance_rate_reader import (
     FinanceRateReader,
 )
-from src.core.modules.project_management.contracts.reads.financials.finance_change_reader import (
-    FinanceChangeReader,
-)
-from src.core.modules.project_management.contracts.reads.financials.finance_billing_reader import (
-    FinanceBillingReader,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
-    FinanceBudgetWorkspaceFacts,
-    FinancePageFacts,
-    FinancePageRequest,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_planned_cost_facts import (
-    FinancePlannedCostWorkspaceFacts,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_forecast_facts import (
-    FinanceForecastWorkspaceFacts,
-    ForecastLineRequest,
-    ForecastVersionRequest,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_rate_facts import (
-    FinanceRateWorkspaceFacts,
-    RateCardRequest,
-    RateLineRequest,
-)
-from src.core.modules.project_management.contracts.reads.financials.models.finance_change_facts import (
-    FinanceChangeWorkspaceFacts,
-    FinancialChangeImpactQuery,
-    FinancialChangeRequestQuery,
+from src.core.modules.project_management.contracts.reads.financials.finance_setup_reader import (
+    FinanceSetupReader,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
     AccountingStatusFact,
@@ -83,9 +43,50 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     BillingScheduleQuery,
     FinanceBillingWorkspaceFacts,
 )
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
+    FinanceBudgetWorkspaceFacts,
+    FinancePageFacts,
+    FinancePageRequest,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_change_facts import (
+    FinanceChangeWorkspaceFacts,
+    FinancialChangeImpactQuery,
+    FinancialChangeRequestQuery,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_forecast_facts import (
+    FinanceForecastWorkspaceFacts,
+    ForecastLineRequest,
+    ForecastVersionRequest,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_integration_facts import (
+    ApprovedTimePostingFailurePage,
+    ApprovedTimePostingFailureQuery,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_lookup_facts import (
+    FinanceLookupOptionFact,
+    FinanceLookupPageFacts,
+    FinanceLookupQuery,
+    ManualActualCostCodeQuery,
+    ManualActualDefaultsFacts,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_planned_cost_facts import (
+    FinancePlannedCostWorkspaceFacts,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_rate_facts import (
+    FinanceRateWorkspaceFacts,
+    RateCardRequest,
+    RateLineRequest,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_setup_facts import (
+    FinanceSetupCostCodeQuery,
+    FinanceSetupRestrictionQuery,
+    FinanceSetupWorkspaceFacts,
+)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
 )
 from src.core.platform.common.exceptions import NotFoundError
 
@@ -1247,6 +1248,23 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
                 ),
             )
         )
+        if not self._has_project_permission(project_id, "finance.read_sensitive"):
+            lines = replace(
+                lines,
+                items=tuple(
+                    replace(
+                        item,
+                        unit_rate=None,
+                        resource_id=None,
+                        source_amount=None,
+                        markup_percent=None,
+                        rate_card_id=None,
+                        rate_line_id=None,
+                        rate_card_version=None,
+                    )
+                    for item in lines.items
+                ),
+            )
         return FinanceBillingWorkspaceFacts(
             profile=profile,
             selected_preparation_id=resolved_id,

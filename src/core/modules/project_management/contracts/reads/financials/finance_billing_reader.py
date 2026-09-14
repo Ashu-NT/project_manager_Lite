@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Protocol
 
 from .models.finance_billing_facts import (
@@ -18,6 +19,8 @@ from .models.finance_budget_facts import FinancePageFacts
 
 
 class FinanceBillingReader(Protocol):
+    def approved_preparation_amount(self, *, tenant_id: str, organization_id: str, project_id: str) -> Decimal: ...
+
     def list_accounting_statuses(self, *, tenant_id: str, organization_id: str, project_id: str, request: AccountingStatusQuery) -> FinancePageFacts[AccountingStatusFact]: ...
 
     def get_profile(self, *, tenant_id: str, organization_id: str, project_id: str) -> BillingProfileFact | None: ...

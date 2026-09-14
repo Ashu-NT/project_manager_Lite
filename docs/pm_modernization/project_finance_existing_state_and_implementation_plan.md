@@ -1,8 +1,270 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: R6C closed; R6D CLOSED; R6E-A/B/C/D/E COMPLETE; R6E CLOSED; R6F NEXT (NOT STARTED)
-Last updated: 2026-09-13
+Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F-A COMPLETE; R6F-B COMPLETE; R6F-C NEXT (NOT STARTED)
+Last updated: 2026-09-14
 Scope: Project Management finance plus reusable platform financial foundations
+
+## R6F-B Commercial Read Truth and Setup Closure (2026-09-14)
+
+**R6F-B COMPLETE.** The Commercial projection now uses one tenant/org/project-
+scoped SQL `SUM` over approved and subsequent local preparation states, rather
+than walking every preparation page and querying external events per row. The
+sum is the **approved preparation amount**, not invoiced, paid, collected, or
+statutory revenue. Rejected, cancelled, submitted, and draft preparations do
+not contribute. A correction is an incremental signed delta: the reconciled
+predecessor remains in the sum and the correction changes the net amount only
+when approved. It is not a replacement gross claim. There is no second
+commercial aggregate or compatibility path. The existing Billing Reader's
+bounded count/page/filter/sort contract (default 50, cap 200, ID tie-breaker)
+is unchanged. The characterization test grows from 4 to 124 preparations and
+observes the same 13 SQL statements for the full projection; no N+1 external-
+event or high-cardinality preload remains. No new index or migration is needed.
+
+`RECONCILED` no longer manufactures a paid amount, and an invoice reference
+no longer manufactures an invoiced amount. Those false DTO/presenter fields
+were removed. `delivery_pending` remains a **local handoff request**; the
+Accounting Status serializer labels it "Local handoff requested" and separately
+marks whether a persisted external event exists. No production publisher or
+payment/invoice outcome source exists. Neutral future R6G contracts remain.
+
+The desktop request resolves `as_of_date` once and passes it to the canonical
+Finance EAC/cost-policy composition and the fixed-price profitability
+calculation. Fixed-price projected commercial revenue remains the PM-entered
+contract value, projected margin is revenue minus canonical EAC, and margin
+percentage requires a nonzero revenue denominator. T&M and cost-plus remain
+unavailable without forecast billable-volume and recoverable-cost authorities;
+EV is not substituted for revenue. Decimal zero revenue, margin, and margin
+percentage now serialize/render as zero instead of "Restricted or unavailable";
+missing, not-configured, and restricted remain distinct. Currency stays the
+project financial currency; no FX or float authority was added.
+
+Security classification: `finance.read` plus project scope permits customer
+Party identity, entered contract/PO/customer references, contract value,
+payment terms, and contractual cost-plus markup as ordinary managerial Billing
+terms. `finance.read_profitability` gates projected revenue/EAC-derived margin
+detail. `finance.read_sensitive` gates resource-identified preparation line
+rate/source/card provenance, now redacted server-side before desktop
+serialization; the UI is not the security boundary. Historical approved lines
+continue to use snapshotted `RateType.BILLING` evidence, never current COST or
+`Resource.hourly_rate`. Tenant/org/project filters apply to the aggregate and
+every Billing Reader query. A future broader sharing model should reassess
+contract-term classification before access is widened.
+
+Commercial invalidation remains typed and project-scoped. Billing Profile,
+Schedule, Preparation, and External Event events target `billing_commercial`;
+ProjectFinancialProfile changes now do too because billing method/currency
+affect the projection. Actual Cost and approved Forecast/EAC changes already
+invalidate Commercial through their typed targets. BILLING Rate and approved
+Time/correction changes affect **future preparation valuation**, not an
+already approved immutable line or the present fixed-price contract-value
+projection, so they do not trigger an additional Commercial refresh now. A
+future live draft-valuation read must add those dependencies when introduced.
+Customer/contract changes currently occur through Billing Profile creation,
+which already emits the Billing invalidation. Same-commit coalescing and
+operation-identity (not correlation-ID) behavior are unchanged; no global
+Finance refresh was introduced.
+
+Setup UX map for R6F-C: desktop commands already exist for creating and
+activating a Billing Profile, adding a schedule line, and marking it ready,
+with Finance manage checks and optimistic version on activation/readiness.
+Commercial QML remains read-only and exposes none of these setup commands or
+the existing preparation commands. R6F-C must design governed setup and
+preparation mutation together, including source editing, creator/decider SoD,
+correction semantics, and permission-aware controls; it must not add an
+Accounting publisher. No Billing Preparation mutation UI was added in R6F-B.
+
+Verification: focused profitability (16), Billing Reader (30), Billing
+commands (25), invalidation/architecture (3), R6E/R6D (44), and R6C (27)
+tests passed. A final architecture/profitability batch passed 28 tests.
+Targeted Ruff F/I, Python compilation, Commercial-section QML lint, and
+`git diff --check` passed. The broad Ruff rule set still reports pre-existing
+style findings in touched large files; F/I correctness/import checks are clean.
+No visible QML file changed, so viewport screenshots were not required.
+R6D and R6E remain closed; R6F-C has not started. No Accounting, AR, GL,
+tax, payment, invoice issuance, FX, or unrelated module was implemented.
+No commit created.
+
+## R6F-A Commercial Authority and Model Characterization (2026-09-14)
+
+**R6F-A COMPLETE; characterization only.** R6D/R6E remain closed. PM Finance
+owns managerial commercial setup, billable evidence selection, preparation,
+approval, and projections. External Accounting alone owns legal invoices and
+numbers, tax, GL, AR, payment, and statutory revenue. The neutral boundary is
+`gateway/billing/accounting_billing.py` (`ProjectBillingPreparationPayload`
+and `ProjectBillingPreparationPublisher`), not an Accounting module import.
+No publisher implementation or issued-invoice workflow was found. R6G owns
+durable outbound handoff and external outcome ingestion; R6F must not treat a
+local delivery request as an accepted invoice. No FX or migration was added.
+
+### Current Commercial path and visible truth
+
+`FinancialsDetailPanel.qml` exposes **Billing Preparation**, **Projected
+Profitability**, and **Accounting Status** under Finance/Commercial. The first
+uses `FinancialsBillingPreparationSection.qml`, the second
+`FinancialsCommercialProjectionSection.qml`; Accounting Status is an inline
+panel with the same preparation collection and an external-ownership notice.
+`FinancialsWorkspacePage.qml` binds the shared controller. The controller's
+`financials_refresh_mixin.py` requests only the active destination/subsection;
+`presenters/financials/destination_builder.py` builds the corresponding view.
+`ProjectManagementFinancialsDesktopApi` serializes `FinanceWorkspaceQuery` and
+`SqlAlchemyFinanceBillingReader` facts. The billing Reader returns immutable
+profile, schedule, preparation, detail, line, and latest external-status
+projections; all queries take tenant, organization, and project IDs. SQL-side
+search/filter/sort/count/paging uses a default page size of 50, a maximum of
+200, and an ID tie-breaker. No ORM object reaches QML. Empty states are real
+empty query results, not fabricated Accounting outcomes. Current Billing and
+Accounting sections are **read-only UI despite existing desktop write APIs**;
+the projection is real for eligible fixed-price projects, explicitly
+unavailable for other methods, and not a statutory revenue figure. Accounting
+Status can be empty because no production external-outcome adapter exists;
+it is a read surface, not proof that Accounting is operational.
+
+### Source authorities and evidence
+
+`ProjectFinancialProfile` owns project billability, method, and the single
+project financial currency. Methods are `non_billable`, `time_and_materials`,
+`fixed_price`, and `cost_plus`; no retainer/periodic engine exists.
+`ProjectBillingProfile` is one per scoped project and stores a customer Party
+ID, contract and optional external customer/PO references, contract value,
+markup, payment terms, and currency. Activation requires a customer and
+positive contract value, and checks currency against the financial profile.
+There is no canonical contract aggregate or customer-contract FK in the
+billing table; references are project-level text/Party IDs, not verified
+contract truth. The schedule is a PM billing schedule line with amount, due
+date, optional Task ID, and acceptance reference. `mark_schedule_line_ready`
+is a Finance action, not automatic proof of Task completion or customer
+acceptance. Fixed-price preparation selects only a ready schedule line.
+
+Rate Cards distinguish `RateType.COST` from `RateType.BILLING`. Approved-Time
+preparation resolves **BILLING** at the work date, with project/customer/
+contract/resource context, then stores line/card IDs and versions, modifier,
+quantity, rate, currency, and net amount. Precedence is project resource plus
+customer/contract, project resource, project role/skill/department, organization
+resource, then organization role/skill/department; effective-date and active
+line checks apply, and equal-specificity ties fail. There is no fallback to
+`Resource.hourly_rate` or a COST rate. Missing BILLING rate fails preparation,
+not silently zero. The immutable preparation line protects historical value
+from later Rate edits; source revision/hash and source locks protect reuse.
+
+Approved-Time source evidence comes from the immutable Finance labor posting
+derived from approved Time, not direct mutable TimeEntry cost valuation. No
+per-TimeEntry billable/non-billable or contract-chargeable classification was
+found; project-level billability plus manual source selection is the current
+limit. Cost-plus selects a positive posted `ProjectCostEntry` and applies the
+profile markup; there is no recoverable-cost taxonomy or Procurement expense
+pass-through contract. A ProjectCostEntry is cost truth, not itself an invoice.
+No independent commercial milestone/deliverable acceptance aggregate exists;
+schedule lines may reference a Task and acceptance text only. Contract value
+is PM's entered managerial commercial term, not an external contract ledger.
+
+### Lifecycle, security, and persistence
+
+Billing profile states: draft, active, on_hold, closed. Schedule states:
+planned, ready, billed, cancelled. Preparation states: draft, submitted,
+approved, delivery_pending, delivered, acknowledged, reconciled, rejected,
+cancelled. Draft can add method-matched sources, but no general edit/remove
+line command was found. Submission requires a nonzero line set and creates a
+Platform Approval request; approval/rejection use the registered fresh-session
+participant. Platform Approval prevents the request submitter from deciding
+their own request. It does not separately compare the original preparation
+creator, so a stricter preparer-versus-approver SoD needs an explicit R6F-C
+decision/test. Corrections can reference a reconciled same-project predecessor;
+rejected preparations are not edited in place. Approved source locks become
+finalized; correction/successor rules need UX and version characterization in
+R6F-C. `request_delivery` builds an immutable payload and marks local
+`delivery_pending`, but its desktop adapter discards the payload and does not
+publish it. Delivered/acknowledged/reconciled require recorded external events,
+for which only a service/test caller exists today. None means invoiced or paid.
+
+Six PM billing tables exist: profiles, schedule lines, preparations,
+preparation lines, source locks, and external events. Each carries direct
+tenant/organization/project scope, composite scoped FKs and `rls_scope` marker;
+amounts use canonical Decimal Numeric money/rate/quantity conventions.
+Unique keys cover one profile per project, scoped preparation number and
+idempotency key, source reservation, and external event idempotency.
+Preparations/profile/schedule rows have optimistic versions; lines preserve
+source and rate provenance. R6F-A adds no table, duplicate mutable revenue
+truth, or migration. Finance reads require `finance.read` plus project scope;
+writes use `finance.manage`; decisions use Platform `approval.decide` and its
+self-decision guard. Margin/revenue projection detail requires
+`finance.read_profitability`. Resource-identified Rate evidence requires
+`finance.read_sensitive`; customer/contract terms are currently exposed under
+`finance.read`, so R6F-B must explicitly review whether finer redaction is
+needed before widening the UI. No direct Accounting repository/import or
+vendor-specific coupling was found.
+
+### Projection and defects
+
+`ProjectProfitabilityCalculator` is the single current margin formula. For
+fixed price, **Projected Commercial Revenue at Completion = contract value**;
+with an available canonical Finance EAC, projected margin = contract value -
+EAC and margin percent = margin / contract value * 100. Zero contract value
+yields an unavailable ratio; absent approved Forecast/EAC leaves margin
+unavailable, not zero. T&M remains unavailable because no forecast billable
+volume/rate authority exists; cost-plus remains unavailable because no
+recoverable-cost basis exists. EV is not revenue. `ReportingProfitabilityMixin`
+uses the calculator, but walks all preparation pages and then external events
+per preparation for billable/invoiced/paid-like totals; this is not a bounded
+Commercial Reader. It uses current `date.today()` for cost-policy EAC rather
+than an explicit commercial as-of query. The desktop serializer preserves
+Decimal as strings; QML `Number()` in Billing is pagination-only. Monetary
+business paths inspected contain no authoritative binary-float operation and
+reject currency mismatch; no FX conversion is performed.
+
+**P0:** No confirmed cross-scope leakage, statutory invoice mutation, or
+mixed-currency aggregation in the characterized paths. The outward adapter is
+absent, so live Accounting handoff must remain unavailable.
+
+**P1:** `externally_paid_amount` currently treats a `RECONCILED` preparation
+event as payment and `externally_invoiced_amount` uses the entire preparation
+amount whenever any event has an invoice reference. Neither proves external
+paid/invoiced amount; stop presenting these as authoritative until R6G
+contracts provide amounts/statuses. The profitability projection's
+all-preparation plus per-preparation-event loop is unbounded/N+1. Its `billable`
+sum also needs a correction/successor double-count proof. The presenter uses
+truthiness for projected revenue/margin/percent, rendering valid zero as
+"Restricted or unavailable". Local `delivery_pending` has no publisher and
+must not imply handoff. Customer Party/contract reference validation, manual
+milestone readiness, per-entry billability, and cost-plus recoverability need
+explicit authority before broad commercial claims. Creator-versus-decider SoD
+is weaker than submitter-versus-decider SoD.
+
+**P2:** Billing is read-only in QML despite live commands; profile hold/close
+and draft line revision are not surfaced. Accounting Status reuses a generic
+preparation list rather than a dedicated external-evidence explanation. The
+current Billing Reader is bounded, but representative statement-count and
+high-cardinality proofs should accompany R6F-B. Commercial invalidation is
+typed and coalesces Billing Profile/Schedule/Preparation/External events into
+one project-scoped `billing_commercial` target. R6F-B must reconcile missing
+dependencies from financial profile, approved Time/correction, BILLING Rate,
+cost/Forecast/EAC, and customer/contract changes without a global refresh.
+
+### R6F execution sequence and boundary
+
+1. **R6F-B - Commercial read truth and setup:** remove false paid/invoiced
+   projections and zero/unavailable presentation defects; make Commercial
+   reads bounded, scoped, as-of explicit, and permission-redacted. Characterize
+   customer/contract identity and profile/schedule command UX against existing
+   aggregates; prove typed invalidation and query bounds.
+2. **R6F-C - Governed Billing Preparation:** harden draft revision, source
+   billability/recoverability evidence, rate provenance, immutable approval,
+   source locks, correction/successor rules, SoD, and read/write UX. Do not
+   publish to Accounting. Any missing product authority remains unavailable.
+3. **R6F-D - Projected Commercial Revenue and Profitability:** keep fixed-price
+   contract-value projection and canonical EAC; add T&M or cost-plus forecast
+   only after an explicit billable-volume/recoverable-cost authority decision.
+   Preserve Decimal, currency, availability, and non-statutory labels.
+4. **R6F-E - Integrated security, performance, cleanup, closure:** cross-source
+   lifecycle, tenant/org/project, RLS, SoD, rate independence, export/report,
+   QML, and scale regression; delete superseded paths. R6G alone may implement
+   durable Accounting delivery, external acknowledgement/reconciliation, and
+   true invoice/payment evidence. Do not conflate R6F approval with issuance.
+
+Characterization verification: focused Billing, profitability, and Finance
+destination tests **61 passed**. Existing R6E and R6D closure evidence is
+unchanged. R6F-B has not begun; no production source, migration, or Accounting
+adapter was changed by this audit. No commit was created.
+
 Current checkpoint: R6D-G final regression and repository reconciliation are complete. The
 R6D-D Approved-Time Labor Posting Hardening path is complete. The
 authoritative path is Time approval -> immutable Time financial outbox -> leased
