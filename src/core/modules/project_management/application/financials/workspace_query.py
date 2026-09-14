@@ -41,6 +41,8 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     BillingPreparationLineQuery,
     BillingPreparationQuery,
     BillingScheduleQuery,
+    BillingSourceOptionFact,
+    BillingSourceQuery,
     FinanceBillingWorkspaceFacts,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
@@ -1178,6 +1180,30 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             changes=changes,
             impacts=impacts,
             can_create=can_manage,
+        )
+
+    def list_eligible_billing_sources(
+        self, project_id: str, preparation_id: str, *, request: BillingSourceQuery
+    ) -> FinancePageFacts[BillingSourceOptionFact]:
+        require_permission(
+            self._user_session, "finance.manage",
+            operation_label="select billable preparation source",
+        )
+        require_project_permission(
+            self._user_session, project_id, "finance.manage",
+            operation_label="select billable preparation source",
+        )
+        if self._billing_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Finance Billing Reader is not configured.")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="select billable preparation source"
+        )
+        return self._billing_reader.list_eligible_sources(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            preparation_id=preparation_id,
+            request=request,
         )
 
     def get_billing_read_workspace(

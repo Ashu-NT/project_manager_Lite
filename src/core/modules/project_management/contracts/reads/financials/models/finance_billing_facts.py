@@ -13,6 +13,37 @@ _ACCOUNTING_SORT_KEYS = {"title", "statusLabel", "metaText"}
 
 
 @dataclass(frozen=True, slots=True)
+class BillingSourceQuery:
+    page: int = 1
+    page_size: int = 50
+    sort_key: str = "source_date"
+    sort_direction: str = "asc"
+    search: str = ""
+
+    @property
+    def normalized_page(self) -> int:
+        return max(1, int(self.page))
+
+    @property
+    def normalized_page_size(self) -> int:
+        return max(1, min(int(self.page_size), 200))
+
+    @property
+    def normalized_sort_key(self) -> str:
+        return self.sort_key if self.sort_key in {"source_date", "label"} else "source_date"
+
+
+@dataclass(frozen=True, slots=True)
+class BillingSourceOptionFact:
+    source_id: str
+    source_type: str
+    label: str
+    source_date: date
+    amount: Decimal
+    currency_code: str
+
+
+@dataclass(frozen=True, slots=True)
 class AccountingStatusQuery:
     page: int = 1
     page_size: int = 50
@@ -274,5 +305,7 @@ __all__ = [
     "BillingProfileFact",
     "BillingScheduleFact",
     "BillingScheduleQuery",
+    "BillingSourceOptionFact",
+    "BillingSourceQuery",
     "FinanceBillingWorkspaceFacts",
 ]

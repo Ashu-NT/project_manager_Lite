@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import and_, case, exists, func, literal, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
@@ -16,6 +16,8 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     BillingProfileFact,
     BillingScheduleFact,
     BillingScheduleQuery,
+    BillingSourceOptionFact,
+    BillingSourceQuery,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
     FinancePageFacts,
@@ -27,6 +29,12 @@ from src.core.modules.project_management.infrastructure.persistence.orm.billing 
     ProjectBillingProfileORM,
     ProjectBillingScheduleLineORM,
     ProjectBillingSourceLockORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.cost_entry import (
+    ProjectCostEntryORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.labor_posting import (
+    ApprovedTimeLaborPostingORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.task import (
     TaskORM,
@@ -68,6 +76,113 @@ class SqlAlchemyFinanceBillingReader:
             )
         )
         return amount if amount is not None else Decimal(0)
+
+    def list_eligible_sources(
+        self, *, tenant_id: str, organization_id: str, project_id: str,
+        preparation_id: str, request: BillingSourceQuery,
+    ) -> FinancePageFacts[BillingSourceOptionFact]:
+        preparation = self._session.execute(
+            select(
+                ProjectBillingPreparationORM.billing_method,
+                ProjectBillingPreparationORM.billing_profile_id,
+                ProjectBillingPreparationORM.period_start,
+                ProjectBillingPreparationORM.period_end,
+                ProjectBillingPreparationORM.status,
+            ).where(
+                ProjectBillingPreparationORM.id == preparation_id,
+                ProjectBillingPreparationORM.tenant_id == tenant_id,
+                ProjectBillingPreparationORM.organization_id == organization_id,
+                ProjectBillingPreparationORM.project_id == project_id,
+            )
+        ).one_or_none()
+        if preparation is None or preparation.status != "draft":
+            return FinancePageFacts(
+                items=(), total=0, page=1,
+                page_size=request.normalized_page_size,
+                sort_key=request.normalized_sort_key,
+                sort_direction="asc" if request.sort_direction == "asc" else "desc",
+            )
+
+        method = preparation.billing_method
+        if method == "fixed_price":
+            source = ProjectBillingScheduleLineORM
+            source_id, source_date, label, amount, currency = (
+                source.id, source.due_date, source.name, source.amount, source.currency_code
+            )
+            source_type = "schedule_line"
+            conditions = [
+                source.billing_profile_id == preparation.billing_profile_id,
+                source.status == "ready",
+            ]
+        elif method == "cost_plus":
+            source = ProjectCostEntryORM
+            source_id, source_date, label, amount, currency = (
+                source.id, source.posting_date, source.description,
+                source.amount, source.currency_code,
+            )
+            source_type = "posted_cost"
+            conditions = [
+                source.status == "posted", source.posting_date.is_not(None),
+                source.amount > 0,
+            ]
+        elif method == "time_and_materials":
+            source = ApprovedTimeLaborPostingORM
+            source_id, source_date, label, amount, currency = (
+                source.time_entry_id, source.work_date, source.time_entry_id,
+                source.hours, literal(""),
+            )
+            source_type = "approved_time"
+            newer = aliased(ApprovedTimeLaborPostingORM)
+            conditions = [
+                source.reversal_cost_entry_id.is_(None),
+                ~exists(select(1).where(
+                    newer.tenant_id == source.tenant_id,
+                    newer.organization_id == source.organization_id,
+                    newer.time_entry_id == source.time_entry_id,
+                    newer.source_revision > source.source_revision,
+                )),
+            ]
+        else:
+            raise ValueError("Unsupported Billing preparation method")
+
+        active_lock = exists(select(1).where(
+            ProjectBillingSourceLockORM.tenant_id == tenant_id,
+            ProjectBillingSourceLockORM.organization_id == organization_id,
+            ProjectBillingSourceLockORM.source_type == source_type,
+            ProjectBillingSourceLockORM.source_id == source_id,
+            ProjectBillingSourceLockORM.status != "released",
+        ))
+        conditions.extend((
+            source.tenant_id == tenant_id,
+            source.organization_id == organization_id,
+            source.project_id == project_id,
+            source_date >= preparation.period_start,
+            source_date <= preparation.period_end,
+            ~active_lock,
+        ))
+        if request.search.strip():
+            pattern = f"%{request.search.strip()}%"
+            conditions.append(or_(label.ilike(pattern), source_id.ilike(pattern)))
+        base = select(source_id, source_date, label, amount, currency).where(*conditions)
+        total = int(self._session.scalar(select(func.count()).select_from(base.subquery())) or 0)
+        page, page_size, offset = _window(
+            request.normalized_page, request.normalized_page_size, total
+        )
+        sort_key = request.normalized_sort_key
+        direction = "asc" if request.sort_direction == "asc" else "desc"
+        expression = label if sort_key == "label" else source_date
+        order = expression.asc() if direction == "asc" else expression.desc()
+        rows = self._session.execute(
+            base.order_by(order, source_id.asc()).offset(offset).limit(page_size)
+        ).all()
+        return FinancePageFacts(
+            items=tuple(BillingSourceOptionFact(
+                source_id=row[0], source_type=source_type, source_date=row[1],
+                label=row[2], amount=row[3], currency_code=row[4],
+            ) for row in rows),
+            total=total, page=page, page_size=page_size,
+            sort_key=sort_key, sort_direction=direction,
+        )
 
     def list_accounting_statuses(
         self,

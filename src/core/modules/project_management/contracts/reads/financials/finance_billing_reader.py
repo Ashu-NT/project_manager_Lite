@@ -14,11 +14,15 @@ from .models.finance_billing_facts import (
     BillingProfileFact,
     BillingScheduleFact,
     BillingScheduleQuery,
+    BillingSourceOptionFact,
+    BillingSourceQuery,
 )
 from .models.finance_budget_facts import FinancePageFacts
 
 
 class FinanceBillingReader(Protocol):
+    def list_eligible_sources(self, *, tenant_id: str, organization_id: str, project_id: str, preparation_id: str, request: BillingSourceQuery) -> FinancePageFacts[BillingSourceOptionFact]: ...
+
     def approved_preparation_amount(self, *, tenant_id: str, organization_id: str, project_id: str) -> Decimal: ...
 
     def list_accounting_statuses(self, *, tenant_id: str, organization_id: str, project_id: str, request: AccountingStatusQuery) -> FinancePageFacts[AccountingStatusFact]: ...
