@@ -48,7 +48,10 @@ Item {
             required property int index
 
             width: _list.width
-            height: 44
+            // Content-driven, never a fixed magic number -- a row must
+            // never be shorter than its own text needs, or adjacent rows
+            // can visually overlap under real font metrics/DPI.
+            height: Math.max(44, _rowColumn.implicitHeight + Theme.AppTheme.spacingXs * 2)
 
             readonly property string _status: String(_row.modelData.statusLabel || "")
             readonly property string _tone:   String(_row.modelData.tone || "")
@@ -109,6 +112,7 @@ Item {
             }
 
             ColumnLayout {
+                id: _rowColumn
                 anchors.left:           _dot.right
                 anchors.leftMargin:     Theme.AppTheme.spacingSm
                 anchors.right:          parent.right

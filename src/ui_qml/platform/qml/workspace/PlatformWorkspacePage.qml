@@ -221,7 +221,8 @@ Item {
         "Parties": "parties",
         "Users": "users",
         "Pending approvals": "control_approvals",
-        "Documents": "documents"
+        "Documents": "documents",
+        "Document Structures": "structures"
     })
 
     // A destination is only ever offered as a click target when it is
@@ -285,7 +286,17 @@ Item {
     // section here).
     readonly property var _documentsGlance: {
         const cards = root._overview.breakdownCards || []
-        return cards.length > 0 ? cards[0] : {}
+        const card = cards.length > 0 ? cards[0] : {}
+        const metrics = card.metrics || []
+        const enriched = []
+        for (let i = 0; i < metrics.length; i += 1) {
+            const metric = metrics[i]
+            const destination = root._destinationByLabel[String(metric.label || "")]
+            enriched.push(Object.assign({}, metric, {
+                "clickable": !!destination && root._isDestinationAccessible(destination)
+            }))
+        }
+        return Object.assign({}, card, { "metrics": enriched })
     }
 
     readonly property var _recentActivity: root._overview.recentActivity || []
@@ -317,7 +328,27 @@ Item {
         }
     }
 
-    function _onDocumentsGlanceActivated() {
+    function _onRecentActivityViewAllRequested() {
+        if (root._isDestinationAccessible("control_audit")) {
+            root._selectDestination("control_audit")
+        }
+    }
+
+    function _onApprovalActionsViewAllRequested() {
+        if (root._isDestinationAccessible("control_approvals")) {
+            root._selectDestination("control_approvals")
+        }
+    }
+
+    function _onDocumentsMetricActivated(index) {
+        const metrics = root._documentsGlance.metrics || []
+        if (index < 0 || index >= metrics.length) {
+            return
+        }
+        root._navigateByLabel(String(metrics[index].label || ""))
+    }
+
+    function _onViewDocumentsRequested() {
         root._navigateByLabel("Documents")
     }
 
@@ -378,10 +409,16 @@ Item {
                             accessSecurity: root._accessSecurity
                             moduleTenantStatus: root._moduleTenantStatus
                             recentActivity: root._recentActivity
+                            recentActivityViewAllAccessible: root._isDestinationAccessible("control_audit")
+                            onRecentActivityViewAllRequested: root._onRecentActivityViewAllRequested()
                             approvalActions: root._approvalActions
+                            approvalActionsViewAllAccessible: root._isDestinationAccessible("control_approvals")
+                            onApprovalActionsViewAllRequested: root._onApprovalActionsViewAllRequested()
                             onApprovalActionActivated: function(index) { root._onApprovalActionActivated(index) }
                             documentsGlance: root._documentsGlance
-                            onDocumentsGlanceActivated: root._onDocumentsGlanceActivated()
+                            viewDocumentsAccessible: root._isDestinationAccessible("documents")
+                            onViewDocumentsRequested: root._onViewDocumentsRequested()
+                            onDocumentsMetricActivated: function(index) { root._onDocumentsMetricActivated(index) }
                         }
                     }
                 }

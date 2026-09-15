@@ -33,14 +33,24 @@ AppLayouts.WorkspaceFrame {
     property var accessSecurity: ({})
     property var moduleTenantStatus: ({})
 
-    // -- Lower row (two lists) --------------------------------------------
+    // -- Lower row (two lists). "View all" is shown only when the caller
+    // has already confirmed the underlying destination is accessible to
+    // the current session -- this page never re-derives that itself. -----
     property var recentActivity: []
+    property bool recentActivityViewAllAccessible: false
+    signal recentActivityViewAllRequested()
     property var approvalActions: ({})
+    property bool approvalActionsViewAllAccessible: false
+    signal approvalActionsViewAllRequested()
     signal approvalActionActivated(int index)
 
-    // -- Supporting summary (single full-width, whole-card-clickable) -----
+    // -- Supporting summary: a single compact, full-width metric bar (not
+    // a list-style card) -- each metric is individually navigable per its
+    // own "clickable" flag, plus one explicit "View documents" link. ------
     property var documentsGlance: ({})
-    signal documentsGlanceActivated()
+    property bool viewDocumentsAccessible: false
+    signal viewDocumentsRequested()
+    signal documentsMetricActivated(int index)
 
     property string warningText: ""
 
@@ -100,6 +110,7 @@ AppLayouts.WorkspaceFrame {
                             required property var modelData
                             required property int index
 
+                            objectName: "overviewMetricTile_" + String(_tile.modelData.label || "")
                             Layout.fillWidth: true
                             label: String(_tile.modelData.label || "")
                             value: String(_tile.modelData.value || "--")
@@ -147,15 +158,21 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                // -- Lower row: Recent Administrative Activity / Approvals & Actions --
-                RowLayout {
+                // -- Lower row: Recent Administrative Activity / Approvals & Actions.
+                // GridLayout (not RowLayout + manual percentage widths) so
+                // the two cards split evenly and reflow to a single stacked
+                // column at narrow widths without a self-referential width
+                // binding.
+                GridLayout {
                     id: _lowerRow
                     Layout.fillWidth: true
-                    spacing: Theme.AppTheme.sectionGap
                     visible: root.errorMessage.length === 0
+                    columns: _content.width < 1000 ? 1 : 2
+                    columnSpacing: Theme.AppTheme.sectionGap
+                    rowSpacing: Theme.AppTheme.sectionGap
 
                     Rectangle {
-                        Layout.preferredWidth: (_lowerRow.width - _lowerRow.spacing) * 0.45
+                        Layout.fillWidth: true
                         Layout.alignment: Qt.AlignTop
                         implicitHeight: _activityColumn.implicitHeight + Theme.AppTheme.marginLg * 2
                         radius: Theme.AppTheme.radiusLg
@@ -171,13 +188,30 @@ AppLayouts.WorkspaceFrame {
                             anchors.margins: Theme.AppTheme.marginLg
                             spacing: Theme.AppTheme.spacingSm
 
-                            AppControls.Label {
+                            RowLayout {
                                 Layout.fillWidth: true
-                                text: "Recent Administrative Activity"
-                                color: Theme.AppTheme.textPrimary
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.sectionSize
-                                font.bold: true
+                                spacing: Theme.AppTheme.spacingSm
+
+                                AppControls.Label {
+                                    Layout.fillWidth: true
+                                    text: "Recent Administrative Activity"
+                                    color: Theme.AppTheme.textPrimary
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.sectionSize
+                                    font.bold: true
+                                }
+
+                                AppControls.Label {
+                                    visible: root.recentActivityViewAllAccessible
+                                    text: "View all"
+                                    color: Theme.AppTheme.accent
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.smallSize
+                                    font.bold: true
+
+                                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                    TapHandler { onTapped: root.recentActivityViewAllRequested() }
+                                }
                             }
 
                             AppWidgets.ActivityFeed {
@@ -189,7 +223,7 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     Rectangle {
-                        Layout.preferredWidth: (_lowerRow.width - _lowerRow.spacing) * 0.55
+                        Layout.fillWidth: true
                         Layout.alignment: Qt.AlignTop
                         implicitHeight: _approvalsColumn.implicitHeight + Theme.AppTheme.marginLg * 2
                         radius: Theme.AppTheme.radiusLg
@@ -205,13 +239,30 @@ AppLayouts.WorkspaceFrame {
                             anchors.margins: Theme.AppTheme.marginLg
                             spacing: Theme.AppTheme.spacingSm
 
-                            AppControls.Label {
+                            RowLayout {
                                 Layout.fillWidth: true
-                                text: "Approvals & Actions"
-                                color: Theme.AppTheme.textPrimary
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.sectionSize
-                                font.bold: true
+                                spacing: Theme.AppTheme.spacingSm
+
+                                AppControls.Label {
+                                    Layout.fillWidth: true
+                                    text: "Approvals & Actions"
+                                    color: Theme.AppTheme.textPrimary
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.sectionSize
+                                    font.bold: true
+                                }
+
+                                AppControls.Label {
+                                    visible: root.approvalActionsViewAllAccessible
+                                    text: "View all"
+                                    color: Theme.AppTheme.accent
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.smallSize
+                                    font.bold: true
+
+                                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                    TapHandler { onTapped: root.approvalActionsViewAllRequested() }
+                                }
                             }
 
                             AppWidgets.ActivityFeed {
@@ -248,15 +299,81 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                // -- Documents at a glance (single, whole-card clickable) ------
-                OverviewCard {
+                // -- Documents at a glance: one compact, full-width summary
+                // bar -- a heading + a short row of metric tiles, not a
+                // tall list-style card. Each metric tile is individually
+                // navigable per its own "clickable" flag; "View documents"
+                // is a separate explicit link to the Documents destination.
+                Rectangle {
+                    id: _documentsGlanceCard
                     Layout.fillWidth: true
-                    visible: root.errorMessage.length === 0 && (root.documentsGlance.rows || []).length > 0
-                    title: String(root.documentsGlance.title || "Documents at a glance")
-                    rows: root.documentsGlance.rows || []
-                    emptyState: String(root.documentsGlance.emptyState || "")
-                    clickable: true
-                    onActivated: root.documentsGlanceActivated()
+                    visible: root.errorMessage.length === 0 && (root.documentsGlance.metrics || []).length > 0
+                    implicitHeight: _documentsGlanceColumn.implicitHeight + Theme.AppTheme.marginLg * 2
+                    radius: Theme.AppTheme.radiusLg
+                    color: Theme.AppTheme.surfaceRaised
+                    border.width: 1
+                    border.color: Theme.AppTheme.subtleBorder
+
+                    ColumnLayout {
+                        id: _documentsGlanceColumn
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: Theme.AppTheme.marginLg
+                        spacing: Theme.AppTheme.spacingSm
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.AppTheme.spacingSm
+
+                            AppControls.Label {
+                                Layout.fillWidth: true
+                                text: String(root.documentsGlance.title || "Documents at a glance")
+                                color: Theme.AppTheme.textPrimary
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.sectionSize
+                                font.bold: true
+                            }
+
+                            AppControls.Label {
+                                visible: root.viewDocumentsAccessible
+                                text: "View documents"
+                                color: Theme.AppTheme.accent
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                font.bold: true
+
+                                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                TapHandler { onTapped: root.viewDocumentsRequested() }
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.AppTheme.spacingMd
+
+                            Repeater {
+                                model: root.documentsGlance.metrics || []
+
+                                delegate: AppWidgets.OverviewMetricTile {
+                                    id: _glanceTile
+                                    required property var modelData
+                                    required property int index
+
+                                    Layout.preferredWidth: 220
+                                    Layout.fillWidth: false
+                                    compact: true
+                                    label: String(_glanceTile.modelData.label || "")
+                                    value: String(_glanceTile.modelData.value || "--")
+                                    supportingText: String(_glanceTile.modelData.supportingText || "")
+                                    clickable: _glanceTile.modelData.clickable === true
+                                    onActivated: root.documentsMetricActivated(_glanceTile.index)
+                                }
+                            }
+
+                            Item { Layout.fillWidth: true }
+                        }
+                    }
                 }
 
                 AppWidgets.InlineMessage {

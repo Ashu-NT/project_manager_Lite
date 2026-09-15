@@ -27,19 +27,28 @@ def test_platform_workspace_catalog_exposes_grouped_platform_overviews() -> None
     assert admin["statusLabel"] == "Connected"
     assert [(metric["label"], metric["value"]) for metric in admin["metrics"]] == [
         ("Organizations", "2"),
-        ("Sites", "1"),
-        ("Departments", "1"),
-        ("Employees", "1"),
         ("Users", "1"),
+        ("Pending approvals", "1"),
         ("Documents", "1"),
     ]
     assert [section["title"] for section in admin["sections"]] == [
-        "Runtime Context",
-        "Identity And Workforce",
-        "Master Data Coverage",
+        "Organization Snapshot",
+        "Access & Security",
+        "Module & Tenant Status",
     ]
-    assert admin["sections"][0]["rows"][0]["value"] == "TechAsh"
-    assert admin["sections"][2]["rows"][0]["supportingText"] == "Berlin Campus, Dubai Yard"
+    assert admin["sections"][0]["rows"][0] == {"label": "Sites", "value": "2", "supportingText": "1 active"}
+    assert admin["sections"][1]["rows"] == [
+        {"label": "User accounts", "value": "2", "supportingText": "1 active"},
+        {"label": "Locked accounts", "value": "1", "supportingText": "Requires attention"},
+    ]
+    assert [(row["label"], row["value"]) for row in admin["sections"][2]["rows"]] == [
+        ("Licensed modules", "2"),
+        ("Enabled modules", "1"),
+        ("Project Management", "Active"),
+        ("Inventory & Procurement", "Active"),
+    ]
+    assert admin["breakdownCards"][0]["title"] == "Documents at a glance"
+    assert admin["approvalActions"]["items"][0]["title"] == "Change Budget"
 
     assert control["statusLabel"] == "Connected"
     assert [(metric["label"], metric["value"]) for metric in control["metrics"]] == [

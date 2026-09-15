@@ -149,6 +149,7 @@ class PlatformAdminWorkspacePresenter:
         document_summary = self._document_summary(
             self._document_api.get_document_rollup_summary() if self._document_api is not None else None
         )
+        document_structure_count = self._document_structure_count()
         party_summary = self._party_summary(
             self._party_api.get_party_rollup_summary() if self._party_api is not None else None
         )
@@ -196,12 +197,12 @@ class PlatformAdminWorkspacePresenter:
         documents_glance = (
             {
                 "title": "Documents at a glance",
-                "rows": (
+                "metrics": (
                     {"label": "Documents", "value": str(document_summary.total), "supportingText": ""},
                     {
-                        "label": "Current",
-                        "value": str(document_summary.current),
-                        "supportingText": "Marked current",
+                        "label": "Document Structures",
+                        "value": str(document_structure_count),
+                        "supportingText": "",
                     },
                 ),
                 "emptyState": "No documents recorded yet.",
@@ -225,6 +226,14 @@ class PlatformAdminWorkspacePresenter:
             recent_activity=recent_activity,
             approval_actions=approval_actions,
         )
+
+    def _document_structure_count(self) -> int:
+        if self._document_api is None:
+            return 0
+        result = self._document_api.list_document_structures()
+        if not getattr(result, "ok", False) or getattr(result, "data", None) is None:
+            return 0
+        return len(result.data)
 
     def _recent_activity(self) -> tuple[dict, ...]:
         if self._audit_api is None:
