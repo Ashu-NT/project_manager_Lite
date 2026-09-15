@@ -7,6 +7,7 @@ from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
+    safe_error_message,
     serialize_project_catalog_overview_view_model,
     serialize_project_detail_view_model,
     serialize_project_record_view_models,
@@ -457,9 +458,11 @@ class ProjectManagementProjectsWorkspaceController(
                 if workspace_state.sort_direction == "desc"
                 else Qt.AscendingOrder.value
             )
-        except Exception as exc:  
+        except Exception as exc:
             self._set_projects({})
-            self._set_error_message(str(exc))
+            self._set_error_message(
+                safe_error_message(exc, safe_message="Projects could not be loaded.")
+            )
         finally:
             self._set_is_loading(False)
 
@@ -582,7 +585,9 @@ class ProjectManagementProjectsWorkspaceController(
         try:
             return self._projects_workspace_presenter.suggest_code(dict(payload))
         except Exception as exc:
-            self._set_error_message(str(exc))
+            self._set_error_message(
+                safe_error_message(exc, safe_message="A project code could not be suggested.")
+            )
             return ""
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -594,6 +599,10 @@ class ProjectManagementProjectsWorkspaceController(
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted project fields and try again.",
+            safe_validation_code="PROJECT_INPUT_INVALID",
+            safe_failure_message="The project change could not be completed. Try again or refresh the workspace.",
+            safe_failure_code="PROJECT_MUTATION_FAILED",
         )
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -605,6 +614,10 @@ class ProjectManagementProjectsWorkspaceController(
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted project fields and try again.",
+            safe_validation_code="PROJECT_INPUT_INVALID",
+            safe_failure_message="The project change could not be completed. Try again or refresh the workspace.",
+            safe_failure_code="PROJECT_MUTATION_FAILED",
         )
 
     @Slot(str, str, result="QVariantMap")
@@ -616,6 +629,10 @@ class ProjectManagementProjectsWorkspaceController(
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted project fields and try again.",
+            safe_validation_code="PROJECT_INPUT_INVALID",
+            safe_failure_message="The project change could not be completed. Try again or refresh the workspace.",
+            safe_failure_code="PROJECT_MUTATION_FAILED",
         )
 
     @Slot(str, result="QVariantMap")
@@ -627,6 +644,10 @@ class ProjectManagementProjectsWorkspaceController(
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted project fields and try again.",
+            safe_validation_code="PROJECT_INPUT_INVALID",
+            safe_failure_message="The project change could not be completed. Try again or refresh the workspace.",
+            safe_failure_code="PROJECT_MUTATION_FAILED",
         )
 
     # ── Lazy Sections ────────────────────────────────────────────────────

@@ -8,6 +8,7 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
+    safe_error_message,
     serialize_portfolio_collection_view_model,
     serialize_portfolio_overview_view_model,
     serialize_portfolio_summary_view_model,
@@ -396,7 +397,9 @@ class ProjectManagementPortfolioWorkspaceController(
             success = True
         except Exception as exc:  # pragma: no cover - defensive fallback
             logger.exception("PM portfolio refresh failed")
-            self._set_error_message(str(exc))
+            self._set_error_message(
+                safe_error_message(exc, safe_message="Portfolio could not be loaded.")
+            )
         finally:
             duration_ms = (perf_counter() - started) * 1000
             log_method = logger.warning if duration_ms > 500 else logger.info

@@ -112,6 +112,10 @@ class PMTimeController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted time entry fields and try again.",
+            safe_validation_code="TASK_TIME_INPUT_INVALID",
+            safe_failure_message="The time entry change could not be completed. Try again or refresh the task.",
+            safe_failure_code="TASK_TIME_MUTATION_FAILED",
         )
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -123,6 +127,10 @@ class PMTimeController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted time entry fields and try again.",
+            safe_validation_code="TASK_TIME_INPUT_INVALID",
+            safe_failure_message="The time entry change could not be completed. Try again or refresh the task.",
+            safe_failure_code="TASK_TIME_MUTATION_FAILED",
         )
 
     @Slot(str, int, result="QVariantMap")
@@ -134,6 +142,10 @@ class PMTimeController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted time entry fields and try again.",
+            safe_validation_code="TASK_TIME_INPUT_INVALID",
+            safe_failure_message="The time entry change could not be completed. Try again or refresh the task.",
+            safe_failure_code="TASK_TIME_MUTATION_FAILED",
         )
     # ── Private setters ───────────────────────────────────────────────
 

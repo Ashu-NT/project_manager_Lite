@@ -77,6 +77,9 @@ from src.ui_qml.modules.project_management.controllers.common.serializers.worksp
 from src.ui_qml.modules.project_management.controllers.common.mutation_runner import (
     run_mutation,
 )
+from src.ui_qml.modules.project_management.controllers.common.error_sanitizer import (
+    safe_error_message,
+)
 from src.ui_qml.modules.project_management.controllers.common.undo_stack import (
     ProjectManagementUndoCommand,
     ProjectManagementUndoStack,
@@ -102,6 +105,7 @@ __all__ = [
     "ProjectManagementUndoStack",
     "resolve_active_organization_id_from_runtime_api",
     "run_mutation",
+    "safe_error_message",
     "serialize_collaboration_collection_view_model",
     "serialize_collaboration_overview_view_model",
     "serialize_collaboration_record_view_models",

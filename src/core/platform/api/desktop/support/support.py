@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import sys
 from dataclasses import asdict
@@ -12,6 +13,7 @@ from urllib.request import url2pathname
 from PySide6.QtCore import QSettings
 
 from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
+from src.core.platform.common.exceptions import DomainError
 from src.core.platform.api.desktop.support.models.support import (
     SupportBundleDto,
     SupportEventDto,
@@ -34,6 +36,8 @@ from src.infra.platform.updater import (
 from src.infra.platform.version import get_app_version
 
 _DEFAULT_SUPPORT_EMAIL = "tech_ash_673@info.tech"
+
+logger = logging.getLogger(__name__)
 
 
 class _SupportSettingsStore:
@@ -118,7 +122,11 @@ class PlatformSupportDesktopApi:
         try:
             return DesktopApiResult(ok=True, data=self._build_paths_dto())
         except Exception as exc:  # noqa: BLE001
-            return self._runtime_error(exc, code="support_paths_unavailable")
+            return self._runtime_error(
+                exc,
+                code="support_paths_unavailable",
+                safe_message="Support paths could not be loaded.",
+            )
 
     def save_settings(
         self,
@@ -140,7 +148,11 @@ class PlatformSupportDesktopApi:
             )
             return DesktopApiResult(ok=True, data=self._build_settings_dto())
         except Exception as exc:  # noqa: BLE001
-            return self._runtime_error(exc, code="support_settings_save_failed")
+            return self._runtime_error(
+                exc,
+                code="support_settings_save_failed",
+                safe_message="Support settings could not be saved.",
+            )
 
     def check_for_updates(
         self,
@@ -197,7 +209,11 @@ class PlatformSupportDesktopApi:
                 )
             return DesktopApiResult(ok=True, data=dto)
         except Exception as exc:  # noqa: BLE001
-            return self._runtime_error(exc, code="support_update_check_failed")
+            return self._runtime_error(
+                exc,
+                code="support_update_check_failed",
+                safe_message="Update check could not be completed.",
+            )
 
     def list_activity(
         self,
@@ -213,7 +229,11 @@ class PlatformSupportDesktopApi:
             )
             return DesktopApiResult(ok=True, data=rows)
         except Exception as exc:  # noqa: BLE001
-            return self._runtime_error(exc, code="support_activity_unavailable")
+            return self._runtime_error(
+                exc,
+                code="support_activity_unavailable",
+                safe_message="Support activity could not be loaded.",
+            )
 
     def export_diagnostics(self, *, incident_id: str) -> DesktopApiResult[SupportBundleDto]:
         return self.export_diagnostics_to(
@@ -258,7 +278,11 @@ class PlatformSupportDesktopApi:
             )
             return DesktopApiResult(ok=True, data=self._serialize_bundle(result.output_path, result.files_added, result.warnings))
         except Exception as exc:  # noqa: BLE001
-            return self._runtime_error(exc, code="support_diagnostics_export_failed")
+            return self._runtime_error(
+                exc,
+                code="support_diagnostics_export_failed",
+                safe_message="Diagnostics could not be exported.",
+            )
 
     def create_incident_report(self, *, incident_id: str) -> DesktopApiResult[SupportBundleDto]:
         normalized_trace = (incident_id or self.new_incident_id()).strip()
@@ -302,7 +326,11 @@ class PlatformSupportDesktopApi:
                 ),
             )
         except Exception as exc:  # noqa: BLE001
-            return self._runtime_error(exc, code="support_incident_report_failed")
+            return self._runtime_error(
+                exc,
+                code="support_incident_report_failed",
+                safe_message="Incident report could not be created.",
+            )
 
     def install_available_update(
         self,
@@ -383,7 +411,11 @@ class PlatformSupportDesktopApi:
                 message=f"Update install failed: {exc}",
                 data={"channel": command.update_channel},
             )
-            return self._runtime_error(exc, code="support_update_install_failed")
+            return self._runtime_error(
+                exc,
+                code="support_update_install_failed",
+                safe_message="Update installation could not be started.",
+            )
 
     def _build_settings_dto(self) -> SupportSettingsDto:
         return SupportSettingsDto(
@@ -565,12 +597,21 @@ class PlatformSupportDesktopApi:
         )
 
     @staticmethod
-    def _runtime_error(exc: Exception, *, code: str) -> DesktopApiResult[object]:
+    def _runtime_error(
+        exc: Exception, *, code: str, safe_message: str
+    ) -> DesktopApiResult[object]:
+        """Log the real exception, return a UI-safe result. A `DomainError`'s
+        message is always developer-authored, user-facing text by this
+        codebase's convention, so it passes through; anything else (a raw
+        filesystem/network/driver error) is replaced by the caller-supplied
+        safe_message -- its original text never reaches the UI, only the log."""
+        logger.exception("Platform support operation failed code=%s", code)
+        message = str(exc) if isinstance(exc, DomainError) else safe_message
         return DesktopApiResult(
             ok=False,
             error=DesktopApiError(
                 code=code,
-                message=str(exc),
+                message=message,
                 category="runtime",
             ),
         )

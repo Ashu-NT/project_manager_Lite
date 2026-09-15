@@ -7,6 +7,17 @@ Rectangle {
     id: chip
 
     property string status: ""
+    // Explicit caller-supplied semantic tone -- "neutral" | "info" |
+    // "success" | "warning" | "danger". When set, this is used verbatim and
+    // `status` is display text only (no classification happens). This is
+    // the preferred way for new/future-module callers to use this
+    // component: StatusChip must not grow a new hardcoded business-status
+    // string for every module (Inventory, Procurement, Accounting, Payroll,
+    // QHSE, HR, ...); the caller already knows what a status means and
+    // should say so directly.
+    property string tone: ""
+
+    readonly property var _validTones: ["neutral", "info", "success", "warning", "danger"]
 
     implicitHeight: 22
     implicitWidth: chipLabel.implicitWidth + 16
@@ -14,7 +25,11 @@ Rectangle {
 
     readonly property string _normalized: status.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_")
 
-    readonly property var _variant: {
+    // LEGACY auto-classification -- kept only for existing Platform/PM
+    // callers that don't pass an explicit tone yet, so none of them
+    // visually regress. Do not add new status strings here; give the new
+    // caller an explicit `tone` instead.
+    readonly property var _legacyVariant: {
         const s = chip._normalized
         if (s === "active" || s === "approved" || s === "closed" || s === "completed"
                 || s === "verified" || s === "issued" || s === "fully_received" || s === "accepted"
@@ -34,6 +49,13 @@ Rectangle {
                 || s === "infeasible")
             return "danger"
         return "neutral"
+    }
+
+    readonly property var _variant: {
+        if (chip.tone.length > 0) {
+            return chip._validTones.indexOf(chip.tone) >= 0 ? chip.tone : "neutral"
+        }
+        return chip._legacyVariant
     }
 
     color: {

@@ -9,6 +9,7 @@ from src.core.modules.project_management.application.financials.invalidation imp
     FinanceInvalidationScope,
 )
 from src.ui_qml.modules.project_management.controllers.common import (
+    safe_error_message,
     serialize_financials_baseline_variance_view_models,
     serialize_financials_collection_view_model,
     serialize_financials_commitment_summary_view_model,
@@ -263,7 +264,11 @@ class FinancialsRefreshMixin:
                 destination,
                 subsection,
             )
-            self._set_error_message(str(exc))
+            self._set_error_message(
+                safe_error_message(
+                    exc, safe_message="Financials could not be loaded."
+                )
+            )
         finally:
             if generation == self._refresh_generation:
                 self._set_is_loading(False)

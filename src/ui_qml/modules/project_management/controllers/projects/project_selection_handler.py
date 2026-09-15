@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.ui_qml.modules.project_management.controllers.common import (
+    safe_error_message,
     serialize_project_detail_view_model,
 )
 
@@ -29,7 +30,9 @@ def activate_project(controller, project_id: str) -> None:
             serialize_project_detail_view_model(ws.selected_project_detail)
         )
     except Exception as exc:
-        controller._set_error_message(str(exc))
+        controller._set_error_message(
+            safe_error_message(exc, safe_message="Project details could not be loaded.")
+        )
     finally:
         controller._set_is_loading(False)
 

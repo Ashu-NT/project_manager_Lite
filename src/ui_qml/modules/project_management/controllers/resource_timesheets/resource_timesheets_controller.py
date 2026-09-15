@@ -12,6 +12,9 @@ from src.ui_qml.modules.project_management.controllers.common import (
 from src.ui_qml.modules.project_management.controllers.common.mutation_runner import (
     run_mutation,
 )
+from src.ui_qml.modules.project_management.controllers.common.error_sanitizer import (
+    safe_error_message,
+)
 from src.ui_qml.modules.project_management.presenters.resource_timesheets import (
     ResourceTimesheetsPresenter,
 )
@@ -213,7 +216,9 @@ class ProjectManagementResourceTimesheetsController(ProjectManagementWorkspaceCo
             self._assign("_history_total", 0, self.historyTotalChanged)
             self._entry_model.set_rows([])
             self._history_model.set_rows([])
-            self._set_error_message(str(exc))
+            self._set_error_message(
+                safe_error_message(exc, safe_message="Timesheet could not be loaded.")
+            )
         finally:
             self._set_is_loading(False)
 
@@ -347,6 +352,10 @@ class ProjectManagementResourceTimesheetsController(ProjectManagementWorkspaceCo
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted time entry fields and try again.",
+            safe_validation_code="TIMESHEET_INPUT_INVALID",
+            safe_failure_message="The timesheet change could not be completed. Try again or refresh the page.",
+            safe_failure_code="TIMESHEET_MUTATION_FAILED",
         )
 
     @Slot(str, int, result="QVariantMap")
@@ -364,6 +373,10 @@ class ProjectManagementResourceTimesheetsController(ProjectManagementWorkspaceCo
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted time entry fields and try again.",
+            safe_validation_code="TIMESHEET_INPUT_INVALID",
+            safe_failure_message="The timesheet change could not be completed. Try again or refresh the page.",
+            safe_failure_code="TIMESHEET_MUTATION_FAILED",
         )
 
     @Slot(str, result="QVariantMap")
@@ -386,6 +399,10 @@ class ProjectManagementResourceTimesheetsController(ProjectManagementWorkspaceCo
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted time entry fields and try again.",
+            safe_validation_code="TIMESHEET_INPUT_INVALID",
+            safe_failure_message="The timesheet change could not be completed. Try again or refresh the page.",
+            safe_failure_code="TIMESHEET_MUTATION_FAILED",
         )
 
 

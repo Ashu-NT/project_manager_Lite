@@ -64,6 +64,7 @@ Rectangle {
 
         Rectangle {
             id: filterButton
+            objectName: "toolbarFilterButton"
             visible: root.showFilter
             implicitWidth: filterRow.implicitWidth + 14
             implicitHeight: Theme.AppTheme.inputHeight - 4
@@ -71,6 +72,19 @@ Rectangle {
             color: filterHover.containsMouse
                 ? Theme.AppTheme.hoverSurface
                 : Theme.AppTheme.surfaceOverlay
+            border.width: filterButton.activeFocus ? 2 : 0
+            border.color: Theme.AppTheme.focusBorder
+
+            activeFocusOnTab: root.showFilter
+            Accessible.role: Accessible.Button
+            Accessible.name: "Filters"
+            Accessible.onPressAction: root.filterClicked()
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                    root.filterClicked()
+                    event.accepted = true
+                }
+            }
 
             Row {
                 id: filterRow
@@ -105,6 +119,7 @@ Rectangle {
 
         Rectangle {
             id: customizeButton
+            objectName: "toolbarCustomizeButton"
             visible: root.showCustomize
             implicitWidth: customizeRow.implicitWidth + 14
             implicitHeight: Theme.AppTheme.inputHeight - 4
@@ -112,6 +127,19 @@ Rectangle {
             color: customizeHover.containsMouse
                 ? Theme.AppTheme.hoverSurface
                 : Theme.AppTheme.surfaceOverlay
+            border.width: customizeButton.activeFocus ? 2 : 0
+            border.color: Theme.AppTheme.focusBorder
+
+            activeFocusOnTab: root.showCustomize
+            Accessible.role: Accessible.Button
+            Accessible.name: "Columns"
+            Accessible.onPressAction: root.customizeClicked()
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                    root.customizeClicked()
+                    event.accepted = true
+                }
+            }
 
             Row {
                 id: customizeRow
@@ -146,6 +174,7 @@ Rectangle {
 
         Rectangle {
             id: viewsButton
+            objectName: "toolbarViewsButton"
             visible: root.showViews
             implicitWidth: viewsRow.implicitWidth + 14
             implicitHeight: Theme.AppTheme.inputHeight - 4
@@ -153,6 +182,19 @@ Rectangle {
             color: viewsHover.containsMouse
                 ? Theme.AppTheme.hoverSurface
                 : Theme.AppTheme.surfaceOverlay
+            border.width: viewsButton.activeFocus ? 2 : 0
+            border.color: Theme.AppTheme.focusBorder
+
+            activeFocusOnTab: root.showViews
+            Accessible.role: Accessible.Button
+            Accessible.name: "Views"
+            Accessible.onPressAction: root.viewsClicked()
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                    root.viewsClicked()
+                    event.accepted = true
+                }
+            }
 
             Row {
                 id: viewsRow

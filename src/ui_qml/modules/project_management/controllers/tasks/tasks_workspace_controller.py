@@ -7,6 +7,7 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
+    safe_error_message,
     serialize_task_collection_view_model,
 )
 from src.ui_qml.modules.project_management.controllers.tasks.pm_assignment_controller import (
@@ -592,7 +593,10 @@ class ProjectManagementTasksWorkspaceController(
                 self._selected_project_id,
                 delay_working_days,
             )
-            self._set_section_error("scheduleImpact", str(exc))
+            self._set_section_error(
+                "scheduleImpact",
+                safe_error_message(exc, safe_message="Schedule impact could not be calculated."),
+            )
             preview = {}
         else:
             logger.debug(

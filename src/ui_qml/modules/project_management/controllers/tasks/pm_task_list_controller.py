@@ -9,6 +9,7 @@ from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementUndoCommand,
     ProjectManagementUndoStack,
     run_mutation,
+    safe_error_message,
     serialize_selector_options,
     serialize_task_catalog_overview_view_model,
     serialize_task_detail_view_model,
@@ -242,7 +243,7 @@ class PMTaskListController(QObject):
         except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
             setter = getattr(self, "_set_error_message", None)
             if setter is not None:
-                setter(str(exc))
+                setter(safe_error_message(exc, safe_message="A task code could not be suggested."))
             return ""
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -254,6 +255,10 @@ class PMTaskListController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted task fields and try again.",
+            safe_validation_code="TASK_INPUT_INVALID",
+            safe_failure_message="The task change could not be completed. Try again or refresh the workspace.",
+            safe_failure_code="TASK_MUTATION_FAILED",
         )
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -265,6 +270,10 @@ class PMTaskListController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted task fields and try again.",
+            safe_validation_code="TASK_INPUT_INVALID",
+            safe_failure_message="The task change could not be completed. Try again or refresh the workspace.",
+            safe_failure_code="TASK_MUTATION_FAILED",
         )
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -276,6 +285,10 @@ class PMTaskListController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted task fields and try again.",
+            safe_validation_code="TASK_INPUT_INVALID",
+            safe_failure_message="The task change could not be completed. Try again or refresh the workspace.",
+            safe_failure_code="TASK_MUTATION_FAILED",
         )
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -287,6 +300,10 @@ class PMTaskListController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted task fields and try again.",
+            safe_validation_code="TASK_INPUT_INVALID",
+            safe_failure_message="The task change could not be completed. Try again or refresh the workspace.",
+            safe_failure_code="TASK_MUTATION_FAILED",
         )
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -298,6 +315,10 @@ class PMTaskListController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted task fields and try again.",
+            safe_validation_code="TASK_INPUT_INVALID",
+            safe_failure_message="The task change could not be completed. Try again or refresh the workspace.",
+            safe_failure_code="TASK_MUTATION_FAILED",
         )
 
     @Slot(str, result="QVariantMap")
@@ -309,6 +330,10 @@ class PMTaskListController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted task fields and try again.",
+            safe_validation_code="TASK_INPUT_INVALID",
+            safe_failure_message="The task change could not be completed. Try again or refresh the workspace.",
+            safe_failure_code="TASK_MUTATION_FAILED",
         )
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -323,6 +348,10 @@ class PMTaskListController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted task fields and try again.",
+            safe_validation_code="TASK_INPUT_INVALID",
+            safe_failure_message="The task change could not be completed. Try again or refresh the workspace.",
+            safe_failure_code="TASK_MUTATION_FAILED",
         )
 
     @Slot("QVariantList", result="QVariantMap")
@@ -337,6 +366,10 @@ class PMTaskListController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted task fields and try again.",
+            safe_validation_code="TASK_INPUT_INVALID",
+            safe_failure_message="The task change could not be completed. Try again or refresh the workspace.",
+            safe_failure_code="TASK_MUTATION_FAILED",
         )
 
     @Slot(result="QVariantMap")
@@ -351,6 +384,10 @@ class PMTaskListController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted task fields and try again.",
+            safe_validation_code="TASK_INPUT_INVALID",
+            safe_failure_message="The task change could not be completed. Try again or refresh the workspace.",
+            safe_failure_code="TASK_MUTATION_FAILED",
         )
 
     @Slot(result="QVariantMap")
@@ -365,6 +402,10 @@ class PMTaskListController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted task fields and try again.",
+            safe_validation_code="TASK_INPUT_INVALID",
+            safe_failure_message="The task change could not be completed. Try again or refresh the workspace.",
+            safe_failure_code="TASK_MUTATION_FAILED",
         )
 
     # ── Private helpers ───────────────────────────────────────────────

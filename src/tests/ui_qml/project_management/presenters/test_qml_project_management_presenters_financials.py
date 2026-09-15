@@ -573,7 +573,10 @@ def test_governance_refresh_resets_privileged_state_before_authority_load(
         )
         controller.refresh()
 
-        assert controller.errorMessage == "authority unavailable"
+        # Raw exception text must never reach the UI-facing property (Phase H
+        # error-boundary hardening) -- only the safe, sanitized message.
+        assert controller.errorMessage == "Financials could not be loaded."
+        assert "authority unavailable" not in controller.errorMessage
 
 
 def test_budget_parent_switch_clears_previous_line_capabilities(controller) -> None:
@@ -959,7 +962,10 @@ def test_financials_refresh_logs_exception_context(controller, caplog) -> None:
     ):
         controller.refresh()
 
-    assert controller.errorMessage == "overview read failed"
+    # The raw exception text must never reach the UI-facing property (Phase H
+    # error-boundary hardening) -- only the full technical detail, logged.
+    assert controller.errorMessage == "Financials could not be loaded."
+    assert "overview read failed" not in controller.errorMessage
     assert "PM financials refresh failed" in caplog.text
     assert "project='project-a' destination=overview subsection=summary" in caplog.text
     assert "RuntimeError: overview read failed" in caplog.text

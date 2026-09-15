@@ -8,6 +8,7 @@ from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 from src.ui_qml.modules.project_management.controllers.common import (
     run_mutation,
+    safe_error_message,
     serialize_selector_options,
     serialize_task_collection_view_model,
 )
@@ -172,6 +173,10 @@ class PMAssignmentController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted assignment fields and try again.",
+            safe_validation_code="TASK_ASSIGNMENT_INPUT_INVALID",
+            safe_failure_message="The assignment change could not be completed. Try again or refresh the task.",
+            safe_failure_code="TASK_ASSIGNMENT_MUTATION_FAILED",
         )
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -187,6 +192,10 @@ class PMAssignmentController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted assignment fields and try again.",
+            safe_validation_code="TASK_ASSIGNMENT_INPUT_INVALID",
+            safe_failure_message="The assignment change could not be completed. Try again or refresh the task.",
+            safe_failure_code="TASK_ASSIGNMENT_MUTATION_FAILED",
         )
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -202,6 +211,10 @@ class PMAssignmentController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted assignment fields and try again.",
+            safe_validation_code="TASK_ASSIGNMENT_INPUT_INVALID",
+            safe_failure_message="The assignment change could not be completed. Try again or refresh the task.",
+            safe_failure_code="TASK_ASSIGNMENT_MUTATION_FAILED",
         )
 
     @Slot(str, result="QVariantMap")
@@ -213,6 +226,10 @@ class PMAssignmentController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted assignment fields and try again.",
+            safe_validation_code="TASK_ASSIGNMENT_INPUT_INVALID",
+            safe_failure_message="The assignment change could not be completed. Try again or refresh the task.",
+            safe_failure_code="TASK_ASSIGNMENT_MUTATION_FAILED",
         )
 
     @Slot(str, result="QVariantMap")
@@ -224,6 +241,10 @@ class PMAssignmentController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted assignment fields and try again.",
+            safe_validation_code="TASK_ASSIGNMENT_INPUT_INVALID",
+            safe_failure_message="The assignment change could not be completed. Try again or refresh the task.",
+            safe_failure_code="TASK_ASSIGNMENT_MUTATION_FAILED",
         )
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -235,6 +256,10 @@ class PMAssignmentController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted assignment fields and try again.",
+            safe_validation_code="TASK_ASSIGNMENT_INPUT_INVALID",
+            safe_failure_message="The assignment change could not be completed. Try again or refresh the task.",
+            safe_failure_code="TASK_ASSIGNMENT_MUTATION_FAILED",
         )
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -242,6 +267,7 @@ class PMAssignmentController(QObject):
         try:
             return self._presenter.validate_assignment(dict(payload))
         except Exception as exc:
+            message = safe_error_message(exc, safe_message="The assignment could not be validated.")
             return {
                 "ok": False,
                 "isValid": False,
@@ -249,9 +275,9 @@ class PMAssignmentController(QObject):
                 "requiresApproval": False,
                 "isBlocked": True,
                 "hasWarnings": False,
-                "violationMessages": [str(exc)],
+                "violationMessages": [message],
                 "warningMessages": [],
-                "summary": str(exc),
+                "summary": message,
             }
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -265,7 +291,9 @@ class PMAssignmentController(QObject):
                 "skillsMatched": False,
                 "certsValid": False,
                 "isBlocked": True,
-                "blockMessages": [str(exc)],
+                "blockMessages": [
+                    safe_error_message(exc, safe_message="The assignment could not be previewed.")
+                ],
             })
         self._set_assignment_preview(result)
         return result

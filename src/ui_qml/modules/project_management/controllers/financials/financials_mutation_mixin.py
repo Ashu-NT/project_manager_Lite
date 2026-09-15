@@ -26,7 +26,6 @@ class FinancialsMutationMixin:
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
-            safe_errors=True,
             safe_validation_message="Review the highlighted financial fields and try again.",
             safe_validation_code="FINANCE_INPUT_INVALID",
             safe_failure_message=(

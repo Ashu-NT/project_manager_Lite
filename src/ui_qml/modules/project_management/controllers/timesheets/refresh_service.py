@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.ui_qml.modules.project_management.controllers.common import (
+    safe_error_message,
     serialize_selector_options,
     serialize_timesheet_collection_view_model,
     serialize_timesheet_detail_view_model,
@@ -50,7 +51,9 @@ def refresh_timesheets_workspace(controller) -> None:
         controller._set_queue_page_size(state.queue_page_size)
         controller._set_empty_state(state.empty_state)
     except Exception as exc:  # pragma: no cover - defensive QML boundary
-        controller._set_error_message(str(exc))
+        controller._set_error_message(
+            safe_error_message(exc, safe_message="Review queue could not be loaded.")
+        )
     finally:
         controller._set_is_loading(False)
 

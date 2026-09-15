@@ -13,7 +13,6 @@ QML_SHELL_CONTROLLERS = Path("src/ui_qml/shell/qml/Shell/Controllers")
 QML_PLATFORM_ROOT = Path("src/ui_qml/platform/qml")
 QML_PLATFORM_CONTROLLERS = Path("src/ui_qml/platform/qml/Platform/Controllers")
 QML_PLATFORM_DIALOGS = Path("src/ui_qml/platform/qml/Platform/Dialogs")
-QML_PLATFORM_WIDGETS = Path("src/ui_qml/platform/qml/Platform/Widgets")
 QML_PM_CONTROLLERS = Path(
     "src/ui_qml/modules/project_management/qml/ProjectManagement/Controllers"
 )
@@ -86,7 +85,6 @@ def test_qml_modules_declare_stable_namespaces() -> None:
         QML_SHELL_CONTROLLERS / "qmldir": "module Shell.Controllers",
         QML_PLATFORM_CONTROLLERS / "qmldir": "module Platform.Controllers",
         QML_PLATFORM_DIALOGS / "qmldir": "module Platform.Dialogs",
-        QML_PLATFORM_WIDGETS / "qmldir": "module Platform.Widgets",
         QML_PM_CONTROLLERS / "qmldir": "module ProjectManagement.Controllers",
         QML_PM_WIDGETS / "qmldir": "module ProjectManagement.Widgets",
     }

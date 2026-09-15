@@ -30,6 +30,10 @@ class PortfolioMutationHandler:
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted portfolio fields and try again.",
+            safe_validation_code="PORTFOLIO_INPUT_INVALID",
+            safe_failure_message="The portfolio change could not be completed. Try again or refresh the workspace.",
+            safe_failure_code="PORTFOLIO_MUTATION_FAILED",
         )
 
     def create_template(self, payload: dict) -> dict[str, object]:

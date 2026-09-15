@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.ui_qml.modules.project_management.controllers.common import (
+    safe_error_message,
     serialize_timesheet_detail_view_model,
 )
 
@@ -96,7 +97,9 @@ def load_queue_period_detail(controller, period_id: str) -> None:
         if controller._selected_queue_period_id == requested_period_id:
             controller._set_review_detail(serialize_timesheet_detail_view_model(review_detail))
     except Exception as exc:
-        controller._set_error_message(str(exc))
+        controller._set_error_message(
+            safe_error_message(exc, safe_message="Review queue details could not be loaded.")
+        )
     finally:
         controller._set_is_loading(False)
 

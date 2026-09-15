@@ -5,7 +5,6 @@ UI_QML_ROOT = Path("src/ui_qml")
 QML_SHARED_ROOT = Path("src/ui_qml/shared/qml/App")
 QML_PLATFORM_CONTROLLERS = Path("src/ui_qml/platform/qml/Platform/Controllers")
 QML_PLATFORM_DIALOGS = Path("src/ui_qml/platform/qml/Platform/Dialogs")
-QML_PLATFORM_WIDGETS = Path("src/ui_qml/platform/qml/Platform/Widgets")
 QML_PM_CONTROLLERS = Path(
     "src/ui_qml/modules/project_management/qml/ProjectManagement/Controllers"
 )
@@ -24,13 +23,19 @@ def test_qml_platform_widgets_module_exists() -> None:
         QML_PLATFORM_DIALOGS / "qmldir",
         Path("src/ui_qml/platform/qml/documents/dialogs/DocumentLinkEditorDialog.qml"),
         Path("src/ui_qml/platform/qml/documents/dialogs/DocumentStructureEditorDialog.qml"),
-        QML_PLATFORM_WIDGETS / "RecordListCard.qml",
         QML_SHARED_ROOT / "Widgets" / "OverviewSectionCard.qml",
         Path("src/ui_qml/platform/qml/documents/DocumentDetailPanel.qml"),
-        QML_PLATFORM_WIDGETS / "qmldir",
     ]
 
     assert all(path.exists() for path in expected_files)
+
+
+def test_platform_widgets_module_was_removed_as_dead_code() -> None:
+    """Platform.Widgets existed solely to host a dead RecordListCard.qml
+    copy (imported once, never instantiated -- the live implementation is
+    ProjectManagement.Widgets.RecordListCard). Phase H removed the whole
+    module rather than leave an empty/misleading namespace behind."""
+    assert not Path("src/ui_qml/platform/qml/Platform/Widgets").exists()
 
 
 def test_qml_project_management_modules_exist() -> None:

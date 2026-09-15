@@ -125,6 +125,10 @@ class PMDependencyController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted dependency fields and try again.",
+            safe_validation_code="TASK_DEPENDENCY_INPUT_INVALID",
+            safe_failure_message="The dependency change could not be completed. Try again or refresh the task.",
+            safe_failure_code="TASK_DEPENDENCY_MUTATION_FAILED",
         )
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -136,6 +140,10 @@ class PMDependencyController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted dependency fields and try again.",
+            safe_validation_code="TASK_DEPENDENCY_INPUT_INVALID",
+            safe_failure_message="The dependency change could not be completed. Try again or refresh the task.",
+            safe_failure_code="TASK_DEPENDENCY_MUTATION_FAILED",
         )
 
     @Slot(str, result="QVariantMap")
@@ -147,6 +155,10 @@ class PMDependencyController(QObject):
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+            safe_validation_message="Review the highlighted dependency fields and try again.",
+            safe_validation_code="TASK_DEPENDENCY_INPUT_INVALID",
+            safe_failure_message="The dependency change could not be completed. Try again or refresh the task.",
+            safe_failure_code="TASK_DEPENDENCY_MUTATION_FAILED",
         )
 
     # ── Non-persisting impact preview (Phase N/N9) ─────────────────────

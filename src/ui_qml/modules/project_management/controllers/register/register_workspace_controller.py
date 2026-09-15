@@ -6,6 +6,7 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
+    safe_error_message,
     serialize_register_collection_view_model,
     serialize_register_detail_view_model,
     serialize_register_overview_view_model,
@@ -279,7 +280,9 @@ class ProjectManagementRegisterWorkspaceController(
             )
             self._set_empty_state(workspace_state.empty_state)
         except Exception as exc:  # pragma: no cover - defensive fallback
-            self._set_error_message(str(exc))
+            self._set_error_message(
+                safe_error_message(exc, safe_message="Register could not be loaded.")
+            )
         finally:
             self._set_is_loading(False)
 

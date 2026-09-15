@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.ui_qml.modules.project_management.controllers.common import (
+    safe_error_message,
     serialize_scheduling_collection_view_model,
 )
 
@@ -16,8 +17,9 @@ def calculate_working_days(controller, payload: dict) -> dict:
     except Exception as exc:
         set_calculator_result(controller, "")
         controller._set_feedback_message("")
-        controller._set_error_message(str(exc))
-        return {"ok": False, "message": str(exc)}
+        message = safe_error_message(exc, safe_message="Working days could not be calculated.")
+        controller._set_error_message(message)
+        return {"ok": False, "message": message}
     set_calculator_result(controller, result)
     controller._set_feedback_message("")
     controller._activity_log_svc.record(
@@ -41,7 +43,9 @@ def load_variance_records_for_baseline(controller, baseline_id: str) -> None:
         serialized = serialize_scheduling_collection_view_model(collection)
         set_baseline_variance_rows(controller, build_baseline_variance_rows(serialized))
     except Exception as exc:
-        controller._set_error_message(str(exc))
+        controller._set_error_message(
+            safe_error_message(exc, safe_message="Baseline variance could not be loaded.")
+        )
     finally:
         controller._set_is_loading(False)
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from src.ui_qml.modules.project_management.controllers.common import safe_error_message
 from src.ui_qml.modules.project_management.presenters.tasks.schedule_impact_builder import (
     build_task_schedule_impact_preview_state,
 )
@@ -56,7 +57,9 @@ def compute_schedule_impact(
             delay_working_days=delay_working_days,
         )
     except Exception as exc:
-        return None, False, str(exc)
+        return None, False, safe_error_message(
+            exc, safe_message="Schedule impact could not be calculated."
+        )
 
     impact["available"] = bool(impact.get("isAvailable"))
     impact["affectedTasks"] = impact.get("rows", [])

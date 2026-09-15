@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.ui_qml.modules.project_management.controllers.common import (
+    safe_error_message,
     serialize_project_record_view_models,
 )
 
@@ -35,8 +36,9 @@ def export_projects(controller, columns: list, file_path: str) -> dict[str, obje
             controller._set_error_message(result.get("error", "Export failed."))
         return result
     except Exception as exc:
-        controller._set_error_message(str(exc))
-        return {"ok": False, "error": str(exc)}
+        message = safe_error_message(exc, safe_message="The export could not be completed.")
+        controller._set_error_message(message)
+        return {"ok": False, "error": message}
 
 
 __all__ = ["export_projects"]

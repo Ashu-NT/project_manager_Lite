@@ -10,7 +10,6 @@ import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Dialogs 1.0 as PlatformDialogs
-import Platform.Widgets 1.0 as PlatformWidgets
 import Shell.Context 1.0 as ShellContexts
 import "components" as Components
 import "sections" as Sections

@@ -27,7 +27,7 @@ Item {
         { id: "parties", label: "Parties", group: "Organization", icon: "party", requiredPermissions: ["settings.manage", "party.read"] },
         { id: "calendars", label: "Calendars", icon: "calendar", requiredPermissions: ["task.read"] },
         { id: "users", label: "Users", group: "Identity & Access", icon: "user", requiredPermissions: ["auth.manage", "auth.read", "access.manage", "security.manage"] },
-        { id: "access", label: "Access", group: "Identity & Access", icon: "access", requiredPermissions: ["access.manage"] },
+        { id: "access", label: "Roles & Access", group: "Identity & Access", icon: "access", requiredPermissions: ["access.manage"] },
         { id: "documents", label: "Documents", group: "Documents", icon: "documents", requiredPermissions: ["settings.manage"] },
         { id: "structures", label: "Structures", group: "Documents", icon: "module", requiredPermissions: ["settings.manage"] },
         { id: "control_approvals", label: "Approvals", group: "Control", icon: "approve", requiredPermissions: ["approval.request", "approval.decide"] },

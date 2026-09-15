@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from datetime import date
 
+from src.core.platform.common.exceptions import DomainError
+
 logger = logging.getLogger(__name__)
 
 
@@ -311,9 +313,10 @@ def _optional_date(value: str) -> date | None:
 
 
 def _lookup_error(exc: Exception) -> dict[str, object]:
+    message = str(exc) if isinstance(exc, DomainError) else "The selector could not be loaded."
     return {
         "ok": False,
-        "message": str(exc) or "The selector could not be loaded.",
+        "message": message or "The selector could not be loaded.",
         "code": str(getattr(exc, "code", "") or ""),
     }
 

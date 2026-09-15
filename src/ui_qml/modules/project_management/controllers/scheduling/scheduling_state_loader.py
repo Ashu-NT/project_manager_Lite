@@ -4,6 +4,7 @@ import logging
 from time import perf_counter
 
 from src.ui_qml.modules.project_management.controllers.common import (
+    safe_error_message,
     serialize_scheduling_overview_view_model,
     serialize_selector_options,
     serialize_workspace_view_model,
@@ -103,7 +104,9 @@ def load_workspace_state(controller) -> None:
         success = True
     except Exception as exc:  # pragma: no cover - defensive fallback
         logger.exception("PM scheduling refresh failed")
-        controller._set_error_message(str(exc))
+        controller._set_error_message(
+            safe_error_message(exc, safe_message="Scheduling data could not be loaded.")
+        )
     finally:
         duration_ms = (perf_counter() - started) * 1000
         log_method = logger.warning if duration_ms > 500 else logger.info

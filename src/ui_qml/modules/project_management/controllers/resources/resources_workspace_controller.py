@@ -6,6 +6,7 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
+    safe_error_message,
     serialize_resource_catalog_overview_view_model,
     serialize_resource_employee_option_view_models,
     serialize_resource_record_view_models,
@@ -603,7 +604,9 @@ class ProjectManagementResourcesWorkspaceController(
             self._set_resource_sort_direction(1 if workspace_state.sort_direction == "desc" else 0)
             refresh_selected_resource_reads(self)
         except Exception as exc:  # pragma: no cover - defensive fallback
-            self._set_error_message(str(exc))
+            self._set_error_message(
+                safe_error_message(exc, safe_message="Resources could not be loaded.")
+            )
         finally:
             self._set_is_loading(False)
 

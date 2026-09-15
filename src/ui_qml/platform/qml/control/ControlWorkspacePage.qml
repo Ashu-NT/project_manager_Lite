@@ -182,12 +182,10 @@ AppLayouts.WorkspaceFrame {
                         Layout.fillWidth:  true
                         searchPlaceholder: "Search approvals..."
                         showFilter:        true
-                        showViews:         true
                         showRefresh:       true
                         isBusy:            root._busy
                         onSearchChanged:   function(text) { state.searchText = text }
                         onFilterClicked:   approvalFilterPopup.open()
-                        onViewsClicked:    approvalViewsPopup.open()
                         onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
                     }
 
@@ -436,45 +434,6 @@ AppLayouts.WorkspaceFrame {
             AppControls.SecondaryButton {
                 Layout.alignment: Qt.AlignRight
                 text: "Close"; onClicked: auditFilterPopup.close()
-            }
-        }
-    }
-
-    // ── Approval views popup ──────────────────────────────────────
-    AppWidgets.AnchoredPopup {
-        id: approvalViewsPopup
-        anchorItem:   approvalToolbar.viewsButtonItem
-        implicitWidth: 220
-        padding:      4
-        closePolicy:  Popup.CloseOnEscape | Popup.CloseOnPressOutside
-
-        background: Rectangle {
-            color: Theme.AppTheme.surfaceRaised; radius: Theme.AppTheme.radiusMd
-            border.color: Theme.AppTheme.divider; border.width: 1
-        }
-
-        Column {
-            width: parent.width; spacing: 2
-
-            Repeater {
-                model: ["Pending Only", "Rejected", "Recent Decisions", "High Risk", "My Reviews"]
-
-                delegate: Rectangle {
-                    required property string modelData
-                    width: parent.width; height: 34
-                    radius: Theme.AppTheme.radiusMd
-                    color:  _viewMA.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
-
-                    AppControls.Label {
-                        anchors { left: parent.left; leftMargin: Theme.AppTheme.spacingMd; verticalCenter: parent.verticalCenter }
-                        text:  modelData; color: Theme.AppTheme.textPrimary
-                        font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize
-                    }
-                    MouseArea {
-                        id: _viewMA; anchors.fill: parent; hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor; onClicked: approvalViewsPopup.close()
-                    }
-                }
             }
         }
     }

@@ -366,7 +366,10 @@ def test_r5e_activity_failure_is_section_error_not_empty_history() -> None:
     load_resource_activity(controller, force=True)
 
     assert controller._resource_activity is old_page
-    assert errors["activity"] == "activity query failed"
+    # Raw exception text must never reach the UI-facing property (Phase H
+    # error-boundary hardening) -- only the safe, sanitized message.
+    assert errors["activity"] == "Activity could not be loaded."
+    assert "activity query failed" not in errors["activity"]
 
 
 def test_r5e_late_activity_response_cannot_replace_new_resource() -> None:

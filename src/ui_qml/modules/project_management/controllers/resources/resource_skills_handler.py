@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from src.ui_qml.modules.project_management.controllers.common import run_mutation
+from src.ui_qml.modules.project_management.controllers.common import (
+    run_mutation,
+    safe_error_message,
+)
 
 
 def set_resource_skills(controller, skills: list[dict[str, object]]) -> None:
@@ -59,7 +62,9 @@ def reload_skills(controller, resource_id: str) -> None:
         controller.resourceSkillsChanged.emit()
     except Exception as exc:
         set_resource_skills(controller, [])
-        controller._set_section_error("skills", str(exc))
+        controller._set_section_error(
+            "skills", safe_error_message(exc, safe_message="Skills could not be loaded.")
+        )
 
 
 def reload_certifications(controller, resource_id: str) -> None:
@@ -106,7 +111,9 @@ def reload_certifications(controller, resource_id: str) -> None:
         controller.resourceCertificationsChanged.emit()
     except Exception as exc:
         set_resource_certifications(controller, [])
-        controller._set_section_error("skills", str(exc))
+        controller._set_section_error(
+            "skills", safe_error_message(exc, safe_message="Certifications could not be loaded.")
+        )
 
 
 def reload_skills_and_certs(controller, resource_id: str) -> None:
@@ -126,7 +133,10 @@ def _mutate(controller, *, operation, message: str, refresh) -> dict[str, object
         set_is_busy=controller._set_is_busy,
         set_error_message=controller._set_error_message,
         set_feedback_message=controller._set_feedback_message,
-        safe_errors=True,
+        safe_validation_message="Review the highlighted resource fields and try again.",
+        safe_validation_code="RESOURCE_INPUT_INVALID",
+        safe_failure_message="The resource change could not be completed. Try again or reload the record.",
+        safe_failure_code="RESOURCE_MUTATION_FAILED",
     )
 
 

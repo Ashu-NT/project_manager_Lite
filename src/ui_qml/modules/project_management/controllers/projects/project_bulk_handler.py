@@ -42,6 +42,10 @@ def bulk_delete_projects(controller, project_ids: list) -> dict[str, object]:
         set_is_busy=controller._set_is_busy,
         set_error_message=controller._set_error_message,
         set_feedback_message=controller._set_feedback_message,
+        safe_validation_message="Review the highlighted project fields and try again.",
+        safe_validation_code="PROJECT_INPUT_INVALID",
+        safe_failure_message="The project change could not be completed. Try again or refresh the workspace.",
+        safe_failure_code="PROJECT_MUTATION_FAILED",
     )
 
 
@@ -57,6 +61,10 @@ def apply_bulk_status(controller, payload: dict[str, object]) -> dict[str, objec
         set_is_busy=controller._set_is_busy,
         set_error_message=controller._set_error_message,
         set_feedback_message=controller._set_feedback_message,
+        safe_validation_message="Review the highlighted project fields and try again.",
+        safe_validation_code="PROJECT_INPUT_INVALID",
+        safe_failure_message="The project change could not be completed. Try again or refresh the workspace.",
+        safe_failure_code="PROJECT_MUTATION_FAILED",
     )
 
 

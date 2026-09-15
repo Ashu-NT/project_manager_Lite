@@ -1,4 +1,3 @@
 module ProjectManagement.Portfolio
-PortfolioWorkspace 1.0 PortfolioWorkspace.qml
 PortfolioWorkspacePage 1.0 PortfolioWorkspacePage.qml
 PortfolioWorkspaceState 1.0 PortfolioWorkspaceState.qml

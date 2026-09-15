@@ -7,6 +7,7 @@ from src.ui_qml.modules.project_management.controllers.common.baseline_domain_ev
     on_project_baseline_stale,
 )
 from src.ui_qml.modules.project_management.controllers.common import (
+    safe_error_message,
     serialize_dashboard_activity_feed_view_model,
     serialize_dashboard_chart_view_models,
     serialize_dashboard_health_card_view_models,
@@ -144,7 +145,9 @@ class DashboardRefreshMixin:
                 self._selected_period_key,
                 self._selected_view_key,
             )
-            self._set_error_message(str(exc))
+            self._set_error_message(
+                safe_error_message(exc, safe_message="Overview could not be loaded.")
+            )
         finally:
             duration_ms = (perf_counter() - started) * 1000
             row_count = int(self._operational_table.get("rowCount", 0) or 0)
