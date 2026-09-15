@@ -503,7 +503,11 @@ Item {
                                                 font.bold: true
 
                                                 HoverHandler { cursorShape: Qt.PointingHandCursor }
-                                                TapHandler { onTapped: detailRoot.activeSectionIndex = 5 }
+                                                // scrollToSection (not a direct activeSectionIndex
+                                                // assignment) so the nav rail's own highlighted
+                                                // item stays in sync -- it owns that state and only
+                                                // updates it through this call or a rail click.
+                                                TapHandler { onTapped: detailPage.scrollToSection(5) }
                                             }
 
                                             AppWidgets.ActivityFeed {
