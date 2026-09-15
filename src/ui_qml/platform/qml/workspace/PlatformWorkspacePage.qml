@@ -27,6 +27,7 @@ Item {
 
     property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
     property ShellContexts.ShellContext shellModel
+    property var breadcrumb: []
 
     // -- Canonical destination state --------------------------------
     // Destination selection is owned by platformCatalog (so it can be
@@ -398,6 +399,7 @@ Item {
                     asynchronous: false
                     sourceComponent: Component {
                         Overview.PlatformOverviewPage {
+                            breadcrumb: root.breadcrumb
                             subtitle: String(root._overview.subtitle || "")
                             isLoading: root.platformCatalog ? root.platformCatalog.adminWorkspace.isLoading : false
                             errorMessage: root.platformCatalog ? root.platformCatalog.adminWorkspace.errorMessage : ""
@@ -433,6 +435,7 @@ Item {
                     sourceComponent: Component {
                         UsersOrg.UsersWorkspacePage {
                             platformCatalog: root.platformCatalog
+                            breadcrumb: root.breadcrumb
                             onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                         }
                     }
@@ -448,6 +451,7 @@ Item {
                     sourceComponent: Component {
                         AccessOrg.AccessWorkspacePage {
                             platformCatalog: root.platformCatalog
+                            breadcrumb: root.breadcrumb
                             onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                         }
                     }
@@ -463,6 +467,7 @@ Item {
                     sourceComponent: Component {
                         DocumentsOrg.DocumentsWorkspacePage {
                             platformCatalog: root.platformCatalog
+                            breadcrumb: root.breadcrumb
                             onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                         }
                     }
@@ -478,6 +483,7 @@ Item {
                     sourceComponent: Component {
                         DocumentsOrg.DocumentStructuresWorkspacePage {
                             platformCatalog: root.platformCatalog
+                            breadcrumb: root.breadcrumb
                             onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                         }
                     }
@@ -493,6 +499,7 @@ Item {
                     sourceComponent: Component {
                         OrganizationsOrg.OrganizationsWorkspacePage {
                             platformCatalog: root.platformCatalog
+                            breadcrumb: root.breadcrumb
                             onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                         }
                     }
@@ -508,6 +515,7 @@ Item {
                     sourceComponent: Component {
                         SitesOrg.SitesWorkspacePage {
                             platformCatalog: root.platformCatalog
+                            breadcrumb: root.breadcrumb
                             onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                             onRelatedRecordRequested: function(destinationId, rowId) {
                                 root._onRelatedRecordRequested(destinationId, rowId)
@@ -526,6 +534,7 @@ Item {
                     sourceComponent: Component {
                         DepartmentsOrg.DepartmentsWorkspacePage {
                             platformCatalog: root.platformCatalog
+                            breadcrumb: root.breadcrumb
                             onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                             onRelatedRecordRequested: function(destinationId, rowId) {
                                 root._onRelatedRecordRequested(destinationId, rowId)
@@ -544,6 +553,7 @@ Item {
                     sourceComponent: Component {
                         EmployeesOrg.EmployeesWorkspacePage {
                             platformCatalog: root.platformCatalog
+                            breadcrumb: root.breadcrumb
                             onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                         }
                     }
@@ -559,6 +569,7 @@ Item {
                     sourceComponent: Component {
                         PartiesOrg.PartiesWorkspacePage {
                             platformCatalog: root.platformCatalog
+                            breadcrumb: root.breadcrumb
                             onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                         }
                     }
@@ -574,6 +585,7 @@ Item {
                     sourceComponent: Component {
                         CalendarsOrg.CalendarsWorkspacePage {
                             platformCatalog: root.platformCatalog
+                            breadcrumb: root.breadcrumb
                             onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                         }
                     }
@@ -589,6 +601,7 @@ Item {
                     sourceComponent: Component {
                         Control.ControlWorkspacePage {
                             platformCatalog: root.platformCatalog
+                            breadcrumb: root.breadcrumb
                             activePanel: root.activeDestination === "control_audit" ? "audit" : "approvals"
                         }
                     }
@@ -604,6 +617,7 @@ Item {
                     sourceComponent: Component {
                         Settings.SettingsWorkspacePage {
                             platformCatalog: root.platformCatalog
+                            breadcrumb: root.breadcrumb
                             shellModel: root.shellModel
                         }
                     }
@@ -619,6 +633,7 @@ Item {
                     sourceComponent: Component {
                         Tenants.TenantManagementWorkspacePage {
                             platformCatalog: root.platformCatalog
+                            breadcrumb: root.breadcrumb
                         }
                     }
                 }

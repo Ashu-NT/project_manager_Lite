@@ -13,6 +13,7 @@ Item {
     property PMControllers.ProjectManagementWorkspaceCatalog pmCatalog
     property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
     property ShellContexts.ShellContext shellModel
+    property var breadcrumb: []
 
     readonly property var _nav: root.pmCatalog ? root.pmCatalog.pmNavigation : null
     readonly property string _activeWorkspaceKey: root._nav ? root._nav.workspaceKey : "dashboard"
@@ -95,6 +96,11 @@ Item {
                                 if ("shellModel" in _capabilityLoader.item) {
                                     _capabilityLoader.item.shellModel = Qt.binding(function() {
                                         return root.shellModel
+                                    })
+                                }
+                                if ("breadcrumb" in _capabilityLoader.item) {
+                                    _capabilityLoader.item.breadcrumb = Qt.binding(function() {
+                                        return root.breadcrumb
                                     })
                                 }
                             }

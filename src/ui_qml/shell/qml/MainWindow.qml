@@ -82,7 +82,6 @@ Item {
             organizationSwitcherController: root.organizationSwitcherController
             notificationsController: root.notificationsController
             sidebarCollapsed: root._globalNavCollapsed
-            breadcrumb: root._breadcrumb
             onToggleSidebar: root._globalNavCollapsed = !root._globalNavCollapsed
             onNotificationsRequested: root._notificationsPanelOpen = true
         }
@@ -168,6 +167,9 @@ Item {
                         }
                         if ("globalOverviewController" in item) {
                             item.globalOverviewController = root.globalOverviewController
+                        }
+                        if ("breadcrumb" in item) {
+                            item.breadcrumb = Qt.binding(function() { return root._breadcrumb })
                         }
                     }
                 }
