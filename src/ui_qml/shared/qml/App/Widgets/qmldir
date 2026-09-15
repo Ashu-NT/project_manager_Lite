@@ -1,6 +1,7 @@
 module App.Widgets
 ActionCenterList 1.0 ActionCenterList.qml
 ActionCenterRow 1.0 ActionCenterRow.qml
+ActionTile 1.0 ActionTile.qml
 ActivityFeed 1.0 ActivityFeed.qml
 AnchoredPopup 1.0 AnchoredPopup.qml
 AppDivider 1.0 AppDivider.qml

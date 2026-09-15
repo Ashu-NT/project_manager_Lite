@@ -94,8 +94,14 @@ Rectangle {
         Item {
             id: contentArea
             Layout.fillWidth: true
-            Layout.preferredHeight: Math.max(childrenRect.height, 0)
-            implicitHeight: Math.max(childrenRect.height, 0)
+            // childrenRect.height is only the content's OWN height, not its
+            // distance from contentArea's top -- a child anchored with
+            // anchors.top + anchors.margins (the standard pattern for content
+            // placed in a SectionCard) sits offset by that margin, and that
+            // offset must be added back or the bottom of the content is
+            // silently clipped by this card's own clip: true.
+            Layout.preferredHeight: Math.max(childrenRect.y + childrenRect.height, 0)
+            implicitHeight: Math.max(childrenRect.y + childrenRect.height, 0)
         }
     }
 }

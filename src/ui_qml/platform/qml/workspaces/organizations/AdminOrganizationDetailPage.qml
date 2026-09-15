@@ -272,19 +272,28 @@ Item {
                                 anchors.left: parent.left
                                 anchors.right: parent.right
                                 anchors.margins: Theme.AppTheme.spacingMd
-                                columns: overviewRoot.width < 900 ? 1 : 2
+                                // overviewRoot.width is the section CONTENT column, already net
+                                // of the shell/platform/detail-page nav rails -- not the window
+                                // width. 640 keeps both 1600x1000 and 1366x768 desktop breakpoints
+                                // two-column while a ~1000px window (content ~290px) still stacks.
+                                columns: overviewRoot.width < 640 ? 1 : 2
                                 columnSpacing: Theme.AppTheme.spacingMd
                                 rowSpacing: Theme.AppTheme.spacingMd
 
                                 // -- Main column: Basic Information / Registered Address / Contact
+                                // ~2/3 width on desktop; content-driven height only -- never a
+                                // fixed/computed override that can under-report a card's real
+                                // height and get clipped by SectionCard's own clip: true.
                                 ColumnLayout {
                                     Layout.fillWidth: true
+                                    Layout.preferredWidth: overviewGrid.columns === 2
+                                        ? Math.round(overviewGrid.width * 0.66)
+                                        : overviewGrid.width
                                     Layout.alignment: Qt.AlignTop
                                     spacing: Theme.AppTheme.spacingMd
 
                                     AppWidgets.SectionCard {
                                         Layout.fillWidth: true
-                                        implicitHeight: basicInfoGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
                                         title: "Basic Information"
                                         outlined: true
 
@@ -328,7 +337,6 @@ Item {
 
                                     AppWidgets.SectionCard {
                                         Layout.fillWidth: true
-                                        implicitHeight: addressGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
                                         title: "Registered Address"
                                         outlined: true
 
@@ -372,7 +380,6 @@ Item {
 
                                     AppWidgets.SectionCard {
                                         Layout.fillWidth: true
-                                        implicitHeight: contactGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
                                         title: "Contact Information"
                                         outlined: true
 
@@ -415,15 +422,17 @@ Item {
                                     }
                                 }
 
-                                // -- Summary rail: statistics + activity + actions
+                                // -- Summary rail: statistics + activity + actions (~1/3 width)
                                 ColumnLayout {
                                     Layout.fillWidth: true
+                                    Layout.preferredWidth: overviewGrid.columns === 2
+                                        ? overviewGrid.width - Math.round(overviewGrid.width * 0.66) - overviewGrid.columnSpacing
+                                        : overviewGrid.width
                                     Layout.alignment: Qt.AlignTop
                                     spacing: Theme.AppTheme.spacingMd
 
                                     AppWidgets.SectionCard {
                                         Layout.fillWidth: true
-                                        implicitHeight: statsGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
                                         title: "Key Statistics"
                                         outlined: true
 
@@ -474,7 +483,6 @@ Item {
 
                                     AppWidgets.SectionCard {
                                         Layout.fillWidth: true
-                                        implicitHeight: activityColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
                                         title: "Recent Activity"
                                         outlined: true
 
@@ -505,69 +513,67 @@ Item {
                                             }
                                         }
                                     }
+                                }
+                            }
+                        }
 
-                                    AppWidgets.SectionCard {
-                                        Layout.fillWidth: true
-                                        visible: detailRoot._relatedActions.length > 0
-                                        implicitHeight: actionsColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
-                                        title: "Related Actions"
-                                        outlined: true
+                        // -- Related Actions: full content width (not confined to the
+                        // ~1/3 summary rail) so its tiles get real room to lay out
+                        // horizontally instead of always falling back to a stack.
+                        Item {
+                            width: overviewRoot.width
+                            implicitHeight: detailRoot._relatedActions.length > 0
+                                ? relatedActionsCard.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                : 0
+                            visible: detailRoot._relatedActions.length > 0
 
-                                        ColumnLayout {
-                                            id: actionsColumn
-                                            anchors.left: parent.left
-                                            anchors.right: parent.right
-                                            anchors.top: parent.top
-                                            anchors.margins: Theme.AppTheme.marginMd
-                                            spacing: Theme.AppTheme.spacingXs
+                            AppWidgets.SectionCard {
+                                id: relatedActionsCard
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: Theme.AppTheme.spacingMd
+                                title: "Related Actions"
+                                outlined: true
 
-                                            Repeater {
-                                                model: detailRoot._relatedActions
+                                GridLayout {
+                                    id: actionsGrid
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    anchors.margins: Theme.AppTheme.marginMd
+                                    columnSpacing: Theme.AppTheme.spacingSm
+                                    rowSpacing: Theme.AppTheme.spacingSm
+                                    // Responsive tiling driven by the card's own available
+                                    // width (a container query, not a window breakpoint):
+                                    // one row if every tile fits at its minimum readable
+                                    // width, else a 2-column wrap, else a single column.
+                                    readonly property int _minTileWidth: 150
+                                    readonly property int _actionCount: detailRoot._relatedActions.length
+                                    columns: {
+                                        if (actionsGrid._actionCount <= 1) return 1
+                                        const perRow = Math.max(
+                                            1,
+                                            Math.floor(
+                                                (actionsGrid.width + actionsGrid.columnSpacing)
+                                                / (actionsGrid._minTileWidth + actionsGrid.columnSpacing)
+                                            )
+                                        )
+                                        if (perRow >= actionsGrid._actionCount) return actionsGrid._actionCount
+                                        return perRow >= 2 ? 2 : 1
+                                    }
 
-                                                delegate: Item {
-                                                    id: actionRow
-                                                    required property var modelData
+                                    Repeater {
+                                        model: detailRoot._relatedActions
 
-                                                    Layout.fillWidth: true
-                                                    implicitHeight: Theme.AppTheme.normalRowHeight
+                                        delegate: AppWidgets.ActionTile {
+                                            required property var modelData
+                                            Layout.fillWidth: true
 
-                                                    activeFocusOnTab: true
-                                                    Accessible.role: Accessible.Button
-                                                    Accessible.name: String(actionRow.modelData.label || "")
-                                                    Accessible.onPressAction: detailRoot.navigateToDestination(actionRow.modelData.id)
-                                                    Keys.onPressed: (event) => {
-                                                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
-                                                            detailRoot.navigateToDestination(actionRow.modelData.id)
-                                                            event.accepted = true
-                                                        }
-                                                    }
+                                            label: String(modelData.label || "")
+                                            iconName: String(modelData.icon || "")
 
-                                                    Rectangle {
-                                                        anchors.fill: parent
-                                                        radius: Theme.AppTheme.radiusSm
-                                                        color: (actionRow.activeFocus || _rowHover.hovered)
-                                                            ? Theme.AppTheme.hoverSurface : "transparent"
-                                                    }
-
-                                                    RowLayout {
-                                                        anchors.fill: parent
-                                                        anchors.leftMargin: Theme.AppTheme.spacingXs
-                                                        anchors.rightMargin: Theme.AppTheme.spacingXs
-                                                        spacing: Theme.AppTheme.spacingSm
-
-                                                        AppControls.Label {
-                                                            Layout.fillWidth: true
-                                                            text: String(actionRow.modelData.label || "")
-                                                            color: Theme.AppTheme.accent
-                                                            font.pixelSize: Theme.AppTheme.smallSize
-                                                            font.bold: true
-                                                        }
-                                                    }
-
-                                                    HoverHandler { id: _rowHover; cursorShape: Qt.PointingHandCursor }
-                                                    TapHandler { onTapped: detailRoot.navigateToDestination(actionRow.modelData.id) }
-                                                }
-                                            }
+                                            onActivated: detailRoot.navigateToDestination(String(modelData.id || ""))
                                         }
                                     }
                                 }
