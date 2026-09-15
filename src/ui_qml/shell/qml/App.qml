@@ -8,6 +8,7 @@ ApplicationWindow {
     property ShellContexts.ShellContext shellModel
     property var platformCatalog
     property var pmCatalog
+    property var globalOverviewController
 
     width: 1280
     height: 800
@@ -36,5 +37,6 @@ ApplicationWindow {
         shellModel: app.shellModel
         platformCatalog: app.platformCatalog
         pmCatalog: app.pmCatalog
+        globalOverviewController: app.globalOverviewController
     }
 }

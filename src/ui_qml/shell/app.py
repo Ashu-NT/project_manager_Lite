@@ -22,7 +22,11 @@ from src.infra.platform.resource import resource_path
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.shell.context import build_shell_context, update_shell_runtime_state
+from src.ui_qml.shell.controllers.global_overview.global_overview_controller import (
+    GlobalOverviewController,
+)
 from src.ui_qml.shell.login import ShellLoginController
+from src.ui_qml.shell.presenters.global_overview_presenter import GlobalOverviewPresenter
 from src.ui_qml.shell.main_window import build_main_window_navigation
 from src.ui_qml.shell.qml_engine import (
     create_qml_engine,
@@ -191,6 +195,18 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         ),
     )
     logger.debug("Project Management workspace catalog created.")
+    global_overview_controller = None
+    global_overview_api = (
+        getattr(desktop_api_registry, "global_overview", None)
+        if desktop_api_registry is not None
+        else None
+    )
+    if global_overview_api is not None:
+        global_overview_controller = GlobalOverviewController(
+            presenter=GlobalOverviewPresenter(api=global_overview_api),
+            shell_context=shell_context,
+        )
+        logger.debug("Global Overview controller created.")
     platform_workspace_catalog.tenantSwitcher.tenantSwitched.connect(
         pm_workspace_catalog.refreshAllWorkspaces
     )
@@ -246,6 +262,7 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
             "shellModel": shell_context,
             "platformCatalog": platform_workspace_catalog,
             "pmCatalog": pm_workspace_catalog,
+            "globalOverviewController": global_overview_controller,
         },
     )
     if runtime_session_controller is not None:

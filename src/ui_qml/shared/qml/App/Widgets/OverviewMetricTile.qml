@@ -4,11 +4,12 @@ import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 import App.Controls 1.0 as AppControls
 
-// A single elevated KPI card -- one per Platform Overview metric, replacing
-// the old single-strip-of-pills look with individually-scannable tiles.
-// Platform-Overview-specific (not App.Widgets.KpiStrip) so this visual
-// treatment doesn't ripple into Control/Settings' own KPI strips, which
-// still use the shared component unchanged.
+// A single elevated KPI card. Originally Platform-Overview-specific, promoted
+// to App.Widgets once a second consumer (Global Overview's Attention cards)
+// needed the identical visual treatment. `clickable` doubles as the
+// informational/interactive switch: when false, no hover border change, no
+// pointing-hand cursor, and no tap handling -- callers that are purely
+// informational (Global Overview's Attention cards) simply never set it.
 Rectangle {
     id: root
 

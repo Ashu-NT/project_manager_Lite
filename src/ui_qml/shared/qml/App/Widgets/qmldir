@@ -1,4 +1,6 @@
 module App.Widgets
+ActionCenterList 1.0 ActionCenterList.qml
+ActionCenterRow 1.0 ActionCenterRow.qml
 ActivityFeed 1.0 ActivityFeed.qml
 AnchoredPopup 1.0 AnchoredPopup.qml
 AppDivider 1.0 AppDivider.qml
@@ -23,7 +25,9 @@ LazySectionLoader 1.0 LazySectionLoader.qml
 LazyObjectLoader 1.0 LazyObjectLoader.qml
 LoadingOverlay 1.0 LoadingOverlay.qml
 MetricCard 1.0 MetricCard.qml
+ModuleCard 1.0 ModuleCard.qml
 NavOverflowMenu 1.0 NavOverflowMenu.qml
+OverviewMetricTile 1.0 OverviewMetricTile.qml
 OverviewSectionCard 1.0 OverviewSectionCard.qml
 PageHeader 1.0 PageHeader.qml
 PermissionState 1.0 PermissionState.qml

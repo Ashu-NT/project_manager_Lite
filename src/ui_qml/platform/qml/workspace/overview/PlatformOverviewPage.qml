@@ -58,7 +58,7 @@ AppLayouts.WorkspaceFrame {
                 Repeater {
                     model: root.metrics
 
-                    delegate: OverviewMetricTile {
+                    delegate: AppWidgets.OverviewMetricTile {
                         id: _tile
                         required property var modelData
                         required property int index
