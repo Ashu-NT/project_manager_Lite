@@ -36,6 +36,12 @@ def serialize_workspace_overview(overview) -> dict[str, object]:
             for section in overview.sections
         ],
         "breakdownCards": list(getattr(overview, "breakdown_cards", ())),
+        "recentActivity": list(getattr(overview, "recent_activity", ())),
+        "approvalActions": (
+            serialize_action_list(overview.approval_actions)
+            if getattr(overview, "approval_actions", None) is not None
+            else {"title": "", "subtitle": "", "emptyState": "", "items": []}
+        ),
     }
 
 def serialize_action_list(list_view_model) -> dict[str, object]:

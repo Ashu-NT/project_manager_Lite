@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
+from src.core.platform.api.desktop.history.audit.audit_enterprise import PlatformEnterpriseAuditDesktopApi
 from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
 from src.core.platform.api.desktop.master_data.documents.document import PlatformDocumentDesktopApi
 from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
@@ -7,12 +9,22 @@ from src.core.platform.api.desktop.master_data.party.party import PlatformPartyD
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
+from src.core.platform.domain.approval import ApprovalStatus
+from src.ui_qml.platform.presenters.control.control_queue_presenter import PlatformControlQueuePresenter
 from src.ui_qml.platform.view_models import (
     PlatformMetricViewModel,
     PlatformWorkspaceOverviewViewModel,
     PlatformWorkspaceRowViewModel,
     PlatformWorkspaceSectionViewModel,
 )
+
+_SEVERITY_TONE: dict[str, str] = {
+    "critical": "danger",
+    "high": "danger",
+    "medium": "warning",
+    "low": "neutral",
+}
 
 
 class _HeadcountSummary:
@@ -76,6 +88,9 @@ class PlatformAdminWorkspacePresenter:
         user_api: PlatformUserDesktopApi | None = None,
         document_api: PlatformDocumentDesktopApi | None = None,
         party_api: PlatformPartyDesktopApi | None = None,
+        approval_api: PlatformApprovalDesktopApi | None = None,
+        audit_api: PlatformEnterpriseAuditDesktopApi | None = None,
+        tenant_api: PlatformTenantDesktopApi | None = None,
     ) -> None:
         self._runtime_api = runtime_api
         self._site_api = site_api
@@ -84,18 +99,38 @@ class PlatformAdminWorkspacePresenter:
         self._user_api = user_api
         self._document_api = document_api
         self._party_api = party_api
+        self._approval_api = approval_api
+        self._audit_api = audit_api
+        self._tenant_api = tenant_api
+        self._queue_presenter = PlatformControlQueuePresenter(
+            approval_api=approval_api,
+            audit_api=audit_api,
+        )
 
     def build_overview(self) -> PlatformWorkspaceOverviewViewModel:
         runtime_result = self._runtime_api.get_runtime_context() if self._runtime_api is not None else None
         if runtime_result is not None and (not runtime_result.ok or runtime_result.data is None):
             message = runtime_result.error.message if runtime_result.error is not None else "Unknown platform API error"
             return PlatformWorkspaceOverviewViewModel(
-                title="Admin Console",
+                title="Platform Overview",
                 subtitle=message,
                 status_label="Error",
             )
 
         runtime_context = runtime_result.data if runtime_result is not None else None
+        if runtime_context is None:
+            return PlatformWorkspaceOverviewViewModel(
+                title="Platform Overview",
+                subtitle="Platform desktop APIs are not connected in this QML preview.",
+                status_label="Preview",
+                metrics=(
+                    PlatformMetricViewModel("Organizations", "0", "API not connected"),
+                    PlatformMetricViewModel("Users", "0", "API not connected"),
+                    PlatformMetricViewModel("Pending approvals", "0", "API not connected"),
+                    PlatformMetricViewModel("Documents", "0", "API not connected"),
+                ),
+            )
+
         organization_count = self._organization_count(
             self._runtime_api.get_organization_count() if self._runtime_api is not None else None
         )
@@ -117,137 +152,129 @@ class PlatformAdminWorkspacePresenter:
         party_summary = self._party_summary(
             self._party_api.get_party_rollup_summary() if self._party_api is not None else None
         )
-        department_breakdown = self._breakdown_rows(
-            self._employee_api.get_department_breakdown() if self._employee_api is not None else None
+
+        approval_actions = self._queue_presenter.build_approval_queue(status=ApprovalStatus.PENDING)
+        pending_approval_count = len(approval_actions.items)
+        recent_activity = self._recent_activity()
+        active_tenant = self._active_tenant()
+
+        organization_snapshot = PlatformWorkspaceSectionViewModel(
+            title="Organization Snapshot",
+            rows=(
+                PlatformWorkspaceRowViewModel("Sites", str(site_summary.total), f"{site_summary.active} active"),
+                PlatformWorkspaceRowViewModel(
+                    "Departments", str(department_summary.total), f"{department_summary.active} active"
+                ),
+                PlatformWorkspaceRowViewModel("Employees", str(headcount.total), f"{headcount.active} active"),
+                PlatformWorkspaceRowViewModel("Parties", str(party_summary.total), f"{party_summary.active} active"),
+            ),
+            empty_state="No organizational structure recorded yet.",
         )
-        site_breakdown = self._breakdown_rows(
-            self._employee_api.get_site_breakdown() if self._employee_api is not None else None
+
+        access_security = PlatformWorkspaceSectionViewModel(
+            title="Access & Security",
+            rows=(
+                PlatformWorkspaceRowViewModel(
+                    "User accounts", str(user_summary.total), f"{user_summary.active} active"
+                ),
+                PlatformWorkspaceRowViewModel(
+                    "Locked accounts",
+                    str(user_summary.locked),
+                    "Requires attention" if user_summary.locked > 0 else "No locked accounts",
+                ),
+            ),
+            empty_state="No user accounts recorded yet.",
         )
 
-        if runtime_context is None:
-            return PlatformWorkspaceOverviewViewModel(
-                title="Admin Console",
-                subtitle="Platform desktop APIs are not connected in this QML preview.",
-                status_label="Preview",
-                metrics=(
-                    PlatformMetricViewModel("Organizations", "0", "API not connected"),
-                    PlatformMetricViewModel("Sites", "0", "API not connected"),
-                    PlatformMetricViewModel("Departments", "0", "API not connected"),
-                    PlatformMetricViewModel("Employees", "0", "API not connected"),
-                ),
-            )
+        module_tenant_rows = list(self._module_tenant_rows(runtime_context, active_tenant))
+        module_tenant_status = PlatformWorkspaceSectionViewModel(
+            title="Module & Tenant Status",
+            rows=tuple(module_tenant_rows),
+            empty_state="No module or tenant information available yet.",
+        )
 
-        active_user_count = user_summary.active
-        locked_user_count = user_summary.locked
-        active_employee_count = headcount.active
-        active_site_count = site_summary.active
-        active_department_count = department_summary.active
-        active_party_count = party_summary.active
-        current_document_count = document_summary.current
-
-        breakdown_cards = (
+        documents_glance = (
             {
-                "title": "Employees by Department",
-                "rows": tuple(
+                "title": "Documents at a glance",
+                "rows": (
+                    {"label": "Documents", "value": str(document_summary.total), "supportingText": ""},
                     {
-                        "label": row.department_name,
-                        "value": str(row.total),
-                        "supportingText": f"{row.active} active",
-                    }
-                    for row in department_breakdown
+                        "label": "Current",
+                        "value": str(document_summary.current),
+                        "supportingText": "Marked current",
+                    },
                 ),
-                "emptyState": "No departments to show yet.",
-            },
-            {
-                "title": "Employees by Site",
-                "rows": tuple(
-                    {
-                        "label": row.site_name,
-                        "value": str(row.total),
-                        "supportingText": f"{row.active} active",
-                    }
-                    for row in site_breakdown
-                ),
-                "emptyState": "No sites to show yet.",
+                "emptyState": "No documents recorded yet.",
             },
         )
 
         return PlatformWorkspaceOverviewViewModel(
-            title="Admin Console",
-            subtitle=f"{runtime_context.context_label} | grouped platform administration in QML",
+            title="Platform Overview",
+            subtitle="Manage shared administration, master data, and governance across the organization.",
             status_label="Connected",
-            breakdown_cards=breakdown_cards,
             metrics=(
-                PlatformMetricViewModel("Organizations", str(organization_count), "Install profiles"),
-                PlatformMetricViewModel("Sites", str(active_site_count), "Active operating sites"),
-                PlatformMetricViewModel("Departments", str(active_department_count), "Active structures"),
-                PlatformMetricViewModel("Employees", str(active_employee_count), "Active workforce records"),
-                PlatformMetricViewModel("Users", str(active_user_count), "Active sign-in accounts"),
-                PlatformMetricViewModel("Documents", str(current_document_count), "Current controlled records"),
+                PlatformMetricViewModel("Organizations", str(organization_count), "Across the platform"),
+                PlatformMetricViewModel("Users", str(user_summary.active), "Active sign-in accounts"),
+                PlatformMetricViewModel(
+                    "Pending approvals", str(pending_approval_count), "Requests awaiting decision"
+                ),
+                PlatformMetricViewModel("Documents", str(document_summary.current), "Current controlled records"),
             ),
-            sections=(
-                PlatformWorkspaceSectionViewModel(
-                    title="Runtime Context",
-                    rows=(
-                        PlatformWorkspaceRowViewModel(
-                            "Active organization",
-                            runtime_context.active_organization.display_name if runtime_context.active_organization is not None else "None",
-                            runtime_context.shell_summary,
-                        ),
-                        PlatformWorkspaceRowViewModel(
-                            "Licensed modules",
-                            str(len(runtime_context.licensed_modules)),
-                            "Modules available to the current organization",
-                        ),
-                        PlatformWorkspaceRowViewModel(
-                            "Enabled modules",
-                            str(len(runtime_context.enabled_modules)),
-                            "Modules currently active in the runtime context",
-                        ),
-                    ),
-                ),
-                PlatformWorkspaceSectionViewModel(
-                    title="Identity And Workforce",
-                    rows=(
-                        PlatformWorkspaceRowViewModel(
-                            "Users",
-                            str(user_summary.total),
-                            f"{locked_user_count} locked, {active_user_count} active",
-                        ),
-                        PlatformWorkspaceRowViewModel(
-                            "Employees",
-                            str(headcount.total),
-                            f"{active_employee_count} active employee records",
-                        ),
-                        PlatformWorkspaceRowViewModel(
-                            "Departments",
-                            str(department_summary.total),
-                            f"{active_department_count} active departments across the platform",
-                        ),
-                    ),
-                ),
-                PlatformWorkspaceSectionViewModel(
-                    title="Master Data Coverage",
-                    rows=(
-                        PlatformWorkspaceRowViewModel(
-                            "Sites",
-                            str(site_summary.total),
-                            ", ".join(site_summary.sample_names) or "No sites configured yet",
-                        ),
-                        PlatformWorkspaceRowViewModel(
-                            "Parties",
-                            str(party_summary.total),
-                            f"{active_party_count} active supplier/customer/partner records",
-                        ),
-                        PlatformWorkspaceRowViewModel(
-                            "Documents",
-                            str(document_summary.total),
-                            f"{current_document_count} marked current across controlled records",
-                        ),
-                    ),
-                ),
-            ),
+            sections=(organization_snapshot, access_security, module_tenant_status),
+            breakdown_cards=documents_glance,
+            recent_activity=recent_activity,
+            approval_actions=approval_actions,
         )
+
+    def _recent_activity(self) -> tuple[dict, ...]:
+        if self._audit_api is None:
+            return ()
+        items = self._audit_api.list_for_overview(limit=5)
+        return tuple(
+            {**item, "tone": _SEVERITY_TONE.get(str(item.get("statusLabel", "")).lower(), "neutral")}
+            for item in items
+        )
+
+    def _active_tenant(self) -> object | None:
+        if self._tenant_api is None:
+            return None
+        result = self._tenant_api.get_active_tenant()
+        if not getattr(result, "ok", False):
+            return None
+        return getattr(result, "data", None)
+
+    @staticmethod
+    def _module_tenant_rows(runtime_context, active_tenant) -> tuple[PlatformWorkspaceRowViewModel, ...]:
+        rows: list[PlatformWorkspaceRowViewModel] = []
+        if active_tenant is not None:
+            rows.append(
+                PlatformWorkspaceRowViewModel(
+                    "Tenant",
+                    str(getattr(active_tenant, "display_name", "") or ""),
+                    str(getattr(active_tenant, "tenant_status", "") or "").replace("_", " ").title(),
+                )
+            )
+        rows.append(
+            PlatformWorkspaceRowViewModel(
+                "Licensed modules", str(len(runtime_context.licensed_modules)), "Available under the current license"
+            )
+        )
+        rows.append(
+            PlatformWorkspaceRowViewModel(
+                "Enabled modules", str(len(runtime_context.enabled_modules)), "Active in this runtime context"
+            )
+        )
+        for entitlement in runtime_context.entitlements:
+            if not entitlement.licensed:
+                continue
+            rows.append(
+                PlatformWorkspaceRowViewModel(
+                    entitlement.label,
+                    entitlement.lifecycle_label,
+                    "Needs attention" if entitlement.lifecycle_alert else "",
+                )
+            )
+        return tuple(rows)
 
     @staticmethod
     def _headcount_summary(result: object | None) -> _HeadcountSummary:
@@ -282,12 +309,6 @@ class PlatformAdminWorkspacePresenter:
             return _PartySummary(total=0, active=0)
         data = result.data
         return _PartySummary(total=data.total, active=data.active)
-
-    @staticmethod
-    def _breakdown_rows(result: object | None) -> tuple:
-        if result is None or not getattr(result, "ok", False) or getattr(result, "data", None) is None:
-            return ()
-        return tuple(result.data)
 
     @staticmethod
     def _document_summary(result: object | None) -> _DocumentSummary:

@@ -15,6 +15,10 @@ Item {
 
     property var    items:     []
     property string emptyText: "No activity recorded"
+    // Opt-in: makes every row clickable regardless of a per-row `routeId`
+    // (e.g. a caller that navigates by row index rather than by route).
+    // Existing consumers that rely on `routeId` presence are unaffected.
+    property bool   rowsActivatable: false
 
     signal itemActivated(var item)
 
@@ -49,6 +53,30 @@ Item {
             readonly property string _status: String(_row.modelData.statusLabel || "")
             readonly property string _tone:   String(_row.modelData.tone || "")
             readonly property bool _clickable: String(_row.modelData.routeId || "").length > 0
+                || root.rowsActivatable
+
+            activeFocusOnTab: _row._clickable
+            Accessible.role: _row._clickable ? Accessible.Button : Accessible.StaticText
+            Accessible.name: _row._clickable
+                ? (String(_row.modelData.title || "") + (_row._status.length > 0 ? ", " + _row._status : ""))
+                : ""
+            Accessible.onPressAction: if (_row._clickable) root.itemActivated(_row.modelData)
+
+            Keys.onPressed: (event) => {
+                if (!_row._clickable) {
+                    return
+                }
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                    root.itemActivated(_row.modelData)
+                    event.accepted = true
+                }
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                visible: _row._clickable && (_row.activeFocus || _rowHover.hovered)
+                color: Theme.AppTheme.hoverSurface
+            }
 
             Rectangle {
                 id: _dot
@@ -120,11 +148,15 @@ Item {
                 }
             }
 
-            MouseArea {
-                anchors.fill: parent
+            HoverHandler {
+                id: _rowHover
                 enabled: _row._clickable
                 cursorShape: _row._clickable ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: root.itemActivated(_row.modelData)
+            }
+
+            TapHandler {
+                enabled: _row._clickable
+                onTapped: root.itemActivated(_row.modelData)
             }
         }
     }

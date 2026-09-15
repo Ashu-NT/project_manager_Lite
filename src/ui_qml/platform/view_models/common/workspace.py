@@ -30,6 +30,8 @@ class PlatformWorkspaceOverviewViewModel:
     metrics: tuple[PlatformMetricViewModel, ...] = field(default_factory=tuple)
     sections: tuple[PlatformWorkspaceSectionViewModel, ...] = field(default_factory=tuple)
     breakdown_cards: tuple[dict, ...] = field(default_factory=tuple)
+    recent_activity: tuple[dict, ...] = field(default_factory=tuple)
+    approval_actions: PlatformWorkspaceActionListViewModel | None = None
 
 @dataclass(frozen=True)
 class PlatformWorkspaceActionItemViewModel:

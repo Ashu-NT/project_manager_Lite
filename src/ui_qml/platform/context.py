@@ -128,6 +128,9 @@ class PlatformWorkspaceCatalog(QObject):
         user_api = getattr(desktop_api_registry, "platform_user", None)
         document_api = getattr(desktop_api_registry, "platform_document", None)
         party_api = getattr(desktop_api_registry, "platform_party", None)
+        approval_api = getattr(desktop_api_registry, "platform_approval", None)
+        audit_api = getattr(desktop_api_registry, "platform_enterprise_audit", None)
+        tenant_api = getattr(desktop_api_registry, "platform_tenant", None) if desktop_api_registry is not None else None
         admin_overview_presenter = PlatformAdminWorkspacePresenter(
             runtime_api=runtime_api,
             site_api=site_api,
@@ -136,14 +139,17 @@ class PlatformWorkspaceCatalog(QObject):
             user_api=user_api,
             document_api=document_api,
             party_api=party_api,
+            approval_api=approval_api,
+            audit_api=audit_api,
+            tenant_api=tenant_api,
         )
         control_presenter = PlatformControlWorkspacePresenter(
-            approval_api=getattr(desktop_api_registry, "platform_approval", None),
-            audit_api=getattr(desktop_api_registry, "platform_enterprise_audit", None),
+            approval_api=approval_api,
+            audit_api=audit_api,
         )
         control_queue_presenter = PlatformControlQueuePresenter(
-            approval_api=getattr(desktop_api_registry, "platform_approval", None),
-            audit_api=getattr(desktop_api_registry, "platform_enterprise_audit", None),
+            approval_api=approval_api,
+            audit_api=audit_api,
         )
         settings_presenter = PlatformSettingsWorkspacePresenter(runtime_api=runtime_api)
         settings_catalog_presenter = PlatformSettingsCatalogPresenter(
@@ -201,7 +207,6 @@ class PlatformWorkspaceCatalog(QObject):
             runtime_api=runtime_api,
             parent=self,
         )
-        tenant_api = getattr(desktop_api_registry, "platform_tenant", None) if desktop_api_registry is not None else None
         self._tenant_switcher = TenantSwitcherController(
             TenantSwitcherPresenter(tenant_api=tenant_api),
             self,

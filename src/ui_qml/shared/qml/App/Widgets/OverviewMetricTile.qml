@@ -33,10 +33,29 @@ Rectangle {
     implicitHeight: _layout.implicitHeight + root._margin * 2
     radius: Theme.AppTheme.radiusLg
     color: Theme.AppTheme.surfaceRaised
-    border.width: 1
-    border.color: _hover.hovered && root.clickable ? Theme.AppTheme.accent : Theme.AppTheme.subtleBorder
+    border.width: root.clickable && root.activeFocus ? 2 : 1
+    border.color: (root.clickable && (root.activeFocus || _hover.hovered))
+        ? Theme.AppTheme.accent
+        : Theme.AppTheme.subtleBorder
 
     Behavior on border.color { ColorAnimation { duration: 120 } }
+
+    activeFocusOnTab: root.clickable
+    Accessible.role: root.clickable ? Accessible.Button : Accessible.StaticText
+    Accessible.name: root.clickable
+        ? (root.label + ", " + root.value + (root.supportingText.length > 0 ? ", " + root.supportingText : ""))
+        : ""
+    Accessible.onPressAction: if (root.clickable) root.activated()
+
+    Keys.onPressed: (event) => {
+        if (!root.clickable) {
+            return
+        }
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+            root.activated()
+            event.accepted = true
+        }
+    }
 
     readonly property color _valueColor: {
         if (root.colorHint === "success") return Theme.AppTheme.success

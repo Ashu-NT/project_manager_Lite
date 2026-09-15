@@ -192,31 +192,62 @@ Item {
 
     // -- Overview -------------------------------------------------
     // All figures below are read directly from already-backed, already-
-    // refreshed controller state (admin_presenter.build_overview() and
-    // Control's approval queue) -- no new backend, no invented metrics.
+    // refreshed controller state (admin_presenter.build_overview(), which
+    // itself composes the runtime, master-data, approval, audit, and
+    // tenant desktop APIs) -- no new backend, no invented metrics.
     readonly property var _overview: root.platformCatalog
         ? (root.platformCatalog.adminWorkspace.overview || {})
         : {}
 
-    readonly property var _overviewMetrics: root._overview.metrics || []
+    readonly property var _overviewMetrics: {
+        const metrics = root._overview.metrics || []
+        const enriched = []
+        for (let i = 0; i < metrics.length; i += 1) {
+            const metric = metrics[i]
+            const destination = root._destinationByLabel[String(metric.label || "")]
+            enriched.push(Object.assign({}, metric, {
+                "clickable": !!destination && root._isDestinationAccessible(destination)
+            }))
+        }
+        return enriched
+    }
 
-    // Metric label -> Platform destination id, for click-to-navigate.
-    readonly property var _metricDestinationByLabel: ({
+    // Metric/row label -> Platform destination id, for click-to-navigate.
+    readonly property var _destinationByLabel: ({
         "Organizations": "organizations",
         "Sites": "sites",
         "Departments": "departments",
         "Employees": "employees",
+        "Parties": "parties",
         "Users": "users",
+        "Pending approvals": "control_approvals",
         "Documents": "documents"
     })
 
-    readonly property int _pendingApprovalsCount: root.platformCatalog
-        ? (root.platformCatalog.controlWorkspace.approvalQueue.items || []).length
-        : 0
+    // A destination is only ever offered as a click target when it is
+    // actually present in the already-permission-filtered Context
+    // Navigation Tree -- the same accessibility source the sidebar itself
+    // uses, never a raw permission code re-derived in QML.
+    function _isDestinationAccessible(destinationId) {
+        const groups = (root.platformCatalog && root.platformCatalog.contextNavigation) || []
+        for (let g = 0; g < groups.length; g += 1) {
+            const items = groups[g].items || []
+            for (let i = 0; i < items.length; i += 1) {
+                if (items[i].id === destinationId) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
 
-    // Sections were already computed by admin_overview_presenter.py (real
-    // SQL-backed totals) but had no QML consumer before this redesign --
-    // surfaced here as extra highlight cards rather than left unused.
+    function _navigateByLabel(label) {
+        const destination = root._destinationByLabel[label]
+        if (destination && root._isDestinationAccessible(destination)) {
+            root._selectDestination(destination)
+        }
+    }
+
     function _overviewSectionByTitle(title) {
         const sections = root._overview.sections || []
         for (let i = 0; i < sections.length; i += 1) {
@@ -227,49 +258,67 @@ Item {
         return null
     }
 
-    readonly property var _overviewHighlightCards: {
-        const cards = [
-            {
-                "title": "Pending Approvals",
-                "rows": [
-                    { "label": "Open", "value": String(root._pendingApprovalsCount), "supportingText": "Awaiting review" }
-                ]
-            }
-        ]
-        const identitySection = root._overviewSectionByTitle("Identity And Workforce")
-        if (identitySection) {
-            cards.push({
-                "title": identitySection.title,
-                "rows": identitySection.rows,
-                "emptyState": identitySection.emptyState
-            })
+    readonly property var _organizationSnapshot: {
+        const section = root._overviewSectionByTitle("Organization Snapshot")
+        if (!section) {
+            return {}
         }
-        const masterDataSection = root._overviewSectionByTitle("Master Data Coverage")
-        if (masterDataSection) {
-            cards.push({
-                "title": masterDataSection.title,
-                "rows": masterDataSection.rows,
-                "emptyState": masterDataSection.emptyState
-            })
+        const rows = section.rows || []
+        const enriched = []
+        for (let i = 0; i < rows.length; i += 1) {
+            const row = rows[i]
+            const destination = root._destinationByLabel[String(row.label || "")]
+            enriched.push(Object.assign({}, row, {
+                "clickable": !!destination && root._isDestinationAccessible(destination)
+            }))
         }
-        return cards
+        return Object.assign({}, section, { "rows": enriched })
+    }
+    readonly property var _accessSecurity: root._overviewSectionByTitle("Access & Security") || {}
+    readonly property var _moduleTenantStatus: root._overviewSectionByTitle("Module & Tenant Status") || {}
+
+    // "Documents at a glance" -- real SQL-backed totals from
+    // admin_overview_presenter.py, replacing the earlier ad-hoc Employees-
+    // by-Department/Site breakdown (still available from the presenter's
+    // own dependencies; simply not surfaced on Overview any more, since the
+    // approved reference composition has no room for a fourth summary
+    // section here).
+    readonly property var _documentsGlance: {
+        const cards = root._overview.breakdownCards || []
+        return cards.length > 0 ? cards[0] : {}
     }
 
-    // Employees by Department/Site: real SQL-backed breakdown cards from
-    // admin_overview_presenter.py (EmployeeHeadcountReader.get_department_
-    // breakdown/get_site_breakdown), no longer a hardcoded placeholder.
-    readonly property var _overviewBreakdownCards: root._overview.breakdownCards || []
+    readonly property var _recentActivity: root._overview.recentActivity || []
+    readonly property var _approvalActions: root._overview.approvalActions || {}
 
     function _onOverviewMetricActivated(index) {
         const metrics = root._overviewMetrics
         if (index < 0 || index >= metrics.length) {
             return
         }
-        const label = String(metrics[index].label || "")
-        const destination = root._metricDestinationByLabel[label]
-        if (destination) {
-            root._selectDestination(destination)
+        root._navigateByLabel(String(metrics[index].label || ""))
+    }
+
+    function _onOrganizationRowActivated(index) {
+        const rows = root._organizationSnapshot.rows || []
+        if (index < 0 || index >= rows.length) {
+            return
         }
+        root._navigateByLabel(String(rows[index].label || ""))
+    }
+
+    function _onApprovalActionActivated(index) {
+        const items = root._approvalActions.items || []
+        if (index < 0 || index >= items.length) {
+            return
+        }
+        if (root._isDestinationAccessible("control_approvals")) {
+            root._selectDestination("control_approvals")
+        }
+    }
+
+    function _onDocumentsGlanceActivated() {
+        root._navigateByLabel("Documents")
     }
 
     ColumnLayout {
@@ -319,11 +368,20 @@ Item {
                     sourceComponent: Component {
                         Overview.PlatformOverviewPage {
                             subtitle: String(root._overview.subtitle || "")
+                            isLoading: root.platformCatalog ? root.platformCatalog.adminWorkspace.isLoading : false
+                            errorMessage: root.platformCatalog ? root.platformCatalog.adminWorkspace.errorMessage : ""
+                            emptyState: root.platformCatalog ? root.platformCatalog.adminWorkspace.emptyState : ""
                             metrics: root._overviewMetrics
-                            metricsClickable: true
                             onMetricActivated: function(index) { root._onOverviewMetricActivated(index) }
-                            highlightCards: root._overviewHighlightCards
-                            breakdownCards: root._overviewBreakdownCards
+                            organizationSnapshot: root._organizationSnapshot
+                            onOrganizationRowActivated: function(index) { root._onOrganizationRowActivated(index) }
+                            accessSecurity: root._accessSecurity
+                            moduleTenantStatus: root._moduleTenantStatus
+                            recentActivity: root._recentActivity
+                            approvalActions: root._approvalActions
+                            onApprovalActionActivated: function(index) { root._onApprovalActionActivated(index) }
+                            documentsGlance: root._documentsGlance
+                            onDocumentsGlanceActivated: root._onDocumentsGlanceActivated()
                         }
                     }
                 }
