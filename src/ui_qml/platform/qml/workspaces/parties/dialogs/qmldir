@@ -1,2 +1,2 @@
-module organization.parties.dialogs
+module workspaces.parties.dialogs
 PartyEditorDialog 1.0 PartyEditorDialog.qml

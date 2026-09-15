@@ -159,8 +159,8 @@ def test_adapter_module_has_no_domain_event_or_postcommit_bus_dependency():
 
 
 def test_controllers_do_not_import_event_infrastructure():
-    import src.ui_qml.platform.controllers.admin_console.admin_console_controller as admin_module
-    import src.ui_qml.platform.controllers.identity_access.access.access_workspace_controller as access_module
+    import src.ui_qml.platform.controllers.overview.admin_console_controller as admin_module
+    import src.ui_qml.platform.controllers.access.access_workspace_controller as access_module
 
     for module in (admin_module, access_module):
         imports = _imported_module_names(module)

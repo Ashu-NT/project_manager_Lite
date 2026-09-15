@@ -21,10 +21,10 @@ def test_qml_platform_widgets_module_exists() -> None:
         QML_PLATFORM_CONTROLLERS / "typeinfo" / "settings.fragment",
         QML_PLATFORM_CONTROLLERS / "typeinfo" / "catalog.fragment",
         QML_PLATFORM_DIALOGS / "qmldir",
-        Path("src/ui_qml/platform/qml/documents/dialogs/DocumentLinkEditorDialog.qml"),
-        Path("src/ui_qml/platform/qml/documents/dialogs/DocumentStructureEditorDialog.qml"),
+        Path("src/ui_qml/platform/qml/workspaces/documents/dialogs/DocumentLinkEditorDialog.qml"),
+        Path("src/ui_qml/platform/qml/workspaces/documents/dialogs/DocumentStructureEditorDialog.qml"),
         QML_SHARED_ROOT / "Widgets" / "OverviewSectionCard.qml",
-        Path("src/ui_qml/platform/qml/documents/DocumentDetailPanel.qml"),
+        Path("src/ui_qml/platform/qml/workspaces/documents/DocumentDetailPanel.qml"),
     ]
 
     assert all(path.exists() for path in expected_files)

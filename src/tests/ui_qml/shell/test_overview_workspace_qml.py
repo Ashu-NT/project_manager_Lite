@@ -37,7 +37,7 @@ from src.ui_qml.shell.qml_engine import create_qml_engine
 
 ROOT = Path(__file__).resolve().parents[3]
 OVERVIEW_WORKSPACE = ROOT / "ui_qml/shell/qml/OverviewWorkspace.qml"
-PLATFORM_OVERVIEW_PAGE = ROOT / "ui_qml/platform/qml/workspace/overview/PlatformOverviewPage.qml"
+PLATFORM_OVERVIEW_PAGE = ROOT / "ui_qml/platform/qml/workspaces/overview/PlatformOverviewPage.qml"
 
 
 class _FakeGlobalOverviewApi:

@@ -7,19 +7,19 @@ import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
 import Shell.Context 1.0 as ShellContexts
-import control 1.0 as Control
-import settings 1.0 as Settings
-import tenants 1.0 as Tenants
-import organization.organizations 1.0 as OrganizationsOrg
-import organization.sites 1.0 as SitesOrg
-import organization.departments 1.0 as DepartmentsOrg
-import organization.employees 1.0 as EmployeesOrg
-import organization.parties 1.0 as PartiesOrg
-import calendars 1.0 as CalendarsOrg
-import identity_access.users 1.0 as UsersOrg
-import identity_access.access 1.0 as AccessOrg
-import documents 1.0 as DocumentsOrg
-import workspace.overview 1.0 as Overview
+import workspaces.control 1.0 as Control
+import workspaces.settings 1.0 as Settings
+import workspaces.tenant_management 1.0 as Tenants
+import workspaces.organizations 1.0 as OrganizationsOrg
+import workspaces.sites 1.0 as SitesOrg
+import workspaces.departments 1.0 as DepartmentsOrg
+import workspaces.employees 1.0 as EmployeesOrg
+import workspaces.parties 1.0 as PartiesOrg
+import workspaces.calendars 1.0 as CalendarsOrg
+import workspaces.users 1.0 as UsersOrg
+import workspaces.access 1.0 as AccessOrg
+import workspaces.documents 1.0 as DocumentsOrg
+import workspaces.overview 1.0 as Overview
 
 
 Item {

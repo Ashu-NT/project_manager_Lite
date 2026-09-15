@@ -11,7 +11,7 @@ from src.ui_qml.platform.presenters.overview.admin_overview_presenter import (
 from src.ui_qml.platform.presenters.calendars.calendar_catalog_presenter import (
     PlatformCalendarCatalogPresenter,
 )
-from src.ui_qml.platform.presenters.organization.departments.department_catalog_presenter import (
+from src.ui_qml.platform.presenters.departments.department_catalog_presenter import (
     PlatformDepartmentCatalogPresenter,
 )
 from src.ui_qml.platform.presenters.documents.document_catalog_presenter import (
@@ -20,19 +20,19 @@ from src.ui_qml.platform.presenters.documents.document_catalog_presenter import 
 from src.ui_qml.platform.presenters.documents.document_management_presenter import (
     PlatformDocumentManagementPresenter,
 )
-from src.ui_qml.platform.presenters.organization.employees.employee_catalog_presenter import (
+from src.ui_qml.platform.presenters.employees.employee_catalog_presenter import (
     PlatformEmployeeCatalogPresenter,
 )
-from src.ui_qml.platform.presenters.organization.organizations.organization_catalog_presenter import (
+from src.ui_qml.platform.presenters.organizations.organization_catalog_presenter import (
     PlatformOrganizationCatalogPresenter,
 )
-from src.ui_qml.platform.presenters.organization.parties.party_catalog_presenter import (
+from src.ui_qml.platform.presenters.parties.party_catalog_presenter import (
     PlatformPartyCatalogPresenter,
 )
-from src.ui_qml.platform.presenters.organization.sites.site_catalog_presenter import (
+from src.ui_qml.platform.presenters.sites.site_catalog_presenter import (
     PlatformSiteCatalogPresenter,
 )
-from src.ui_qml.platform.presenters.identity_access.users.user_catalog_presenter import (
+from src.ui_qml.platform.presenters.users.user_catalog_presenter import (
     PlatformUserCatalogPresenter,
 )
 
@@ -67,48 +67,48 @@ from src.ui_qml.platform.controllers.documents.document_controller import Platfo
 from src.ui_qml.platform.controllers.documents.document_structure_controller import (
     PlatformDocumentStructureController,
 )
-from src.ui_qml.platform.controllers.organization.departments.department_controller import (
+from src.ui_qml.platform.controllers.departments.department_controller import (
     PlatformDepartmentController,
 )
-from src.ui_qml.platform.controllers.organization.departments.actions import (
+from src.ui_qml.platform.controllers.departments.actions import (
     create_department,
     toggle_department_active,
     update_department,
 )
-from src.ui_qml.platform.controllers.organization.employees.employee_controller import (
+from src.ui_qml.platform.controllers.employees.employee_controller import (
     PlatformEmployeeController,
 )
-from src.ui_qml.platform.controllers.organization.employees.actions import (
+from src.ui_qml.platform.controllers.employees.actions import (
     create_employee,
     toggle_employee_active,
     update_employee,
 )
-from src.ui_qml.platform.controllers.organization.organizations.organization_controller import (
+from src.ui_qml.platform.controllers.organizations.organization_controller import (
     PlatformOrganizationController,
 )
-from src.ui_qml.platform.controllers.organization.organizations.actions import (
+from src.ui_qml.platform.controllers.organizations.actions import (
     create_organization,
     enable_organization,
     update_organization,
 )
-from src.ui_qml.platform.controllers.organization.parties.party_controller import (
+from src.ui_qml.platform.controllers.parties.party_controller import (
     PlatformPartyController,
 )
-from src.ui_qml.platform.controllers.organization.parties.actions import (
+from src.ui_qml.platform.controllers.parties.actions import (
     create_party,
     toggle_party_active,
     update_party,
 )
-from src.ui_qml.platform.controllers.organization.sites.site_controller import PlatformSiteController
-from src.ui_qml.platform.controllers.organization.sites.actions import (
+from src.ui_qml.platform.controllers.sites.site_controller import PlatformSiteController
+from src.ui_qml.platform.controllers.sites.actions import (
     create_site,
     toggle_site_active,
     update_site,
 )
-from src.ui_qml.platform.controllers.identity_access.users.user_controller import (
+from src.ui_qml.platform.controllers.users.user_controller import (
     PlatformUserController,
 )
-from src.ui_qml.platform.controllers.identity_access.users.actions import (
+from src.ui_qml.platform.controllers.users.actions import (
     create_user,
     toggle_user_active,
     update_user,

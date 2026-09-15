@@ -1,4 +1,4 @@
-module support.sections
+module workspaces.support.sections
 AdminSupportActivityPanel 1.0 AdminSupportActivityPanel.qml
 AdminSupportDiagnosticsPanel 1.0 AdminSupportDiagnosticsPanel.qml
 AdminSupportPathsPanel 1.0 AdminSupportPathsPanel.qml

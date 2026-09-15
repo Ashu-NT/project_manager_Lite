@@ -8,7 +8,7 @@ import App.Controls 1.0 as AppControls
 import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
-import tenants.dialogs 1.0 as TenantDialogs
+import workspaces.tenant_management.dialogs 1.0 as TenantDialogs
 
 AppLayouts.WorkspaceFrame {
     id: root

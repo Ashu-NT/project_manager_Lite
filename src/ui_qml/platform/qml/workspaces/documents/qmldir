@@ -1,4 +1,4 @@
-module documents
+module workspaces.documents
 AdminDocumentsDetailPage 1.0 AdminDocumentsDetailPage.qml
 AdminDocumentStructureDetailPage 1.0 AdminDocumentStructureDetailPage.qml
 DocumentDetailPanel 1.0 DocumentDetailPanel.qml

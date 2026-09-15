@@ -5,7 +5,7 @@ import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
-import support.sections 1.0 as SupportSections
+import workspaces.support.sections 1.0 as SupportSections
 
 ColumnLayout {
     id: root

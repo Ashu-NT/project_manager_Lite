@@ -13,16 +13,16 @@ UI_QML_ROOT = REPO_ROOT / "src" / "ui_qml"
 # Direct page/panel/section-level StatusChip consumers (each carries its own
 # small, explicit tone mapping -- see the individual QML files).
 _GROUP_A_CONSUMERS = [
-    "platform/qml/support/sections/AdminSupportRuntimePanel.qml",
-    "platform/qml/support/sections/AdminSupportActivityPanel.qml",
-    "platform/qml/organization/sites/AdminSiteDetailPage.qml",
+    "platform/qml/workspaces/support/sections/AdminSupportRuntimePanel.qml",
+    "platform/qml/workspaces/support/sections/AdminSupportActivityPanel.qml",
+    "platform/qml/workspaces/sites/AdminSiteDetailPage.qml",
     "modules/project_management/qml/workspaces/tasks/sections/TasksSkillsSection.qml",
     "modules/project_management/qml/workspaces/tasks/sections/TasksScheduleImpactSection.qml",
     "modules/project_management/qml/workspaces/tasks/sections/TaskCommentCard.qml",
     "modules/project_management/qml/workspaces/tasks/panels/TasksDetailPanel.qml",
-    "platform/qml/organization/organizations/AdminOrganizationDetailPage.qml",
-    "platform/qml/identity_access/access/AccessSecurityPanel.qml",
-    "platform/qml/documents/DocumentDetailPanel.qml",
+    "platform/qml/workspaces/organizations/AdminOrganizationDetailPage.qml",
+    "platform/qml/workspaces/access/AccessSecurityPanel.qml",
+    "platform/qml/workspaces/documents/DocumentDetailPanel.qml",
     "platform/qml/Platform/Components/AdminEntityDetailPage.qml",
     "modules/project_management/qml/workspaces/projects/sections/ProjectsOverviewSection.qml",
     "modules/project_management/qml/workspaces/collaboration/panels/CollaborationDetailPanel.qml",

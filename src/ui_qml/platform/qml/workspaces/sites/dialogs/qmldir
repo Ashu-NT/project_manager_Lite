@@ -1,2 +1,2 @@
-module organization.sites.dialogs
+module workspaces.sites.dialogs
 SiteEditorDialog 1.0 SiteEditorDialog.qml

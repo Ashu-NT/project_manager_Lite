@@ -7,7 +7,7 @@ from src.ui_qml.platform.controllers.common import (
     PlatformWorkspaceControllerBase,
     run_mutation,
 )
-from src.ui_qml.platform.presenters.tenants.organization_switcher_presenter import (
+from src.ui_qml.platform.presenters.tenant_management.organization_switcher_presenter import (
     OrganizationSwitcherPresenter,
 )
 

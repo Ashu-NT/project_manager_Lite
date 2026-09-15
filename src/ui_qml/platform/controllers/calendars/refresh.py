@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.ui_qml.platform.controllers.admin_console.refresh_coordinator import (
+from src.ui_qml.platform.controllers.overview.refresh_coordinator import (
     refresh_empty_state,
 )
 

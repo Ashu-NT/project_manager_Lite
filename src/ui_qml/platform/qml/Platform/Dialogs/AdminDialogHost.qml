@@ -2,14 +2,14 @@ import QtQuick
 import QtQuick.Controls
 import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Dialogs 1.0 as PlatformDialogs
-import organization.organizations.dialogs 1.0 as OrganizationDialogs
-import organization.sites.dialogs 1.0 as SiteDialogs
-import organization.departments.dialogs 1.0 as DepartmentDialogs
-import organization.employees.dialogs 1.0 as EmployeeDialogs
-import organization.parties.dialogs 1.0 as PartyDialogs
-import identity_access.users.dialogs 1.0 as UserDialogs
-import documents.dialogs 1.0 as DocumentDialogs
-import calendars.dialogs 1.0 as CalendarDialogs
+import workspaces.organizations.dialogs 1.0 as OrganizationDialogs
+import workspaces.sites.dialogs 1.0 as SiteDialogs
+import workspaces.departments.dialogs 1.0 as DepartmentDialogs
+import workspaces.employees.dialogs 1.0 as EmployeeDialogs
+import workspaces.parties.dialogs 1.0 as PartyDialogs
+import workspaces.users.dialogs 1.0 as UserDialogs
+import workspaces.documents.dialogs 1.0 as DocumentDialogs
+import workspaces.calendars.dialogs 1.0 as CalendarDialogs
 
 Item {
     id: root

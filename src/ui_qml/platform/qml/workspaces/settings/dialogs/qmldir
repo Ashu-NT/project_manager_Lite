@@ -1,2 +1,2 @@
-module settings.dialogs
+module workspaces.settings.dialogs
 ModuleLifecycleDialog 1.0 ModuleLifecycleDialog.qml

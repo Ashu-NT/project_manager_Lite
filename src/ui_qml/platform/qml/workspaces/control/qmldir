@@ -1,2 +1,2 @@
-module control
+module workspaces.control
 ControlWorkspacePage 1.0 ControlWorkspacePage.qml

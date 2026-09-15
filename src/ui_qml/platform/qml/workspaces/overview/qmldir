@@ -1,3 +1,3 @@
-module workspace.overview
+module workspaces.overview
 OverviewCard 1.0 OverviewCard.qml
 PlatformOverviewPage 1.0 PlatformOverviewPage.qml

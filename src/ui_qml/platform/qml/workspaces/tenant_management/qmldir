@@ -1,2 +1,2 @@
-module tenants
+module workspaces.tenant_management
 TenantManagementWorkspacePage 1.0 TenantManagementWorkspacePage.qml

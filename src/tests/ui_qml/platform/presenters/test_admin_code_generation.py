@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from src.ui_qml.platform.presenters.organization.organizations.organization_catalog_presenter import (
+from src.ui_qml.platform.presenters.organizations.organization_catalog_presenter import (
     PlatformOrganizationCatalogPresenter,
 )
 
@@ -65,7 +65,7 @@ class _FakeListApi:
 
 
 def test_site_suggest_code():
-    from src.ui_qml.platform.presenters.organization.sites.site_catalog_presenter import (
+    from src.ui_qml.platform.presenters.sites.site_catalog_presenter import (
         PlatformSiteCatalogPresenter,
     )
 
@@ -75,7 +75,7 @@ def test_site_suggest_code():
 
 
 def test_party_suggest_code_uses_party_name():
-    from src.ui_qml.platform.presenters.organization.parties.party_catalog_presenter import (
+    from src.ui_qml.platform.presenters.parties.party_catalog_presenter import (
         PlatformPartyCatalogPresenter,
     )
 

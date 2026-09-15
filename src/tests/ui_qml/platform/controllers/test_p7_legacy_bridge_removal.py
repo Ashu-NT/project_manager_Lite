@@ -293,8 +293,8 @@ def test_no_wildcard_view_invalidation_listener_was_introduced():
     `AnyOrganizationInTenant`, and no new "subscribe to everything" bridge was built on top of
     ViewInvalidation."""
     modules = (
-        "src.ui_qml.platform.controllers.admin_console.admin_console_controller",
-        "src.ui_qml.platform.controllers.identity_access.access.access_workspace_controller",
+        "src.ui_qml.platform.controllers.overview.admin_console_controller",
+        "src.ui_qml.platform.controllers.access.access_workspace_controller",
         "src.ui_qml.platform.context",
     )
     import importlib

@@ -6,6 +6,7 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 from src.ui_qml.platform.navigation.platform_context_navigation import (
     build_platform_context_navigation,
 )
+from src.ui_qml.shell.context_navigation import resolve_safe_context_destination
 
 from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
 from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
@@ -51,14 +52,14 @@ from src.ui_qml.platform.adapters.account_security_view_invalidation_adapter imp
 from src.ui_qml.platform.adapters.tenant_membership_view_invalidation_adapter import (
     TenantMembershipViewInvalidationAdapter,
 )
-from src.ui_qml.platform.controllers.admin_console import PlatformAdminWorkspaceController
-from src.ui_qml.platform.controllers.identity_access.access import (
+from src.ui_qml.platform.controllers.overview import PlatformAdminWorkspaceController
+from src.ui_qml.platform.controllers.access import (
     PlatformAdminAccessWorkspaceController,
 )
 from src.ui_qml.platform.controllers.support import PlatformSupportWorkspaceController
 from src.ui_qml.platform.controllers.control import PlatformControlWorkspaceController
 from src.ui_qml.platform.controllers.settings import PlatformSettingsWorkspaceController
-from src.ui_qml.platform.controllers.tenants import (
+from src.ui_qml.platform.controllers.tenant_management import (
     OrganizationSwitcherController,
     TenantSwitcherController,
 )
@@ -526,6 +527,16 @@ class PlatformWorkspaceCatalog(QObject):
         self._current_permissions = self._fetch_current_permissions()
         if self._current_permissions != previous:
             self.contextNavigationChanged.emit()
+            self._redirect_if_current_destination_inaccessible()
+
+    def _redirect_if_current_destination_inaccessible(self) -> None:
+        tree = build_platform_context_navigation(held_permissions=self._current_permissions)
+        safe_id = resolve_safe_context_destination(
+            self._current_destination_id, tree, preferred_id="overview"
+        )
+        if safe_id != self._current_destination_id:
+            self._current_destination_id = safe_id
+            self.currentDestinationIdChanged.emit()
 
     def _fetch_current_permissions(self) -> frozenset[str]:
         if self._runtime_api is None:

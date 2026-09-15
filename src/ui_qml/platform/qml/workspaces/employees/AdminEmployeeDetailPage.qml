@@ -5,7 +5,7 @@ import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import Platform.Components 1.0
-import calendars 1.0
+import workspaces.calendars 1.0
 
 Item {
     id: root

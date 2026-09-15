@@ -15,8 +15,8 @@ import src.ui_qml.shell.controllers.notifications.notifications_controller  # no
 import src.ui_qml.shell.controllers.organization.organization_switcher_controller  # noqa: F401
 import src.ui_qml.platform.context  # noqa: F401
 import src.ui_qml.platform.controllers.common.workspace_controller_base  # noqa: F401
-import src.ui_qml.platform.controllers.admin_console.admin_console_controller  # noqa: F401
-import src.ui_qml.platform.controllers.identity_access.access.access_workspace_controller  # noqa: F401
+import src.ui_qml.platform.controllers.overview.admin_console_controller  # noqa: F401
+import src.ui_qml.platform.controllers.access.access_workspace_controller  # noqa: F401
 import src.ui_qml.platform.controllers.support.support_workspace_controller  # noqa: F401
 import src.ui_qml.platform.controllers.control.control_workspace_controller  # noqa: F401
 import src.ui_qml.platform.controllers.settings.settings_workspace_controller  # noqa: F401

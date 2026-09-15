@@ -1,2 +1,2 @@
-module control.dialogs
+module workspaces.control.dialogs
 ApprovalDecisionDialog 1.0 ApprovalDecisionDialog.qml

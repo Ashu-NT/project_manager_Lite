@@ -68,7 +68,7 @@ from src.ui_qml.modules.project_management.adapters.collaboration.task_comment_v
 from src.ui_qml.modules.project_management.adapters.tasks.task_view_invalidation_adapter import (
     TaskViewInvalidationAdapter,
 )
-from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import (
+from src.ui_qml.platform.presenters.tenant_management.tenant_switcher_presenter import (
     TenantSwitcherPresenter,
 )
 from src.ui_qml.modules.project_management.controllers import (
