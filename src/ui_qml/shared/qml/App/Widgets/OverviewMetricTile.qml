@@ -20,10 +20,17 @@ Rectangle {
     property string trendLabel: ""
     property string colorHint: ""
     property bool clickable: false
+    // Structural-only reduction for constrained layouts (e.g. Global
+    // Overview's compact responsive layout class) -- never a global scale
+    // transform. Defaults false, so every pre-existing consumer (Platform
+    // Overview) is completely unaffected.
+    property bool compact: false
 
     signal activated()
 
-    implicitHeight: _layout.implicitHeight + Theme.AppTheme.marginLg * 2
+    readonly property int _margin: root.compact ? Theme.AppTheme.marginMd : Theme.AppTheme.marginLg
+
+    implicitHeight: _layout.implicitHeight + root._margin * 2
     radius: Theme.AppTheme.radiusLg
     color: Theme.AppTheme.surfaceRaised
     border.width: 1
@@ -53,7 +60,7 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: Theme.AppTheme.marginLg
+        anchors.margins: root._margin
         spacing: Theme.AppTheme.spacingXs
 
         AppControls.Label {

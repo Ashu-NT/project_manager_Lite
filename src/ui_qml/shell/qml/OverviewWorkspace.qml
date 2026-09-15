@@ -25,6 +25,10 @@ AppLayouts.WorkspaceFrame {
 
     readonly property string _layoutClass: Theme.AppTheme.layoutClassFor(Window.width, Window.height)
     readonly property bool _narrow: root._layoutClass === "narrow"
+    readonly property bool _compact: root._layoutClass === "compact"
+    // Section/card spacing tightens for compact AND narrow (both are
+    // constrained); only the column/grid arrangement itself is narrow-only.
+    readonly property bool _tightSpacing: root._narrow || root._compact
 
     readonly property var _context: root.globalOverviewController ? (root.globalOverviewController.context || {}) : {}
     readonly property var _contextState: root.globalOverviewController ? (root.globalOverviewController.contextState || {}) : {}
@@ -67,7 +71,7 @@ AppLayouts.WorkspaceFrame {
         ColumnLayout {
             id: _content
             width: parent.width
-            spacing: root._narrow ? Theme.AppTheme.spacingLg : Theme.AppTheme.sectionGap
+            spacing: root._tightSpacing ? Theme.AppTheme.spacingLg : Theme.AppTheme.sectionGap
 
             // -- Context line ------------------------------------------------
             AppControls.Label {
@@ -130,6 +134,7 @@ AppLayouts.WorkspaceFrame {
                             // release -- no dedicated Action Center
                             // destination exists yet to navigate them to.
                             clickable: false
+                            compact: root._compact
                         }
                     }
                 }
@@ -220,6 +225,7 @@ AppLayouts.WorkspaceFrame {
                             iconKey: String(_card.modelData.iconKey || "")
                             summaryText: String(_card.modelData.summaryText || "")
                             routeId: String(_card.modelData.routeId || "")
+                            compact: root._compact
                             onActivated: root._selectRoute(_card.routeId)
                         }
                     }
@@ -236,6 +242,7 @@ AppLayouts.WorkspaceFrame {
                 // Recent Activity (~45% on standard/compact width)
                 ColumnLayout {
                     Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignTop
                     Layout.preferredWidth: root._narrow ? -1 : Math.round((_content.width - Theme.AppTheme.sectionGap) * 0.45)
                     spacing: Theme.AppTheme.spacingSm
 
@@ -295,6 +302,7 @@ AppLayouts.WorkspaceFrame {
                 // Action Center (~55% on standard/compact width)
                 ColumnLayout {
                     Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignTop
                     spacing: Theme.AppTheme.spacingSm
 
                     AppControls.Label {

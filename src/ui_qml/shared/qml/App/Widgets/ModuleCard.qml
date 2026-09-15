@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 import App.Icons 1.0 as AppIcons
 import App.Controls 1.0 as AppControls
+import "ModuleIconMap.js" as ModuleIconMap
 
 // A single Global Overview module destination card. Generic over whatever
 // modules GlobalOverviewService.list_module_summaries() returns -- must
@@ -20,35 +21,56 @@ Rectangle {
     property string iconKey: ""
     property string summaryText: ""
     property string routeId: ""
+    // Structural-only reduction for constrained layouts (e.g. Global
+    // Overview's compact responsive layout class) -- never a global scale
+    // transform. Defaults false.
+    property bool compact: false
 
     signal activated()
 
     readonly property bool _navigable: root.routeId.length > 0
+    readonly property int _margin: root.compact ? Theme.AppTheme.marginMd : Theme.AppTheme.marginLg
 
-    function _iconNameFor(key) {
-        // The backend's icon_key is a semantic module identifier, not a
-        // concrete icon-font glyph name -- this is the one place that maps
-        // between them, so unknown/future module codes fail safely to the
-        // generic "module" glyph rather than an unregistered icon warning.
-        if (key === "platform") return "admin"
-        if (key === "project_management") return "project"
-        return "module"
+    function _activate() {
+        if (root._navigable) {
+            root.activated()
+        }
     }
 
-    implicitHeight: _layout.implicitHeight + Theme.AppTheme.marginLg * 2
+    implicitHeight: _layout.implicitHeight + root._margin * 2
     radius: Theme.AppTheme.radiusLg
     color: Theme.AppTheme.surfaceRaised
-    border.width: 1
-    border.color: _hover.hovered && root._navigable ? Theme.AppTheme.accent : Theme.AppTheme.subtleBorder
+    border.width: root.activeFocus && root._navigable ? 2 : 1
+    border.color: root.activeFocus && root._navigable
+        ? Theme.AppTheme.focusBorder
+        : _hover.hovered && root._navigable ? Theme.AppTheme.accent : Theme.AppTheme.subtleBorder
 
     Behavior on border.color { ColorAnimation { duration: 120 } }
+
+    // -- Keyboard / accessibility -------------------------------------
+    // Informational (non-navigable) cards are deliberately left out of
+    // the Tab order and carry no button semantics.
+    activeFocusOnTab: root._navigable
+    Accessible.role: root._navigable ? Accessible.Button : Accessible.StaticText
+    Accessible.name: root.title
+    Accessible.onPressAction: root._activate()
+
+    Keys.onPressed: (event) => {
+        if (!root._navigable) {
+            return
+        }
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+            root._activate()
+            event.accepted = true
+        }
+    }
 
     RowLayout {
         id: _layout
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: Theme.AppTheme.marginLg
+        anchors.margins: root._margin
         spacing: Theme.AppTheme.spacingMd
 
         Rectangle {
@@ -60,7 +82,7 @@ Rectangle {
 
             AppIcons.AppIcon {
                 anchors.centerIn: parent
-                name: root._iconNameFor(root.iconKey)
+                name: ModuleIconMap.iconNameFor(root.iconKey)
                 iconColor: Theme.AppTheme.accent
                 size: Theme.AppTheme.iconLg
             }
@@ -124,6 +146,9 @@ Rectangle {
 
     TapHandler {
         enabled: root._navigable
-        onTapped: root.activated()
+        onTapped: {
+            root.forceActiveFocus()
+            root._activate()
+        }
     }
 }

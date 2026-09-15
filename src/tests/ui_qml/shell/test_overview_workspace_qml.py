@@ -15,6 +15,7 @@ import pytest
 from PySide6.QtCore import QUrl, qInstallMessageHandler
 from PySide6.QtQml import QQmlComponent
 from PySide6.QtQuick import QQuickWindow
+from PySide6.QtTest import QTest
 
 from src.core.application.global_overview.contracts.action_center import (
     ActionCenterContribution,
@@ -260,6 +261,56 @@ def test_overview_workspace_loads_without_warnings_with_real_data(qapp) -> None:
         assert _relevant_warnings(messages) == []
     finally:
         _teardown(previous_handler, page, window, qapp)
+
+
+def test_real_shell_wiring_injects_controller_into_overview_page(qapp) -> None:
+    """End-to-end: App.qml -> MainWindow.qml -> Loader -> OverviewWorkspace,
+    the exact real-app wiring path app.py uses (initial_properties on the
+    top-level App.qml root, not a direct page-level property set). Confirms
+    the controller genuinely reaches the loaded page and its one reload()
+    actually ran, purely by observing controller-side effects (context
+    becomes populated) -- no Loader internals are reached into."""
+    from src.ui_qml.platform.context import PlatformWorkspaceCatalog
+    from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+    from src.ui_qml.shell.context import build_shell_context
+    from src.ui_qml.shell.main_window import build_main_window_navigation
+    from src.ui_qml.shell.qml_registry import build_qml_route_registry
+    from src.ui_qml.shell.qml_engine import load_qml
+
+    controller = _build_controller()
+    assert controller.context.get("tenantName") == ""
+
+    registry = build_qml_route_registry()
+    shell_context = build_shell_context(build_main_window_navigation(registry))
+    assert shell_context.currentRouteId == "shell.home"
+
+    messages: list[str] = []
+    previous_handler = qInstallMessageHandler(lambda t, c, m: messages.append(str(m)))
+    engine = create_qml_engine()
+    try:
+        shell_route = registry.get("shell.app")
+        load_qml(
+            engine,
+            shell_route.qml_path,
+            initial_properties={
+                "shellModel": shell_context,
+                "platformCatalog": PlatformWorkspaceCatalog(),
+                "pmCatalog": ProjectManagementWorkspaceCatalog(),
+                "globalOverviewController": controller,
+            },
+        )
+        # MainWindow.qml's workspace Loader is asynchronous -- a tight
+        # processEvents() loop returns before the background QML
+        # compile/instantiate finishes; qWait lets it actually complete.
+        QTest.qWait(1000)
+
+        assert controller.context.get("tenantName") == "TECHASH Enterprise"
+        assert _relevant_warnings(messages) == []
+    finally:
+        for root_object in engine.rootObjects():
+            root_object.deleteLater()
+        qapp.processEvents()
+        qInstallMessageHandler(previous_handler)
 
 
 def test_overview_workspace_reload_fires_once_when_controller_attaches(qapp) -> None:

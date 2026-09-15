@@ -42,13 +42,44 @@ Item {
         ? Theme.AppTheme.danger
         : Theme.AppTheme.textSecondary
 
+    function _activate() {
+        if (root._navigable) {
+            root.activated()
+        }
+    }
+
     implicitHeight: _layout.implicitHeight + Theme.AppTheme.spacingSm * 2
+
+    // -- Keyboard / accessibility -------------------------------------
+    activeFocusOnTab: root._navigable
+    Accessible.role: root._navigable ? Accessible.Button : Accessible.StaticText
+    Accessible.name: root.title
+    Accessible.onPressAction: root._activate()
+
+    Keys.onPressed: (event) => {
+        if (!root._navigable) {
+            return
+        }
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+            root._activate()
+            event.accepted = true
+        }
+    }
 
     Rectangle {
         anchors.fill: parent
         radius: Theme.AppTheme.radiusMd
         color: _hover.hovered && root._navigable ? Theme.AppTheme.hoverSurface : "transparent"
         Behavior on color { ColorAnimation { duration: 100 } }
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        radius: Theme.AppTheme.radiusMd
+        color: "transparent"
+        border.width: 2
+        border.color: Theme.AppTheme.focusBorder
+        visible: root.activeFocus && root._navigable
     }
 
     ColumnLayout {
@@ -110,6 +141,9 @@ Item {
 
     TapHandler {
         enabled: root._navigable
-        onTapped: root.activated()
+        onTapped: {
+            root.forceActiveFocus()
+            root._activate()
+        }
     }
 }
