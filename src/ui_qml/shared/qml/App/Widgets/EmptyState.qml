@@ -9,6 +9,12 @@ Item {
 
     property string title: "No records found"
     property string message: ""
+    // Optional single resolution action (e.g. "Create organization" for a
+    // true-empty dataset, "Clear filters" for a no-results search/filter
+    // state). Hidden entirely when actionLabel is empty -- most EmptyState
+    // consumers remain purely informational.
+    property string actionLabel: ""
+    signal actionRequested()
 
     implicitHeight: column.implicitHeight + Theme.AppTheme.spacingLg * 2
 
@@ -38,6 +44,14 @@ Item {
             font.pixelSize: Theme.AppTheme.smallSize
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
+        }
+
+        AppControls.PrimaryButton {
+            Layout.alignment: Qt.AlignHCenter
+            Layout.topMargin: Theme.AppTheme.spacingXs
+            visible: root.actionLabel.length > 0
+            text: root.actionLabel
+            onClicked: root.actionRequested()
         }
     }
 }

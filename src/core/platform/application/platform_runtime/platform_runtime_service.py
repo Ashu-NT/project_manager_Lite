@@ -17,7 +17,7 @@ from src.core.platform.contract.uow.platform_provisioning_unit_of_work import (
     PlatformProvisioningUnitOfWorkFactory,
 )
 from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.application.master_data.org.organization_service import OrganizationService
+from src.core.platform.application.master_data.org.organization_service import OrganizationPage, OrganizationService
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.shared.events.domain_event_context import DomainEventContext
@@ -173,6 +173,20 @@ class PlatformRuntimeApplicationService:
         if self._organization_service is None:
             return []
         return self._organization_service.list_organizations(enabled_only=enabled_only)
+
+    def list_organizations_page(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str | None = None,
+        enabled_only: bool | None = None,
+    ) -> OrganizationPage:
+        if self._organization_service is None:
+            return OrganizationPage(page=page, page_size=page_size)
+        return self._organization_service.list_organizations_page(
+            page=page, page_size=page_size, search=search, enabled_only=enabled_only
+        )
 
     def get_organization_count(self) -> int:
         if self._organization_service is None:

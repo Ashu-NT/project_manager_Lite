@@ -34,6 +34,26 @@ class OrganizationRepository(ABC):
     @abstractmethod
     def list_for_tenant(self, tenant_id: str, *, enabled_only: bool | None = None) -> list[Organization]: ...
 
+    @abstractmethod
+    def list_page_for_tenant(
+        self,
+        tenant_id: str,
+        *,
+        page: int,
+        page_size: int,
+        search: str | None = None,
+        enabled_only: bool | None = None,
+    ) -> tuple[list[Organization], int, int]:
+        """Return (items, total, filtered_total) for one page.
+
+        `total` is the tenant's unfiltered organization count; `filtered_total`
+        is the count matching `search`/`enabled_only`. The two differ only
+        when a search term or availability filter is active -- callers use
+        that difference to distinguish a genuinely empty dataset from a
+        search/filter that matched nothing.
+        """
+        ...
+
 
 __all__ = [
     "OrganizationRepository",

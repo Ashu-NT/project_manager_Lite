@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
@@ -40,6 +40,18 @@ if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.domain.security.auth.session import UserSessionContext
     from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+
+ORGANIZATION_PAGE_SIZE_OPTIONS: tuple[int, ...] = (25, 50, 100)
+_DEFAULT_ORGANIZATION_PAGE_SIZE = 25
+
+
+@dataclass(frozen=True)
+class OrganizationPage:
+    items: list[Organization] = field(default_factory=list)
+    total: int = 0
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = _DEFAULT_ORGANIZATION_PAGE_SIZE
 
 
 class OrganizationService:
@@ -131,6 +143,33 @@ class OrganizationService:
         require_permission(self._user_session, "settings.manage", operation_label="list organizations")
         tenant_id = self._require_current_tenant_id(operation_label="list organizations")
         return self._organization_repo.list_for_tenant(tenant_id, enabled_only=enabled_only)
+
+    def list_organizations_page(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = _DEFAULT_ORGANIZATION_PAGE_SIZE,
+        search: str | None = None,
+        enabled_only: bool | None = None,
+    ) -> OrganizationPage:
+        require_permission(self._user_session, "settings.manage", operation_label="list organizations")
+        tenant_id = self._require_current_tenant_id(operation_label="list organizations")
+        normalized_page = max(1, page)
+        normalized_page_size = page_size if page_size in ORGANIZATION_PAGE_SIZE_OPTIONS else _DEFAULT_ORGANIZATION_PAGE_SIZE
+        items, total, filtered_total = self._organization_repo.list_page_for_tenant(
+            tenant_id,
+            page=normalized_page,
+            page_size=normalized_page_size,
+            search=search,
+            enabled_only=enabled_only,
+        )
+        return OrganizationPage(
+            items=items,
+            total=total,
+            filtered_total=filtered_total,
+            page=normalized_page,
+            page_size=normalized_page_size,
+        )
 
     def get_organization_count(self) -> int:
         require_permission(self._user_session, "settings.manage", operation_label="view organization count")
@@ -424,4 +463,4 @@ class OrganizationService:
         return candidate
 
 
-__all__ = ["OrganizationService"]
+__all__ = ["ORGANIZATION_PAGE_SIZE_OPTIONS", "OrganizationPage", "OrganizationService"]

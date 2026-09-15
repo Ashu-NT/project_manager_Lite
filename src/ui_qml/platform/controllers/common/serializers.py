@@ -50,6 +50,12 @@ def serialize_action_list(list_view_model) -> dict[str, object]:
         "subtitle": list_view_model.subtitle,
         "emptyState": list_view_model.empty_state,
         "items": [serialize_action_item(item) for item in list_view_model.items],
+        "paginated": getattr(list_view_model, "paginated", False),
+        "noResultsState": getattr(list_view_model, "no_results_state", ""),
+        "page": getattr(list_view_model, "page", 1),
+        "pageSize": getattr(list_view_model, "page_size", 0),
+        "totalCount": getattr(list_view_model, "total_count", 0),
+        "filteredTotal": getattr(list_view_model, "filtered_total", 0),
     }
 
 def serialize_action_item(item) -> dict[str, object]:

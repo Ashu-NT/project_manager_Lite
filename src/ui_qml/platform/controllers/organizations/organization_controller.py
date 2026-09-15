@@ -10,6 +10,10 @@ from src.ui_qml.platform.presenters.organizations.organization_catalog_presenter
 from src.ui_qml.platform.controllers.common import run_mutation, serialize_action_list
 
 
+_ORGANIZATION_PAGE_SIZE_OPTIONS = (25, 50, 100)
+_DEFAULT_ORGANIZATION_PAGE_SIZE = 25
+
+
 class PlatformOrganizationController(QObject):
     organizationsChanged = Signal()
     organizationEditorOptionsChanged = Signal()
@@ -17,6 +21,7 @@ class PlatformOrganizationController(QObject):
     errorMessageChanged = Signal()
     operationResultChanged = Signal()
     feedbackMessageChanged = Signal()
+    organizationSearchTextChanged = Signal()
 
     def __init__(self, presenter: PlatformOrganizationCatalogPresenter, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -33,10 +38,21 @@ class PlatformOrganizationController(QObject):
             "message": "",
         }
         self._feedback_message = ""
+        self._page = 1
+        self._page_size = _DEFAULT_ORGANIZATION_PAGE_SIZE
+        self._search_text = ""
 
     @Property("QVariantMap", notify=organizationsChanged)
     def organizations(self) -> dict[str, object]:
         return self._organizations
+
+    @Property(str, notify=organizationSearchTextChanged)
+    def organizationSearchText(self) -> str:
+        return self._search_text
+
+    @Property("QVariantList", constant=True)
+    def organizationPageSizeOptions(self) -> list[int]:
+        return list(_ORGANIZATION_PAGE_SIZE_OPTIONS)
 
     @Property(QObject, constant=True)
     def tableModel(self) -> DynamicTableModel:
@@ -108,6 +124,36 @@ class PlatformOrganizationController(QObject):
         which is not stale after a plain organization creation."""
         self._refresh_organizations()
 
+    @Slot(int)
+    def setOrganizationPage(self, page: int) -> None:
+        normalized = max(1, int(page))
+        if normalized == self._page:
+            return
+        self._page = normalized
+        self._refresh_organizations()
+
+    @Slot(int)
+    def setOrganizationPageSize(self, page_size: int) -> None:
+        normalized = int(page_size) if int(page_size) in _ORGANIZATION_PAGE_SIZE_OPTIONS else _DEFAULT_ORGANIZATION_PAGE_SIZE
+        if normalized == self._page_size:
+            return
+        self._page_size = normalized
+        # Changing the page size while positioned deep in the result set
+        # could land past the new last page -- resetting to page 1 keeps
+        # the result always valid without a second round-trip to clamp it.
+        self._page = 1
+        self._refresh_organizations()
+
+    @Slot(str)
+    def setOrganizationSearchText(self, text: str) -> None:
+        normalized = str(text or "")
+        if normalized == self._search_text:
+            return
+        self._search_text = normalized
+        self._page = 1
+        self.organizationSearchTextChanged.emit()
+        self._refresh_organizations()
+
     @Slot("QVariantMap", result="QVariantMap")
     def createOrganization(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(
@@ -157,7 +203,13 @@ class PlatformOrganizationController(QObject):
         )
 
     def _refresh_organizations(self) -> None:
-        self._set_organizations(serialize_action_list(self._presenter.build_catalog()))
+        self._set_organizations(
+            serialize_action_list(
+                self._presenter.build_catalog_page(
+                    page=self._page, page_size=self._page_size, search=self._search_text
+                )
+            )
+        )
 
 
 __all__ = ["PlatformOrganizationController"]

@@ -139,6 +139,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     documentLinksChanged = Signal()
     documentStructuresChanged = Signal()
     organizationEditorOptionsChanged = Signal()
+    organizationSearchTextChanged = Signal()
     departmentEditorOptionsChanged = Signal()
     employeeEditorOptionsChanged = Signal()
     userEditorOptionsChanged = Signal()
@@ -191,6 +192,14 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Property("QVariantMap", notify=organizationsChanged)
     def organizations(self) -> dict[str, object]:
         return self._organization_controller.organizations
+
+    @Property(str, notify=organizationSearchTextChanged)
+    def organizationSearchText(self) -> str:
+        return self._organization_controller.organizationSearchText
+
+    @Property("QVariantList", constant=True)
+    def organizationPageSizeOptions(self) -> list[int]:
+        return self._organization_controller.organizationPageSizeOptions
 
     @Property("QVariantMap", notify=calendarsChanged)
     def calendars(self) -> dict[str, object]:
@@ -362,6 +371,18 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Slot(str, result="QVariantMap")
     def enableOrganization(self, organization_id: str) -> dict[str, object]:
         return enable_organization(self, organization_id)
+
+    @Slot(int)
+    def setOrganizationPage(self, page: int) -> None:
+        self._organization_controller.setOrganizationPage(page)
+
+    @Slot(int)
+    def setOrganizationPageSize(self, page_size: int) -> None:
+        self._organization_controller.setOrganizationPageSize(page_size)
+
+    @Slot(str)
+    def setOrganizationSearchText(self, text: str) -> None:
+        self._organization_controller.setOrganizationSearchText(text)
 
     # ── Calendar slots ────────────────────────────────────────────────────
 

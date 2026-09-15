@@ -115,11 +115,26 @@ AppLayouts.WorkspaceFrame {
                 errorMessage: root.err
                 feedbackMessage: root.ok
                 selectedRowId: root.selectedRowId
+                showSearch: true
+                searchText: root.workspaceController ? root.workspaceController.organizationSearchText : ""
+                pageSizeOptions: root.workspaceController ? root.workspaceController.organizationPageSizeOptions : [25, 50, 100]
 
                 onCreateRequested: dialogHostLoader.invoke("openOrganizationCreate")
                 onRowSelected: function(id) { root.selectedRowId = id }
                 onRowActivated: function(id) { root.selectedRowId = id; root.detailOpen = true }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
+                onSearchChanged: function(text) {
+                    if (root.workspaceController) root.workspaceController.setOrganizationSearchText(text)
+                }
+                onPageRequested: function(page) {
+                    if (root.workspaceController) root.workspaceController.setOrganizationPage(page)
+                }
+                onPageSizeRequested: function(pageSize) {
+                    if (root.workspaceController) root.workspaceController.setOrganizationPageSize(pageSize)
+                }
+                onClearFiltersRequested: {
+                    if (root.workspaceController) root.workspaceController.setOrganizationSearchText("")
+                }
             }
 
             AppWidgets.InspectorPanel {

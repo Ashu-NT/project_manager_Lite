@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.platform.infrastructure.persistence.mappers.master_data.org.org import (
@@ -80,6 +80,48 @@ class SqlAlchemyOrganizationRepository(OrganizationRepository):
             stmt = stmt.where(OrganizationORM.is_enabled == bool(enabled_only))
         rows = self.session.execute(stmt.order_by(OrganizationORM.display_name.asc())).scalars().all()
         return [organization_from_orm(row) for row in rows]
+
+    def list_page_for_tenant(
+        self,
+        tenant_id: str,
+        *,
+        page: int,
+        page_size: int,
+        search: str | None = None,
+        enabled_only: bool | None = None,
+    ) -> tuple[list[Organization], int, int]:
+        total = self.session.execute(
+            select(func.count())
+            .select_from(OrganizationORM)
+            .where(OrganizationORM.tenant_id == tenant_id)
+        ).scalar_one()
+
+        filtered_stmt = select(OrganizationORM).where(OrganizationORM.tenant_id == tenant_id)
+        filtered_count_stmt = (
+            select(func.count())
+            .select_from(OrganizationORM)
+            .where(OrganizationORM.tenant_id == tenant_id)
+        )
+        if enabled_only is not None:
+            condition = OrganizationORM.is_enabled == bool(enabled_only)
+            filtered_stmt = filtered_stmt.where(condition)
+            filtered_count_stmt = filtered_count_stmt.where(condition)
+        normalized_search = (search or "").strip()
+        if normalized_search:
+            pattern = f"%{normalized_search}%"
+            condition = or_(
+                OrganizationORM.display_name.ilike(pattern),
+                OrganizationORM.organization_code.ilike(pattern),
+            )
+            filtered_stmt = filtered_stmt.where(condition)
+            filtered_count_stmt = filtered_count_stmt.where(condition)
+
+        filtered_total = self.session.execute(filtered_count_stmt).scalar_one()
+        offset = max(0, (page - 1) * page_size)
+        rows = self.session.execute(
+            filtered_stmt.order_by(OrganizationORM.display_name.asc()).offset(offset).limit(page_size)
+        ).scalars().all()
+        return [organization_from_orm(row) for row in rows], total, filtered_total
 
 
 __all__ = [

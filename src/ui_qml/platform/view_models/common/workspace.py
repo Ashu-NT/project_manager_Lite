@@ -52,6 +52,17 @@ class PlatformWorkspaceActionListViewModel:
     subtitle: str = ""
     empty_state: str = ""
     items: tuple[PlatformWorkspaceActionItemViewModel, ...] = field(default_factory=tuple)
+    # Optional server-side pagination metadata. `paginated` is False (and the
+    # rest at their defaults) for every existing non-paginated list -- fully
+    # backward compatible. `no_results_state` is shown instead of
+    # `empty_state` when the dataset itself is non-empty but the current
+    # search/filter matched nothing (total > 0, filtered_total == 0).
+    paginated: bool = False
+    no_results_state: str = ""
+    page: int = 1
+    page_size: int = 0
+    total_count: int = 0
+    filtered_total: int = 0
 
 __all__ = [
     "PlatformMetricViewModel",

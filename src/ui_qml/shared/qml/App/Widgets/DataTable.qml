@@ -38,6 +38,12 @@ Item {
     property bool   showFilter:     false
     property bool   loading:        false
     property string emptyText:      "No records"
+    // Optional single resolution action rendered inside the empty state
+    // (e.g. "Create organization" for a true-empty dataset, "Clear
+    // filters" for a search/filter that matched nothing). Empty by
+    // default -- most tables remain purely informational when empty.
+    property string emptyActionLabel: ""
+    signal emptyActionRequested()
     property bool   alwaysShowVerticalScrollBar: false
     property bool   multiSelect:    false
     property var    selectedRowIds: []
@@ -1022,6 +1028,8 @@ Item {
         width:   Math.min(_mainView.width, 320)
         visible: root._rowCount === 0 && !root.loading
         title:   root.emptyText
+        actionLabel: root.emptyActionLabel
+        onActionRequested: root.emptyActionRequested()
     }
 
     // ── Loading overlay ───────────────────────────────────────────────

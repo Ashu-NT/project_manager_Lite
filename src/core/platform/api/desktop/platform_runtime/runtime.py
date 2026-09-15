@@ -11,6 +11,7 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
 from src.core.platform.api.desktop.master_data.org.models.organization import (
+    OrganizationCatalogPageDto,
     OrganizationDto,
     OrganizationProvisionCommand,
     OrganizationUpdateCommand,
@@ -52,6 +53,20 @@ class PlatformRuntimeDesktopApi:
                 for row in self._platform_runtime_application_service.list_organizations(
                     enabled_only=enabled_only
                 )
+            )
+        )
+
+    def list_organizations_page(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str | None = None,
+        enabled_only: bool | None = None,
+    ) -> DesktopApiResult[OrganizationCatalogPageDto]:
+        return self._execute(
+            lambda: self._build_organizations_page(
+                page=page, page_size=page_size, search=search, enabled_only=enabled_only
             )
         )
 
@@ -166,6 +181,25 @@ class PlatformRuntimeDesktopApi:
             lambda: self._serialize_organization(
                 self._platform_runtime_application_service.enable_organization(organization_id)
             )
+        )
+
+    def _build_organizations_page(
+        self,
+        *,
+        page: int,
+        page_size: int,
+        search: str | None,
+        enabled_only: bool | None,
+    ) -> OrganizationCatalogPageDto:
+        organization_page = self._platform_runtime_application_service.list_organizations_page(
+            page=page, page_size=page_size, search=search, enabled_only=enabled_only
+        )
+        return OrganizationCatalogPageDto(
+            items=tuple(self._serialize_organization(row) for row in organization_page.items),
+            total=organization_page.total,
+            filtered_total=organization_page.filtered_total,
+            page=organization_page.page,
+            page_size=organization_page.page_size,
         )
 
     def _build_runtime_context(self) -> PlatformRuntimeContextDto:

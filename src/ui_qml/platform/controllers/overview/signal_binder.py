@@ -22,6 +22,9 @@ def bind_child_signals(controller) -> None:
     controller._organization_controller.organizationEditorOptionsChanged.connect(
         controller.organizationEditorOptionsChanged.emit
     )
+    controller._organization_controller.organizationSearchTextChanged.connect(
+        controller.organizationSearchTextChanged.emit
+    )
     controller._calendar_controller.calendarsChanged.connect(controller.calendarsChanged.emit)
     controller._site_controller.sitesChanged.connect(controller.sitesChanged.emit)
     controller._department_controller.departmentsChanged.connect(controller.departmentsChanged.emit)

@@ -30,31 +30,49 @@ class PlatformOrganizationCatalogPresenter:
     ) -> None:
         self._runtime_api = runtime_api
 
-    def build_catalog(self) -> PlatformWorkspaceActionListViewModel:
+    def build_catalog_page(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+    ) -> PlatformWorkspaceActionListViewModel:
         if self._runtime_api is None:
             return PlatformWorkspaceActionListViewModel(
                 title="Organizations",
                 subtitle="Organization records appear here once the platform runtime API is connected.",
                 empty_state="Platform runtime API is not connected in this QML preview.",
+                paginated=True,
+                page=page,
+                page_size=page_size,
             )
 
-        result = self._runtime_api.list_organizations(enabled_only=None)
+        result = self._runtime_api.list_organizations_page(
+            page=page, page_size=page_size, search=search.strip() or None
+        )
         if not result.ok or result.data is None:
             message = result.error.message if result.error is not None else "Unable to load organizations."
             return PlatformWorkspaceActionListViewModel(
                 title="Organizations",
                 subtitle=message,
                 empty_state=message,
+                paginated=True,
+                page=page,
+                page_size=page_size,
             )
 
-        # Multiple organizations may be enabled at once in the same tenant -- no single
-        # "active" designee to name, so the subtitle reports a count instead.
-        enabled_count = sum(1 for row in result.data if row.is_enabled)
+        catalog_page = result.data
         return PlatformWorkspaceActionListViewModel(
             title="Organizations",
-            subtitle=f"Install profiles and hosting boundaries. {enabled_count} of {len(result.data)} enabled.",
-            empty_state="No organizations are available yet.",
-            items=tuple(self._serialize_organization(row) for row in result.data),
+            subtitle="Install profiles and hosting boundaries across the enterprise.",
+            empty_state="No organizations yet. Organizations will appear here once they are created.",
+            no_results_state="No organizations match your current filters.",
+            items=tuple(self._serialize_organization(row) for row in catalog_page.items),
+            paginated=True,
+            page=catalog_page.page,
+            page_size=catalog_page.page_size,
+            total_count=catalog_page.total,
+            filtered_total=catalog_page.filtered_total,
         )
 
     def build_module_options(self) -> tuple[dict[str, str], ...]:

@@ -15,6 +15,15 @@ class OrganizationDto:
 
 
 @dataclass(frozen=True)
+class OrganizationCatalogPageDto:
+    items: tuple[OrganizationDto, ...] = field(default_factory=tuple)
+    total: int = 0
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = 25
+
+
+@dataclass(frozen=True)
 class OrganizationProvisionCommand:
     organization_code: str
     display_name: str

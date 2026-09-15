@@ -162,6 +162,42 @@ class FakePlatformRuntimeApi:
     def get_organization_count(self) -> DesktopApiResult[int]:
         return DesktopApiResult(ok=True, data=len(self._organizations))
 
+    def list_organizations_page(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str | None = None,
+        enabled_only: bool | None = None,
+    ) -> DesktopApiResult[object]:
+        from src.core.platform.api.desktop.master_data.org.models.organization import (
+            OrganizationCatalogPageDto,
+        )
+
+        rows = self._organizations
+        if enabled_only is not None:
+            rows = [row for row in rows if row.is_enabled == enabled_only]
+        total = len(self._organizations)
+        if search:
+            needle = search.strip().lower()
+            rows = [
+                row for row in rows
+                if needle in row.display_name.lower() or needle in row.organization_code.lower()
+            ]
+        filtered_total = len(rows)
+        offset = max(0, (page - 1) * page_size)
+        page_rows = rows[offset:offset + page_size]
+        return DesktopApiResult(
+            ok=True,
+            data=OrganizationCatalogPageDto(
+                items=tuple(page_rows),
+                total=total,
+                filtered_total=filtered_total,
+                page=page,
+                page_size=page_size,
+            ),
+        )
+
     def get_current_permissions(self) -> DesktopApiResult[tuple[str, ...]]:
         # This fake represents a fully-connected, admin-like caller in
         # existing tests that don't exercise RBAC nav visibility -- return
