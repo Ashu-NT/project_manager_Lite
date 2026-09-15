@@ -7,6 +7,7 @@ from PySide6.QtCore import QObject, QUrl, qInstallMessageHandler
 from PySide6.QtQml import QQmlComponent
 from PySide6.QtQuick import QQuickWindow
 
+from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.shell.qml_engine import create_qml_engine
 
 
@@ -47,7 +48,9 @@ def test_platform_settings_loads_without_runtime_binding_warnings(
         page.setWidth(1280)
         page.setHeight(720)
         if source == PLATFORM_WORKSPACE:
-            page.setProperty("activeDestination", "settings")
+            catalog = PlatformWorkspaceCatalog()
+            page.setProperty("platformCatalog", catalog)
+            catalog.selectDestination("settings")
         window.show()
         qapp.processEvents()
 

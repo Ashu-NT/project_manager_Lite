@@ -57,14 +57,14 @@ _WORKSPACE_DESCRIPTORS: tuple[ProjectManagementWorkspaceDescriptor, ...] = (
         summary="Time entry, review, labor capture, and project time reporting.",
     ),
     ProjectManagementWorkspaceDescriptor(
-        key="review_queue",
-        title="Review Queue",
-        summary="Manager/approver queue for reviewing and deciding on submitted timesheets.",
-    ),
-    ProjectManagementWorkspaceDescriptor(
         key="dashboard",
         title="Overview",
         summary="Project KPIs, health summaries, and executive delivery views.",
+    ),
+    ProjectManagementWorkspaceDescriptor(
+        key="review_queue",
+        title="Review Queue",
+        summary="Manager/approver queue for reviewing and deciding on submitted timesheets.",
     ),
 )
 

@@ -40,7 +40,7 @@ def _load_page(services):
     engine = create_qml_engine()
     load_qml(engine, PAGE_PATH, initial_properties={"platformCatalog": catalog})
     root = engine.rootObjects()[0]
-    return engine, root
+    return engine, root, catalog
 
 
 _ALL_LOADER_NAMES = (
@@ -62,7 +62,7 @@ _ALL_LOADER_NAMES = (
 
 
 def test_only_overview_is_instantiated_on_first_entry(services) -> None:
-    _engine, root = _load_page(services)
+    _engine, root, _catalog = _load_page(services)
 
     overview_loader = _find_by_object_name(root, "overviewLoader")
     assert overview_loader.property("item") is not None
@@ -76,9 +76,9 @@ def test_only_overview_is_instantiated_on_first_entry(services) -> None:
 
 
 def test_visiting_a_destination_instantiates_only_that_loader(services) -> None:
-    _engine, root = _load_page(services)
+    _engine, root, catalog = _load_page(services)
 
-    root.setProperty("activeDestination", "sites")
+    catalog.selectDestination("sites")
 
     sites_loader = _find_by_object_name(root, "sitesLoader")
     assert sites_loader.property("active") is True
@@ -92,15 +92,15 @@ def test_visiting_a_destination_instantiates_only_that_loader(services) -> None:
 
 
 def test_revisiting_a_destination_reuses_the_same_instance(services) -> None:
-    _engine, root = _load_page(services)
+    _engine, root, catalog = _load_page(services)
 
-    root.setProperty("activeDestination", "sites")
+    catalog.selectDestination("sites")
     sites_loader = _find_by_object_name(root, "sitesLoader")
     first_item = sites_loader.property("item")
     assert first_item is not None
 
-    root.setProperty("activeDestination", "overview")
-    root.setProperty("activeDestination", "sites")
+    catalog.selectDestination("overview")
+    catalog.selectDestination("sites")
 
     second_item = sites_loader.property("item")
     assert second_item is not None
@@ -108,10 +108,10 @@ def test_revisiting_a_destination_reuses_the_same_instance(services) -> None:
 
 
 def test_previously_visited_destination_stays_loaded_after_leaving_it(services) -> None:
-    _engine, root = _load_page(services)
+    _engine, root, catalog = _load_page(services)
 
-    root.setProperty("activeDestination", "sites")
-    root.setProperty("activeDestination", "employees")
+    catalog.selectDestination("sites")
+    catalog.selectDestination("employees")
 
     sites_loader = _find_by_object_name(root, "sitesLoader")
     employees_loader = _find_by_object_name(root, "employeesLoader")
@@ -125,14 +125,14 @@ def test_previously_visited_destination_stays_loaded_after_leaving_it(services) 
 
 
 def test_control_surface_shared_by_two_destinations_loads_once(services) -> None:
-    _engine, root = _load_page(services)
+    _engine, root, catalog = _load_page(services)
 
-    root.setProperty("activeDestination", "control_approvals")
+    catalog.selectDestination("control_approvals")
     control_loader = _find_by_object_name(root, "controlLoader")
     first_item = control_loader.property("item")
     assert first_item is not None
 
-    root.setProperty("activeDestination", "control_audit")
+    catalog.selectDestination("control_audit")
     second_item = control_loader.property("item")
     assert second_item is not None
     assert first_item == second_item
@@ -144,7 +144,7 @@ def test_related_record_navigation_loads_target_surface_synchronously(services) 
     must already be instantiated by the time that call runs."""
     from PySide6.QtCore import QMetaObject, Q_ARG
 
-    _engine, root = _load_page(services)
+    _engine, root, _catalog = _load_page(services)
 
     ok = QMetaObject.invokeMethod(
         root,

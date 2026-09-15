@@ -30,7 +30,19 @@ Item {
     property ShellContexts.ShellContext shellModel
 
     // -- Canonical destination state --------------------------------
-    property string activeDestination: "overview"
+    // Destination selection is owned by platformCatalog (so it can be
+    // driven from the shell's Context Navigation Tree too, not only from
+    // this page's own internal nav); this page renders whichever
+    // destination is currently selected there.
+    readonly property string activeDestination: root.platformCatalog
+        ? root.platformCatalog.currentDestinationId
+        : "overview"
+
+    function _selectDestination(destinationId) {
+        if (root.platformCatalog) {
+            root.platformCatalog.selectDestination(destinationId)
+        }
+    }
 
     // Each surface's Item is created only the first time it becomes active
     // (Loader.active flips true and stays true), then stays instantiated
@@ -102,7 +114,7 @@ Item {
 
 
     function _onRelatedRecordRequested(destinationId, rowId) {
-        root.activeDestination = destinationId
+        root._selectDestination(destinationId)
         if (destinationId === "organizations") _organizationsLoader.item.openRecord(rowId)
         else if (destinationId === "sites") _sitesLoader.item.openRecord(rowId)
         else if (destinationId === "departments") _departmentsLoader.item.openRecord(rowId)
@@ -257,7 +269,7 @@ Item {
         const label = String(metrics[index].label || "")
         const destination = root._metricDestinationByLabel[label]
         if (destination) {
-            root.activeDestination = destination
+            root._selectDestination(destination)
         }
     }
 
@@ -285,8 +297,8 @@ Item {
                     root.platformCatalog.refreshCurrentPermissions()
                 }
             }
-            onManageTenantsRequested: root.activeDestination = "tenants"
-            onManageOrganizationsRequested: root.activeDestination = "organizations"
+            onManageTenantsRequested: root._selectDestination("tenants")
+            onManageOrganizationsRequested: root._selectDestination("organizations")
         }
 
         RowLayout {
@@ -299,7 +311,7 @@ Item {
                 platformCatalog: root.platformCatalog
                 selectedDestination: root.activeDestination
                 onDestinationSelected: function(destinationId) {
-                    root.activeDestination = destinationId
+                    root._selectDestination(destinationId)
                 }
             }
 
@@ -342,7 +354,7 @@ Item {
                     sourceComponent: Component {
                         UsersOrg.UsersWorkspacePage {
                             platformCatalog: root.platformCatalog
-                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                            onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                         }
                     }
                 }
@@ -357,7 +369,7 @@ Item {
                     sourceComponent: Component {
                         AccessOrg.AccessWorkspacePage {
                             platformCatalog: root.platformCatalog
-                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                            onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                         }
                     }
                 }
@@ -372,7 +384,7 @@ Item {
                     sourceComponent: Component {
                         DocumentsOrg.DocumentsWorkspacePage {
                             platformCatalog: root.platformCatalog
-                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                            onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                         }
                     }
                 }
@@ -387,7 +399,7 @@ Item {
                     sourceComponent: Component {
                         DocumentsOrg.DocumentStructuresWorkspacePage {
                             platformCatalog: root.platformCatalog
-                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                            onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                         }
                     }
                 }
@@ -402,7 +414,7 @@ Item {
                     sourceComponent: Component {
                         OrganizationsOrg.OrganizationsWorkspacePage {
                             platformCatalog: root.platformCatalog
-                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                            onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                         }
                     }
                 }
@@ -417,7 +429,7 @@ Item {
                     sourceComponent: Component {
                         SitesOrg.SitesWorkspacePage {
                             platformCatalog: root.platformCatalog
-                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                            onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                             onRelatedRecordRequested: function(destinationId, rowId) {
                                 root._onRelatedRecordRequested(destinationId, rowId)
                             }
@@ -435,7 +447,7 @@ Item {
                     sourceComponent: Component {
                         DepartmentsOrg.DepartmentsWorkspacePage {
                             platformCatalog: root.platformCatalog
-                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                            onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                             onRelatedRecordRequested: function(destinationId, rowId) {
                                 root._onRelatedRecordRequested(destinationId, rowId)
                             }
@@ -453,7 +465,7 @@ Item {
                     sourceComponent: Component {
                         EmployeesOrg.EmployeesWorkspacePage {
                             platformCatalog: root.platformCatalog
-                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                            onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                         }
                     }
                 }
@@ -468,7 +480,7 @@ Item {
                     sourceComponent: Component {
                         PartiesOrg.PartiesWorkspacePage {
                             platformCatalog: root.platformCatalog
-                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                            onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                         }
                     }
                 }
@@ -483,7 +495,7 @@ Item {
                     sourceComponent: Component {
                         CalendarsOrg.CalendarsWorkspacePage {
                             platformCatalog: root.platformCatalog
-                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                            onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
                         }
                     }
                 }

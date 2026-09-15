@@ -93,6 +93,7 @@ QML_IMPORT_MAJOR_VERSION = 1
 @QmlUncreatable("Platform workspace catalogs are provided by the shell runtime.")
 class PlatformWorkspaceCatalog(QObject):
     contextNavigationChanged = Signal()
+    currentDestinationIdChanged = Signal()
 
     def __init__(
         self,
@@ -106,6 +107,7 @@ class PlatformWorkspaceCatalog(QObject):
             runtime_api = getattr(desktop_api_registry, "platform_runtime", None) or desktop_api
         self._runtime_api = runtime_api
         self._current_permissions: frozenset[str] = frozenset()
+        self._current_destination_id: str = "overview"
         self._reload_current_permissions()
         self._integration_api: IntegrationCapabilityDesktopApi | None = (
             getattr(desktop_api_registry, "integration_capability", None)
@@ -538,6 +540,18 @@ class PlatformWorkspaceCatalog(QObject):
         return build_platform_context_navigation(
             held_permissions=self._current_permissions
         ).to_qml_groups()
+
+    @Property(str, notify=currentDestinationIdChanged)
+    def currentDestinationId(self) -> str:
+        return self._current_destination_id
+
+    @Slot(str)
+    def selectDestination(self, destination_id: str) -> None:
+        normalized = str(destination_id or "").strip()
+        if not normalized or normalized == self._current_destination_id:
+            return
+        self._current_destination_id = normalized
+        self.currentDestinationIdChanged.emit()
 
     @Slot()
     def refreshCurrentPermissions(self) -> None:
