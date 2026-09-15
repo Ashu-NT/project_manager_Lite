@@ -1,5 +1,3 @@
-from src.ui_qml.modules.project_management.controllers.timesheets.timesheets_workspace_controller import (
-    ProjectManagementTimesheetsWorkspaceController,
-)
+from .resource_timesheets_controller import ProjectManagementResourceTimesheetsController
 
-__all__ = ["ProjectManagementTimesheetsWorkspaceController"]
+__all__ = ["ProjectManagementResourceTimesheetsController"]
