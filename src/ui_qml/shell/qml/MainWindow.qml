@@ -5,11 +5,15 @@ import App.Theme 1.0 as Theme
 
 Item {
     id: root
+    objectName: "mainWindow"
 
     property ShellContexts.ShellContext shellModel
     property var platformCatalog
     property var pmCatalog
     property var globalOverviewController
+    property var organizationSwitcherController
+    property var notificationsController
+    property bool _notificationsPanelOpen: false
     readonly property string _currentRouteSource: root.shellModel
         ? String(root.shellModel.currentRouteSource || "")
         : ""
@@ -27,8 +31,11 @@ Item {
             Layout.fillWidth: true
             shellModel: root.shellModel
             platformCatalog: root.platformCatalog
+            organizationSwitcherController: root.organizationSwitcherController
+            notificationsController: root.notificationsController
             sidebarCollapsed: shellDrawer.collapsed
             onToggleSidebar: shellDrawer.collapsed = !shellDrawer.collapsed
+            onNotificationsRequested: root._notificationsPanelOpen = true
         }
 
         RowLayout {
@@ -81,5 +88,12 @@ Item {
                 }
             }
         }
+    }
+
+    NotificationsPanel {
+        anchors.fill: parent
+        controller: root.notificationsController
+        open: root._notificationsPanelOpen
+        onCloseRequested: root._notificationsPanelOpen = false
     }
 }

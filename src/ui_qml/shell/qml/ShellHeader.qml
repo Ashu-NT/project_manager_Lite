@@ -8,12 +8,19 @@ import App.Controls 1.0 as AppControls
 
 Rectangle {
     id: header
+    objectName: "shellHeader"
 
     property ShellContexts.ShellContext shellModel
     property bool sidebarCollapsed: false
     property var platformCatalog: null
+    // Shell.Controllers.OrganizationSwitcherController /
+    // Shell.Controllers.NotificationsController -- shell-owned, independent
+    // of platformCatalog and of each other.
+    property var organizationSwitcherController: null
+    property var notificationsController: null
 
     signal toggleSidebar()
+    signal notificationsRequested()
 
     readonly property string currentModuleLabel: {
         if (!header.shellModel) {
@@ -136,76 +143,19 @@ Rectangle {
             platformCatalog: header.platformCatalog
         }
 
-        Rectangle {
-            Layout.preferredWidth: 300
-            Layout.preferredHeight: Theme.AppTheme.inputHeight
-            radius: Theme.AppTheme.radiusSm
-            color: Theme.AppTheme.surfaceOverlay
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Theme.AppTheme.spacingSm
-                anchors.rightMargin: Theme.AppTheme.spacingSm
-                spacing: Theme.AppTheme.spacingXs
-
-                AppIcons.AppIcon {
-                    name: "search"
-                    size: Theme.AppTheme.iconSm
-                    iconColor: Theme.AppTheme.textMuted
-                }
-
-                AppControls.Label {
-                    Layout.fillWidth: true
-                    text: "Global search"
-                    color: Theme.AppTheme.textMuted
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.smallSize
-                    elide: Text.ElideRight
-                }
-            }
+        OrganizationSwitcher {
+            Layout.alignment: Qt.AlignVCenter
+            controller: header.organizationSwitcherController
         }
 
-        RowLayout {
-            spacing: Theme.AppTheme.spacingXs
+        Item {
+            Layout.fillWidth: true
+        }
 
-            Repeater {
-                model: [
-                    { "icon": "workflow", "label": "Approvals" },
-                    { "icon": "notifications", "label": "Notifications" }
-                ]
-
-                delegate: Rectangle {
-                    id: actionCell
-                    required property var modelData
-
-                    implicitWidth: Theme.AppTheme.inputHeight
-                    implicitHeight: Theme.AppTheme.inputHeight
-                    radius: Theme.AppTheme.radiusSm
-                    color: actionHover.containsMouse
-                        ? Theme.AppTheme.hoverSurface
-                        : Theme.AppTheme.surfaceOverlay
-
-                    AppIcons.AppIcon {
-                        anchors.centerIn: parent
-                        name: actionCell.modelData.icon
-                        size: Theme.AppTheme.headerIconSize
-                        iconColor: Theme.AppTheme.textMuted
-                    }
-
-                    MouseArea {
-                        id: actionHover
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                    }
-
-                    ToolTip {
-                        visible: actionHover.containsMouse
-                        text: actionCell.modelData.label
-                        delay: 350
-                    }
-                }
-            }
+        NotificationBell {
+            Layout.alignment: Qt.AlignVCenter
+            controller: header.notificationsController
+            onActivated: header.notificationsRequested()
         }
 
         Rectangle {

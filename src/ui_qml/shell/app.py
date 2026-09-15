@@ -25,8 +25,18 @@ from src.ui_qml.shell.context import build_shell_context, update_shell_runtime_s
 from src.ui_qml.shell.controllers.global_overview.global_overview_controller import (
     GlobalOverviewController,
 )
+from src.ui_qml.shell.controllers.notifications.notifications_controller import (
+    NotificationsController,
+)
+from src.ui_qml.shell.controllers.organization.organization_switcher_controller import (
+    OrganizationSwitcherController,
+)
 from src.ui_qml.shell.login import ShellLoginController
 from src.ui_qml.shell.presenters.global_overview_presenter import GlobalOverviewPresenter
+from src.ui_qml.shell.presenters.notifications.notifications_presenter import NotificationsPresenter
+from src.ui_qml.shell.presenters.organization.organization_switcher_presenter import (
+    OrganizationSwitcherPresenter,
+)
 from src.ui_qml.shell.main_window import build_main_window_navigation
 from src.ui_qml.shell.qml_engine import (
     create_qml_engine,
@@ -207,11 +217,46 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
             shell_context=shell_context,
         )
         logger.debug("Global Overview controller created.")
+
+    organization_switcher_controller = OrganizationSwitcherController(
+        presenter=OrganizationSwitcherPresenter(
+            tenant_api=getattr(desktop_api_registry, "platform_tenant", None)
+            if desktop_api_registry is not None
+            else None
+        ),
+    )
+    organization_switcher_controller.refresh()
+    logger.debug("Shell organization switcher controller created.")
+
+    notifications_controller = NotificationsController(
+        presenter=NotificationsPresenter(
+            api=getattr(desktop_api_registry, "platform_notification", None)
+            if desktop_api_registry is not None
+            else None
+        ),
+        shell_context=shell_context,
+    )
+    # Loaded proactively (not only on first drawer open) so the header bell
+    # badge is already correct the moment the shell appears.
+    notifications_controller.refresh()
+    logger.debug("Shell notifications controller created.")
+
     platform_workspace_catalog.tenantSwitcher.tenantSwitched.connect(
         pm_workspace_catalog.refreshAllWorkspaces
     )
     platform_workspace_catalog.organizationSwitcher.organizationSwitched.connect(
         pm_workspace_catalog.refreshAllWorkspaces
+    )
+    # Shell-wide scope invalidation: both switchers feed the SAME signal.
+    # Neither switcher (nor this connection) knows anything about
+    # GlobalOverviewController/NotificationsController -- both of those
+    # controllers independently subscribed to shell_context.scopeChanged
+    # themselves, above.
+    platform_workspace_catalog.tenantSwitcher.tenantSwitched.connect(
+        shell_context.scopeChanged
+    )
+    organization_switcher_controller.organizationSwitched.connect(
+        shell_context.scopeChanged
     )
     platform_workspace_catalog.adminWorkspace.organizationsChanged.connect(
         pm_workspace_catalog.refreshCapabilities
@@ -263,6 +308,8 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
             "platformCatalog": platform_workspace_catalog,
             "pmCatalog": pm_workspace_catalog,
             "globalOverviewController": global_overview_controller,
+            "organizationSwitcherController": organization_switcher_controller,
+            "notificationsController": notifications_controller,
         },
     )
     if runtime_session_controller is not None:

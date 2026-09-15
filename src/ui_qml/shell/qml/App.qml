@@ -9,6 +9,8 @@ ApplicationWindow {
     property var platformCatalog
     property var pmCatalog
     property var globalOverviewController
+    property var organizationSwitcherController
+    property var notificationsController
 
     width: 1280
     height: 800
@@ -38,5 +40,7 @@ ApplicationWindow {
         platformCatalog: app.platformCatalog
         pmCatalog: app.pmCatalog
         globalOverviewController: app.globalOverviewController
+        organizationSwitcherController: app.organizationSwitcherController
+        notificationsController: app.notificationsController
     }
 }
