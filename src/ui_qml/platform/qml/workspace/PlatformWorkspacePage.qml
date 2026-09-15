@@ -32,8 +32,28 @@ Item {
     // -- Canonical destination state --------------------------------
     property string activeDestination: "overview"
 
-    onActiveDestinationChanged: root._ensureWorkspaceLoaded(root.activeDestination)
-    Component.onCompleted: root._ensureWorkspaceLoaded(root.activeDestination)
+    // Each surface's Item is created only the first time it becomes active
+    // (Loader.active flips true and stays true), then stays instantiated
+    // for the rest of the session -- only one surface is ever `visible` at a time.
+    property var _activatedSurfaces: ({})
+
+    function _markSurfaceLoaded(surfaceKey) {
+        if (root._activatedSurfaces[surfaceKey] === true) {
+            return
+        }
+        const updated = Object.assign({}, root._activatedSurfaces)
+        updated[surfaceKey] = true
+        root._activatedSurfaces = updated
+    }
+
+    onActiveDestinationChanged: {
+        root._ensureWorkspaceLoaded(root.activeDestination)
+        root._markSurfaceLoaded(root._surfaceFor(root.activeDestination))
+    }
+    Component.onCompleted: {
+        root._ensureWorkspaceLoaded(root.activeDestination)
+        root._markSurfaceLoaded(root._surfaceFor(root.activeDestination))
+    }
 
     function _ensureWorkspaceLoaded(destinationId) {
         if (!root.platformCatalog) {
@@ -56,41 +76,39 @@ Item {
     readonly property bool _isMultiTenant: root.platformCatalog
         ? root.platformCatalog.tenantSwitcher.isMultiTenant
         : false
- 
+
     readonly property var _directSurfaceDestinations: [
         "organizations", "sites", "departments", "employees", "parties", "calendars",
         "users", "access", "documents", "structures"
     ]
 
-    readonly property string _activeSurface: {
-        if (root.activeDestination === "control_approvals" || root.activeDestination === "control_audit") {
+    function _surfaceFor(destinationId) {
+        if (destinationId === "control_approvals" || destinationId === "control_audit") {
             return "control"
         }
-        if (root.activeDestination === "settings") {
+        if (destinationId === "settings") {
             return "settings"
         }
-        if (root.activeDestination === "tenants") {
+        if (destinationId === "tenants") {
             return "tenants"
         }
-        if (root._directSurfaceDestinations.indexOf(root.activeDestination) >= 0) {
-            return root.activeDestination
+        if (root._directSurfaceDestinations.indexOf(destinationId) >= 0) {
+            return destinationId
         }
         return "overview"
     }
 
-    // R4.7: cross-entity "jump to related record" navigation. Sites' and
-    // Departments' detail pages already surface related-record rows
-    // (departments/employees); this bubbles those clicks to a destination
-    // switch plus opening the specific row on the target page, which stays
-    // instantiated (persistent sibling) so its own state survives the jump.
+    readonly property string _activeSurface: root._surfaceFor(root.activeDestination)
+
+
     function _onRelatedRecordRequested(destinationId, rowId) {
         root.activeDestination = destinationId
-        if (destinationId === "organizations") _organizationsPage.openRecord(rowId)
-        else if (destinationId === "sites") _sitesPage.openRecord(rowId)
-        else if (destinationId === "departments") _departmentsPage.openRecord(rowId)
-        else if (destinationId === "employees") _employeesPage.openRecord(rowId)
-        else if (destinationId === "parties") _partiesPage.openRecord(rowId)
-        else if (destinationId === "calendars") _calendarsPage.openRecord(rowId)
+        if (destinationId === "organizations") _organizationsLoader.item.openRecord(rowId)
+        else if (destinationId === "sites") _sitesLoader.item.openRecord(rowId)
+        else if (destinationId === "departments") _departmentsLoader.item.openRecord(rowId)
+        else if (destinationId === "employees") _employeesLoader.item.openRecord(rowId)
+        else if (destinationId === "parties") _partiesLoader.item.openRecord(rowId)
+        else if (destinationId === "calendars") _calendarsLoader.item.openRecord(rowId)
     }
 
     // -- Active organization (for ContextBar) ------------------------
@@ -161,7 +179,7 @@ Item {
         return options
     }
 
-    // -- Overview (R3) -------------------------------------------------
+    // -- Overview -------------------------------------------------
     // All figures below are read directly from already-backed, already-
     // refreshed controller state (admin_presenter.build_overview() and
     // Control's approval queue) -- no new backend, no invented metrics.
@@ -295,121 +313,223 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
-                Overview.PlatformOverviewPage {
+                Loader {
+                    id: _overviewLoader
+                    objectName: "overviewLoader"
                     anchors.fill: parent
-                    visible: root._activeSurface === "overview"
-                    subtitle: String(root._overview.subtitle || "")
-                    metrics: root._overviewMetrics
-                    metricsClickable: true
-                    onMetricActivated: function(index) { root._onOverviewMetricActivated(index) }
-                    highlightCards: root._overviewHighlightCards
-                    breakdownCards: root._overviewBreakdownCards
-                }
-
-                UsersOrg.UsersWorkspacePage {
-                    id: _usersPage
-                    anchors.fill: parent
-                    visible: root._activeSurface === "users"
-                    platformCatalog: root.platformCatalog
-                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
-                }
-
-                AccessOrg.AccessWorkspacePage {
-                    id: _accessPage
-                    anchors.fill: parent
-                    visible: root._activeSurface === "access"
-                    platformCatalog: root.platformCatalog
-                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
-                }
-
-                DocumentsOrg.DocumentsWorkspacePage {
-                    id: _documentsPage
-                    anchors.fill: parent
-                    visible: root._activeSurface === "documents"
-                    platformCatalog: root.platformCatalog
-                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
-                }
-
-                DocumentsOrg.DocumentStructuresWorkspacePage {
-                    id: _structuresPage
-                    anchors.fill: parent
-                    visible: root._activeSurface === "structures"
-                    platformCatalog: root.platformCatalog
-                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
-                }
-
-                OrganizationsOrg.OrganizationsWorkspacePage {
-                    id: _organizationsPage
-                    anchors.fill: parent
-                    visible: root._activeSurface === "organizations"
-                    platformCatalog: root.platformCatalog
-                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
-                }
-
-                SitesOrg.SitesWorkspacePage {
-                    id: _sitesPage
-                    anchors.fill: parent
-                    visible: root._activeSurface === "sites"
-                    platformCatalog: root.platformCatalog
-                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
-                    onRelatedRecordRequested: function(destinationId, rowId) {
-                        root._onRelatedRecordRequested(destinationId, rowId)
+                    active: root._activatedSurfaces["overview"] === true
+                    visible: active && root._activeSurface === "overview"
+                    asynchronous: false
+                    sourceComponent: Component {
+                        Overview.PlatformOverviewPage {
+                            subtitle: String(root._overview.subtitle || "")
+                            metrics: root._overviewMetrics
+                            metricsClickable: true
+                            onMetricActivated: function(index) { root._onOverviewMetricActivated(index) }
+                            highlightCards: root._overviewHighlightCards
+                            breakdownCards: root._overviewBreakdownCards
+                        }
                     }
                 }
 
-                DepartmentsOrg.DepartmentsWorkspacePage {
-                    id: _departmentsPage
+                Loader {
+                    id: _usersLoader
+                    objectName: "usersLoader"
                     anchors.fill: parent
-                    visible: root._activeSurface === "departments"
-                    platformCatalog: root.platformCatalog
-                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
-                    onRelatedRecordRequested: function(destinationId, rowId) {
-                        root._onRelatedRecordRequested(destinationId, rowId)
+                    active: root._activatedSurfaces["users"] === true
+                    visible: active && root._activeSurface === "users"
+                    asynchronous: false
+                    sourceComponent: Component {
+                        UsersOrg.UsersWorkspacePage {
+                            platformCatalog: root.platformCatalog
+                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                        }
                     }
                 }
 
-                EmployeesOrg.EmployeesWorkspacePage {
-                    id: _employeesPage
+                Loader {
+                    id: _accessLoader
+                    objectName: "accessLoader"
                     anchors.fill: parent
-                    visible: root._activeSurface === "employees"
-                    platformCatalog: root.platformCatalog
-                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                    active: root._activatedSurfaces["access"] === true
+                    visible: active && root._activeSurface === "access"
+                    asynchronous: false
+                    sourceComponent: Component {
+                        AccessOrg.AccessWorkspacePage {
+                            platformCatalog: root.platformCatalog
+                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                        }
+                    }
                 }
 
-                PartiesOrg.PartiesWorkspacePage {
-                    id: _partiesPage
+                Loader {
+                    id: _documentsLoader
+                    objectName: "documentsLoader"
                     anchors.fill: parent
-                    visible: root._activeSurface === "parties"
-                    platformCatalog: root.platformCatalog
-                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                    active: root._activatedSurfaces["documents"] === true
+                    visible: active && root._activeSurface === "documents"
+                    asynchronous: false
+                    sourceComponent: Component {
+                        DocumentsOrg.DocumentsWorkspacePage {
+                            platformCatalog: root.platformCatalog
+                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                        }
+                    }
                 }
 
-                CalendarsOrg.CalendarsWorkspacePage {
-                    id: _calendarsPage
+                Loader {
+                    id: _structuresLoader
+                    objectName: "structuresLoader"
                     anchors.fill: parent
-                    visible: root._activeSurface === "calendars"
-                    platformCatalog: root.platformCatalog
-                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                    active: root._activatedSurfaces["structures"] === true
+                    visible: active && root._activeSurface === "structures"
+                    asynchronous: false
+                    sourceComponent: Component {
+                        DocumentsOrg.DocumentStructuresWorkspacePage {
+                            platformCatalog: root.platformCatalog
+                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                        }
+                    }
                 }
 
-                Control.ControlWorkspacePage {
+                Loader {
+                    id: _organizationsLoader
+                    objectName: "organizationsLoader"
                     anchors.fill: parent
-                    visible: root._activeSurface === "control"
-                    platformCatalog: root.platformCatalog
-                    activePanel: root.activeDestination === "control_audit" ? "audit" : "approvals"
+                    active: root._activatedSurfaces["organizations"] === true
+                    visible: active && root._activeSurface === "organizations"
+                    asynchronous: false
+                    sourceComponent: Component {
+                        OrganizationsOrg.OrganizationsWorkspacePage {
+                            platformCatalog: root.platformCatalog
+                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                        }
+                    }
                 }
 
-                Settings.SettingsWorkspacePage {
+                Loader {
+                    id: _sitesLoader
+                    objectName: "sitesLoader"
                     anchors.fill: parent
-                    visible: root._activeSurface === "settings"
-                    platformCatalog: root.platformCatalog
-                    shellModel: root.shellModel
+                    active: root._activatedSurfaces["sites"] === true
+                    visible: active && root._activeSurface === "sites"
+                    asynchronous: false
+                    sourceComponent: Component {
+                        SitesOrg.SitesWorkspacePage {
+                            platformCatalog: root.platformCatalog
+                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                            onRelatedRecordRequested: function(destinationId, rowId) {
+                                root._onRelatedRecordRequested(destinationId, rowId)
+                            }
+                        }
+                    }
                 }
 
-                Tenants.TenantManagementWorkspacePage {
+                Loader {
+                    id: _departmentsLoader
+                    objectName: "departmentsLoader"
                     anchors.fill: parent
-                    visible: root._activeSurface === "tenants"
-                    platformCatalog: root.platformCatalog
+                    active: root._activatedSurfaces["departments"] === true
+                    visible: active && root._activeSurface === "departments"
+                    asynchronous: false
+                    sourceComponent: Component {
+                        DepartmentsOrg.DepartmentsWorkspacePage {
+                            platformCatalog: root.platformCatalog
+                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                            onRelatedRecordRequested: function(destinationId, rowId) {
+                                root._onRelatedRecordRequested(destinationId, rowId)
+                            }
+                        }
+                    }
+                }
+
+                Loader {
+                    id: _employeesLoader
+                    objectName: "employeesLoader"
+                    anchors.fill: parent
+                    active: root._activatedSurfaces["employees"] === true
+                    visible: active && root._activeSurface === "employees"
+                    asynchronous: false
+                    sourceComponent: Component {
+                        EmployeesOrg.EmployeesWorkspacePage {
+                            platformCatalog: root.platformCatalog
+                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                        }
+                    }
+                }
+
+                Loader {
+                    id: _partiesLoader
+                    objectName: "partiesLoader"
+                    anchors.fill: parent
+                    active: root._activatedSurfaces["parties"] === true
+                    visible: active && root._activeSurface === "parties"
+                    asynchronous: false
+                    sourceComponent: Component {
+                        PartiesOrg.PartiesWorkspacePage {
+                            platformCatalog: root.platformCatalog
+                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                        }
+                    }
+                }
+
+                Loader {
+                    id: _calendarsLoader
+                    objectName: "calendarsLoader"
+                    anchors.fill: parent
+                    active: root._activatedSurfaces["calendars"] === true
+                    visible: active && root._activeSurface === "calendars"
+                    asynchronous: false
+                    sourceComponent: Component {
+                        CalendarsOrg.CalendarsWorkspacePage {
+                            platformCatalog: root.platformCatalog
+                            onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                        }
+                    }
+                }
+
+                Loader {
+                    id: _controlLoader
+                    objectName: "controlLoader"
+                    anchors.fill: parent
+                    active: root._activatedSurfaces["control"] === true
+                    visible: active && root._activeSurface === "control"
+                    asynchronous: false
+                    sourceComponent: Component {
+                        Control.ControlWorkspacePage {
+                            platformCatalog: root.platformCatalog
+                            activePanel: root.activeDestination === "control_audit" ? "audit" : "approvals"
+                        }
+                    }
+                }
+
+                Loader {
+                    id: _settingsLoader
+                    objectName: "settingsLoader"
+                    anchors.fill: parent
+                    active: root._activatedSurfaces["settings"] === true
+                    visible: active && root._activeSurface === "settings"
+                    asynchronous: false
+                    sourceComponent: Component {
+                        Settings.SettingsWorkspacePage {
+                            platformCatalog: root.platformCatalog
+                            shellModel: root.shellModel
+                        }
+                    }
+                }
+
+                Loader {
+                    id: _tenantsLoader
+                    objectName: "tenantsLoader"
+                    anchors.fill: parent
+                    active: root._activatedSurfaces["tenants"] === true
+                    visible: active && root._activeSurface === "tenants"
+                    asynchronous: false
+                    sourceComponent: Component {
+                        Tenants.TenantManagementWorkspacePage {
+                            platformCatalog: root.platformCatalog
+                        }
+                    }
                 }
             }
         }

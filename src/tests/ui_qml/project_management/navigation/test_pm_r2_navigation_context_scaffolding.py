@@ -51,11 +51,9 @@ def test_pm_workspace_keys_cover_the_eleven_current_capabilities():
 
 def test_pm_compatibility_route_ids_are_prefixed_workspace_keys():
     assert set(PM_COMPATIBILITY_ROUTE_IDS) == {
-        f"project_management.{key}"
-        for key in PM_WORKSPACE_KEYS
-        if key != "review_queue"
+        f"project_management.{key}" for key in PM_WORKSPACE_KEYS
     }
-    assert "project_management.review_queue" not in PM_COMPATIBILITY_ROUTE_IDS
+    assert "project_management.review_queue" in PM_COMPATIBILITY_ROUTE_IDS
     assert PM_CANONICAL_ROUTE_ID not in PM_COMPATIBILITY_ROUTE_IDS
 
 

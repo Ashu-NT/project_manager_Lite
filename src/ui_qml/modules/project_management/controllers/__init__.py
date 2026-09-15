@@ -29,10 +29,10 @@ from src.ui_qml.modules.project_management.controllers.scheduling import (
 from src.ui_qml.modules.project_management.controllers.tasks import (
     ProjectManagementTasksWorkspaceController,
 )
-from src.ui_qml.modules.project_management.controllers.timesheets import (
+from src.ui_qml.modules.project_management.controllers.review_queue import (
     ProjectManagementTimesheetsWorkspaceController,
 )
-from src.ui_qml.modules.project_management.controllers.resource_timesheets import (
+from src.ui_qml.modules.project_management.controllers.timesheets import (
     ProjectManagementResourceTimesheetsController,
 )
 

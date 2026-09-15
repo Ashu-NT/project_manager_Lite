@@ -6,6 +6,7 @@ from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.infra.platform.app_settings import AppSettingsStore
+from src.ui_qml.shell.global_navigation import build_global_navigation_tree
 from src.ui_qml.shell.navigation import NavigationItemViewModel
 
 QML_IMPORT_NAME = "Shell.Context"
@@ -27,6 +28,7 @@ class ShellContext(QObject):
     currentRouteIdChanged = Signal()
     currentRouteSourceChanged = Signal()
     navigationItemsChanged = Signal()
+    globalNavigationChanged = Signal()
     densityModeChanged = Signal()
     themeModeChanged = Signal()
     userDisplayNameChanged = Signal()
@@ -93,6 +95,15 @@ class ShellContext(QObject):
             }
             for item in self._navigation_items
         ]
+
+    @Property("QVariantList", notify=globalNavigationChanged)
+    def globalNavigation(self) -> list[dict[str, object]]:
+        return build_global_navigation_tree(self._navigation_items).to_qml_groups()
+
+    @Property(str, notify=currentRouteIdChanged)
+    def currentModuleCode(self) -> str:
+        item = self._navigation_item_by_route_id.get(self._current_route_id)
+        return item.module_code if item is not None else ""
 
     @Property(str, notify=themeModeChanged)
     def themeMode(self) -> str:
@@ -177,6 +188,7 @@ class ShellContext(QObject):
             for item in items
         }
         self.navigationItemsChanged.emit()
+        self.globalNavigationChanged.emit()
         if self._current_route_id and self._current_route_id not in self._navigation_item_by_route_id:
             # The route the user was on is no longer accessible -- return to
             # the always-available Overview route rather than leave an

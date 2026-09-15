@@ -369,3 +369,49 @@ def test_navigation_and_global_overview_capabilities_read_the_identical_source_m
         assert "list_accessible_modules" in source
         assert "list_modules(" not in source
         assert "list_enabled_modules(" not in source
+
+
+# -- Global Navigation Tree stays in sync with the same filtered items -------------------------
+
+
+def test_global_navigation_tree_reflects_filtered_navigation_items(qapp):
+    context = _build_shell_context(current_route_id="shell.home")
+    coordinator = NavigationAccessibilityCoordinator(
+        shell_context=context,
+        presenter=NavigationAccessibilityPresenter(
+            platform_runtime_api=_FakePlatformRuntimeApi(accessible_codes=())
+        ),
+        all_navigation_items=_ALL_ITEMS,
+    )
+    coordinator.refresh()
+
+    groups_by_id = {group["id"]: group for group in context.globalNavigation}
+    business_route_ids = {item["routeId"] for item in groups_by_id.get("business", {}).get("items", [])}
+    administration_route_ids = {item["routeId"] for item in groups_by_id["administration"]["items"]}
+
+    assert "project_management.workspace" not in business_route_ids
+    assert "platform.workspace" in administration_route_ids
+
+
+def test_global_navigation_tree_adds_pm_when_scope_change_makes_it_accessible(qapp):
+    context = _build_shell_context(current_route_id="shell.home")
+    coordinator = NavigationAccessibilityCoordinator(
+        shell_context=context,
+        presenter=NavigationAccessibilityPresenter(
+            platform_runtime_api=_FakePlatformRuntimeApi(accessible_codes=("project_management",))
+        ),
+        all_navigation_items=_ALL_ITEMS,
+    )
+    coordinator.refresh()
+
+    groups_by_id = {group["id"]: group for group in context.globalNavigation}
+    business_route_ids = {item["routeId"] for item in groups_by_id["business"]["items"]}
+    assert "project_management.workspace" in business_route_ids
+
+
+def test_current_module_code_reflects_selected_route(qapp):
+    context = _build_shell_context(current_route_id="shell.home")
+    assert context.currentModuleCode == "shell"
+
+    context.selectRoute("platform.workspace")
+    assert context.currentModuleCode == "platform"

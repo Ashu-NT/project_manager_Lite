@@ -19,6 +19,7 @@ _COMPATIBILITY_BRIDGE_FILE_BY_WORKSPACE_KEY: dict[str, str] = {
     "collaboration": "CollaborationRoute.qml",
     "timesheets": "TimesheetsRoute.qml",
     "dashboard": "DashboardRoute.qml",
+    "review_queue": "ReviewQueueRoute.qml",
 }
 
 

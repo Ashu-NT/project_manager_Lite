@@ -1,4 +1,4 @@
-from src.ui_qml.modules.project_management.controllers.timesheets.timesheets_workspace_controller import (
+from src.ui_qml.modules.project_management.controllers.review_queue.timesheets_workspace_controller import (
     ProjectManagementTimesheetsWorkspaceController,
 )
 

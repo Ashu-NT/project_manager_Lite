@@ -9,3 +9,4 @@ RegisterRoute 1.0 RegisterRoute.qml
 CollaborationRoute 1.0 CollaborationRoute.qml
 TimesheetsRoute 1.0 TimesheetsRoute.qml
 DashboardRoute 1.0 DashboardRoute.qml
+ReviewQueueRoute 1.0 ReviewQueueRoute.qml

@@ -31,7 +31,7 @@ import src.ui_qml.modules.project_management.controllers.tasks.tasks_workspace_c
 import src.ui_qml.modules.project_management.controllers.resources.resources_workspace_controller  # noqa: F401
 import src.ui_qml.modules.project_management.controllers.register.register_workspace_controller  # noqa: F401
 import src.ui_qml.modules.project_management.controllers.dashboard.dashboard_workspace_controller  # noqa: F401
-import src.ui_qml.modules.project_management.controllers.timesheets.timesheets_workspace_controller  # noqa: F401
+import src.ui_qml.modules.project_management.controllers.review_queue.timesheets_workspace_controller  # noqa: F401
 
 os.environ.setdefault("QT_QUICK_CONTROLS_STYLE", "Basic")
 

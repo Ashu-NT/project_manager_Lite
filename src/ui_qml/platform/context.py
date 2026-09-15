@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, QObject, Slot
+from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
+
+from src.ui_qml.platform.navigation.platform_context_navigation import (
+    build_platform_context_navigation,
+)
 
 from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
 from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
@@ -88,6 +92,8 @@ QML_IMPORT_MAJOR_VERSION = 1
 @QmlElement
 @QmlUncreatable("Platform workspace catalogs are provided by the shell runtime.")
 class PlatformWorkspaceCatalog(QObject):
+    contextNavigationChanged = Signal()
+
     def __init__(
         self,
         desktop_api: PlatformRuntimeDesktopApi | None = None,
@@ -514,14 +520,24 @@ class PlatformWorkspaceCatalog(QObject):
     # ------------------------------------------------------------------
 
     def _reload_current_permissions(self) -> None:
+        previous = self._current_permissions
+        self._current_permissions = self._fetch_current_permissions()
+        if self._current_permissions != previous:
+            self.contextNavigationChanged.emit()
+
+    def _fetch_current_permissions(self) -> frozenset[str]:
         if self._runtime_api is None:
-            self._current_permissions = frozenset()
-            return
+            return frozenset()
         result = self._runtime_api.get_current_permissions()
         if not getattr(result, "ok", False) or getattr(result, "data", None) is None:
-            self._current_permissions = frozenset()
-            return
-        self._current_permissions = frozenset(result.data)
+            return frozenset()
+        return frozenset(result.data)
+
+    @Property("QVariantList", notify=contextNavigationChanged)
+    def contextNavigation(self) -> list[dict[str, object]]:
+        return build_platform_context_navigation(
+            held_permissions=self._current_permissions
+        ).to_qml_groups()
 
     @Slot()
     def refreshCurrentPermissions(self) -> None:

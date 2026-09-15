@@ -3,6 +3,9 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.modules.project_management.context_navigation import (
+    build_pm_context_navigation,
+)
 from src.ui_qml.modules.project_management.navigation import (
     PM_CANONICAL_ROUTE_ID,
     PM_WORKSPACE_KEYS,
@@ -66,6 +69,10 @@ class PMWorkspaceNavigationController(QObject):
             {"id": "register", "label": "Register", "group": "Governance", "icon": "register"},
             {"id": "collaboration", "label": "Collaboration", "group": "Governance", "icon": "collaboration"},
         ]
+
+    @Property("QVariantList", constant=True)
+    def contextNavigation(self) -> list[dict[str, object]]:
+        return build_pm_context_navigation().to_qml_groups()
 
     @Slot(str, result=bool)
     def applyRoute(self, route_id: str) -> bool:
