@@ -15,6 +15,7 @@ from src.core.platform.domain.master_data.site.events import (
     SiteEnabled,
     SiteProfileUpdated,
 )
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 from .site_context import active_organization
@@ -103,6 +104,17 @@ def create_site(
                 },
                 commit=False,
                 fail_closed=True,
+            )
+            record_activity(
+                uow,
+                action="site.create",
+                entity_type="site",
+                entity_id=site.id,
+                module="platform",
+                organization_id=organization.id,
+                message=f"Site created — {site.name}",
+                icon="site",
+                commit=False,
             )
             uow.record_event(
                 SiteCreated(
@@ -250,6 +262,17 @@ def update_site(
                 },
                 commit=False,
                 fail_closed=True,
+            )
+            record_activity(
+                uow,
+                action="site.update",
+                entity_type="site",
+                entity_id=candidate.id,
+                module="platform",
+                organization_id=organization.id,
+                message=f"Site updated — {candidate.name}",
+                icon="site",
+                commit=False,
             )
             occurred_at = service._clock.now()
             if profile_changed:

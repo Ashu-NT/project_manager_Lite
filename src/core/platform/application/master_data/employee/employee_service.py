@@ -38,6 +38,7 @@ from src.core.platform.domain.master_data.employee.events import (
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.time.clock import Clock
@@ -148,6 +149,17 @@ class EmployeeService:
                     commit=False,
                     fail_closed=True,
                 )
+                record_activity(
+                    uow,
+                    action="employee.create",
+                    entity_type="employee",
+                    entity_id=employee.id,
+                    module="platform",
+                    organization_id=organization_id,
+                    message=f"Employee assigned — {employee.full_name}",
+                    icon="employee",
+                    commit=False,
+                )
                 uow.record_event(
                     EmployeeCreated(
                         tenant_id=tenant_id,
@@ -231,7 +243,7 @@ class EmployeeService:
                 is_active=bool(is_active) if is_active is not None else employee.is_active,
                 user_id=user_id if user_id is not None else employee.user_id,
             )
-            profile_changed = (
+            other_fields_changed = (
                 candidate.employee_code != employee.employee_code
                 or candidate.full_name != employee.full_name
                 or candidate.department_id != employee.department_id
@@ -242,9 +254,10 @@ class EmployeeService:
                 or candidate.employment_type != employee.employment_type
                 or candidate.email != employee.email
                 or candidate.phone != employee.phone
-                or candidate.is_active != employee.is_active
                 or candidate.user_id != employee.user_id
             )
+            active_state_changed = candidate.is_active != employee.is_active
+            profile_changed = other_fields_changed or active_state_changed
             if not profile_changed:
                 return employee
             if employee_code is not None:
@@ -258,6 +271,13 @@ class EmployeeService:
             try:
                 uow.employees.update(candidate)
                 touched_resources = sync_linked_employee_resources(candidate, uow.resources)
+                # A pure active-state transition (no other field changed) gets its
+                # own distinct action so the curated Organization Activity feed can
+                # tell "removed" (deactivated) apart from an ordinary profile edit.
+                if active_state_changed and not other_fields_changed:
+                    audit_action = "employee.activate" if candidate.is_active else "employee.deactivate"
+                else:
+                    audit_action = "employee.update"
                 record_audit_entry(
                     uow,
                     operation="update",
@@ -265,10 +285,30 @@ class EmployeeService:
                     entity_id=candidate.id,
                     module="platform",
                     severity="low",
-                    metadata={"action": "employee.update", **build_employee_audit_details(candidate)},
+                    metadata={"action": audit_action, **build_employee_audit_details(candidate)},
                     commit=False,
                     fail_closed=True,
                 )
+                # Only the active-state transition is curated Organization
+                # Activity -- an ordinary profile edit (title/email/phone/
+                # etc.) is real audit history but not shown as activity.
+                if audit_action in ("employee.activate", "employee.deactivate"):
+                    record_activity(
+                        uow,
+                        action=audit_action,
+                        entity_type="employee",
+                        entity_id=candidate.id,
+                        module="platform",
+                        organization_id=organization_id,
+                        message=(
+                            f"Employee removed — {candidate.full_name}"
+                            if audit_action == "employee.deactivate"
+                            else f"Employee reinstated — {candidate.full_name}"
+                        ),
+                        icon="employee",
+                        type="warning" if audit_action == "employee.deactivate" else "info",
+                        commit=False,
+                    )
                 uow.record_event(
                     EmployeeProfileUpdated(
                         tenant_id=tenant_id,

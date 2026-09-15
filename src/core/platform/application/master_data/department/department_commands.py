@@ -13,6 +13,7 @@ from src.core.platform.domain.master_data.department.events import (
     DepartmentCreated,
     DepartmentProfileUpdated,
 )
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 from .department_context import active_organization
@@ -94,6 +95,17 @@ def create_department(
                 },
                 commit=False,
                 fail_closed=True,
+            )
+            record_activity(
+                uow,
+                action="department.create",
+                entity_type="department",
+                entity_id=department.id,
+                module="platform",
+                organization_id=organization.id,
+                message=f"Department created — {department.name}",
+                icon="department",
+                commit=False,
             )
             uow.record_event(
                 DepartmentCreated(
@@ -222,6 +234,17 @@ def update_department(
                 },
                 commit=False,
                 fail_closed=True,
+            )
+            record_activity(
+                uow,
+                action="department.update",
+                entity_type="department",
+                entity_id=candidate.id,
+                module="platform",
+                organization_id=organization.id,
+                message=f"Department updated — {candidate.name}",
+                icon="department",
+                commit=False,
             )
             uow.record_event(
                 DepartmentProfileUpdated(

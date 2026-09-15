@@ -86,6 +86,7 @@ class SqlAlchemyAuditRepository(TenantScopedRepositorySupport, AuditRepository):
         limit: int = 100,
         *,
         entity_type: str | None = None,
+        entity_types: Sequence[str] | None = None,
         operation: str | None = None,
         severity: str | None = None,
         module: str | None = None,
@@ -93,14 +94,22 @@ class SqlAlchemyAuditRepository(TenantScopedRepositorySupport, AuditRepository):
         operation_prefixes: Sequence[str] | None = None,
     ) -> list[AuditEntry]:
         ctx = self._context(operation_label="list audit entries for organization")
-        if not self._organization_in_scope(ctx, organization_id):
-            return []
+        # NOT _organization_in_scope (that helper means "== the caller's
+        # active organization", which is wrong here on purpose): this method
+        # exists specifically so Organization Detail can read activity for
+        # an organization the caller hasn't switched their active context
+        # to. Authorization is the tenant_id predicate below, already
+        # enforced identically to every other tenant-scoped repository
+        # method, plus the service-layer audit.read permission check.
         stmt = select(AuditEntryORM).where(
             AuditEntryORM.organization_id == organization_id,
             AuditEntryORM.tenant_id == ctx.tenant_id,
         )
         if entity_type is not None:
             stmt = stmt.where(AuditEntryORM.entity_type == entity_type)
+        if entity_types is not None:
+            normalized_types = tuple(str(t).strip() for t in entity_types if str(t).strip())
+            stmt = stmt.where(AuditEntryORM.entity_type.in_(normalized_types)) if normalized_types else stmt.where(false())
         if operation is not None:
             stmt = stmt.where(AuditEntryORM.operation == operation)
         if severity is not None:

@@ -4,8 +4,12 @@ from collections.abc import Callable
 
 from sqlalchemy.orm import Session
 
+from src.core.platform.application.history.activity.activity_service import ActivityService
 from src.core.platform.application.history.audit.enterprise_audit_service import (
     EnterpriseAuditService,
+)
+from src.core.platform.infrastructure.persistence.repositories.history.activity.activity import (
+    SqlAlchemyActivityRepository,
 )
 from src.core.platform.contract.uow.employee_unit_of_work import EmployeeUnitOfWork
 from src.core.platform.contract.repositories.master_data.employee.contracts import (
@@ -65,6 +69,15 @@ class SqlAlchemyEmployeeUnitOfWork(SqlAlchemyUnitOfWorkBase, EmployeeUnitOfWork)
         self._enterprise_audit_service = EnterpriseAuditService(
             session=session,
             audit_repo=audit_repo,
+            user_session=user_session,
+            tenant_context_service=tenant_context_service,
+        )
+
+        activity_repo = SqlAlchemyActivityRepository(session)
+        activity_repo._tenant_context_service = tenant_context_service
+        self._activity_service = ActivityService(
+            session=session,
+            activity_repo=activity_repo,
             user_session=user_session,
             tenant_context_service=tenant_context_service,
         )

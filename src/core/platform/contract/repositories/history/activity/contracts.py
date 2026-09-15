@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 
 from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
 
@@ -17,12 +18,17 @@ class ActivityRepository(ABC):
         tenant_id: str | None = None,
         organization_id: str | None = None,
         entity_type: str | None = None,
+        entity_types: Sequence[str] | None = None,
         entity_id: str | None = None,
         module: str | None = None,
         workspace_id: str | None = None,
         parent_entity_id: str | None = None,
         action_prefix: str | None = None,
-    ) -> list[ActivityEntry]: ...
+    ) -> list[ActivityEntry]:
+        """`organization_id` may be any organization within the caller's
+        tenant, not just their active one -- Organization Detail reads
+        activity for whichever organization it is showing."""
+        ...
 
 
 __all__ = ["ActivityRepository"]

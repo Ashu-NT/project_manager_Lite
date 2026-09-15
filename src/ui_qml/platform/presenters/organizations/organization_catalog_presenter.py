@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.platform.api.desktop.history.audit.audit_enterprise import PlatformEnterpriseAuditDesktopApi
+from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
 from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationDto,
     OrganizationProvisionCommand,
@@ -28,17 +28,18 @@ class PlatformOrganizationCatalogPresenter:
         self,
         *,
         runtime_api: PlatformRuntimeDesktopApi | None = None,
-        audit_api: PlatformEnterpriseAuditDesktopApi | None = None,
+        activity_api: PlatformActivityDesktopApi | None = None,
     ) -> None:
         self._runtime_api = runtime_api
-        self._audit_api = audit_api
+        self._activity_api = activity_api
 
     def build_detail_context(self, organization_id: str) -> dict[str, Any]:
         """Real composed data for Organization Detail's Overview section:
         per-organization statistics (site/department/employee/document
-        counts, one aggregate query each) and recent administrative
+        counts, one aggregate query each) and recent curated business
         activity scoped to this organization specifically -- never the
-        caller's currently active organization."""
+        caller's currently active organization, and never the raw
+        compliance audit trail (see terminology-glossary.md)."""
         statistics = {"siteCount": 0, "departmentCount": 0, "employeeCount": 0, "documentCount": 0}
         if self._runtime_api is not None:
             result = self._runtime_api.get_organization_statistics(organization_id)
@@ -50,14 +51,14 @@ class PlatformOrganizationCatalogPresenter:
                     "documentCount": result.data.document_count,
                 }
         recent_activity: list[dict[str, Any]] = []
-        if self._audit_api is not None:
-            recent_activity = self._audit_api.list_for_organization_overview(organization_id, limit=5)
+        if self._activity_api is not None:
+            recent_activity = self._activity_api.list_for_organization_overview(organization_id, limit=5)
         return {"statistics": statistics, "recentActivity": recent_activity}
 
     def build_audit_activity(self, organization_id: str, *, limit: int = 25) -> list[dict[str, Any]]:
-        if self._audit_api is None:
+        if self._activity_api is None:
             return []
-        return self._audit_api.list_for_organization_overview(organization_id, limit=limit)
+        return self._activity_api.list_for_organization_overview(organization_id, limit=limit)
 
     def build_catalog_page(
         self,

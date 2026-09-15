@@ -41,12 +41,16 @@ class AuditRepository(ABC):
         limit: int = 100,
         *,
         entity_type: str | None = None,
+        entity_types: Sequence[str] | None = None,
         operation: str | None = None,
         severity: str | None = None,
         module: str | None = None,
         workspace_id: str | None = None,
         operation_prefixes: Sequence[str] | None = None,
-    ) -> list[AuditEntry]: ...
+    ) -> list[AuditEntry]:
+        """`entity_type` (single) and `entity_types` (an IN-set) are independent
+        filters -- pass only whichever one the caller actually needs."""
+        ...
 
 
 __all__ = ["AuditRepository"]

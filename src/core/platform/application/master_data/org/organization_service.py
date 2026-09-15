@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
@@ -388,15 +389,27 @@ class OrganizationService:
             try:
                 uow.organizations.update(candidate)
 
+                # A pure availability transition (no other field changed) gets its
+                # own distinct action so the curated Organization Activity feed can
+                # tell "deactivated" apart from an ordinary profile edit; a combined
+                # change reports as the more complete "update".
+                if availability_changed and not profile_changed:
+                    audit_action = "organization.enable" if candidate.is_enabled else "organization.disable"
+                else:
+                    audit_action = "organization.update"
                 record_audit_entry(
                     uow,
                     operation="update",
                     entity_type="organization",
                     entity_id=candidate.id,
+                    # Explicit, not left to the active-session fallback --
+                    # this organization is not necessarily the caller's
+                    # active one (Organization Detail can edit any org).
+                    organization_id=candidate.id,
                     module="platform",
                     severity="low",
                     metadata={
-                        "action": "organization.update",
+                        "action": audit_action,
                         "organization_code": candidate.organization_code,
                         "display_name": candidate.display_name,
                         "timezone_name": candidate.timezone_name,
@@ -409,6 +422,23 @@ class OrganizationService:
                     },
                     commit=False,
                     fail_closed=True,
+                )
+                _ORG_ACTIVITY_MESSAGE = {
+                    "organization.update": f"Organization updated — {candidate.display_name}",
+                    "organization.enable": f"Organization enabled — {candidate.display_name}",
+                    "organization.disable": f"Organization deactivated — {candidate.display_name}",
+                }
+                record_activity(
+                    uow,
+                    action=audit_action,
+                    entity_type="organization",
+                    entity_id=candidate.id,
+                    module="platform",
+                    organization_id=candidate.id,
+                    message=_ORG_ACTIVITY_MESSAGE[audit_action],
+                    icon="organization",
+                    type="warning" if audit_action == "organization.disable" else "info",
+                    commit=False,
                 )
                 occurred_at = self._clock.now()
                 if profile_changed:
@@ -473,6 +503,7 @@ class OrganizationService:
                 operation="update",
                 entity_type="organization",
                 entity_id=candidate.id,
+                organization_id=candidate.id,
                 module="platform",
                 severity="low",
                 metadata={
@@ -483,6 +514,22 @@ class OrganizationService:
                 },
                 commit=False,
                 fail_closed=True,
+            )
+            record_activity(
+                uow,
+                action=action,
+                entity_type="organization",
+                entity_id=candidate.id,
+                module="platform",
+                organization_id=candidate.id,
+                message=(
+                    f"Organization enabled — {candidate.display_name}"
+                    if is_enabled
+                    else f"Organization deactivated — {candidate.display_name}"
+                ),
+                icon="organization",
+                type="info" if is_enabled else "warning",
+                commit=False,
             )
             availability_event_cls = OrganizationEnabled if is_enabled else OrganizationDisabled
             uow.record_event(
@@ -549,11 +596,19 @@ class OrganizationService:
         if organization_repo.get_by_code_for_tenant(organization.organization_code, tenant_id) is not None:
             raise ValidationError("Organization code already exists.", code="ORGANIZATION_CODE_EXISTS")
         organization_repo.add(organization)
+        # Flush so the new organization row exists before the audit entry
+        # below references it via organization_id -- both would otherwise
+        # land in the same flush batch with no ORM relationship() to tell
+        # SQLAlchemy the audit_entries.organization_id FK must go second.
+        uow._session.flush()
         record_audit_entry(
             uow,
             operation="create",
             entity_type="organization",
             entity_id=organization.id,
+            # The new organization's own id, not the caller's active org
+            # context (which is a different organization entirely, if any).
+            organization_id=organization.id,
             module="platform",
             severity="low",
             metadata={
@@ -570,6 +625,17 @@ class OrganizationService:
             },
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            uow,
+            action="organization.create",
+            entity_type="organization",
+            entity_id=organization.id,
+            module="platform",
+            organization_id=organization.id,
+            message=f"Organization created — {organization.display_name}",
+            icon="organization",
+            commit=False,
         )
         uow.record_event(
             OrganizationCreated(
@@ -600,6 +666,7 @@ class OrganizationService:
             operation="update",
             entity_type="organization",
             entity_id=candidate.id,
+            organization_id=candidate.id,
             module="platform",
             severity="low",
             metadata={

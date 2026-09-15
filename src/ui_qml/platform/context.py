@@ -130,6 +130,7 @@ class PlatformWorkspaceCatalog(QObject):
         party_api = getattr(desktop_api_registry, "platform_party", None)
         approval_api = getattr(desktop_api_registry, "platform_approval", None)
         audit_api = getattr(desktop_api_registry, "platform_enterprise_audit", None)
+        activity_api = getattr(desktop_api_registry, "platform_activity", None)
         tenant_api = getattr(desktop_api_registry, "platform_tenant", None) if desktop_api_registry is not None else None
         admin_overview_presenter = PlatformAdminWorkspacePresenter(
             runtime_api=runtime_api,
@@ -158,7 +159,7 @@ class PlatformWorkspaceCatalog(QObject):
         )
         self._admin_workspace = PlatformAdminWorkspaceController(
             overview_presenter=admin_overview_presenter,
-            organization_presenter=PlatformOrganizationCatalogPresenter(runtime_api=runtime_api, audit_api=audit_api),
+            organization_presenter=PlatformOrganizationCatalogPresenter(runtime_api=runtime_api, activity_api=activity_api),
             calendar_presenter=PlatformCalendarCatalogPresenter(
                 calendar_api=calendar_api,
                 enterprise_calendar_api=enterprise_calendar_api,

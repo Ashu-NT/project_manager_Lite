@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
@@ -304,6 +305,17 @@ def create_document(
                 commit=False,
                 fail_closed=True,
             )
+            record_activity(
+                uow,
+                action="document.create",
+                entity_type="document",
+                entity_id=document.id,
+                module="platform",
+                organization_id=organization.id,
+                message=f"Document added — {document.title}",
+                icon="documents",
+                commit=False,
+            )
             uow.record_event(
                 DocumentCreated(
                     tenant_id=tenant_id,
@@ -413,7 +425,7 @@ def update_document(
         elif storage_uri is not None or storage_ref is not None or file_name is not None:
             if not updated.mime_type:
                 updated.mime_type = _infer_mime_type(updated.file_name or updated.storage_uri)
-        profile_changed = (
+        other_fields_changed = (
             updated.document_code != document.document_code
             or updated.title != document.title
             or updated.document_type != document.document_type
@@ -431,8 +443,9 @@ def update_document(
             or updated.business_version_label != document.business_version_label
             or updated.is_current != document.is_current
             or updated.notes != document.notes
-            or updated.is_active != document.is_active
         )
+        active_state_changed = updated.is_active != document.is_active
+        profile_changed = other_fields_changed or active_state_changed
         if not profile_changed:
             return document
         if document_code is not None:
@@ -441,6 +454,13 @@ def update_document(
                 raise ValidationError("Document code already exists in the active organization.", code="DOCUMENT_CODE_EXISTS")
         try:
             uow.documents.update(updated)
+            # A pure active-state transition (no other field changed) gets its
+            # own distinct action so the curated Organization Activity feed can
+            # tell "removed" (deactivated) apart from an ordinary profile edit.
+            if active_state_changed and not other_fields_changed:
+                document_audit_action = "document.activate" if updated.is_active else "document.deactivate"
+            else:
+                document_audit_action = "document.update"
             record_audit_entry(
                 uow,
                 operation="update",
@@ -449,7 +469,7 @@ def update_document(
                 module="platform",
                 severity="low",
                 metadata={
-                    "action": "document.update",
+                    "action": document_audit_action,
                     "organization_id": organization.id,
                     "document_code": updated.document_code,
                     "title": updated.title,
@@ -461,6 +481,26 @@ def update_document(
                 commit=False,
                 fail_closed=True,
             )
+            # Only the active-state transition is curated Organization
+            # Activity -- an ordinary profile edit (title/storage/etc.) is
+            # real audit history but not shown as activity.
+            if document_audit_action in ("document.activate", "document.deactivate"):
+                record_activity(
+                    uow,
+                    action=document_audit_action,
+                    entity_type="document",
+                    entity_id=updated.id,
+                    module="platform",
+                    organization_id=organization.id,
+                    message=(
+                        f"Document removed — {updated.title}"
+                        if document_audit_action == "document.deactivate"
+                        else f"Document restored — {updated.title}"
+                    ),
+                    icon="documents",
+                    type="warning" if document_audit_action == "document.deactivate" else "info",
+                    commit=False,
+                )
             uow.record_event(
                 DocumentProfileUpdated(
                     tenant_id=tenant_id,
