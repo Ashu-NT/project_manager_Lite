@@ -11,6 +11,7 @@ Item {
     property var organization: ({})
     property var workspaceController: null
     property var platformCatalog: null
+    property var breadcrumb: []
     property bool canWrite: true
     property bool busy: false
     property string errorMessage: ""
@@ -167,6 +168,7 @@ Item {
         anchors.fill: parent
         open: true
         title: detailRoot._orgTitle
+        breadcrumb: detailRoot.breadcrumb
         isBusy: detailRoot.busy
         showEdit: false
         showDelete: false
@@ -223,11 +225,6 @@ Item {
                         id: overviewRoot
                         width: parent ? parent.width : 0
                         spacing: 0
-
-                        AppWidgets.SectionHeading {
-                            width: overviewRoot.width
-                            label: "Overview"
-                        }
 
                         Item {
                             width: overviewRoot.width
@@ -472,7 +469,6 @@ Item {
                     Column {
                         width: parent ? parent.width : 0
                         spacing: 0
-                        AppWidgets.SectionHeading { width: parent.width; label: "Sites" }
                         AppWidgets.DataTable {
                             width: parent.width
                             height: 320
@@ -504,7 +500,6 @@ Item {
                     Column {
                         width: parent ? parent.width : 0
                         spacing: 0
-                        AppWidgets.SectionHeading { width: parent.width; label: "Departments" }
                         AppWidgets.DataTable {
                             width: parent.width
                             height: 320
@@ -536,7 +531,6 @@ Item {
                     Column {
                         width: parent ? parent.width : 0
                         spacing: 0
-                        AppWidgets.SectionHeading { width: parent.width; label: "Employees" }
                         AppWidgets.DataTable {
                             width: parent.width
                             height: 320
@@ -568,7 +562,6 @@ Item {
                     Column {
                         width: parent ? parent.width : 0
                         spacing: 0
-                        AppWidgets.SectionHeading { width: parent.width; label: "Documents" }
                         AppWidgets.DataTable {
                             width: parent.width
                             height: 320
@@ -602,7 +595,6 @@ Item {
                         width: parent ? parent.width : 0
                         spacing: 0
 
-                        AppWidgets.SectionHeading { width: auditRoot.width; label: "Audit" }
 
                         Item {
                             width: auditRoot.width

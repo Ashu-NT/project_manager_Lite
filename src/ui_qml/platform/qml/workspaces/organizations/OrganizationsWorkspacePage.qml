@@ -92,6 +92,7 @@ AppLayouts.WorkspaceFrame {
 
     title: "Organizations"
     subtitle: String(root.organizationCatalog.subtitle || "")
+    showHeader: !root.detailOpen
 
     Item {
         anchors.fill: parent
@@ -167,12 +168,20 @@ AppLayouts.WorkspaceFrame {
             sourceComponent: Component {
                 AdminOrganizationDetailPage {
                     organization: root._selectedItem || ({})
+                    workspaceController: root.workspaceController
+                    platformCatalog: root.platformCatalog
+                    breadcrumb: (root.breadcrumb || []).concat(
+                        root._selectedItem ? [String(root._selectedItem.title || "")] : []
+                    )
                     canWrite: root._canWrite
                     busy: root.busy
                     errorMessage: root.err
                     feedbackMessage: root.ok
 
                     onBackRequested: root.closeDetail()
+                    onNavigateToDestination: function(destinationId) {
+                        root.navigateToDestination(destinationId)
+                    }
 
                     onActionRequested: function(actionId) {
                         if (actionId === "edit") {

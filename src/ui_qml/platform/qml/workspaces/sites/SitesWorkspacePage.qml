@@ -211,6 +211,7 @@ AppLayouts.WorkspaceFrame {
 
     title: "Sites"
     subtitle: String(root.siteCatalog.subtitle || "")
+    showHeader: !root.detailOpen
 
     Item {
         anchors.fill: parent

@@ -199,6 +199,7 @@ AppLayouts.WorkspaceFrame {
     }
 
     title: "Roles & Access"
+    showHeader: !root.detailOpen
 
     ColumnLayout {
         anchors.fill: parent

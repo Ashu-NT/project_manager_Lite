@@ -15,6 +15,11 @@ Item {
     property bool showHeader: true
     property bool showEdit: true
     property bool showDelete: true
+    // [workspace, group?, destination, objectTitle] -- rendered as a small
+    // line directly above the back/title row. Empty on callers that don't
+    // set one.
+    property var breadcrumb: []
+    readonly property string _breadcrumbText: (root.breadcrumb || []).join("  >  ")
     property var sections: []
     property bool sectionGroupsCollapsedByDefault: true
     property real contentBottomPadding: Theme.AppTheme.pagePadding
@@ -94,7 +99,9 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: root.showHeader ? Theme.AppTheme.panelHeaderHeight : 0
+                Layout.preferredHeight: root.showHeader
+                    ? Math.max(Theme.AppTheme.panelHeaderHeight, _headerColumn.implicitHeight + Theme.AppTheme.spacingXs * 2)
+                    : 0
                 visible: root.showHeader
                 color: Theme.AppTheme.surfaceRaised
 
@@ -106,10 +113,27 @@ Item {
                     color: Theme.AppTheme.divider
                 }
 
-                RowLayout {
-                    anchors.fill: parent
+                ColumnLayout {
+                    id: _headerColumn
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
                     anchors.leftMargin: Theme.AppTheme.pagePadding
                     anchors.rightMargin: Theme.AppTheme.pagePadding
+                    spacing: 1
+
+                    AppControls.Label {
+                        Layout.fillWidth: true
+                        visible: root._breadcrumbText.length > 0
+                        text: root._breadcrumbText
+                        color: Theme.AppTheme.textMuted
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        elide: Text.ElideRight
+                    }
+
+                RowLayout {
+                    Layout.fillWidth: true
                     spacing: Theme.AppTheme.spacingSm
 
                     Item {
@@ -197,6 +221,7 @@ Item {
                         implicitWidth: 80
                         onClicked: root.deleteRequested()
                     }
+                }
                 }
             }
 

@@ -171,6 +171,7 @@ AppLayouts.WorkspaceFrame {
 
     title: "Employees"
     subtitle: String(root.employeeCatalog.subtitle || "")
+    showHeader: !root.detailOpen
 
     Item {
         anchors.fill: parent

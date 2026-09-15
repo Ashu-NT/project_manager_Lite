@@ -144,6 +144,7 @@ AppLayouts.WorkspaceFrame {
 
     title: "Documents"
     subtitle: String(root.documentCatalog.subtitle || "")
+    showHeader: !root.detailOpen
 
     Item {
         anchors.fill: parent

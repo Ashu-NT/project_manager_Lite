@@ -118,6 +118,7 @@ AppLayouts.WorkspaceFrame {
 
     title: "Parties"
     subtitle: String(root.partyCatalog.subtitle || "")
+    showHeader: !root.detailOpen
 
     Item {
         anchors.fill: parent

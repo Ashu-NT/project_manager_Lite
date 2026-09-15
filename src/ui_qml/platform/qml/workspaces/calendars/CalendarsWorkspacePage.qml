@@ -112,6 +112,7 @@ AppLayouts.WorkspaceFrame {
 
     title: "Calendars"
     subtitle: String(root.calendarCatalog.subtitle || "")
+    showHeader: !root.detailOpen
 
     Item {
         anchors.fill: parent

@@ -116,6 +116,7 @@ AppLayouts.WorkspaceFrame {
 
     title: "Document Structures"
     subtitle: String(root.documentStructureCatalog.subtitle || "")
+    showHeader: !root.detailOpen
 
     Item {
         anchors.fill: parent
