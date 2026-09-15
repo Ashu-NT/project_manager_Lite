@@ -240,109 +240,110 @@ AppLayouts.WorkspaceFrame {
                 rowSpacing: Theme.AppTheme.sectionGap
 
                 // Recent Activity (~45% on standard/compact width)
-                ColumnLayout {
+                AppWidgets.SectionCard {
+                    objectName: "overviewRecentActivityCard"
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignTop
                     Layout.preferredWidth: root._narrow ? -1 : Math.round((_content.width - Theme.AppTheme.sectionGap) * 0.45)
-                    spacing: Theme.AppTheme.spacingSm
+                    title: "Recent Activity"
 
-                    AppControls.Label {
-                        text: "Recent Activity"
-                        color: Theme.AppTheme.textPrimary
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.sectionSize
-                        font.bold: true
-                    }
+                    ColumnLayout {
+                        width: parent.width
+                        spacing: Theme.AppTheme.spacingSm
 
-                    AppWidgets.LoadingOverlay {
-                        Layout.fillWidth: true
-                        compact: true
-                        loading: !!root._recentActivityState.loading
-                        message: "Loading recent activity…"
-                    }
+                        AppWidgets.LoadingOverlay {
+                            Layout.fillWidth: true
+                            compact: true
+                            loading: !!root._recentActivityState.loading
+                            message: "Loading recent activity…"
+                        }
 
-                    AppWidgets.InlineMessage {
-                        Layout.fillWidth: true
-                        tone: "danger"
-                        message: String(root._recentActivityState.errorMessage || "")
-                    }
+                        AppWidgets.InlineMessage {
+                            Layout.fillWidth: true
+                            tone: "danger"
+                            message: String(root._recentActivityState.errorMessage || "")
+                        }
 
-                    AppWidgets.EmptyState {
-                        Layout.fillWidth: true
-                        visible: !root._recentActivityState.loading
-                            && String(root._recentActivityState.errorMessage || "").length === 0
-                            && root._recentActivityState.empty === true
-                        title: "No recent activity"
-                        message: "Business activity will appear here as work is completed across the organization."
-                    }
+                        AppWidgets.EmptyState {
+                            Layout.fillWidth: true
+                            visible: !root._recentActivityState.loading
+                                && String(root._recentActivityState.errorMessage || "").length === 0
+                                && root._recentActivityState.empty === true
+                            title: "No recent activity"
+                            message: "Business activity will appear here as work is completed across the organization."
+                        }
 
-                    AppWidgets.ActivityFeed {
-                        Layout.fillWidth: true
-                        visible: !root._recentActivityState.loading
-                            && String(root._recentActivityState.errorMessage || "").length === 0
-                            && root._recentActivity.length > 0
-                        // ActivityRowViewModel has no route -- these entries
-                        // are never clickable (routeId intentionally omitted
-                        // from every mapped item below).
-                        items: root._recentActivity.map(function (row) {
-                            const metaParts = [String(row.moduleLabel || "")]
-                            if (row.actorLabel) {
-                                metaParts.push(String(row.actorLabel))
-                            }
-                            metaParts.push(String(row.timestampLabel || ""))
-                            return {
-                                "title": String(row.title || ""),
-                                "metaText": metaParts.filter(function (part) { return part.length > 0 }).join(" · "),
-                                "statusLabel": ""
-                            }
-                        })
+                        AppWidgets.ActivityFeed {
+                            id: _activityFeed
+                            objectName: "overviewRecentActivityFeed"
+                            Layout.fillWidth: true
+                            visible: !root._recentActivityState.loading
+                                && String(root._recentActivityState.errorMessage || "").length === 0
+                                && root._recentActivity.length > 0
+                            // ActivityRowViewModel has no route -- these entries
+                            // are never clickable (routeId intentionally omitted
+                            // from every mapped item below).
+                            items: root._recentActivity.map(function (row) {
+                                const metaParts = [String(row.moduleLabel || "")]
+                                if (row.actorLabel) {
+                                    metaParts.push(String(row.actorLabel))
+                                }
+                                metaParts.push(String(row.timestampLabel || ""))
+                                return {
+                                    "title": String(row.title || ""),
+                                    "metaText": metaParts.filter(function (part) { return part.length > 0 }).join(" · "),
+                                    "statusLabel": ""
+                                }
+                            })
+                        }
                     }
                 }
 
                 // Action Center (~55% on standard/compact width)
-                ColumnLayout {
+                AppWidgets.SectionCard {
+                    objectName: "overviewActionCenterCard"
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignTop
-                    spacing: Theme.AppTheme.spacingSm
+                    Layout.preferredWidth: root._narrow ? -1 : Math.round((_content.width - Theme.AppTheme.sectionGap) * 0.55)
+                    title: "Action Center"
 
-                    AppControls.Label {
-                        text: "Action Center"
-                        color: Theme.AppTheme.textPrimary
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.sectionSize
-                        font.bold: true
-                    }
+                    ColumnLayout {
+                        width: parent.width
+                        spacing: Theme.AppTheme.spacingSm
 
-                    AppWidgets.LoadingOverlay {
-                        Layout.fillWidth: true
-                        compact: true
-                        loading: !!root._actionCenterState.loading
-                        message: "Loading action items…"
-                    }
+                        AppWidgets.LoadingOverlay {
+                            Layout.fillWidth: true
+                            compact: true
+                            loading: !!root._actionCenterState.loading
+                            message: "Loading action items…"
+                        }
 
-                    AppWidgets.InlineMessage {
-                        Layout.fillWidth: true
-                        tone: "danger"
-                        message: String(root._actionCenterState.errorMessage || "")
-                    }
+                        AppWidgets.InlineMessage {
+                            Layout.fillWidth: true
+                            tone: "danger"
+                            message: String(root._actionCenterState.errorMessage || "")
+                        }
 
-                    AppWidgets.EmptyState {
-                        Layout.fillWidth: true
-                        visible: !root._actionCenterState.loading
-                            && String(root._actionCenterState.errorMessage || "").length === 0
-                            && root._actionCenterState.empty === true
-                        title: "You're all caught up"
-                        message: "There are no action items requiring your attention."
-                    }
+                        AppWidgets.EmptyState {
+                            Layout.fillWidth: true
+                            visible: !root._actionCenterState.loading
+                                && String(root._actionCenterState.errorMessage || "").length === 0
+                                && root._actionCenterState.empty === true
+                            title: "You're all caught up"
+                            message: "There are no action items requiring your attention."
+                        }
 
-                    AppWidgets.ActionCenterList {
-                        Layout.fillWidth: true
-                        visible: !root._actionCenterState.loading
-                            && String(root._actionCenterState.errorMessage || "").length === 0
-                            && root._actionCenter.length > 0
-                        items: root._actionCenter
-                        onItemActivated: function (item) {
-                            root._selectRoute(String(item.routeId || ""))
+                        AppWidgets.ActionCenterList {
+                            id: _actionCenterList
+                            objectName: "overviewActionCenterList"
+                            Layout.fillWidth: true
+                            visible: !root._actionCenterState.loading
+                                && String(root._actionCenterState.errorMessage || "").length === 0
+                                && root._actionCenter.length > 0
+                            items: root._actionCenter
+                            onItemActivated: function (item) {
+                                root._selectRoute(String(item.routeId || ""))
+                            }
                         }
                     }
                 }

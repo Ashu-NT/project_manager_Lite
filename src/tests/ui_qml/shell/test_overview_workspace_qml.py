@@ -557,6 +557,129 @@ def test_no_hardcoded_color_literals(relative_path) -> None:
     assert hex_literals == [], f"{relative_path} has hardcoded color literals: {hex_literals}"
 
 
+# -- Lower panel (Recent Activity / Action Center) width composition ---------------------------
+
+
+def _find_by_object_name(obj, object_name: str):
+    if obj.objectName() == object_name:
+        return obj
+    for child in obj.children():
+        found = _find_by_object_name(child, object_name)
+        if found is not None:
+            return found
+    return None
+
+
+@pytest.mark.parametrize(
+    "width,height",
+    [
+        (1600, 1000),  # standard
+        (1366, 768),  # compact
+    ],
+)
+def test_lower_panels_split_approximately_45_55_and_have_no_dead_gap(qapp, width, height) -> None:
+    """Recent Activity and Action Center must each claim a real share of the
+    row width (~45%/55%) with no large unused gap between them -- the bug
+    being fixed here was Action Center collapsing to its own intrinsic
+    (title-driven) width while Recent Activity took its full share, leaving a
+    large dead middle gap."""
+    controller = _build_controller()
+    controller.reload()
+
+    previous_handler, messages, engine, component, page, window = _load_overview_workspace(
+        qapp, width=width, height=height
+    )
+    try:
+        page.setProperty("globalOverviewController", controller)
+        qapp.processEvents()
+
+        recent_card = _find_by_object_name(page, "overviewRecentActivityCard")
+        action_card = _find_by_object_name(page, "overviewActionCenterCard")
+        assert recent_card is not None
+        assert action_card is not None
+
+        recent_width = recent_card.property("width")
+        action_width = action_card.property("width")
+        assert recent_width > 0
+        assert action_width > 0
+
+        # Roughly 45/55 (allow rounding slack).
+        total = recent_width + action_width
+        assert 0.40 <= recent_width / total <= 0.50
+        assert 0.50 <= action_width / total <= 0.60
+
+        # No large dead middle gap: the two cards' combined width plus the
+        # section gap should account for essentially the full content row
+        # width (minus the workspace frame's own outer margins).
+        content_row_width = recent_card.parentItem().property("width")
+        assert content_row_width > 0
+        unused = content_row_width - total
+        assert unused < content_row_width * 0.05
+    finally:
+        _teardown(previous_handler, page, window, qapp)
+
+
+@pytest.mark.parametrize(
+    "width,height",
+    [
+        (1600, 1000),
+        (1366, 768),
+    ],
+)
+def test_action_center_list_fills_its_panel_width(qapp, width, height) -> None:
+    controller = _build_controller()
+    controller.reload()
+
+    previous_handler, messages, engine, component, page, window = _load_overview_workspace(
+        qapp, width=width, height=height
+    )
+    try:
+        page.setProperty("globalOverviewController", controller)
+        qapp.processEvents()
+
+        action_card = _find_by_object_name(page, "overviewActionCenterCard")
+        action_list = _find_by_object_name(page, "overviewActionCenterList")
+        assert action_card is not None
+        assert action_list is not None
+
+        card_width = action_card.property("width")
+        list_width = action_list.property("width")
+        assert card_width > 0
+        # The list sits inside the card's content ColumnLayout, which is set
+        # to the card's own width -- allow a small tolerance for the card's
+        # internal edge rounding, never the near-zero intrinsic width the
+        # pre-fix layout collapsed to.
+        assert list_width >= card_width * 0.9
+    finally:
+        _teardown(previous_handler, page, window, qapp)
+
+
+def test_recent_activity_and_action_center_stack_full_width_when_narrow(qapp) -> None:
+    controller = _build_controller()
+    controller.reload()
+
+    previous_handler, messages, engine, component, page, window = _load_overview_workspace(
+        qapp, width=900, height=900
+    )
+    try:
+        page.setProperty("globalOverviewController", controller)
+        qapp.processEvents()
+
+        recent_card = _find_by_object_name(page, "overviewRecentActivityCard")
+        action_card = _find_by_object_name(page, "overviewActionCenterCard")
+        assert recent_card is not None
+        assert action_card is not None
+
+        content_row_width = recent_card.parentItem().property("width")
+        assert content_row_width > 0
+        # Narrow layout stacks the two panels vertically -- each claims the
+        # full row width rather than sharing it.
+        assert recent_card.property("width") >= content_row_width * 0.95
+        assert action_card.property("width") >= content_row_width * 0.95
+    finally:
+        _teardown(previous_handler, page, window, qapp)
+
+
 # -- Platform Overview regression (OverviewMetricTile promotion) -------------------------------
 
 
