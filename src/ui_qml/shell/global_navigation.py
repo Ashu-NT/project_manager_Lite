@@ -31,7 +31,7 @@ _GROUP_ORDER: dict[str, int] = {
 
 _ICON_BY_MODULE_CODE: dict[str, str] = {
     "shell": "dashboard",
-    "platform": "platform",
+    "platform": "admin",
     "project_management": "project",
 }
 

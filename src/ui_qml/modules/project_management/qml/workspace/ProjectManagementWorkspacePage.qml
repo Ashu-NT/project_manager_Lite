@@ -5,7 +5,6 @@ import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as PMControllers
 import Platform.Controllers 1.0 as PlatformControllers
 import Shell.Context 1.0 as ShellContexts
-import "components" as Components
 
 
 Item {
@@ -55,22 +54,6 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 0
-
-            Components.PmWorkspaceNavigation {
-                objectName: "pmWorkspaceNavigation"
-                Layout.fillHeight: true
-                navigationItems: root._nav ? root._nav.navigationItems : []
-                selectedWorkspaceKey: root._activeWorkspaceKey
-                onWorkspaceSelected: function(workspaceKey) {
-                    if (root._nav) root._nav.selectWorkspace(workspaceKey)
-                }
-            }
-
-            Rectangle {
-                Layout.preferredWidth: Theme.AppTheme.borderWidthThin
-                Layout.fillHeight: true
-                color: Theme.AppTheme.divider
-            }
 
             Item {
                 Layout.fillWidth: true

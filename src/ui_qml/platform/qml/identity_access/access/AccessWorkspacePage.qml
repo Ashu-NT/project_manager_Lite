@@ -75,9 +75,8 @@ AppLayouts.WorkspaceFrame {
     readonly property string ok:   root.controller ? root.controller.feedbackMessage : ""
 
     // RBAC: three independent write permissions gate different buttons on
-    // this page -- a client-side UX optimization mirroring PlatformNavigation's
-    // own destination gate; the backend enforces each independently regardless
-    // of what these bindings show.
+    // this page -- a client-side UX optimization; the backend enforces each
+    // independently regardless of what these bindings show.
     //   - access.manage: Assign Access ("New") / Revoke Access.
     //   - auth.manage OR security.manage: Unlock Account / Revoke Sessions.
     //   - auth.manage only (narrower): Force Password Reset -- the backend

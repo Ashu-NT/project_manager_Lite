@@ -17,6 +17,7 @@ Item {
     property bool collapsed: false
     property bool autoCollapseAtNarrowWidth: false
     property string railTitle: ""
+    property bool showRailToggle: false
 
     signal itemActivated(string id, string routeId)
 
@@ -64,7 +65,7 @@ Item {
         collapsed: root.collapsed
         autoCollapseAtNarrowWidth: root.autoCollapseAtNarrowWidth
         groupsCollapsedByDefault: false
-        showRailToggle: root.railTitle.length > 0
+        showRailToggle: root.showRailToggle
         railTitle: root.railTitle
 
         onItemActivated: function(index) {

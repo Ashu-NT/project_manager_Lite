@@ -175,16 +175,19 @@ def test_r5f1_navigation_keeps_timesheets_and_review_queue_distinct() -> None:
         PMWorkspaceNavigationController,
     )
 
-    items = PMWorkspaceNavigationController().navigationItems
-    by_id = {item["id"]: item for item in items}
+    groups = PMWorkspaceNavigationController().contextNavigation
+    items_by_group_id = {group["id"]: group["items"] for group in groups}
+    by_id = {
+        item["id"]: {"groupId": item["groupId"], "label": item["label"]}
+        for group_items in items_by_group_id.values()
+        for item in group_items
+    }
 
-    assert by_id["timesheets"]["group"] == "Work"
+    assert by_id["timesheets"]["groupId"] == "work"
     assert by_id["timesheets"]["label"] == "Timesheets"
-    assert by_id["review_queue"]["group"] == "Workload Management"
+    assert by_id["review_queue"]["groupId"] == "workload_management"
     assert {
-        item["label"]
-        for item in items
-        if item["group"] == "Workload Management"
+        item["label"] for item in items_by_group_id["workload_management"]
     } == {"Resources", "Review Queue"}
 
 

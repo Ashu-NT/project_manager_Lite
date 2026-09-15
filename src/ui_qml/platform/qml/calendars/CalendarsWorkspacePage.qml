@@ -47,7 +47,7 @@ AppLayouts.WorkspaceFrame {
     property bool detailOpen: false
 
     // RBAC: gates create/edit buttons -- a client-side UX optimization
-    // mirroring PlatformNavigation's own destination gate; the backend
+    //; a the backend
     // enforces "task.manage" independently regardless.
     readonly property bool _canWrite: root.platformCatalog
         ? root.platformCatalog.hasPermission("task.manage")

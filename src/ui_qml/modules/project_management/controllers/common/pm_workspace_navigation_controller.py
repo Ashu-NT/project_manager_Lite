@@ -55,22 +55,6 @@ class PMWorkspaceNavigationController(QObject):
         }
 
     @Property("QVariantList", constant=True)
-    def navigationItems(self) -> list[dict[str, str]]:
-        return [
-            {"id": "dashboard", "label": "Overview", "group": "Overview", "icon": "dashboard"},
-            {"id": "portfolio", "label": "Portfolio", "group": "Portfolio", "icon": "portfolio"},
-            {"id": "projects", "label": "Projects", "group": "Work", "icon": "project"},
-            {"id": "tasks", "label": "Tasks", "group": "Work", "icon": "tasks"},
-            {"id": "scheduling", "label": "Planning", "group": "Work", "icon": "calendar"},
-            {"id": "timesheets", "label": "Timesheets", "group": "Work", "icon": "time"},
-            {"id": "resources", "label": "Resources", "group": "Workload Management", "icon": "resources"},
-            {"id": "review_queue", "label": "Review Queue", "group": "Workload Management", "icon": "approve"},
-            {"id": "financials", "label": "Finance", "group": "Finance", "icon": "financials"},
-            {"id": "register", "label": "Register", "group": "Governance", "icon": "register"},
-            {"id": "collaboration", "label": "Collaboration", "group": "Governance", "icon": "collaboration"},
-        ]
-
-    @Property("QVariantList", constant=True)
     def contextNavigation(self) -> list[dict[str, object]]:
         return build_pm_context_navigation().to_qml_groups()
 

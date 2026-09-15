@@ -56,7 +56,7 @@ AppLayouts.WorkspaceFrame {
     property var _pendingConfirm: null
 
     // RBAC: gates create/edit/activate-toggle buttons -- a client-side UX
-    // optimization mirroring PlatformNavigation's own destination gate;
+    // optimization; a
     // the backend enforces "auth.manage" independently regardless.
     readonly property bool _canWrite: root.platformCatalog
         ? root.platformCatalog.hasPermission("auth.manage")

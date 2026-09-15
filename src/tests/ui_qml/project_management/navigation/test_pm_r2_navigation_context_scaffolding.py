@@ -115,32 +115,31 @@ def test_navigation_default_destination_is_dashboard_overview():
     assert controller.secondaryId == ""
 
 
-def test_navigation_items_cover_all_eleven_workspaces_in_six_groups():
+def test_navigation_items_cover_all_eleven_workspaces_in_five_groups():
     controller = PMWorkspaceNavigationController()
-    items = controller.navigationItems
+    tree_groups = controller.contextNavigation
 
+    items = [item for group in tree_groups for item in group["items"]]
     assert len(items) == 11
     ids = {item["id"] for item in items}
     assert ids == set(PM_WORKSPACE_KEYS)
 
-    groups: dict[str, list[str]] = {}
-    for item in items:
-        groups.setdefault(item["group"], []).append(item["id"])
+    groups: dict[str, list[str]] = {
+        group["id"]: [item["id"] for item in group["items"]] for group in tree_groups
+    }
 
     assert set(groups) == {
-        "Overview",
-        "Portfolio",
-        "Work",
-        "Workload Management",
-        "Finance",
-        "Governance",
+        "",
+        "work",
+        "workload_management",
+        "finance",
+        "governance",
     }
-    assert sorted(groups["Overview"]) == ["dashboard"]
-    assert sorted(groups["Portfolio"]) == ["portfolio"]
-    assert sorted(groups["Work"]) == ["projects", "scheduling", "tasks", "timesheets"]
-    assert sorted(groups["Workload Management"]) == ["resources", "review_queue"]
-    assert sorted(groups["Finance"]) == ["financials"]
-    assert sorted(groups["Governance"]) == ["collaboration", "register"]
+    assert sorted(groups[""]) == ["dashboard", "portfolio"]
+    assert sorted(groups["work"]) == ["projects", "scheduling", "tasks", "timesheets"]
+    assert sorted(groups["workload_management"]) == ["resources", "review_queue"]
+    assert sorted(groups["finance"]) == ["financials"]
+    assert sorted(groups["governance"]) == ["collaboration", "register"]
 
 
 def test_select_workspace_valid_key_updates_selection_and_emits():
@@ -241,10 +240,14 @@ def test_apply_route_unknown_route_is_rejected():
 
 
 def test_all_current_destinations_are_always_present_in_navigation_items():
-    """`navigationItems` is deliberately never filtered by capability -- no
+    """`contextNavigation` is deliberately never filtered by capability -- no
     destination->capability mapping exists as a product decision, so every
     workspace is always present regardless of the caller's permissions."""
     controller = PMWorkspaceNavigationController()
 
-    ids = {item["id"] for item in controller.navigationItems}
+    ids = {
+        item["id"]
+        for group in controller.contextNavigation
+        for item in group["items"]
+    }
     assert ids == set(PM_WORKSPACE_KEYS)

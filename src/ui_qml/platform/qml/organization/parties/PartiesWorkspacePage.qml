@@ -60,7 +60,7 @@ AppLayouts.WorkspaceFrame {
     }
 
     // RBAC: gates create/edit/set-active buttons -- a client-side UX
-    // optimization mirroring PlatformNavigation's own destination gate;
+    // optimization; a
     // the backend enforces "settings.manage" independently regardless.
     readonly property bool _canWrite: root.platformCatalog
         ? root.platformCatalog.hasPermission("settings.manage")

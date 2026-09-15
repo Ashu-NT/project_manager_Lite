@@ -47,11 +47,11 @@ AppLayouts.WorkspaceFrame {
     property var _pendingConfirm: null
 
     // RBAC: gates create/edit/toggle-active and calendar-assignment buttons --
-    // a client-side UX optimization mirroring PlatformNavigation's own
-    // destination gate; the backend enforces "employee.manage"/"task.manage"
-    // independently regardless. These are narrower than the page's own
-    // "employee.read" nav gate, so a read-only viewer who reaches this page
-    // still sees disabled write actions.
+    // a client-side UX optimization; the backend enforces
+    // "employee.manage"/"task.manage" independently regardless. These are
+    // narrower than the page's own "employee.read" nav gate, so a
+    // read-only viewer who reaches this page still sees disabled write
+    // actions.
     readonly property bool _canWrite: root.platformCatalog
         ? root.platformCatalog.hasPermission("employee.manage")
         : true

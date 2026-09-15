@@ -78,8 +78,7 @@ AppLayouts.WorkspaceFrame {
         ? (root.workspaceController.integrationCapabilities.items || []).length : 0
 
     // RBAC: gates the Lifecycle/Licensed/Enabled module actions -- a
-    // client-side UX optimization mirroring PlatformNavigation's own
-    // destination gate; the backend enforces "settings.manage"
+    // client-side UX optimization; the backend enforces "settings.manage"
     // independently regardless.
     readonly property bool _canManageModules: root.platformCatalog
         ? root.platformCatalog.hasPermission("settings.manage")

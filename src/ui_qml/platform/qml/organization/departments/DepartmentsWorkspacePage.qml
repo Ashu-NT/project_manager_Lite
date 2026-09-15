@@ -75,8 +75,7 @@ AppLayouts.WorkspaceFrame {
     // RBAC: gates create/edit/set-active buttons for the department's own
     // mutations, plus the related-record "New Employee" and calendar
     // assignment actions surfaced from the department detail page -- a
-    // client-side UX optimization mirroring PlatformNavigation's own
-    // destination gate; the backend enforces these permissions
+    // client-side UX optimization; the backend enforces these permissions
     // independently regardless.
     readonly property bool _canWrite: root.platformCatalog
         ? root.platformCatalog.hasPermission("settings.manage")

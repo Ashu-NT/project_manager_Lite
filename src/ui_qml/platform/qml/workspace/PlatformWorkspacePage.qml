@@ -6,7 +6,6 @@ import App.Widgets 1.0 as AppWidgets
 import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
-import Platform.Components 1.0 as PlatformComponents
 import Shell.Context 1.0 as ShellContexts
 import control 1.0 as Control
 import settings 1.0 as Settings
@@ -305,21 +304,6 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 0
-
-            PlatformComponents.PlatformNavigation {
-                Layout.fillHeight: true
-                platformCatalog: root.platformCatalog
-                selectedDestination: root.activeDestination
-                onDestinationSelected: function(destinationId) {
-                    root._selectDestination(destinationId)
-                }
-            }
-
-            Rectangle {
-                Layout.preferredWidth: Theme.AppTheme.borderWidthThin
-                Layout.fillHeight: true
-                color: Theme.AppTheme.divider
-            }
 
             Item {
                 Layout.fillWidth: true
