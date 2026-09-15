@@ -24,6 +24,14 @@ class OrganizationCatalogPageDto:
 
 
 @dataclass(frozen=True)
+class OrganizationStatisticsDto:
+    site_count: int = 0
+    department_count: int = 0
+    employee_count: int = 0
+    document_count: int = 0
+
+
+@dataclass(frozen=True)
 class OrganizationProvisionCommand:
     organization_code: str
     display_name: str

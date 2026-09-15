@@ -141,6 +141,7 @@ class PlatformEmployeeDesktopApi:
             is_active=employee.is_active,
             user_id=employee.user_id,
             version=employee.version,
+            organization_id=employee.organization_id,
         )
 
 

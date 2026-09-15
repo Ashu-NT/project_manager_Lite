@@ -66,6 +66,16 @@ class PlatformEnterpriseAuditDesktopApi:
             return []
         return [self._to_feed_item(entry) for entry in entries]
 
+    def list_for_organization_overview(self, organization_id: str, *, limit: int = 5) -> list[dict]:
+        """Same pre-formatted shape as `list_for_overview`, scoped to one
+        explicit organization rather than the caller's active organization
+        -- used by Organization Detail's Recent Activity panel."""
+        try:
+            entries = self._service.list_recent_for_organization_id(organization_id, limit=limit)
+        except Exception:
+            return []
+        return [self._to_feed_item(entry) for entry in entries]
+
     def _to_dto(self, entry: AuditEntry) -> AuditEntryDto:
         return AuditEntryDto(
             id=entry.id,

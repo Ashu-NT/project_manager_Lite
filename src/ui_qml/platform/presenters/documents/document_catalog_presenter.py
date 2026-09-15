@@ -221,6 +221,7 @@ class PlatformDocumentCatalogPresenter:
             state={
                 "id": row.id,
                 "documentId": row.id,
+                "organizationId": row.organization_id,
                 "documentCode": row.document_code,
                 "title": row.title,
                 "documentType": getattr(row.document_type, "value", row.document_type),

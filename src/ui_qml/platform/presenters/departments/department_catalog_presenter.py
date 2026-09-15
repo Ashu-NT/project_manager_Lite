@@ -204,6 +204,7 @@ class PlatformDepartmentCatalogPresenter:
             state={
                 "id": row.id,
                 "departmentId": row.id,
+                "organizationId": row.organization_id,
                 "departmentCode": row.department_code,
                 "name": row.name,
                 "description": row.description,

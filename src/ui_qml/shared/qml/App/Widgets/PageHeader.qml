@@ -11,7 +11,13 @@ Item {
     property string title: ""
     property string subtitle: ""
     property bool showDivider: true
+    // [workspace, group?, destination] -- resolved navigation-state
+    // breadcrumb, rendered directly above the page title. Empty on pages
+    // that don't set one (e.g. the global Overview).
+    property var breadcrumb: []
     default property alias actions: actionSlot.data
+
+    readonly property string _breadcrumbText: (root.breadcrumb || []).join("  >  ")
 
     implicitHeight: headerBlock.implicitHeight + (root.showDivider ? Theme.AppTheme.spacingMd : 0)
 
@@ -29,6 +35,16 @@ Item {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 3
+
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    visible: root._breadcrumbText.length > 0
+                    text: root._breadcrumbText
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    elide: Text.ElideRight
+                }
 
                 AppControls.Label {
                     Layout.fillWidth: true

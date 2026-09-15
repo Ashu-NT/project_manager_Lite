@@ -384,6 +384,14 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     def setOrganizationSearchText(self, text: str) -> None:
         self._organization_controller.setOrganizationSearchText(text)
 
+    @Slot(str, result="QVariantMap")
+    def organizationDetailContext(self, organization_id: str) -> dict[str, object]:
+        return self._organization_controller.organizationDetailContext(organization_id)
+
+    @Slot(str, result="QVariantList")
+    def organizationAuditActivity(self, organization_id: str) -> list[dict[str, object]]:
+        return self._organization_controller.organizationAuditActivity(organization_id)
+
     # ── Calendar slots ────────────────────────────────────────────────────
 
     @Slot("QVariantMap", result="QVariantMap")

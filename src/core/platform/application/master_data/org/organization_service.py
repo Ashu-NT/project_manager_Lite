@@ -38,6 +38,10 @@ from src.core.shared.time.clock import Clock
 
 if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
+    from src.core.platform.contract.read.master_data.employee.employee_headcount_reader import (
+        EmployeeHeadcountReader,
+    )
+    from src.core.platform.domain.history.audit.audit_entry import AuditEntry
     from src.core.platform.domain.security.auth.session import UserSessionContext
     from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
@@ -54,6 +58,14 @@ class OrganizationPage:
     page_size: int = _DEFAULT_ORGANIZATION_PAGE_SIZE
 
 
+@dataclass(frozen=True)
+class OrganizationStatistics:
+    site_count: int = 0
+    department_count: int = 0
+    employee_count: int = 0
+    document_count: int = 0
+
+
 class OrganizationService:
     def __init__(
         self,
@@ -66,6 +78,7 @@ class OrganizationService:
         enterprise_audit_service: EnterpriseAuditService | None = None,
         tenant_context_service: TenantContextService | None = None,
         overview_rollup_reader: PlatformOverviewRollupReader | None = None,
+        employee_headcount_reader: EmployeeHeadcountReader | None = None,
     ):
         self._session = session
         self._organization_repo = organization_repo
@@ -75,6 +88,7 @@ class OrganizationService:
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
         self._overview_rollup_reader = overview_rollup_reader
+        self._employee_headcount_reader = employee_headcount_reader
 
     def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
         return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
@@ -169,6 +183,48 @@ class OrganizationService:
             filtered_total=filtered_total,
             page=normalized_page,
             page_size=normalized_page_size,
+        )
+
+    def get_organization_statistics(self, organization_id: str) -> OrganizationStatistics:
+        """Composed real counts for one organization -- one aggregate query
+        per entity via the existing overview/headcount read models, never a
+        row-level fetch-and-count. Scoped to the given `organization_id`
+        explicitly (not the caller's active organization), since Organization
+        Detail may be showing an organization the user hasn't switched to."""
+        require_permission(self._user_session, "settings.manage", operation_label="view organization statistics")
+        tenant_id = self._require_current_tenant_id(operation_label="view organization statistics")
+        if self._overview_rollup_reader is None:
+            return OrganizationStatistics()
+        site_summary = self._overview_rollup_reader.get_site_summary(
+            organization_id=organization_id, tenant_id=tenant_id
+        )
+        department_summary = self._overview_rollup_reader.get_department_summary(
+            organization_id=organization_id, tenant_id=tenant_id
+        )
+        document_summary = self._overview_rollup_reader.get_document_summary(
+            organization_id=organization_id, tenant_id=tenant_id
+        )
+        employee_count = 0
+        if self._employee_headcount_reader is not None:
+            employee_count = self._employee_headcount_reader.get_summary(
+                tenant_id=tenant_id, organization_id=organization_id
+            ).total
+        return OrganizationStatistics(
+            site_count=site_summary.total,
+            department_count=department_summary.total,
+            employee_count=employee_count,
+            document_count=document_summary.total,
+        )
+
+    def get_organization_recent_activity(
+        self, organization_id: str, *, limit: int = 5
+    ) -> list[AuditEntry]:
+        require_permission(self._user_session, "settings.manage", operation_label="view organization activity")
+        self._require_current_tenant_id(operation_label="view organization activity")
+        if self._enterprise_audit_service is None:
+            return []
+        return self._enterprise_audit_service.list_recent_for_organization_id(
+            organization_id, limit=limit
         )
 
     def get_organization_count(self) -> int:
@@ -463,4 +519,9 @@ class OrganizationService:
         return candidate
 
 
-__all__ = ["ORGANIZATION_PAGE_SIZE_OPTIONS", "OrganizationPage", "OrganizationService"]
+__all__ = [
+    "ORGANIZATION_PAGE_SIZE_OPTIONS",
+    "OrganizationPage",
+    "OrganizationService",
+    "OrganizationStatistics",
+]

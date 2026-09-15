@@ -9,6 +9,8 @@ Item {
     id: detailRoot
 
     property var organization: ({})
+    property var workspaceController: null
+    property var platformCatalog: null
     property bool canWrite: true
     property bool busy: false
     property string errorMessage: ""
@@ -17,10 +19,14 @@ Item {
 
     signal backRequested()
     signal actionRequested(string actionId)
+    signal navigateToDestination(string destinationId)
 
     readonly property var _orgState: (detailRoot.organization && detailRoot.organization.state)
         ? detailRoot.organization.state
         : ({})
+    readonly property string _orgId: String(detailRoot.organization && detailRoot.organization.id
+        ? detailRoot.organization.id
+        : (detailRoot._orgState.organizationId || ""))
     readonly property string _orgTitle: String(detailRoot.organization && detailRoot.organization.title
         ? detailRoot.organization.title
         : "Organization")
@@ -30,56 +36,130 @@ Item {
     readonly property string _orgSubtitle: String(detailRoot.organization && detailRoot.organization.subtitle
         ? detailRoot.organization.subtitle
         : "")
-    readonly property string _orgMetaText: String(detailRoot.organization && detailRoot.organization.metaText
-        ? detailRoot.organization.metaText
-        : "")
     readonly property bool _isEnabledOrganization: detailRoot._orgState.isEnabled === true
     readonly property string _orgStatusTone: detailRoot._isEnabledOrganization ? "success" : "neutral"
+
     readonly property var _sections: [
         { "label": "Overview" },
-        { "label": "Runtime Scope" },
+        { "label": "Sites" },
+        { "label": "Departments" },
+        { "label": "Employees" },
+        { "label": "Documents" },
         { "label": "Audit" }
     ]
     readonly property string _activeSectionLabel: {
         const section = detailRoot._sections[detailRoot.activeSectionIndex]
         return section ? String(section.label || "") : "Overview"
     }
-    readonly property string _toolbarSubtitle: {
-        if (detailRoot._activeSectionLabel === "Overview") {
-            return detailRoot._orgSubtitle
-        }
-        if (detailRoot._activeSectionLabel === "Runtime Scope") {
-            return "Shared platform records resolve through the active organization context."
-        }
-        return "Entity-level audit detail is still routed through the shared audit workspace."
-    }
+    readonly property string _toolbarSubtitle: detailRoot._activeSectionLabel === "Overview"
+        ? detailRoot._orgSubtitle
+        : ""
     readonly property var _toolbarActions: {
-        const actions = []
-        if (detailRoot._activeSectionLabel === "Overview") {
-            actions.push({ "id": "edit", "label": "Edit", "icon": "edit", "enabled": detailRoot.canWrite })
-            if (!detailRoot._isEnabledOrganization) {
-                actions.push({ "id": "enable", "label": "Enable", "icon": "approve", "enabled": detailRoot.canWrite })
-            }
-            actions.push({ "id": "refresh", "label": "Refresh", "icon": "refresh" })
-            return actions
+        if (detailRoot._activeSectionLabel !== "Overview") {
+            return [{ "id": "refresh", "label": "Refresh", "icon": "refresh" }]
         }
-        if (detailRoot._activeSectionLabel === "Runtime Scope") {
-            actions.push({ "id": "refresh", "label": "Refresh", "icon": "refresh" })
-            if (!detailRoot._isEnabledOrganization) {
-                actions.push({ "id": "enable", "label": "Enable", "icon": "approve", "enabled": detailRoot.canWrite })
-            }
-            return actions
+        const actions = [{ "id": "edit", "label": "Edit", "icon": "edit", "enabled": detailRoot.canWrite }]
+        if (!detailRoot._isEnabledOrganization) {
+            actions.push({ "id": "enable", "label": "Enable", "icon": "approve", "enabled": detailRoot.canWrite })
         }
-        actions.push({ "id": "show_audit", "label": "Open Audit", "icon": "chevron_right" })
+        actions.push({ "id": "refresh", "label": "Refresh", "icon": "refresh" })
         return actions
     }
     readonly property var _overviewFields: [
-        { "label": "Organization Code", "value": String(detailRoot._orgState.organizationCode || "-") },
-        { "label": "Display Name", "value": String(detailRoot._orgState.displayName || detailRoot._orgTitle || "-") },
-        { "label": "Timezone", "value": String(detailRoot._orgState.timezoneName || "-") },
-        { "label": "Base Currency", "value": String(detailRoot._orgState.baseCurrency || "-") },
+        { "label": "Name", "value": String(detailRoot._orgState.displayName || detailRoot._orgTitle || "-") },
+        { "label": "Code", "value": String(detailRoot._orgState.organizationCode || "-") },
         { "label": "Status", "value": detailRoot._orgStatus.length > 0 ? detailRoot._orgStatus : "Unknown" },
-        { "label": "Version", "value": String(detailRoot._orgState.version || "-") }
+        { "label": "Time Zone", "value": String(detailRoot._orgState.timezoneName || "-") },
+        { "label": "Base Currency", "value": String(detailRoot._orgState.baseCurrency || "-") }
+    ]
+
+    // -- Real composed detail context (statistics + recent activity) -----
+    // Fetched once per organization id, not per section activation, since
+    // it backs Overview which is always the first section shown.
+    property var _detailContext: ({ "statistics": ({}), "recentActivity": [] })
+    property var _auditActivity: []
+    property bool _auditLoaded: false
+
+    function _reloadDetailContext() {
+        if (!detailRoot.workspaceController || detailRoot._orgId.length === 0) {
+            return
+        }
+        detailRoot._detailContext = detailRoot.workspaceController.organizationDetailContext(detailRoot._orgId)
+    }
+
+    function _ensureAuditLoaded() {
+        if (detailRoot._auditLoaded || !detailRoot.workspaceController || detailRoot._orgId.length === 0) {
+            return
+        }
+        detailRoot._auditActivity = detailRoot.workspaceController.organizationAuditActivity(detailRoot._orgId)
+        detailRoot._auditLoaded = true
+    }
+
+    onOrganizationChanged: {
+        detailRoot._auditLoaded = false
+        detailRoot._reloadDetailContext()
+    }
+    onActiveSectionIndexChanged: {
+        if (detailRoot._activeSectionLabel === "Audit") {
+            detailRoot._ensureAuditLoaded()
+        }
+    }
+    Component.onCompleted: detailRoot._reloadDetailContext()
+
+    readonly property var _statistics: detailRoot._detailContext.statistics || ({})
+
+    // -- Related Actions: real destinations only, gated by the same
+    // Context Navigation Tree accessibility the sidebar itself uses. -----
+    function _isDestinationAccessible(destinationId) {
+        const groups = (detailRoot.platformCatalog && detailRoot.platformCatalog.contextNavigation) || []
+        for (let g = 0; g < groups.length; g += 1) {
+            const items = groups[g].items || []
+            for (let i = 0; i < items.length; i += 1) {
+                if (items[i].id === destinationId) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+    readonly property var _relatedActions: {
+        const candidates = [
+            { "id": "sites", "label": "Manage Sites", "icon": "site" },
+            { "id": "departments", "label": "Manage Departments", "icon": "department" },
+            { "id": "employees", "label": "Manage Employees", "icon": "employee" },
+            { "id": "documents", "label": "View Documents", "icon": "documents" }
+        ]
+        return candidates.filter(function(action) { return detailRoot._isDestinationAccessible(action.id) })
+    }
+
+    // -- Per-organization filtered catalogs (existing tenant-scoped lists,
+    // filtered client-side by organizationId; a genuine per-organization
+    // backend read is future work -- see Phase J report). -----------------
+    function _filteredByOrg(catalog) {
+        if (!catalog) return []
+        const items = catalog.items || []
+        const result = []
+        for (let i = 0; i < items.length; i += 1) {
+            const state = items[i].state || {}
+            if (String(state.organizationId || "") === detailRoot._orgId) {
+                result.push(items[i])
+            }
+        }
+        return result
+    }
+    readonly property var _orgSites: detailRoot.workspaceController
+        ? detailRoot._filteredByOrg(detailRoot.workspaceController.sites) : []
+    readonly property var _orgDepartments: detailRoot.workspaceController
+        ? detailRoot._filteredByOrg(detailRoot.workspaceController.departments) : []
+    readonly property var _orgEmployees: detailRoot.workspaceController
+        ? detailRoot._filteredByOrg(detailRoot.workspaceController.employees) : []
+    readonly property var _orgDocuments: detailRoot.workspaceController
+        ? detailRoot._filteredByOrg(detailRoot.workspaceController.documents) : []
+
+    readonly property var _simpleColumns: [
+        { key: "title", label: "Name", flex: 2, minWidth: 160, sortable: true, visible: true },
+        { key: "subtitle", label: "Details", flex: 2, minWidth: 160, sortable: false, visible: true },
+        { key: "statusLabel", label: "Status", flex: 0, minWidth: 90, sortable: false, visible: true, type: "status" }
     ]
 
     AppWidgets.SectionDetailPage {
@@ -123,6 +203,7 @@ Item {
             }
         }
 
+        // -- Overview: two-region layout (main + summary rail) ------------
         Item {
             width: parent ? parent.width : detailRoot.width
             implicitHeight: detailRoot.activeSectionIndex === 0 ? overviewLoader.implicitHeight : 0
@@ -139,36 +220,39 @@ Item {
                 loadingMessage: "Loading organization overview..."
                 sourceComponent: Component {
                     Column {
+                        id: overviewRoot
                         width: parent ? parent.width : 0
                         spacing: 0
 
                         AppWidgets.SectionHeading {
-                            width: parent.width
+                            width: overviewRoot.width
                             label: "Overview"
                         }
 
                         Item {
-                            width: parent.width
-                            implicitHeight: overviewColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
+                            width: overviewRoot.width
+                            implicitHeight: overviewGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
 
-                            ColumnLayout {
-                                id: overviewColumn
+                            GridLayout {
+                                id: overviewGrid
                                 anchors.top: parent.top
                                 anchors.left: parent.left
                                 anchors.right: parent.right
-                                anchors.topMargin: Theme.AppTheme.spacingMd
-                                anchors.leftMargin: Theme.AppTheme.spacingMd
-                                anchors.rightMargin: Theme.AppTheme.spacingMd
-                                spacing: Theme.AppTheme.spacingMd
+                                anchors.margins: Theme.AppTheme.spacingMd
+                                columns: overviewRoot.width < 900 ? 1 : 2
+                                columnSpacing: Theme.AppTheme.spacingMd
+                                rowSpacing: Theme.AppTheme.spacingMd
 
+                                // -- Main column: Basic Information ---------
                                 AppWidgets.SectionCard {
                                     Layout.fillWidth: true
-                                    implicitHeight: overviewGrid.implicitHeight + (Theme.AppTheme.spacingMd * 2)
-                                    title: "Organization Summary"
+                                    Layout.alignment: Qt.AlignTop
+                                    implicitHeight: basicInfoGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                    title: "Basic Information"
                                     outlined: true
 
                                     GridLayout {
-                                        id: overviewGrid
+                                        id: basicInfoGrid
                                         anchors.left: parent.left
                                         anchors.right: parent.right
                                         anchors.top: parent.top
@@ -205,50 +289,159 @@ Item {
                                     }
                                 }
 
-                                AppWidgets.SectionCard {
+                                // -- Summary rail: statistics + activity + actions
+                                ColumnLayout {
                                     Layout.fillWidth: true
-                                    implicitHeight: summaryColumn.implicitHeight + (Theme.AppTheme.spacingMd * 2)
-                                    title: "Operational Notes"
-                                    outlined: true
+                                    Layout.alignment: Qt.AlignTop
+                                    spacing: Theme.AppTheme.spacingMd
 
-                                    ColumnLayout {
-                                        id: summaryColumn
-                                        anchors.left: parent.left
-                                        anchors.right: parent.right
-                                        anchors.top: parent.top
-                                        anchors.margins: Theme.AppTheme.marginMd
-                                        spacing: Theme.AppTheme.spacingSm
+                                    AppWidgets.SectionCard {
+                                        Layout.fillWidth: true
+                                        implicitHeight: statsGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                        title: "Key Statistics"
+                                        outlined: true
 
-                                        AppWidgets.StatusChip {
-                                            visible: detailRoot._orgStatus.length > 0
-                                            status: detailRoot._orgStatus
-                                            tone:   detailRoot._orgStatusTone
+                                        GridLayout {
+                                            id: statsGrid
+                                            anchors.left: parent.left
+                                            anchors.right: parent.right
+                                            anchors.top: parent.top
+                                            anchors.margins: Theme.AppTheme.marginMd
+                                            columns: 2
+                                            columnSpacing: Theme.AppTheme.spacingSm
+                                            rowSpacing: Theme.AppTheme.spacingSm
+
+                                            AppWidgets.OverviewMetricTile {
+                                                Layout.fillWidth: true
+                                                compact: true
+                                                label: "Sites"
+                                                value: String(detailRoot._statistics.siteCount !== undefined ? detailRoot._statistics.siteCount : "--")
+                                                clickable: detailRoot._isDestinationAccessible("sites")
+                                                onActivated: detailRoot.navigateToDestination("sites")
+                                            }
+                                            AppWidgets.OverviewMetricTile {
+                                                Layout.fillWidth: true
+                                                compact: true
+                                                label: "Departments"
+                                                value: String(detailRoot._statistics.departmentCount !== undefined ? detailRoot._statistics.departmentCount : "--")
+                                                clickable: detailRoot._isDestinationAccessible("departments")
+                                                onActivated: detailRoot.navigateToDestination("departments")
+                                            }
+                                            AppWidgets.OverviewMetricTile {
+                                                Layout.fillWidth: true
+                                                compact: true
+                                                label: "Employees"
+                                                value: String(detailRoot._statistics.employeeCount !== undefined ? detailRoot._statistics.employeeCount : "--")
+                                                clickable: detailRoot._isDestinationAccessible("employees")
+                                                onActivated: detailRoot.navigateToDestination("employees")
+                                            }
+                                            AppWidgets.OverviewMetricTile {
+                                                Layout.fillWidth: true
+                                                compact: true
+                                                label: "Documents"
+                                                value: String(detailRoot._statistics.documentCount !== undefined ? detailRoot._statistics.documentCount : "--")
+                                                clickable: detailRoot._isDestinationAccessible("documents")
+                                                onActivated: detailRoot.navigateToDestination("documents")
+                                            }
                                         }
+                                    }
 
-                                        AppControls.Label {
-                                            Layout.fillWidth: true
-                                            visible: detailRoot.organization.supportingText ? true : false
-                                            text: String(detailRoot.organization.supportingText || "")
-                                            color: Theme.AppTheme.textSecondary
-                                            font.pixelSize: Theme.AppTheme.smallSize
-                                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                                    AppWidgets.SectionCard {
+                                        Layout.fillWidth: true
+                                        implicitHeight: activityColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                        title: "Recent Activity"
+                                        outlined: true
+
+                                        ColumnLayout {
+                                            id: activityColumn
+                                            anchors.left: parent.left
+                                            anchors.right: parent.right
+                                            anchors.top: parent.top
+                                            anchors.margins: Theme.AppTheme.marginMd
+                                            spacing: Theme.AppTheme.spacingSm
+
+                                            AppControls.Label {
+                                                Layout.alignment: Qt.AlignRight
+                                                visible: (detailRoot._detailContext.recentActivity || []).length > 0
+                                                text: "View all"
+                                                color: Theme.AppTheme.accent
+                                                font.pixelSize: Theme.AppTheme.smallSize
+                                                font.bold: true
+
+                                                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                                TapHandler { onTapped: detailRoot.activeSectionIndex = 5 }
+                                            }
+
+                                            AppWidgets.ActivityFeed {
+                                                Layout.fillWidth: true
+                                                items: detailRoot._detailContext.recentActivity || []
+                                                emptyText: "No recent administrative activity for this organization."
+                                            }
                                         }
+                                    }
 
-                                        AppControls.Label {
-                                            Layout.fillWidth: true
-                                            visible: detailRoot._orgMetaText.length > 0
-                                            text: detailRoot._orgMetaText
-                                            color: Theme.AppTheme.textMuted
-                                            font.pixelSize: Theme.AppTheme.captionSize
-                                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                        }
+                                    AppWidgets.SectionCard {
+                                        Layout.fillWidth: true
+                                        visible: detailRoot._relatedActions.length > 0
+                                        implicitHeight: actionsColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                        title: "Related Actions"
+                                        outlined: true
 
-                                        AppWidgets.InlineMessage {
-                                            Layout.fillWidth: true
-                                            tone: detailRoot._isEnabledOrganization ? "success" : "info"
-                                            message: detailRoot._isEnabledOrganization
-                                                ? "This organization is enabled and available for use, subject to each user's own organization access."
-                                                : "This organization is currently disabled. Enable it before users can select it as their working organization."
+                                        ColumnLayout {
+                                            id: actionsColumn
+                                            anchors.left: parent.left
+                                            anchors.right: parent.right
+                                            anchors.top: parent.top
+                                            anchors.margins: Theme.AppTheme.marginMd
+                                            spacing: Theme.AppTheme.spacingXs
+
+                                            Repeater {
+                                                model: detailRoot._relatedActions
+
+                                                delegate: Item {
+                                                    id: actionRow
+                                                    required property var modelData
+
+                                                    Layout.fillWidth: true
+                                                    implicitHeight: Theme.AppTheme.normalRowHeight
+
+                                                    activeFocusOnTab: true
+                                                    Accessible.role: Accessible.Button
+                                                    Accessible.name: String(actionRow.modelData.label || "")
+                                                    Accessible.onPressAction: detailRoot.navigateToDestination(actionRow.modelData.id)
+                                                    Keys.onPressed: (event) => {
+                                                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                                                            detailRoot.navigateToDestination(actionRow.modelData.id)
+                                                            event.accepted = true
+                                                        }
+                                                    }
+
+                                                    Rectangle {
+                                                        anchors.fill: parent
+                                                        radius: Theme.AppTheme.radiusSm
+                                                        color: (actionRow.activeFocus || _rowHover.hovered)
+                                                            ? Theme.AppTheme.hoverSurface : "transparent"
+                                                    }
+
+                                                    RowLayout {
+                                                        anchors.fill: parent
+                                                        anchors.leftMargin: Theme.AppTheme.spacingXs
+                                                        anchors.rightMargin: Theme.AppTheme.spacingXs
+                                                        spacing: Theme.AppTheme.spacingSm
+
+                                                        AppControls.Label {
+                                                            Layout.fillWidth: true
+                                                            text: String(actionRow.modelData.label || "")
+                                                            color: Theme.AppTheme.accent
+                                                            font.pixelSize: Theme.AppTheme.smallSize
+                                                            font.bold: true
+                                                        }
+                                                    }
+
+                                                    HoverHandler { id: _rowHover; cursorShape: Qt.PointingHandCursor }
+                                                    TapHandler { onTapped: detailRoot.navigateToDestination(actionRow.modelData.id) }
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -259,84 +452,33 @@ Item {
             }
         }
 
+        // -- Sites / Departments / Employees / Documents: real filtered lists
         Item {
             width: parent ? parent.width : detailRoot.width
-            implicitHeight: detailRoot.activeSectionIndex === 1 ? runtimeLoader.implicitHeight : 0
+            implicitHeight: detailRoot.activeSectionIndex === 1 ? sitesLoader.implicitHeight : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
             AppWidgets.LazySectionLoader {
-                id: runtimeLoader
+                id: sitesLoader
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
                 active: detailRoot.activeSectionIndex === 1
                 keepLoaded: true
-                loadingMessage: "Loading runtime scope..."
+                loadingMessage: "Loading sites..."
+                fallbackLoadingHeight: 320
                 sourceComponent: Component {
                     Column {
                         width: parent ? parent.width : 0
                         spacing: 0
-
-                        AppWidgets.SectionHeading {
+                        AppWidgets.SectionHeading { width: parent.width; label: "Sites" }
+                        AppWidgets.DataTable {
                             width: parent.width
-                            label: "Runtime Scope"
-                        }
-
-                        Item {
-                            width: parent.width
-                            implicitHeight: runtimeColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
-
-                            ColumnLayout {
-                                id: runtimeColumn
-                                anchors.top: parent.top
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.topMargin: Theme.AppTheme.spacingMd
-                                anchors.leftMargin: Theme.AppTheme.spacingMd
-                                anchors.rightMargin: Theme.AppTheme.spacingMd
-                                spacing: Theme.AppTheme.spacingMd
-
-                                AppWidgets.InlineMessage {
-                                    Layout.fillWidth: true
-                                    tone: "info"
-                                    message: "Shared platform APIs for sites, departments, documents, and downstream records resolve through each user's own current working organization, not through any single tenant-wide designation."
-                                }
-
-                                AppWidgets.SectionCard {
-                                    Layout.fillWidth: true
-                                    implicitHeight: runtimeNotes.implicitHeight + (Theme.AppTheme.spacingMd * 2)
-                                    title: "Context Resolution"
-                                    outlined: true
-
-                                    ColumnLayout {
-                                        id: runtimeNotes
-                                        anchors.left: parent.left
-                                        anchors.right: parent.right
-                                        anchors.top: parent.top
-                                        anchors.margins: Theme.AppTheme.marginMd
-                                        spacing: Theme.AppTheme.spacingSm
-
-                                        AppControls.Label {
-                                            Layout.fillWidth: true
-                                            text: detailRoot._isEnabledOrganization
-                                                ? "This organization is enabled, so authorized users may select it as their current working organization."
-                                                : "This organization is currently disabled and cannot be selected as a working organization until re-enabled."
-                                            color: Theme.AppTheme.textSecondary
-                                            font.pixelSize: Theme.AppTheme.smallSize
-                                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                        }
-
-                                        AppControls.Label {
-                                            Layout.fillWidth: true
-                                            text: "Current resolution chain: organization context -> shared sites -> shared departments -> shared documents -> downstream module integrations."
-                                            color: Theme.AppTheme.textMuted
-                                            font.pixelSize: Theme.AppTheme.captionSize
-                                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                        }
-                                    }
-                                }
-                            }
+                            height: 320
+                            columns: detailRoot._simpleColumns
+                            rows: detailRoot._orgSites
+                            emptyText: "No sites recorded for this organization yet."
                         }
                     }
                 }
@@ -345,7 +487,104 @@ Item {
 
         Item {
             width: parent ? parent.width : detailRoot.width
-            implicitHeight: detailRoot.activeSectionIndex === 2 ? auditLoader.implicitHeight : 0
+            implicitHeight: detailRoot.activeSectionIndex === 2 ? departmentsLoader.implicitHeight : 0
+            height: implicitHeight
+            visible: implicitHeight > 0
+
+            AppWidgets.LazySectionLoader {
+                id: departmentsLoader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                active: detailRoot.activeSectionIndex === 2
+                keepLoaded: true
+                loadingMessage: "Loading departments..."
+                fallbackLoadingHeight: 320
+                sourceComponent: Component {
+                    Column {
+                        width: parent ? parent.width : 0
+                        spacing: 0
+                        AppWidgets.SectionHeading { width: parent.width; label: "Departments" }
+                        AppWidgets.DataTable {
+                            width: parent.width
+                            height: 320
+                            columns: detailRoot._simpleColumns
+                            rows: detailRoot._orgDepartments
+                            emptyText: "No departments recorded for this organization yet."
+                        }
+                    }
+                }
+            }
+        }
+
+        Item {
+            width: parent ? parent.width : detailRoot.width
+            implicitHeight: detailRoot.activeSectionIndex === 3 ? employeesLoader.implicitHeight : 0
+            height: implicitHeight
+            visible: implicitHeight > 0
+
+            AppWidgets.LazySectionLoader {
+                id: employeesLoader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                active: detailRoot.activeSectionIndex === 3
+                keepLoaded: true
+                loadingMessage: "Loading employees..."
+                fallbackLoadingHeight: 320
+                sourceComponent: Component {
+                    Column {
+                        width: parent ? parent.width : 0
+                        spacing: 0
+                        AppWidgets.SectionHeading { width: parent.width; label: "Employees" }
+                        AppWidgets.DataTable {
+                            width: parent.width
+                            height: 320
+                            columns: detailRoot._simpleColumns
+                            rows: detailRoot._orgEmployees
+                            emptyText: "No employees recorded for this organization yet."
+                        }
+                    }
+                }
+            }
+        }
+
+        Item {
+            width: parent ? parent.width : detailRoot.width
+            implicitHeight: detailRoot.activeSectionIndex === 4 ? documentsLoader.implicitHeight : 0
+            height: implicitHeight
+            visible: implicitHeight > 0
+
+            AppWidgets.LazySectionLoader {
+                id: documentsLoader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                active: detailRoot.activeSectionIndex === 4
+                keepLoaded: true
+                loadingMessage: "Loading documents..."
+                fallbackLoadingHeight: 320
+                sourceComponent: Component {
+                    Column {
+                        width: parent ? parent.width : 0
+                        spacing: 0
+                        AppWidgets.SectionHeading { width: parent.width; label: "Documents" }
+                        AppWidgets.DataTable {
+                            width: parent.width
+                            height: 320
+                            columns: detailRoot._simpleColumns
+                            rows: detailRoot._orgDocuments
+                            emptyText: "No documents recorded for this organization yet."
+                        }
+                    }
+                }
+            }
+        }
+
+        // -- Audit: real organization-scoped audit trail -------------------
+        Item {
+            width: parent ? parent.width : detailRoot.width
+            implicitHeight: detailRoot.activeSectionIndex === 5 ? auditLoader.implicitHeight : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
@@ -354,21 +593,19 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                active: detailRoot.activeSectionIndex === 2
+                active: detailRoot.activeSectionIndex === 5
                 keepLoaded: true
-                loadingMessage: "Loading audit guidance..."
+                loadingMessage: "Loading audit trail..."
                 sourceComponent: Component {
                     Column {
+                        id: auditRoot
                         width: parent ? parent.width : 0
                         spacing: 0
 
-                        AppWidgets.SectionHeading {
-                            width: parent.width
-                            label: "Audit"
-                        }
+                        AppWidgets.SectionHeading { width: auditRoot.width; label: "Audit" }
 
                         Item {
-                            width: parent.width
+                            width: auditRoot.width
                             implicitHeight: auditColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
 
                             ColumnLayout {
@@ -376,39 +613,13 @@ Item {
                                 anchors.top: parent.top
                                 anchors.left: parent.left
                                 anchors.right: parent.right
-                                anchors.topMargin: Theme.AppTheme.spacingMd
-                                anchors.leftMargin: Theme.AppTheme.spacingMd
-                                anchors.rightMargin: Theme.AppTheme.spacingMd
+                                anchors.margins: Theme.AppTheme.spacingMd
                                 spacing: Theme.AppTheme.spacingMd
 
-                                AppWidgets.InlineMessage {
+                                AppWidgets.ActivityFeed {
                                     Layout.fillWidth: true
-                                    tone: "info"
-                                    message: "Entity-level organization audit trails are still delivered through the shared Platform audit workspace."
-                                }
-
-                                AppWidgets.SectionCard {
-                                    Layout.fillWidth: true
-                                    implicitHeight: auditNotes.implicitHeight + (Theme.AppTheme.spacingMd * 2)
-                                    title: "Audit Follow-up"
-                                    outlined: true
-
-                                    ColumnLayout {
-                                        id: auditNotes
-                                        anchors.left: parent.left
-                                        anchors.right: parent.right
-                                        anchors.top: parent.top
-                                        anchors.margins: Theme.AppTheme.marginMd
-                                        spacing: Theme.AppTheme.spacingSm
-
-                                        AppControls.Label {
-                                            Layout.fillWidth: true
-                                            text: "Use the shared audit workspace to inspect platform-wide events, approval history, and related operational activity for this organization."
-                                            color: Theme.AppTheme.textSecondary
-                                            font.pixelSize: Theme.AppTheme.smallSize
-                                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                        }
-                                    }
+                                    items: detailRoot._auditActivity
+                                    emptyText: "No audit entries recorded for this organization yet."
                                 }
                             }
                         }

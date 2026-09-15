@@ -158,7 +158,7 @@ class PlatformWorkspaceCatalog(QObject):
         )
         self._admin_workspace = PlatformAdminWorkspaceController(
             overview_presenter=admin_overview_presenter,
-            organization_presenter=PlatformOrganizationCatalogPresenter(runtime_api=runtime_api),
+            organization_presenter=PlatformOrganizationCatalogPresenter(runtime_api=runtime_api, audit_api=audit_api),
             calendar_presenter=PlatformCalendarCatalogPresenter(
                 calendar_api=calendar_api,
                 enterprise_calendar_api=enterprise_calendar_api,

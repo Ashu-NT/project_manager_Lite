@@ -227,6 +227,7 @@ class PlatformEmployeeCatalogPresenter:
             state={
                 "id": row.id,
                 "employeeId": row.id,
+                "organizationId": row.organization_id or "",
                 "employeeCode": row.employee_code,
                 "fullName": row.full_name,
                 "departmentId": row.department_id or "",

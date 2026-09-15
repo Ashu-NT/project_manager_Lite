@@ -188,6 +188,18 @@ class PlatformRuntimeApplicationService:
             page=page, page_size=page_size, search=search, enabled_only=enabled_only
         )
 
+    def get_organization_statistics(self, organization_id: str):
+        from src.core.platform.application.master_data.org.organization_service import OrganizationStatistics
+
+        if self._organization_service is None:
+            return OrganizationStatistics()
+        return self._organization_service.get_organization_statistics(organization_id)
+
+    def get_organization_recent_activity(self, organization_id: str, *, limit: int = 5):
+        if self._organization_service is None:
+            return []
+        return self._organization_service.get_organization_recent_activity(organization_id, limit=limit)
+
     def get_organization_count(self) -> int:
         if self._organization_service is None:
             return 0

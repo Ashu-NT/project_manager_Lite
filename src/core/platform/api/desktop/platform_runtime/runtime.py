@@ -14,6 +14,7 @@ from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationCatalogPageDto,
     OrganizationDto,
     OrganizationProvisionCommand,
+    OrganizationStatisticsDto,
     OrganizationUpdateCommand,
 )
 from src.core.platform.api.desktop.platform_runtime.models.runtime import (
@@ -67,6 +68,13 @@ class PlatformRuntimeDesktopApi:
         return self._execute(
             lambda: self._build_organizations_page(
                 page=page, page_size=page_size, search=search, enabled_only=enabled_only
+            )
+        )
+
+    def get_organization_statistics(self, organization_id: str) -> DesktopApiResult[OrganizationStatisticsDto]:
+        return self._execute(
+            lambda: self._serialize_organization_statistics(
+                self._platform_runtime_application_service.get_organization_statistics(organization_id)
             )
         )
 
@@ -200,6 +208,15 @@ class PlatformRuntimeDesktopApi:
             filtered_total=organization_page.filtered_total,
             page=organization_page.page,
             page_size=organization_page.page_size,
+        )
+
+    @staticmethod
+    def _serialize_organization_statistics(statistics) -> OrganizationStatisticsDto:
+        return OrganizationStatisticsDto(
+            site_count=statistics.site_count,
+            department_count=statistics.department_count,
+            employee_count=statistics.employee_count,
+            document_count=statistics.document_count,
         )
 
     def _build_runtime_context(self) -> PlatformRuntimeContextDto:

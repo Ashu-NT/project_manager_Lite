@@ -130,6 +130,34 @@ class EnterpriseAuditService:
             operation_prefixes=operation_prefixes,
         )
 
+    def list_recent_for_organization_id(
+        self,
+        organization_id: str,
+        limit: int = 100,
+        *,
+        entity_type: str | None = None,
+        operation: str | None = None,
+        severity: str | None = None,
+        module: str | None = None,
+        workspace_id: str | None = None,
+        operation_prefixes: Sequence[str] | None = None,
+    ) -> list[AuditEntry]:
+        """Audit entries for a specific organization, regardless of which
+        organization is currently active in the caller's session -- used by
+        Organization Detail, which may be viewing an organization the user
+        hasn't switched their active context to."""
+        require_permission(self._user_session, "audit.read", operation_label="view audit entries")
+        return self._audit_repo.list_recent_for_organization(
+            organization_id,
+            limit=limit,
+            entity_type=entity_type,
+            operation=operation,
+            severity=severity,
+            module=module,
+            workspace_id=workspace_id,
+            operation_prefixes=operation_prefixes,
+        )
+
     def _active_organization_id(self) -> str | None:
         tc = self._tenant_context_service
         if tc is None:

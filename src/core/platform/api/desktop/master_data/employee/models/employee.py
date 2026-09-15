@@ -19,6 +19,7 @@ class EmployeeDto:
     is_active: bool
     version: int
     user_id: str | None = None
+    organization_id: str | None = None
 
 
 @dataclass(frozen=True)

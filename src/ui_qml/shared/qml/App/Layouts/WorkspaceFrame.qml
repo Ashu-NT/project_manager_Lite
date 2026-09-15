@@ -9,6 +9,7 @@ Item {
     default property alias content: contentSlot.data
     property string title: ""
     property string subtitle: ""
+    property var breadcrumb: []
 
     Rectangle {
         anchors.fill: parent
@@ -24,6 +25,7 @@ Item {
             Layout.fillWidth: true
             title: root.title
             subtitle: root.subtitle
+            breadcrumb: root.breadcrumb
         }
 
         Item {

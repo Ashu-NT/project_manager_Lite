@@ -729,6 +729,7 @@ def build_platform_service_bundle(
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
         overview_rollup_reader=overview_rollup_reader,
+        employee_headcount_reader=SqlAlchemyEmployeeHeadcountReader(session),
     )
 
     if security_configuration.tenancy_mode is TenancyMode.LOCAL_SINGLE_TENANT:
