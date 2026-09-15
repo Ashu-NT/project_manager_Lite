@@ -218,6 +218,18 @@ class PlatformRuntimeApplicationService:
         timezone_name: str,
         base_currency: str,
         is_enabled: bool,
+        legal_name: str = "",
+        registration_number: str = "",
+        tax_id: str = "",
+        address_line_1: str = "",
+        address_line_2: str = "",
+        postal_code: str = "",
+        city: str = "",
+        state_region: str = "",
+        country_code: str = "",
+        email: str = "",
+        phone: str = "",
+        website: str = "",
     ) -> Organization:
         if self._organization_service is None:
             raise RuntimeError("Organization service is not configured.")
@@ -227,6 +239,18 @@ class PlatformRuntimeApplicationService:
             timezone_name=timezone_name,
             base_currency=base_currency,
             is_enabled=is_enabled,
+            legal_name=legal_name,
+            registration_number=registration_number,
+            tax_id=tax_id,
+            address_line_1=address_line_1,
+            address_line_2=address_line_2,
+            postal_code=postal_code,
+            city=city,
+            state_region=state_region,
+            country_code=country_code,
+            email=email,
+            phone=phone,
+            website=website,
         )
 
     def update_organization(
@@ -239,6 +263,18 @@ class PlatformRuntimeApplicationService:
         base_currency: str | None = None,
         is_enabled: bool | None = None,
         expected_version: int | None = None,
+        legal_name: str | None = None,
+        registration_number: str | None = None,
+        tax_id: str | None = None,
+        address_line_1: str | None = None,
+        address_line_2: str | None = None,
+        postal_code: str | None = None,
+        city: str | None = None,
+        state_region: str | None = None,
+        country_code: str | None = None,
+        email: str | None = None,
+        phone: str | None = None,
+        website: str | None = None,
     ) -> Organization:
         if self._organization_service is None:
             raise RuntimeError("Organization service is not configured.")
@@ -250,6 +286,18 @@ class PlatformRuntimeApplicationService:
             base_currency=base_currency,
             is_enabled=is_enabled,
             expected_version=expected_version,
+            legal_name=legal_name,
+            registration_number=registration_number,
+            tax_id=tax_id,
+            address_line_1=address_line_1,
+            address_line_2=address_line_2,
+            postal_code=postal_code,
+            city=city,
+            state_region=state_region,
+            country_code=country_code,
+            email=email,
+            phone=phone,
+            website=website,
         )
 
     def provision_organization(
@@ -261,6 +309,18 @@ class PlatformRuntimeApplicationService:
         base_currency: str,
         is_enabled: bool,
         initial_module_codes: list[str] | tuple[str, ...] | set[str] | None = None,
+        legal_name: str = "",
+        registration_number: str = "",
+        tax_id: str = "",
+        address_line_1: str = "",
+        address_line_2: str = "",
+        postal_code: str = "",
+        city: str = "",
+        state_region: str = "",
+        country_code: str = "",
+        email: str = "",
+        phone: str = "",
+        website: str = "",
     ) -> Organization:
         if self._organization_service is None:
             raise RuntimeError("Organization service is not configured.")
@@ -296,6 +356,18 @@ class PlatformRuntimeApplicationService:
                     base_currency=base_currency,
                     is_enabled=is_enabled,
                     tenant_id=tenant_id,
+                    legal_name=legal_name,
+                    registration_number=registration_number,
+                    tax_id=tax_id,
+                    address_line_1=address_line_1,
+                    address_line_2=address_line_2,
+                    postal_code=postal_code,
+                    city=city,
+                    state_region=state_region,
+                    country_code=country_code,
+                    email=email,
+                    phone=phone,
+                    website=website,
                 )
                 provisioning_module_catalog_service = ModuleCatalogService(
                     modules=self._module_catalog_service.list_modules(),

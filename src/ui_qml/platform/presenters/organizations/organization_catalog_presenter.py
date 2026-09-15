@@ -104,6 +104,17 @@ class PlatformOrganizationCatalogPresenter:
             filtered_total=catalog_page.filtered_total,
         )
 
+    def build_country_options(self) -> tuple[dict[str, str], ...]:
+        if self._runtime_api is None:
+            return ()
+        result = self._runtime_api.list_countries()
+        if not result.ok or result.data is None:
+            return ()
+        return tuple(
+            option_item(label=country.name, value=country.code)
+            for country in result.data
+        )
+
     def build_module_options(self) -> tuple[dict[str, str], ...]:
         if self._runtime_api is None:
             return ()
@@ -151,6 +162,18 @@ class PlatformOrganizationCatalogPresenter:
                 base_currency=string_value(payload, "baseCurrency", default="USD").upper(),
                 is_enabled=bool_value(payload, "isEnabled", default=True),
                 initial_module_codes=tuple_of_strings(payload, "initialModuleCodes"),
+                legal_name=string_value(payload, "legalName"),
+                registration_number=string_value(payload, "registrationNumber"),
+                tax_id=string_value(payload, "taxId"),
+                address_line_1=string_value(payload, "addressLine1"),
+                address_line_2=string_value(payload, "addressLine2"),
+                postal_code=string_value(payload, "postalCode"),
+                city=string_value(payload, "city"),
+                state_region=string_value(payload, "stateRegion"),
+                country_code=string_value(payload, "countryCode").upper(),
+                email=string_value(payload, "email"),
+                phone=string_value(payload, "phone"),
+                website=string_value(payload, "website"),
             )
         )
 
@@ -166,6 +189,18 @@ class PlatformOrganizationCatalogPresenter:
                 base_currency=string_value(payload, "baseCurrency", default="USD").upper(),
                 is_enabled=bool_value(payload, "isEnabled", default=True),
                 expected_version=int_value(payload, "expectedVersion"),
+                legal_name=string_value(payload, "legalName"),
+                registration_number=string_value(payload, "registrationNumber"),
+                tax_id=string_value(payload, "taxId"),
+                address_line_1=string_value(payload, "addressLine1"),
+                address_line_2=string_value(payload, "addressLine2"),
+                postal_code=string_value(payload, "postalCode"),
+                city=string_value(payload, "city"),
+                state_region=string_value(payload, "stateRegion"),
+                country_code=string_value(payload, "countryCode").upper(),
+                email=string_value(payload, "email"),
+                phone=string_value(payload, "phone"),
+                website=string_value(payload, "website"),
             )
         )
 
@@ -194,6 +229,18 @@ class PlatformOrganizationCatalogPresenter:
                 "baseCurrency": row.base_currency,
                 "isEnabled": row.is_enabled,
                 "version": row.version,
+                "legalName": row.legal_name,
+                "registrationNumber": row.registration_number,
+                "taxId": row.tax_id,
+                "addressLine1": row.address_line_1,
+                "addressLine2": row.address_line_2,
+                "postalCode": row.postal_code,
+                "city": row.city,
+                "stateRegion": row.state_region,
+                "countryCode": row.country_code,
+                "email": row.email,
+                "phone": row.phone,
+                "website": row.website,
             },
         )
 

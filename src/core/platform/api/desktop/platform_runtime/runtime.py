@@ -18,12 +18,14 @@ from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationUpdateCommand,
 )
 from src.core.platform.api.desktop.platform_runtime.models.runtime import (
+    CountryDto,
     ModuleDto,
     ModuleEntitlementDto,
     PlatformCapabilityDto,
     PlatformRuntimeContextDto,
 )
 from src.core.platform.application.platform_runtime import PlatformRuntimeApplicationService
+from src.core.platform.common.reference_data import COUNTRY_OPTIONS
 
 _ResultT = TypeVar("_ResultT")
 
@@ -76,6 +78,13 @@ class PlatformRuntimeDesktopApi:
             lambda: self._serialize_organization_statistics(
                 self._platform_runtime_application_service.get_organization_statistics(organization_id)
             )
+        )
+
+    def list_countries(self) -> DesktopApiResult[tuple[CountryDto, ...]]:
+        """Static ISO 3166-1 reference data for the Organization registered-address
+        country picker -- no session/tenant scoping needed, never persisted."""
+        return self._execute(
+            lambda: tuple(CountryDto(code=code, name=name) for code, name in COUNTRY_OPTIONS)
         )
 
     def get_organization_count(self) -> DesktopApiResult[int]:
@@ -162,6 +171,18 @@ class PlatformRuntimeDesktopApi:
                     base_currency=command.base_currency,
                     is_enabled=command.is_enabled,
                     initial_module_codes=command.initial_module_codes,
+                    legal_name=command.legal_name,
+                    registration_number=command.registration_number,
+                    tax_id=command.tax_id,
+                    address_line_1=command.address_line_1,
+                    address_line_2=command.address_line_2,
+                    postal_code=command.postal_code,
+                    city=command.city,
+                    state_region=command.state_region,
+                    country_code=command.country_code,
+                    email=command.email,
+                    phone=command.phone,
+                    website=command.website,
                 )
             )
         )
@@ -180,6 +201,18 @@ class PlatformRuntimeDesktopApi:
                     base_currency=command.base_currency,
                     is_enabled=command.is_enabled,
                     expected_version=command.expected_version,
+                    legal_name=command.legal_name,
+                    registration_number=command.registration_number,
+                    tax_id=command.tax_id,
+                    address_line_1=command.address_line_1,
+                    address_line_2=command.address_line_2,
+                    postal_code=command.postal_code,
+                    city=command.city,
+                    state_region=command.state_region,
+                    country_code=command.country_code,
+                    email=command.email,
+                    phone=command.phone,
+                    website=command.website,
                 )
             )
         )
@@ -322,6 +355,18 @@ class PlatformRuntimeDesktopApi:
             base_currency=organization.base_currency,
             is_enabled=organization.is_enabled,
             version=organization.version,
+            legal_name=organization.legal_name,
+            registration_number=organization.registration_number,
+            tax_id=organization.tax_id,
+            address_line_1=organization.address_line_1,
+            address_line_2=organization.address_line_2,
+            postal_code=organization.postal_code,
+            city=organization.city,
+            state_region=organization.state_region,
+            country_code=organization.country_code,
+            email=organization.email,
+            phone=organization.phone,
+            website=organization.website,
         )
 
 

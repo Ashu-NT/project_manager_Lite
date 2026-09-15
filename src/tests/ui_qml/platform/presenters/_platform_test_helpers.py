@@ -32,6 +32,7 @@ from src.core.platform.api.desktop.master_data.party.models.party import PartyDt
 from src.core.platform.api.desktop.master_data.site.models.site import SiteDto, SiteRollupSummaryDto
 from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
 from src.core.platform.api.desktop.platform_runtime.models.runtime import (
+    CountryDto,
     ModuleDto,
     ModuleEntitlementDto,
     PlatformCapabilityDto,
@@ -162,6 +163,15 @@ class FakePlatformRuntimeApi:
     def get_organization_count(self) -> DesktopApiResult[int]:
         return DesktopApiResult(ok=True, data=len(self._organizations))
 
+    def list_countries(self) -> DesktopApiResult[tuple[CountryDto, ...]]:
+        return DesktopApiResult(
+            ok=True,
+            data=(
+                CountryDto(code="US", name="United States of America"),
+                CountryDto(code="NL", name="Netherlands"),
+            ),
+        )
+
     def list_organizations_page(
         self,
         *,
@@ -246,6 +256,18 @@ class FakePlatformRuntimeApi:
             base_currency=command.base_currency,
             is_enabled=command.is_enabled,
             version=1,
+            legal_name=command.legal_name,
+            registration_number=command.registration_number,
+            tax_id=command.tax_id,
+            address_line_1=command.address_line_1,
+            address_line_2=command.address_line_2,
+            postal_code=command.postal_code,
+            city=command.city,
+            state_region=command.state_region,
+            country_code=command.country_code,
+            email=command.email,
+            phone=command.phone,
+            website=command.website,
         )
         self._organizations.append(organization)
         self._rebuild_runtime_context()
@@ -263,6 +285,20 @@ class FakePlatformRuntimeApi:
                 base_currency=command.base_currency or row.base_currency,
                 is_enabled=row.is_enabled if command.is_enabled is None else command.is_enabled,
                 version=row.version + 1,
+                legal_name=row.legal_name if command.legal_name is None else command.legal_name,
+                registration_number=(
+                    row.registration_number if command.registration_number is None else command.registration_number
+                ),
+                tax_id=row.tax_id if command.tax_id is None else command.tax_id,
+                address_line_1=row.address_line_1 if command.address_line_1 is None else command.address_line_1,
+                address_line_2=row.address_line_2 if command.address_line_2 is None else command.address_line_2,
+                postal_code=row.postal_code if command.postal_code is None else command.postal_code,
+                city=row.city if command.city is None else command.city,
+                state_region=row.state_region if command.state_region is None else command.state_region,
+                country_code=row.country_code if command.country_code is None else command.country_code,
+                email=row.email if command.email is None else command.email,
+                phone=row.phone if command.phone is None else command.phone,
+                website=row.website if command.website is None else command.website,
             )
             self._organizations[index] = updated
             self._rebuild_runtime_context()

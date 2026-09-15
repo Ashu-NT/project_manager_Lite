@@ -248,6 +248,18 @@ class OrganizationService:
         timezone_name: str = DEFAULT_ORGANIZATION_TIMEZONE,
         base_currency: str = DEFAULT_ORGANIZATION_CURRENCY,
         is_enabled: bool = True,
+        legal_name: str = "",
+        registration_number: str = "",
+        tax_id: str = "",
+        address_line_1: str = "",
+        address_line_2: str = "",
+        postal_code: str = "",
+        city: str = "",
+        state_region: str = "",
+        country_code: str = "",
+        email: str = "",
+        phone: str = "",
+        website: str = "",
     ) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="create organization")
         tenant_id = self._require_current_tenant_id(operation_label="create organization")
@@ -261,6 +273,18 @@ class OrganizationService:
                 base_currency=base_currency,
                 is_enabled=is_enabled,
                 tenant_id=tenant_id,
+                legal_name=legal_name,
+                registration_number=registration_number,
+                tax_id=tax_id,
+                address_line_1=address_line_1,
+                address_line_2=address_line_2,
+                postal_code=postal_code,
+                city=city,
+                state_region=state_region,
+                country_code=country_code,
+                email=email,
+                phone=phone,
+                website=website,
             )
             try:
                 uow.commit()
@@ -280,6 +304,18 @@ class OrganizationService:
         base_currency: str | None = None,
         is_enabled: bool | None = None,
         expected_version: int | None = None,
+        legal_name: str | None = None,
+        registration_number: str | None = None,
+        tax_id: str | None = None,
+        address_line_1: str | None = None,
+        address_line_2: str | None = None,
+        postal_code: str | None = None,
+        city: str | None = None,
+        state_region: str | None = None,
+        country_code: str | None = None,
+        email: str | None = None,
+        phone: str | None = None,
+        website: str | None = None,
     ) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="update organization")
         tenant_id = self._require_current_tenant_id(operation_label="update organization")
@@ -304,6 +340,20 @@ class OrganizationService:
                 timezone_name=organization.timezone_name if timezone_name is None else timezone_name,
                 base_currency=organization.base_currency if base_currency is None else base_currency,
                 is_enabled=organization.is_enabled if is_enabled is None else is_enabled,
+                legal_name=organization.legal_name if legal_name is None else legal_name,
+                registration_number=(
+                    organization.registration_number if registration_number is None else registration_number
+                ),
+                tax_id=organization.tax_id if tax_id is None else tax_id,
+                address_line_1=organization.address_line_1 if address_line_1 is None else address_line_1,
+                address_line_2=organization.address_line_2 if address_line_2 is None else address_line_2,
+                postal_code=organization.postal_code if postal_code is None else postal_code,
+                city=organization.city if city is None else city,
+                state_region=organization.state_region if state_region is None else state_region,
+                country_code=organization.country_code if country_code is None else country_code,
+                email=organization.email if email is None else email,
+                phone=organization.phone if phone is None else phone,
+                website=organization.website if website is None else website,
                 tenant_id=tenant_id,
             )
             profile_changed = (
@@ -311,6 +361,18 @@ class OrganizationService:
                 or candidate.display_name != organization.display_name
                 or candidate.timezone_name != organization.timezone_name
                 or candidate.base_currency != organization.base_currency
+                or candidate.legal_name != organization.legal_name
+                or candidate.registration_number != organization.registration_number
+                or candidate.tax_id != organization.tax_id
+                or candidate.address_line_1 != organization.address_line_1
+                or candidate.address_line_2 != organization.address_line_2
+                or candidate.postal_code != organization.postal_code
+                or candidate.city != organization.city
+                or candidate.state_region != organization.state_region
+                or candidate.country_code != organization.country_code
+                or candidate.email != organization.email
+                or candidate.phone != organization.phone
+                or candidate.website != organization.website
             )
             availability_changed = candidate.is_enabled != organization.is_enabled
             if not profile_changed and not availability_changed:
@@ -340,6 +402,10 @@ class OrganizationService:
                         "timezone_name": candidate.timezone_name,
                         "base_currency": candidate.base_currency,
                         "is_enabled": str(candidate.is_enabled),
+                        "legal_name": candidate.legal_name,
+                        "registration_number": candidate.registration_number,
+                        "country_code": candidate.country_code,
+                        "email": candidate.email,
                     },
                     commit=False,
                     fail_closed=True,
@@ -447,6 +513,18 @@ class OrganizationService:
         base_currency: str,
         is_enabled: bool,
         tenant_id: str,
+        legal_name: str = "",
+        registration_number: str = "",
+        tax_id: str = "",
+        address_line_1: str = "",
+        address_line_2: str = "",
+        postal_code: str = "",
+        city: str = "",
+        state_region: str = "",
+        country_code: str = "",
+        email: str = "",
+        phone: str = "",
+        website: str = "",
     ) -> Organization:
         organization = Organization.create(
             organization_code=organization_code,
@@ -455,6 +533,18 @@ class OrganizationService:
             base_currency=base_currency,
             is_enabled=is_enabled,
             tenant_id=tenant_id,
+            legal_name=legal_name,
+            registration_number=registration_number,
+            tax_id=tax_id,
+            address_line_1=address_line_1,
+            address_line_2=address_line_2,
+            postal_code=postal_code,
+            city=city,
+            state_region=state_region,
+            country_code=country_code,
+            email=email,
+            phone=phone,
+            website=website,
         )
         if organization_repo.get_by_code_for_tenant(organization.organization_code, tenant_id) is not None:
             raise ValidationError("Organization code already exists.", code="ORGANIZATION_CODE_EXISTS")
@@ -473,6 +563,10 @@ class OrganizationService:
                 "timezone_name": organization.timezone_name,
                 "base_currency": organization.base_currency,
                 "is_enabled": str(organization.is_enabled),
+                "legal_name": organization.legal_name,
+                "registration_number": organization.registration_number,
+                "country_code": organization.country_code,
+                "email": organization.email,
             },
             commit=False,
             fail_closed=True,

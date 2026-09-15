@@ -12,6 +12,18 @@ class OrganizationDto:
     base_currency: str
     is_enabled: bool
     version: int
+    legal_name: str = ""
+    registration_number: str = ""
+    tax_id: str = ""
+    address_line_1: str = ""
+    address_line_2: str = ""
+    postal_code: str = ""
+    city: str = ""
+    state_region: str = ""
+    country_code: str = ""
+    email: str = ""
+    phone: str = ""
+    website: str = ""
 
 
 @dataclass(frozen=True)
@@ -39,6 +51,18 @@ class OrganizationProvisionCommand:
     base_currency: str
     is_enabled: bool = True
     initial_module_codes: tuple[str, ...] = field(default_factory=tuple)
+    legal_name: str = ""
+    registration_number: str = ""
+    tax_id: str = ""
+    address_line_1: str = ""
+    address_line_2: str = ""
+    postal_code: str = ""
+    city: str = ""
+    state_region: str = ""
+    country_code: str = ""
+    email: str = ""
+    phone: str = ""
+    website: str = ""
 
 
 @dataclass(frozen=True)
@@ -50,3 +74,15 @@ class OrganizationUpdateCommand:
     base_currency: str | None = None
     is_enabled: bool | None = None
     expected_version: int | None = None
+    legal_name: str | None = None
+    registration_number: str | None = None
+    tax_id: str | None = None
+    address_line_1: str | None = None
+    address_line_2: str | None = None
+    postal_code: str | None = None
+    city: str | None = None
+    state_region: str | None = None
+    country_code: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    website: str | None = None

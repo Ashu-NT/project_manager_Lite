@@ -9,7 +9,25 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
+from src.core.platform.domain.master_data.org.support import (
+    normalize_country_code,
+    normalize_email,
+    normalize_optional_organization_text,
+    normalize_phone,
+)
 from src.core.platform.finance.money.currency import CurrencyCode
+
+_OPTIONAL_TEXT_FIELDS = (
+    "legal_name",
+    "registration_number",
+    "tax_id",
+    "address_line_1",
+    "address_line_2",
+    "postal_code",
+    "city",
+    "state_region",
+    "website",
+)
 
 
 @validated_dataclass
@@ -22,6 +40,21 @@ class Organization:
     is_enabled: bool = True
     version: int = 1
     tenant_id: str | None = None
+    # Legal identity
+    legal_name: str = ""
+    registration_number: str = ""
+    tax_id: str = ""
+    # Registered address
+    address_line_1: str = ""
+    address_line_2: str = ""
+    postal_code: str = ""
+    city: str = ""
+    state_region: str = ""
+    country_code: str = ""
+    # Primary contact
+    email: str = ""
+    phone: str = ""
+    website: str = ""
 
     @field_validator("organization_code", mode="before")
     @classmethod
@@ -73,6 +106,26 @@ class Organization:
     def _normalize_tenant_id(cls, value: object) -> str | None:
         return normalize_optional_identifier(value)
 
+    @field_validator(*_OPTIONAL_TEXT_FIELDS, mode="before")
+    @classmethod
+    def _normalize_optional_text_fields(cls, value: object) -> str:
+        return normalize_optional_organization_text(value)
+
+    @field_validator("country_code", mode="before")
+    @classmethod
+    def _normalize_country_code(cls, value: object) -> str:
+        return normalize_country_code(value)
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _normalize_email(cls, value: object) -> str:
+        return normalize_email(value)
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def _normalize_phone(cls, value: object) -> str:
+        return normalize_phone(value)
+
     @field_validator("version", mode="before")
     @classmethod
     def _validate_version(cls, value: object) -> int:
@@ -92,6 +145,18 @@ class Organization:
         base_currency: str = "EUR",
         is_enabled: bool = True,
         tenant_id: str | None = None,
+        legal_name: str = "",
+        registration_number: str = "",
+        tax_id: str = "",
+        address_line_1: str = "",
+        address_line_2: str = "",
+        postal_code: str = "",
+        city: str = "",
+        state_region: str = "",
+        country_code: str = "",
+        email: str = "",
+        phone: str = "",
+        website: str = "",
     ) -> "Organization":
         return Organization(
             id=generate_id(),
@@ -102,6 +167,18 @@ class Organization:
             is_enabled=is_enabled,
             version=1,
             tenant_id=tenant_id,
+            legal_name=legal_name,
+            registration_number=registration_number,
+            tax_id=tax_id,
+            address_line_1=address_line_1,
+            address_line_2=address_line_2,
+            postal_code=postal_code,
+            city=city,
+            state_region=state_region,
+            country_code=country_code,
+            email=email,
+            phone=phone,
+            website=website,
         )
 
 

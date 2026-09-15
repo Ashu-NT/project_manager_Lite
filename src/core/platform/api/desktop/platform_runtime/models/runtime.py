@@ -6,6 +6,12 @@ from src.core.platform.api.desktop.master_data.org.models.organization import Or
 
 
 @dataclass(frozen=True)
+class CountryDto:
+    code: str
+    name: str
+
+
+@dataclass(frozen=True)
 class PlatformCapabilityDto:
     code: str
     label: str

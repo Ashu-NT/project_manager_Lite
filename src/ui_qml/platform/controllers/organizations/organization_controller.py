@@ -28,7 +28,7 @@ class PlatformOrganizationController(QObject):
         self._presenter = presenter
         self._table_model = DynamicTableModel(self)
         self._organizations: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
-        self._organization_editor_options: dict[str, object] = {"moduleOptions": []}
+        self._organization_editor_options: dict[str, object] = {"moduleOptions": [], "countryOptions": []}
         self._is_busy = False
         self._error_message = ""
         self._operation_result: dict[str, object] = {
@@ -115,6 +115,7 @@ class PlatformOrganizationController(QObject):
         self._set_organization_editor_options(
             {
                 "moduleOptions": list(self._presenter.build_module_options()),
+                "countryOptions": list(self._presenter.build_country_options()),
             }
         )
 

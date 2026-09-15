@@ -79,11 +79,12 @@ Item {
         if (root.workspaceController === null) {
             return
         }
-        organizationDialog.openForCreate(root.workspaceController.organizationEditorOptions.moduleOptions || [])
+        organizationDialog.openForCreate(root.workspaceController.organizationEditorOptions || {})
     }
 
     function openOrganizationEdit(state) {
-        organizationDialog.openForEdit(state || {})
+        const options = root.workspaceController !== null ? root.workspaceController.organizationEditorOptions : {}
+        organizationDialog.openForEdit(state || {}, options)
     }
 
     function openSiteCreate() {

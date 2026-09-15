@@ -27,6 +27,22 @@ class OrganizationORM(Base):
     is_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
+    # Legal identity
+    legal_name: Mapped[str] = mapped_column(String(256), nullable=False, default="", server_default="")
+    registration_number: Mapped[str] = mapped_column(String(128), nullable=False, default="", server_default="")
+    tax_id: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
+    # Registered address
+    address_line_1: Mapped[str] = mapped_column(String(256), nullable=False, default="", server_default="")
+    address_line_2: Mapped[str] = mapped_column(String(256), nullable=False, default="", server_default="")
+    postal_code: Mapped[str] = mapped_column(String(32), nullable=False, default="", server_default="")
+    city: Mapped[str] = mapped_column(String(128), nullable=False, default="", server_default="")
+    state_region: Mapped[str] = mapped_column(String(128), nullable=False, default="", server_default="")
+    country_code: Mapped[str] = mapped_column(String(8), nullable=False, default="", server_default="")
+    # Primary contact
+    email: Mapped[str] = mapped_column(String(256), nullable=False, default="", server_default="")
+    phone: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
+    website: Mapped[str] = mapped_column(String(256), nullable=False, default="", server_default="")
+
 
 Index("idx_organizations_code", OrganizationORM.organization_code, unique=True)
 Index("idx_organizations_enabled", OrganizationORM.is_enabled)

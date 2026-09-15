@@ -95,7 +95,10 @@ def test_organization_editor_dialog_submit_button_emits_save_requested() -> None
         "isActive": True,
         "initialModuleCodes": ["pm"],
     }
-    assert QMetaObject.invokeMethod(root, "openForEdit", Q_ARG("QVariant", draft))
+    options = {"moduleOptions": [{"value": "pm", "label": "Project Management"}], "countryOptions": []}
+    assert QMetaObject.invokeMethod(
+        root, "openForEdit", Q_ARG("QVariant", draft), Q_ARG("QVariant", options)
+    )
     _find_child(root, "dialogCancelButton")
     submit_button = _find_child(root, "dialogSubmitButton")
     assert QMetaObject.invokeMethod(submit_button, "click")

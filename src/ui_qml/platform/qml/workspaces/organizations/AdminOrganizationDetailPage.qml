@@ -66,12 +66,48 @@ Item {
         actions.push({ "id": "refresh", "label": "Refresh", "icon": "refresh" })
         return actions
     }
-    readonly property var _overviewFields: [
-        { "label": "Name", "value": String(detailRoot._orgState.displayName || detailRoot._orgTitle || "-") },
-        { "label": "Code", "value": String(detailRoot._orgState.organizationCode || "-") },
+    // Blank persisted values ("") display as "-" rather than an empty label
+    // or literal "None"/"null" -- the persisted value itself is untouched.
+    function _displayValue(value) {
+        const text = String(value || "").trim()
+        return text.length > 0 ? text : "—"
+    }
+    readonly property string _countryDisplay: {
+        const code = String(detailRoot._orgState.countryCode || "").trim()
+        if (code.length === 0) return ""
+        const options = (detailRoot.workspaceController && detailRoot.workspaceController.organizationEditorOptions)
+            ? (detailRoot.workspaceController.organizationEditorOptions.countryOptions || [])
+            : []
+        for (let i = 0; i < options.length; i += 1) {
+            if (options[i].value === code) {
+                return String(options[i].label || "") + " (" + code + ")"
+            }
+        }
+        return code
+    }
+
+    readonly property var _basicInfoFields: [
+        { "label": "Organization Name", "value": detailRoot._displayValue(detailRoot._orgState.displayName || detailRoot._orgTitle) },
+        { "label": "Legal Name", "value": detailRoot._displayValue(detailRoot._orgState.legalName) },
+        { "label": "Code", "value": detailRoot._displayValue(detailRoot._orgState.organizationCode) },
+        { "label": "Registration Number", "value": detailRoot._displayValue(detailRoot._orgState.registrationNumber) },
+        { "label": "Tax / VAT ID", "value": detailRoot._displayValue(detailRoot._orgState.taxId) },
         { "label": "Status", "value": detailRoot._orgStatus.length > 0 ? detailRoot._orgStatus : "Unknown" },
-        { "label": "Time Zone", "value": String(detailRoot._orgState.timezoneName || "-") },
-        { "label": "Base Currency", "value": String(detailRoot._orgState.baseCurrency || "-") }
+        { "label": "Time Zone", "value": detailRoot._displayValue(detailRoot._orgState.timezoneName) },
+        { "label": "Base Currency", "value": detailRoot._displayValue(detailRoot._orgState.baseCurrency) }
+    ]
+    readonly property var _addressFields: [
+        { "label": "Address Line 1", "value": detailRoot._displayValue(detailRoot._orgState.addressLine1) },
+        { "label": "Address Line 2", "value": detailRoot._displayValue(detailRoot._orgState.addressLine2) },
+        { "label": "Postal Code", "value": detailRoot._displayValue(detailRoot._orgState.postalCode) },
+        { "label": "City", "value": detailRoot._displayValue(detailRoot._orgState.city) },
+        { "label": "State / Region", "value": detailRoot._displayValue(detailRoot._orgState.stateRegion) },
+        { "label": "Country", "value": detailRoot._countryDisplay.length > 0 ? detailRoot._countryDisplay : "—" }
+    ]
+    readonly property var _contactFields: [
+        { "label": "Email", "value": detailRoot._displayValue(detailRoot._orgState.email) },
+        { "label": "Phone", "value": detailRoot._displayValue(detailRoot._orgState.phone) },
+        { "label": "Website", "value": detailRoot._displayValue(detailRoot._orgState.website) }
     ]
 
     // -- Real composed detail context (statistics + recent activity) -----
@@ -240,46 +276,139 @@ Item {
                                 columnSpacing: Theme.AppTheme.spacingMd
                                 rowSpacing: Theme.AppTheme.spacingMd
 
-                                // -- Main column: Basic Information ---------
-                                AppWidgets.SectionCard {
+                                // -- Main column: Basic Information / Registered Address / Contact
+                                ColumnLayout {
                                     Layout.fillWidth: true
                                     Layout.alignment: Qt.AlignTop
-                                    implicitHeight: basicInfoGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
-                                    title: "Basic Information"
-                                    outlined: true
+                                    spacing: Theme.AppTheme.spacingMd
 
-                                    GridLayout {
-                                        id: basicInfoGrid
-                                        anchors.left: parent.left
-                                        anchors.right: parent.right
-                                        anchors.top: parent.top
-                                        anchors.margins: Theme.AppTheme.marginMd
-                                        columns: 2
-                                        columnSpacing: Theme.AppTheme.spacingLg
-                                        rowSpacing: Theme.AppTheme.spacingSm
+                                    AppWidgets.SectionCard {
+                                        Layout.fillWidth: true
+                                        implicitHeight: basicInfoGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                        title: "Basic Information"
+                                        outlined: true
 
-                                        Repeater {
-                                            model: detailRoot._overviewFields
+                                        GridLayout {
+                                            id: basicInfoGrid
+                                            anchors.left: parent.left
+                                            anchors.right: parent.right
+                                            anchors.top: parent.top
+                                            anchors.margins: Theme.AppTheme.marginMd
+                                            columns: 2
+                                            columnSpacing: Theme.AppTheme.spacingLg
+                                            rowSpacing: Theme.AppTheme.spacingSm
 
-                                            delegate: ColumnLayout {
-                                                required property var modelData
-                                                Layout.fillWidth: true
-                                                spacing: 2
+                                            Repeater {
+                                                model: detailRoot._basicInfoFields
 
-                                                AppControls.Label {
+                                                delegate: ColumnLayout {
+                                                    required property var modelData
                                                     Layout.fillWidth: true
-                                                    text: String(modelData.label || "")
-                                                    color: Theme.AppTheme.textMuted
-                                                    font.pixelSize: Theme.AppTheme.captionSize
-                                                    font.bold: true
+                                                    spacing: 2
+
+                                                    AppControls.Label {
+                                                        Layout.fillWidth: true
+                                                        text: String(modelData.label || "")
+                                                        color: Theme.AppTheme.textMuted
+                                                        font.pixelSize: Theme.AppTheme.captionSize
+                                                        font.bold: true
+                                                    }
+
+                                                    AppControls.Label {
+                                                        Layout.fillWidth: true
+                                                        text: String(modelData.value || "—")
+                                                        color: Theme.AppTheme.textPrimary
+                                                        font.pixelSize: Theme.AppTheme.smallSize
+                                                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                                                    }
                                                 }
+                                            }
+                                        }
+                                    }
 
-                                                AppControls.Label {
+                                    AppWidgets.SectionCard {
+                                        Layout.fillWidth: true
+                                        implicitHeight: addressGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                        title: "Registered Address"
+                                        outlined: true
+
+                                        GridLayout {
+                                            id: addressGrid
+                                            anchors.left: parent.left
+                                            anchors.right: parent.right
+                                            anchors.top: parent.top
+                                            anchors.margins: Theme.AppTheme.marginMd
+                                            columns: 2
+                                            columnSpacing: Theme.AppTheme.spacingLg
+                                            rowSpacing: Theme.AppTheme.spacingSm
+
+                                            Repeater {
+                                                model: detailRoot._addressFields
+
+                                                delegate: ColumnLayout {
+                                                    required property var modelData
                                                     Layout.fillWidth: true
-                                                    text: String(modelData.value || "-")
-                                                    color: Theme.AppTheme.textPrimary
-                                                    font.pixelSize: Theme.AppTheme.smallSize
-                                                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                                                    spacing: 2
+
+                                                    AppControls.Label {
+                                                        Layout.fillWidth: true
+                                                        text: String(modelData.label || "")
+                                                        color: Theme.AppTheme.textMuted
+                                                        font.pixelSize: Theme.AppTheme.captionSize
+                                                        font.bold: true
+                                                    }
+
+                                                    AppControls.Label {
+                                                        Layout.fillWidth: true
+                                                        text: String(modelData.value || "—")
+                                                        color: Theme.AppTheme.textPrimary
+                                                        font.pixelSize: Theme.AppTheme.smallSize
+                                                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    AppWidgets.SectionCard {
+                                        Layout.fillWidth: true
+                                        implicitHeight: contactGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
+                                        title: "Contact Information"
+                                        outlined: true
+
+                                        GridLayout {
+                                            id: contactGrid
+                                            anchors.left: parent.left
+                                            anchors.right: parent.right
+                                            anchors.top: parent.top
+                                            anchors.margins: Theme.AppTheme.marginMd
+                                            columns: 2
+                                            columnSpacing: Theme.AppTheme.spacingLg
+                                            rowSpacing: Theme.AppTheme.spacingSm
+
+                                            Repeater {
+                                                model: detailRoot._contactFields
+
+                                                delegate: ColumnLayout {
+                                                    required property var modelData
+                                                    Layout.fillWidth: true
+                                                    spacing: 2
+
+                                                    AppControls.Label {
+                                                        Layout.fillWidth: true
+                                                        text: String(modelData.label || "")
+                                                        color: Theme.AppTheme.textMuted
+                                                        font.pixelSize: Theme.AppTheme.captionSize
+                                                        font.bold: true
+                                                    }
+
+                                                    AppControls.Label {
+                                                        Layout.fillWidth: true
+                                                        text: String(modelData.value || "—")
+                                                        color: Theme.AppTheme.textPrimary
+                                                        font.pixelSize: Theme.AppTheme.smallSize
+                                                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                                                    }
                                                 }
                                             }
                                         }
