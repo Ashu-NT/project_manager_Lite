@@ -15,7 +15,7 @@ from src.ui_qml.modules.project_management.controllers.common.mutation_runner im
 from src.ui_qml.modules.project_management.controllers.common.error_sanitizer import (
     safe_error_message,
 )
-from src.ui_qml.modules.project_management.presenters.resource_timesheets import (
+from src.ui_qml.modules.project_management.presenters.timesheets import (
     ResourceTimesheetsPresenter,
 )
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel

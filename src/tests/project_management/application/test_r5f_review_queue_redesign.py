@@ -14,9 +14,9 @@ from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 
 
 ROOT = Path(__file__).resolve().parents[3]
-QML = ROOT / "ui_qml/modules/project_management/qml/workspaces/timesheets"
-CONTROLLER = ROOT / "ui_qml/modules/project_management/controllers/timesheets"
-PRESENTER = ROOT / "ui_qml/modules/project_management/presenters/timesheets"
+QML = ROOT / "ui_qml/modules/project_management/qml/workspaces/review_queue"
+CONTROLLER = ROOT / "ui_qml/modules/project_management/controllers/review_queue"
+PRESENTER = ROOT / "ui_qml/modules/project_management/presenters/review_queue"
 
 
 def _read(path: Path) -> str:

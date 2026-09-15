@@ -106,7 +106,7 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectTimesheetsWorkspacePresenter,
     build_project_management_workspace_presenters,
 )
-from src.ui_qml.modules.project_management.presenters.resource_timesheets import (
+from src.ui_qml.modules.project_management.presenters.timesheets import (
     ResourceTimesheetsPresenter,
 )
 
