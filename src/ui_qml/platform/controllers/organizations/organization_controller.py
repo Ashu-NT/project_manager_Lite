@@ -7,7 +7,7 @@ from src.ui_qml.platform.presenters.organizations.organization_catalog_presenter
     PlatformOrganizationCatalogPresenter,
 )
 
-from src.ui_qml.platform.controllers.common import run_mutation, serialize_action_list
+from src.ui_qml.platform.controllers.common import run_mutation, safe_exception_message, serialize_action_list
 
 
 _ORGANIZATION_PAGE_SIZE_OPTIONS = (25, 50, 100)
@@ -198,7 +198,7 @@ class PlatformOrganizationController(QObject):
         try:
             return self._presenter.suggest_code(dict(payload))
         except Exception as exc:  # surface generation errors via the dialog/banner
-            self._set_error_message(str(exc))
+            self._set_error_message(safe_exception_message(exc))
             return ""
 
     @Slot(str, result="QVariantMap")

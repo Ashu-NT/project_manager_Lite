@@ -5,7 +5,7 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.platform.presenters.sites.site_catalog_presenter import PlatformSiteCatalogPresenter
 
-from src.ui_qml.platform.controllers.common import run_mutation, serialize_action_list
+from src.ui_qml.platform.controllers.common import run_mutation, safe_exception_message, serialize_action_list
 
 
 class PlatformSiteController(QObject):
@@ -106,7 +106,7 @@ class PlatformSiteController(QObject):
         except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
             setter = getattr(self, "_set_error_message", None)
             if setter is not None:
-                setter(str(exc))
+                setter(safe_exception_message(exc))
             return ""
 
     @Slot("QVariantMap", result="QVariantMap")

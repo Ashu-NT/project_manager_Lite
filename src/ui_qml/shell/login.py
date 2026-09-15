@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
@@ -11,6 +12,8 @@ from src.core.platform.common.exceptions import ValidationError
 
 QML_IMPORT_NAME = "Shell.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -105,8 +108,9 @@ class ShellLoginController(QObject):
             self._set_error_message(str(exc))
             self._set_is_busy(False)
             return
-        except Exception as exc:  # noqa: BLE001
-            self._set_error_message(str(exc))
+        except Exception:  # noqa: BLE001 - raw exception text (SQL, stack fragments) must never reach the UI
+            logger.exception("Sign in failed.")
+            self._set_error_message("Sign in failed. Please try again.")
             self._set_is_busy(False)
             return
 

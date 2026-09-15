@@ -8,7 +8,7 @@ from src.ui_qml.platform.presenters.documents.document_management_presenter impo
     PlatformDocumentManagementPresenter,
 )
 
-from ..common import run_mutation, serialize_action_list
+from ..common import run_mutation, safe_exception_message, serialize_action_list
 
 
 class PlatformDocumentController(QObject):
@@ -123,7 +123,7 @@ class PlatformDocumentController(QObject):
         except Exception as exc:  # noqa: BLE001 - surface to dialog/banner
             setter = getattr(self, "_set_error_message", None)
             if setter is not None:
-                setter(str(exc))
+                setter(safe_exception_message(exc))
             return ""
 
     @Slot("QVariantMap", result="QVariantMap")
