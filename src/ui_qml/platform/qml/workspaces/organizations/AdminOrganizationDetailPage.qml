@@ -46,15 +46,19 @@ Item {
         { "label": "Departments" },
         { "label": "Employees" },
         { "label": "Documents" },
-        { "label": "Audit" }
+        { "label": "Activity" }
     ]
     readonly property string _activeSectionLabel: {
         const section = detailRoot._sections[detailRoot.activeSectionIndex]
         return section ? String(section.label || "") : "Overview"
     }
-    readonly property string _toolbarSubtitle: detailRoot._activeSectionLabel === "Overview"
-        ? detailRoot._orgSubtitle
-        : ""
+    readonly property string _toolbarSubtitle: {
+        if (detailRoot._activeSectionLabel === "Overview") return detailRoot._orgSubtitle
+        // Activity here is this organization's own history only -- distinct
+        // from the tenant-wide Platform audit trail (Platform > Control).
+        if (detailRoot._activeSectionLabel === "Activity") return "Activity for this organization only"
+        return ""
+    }
     readonly property var _toolbarActions: {
         if (detailRoot._activeSectionLabel !== "Overview") {
             return [{ "id": "refresh", "label": "Refresh", "icon": "refresh" }]
@@ -137,7 +141,7 @@ Item {
         detailRoot._reloadDetailContext()
     }
     onActiveSectionIndexChanged: {
-        if (detailRoot._activeSectionLabel === "Audit") {
+        if (detailRoot._activeSectionLabel === "Activity") {
             detailRoot._ensureAuditLoaded()
         }
     }
@@ -713,7 +717,11 @@ Item {
             }
         }
 
-        // -- Audit: real organization-scoped audit trail -------------------
+        // -- Activity: this organization's own history only -- a distinct,
+        // narrower scope than the tenant-wide Platform audit trail (Platform
+        // > Control > Audit). Same underlying entries as Overview's Recent
+        // Activity preview, shown here in full (see terminology-glossary.md
+        // "Recent Activity" / "Audit").
         Item {
             width: parent ? parent.width : detailRoot.width
             implicitHeight: detailRoot.activeSectionIndex === 5 ? auditLoader.implicitHeight : 0
@@ -727,7 +735,7 @@ Item {
                 anchors.top: parent.top
                 active: detailRoot.activeSectionIndex === 5
                 keepLoaded: true
-                loadingMessage: "Loading audit trail..."
+                loadingMessage: "Loading organization activity..."
                 sourceComponent: Component {
                     Column {
                         id: auditRoot
@@ -750,7 +758,7 @@ Item {
                                 AppWidgets.ActivityFeed {
                                     Layout.fillWidth: true
                                     items: detailRoot._auditActivity
-                                    emptyText: "No audit entries recorded for this organization yet."
+                                    emptyText: "No activity recorded for this organization yet."
                                 }
                             }
                         }
