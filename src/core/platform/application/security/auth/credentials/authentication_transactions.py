@@ -96,6 +96,26 @@ def _resolve_last_active_context(
                 or None
             )
 
+    # A tenant was restored (current session or persisted) but no organization
+    # was -- apply the same sole-enabled-organization auto-select a brand-new
+    # login already gets, rather than leaving this candidate stuck at a
+    # tenant-only context forever. Without this, a session once persisted with
+    # organization_id=None (e.g. an organization that briefly became
+    # inaccessible) permanently shadows the correct auto-select on every later
+    # login: the tenant-only candidate below still succeeds (organization is
+    # optional at principal-build time), so the real auto-select candidate is
+    # never reached.
+    if (
+        active_tenant_id is not None
+        and active_organization_id is None
+        and service._tenant_context_service is not None
+    ):
+        active_organization_id = (
+            service._tenant_context_service.initial_organization_id_for_tenant(
+                active_tenant_id
+            )
+        )
+
     candidates: list[tuple[str | None, str | None]] = []
     if active_tenant_id is not None or active_organization_id is not None:
         candidates.append((active_tenant_id, active_organization_id))

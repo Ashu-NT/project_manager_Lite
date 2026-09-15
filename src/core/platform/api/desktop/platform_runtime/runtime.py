@@ -73,6 +73,18 @@ class PlatformRuntimeDesktopApi:
             )
         )
 
+    def list_accessible_modules(self) -> DesktopApiResult[tuple[ModuleDto, ...]]:
+        """Enabled modules the current user also has permission to use -- the
+        same single authoritative definition Global Overview's module cards
+        and Quick Actions already read (see module_access_policy.py). Shell
+        navigation consumes this instead of keeping its own copy."""
+        return self._execute(
+            lambda: tuple(
+                self._serialize_module(module)
+                for module in self._platform_runtime_application_service.list_accessible_modules()
+            )
+        )
+
     def license_module(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
         return self._execute(
             lambda: self._serialize_entitlement(

@@ -361,6 +361,50 @@ def test_tenant_admin_role_restore_bypasses_organization_scoped_access_check(ser
     assert services["tenant_context_service"].get_active_organization_id() == org_a.id
 
 
+# ----------------------------------------------------------------------
+# 12. persisted tenant-only (organization=None) session self-heals via the
+#     same sole-enabled-organization auto-select, instead of permanently
+#     shadowing it
+# ----------------------------------------------------------------------
+
+
+def test_persisted_tenant_only_session_reauto_selects_sole_enabled_organization(services):
+    """Regression for a real launch failure: once a user's most-recently
+    persisted AuthSession has a tenant but organization_id=None (e.g. an
+    organization briefly became inaccessible), every later login used to
+    restore that exact tenant-only, no-organization context forever --
+    because a tenant-only candidate still succeeds (organization is optional
+    at principal-build time), so the correct sole-enabled-organization
+    auto-select candidate was never reached. The fix backfills the
+    organization from the tenant's sole enabled organization before that
+    candidate is tried, so the very next login (simulated here via
+    `user_session.clear()`, matching a real app restart) self-heals."""
+    default_org = services["tenant_context_service"].get_active_organization()
+    assert default_org is not None
+
+    user = services["auth_service"].register_user(
+        "sec-tenant-only-reheal-user", "StrongPass123", role_names=["viewer"]
+    )
+    login_as(services, "sec-tenant-only-reheal-user", "StrongPass123")
+    assert services["tenant_context_service"].get_active_organization_id() == default_org.id
+
+    # Corrupt the persisted session the way a real one could end up: tenant
+    # known, organization nulled out.
+    auth_session_repo = services["auth_service"]._auth_session_repo
+    live_session_id = services["user_session"].principal.session_id
+    auth_session = auth_session_repo.get(live_session_id)
+    auth_session.last_active_organization_id = None
+    auth_session_repo.update(auth_session)
+    services["session"].flush()
+
+    # Simulate an app restart: no live principal in memory, only the
+    # corrupted persisted session to restore from.
+    services["user_session"].clear()
+    login_as(services, "sec-tenant-only-reheal-user", "StrongPass123")
+
+    assert services["tenant_context_service"].get_active_organization_id() == default_org.id
+
+
 def test_non_admin_restore_is_not_granted_the_admin_bypass(services):
     """Contrast case for the two tests above: an ordinary user with zero organization grants,
     in a MULTI-org tenant (so the sole-enabled-org fallback cannot itself explain a restore),

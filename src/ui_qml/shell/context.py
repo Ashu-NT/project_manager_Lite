@@ -13,6 +13,12 @@ QML_IMPORT_MAJOR_VERSION = 1
 
 logger = logging.getLogger(__name__)
 
+# The one route ShellContext always falls back to when the current route
+# becomes inaccessible (e.g. after a scope change hides the module the user
+# was in) -- Overview is a core shell route, never filtered by module
+# accessibility (see navigation.py), so it is always a safe landing spot.
+_HOME_ROUTE_ID = "shell.home"
+
 
 @QmlElement
 @QmlUncreatable("Shell runtime context is provided by the application shell.")
@@ -160,6 +166,28 @@ class ShellContext(QObject):
             return
         self._current_route_source = resolved_route_source
         self.currentRouteSourceChanged.emit()
+
+    def setNavigationItems(self, items: list[NavigationItemViewModel]) -> None:
+        """Replace the navigation item set (e.g. after a scope change resolves a new
+        accessible-module list) -- called from Python only, never from QML: the drawer
+        must consume an already-filtered list, never compute accessibility itself."""
+        self._navigation_items = items
+        self._navigation_item_by_route_id = {
+            item.route_id: item
+            for item in items
+        }
+        self.navigationItemsChanged.emit()
+        if self._current_route_id and self._current_route_id not in self._navigation_item_by_route_id:
+            # The route the user was on is no longer accessible -- return to
+            # the always-available Overview route rather than leave an
+            # inaccessible page on screen or guess at another module.
+            logger.info(
+                "Current route no longer accessible after navigation refresh; "
+                "redirecting to home route_id=%s",
+                self._current_route_id,
+            )
+            self._current_route_id = ""
+            self.selectRoute(_HOME_ROUTE_ID)
 
     def _route_source_for(self, route_id: str) -> str:
         item = self._navigation_item_by_route_id.get(route_id)

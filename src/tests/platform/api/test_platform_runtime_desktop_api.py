@@ -144,3 +144,43 @@ def test_build_desktop_api_registry_exposes_platform_runtime_adapter(services):
     assert result.data is not None
     assert any(module.code == "project_management" for module in result.data)
 
+
+def test_list_accessible_modules_returns_enabled_and_permitted_modules(services):
+    """Same authoritative source shell navigation (Phase 6G), Global Overview's
+    module cards, and Quick Actions all read -- see module_access_policy.py."""
+    api = PlatformRuntimeDesktopApi(
+        platform_runtime_application_service=services["platform_runtime_application_service"]
+    )
+
+    result = api.list_accessible_modules()
+
+    assert result.ok is True
+    assert result.data is not None
+    assert any(module.code == "project_management" for module in result.data)
+
+
+def test_list_accessible_modules_excludes_modules_the_principal_lacks_permission_for(services):
+    api = PlatformRuntimeDesktopApi(
+        platform_runtime_application_service=services["platform_runtime_application_service"]
+    )
+    user_session = services["user_session"]
+    original_principal = user_session.principal
+    user_session.set_principal(
+        UserSessionPrincipal(
+            user_id=original_principal.user_id,
+            username=original_principal.username,
+            display_name=original_principal.display_name,
+            role_names=frozenset(),
+            permissions=frozenset(),
+            active_tenant_id=original_principal.active_tenant_id,
+            active_organization_id=original_principal.active_organization_id,
+        )
+    )
+    try:
+        result = api.list_accessible_modules()
+
+        assert result.ok is True
+        assert result.data == ()
+    finally:
+        user_session.set_principal(original_principal)
+

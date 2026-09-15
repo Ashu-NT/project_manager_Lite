@@ -32,7 +32,11 @@ from src.ui_qml.shell.controllers.organization.organization_switcher_controller 
     OrganizationSwitcherController,
 )
 from src.ui_qml.shell.login import ShellLoginController
+from src.ui_qml.shell.navigation_accessibility import NavigationAccessibilityCoordinator
 from src.ui_qml.shell.presenters.global_overview_presenter import GlobalOverviewPresenter
+from src.ui_qml.shell.presenters.navigation.navigation_accessibility_presenter import (
+    NavigationAccessibilityPresenter,
+)
 from src.ui_qml.shell.presenters.notifications.notifications_presenter import NotificationsPresenter
 from src.ui_qml.shell.presenters.organization.organization_switcher_presenter import (
     OrganizationSwitcherPresenter,
@@ -166,7 +170,8 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         len(routes),
         len(nav_routes),
     )
-    shell_context = build_shell_context(build_main_window_navigation(registry))
+    all_navigation_items = build_main_window_navigation(registry)
+    shell_context = build_shell_context(all_navigation_items)
     logger.info("Shell context created initial_route=%s", shell_context.currentRouteId)
     if services is not None:
         principal = services["user_session"].principal
@@ -240,6 +245,23 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
     # badge is already correct the moment the shell appears.
     notifications_controller.refresh()
     logger.debug("Shell notifications controller created.")
+
+    navigation_accessibility_coordinator = NavigationAccessibilityCoordinator(
+        shell_context=shell_context,
+        presenter=NavigationAccessibilityPresenter(
+            platform_runtime_api=getattr(desktop_api_registry, "platform_runtime", None)
+            if desktop_api_registry is not None
+            else None
+        ),
+        all_navigation_items=all_navigation_items,
+    )
+    navigation_accessibility_coordinator.refresh()
+    if hasattr(app, "setProperty"):
+        # Not QML-exposed (the drawer only ever reads shellModel.navigationItems)
+        # -- kept alive here purely so its scopeChanged connection survives for
+        # the life of the app, same as runtimeSessionController below.
+        app.setProperty("navigationAccessibilityCoordinator", navigation_accessibility_coordinator)
+    logger.debug("Shell navigation accessibility coordinator created.")
 
     platform_workspace_catalog.tenantSwitcher.tenantSwitched.connect(
         pm_workspace_catalog.refreshAllWorkspaces
