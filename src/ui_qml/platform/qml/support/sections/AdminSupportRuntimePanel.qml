@@ -11,6 +11,17 @@ ColumnLayout {
     property var supportSettings: ({})
     property var updateStatus:    ({})
 
+    // Backend-owned closed enum ("Check Failed" | "Update Available" |
+    // "Up To Date" | "Ready" | "Preview") -- mapped explicitly, not
+    // inferred from the text.
+    readonly property string _updateStatusTone: {
+        const label = String(root.updateStatus.statusLabel || "Ready")
+        if (label === "Check Failed") return "danger"
+        if (label === "Update Available") return "warning"
+        if (label === "Up To Date") return "success"
+        return "neutral"
+    }
+
     Layout.preferredWidth: 260
     Layout.fillHeight:     true
     spacing: 0
@@ -29,7 +40,7 @@ ColumnLayout {
         RowLayout {
             Layout.fillWidth: true; spacing: Theme.AppTheme.spacingXs
             AppControls.Label { Layout.fillWidth: true; text: "Release Status"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize; font.bold: true }
-            AppWidgets.StatusChip { status: String(root.updateStatus.statusLabel || "Ready") }
+            AppWidgets.StatusChip { status: String(root.updateStatus.statusLabel || "Ready"); tone: root._updateStatusTone }
         }
 
         SupportMetaRow { rowLabel: "App Version"; rowValue: String(root.supportSettings.appVersion    || "-") }

@@ -10,6 +10,26 @@ Flickable {
 
     property var items: []
 
+    // Fixed 3-value attention category -- mapped explicitly.
+    function _categoryTone(category) {
+        const c = String(category || "").toLowerCase()
+        if (c === "risk") return "danger"
+        if (c === "delayed") return "warning"
+        if (c === "approval") return "info"
+        return "neutral"
+    }
+    // Row statusLabel is a union across the 3 attention row sources
+    // (delayed-task watchlist, high-risk register entries, pending
+    // approvals) -- mapped explicitly per value, not inferred from text.
+    function _rowStatusTone(statusLabel) {
+        const s = String(statusLabel || "").toLowerCase()
+        if (s === "blocked" || s === "late" || s === "critical" || s === "rejected") return "danger"
+        if (s === "tight float" || s === "pending" || s === "open") return "warning"
+        if (s === "in progress" || s === "tracked") return "info"
+        if (s === "mitigated" || s === "approved" || s === "closed") return "success"
+        return "neutral"
+    }
+
     contentWidth: width
     contentHeight: _col.implicitHeight + Theme.AppTheme.spacingSm * 2
     boundsBehavior: Flickable.StopAtBounds
@@ -55,6 +75,7 @@ Flickable {
 
                     AppWidgets.StatusChip {
                         status: String(_row.modelData.category || "")
+                        tone:   root._categoryTone(_row.modelData.category || "")
                     }
 
                     ColumnLayout {
@@ -82,6 +103,7 @@ Flickable {
 
                     AppWidgets.StatusChip {
                         status: String(_row.modelData.statusLabel || "")
+                        tone:   root._rowStatusTone(_row.modelData.statusLabel || "")
                     }
                 }
             }

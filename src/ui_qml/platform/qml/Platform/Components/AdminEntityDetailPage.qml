@@ -32,6 +32,10 @@ Item {
     readonly property var _state: (root.entity && root.entity.state) ? root.entity.state : ({})
     readonly property string _title: String(root.entity && root.entity.title ? root.entity.title : root.fallbackTitle)
     readonly property string _status: String(root.entity && root.entity.statusLabel ? root.entity.statusLabel : "")
+
+    readonly property string _statusTone: root._status.toLowerCase() === "active" ? "success"
+        : root._status.toLowerCase() === "inactive" ? "neutral"
+        : "neutral"
     readonly property string _subtitle: String(root.entity && root.entity.subtitle ? root.entity.subtitle : "")
     readonly property string _supportingText: String(root.entity && root.entity.supportingText ? root.entity.supportingText : "")
     readonly property string _metaText: String(root.entity && root.entity.metaText ? root.entity.metaText : "")
@@ -218,6 +222,7 @@ Item {
                                         AppWidgets.StatusChip {
                                             visible: root._status.length > 0
                                             status: root._status
+                                            tone:   root._statusTone
                                         }
 
                                         AppControls.Label {

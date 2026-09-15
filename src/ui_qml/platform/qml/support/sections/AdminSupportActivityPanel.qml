@@ -11,6 +11,17 @@ ColumnLayout {
 
     property var activityFeed: ({ items: [], emptyState: "No support activity recorded" })
 
+    // Backend-owned log level, title-cased ("Debug" | "Info" | "Warning" |
+    // "Error" | "Critical") -- mapped explicitly, not inferred from the
+    // free-text event message.
+    function _levelTone(statusLabel) {
+        const level = String(statusLabel || "").toLowerCase()
+        if (level === "error" || level === "critical") return "danger"
+        if (level === "warning") return "warning"
+        if (level === "info") return "info"
+        return "neutral"
+    }
+
     Layout.fillWidth: true
     spacing: 0
 
@@ -72,6 +83,7 @@ ColumnLayout {
                         AppWidgets.StatusChip {
                             visible: (_actRow.modelData.statusLabel || "").length > 0
                             status:  _actRow.modelData.statusLabel || ""
+                            tone:    root._levelTone(_actRow.modelData.statusLabel)
                         }
                     }
                     AppControls.Label {

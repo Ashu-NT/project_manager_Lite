@@ -7,7 +7,9 @@ import App.Theme 1.0 as Theme
 import App.Controls 1.0 as AppControls
 
 // Reusable timeline activity feed.
-// items: [{ title, metaText, statusLabel }]
+// items: [{ title, metaText, statusLabel, tone }]
+// `tone` is an optional caller-supplied semantic tone ("neutral" | "info" |
+// "success" | "warning" | "danger") for the StatusChip. 
 Item {
     id: root
 
@@ -45,6 +47,7 @@ Item {
             height: 44
 
             readonly property string _status: String(_row.modelData.statusLabel || "")
+            readonly property string _tone:   String(_row.modelData.tone || "")
             readonly property bool _clickable: String(_row.modelData.routeId || "").length > 0
 
             Rectangle {
@@ -102,6 +105,7 @@ Item {
                     AppWidgets.StatusChip {
                         visible: _row._status.length > 0
                         status:  _row._status
+                        tone:    _row._tone
                     }
                 }
 

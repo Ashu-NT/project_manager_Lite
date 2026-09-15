@@ -154,10 +154,13 @@ Item {
                     }
                     AppWidgets.StatusChip {
                         objectName: "scheduleStatusChip"
-                        // Backend-owned precedence (Infeasible > Critical >
-                        // Flexible) rendered verbatim -- never re-derived
-                        // here from totalFloatDays.
+                        // Backend-owned precedence (Infeasible > Critical > Flexible) rendered verbatim 
+                        // Tone reads the same backend-owned isInfeasible/isCritical booleans
+                        // (not the label text) so it can never drift from the label's own precedence.
                         status: String(root._m.scheduleStatusLabel || "Flexible")
+                        tone: root._m.isInfeasible === true ? "danger"
+                            : root._m.isCritical === true ? "warning"
+                            : "success"
                     }
                 }
                 ColumnLayout {

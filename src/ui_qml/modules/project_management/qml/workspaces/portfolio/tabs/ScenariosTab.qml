@@ -14,6 +14,12 @@ Flickable {
     property var scenariosModel: ({ "title": "Scenario Library", "subtitle": "", "emptyState": "", "items": [] })
     property var templatesModel: ({ "title": "Scoring Templates", "subtitle": "", "emptyState": "", "items": [] })
 
+    // Template statusLabel is a closed 2-value set ("Active" | "Available")
+    // -- mapped explicitly, not inferred from text.
+    function _templateStatusTone(label) {
+        return String(label || "").toLowerCase() === "active" ? "success" : "neutral"
+    }
+
     contentWidth: width
     contentHeight: _col.implicitHeight + Theme.AppTheme.marginMd * 2
     boundsBehavior: Flickable.StopAtBounds
@@ -204,6 +210,7 @@ Flickable {
 
                         AppWidgets.StatusChip {
                             status: String(_tplRow.modelData.statusLabel || "")
+                            tone:   root._templateStatusTone(_tplRow.modelData.statusLabel || "")
                         }
 
                         AppControls.SecondaryButton {

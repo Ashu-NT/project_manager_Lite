@@ -17,6 +17,7 @@ Item {
     property bool isBusy: false
 
     readonly property bool _hasResource: String(root.resourceDetail.id || "").length > 0
+    readonly property string _statusTone: String(root.resourceDetail.statusLabel || "").toLowerCase() === "active" ? "success" : "neutral"
     readonly property string _workerType: String((root.resourceDetail.state || {}).workerType || "EXTERNAL")
     readonly property bool _isEmployeeBacked: root._workerType === "EMPLOYEE"
 
@@ -103,7 +104,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingSm
 
-                AppWidgets.StatusChip { status: root.resourceDetail.statusLabel || "" }
+                AppWidgets.StatusChip { status: root.resourceDetail.statusLabel || ""; tone: root._statusTone }
 
                 AppControls.Label {
                     visible: root._sv("version").length > 0

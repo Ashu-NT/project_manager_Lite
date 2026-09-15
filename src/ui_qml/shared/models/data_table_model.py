@@ -368,6 +368,11 @@ class DynamicTableModel(QAbstractTableModel):
                 return _safe_str(raw.get("label", ""))
             val = _safe_float(raw)
             return f"{val * 100:.0f}%"
+        if col_type == "status" and isinstance(raw, dict):
+            # Callers that need a semantic StatusChip tone pass
+            # {"label": ..., "tone": ...} instead of a plain string --
+            # DataTable itself never infers tone from status text.
+            return _safe_str(raw.get("label", ""))
         if isinstance(raw, bool):
             return "Yes" if raw else "No"
         return _safe_str(raw)

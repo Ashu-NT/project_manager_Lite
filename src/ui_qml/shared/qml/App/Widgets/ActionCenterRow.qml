@@ -42,6 +42,16 @@ Item {
         ? Theme.AppTheme.danger
         : Theme.AppTheme.textSecondary
 
+    // ActionCenterRow renders exactly one presentation concept --
+    // cross-module action priority ("High"/"Medium"/"Low"/"Critical"/"Not set") 
+    readonly property string _priorityTone: {
+        const p = root.priorityLabel.toLowerCase()
+        if (p === "critical" || p === "high") return "danger"
+        if (p === "medium") return "warning"
+        if (p === "low") return "info"
+        return "neutral"
+    }
+
     function _activate() {
         if (root._navigable) {
             root.activated()
@@ -108,6 +118,7 @@ Item {
             AppWidgets.StatusChip {
                 visible: root.priorityLabel.length > 0
                 status: root.priorityLabel
+                tone:   root._priorityTone
             }
         }
 

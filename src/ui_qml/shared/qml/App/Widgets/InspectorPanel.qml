@@ -13,6 +13,8 @@ Rectangle {
     // -- Header ---------------------------------------------------------
     property string title: ""
     property string statusLabel: ""
+
+    property string statusTone: ""
     property bool showHeader: true
 
     // -- Metadata sections ------------------------------------------------
@@ -132,6 +134,7 @@ Rectangle {
                     id: _statusChip
                     visible: root.statusLabel.length > 0
                     status: root.statusLabel
+                    tone:   root.statusTone
                 }
 
                 Repeater {

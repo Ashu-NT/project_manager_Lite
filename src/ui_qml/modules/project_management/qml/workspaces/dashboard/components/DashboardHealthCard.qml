@@ -44,8 +44,13 @@ Rectangle {
             }
 
             AppWidgets.StatusChip {
+                // The backend health-card builder already computes a
+                // semantic tone from real thresholds (SPI/CPI, overload
+                // counts, etc.) alongside statusLabel -- consumed directly
+                // rather than re-derived from the label text.
                 visible: String(root.model.statusLabel || "").length > 0
                 status: String(root.model.statusLabel || "")
+                tone:   String(root.model.tone || "neutral")
             }
         }
 

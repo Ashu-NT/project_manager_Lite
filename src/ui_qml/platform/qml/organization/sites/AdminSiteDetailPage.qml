@@ -38,6 +38,7 @@ Item {
     readonly property string _supportingText: String(root.site && root.site.supportingText ? root.site.supportingText : "")
     readonly property string _metaText: String(root.site && root.site.metaText ? root.site.metaText : "")
     readonly property bool _isActive: root._state.isActive === true
+    readonly property string _statusTone: root._isActive ? "success" : "neutral"
     readonly property bool _pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
     readonly property string _siteId: String(root._state.siteId || root._state.id || root.site.id || "")
     readonly property bool _hasCalendarAssignment: String(root.siteCalendarAssignment && root.siteCalendarAssignment.assignmentId ? root.siteCalendarAssignment.assignmentId : "").length > 0
@@ -305,6 +306,7 @@ Item {
                                         AppWidgets.StatusChip {
                                             visible: root._status.length > 0
                                             status: root._status
+                                            tone:   root._statusTone
                                         }
 
                                         AppControls.Label {

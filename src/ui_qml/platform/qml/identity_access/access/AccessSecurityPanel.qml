@@ -421,6 +421,7 @@ ColumnLayout {
                             visible: root._selectedGrantItem
                                 ? (root._selectedGrantItem.statusLabel || "").length > 0 : false
                             status: root._selectedGrantItem ? (root._selectedGrantItem.statusLabel || "") : ""
+                            tone: "neutral"
                         }
 
                         Rectangle {

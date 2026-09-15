@@ -28,6 +28,15 @@ Item {
 
     signal openRequested(string targetUrl)
 
+
+    readonly property string _previewTone: {
+        const label = String(root.previewState.statusLabel || "")
+        if (label === "Local file missing") return "danger"
+        if (label === "PDF available" || label === "File available" || label === "Browser-linked") return "success"
+        if (label === "Metadata reference") return "info"
+        return "neutral"
+    }
+
     implicitWidth: 420
     implicitHeight: detailColumn.implicitHeight
 
@@ -107,6 +116,7 @@ Item {
 
                 AppWidgets.StatusChip {
                     status: root.previewState.statusLabel || "No document selected"
+                    tone:   root._previewTone
                 }
             }
 

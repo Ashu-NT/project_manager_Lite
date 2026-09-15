@@ -858,12 +858,20 @@ Item {
             }
 
             // ── Status chip ───────────────────────────────────────────
+            // DataTable renders "status" columns for every module's tables
+            // (Projects, Tasks, Register, Financials, Platform admin lists, ...) 
+            readonly property string _stTone: (_cell._isSt && typeof _cell.rawValue === "object"
+                    && _cell.rawValue !== null)
+                ? String(_cell.rawValue.tone || "")
+                : ""
+
             StatusChip {
                 anchors.verticalCenter: _cell.verticalCenter
                 anchors.left:           _cell.left
                 anchors.leftMargin:     Theme.AppTheme.spacingMd
                 visible: _cell._isSt && _cell.display.length > 0
                 status:  _cell.display
+                tone:    _cell._stTone
             }
 
             // ── Progress bar + label ──────────────────────────────────

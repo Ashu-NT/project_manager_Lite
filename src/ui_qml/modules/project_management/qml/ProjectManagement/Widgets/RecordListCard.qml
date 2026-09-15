@@ -89,6 +89,7 @@ Item {
 
                     readonly property bool isSelected: root.selectedItemId === String(rowDelegate.modelData.id || "")
                     readonly property string statusText: String(rowDelegate.modelData.statusLabel || "")
+                    readonly property string statusTone: String(rowDelegate.modelData.tone || "")
                     readonly property string subtitleText: String(rowDelegate.modelData.subtitle || "")
                     readonly property string supportingTextValue: String(rowDelegate.modelData.supportingText || "")
                     readonly property string metaText: String(rowDelegate.modelData.metaText || "")
@@ -165,6 +166,7 @@ Item {
                             AppWidgets.StatusChip {
                                 visible: rowDelegate.statusText.length > 0
                                 status: rowDelegate.statusText
+                                tone:   rowDelegate.statusTone
                             }
                         }
 

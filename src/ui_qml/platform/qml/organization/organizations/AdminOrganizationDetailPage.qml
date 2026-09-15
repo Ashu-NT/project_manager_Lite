@@ -34,6 +34,7 @@ Item {
         ? detailRoot.organization.metaText
         : "")
     readonly property bool _isEnabledOrganization: detailRoot._orgState.isEnabled === true
+    readonly property string _orgStatusTone: detailRoot._isEnabledOrganization ? "success" : "neutral"
     readonly property var _sections: [
         { "label": "Overview" },
         { "label": "Runtime Scope" },
@@ -221,6 +222,7 @@ Item {
                                         AppWidgets.StatusChip {
                                             visible: detailRoot._orgStatus.length > 0
                                             status: detailRoot._orgStatus
+                                            tone:   detailRoot._orgStatusTone
                                         }
 
                                         AppControls.Label {

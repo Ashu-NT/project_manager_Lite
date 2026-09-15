@@ -13,6 +13,16 @@ Item {
 
     property var taskDetail: AppMock.MockFactory.detail()
     property bool isBusy: false
+
+    // Backend-owned closed enum from TaskStatus ("Todo" | "In Progress" |
+    // "Blocked" | "Done") -- mapped explicitly, not inferred from text.
+    readonly property string _taskStatusTone: {
+        const label = String(root.taskDetail.statusLabel || "").toLowerCase()
+        if (label === "done") return "success"
+        if (label === "blocked") return "warning"
+        if (label === "in progress") return "info"
+        return "neutral"
+    }
     property var detailPage: null
     property real availableHeight: 0
 
@@ -202,6 +212,7 @@ Item {
             AppWidgets.StatusChip {
                 visible: String(root.taskDetail.statusLabel || "").length > 0
                 status: root.taskDetail.statusLabel || ""
+                tone:   root._taskStatusTone
             }
 
             RowLayout {
