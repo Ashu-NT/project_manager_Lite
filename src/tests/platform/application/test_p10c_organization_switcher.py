@@ -397,11 +397,11 @@ def test_no_new_organization_or_legacy_signal_domain_event_was_introduced():
 def test_organization_switcher_controller_and_presenter_do_not_import_repositories_or_orm():
     controller_path = (
         _REPO_ROOT
-        / "src/ui_qml/platform/controllers/tenants/organization_switcher_controller.py"
+        / "src/ui_qml/platform/controllers/tenant_management/organization_switcher_controller.py"
     )
     presenter_path = (
         _REPO_ROOT
-        / "src/ui_qml/platform/presenters/tenants/organization_switcher_presenter.py"
+        / "src/ui_qml/platform/presenters/tenant_management/organization_switcher_presenter.py"
     )
     for path in (controller_path, presenter_path):
         source = path.read_text(encoding="utf-8-sig")

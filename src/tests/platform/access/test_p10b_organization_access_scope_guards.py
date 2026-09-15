@@ -69,11 +69,11 @@ def test_access_workspace_presenter_and_controller_do_not_import_repositories_or
     with no scope-type-specific repository/ORM code."""
     presenter_path = (
         _REPO_ROOT
-        / "src/ui_qml/platform/presenters/identity_access/access/access_workspace_presenter.py"
+        / "src/ui_qml/platform/presenters/access/access_workspace_presenter.py"
     )
     controller_path = (
         _REPO_ROOT
-        / "src/ui_qml/platform/controllers/identity_access/access/access_workspace_controller.py"
+        / "src/ui_qml/platform/controllers/access/access_workspace_controller.py"
     )
     for path in (presenter_path, controller_path):
         source = path.read_text(encoding="utf-8-sig")

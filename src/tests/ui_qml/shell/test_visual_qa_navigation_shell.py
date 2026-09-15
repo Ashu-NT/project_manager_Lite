@@ -35,6 +35,13 @@ SIZES = {
 }
 
 
+def _settle(app, *, seconds: float = 2.0) -> None:
+    deadline = time.time() + seconds
+    while time.time() < deadline:
+        app.processEvents()
+        time.sleep(0.02)
+
+
 def _grab(app, item, path: Path) -> bool:
     grab_result = item.grabToImage()
     state = {}
@@ -86,8 +93,7 @@ def test_capture_navigation_shell_screenshots(qapp, services, theme_mode) -> Non
                 services, theme_mode=theme_mode
             )
             root.resize(w, h)
-            qapp.processEvents()
-            qapp.processEvents()
+            _settle(qapp)
 
             item = root.findChild(QQuickItem, "mainWindow")
             assert item is not None
@@ -98,25 +104,25 @@ def test_capture_navigation_shell_screenshots(qapp, services, theme_mode) -> Non
 
             # -- Platform: global + context sidebar, Overview -------------
             shell_context.selectRoute("platform.workspace")
-            qapp.processEvents()
+            _settle(qapp)
             saved = _grab(qapp, item, OUT_DIR / f"platform_overview_{theme_mode}_{size_name}.png")
             assert saved, f"platform_overview_{theme_mode}_{size_name} failed to save"
 
             # -- Platform: a grouped child destination --------------------
             platform_catalog.selectDestination("sites")
-            qapp.processEvents()
+            _settle(qapp)
             saved = _grab(qapp, item, OUT_DIR / f"platform_sites_{theme_mode}_{size_name}.png")
             assert saved, f"platform_sites_{theme_mode}_{size_name} failed to save"
 
             # -- Project Management: global + context sidebar, Overview ---
             shell_context.selectRoute("project_management.workspace")
-            qapp.processEvents()
+            _settle(qapp)
             saved = _grab(qapp, item, OUT_DIR / f"pm_overview_{theme_mode}_{size_name}.png")
             assert saved, f"pm_overview_{theme_mode}_{size_name} failed to save"
 
             # -- Project Management: a grouped child destination -----------
             pm_catalog.pmNavigation.selectWorkspace("projects")
-            qapp.processEvents()
+            _settle(qapp)
             saved = _grab(qapp, item, OUT_DIR / f"pm_projects_{theme_mode}_{size_name}.png")
             assert saved, f"pm_projects_{theme_mode}_{size_name} failed to save"
 
