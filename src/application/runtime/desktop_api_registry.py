@@ -3,10 +3,16 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+from src.core.application.global_overview.api.desktop.global_overview import (
+    GlobalOverviewDesktopApi,
+)
 from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
 from src.core.platform.api.desktop.integration.capability_api import build_integration_capability_api
 from src.core.platform.api.desktop.access.access import PlatformAccessDesktopApi
 from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
+from src.core.platform.api.desktop.events.notifications.notification import (
+    PlatformNotificationDesktopApi,
+)
 from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
 from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
 from src.core.platform.api.desktop.master_data.documents.document import PlatformDocumentDesktopApi
@@ -82,6 +88,8 @@ from src.core.platform.application.master_data.site.site_service import SiteServ
 class DesktopApiRegistry:
     integration_capability: IntegrationCapabilityDesktopApi
     platform_runtime: PlatformRuntimeDesktopApi
+    global_overview: GlobalOverviewDesktopApi | None
+    platform_notification: PlatformNotificationDesktopApi | None
 
     platform_view_invalidation_channel: ViewInvalidationChannel | None
     platform_calendar: None  # removed â€” use platform_enterprise_calendar instead
@@ -269,11 +277,22 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             enterprise_calendar_api=enterprise_calendar_api,
         ),
     )
+    global_overview_api = services.get("global_overview_desktop_api")
+    platform_notification_api = services.get("platform_notification_desktop_api")
+
     return DesktopApiRegistry(
         integration_capability=integration_capability,
         platform_view_invalidation_channel=services.get("platform_view_invalidation_channel"),
         platform_runtime=PlatformRuntimeDesktopApi(
             platform_runtime_application_service=platform_runtime_application_service,
+        ),
+        global_overview=(
+            global_overview_api if isinstance(global_overview_api, GlobalOverviewDesktopApi) else None
+        ),
+        platform_notification=(
+            platform_notification_api
+            if isinstance(platform_notification_api, PlatformNotificationDesktopApi)
+            else None
         ),
         platform_calendar=platform_calendar_api,
         platform_enterprise_calendar=enterprise_calendar_api,

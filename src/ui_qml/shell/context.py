@@ -24,6 +24,12 @@ class ShellContext(QObject):
     densityModeChanged = Signal()
     themeModeChanged = Signal()
     userDisplayNameChanged = Signal()
+    # Shell-wide tenant/organization scope invalidation signal (no args --
+    # subscribers re-read authoritative scope through their own Desktop API
+    # rather than trust any locally-cached tenant/org id). Nothing emits this
+    # yet: firing it on an actual tenant/organization switch is Organization
+    # Switcher/Shell Header wiring, not implemented here.
+    scopeChanged = Signal()
 
     def __init__(
         self,

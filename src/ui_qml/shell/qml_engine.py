@@ -10,6 +10,7 @@ import resources.resources_rc  # noqa: F401
 import src.ui_qml.shared.models.data_table_model  # noqa: F401
 import src.ui_qml.shell.context  # noqa: F401
 import src.ui_qml.shell.login  # noqa: F401
+import src.ui_qml.shell.controllers.global_overview.global_overview_controller  # noqa: F401
 import src.ui_qml.platform.context  # noqa: F401
 import src.ui_qml.platform.controllers.common.workspace_controller_base  # noqa: F401
 import src.ui_qml.platform.controllers.admin_console.admin_console_controller  # noqa: F401
