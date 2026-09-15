@@ -33,7 +33,7 @@ Item {
         { id: "control_approvals", label: "Approvals", group: "Control", icon: "approve", requiredPermissions: ["approval.request", "approval.decide"] },
         { id: "control_audit", label: "Audit", group: "Control", icon: "audit", requiredPermissions: ["audit.read"] },
         { id: "settings", label: "Settings", icon: "settings", requiredPermissions: ["settings.manage"] },
-        { id: "tenants", label: "Tenant Administration", icon: "tenant", requiredPermissions: ["platform.admin"] },
+        { id: "tenants", label: "Tenant Management", icon: "tenant", requiredPermissions: ["platform.admin"] },
     ]
 
     function _isVisible(destination) {
