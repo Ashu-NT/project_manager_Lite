@@ -36,11 +36,20 @@ class _FakeTenantContextService:
 
 
 class _FakePlatformRuntimeApplicationService:
-    def __init__(self, *, accessible_codes: frozenset[str] = frozenset()) -> None:
+    def __init__(
+        self,
+        *,
+        accessible_codes: frozenset[str] = frozenset(),
+        permissions: frozenset[str] = frozenset(),
+    ) -> None:
         self._accessible_codes = accessible_codes
+        self._permissions = permissions
 
     def list_accessible_modules(self):
         return tuple(SimpleNamespace(code=code) for code in self._accessible_codes)
+
+    def get_current_permissions(self):
+        return self._permissions
 
 
 class _FakeActivityService:
@@ -161,6 +170,52 @@ def test_list_action_center_delegates_with_the_requested_limit():
     service.list_action_center(limit=17)
 
     assert action_center_service.calls == [17]
+
+
+# -- Capabilities ----------------------------------------------------------------------------
+
+
+def test_get_capabilities_returns_effective_permissions_and_accessible_modules():
+    service = _build_service(
+        platform_runtime_application_service=_FakePlatformRuntimeApplicationService(
+            accessible_codes=frozenset({"project_management"}),
+            permissions=frozenset({"project.manage", "task.read"}),
+        )
+    )
+
+    capabilities = service.get_capabilities()
+
+    assert capabilities.effective_permissions == frozenset({"project.manage", "task.read"})
+    assert capabilities.accessible_module_codes == ("project_management",)
+
+
+def test_get_capabilities_accessible_module_codes_are_deterministically_sorted():
+    service = _build_service(
+        platform_runtime_application_service=_FakePlatformRuntimeApplicationService(
+            accessible_codes=frozenset({"qhse", "project_management", "hr_management"}),
+        )
+    )
+
+    capabilities = service.get_capabilities()
+
+    assert capabilities.accessible_module_codes == ("hr_management", "project_management", "qhse")
+
+
+def test_get_capabilities_never_exposes_role_names():
+    service = _build_service()
+
+    capabilities = service.get_capabilities()
+
+    assert not hasattr(capabilities, "role_names")
+    assert not hasattr(capabilities, "role_label")
+
+
+def test_get_capabilities_requires_an_authenticated_principal():
+    service = _build_service(user_session=_FakeUserSession(user_id=None))
+
+    with pytest.raises(BusinessRuleError) as exc:
+        service.get_capabilities()
+    assert exc.value.code == "AUTHENTICATION_REQUIRED"
 
 
 # -- Module summaries ----------------------------------------------------------------------

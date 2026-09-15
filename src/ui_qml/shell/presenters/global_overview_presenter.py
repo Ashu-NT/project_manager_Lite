@@ -10,7 +10,10 @@ from src.core.application.global_overview.api.desktop.global_overview import (
 )
 from src.core.application.global_overview.contracts.action_center import ActionCenterItemDto
 from src.core.application.global_overview.contracts.module_summary import ModuleSummaryDto
-from src.core.application.global_overview.contracts.overview import GlobalOverviewContextDto
+from src.core.application.global_overview.contracts.overview import (
+    GlobalOverviewCapabilitiesDto,
+    GlobalOverviewContextDto,
+)
 from src.core.platform.api.desktop.history.activity.models.activity import ActivityEntryDto
 from src.ui_qml.shell.view_models.global_overview import (
     ActionCenterRowViewModel,
@@ -18,6 +21,7 @@ from src.ui_qml.shell.view_models.global_overview import (
     AttentionCardViewModel,
     GlobalOverviewContextViewModel,
     ModuleCardViewModel,
+    QuickActionViewModel,
     build_context_line,
 )
 
@@ -30,6 +34,7 @@ _ATTENTION_LOAD_ERROR = "Attention summary could not be loaded."
 _MODULES_LOAD_ERROR = "Modules could not be loaded."
 _RECENT_ACTIVITY_LOAD_ERROR = "Recent activity could not be loaded."
 _ACTION_CENTER_LOAD_ERROR = "Action items could not be loaded."
+_QUICK_ACTIONS_LOAD_ERROR = "Quick actions could not be loaded."
 
 _TASK_STATUS_LABELS = {
     "todo": "To do",
@@ -48,6 +53,52 @@ _ATTENTION_CARDS = (
     ("reviews_and_approvals", "Reviews & approvals", "reviews_and_approvals"),
     ("assigned_work", "Assigned work", "assigned_work"),
     ("submissions", "Submissions", "submissions"),
+)
+
+_MAX_QUICK_ACTIONS = 4
+
+
+@dataclass(frozen=True)
+class _QuickActionCandidate:
+    key: str
+    label: str
+    icon: str
+    route_id: str
+    required_permission: str
+    # None means the action's own area is Platform-area, which has no
+    # enable/license lifecycle and is never gated by accessible_module_codes
+    # (see module_access_policy.py) -- only a real EnterpriseModule code
+    # (e.g. "project_management") belongs here.
+    required_module_code: str | None
+
+
+# Each candidate below was individually verified against the real codebase:
+# the exact permission code a command handler actually requires, the exact
+# module-accessibility prerequisite (if any), and an existing, distinct,
+# registered shell route -- never invented. "Create project" is the only
+# candidate with all three verified as a distinct destination:
+#   permission: ProjectService.create_project -> require_permission(...,
+#       "project.manage") (projects/commands/lifecycle.py)
+#   module: gated on "project_management" via accessible_module_codes
+#   route: "project_management.projects", a real registered QmlRoute
+# "Add user" (auth.manage), "Add department" (settings.manage), and
+# "Review approvals" (approval.decide) each have a real, verified
+# permission, but the shell currently registers only one single generic
+# Platform route ("platform.workspace", see ui_qml/platform/routes.py) --
+# there is no distinct navigable destination for any of them yet, so
+# showing three different "actions" that all land on the same generic page
+# would not be a genuine action, just generic navigation dressed up as one.
+# They are deliberately omitted rather than invented; adding distinct
+# Platform routes for them is a deferred capability, not implemented here.
+_QUICK_ACTION_CANDIDATES = (
+    _QuickActionCandidate(
+        key="create_project",
+        label="Create project",
+        icon="project",
+        route_id="project_management.projects",
+        required_permission="project.manage",
+        required_module_code="project_management",
+    ),
 )
 
 
@@ -97,14 +148,20 @@ class GlobalOverviewPresenter:
                 label=label,
                 value=getattr(summary, field_name),
                 supporting_text=_attention_supporting_text(getattr(summary, field_name)),
-                # No dedicated Action Center route exists yet (see routing
-                # limitation, item 13) -- left empty rather than invented.
+                # No dedicated (filtered or full) Action Center destination
+                # exists yet -- left empty rather than invented. See
+                # AttentionCardViewModel's docstring.
                 route_id="",
                 filter_key=key,
+                interactive=False,
             )
             for key, label, field_name in _ATTENTION_CARDS
         )
-        return SectionResult(ok=True, data=cards)
+        # A successful Attention summary always produces these four cards,
+        # even when every count is zero -- zero is a legitimate answer, not
+        # an empty section (unlike Modules/Recent Activity/Action Center,
+        # whose row count genuinely can be zero).
+        return SectionResult(ok=True, data=cards, empty=False)
 
     def load_modules(self) -> SectionResult:
         result = self._api.list_module_summaries()
@@ -132,16 +189,19 @@ class GlobalOverviewPresenter:
         return SectionResult(ok=True, data=rows, empty=not rows)
 
     def load_quick_actions(self) -> SectionResult:
-        """Always returns an empty, non-error section.
-
-        GlobalOverviewDesktopApi does not currently expose the effective-
-        permission / accessible-module inputs Quick Actions would need to
-        decide which actions to show without hardcoding role-name checks
-        (see Phase 6D item 9/17). Rather than reach around the Desktop API
-        boundary to PlatformRuntimeApplicationService directly, Quick
-        Actions stays empty until that API surface is extended.
+        """Derives Quick Actions only from GlobalOverviewDesktopApi
+        .get_capabilities() -- generic effective-permission and accessible-
+        module inputs, never a role name, never a direct call to
+        PlatformRuntimeApplicationService from this layer. See
+        _QUICK_ACTION_CANDIDATES for exactly which actions were verified
+        against the real codebase and which were deliberately omitted.
         """
-        return SectionResult(ok=True, data=(), empty=True)
+        result = self._api.get_capabilities()
+        if not result.ok or result.data is None:
+            self._log_failure("quick_actions", result)
+            return SectionResult(ok=False, data=None, error_message=_QUICK_ACTIONS_LOAD_ERROR)
+        actions = _build_quick_actions(result.data)
+        return SectionResult(ok=True, data=actions, empty=not actions)
 
     def _build_context(self, dto: GlobalOverviewContextDto) -> GlobalOverviewContextViewModel:
         return GlobalOverviewContextViewModel(
@@ -182,14 +242,38 @@ def _build_module_card(dto: ModuleSummaryDto) -> ModuleCardViewModel:
     )
 
 
+def _build_quick_actions(
+    capabilities: GlobalOverviewCapabilitiesDto,
+) -> tuple[QuickActionViewModel, ...]:
+    actions: list[QuickActionViewModel] = []
+    for candidate in _QUICK_ACTION_CANDIDATES:
+        if candidate.required_permission not in capabilities.effective_permissions:
+            continue
+        if (
+            candidate.required_module_code is not None
+            and candidate.required_module_code not in capabilities.accessible_module_codes
+        ):
+            continue
+        actions.append(
+            QuickActionViewModel(
+                key=candidate.key,
+                label=candidate.label,
+                icon=candidate.icon,
+                route_id=candidate.route_id,
+            )
+        )
+    return tuple(actions[:_MAX_QUICK_ACTIONS])
+
+
 def _build_activity_row(entry: ActivityEntryDto) -> ActivityRowViewModel:
     return ActivityRowViewModel(
         id=entry.id,
         title=entry.human_message,
-        # ActivityEntryDto only carries actor_id, not a resolved display
-        # name -- this layer has no user-lookup input to resolve one, so
-        # the raw id is shown rather than a fabricated name.
-        actor_label=entry.actor_id or "",
+        # ActivityEntryDto only carries a raw actor_id, never a resolved
+        # display name -- showing it as if it were a name would be
+        # misleading, and this layer has no user-lookup input to resolve a
+        # real one. Deferred: "Activity actor display-name resolution".
+        actor_label=None,
         module_label=_MODULE_LABELS.get(entry.module, entry.module.replace("_", " ").title()),
         timestamp_label=entry.timestamp.strftime("%d %b %Y · %H:%M"),
         icon=entry.icon,
@@ -199,16 +283,20 @@ def _build_activity_row(entry: ActivityEntryDto) -> ActivityRowViewModel:
 
 
 def _build_action_center_row(item: ActionCenterItemDto, *, today: date) -> ActionCenterRowViewModel:
-    status_label, due_label = _status_and_due_label(item, today=today)
     return ActionCenterRowViewModel(
         id=item.id,
         title=item.title,
         module_label=item.module,
         subject_display=item.subject_display,
         action_state=item.action_state,
-        status_label=status_label,
+        status_label=_status_label(item),
         priority_label=item.priority.replace("_", " ").title() if item.priority else None,
-        due_label=due_label,
+        # Generic on the DTO's own due_at, never gated on `kind` -- Task is
+        # simply the only contributor with a real due_at today; a future
+        # contributor providing one must get the same formatting for free.
+        # Baseline/Approval/Timesheet always carry due_at=None from the
+        # backend, so this never fabricates a date for them.
+        due_label=_format_due_label(item.due_at, today=today),
         # Only a workspace-level route exists per item today -- no per-object
         # deep link is invented here (see routing limitation, item 13).
         route_id=item.route_id,
@@ -216,20 +304,16 @@ def _build_action_center_row(item: ActionCenterItemDto, *, today: date) -> Actio
     )
 
 
-def _status_and_due_label(item: ActionCenterItemDto, *, today: date) -> tuple[str, str | None]:
+def _status_label(item: ActionCenterItemDto) -> str:
     if item.kind == "pm_task":
-        return _TASK_STATUS_LABELS.get(
-            item.action_state, item.action_state.replace("_", " ").title()
-        ), _format_due_label(item.due_at, today=today)
+        return _TASK_STATUS_LABELS.get(item.action_state, item.action_state.replace("_", " ").title())
     if item.kind == "baseline_review":
-        return "Awaiting review", None
+        return "Awaiting review"
     if item.kind == "approval":
-        return "Awaiting decision", None
+        return "Awaiting decision"
     if item.kind == "timesheet":
-        if item.action_state == "rejected":
-            return "Rejected · Action required", None
-        return "Open", None
-    return item.action_state.replace("_", " ").title(), None
+        return "Rejected · Action required" if item.action_state == "rejected" else "Open"
+    return item.action_state.replace("_", " ").title()
 
 
 def _format_due_label(due_at: date | None, *, today: date) -> str | None:

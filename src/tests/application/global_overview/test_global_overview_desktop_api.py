@@ -10,7 +10,10 @@ from src.core.application.global_overview.contracts.action_center import (
     ActionCenterSummaryDto,
 )
 from src.core.application.global_overview.contracts.module_summary import ModuleSummaryDto
-from src.core.application.global_overview.contracts.overview import GlobalOverviewContextDto
+from src.core.application.global_overview.contracts.overview import (
+    GlobalOverviewCapabilitiesDto,
+    GlobalOverviewContextDto,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
 
@@ -34,6 +37,10 @@ class _FakeGlobalOverviewService:
             items=(), summary=ActionCenterSummaryDto(0, 0, 0, 0)
         )
         self.recent_activity_result: tuple[ActivityEntry, ...] = ()
+        self.capabilities_result = GlobalOverviewCapabilitiesDto(
+            effective_permissions=frozenset({"project.manage"}),
+            accessible_module_codes=("project_management",),
+        )
         self.raise_error: Exception | None = None
         self.last_action_center_limit: int | None = None
         self.last_activity_limit: int | None = None
@@ -49,6 +56,10 @@ class _FakeGlobalOverviewService:
     def list_module_summaries(self):
         self._maybe_raise()
         return self.module_summaries_result
+
+    def get_capabilities(self):
+        self._maybe_raise()
+        return self.capabilities_result
 
     def list_action_center(self, *, limit: int = 50):
         self._maybe_raise()
@@ -95,6 +106,25 @@ def test_get_attention_summary_returns_ok_result():
 
     assert result.ok is True
     assert result.data == ActionCenterSummaryDto(1, 1, 0, 0)
+
+
+def test_get_capabilities_returns_ok_result():
+    service = _FakeGlobalOverviewService()
+
+    result = _api(service).get_capabilities()
+
+    assert result.ok is True
+    assert result.data == service.capabilities_result
+
+
+def test_get_capabilities_wraps_business_rule_error():
+    service = _FakeGlobalOverviewService()
+    service.raise_error = BusinessRuleError("no scope", code="AUTHENTICATION_REQUIRED")
+
+    result = _api(service).get_capabilities()
+
+    assert result.ok is False
+    assert result.error.code == "AUTHENTICATION_REQUIRED"
 
 
 def test_list_module_summaries_returns_ok_result():

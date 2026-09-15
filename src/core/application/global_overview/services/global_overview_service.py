@@ -12,6 +12,7 @@ from src.core.application.global_overview.contracts.module_summary import (
 )
 from src.core.application.global_overview.contracts.overview import (
     AttentionSummaryDto,
+    GlobalOverviewCapabilitiesDto,
     GlobalOverviewContextDto,
 )
 from src.core.application.global_overview.services.action_center_service import ActionCenterService
@@ -103,6 +104,26 @@ class GlobalOverviewService:
         # Sorted by module_code so contributor registration order can never
         # change the rendered order.
         return tuple(sorted(summaries, key=lambda summary: summary.module_code))
+
+    def get_capabilities(self) -> GlobalOverviewCapabilitiesDto:
+        """Generic cross-cutting session inputs a presentation layer needs to
+        derive its own display decisions (e.g. Quick Actions) -- never a
+        role name, never a module-specific or action-specific decision.
+        Which concrete actions to show from these inputs is a presentation
+        concern (GlobalOverviewPresenter), not an application-layer one.
+        """
+        self._build_action_center_context()
+        permissions = frozenset(self._platform_runtime_application_service.get_current_permissions())
+        accessible_module_codes = tuple(
+            sorted(
+                module.code
+                for module in self._platform_runtime_application_service.list_accessible_modules()
+            )
+        )
+        return GlobalOverviewCapabilitiesDto(
+            effective_permissions=permissions,
+            accessible_module_codes=accessible_module_codes,
+        )
 
     def list_recent_activity(self, *, limit: int = 50) -> tuple[ActivityEntry, ...]:
         entries = self._activity_service.list_recent(limit=limit)

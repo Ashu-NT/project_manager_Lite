@@ -8,7 +8,10 @@ from src.core.application.global_overview.contracts.action_center import (
     ActionCenterSummaryDto,
 )
 from src.core.application.global_overview.contracts.module_summary import ModuleSummaryDto
-from src.core.application.global_overview.contracts.overview import GlobalOverviewContextDto
+from src.core.application.global_overview.contracts.overview import (
+    GlobalOverviewCapabilitiesDto,
+    GlobalOverviewContextDto,
+)
 from src.core.platform.api.desktop.history.activity.models.activity import ActivityEntryDto
 from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
 from src.ui_qml.shell.presenters.global_overview_presenter import GlobalOverviewPresenter
@@ -29,6 +32,12 @@ class _FakeGlobalOverviewApi:
         self.action_center_result = DesktopApiResult(
             ok=True, data=ActionCenterContribution(items=(), summary=ActionCenterSummaryDto(0, 0, 0, 0))
         )
+        self.capabilities_result = DesktopApiResult(
+            ok=True,
+            data=GlobalOverviewCapabilitiesDto(
+                effective_permissions=frozenset(), accessible_module_codes=()
+            ),
+        )
 
     def get_context(self):
         return self.context_result
@@ -44,6 +53,9 @@ class _FakeGlobalOverviewApi:
 
     def list_action_center(self, *, limit: int = 50):
         return self.action_center_result
+
+    def get_capabilities(self):
+        return self.capabilities_result
 
 
 def _presenter() -> tuple[GlobalOverviewPresenter, _FakeGlobalOverviewApi]:
@@ -162,13 +174,34 @@ def test_load_attention_maps_exact_four_cards_in_order():
     assert result.data[3].label == "Submissions"
 
 
-def test_load_attention_zero_counts_is_not_an_error():
-    presenter, _ = _presenter()
+def test_load_attention_all_zero_counts_still_produces_four_visible_cards_and_is_not_empty():
+    presenter, api = _presenter()
+    api.attention_result = DesktopApiResult(ok=True, data=ActionCenterSummaryDto(0, 0, 0, 0))
 
     result = presenter.load_attention()
 
     assert result.ok is True
+    assert result.error_message is None
+    assert result.empty is False
+    assert len(result.data) == 4
     assert all(card.value == 0 for card in result.data)
+    assert [card.key for card in result.data] == [
+        "all",
+        "reviews_and_approvals",
+        "assigned_work",
+        "submissions",
+    ]
+
+
+def test_load_attention_cards_are_not_interactive_and_carry_no_fake_route():
+    """No dedicated Action Center destination exists yet -- cards must not
+    pretend to be navigable."""
+    presenter, _ = _presenter()
+
+    result = presenter.load_attention()
+
+    assert all(card.interactive is False for card in result.data)
+    assert all(card.route_id == "" for card in result.data)
 
 
 def test_load_attention_failure_returns_friendly_message():
@@ -302,6 +335,26 @@ def test_timesheet_rejected_label():
     assert result.data[0].due_label is None
 
 
+def test_due_label_formatting_is_generic_and_not_gated_on_kind():
+    """A future contributor kind other than pm_task must get the same
+    legitimate due/overdue formatting for free if it ever carries a real
+    due_at -- formatting must key off item.due_at, never item.kind."""
+    presenter, api = _presenter()
+    overdue_date = date.today() - timedelta(days=2)
+    item = _action_item(kind="baseline_review", action_state="awaiting_review", due_at=overdue_date)
+    api.action_center_result = DesktopApiResult(
+        ok=True,
+        data=ActionCenterContribution(items=(item,), summary=ActionCenterSummaryDto(1, 1, 0, 0)),
+    )
+
+    result = presenter.load_action_center()
+
+    assert result.data[0].due_label == "Overdue by 2 days"
+    # The status label is still governed by kind/action_state, independent
+    # of due-label formatting.
+    assert result.data[0].status_label == "Awaiting review"
+
+
 def test_action_center_row_preserves_route_id():
     presenter, api = _presenter()
     item = _action_item(kind="approval", action_state="awaiting_decision", route_id="control_approvals")
@@ -352,7 +405,10 @@ def test_recent_activity_maps_dto_fields():
     assert result.ok is True
     row = result.data[0]
     assert row.title == "Task created"
-    assert row.actor_label == "user-42"
+    # actor_id is a raw internal id, never a resolved display name -- must
+    # never be shown to the user as if it were one (deferred: "Activity
+    # actor display-name resolution").
+    assert row.actor_label is None
     assert row.module_label == "Project Management"
     assert row.icon == "task"
     assert row.color == "blue"
@@ -447,8 +503,17 @@ def test_modules_failure_returns_friendly_message():
 # -- Quick Actions -------------------------------------------------------------------------
 
 
-def test_quick_actions_is_empty_and_not_an_error():
-    presenter, _ = _presenter()
+def _capabilities(
+    *, permissions: frozenset[str] = frozenset(), modules: tuple[str, ...] = ()
+) -> GlobalOverviewCapabilitiesDto:
+    return GlobalOverviewCapabilitiesDto(
+        effective_permissions=permissions, accessible_module_codes=modules
+    )
+
+
+def test_quick_actions_is_empty_when_no_permissions_are_held():
+    presenter, api = _presenter()
+    api.capabilities_result = DesktopApiResult(ok=True, data=_capabilities())
 
     result = presenter.load_quick_actions()
 
@@ -457,10 +522,69 @@ def test_quick_actions_is_empty_and_not_an_error():
     assert result.empty is True
 
 
+def test_create_project_shown_when_permission_and_module_are_both_present():
+    presenter, api = _presenter()
+    api.capabilities_result = DesktopApiResult(
+        ok=True,
+        data=_capabilities(
+            permissions=frozenset({"project.manage"}), modules=("project_management",)
+        ),
+    )
+
+    result = presenter.load_quick_actions()
+
+    assert result.ok is True
+    assert result.empty is False
+    assert [action.key for action in result.data] == ["create_project"]
+    assert result.data[0].label == "Create project"
+    assert result.data[0].route_id == "project_management.projects"
+
+
+def test_create_project_omitted_when_permission_is_missing():
+    """Permission alone drives visibility -- with the module accessible but
+    no permission, the action must not appear."""
+    presenter, api = _presenter()
+    api.capabilities_result = DesktopApiResult(
+        ok=True, data=_capabilities(permissions=frozenset(), modules=("project_management",))
+    )
+
+    result = presenter.load_quick_actions()
+
+    assert result.data == ()
+    assert result.empty is True
+
+
+def test_create_project_omitted_when_project_management_is_not_accessible():
+    """The PM action also requires project_management accessibility, even
+    when the permission itself is held."""
+    presenter, api = _presenter()
+    api.capabilities_result = DesktopApiResult(
+        ok=True,
+        data=_capabilities(permissions=frozenset({"project.manage"}), modules=()),
+    )
+
+    result = presenter.load_quick_actions()
+
+    assert result.data == ()
+    assert result.empty is True
+
+
+def test_quick_actions_failure_returns_friendly_message():
+    presenter, api = _presenter()
+    api.capabilities_result = DesktopApiResult(
+        ok=False, error=DesktopApiError(code="X", message="boom", category="domain")
+    )
+
+    result = presenter.load_quick_actions()
+
+    assert result.ok is False
+    assert result.error_message == "Quick actions could not be loaded."
+
+
 def test_presenter_never_imports_platform_runtime_directly():
     """Structural guard for the Quick Actions API gap: the presenter must
     not import PlatformRuntimeApplicationService to work around the missing
-    permission/module input."""
+    permission/module input -- everything comes through get_capabilities()."""
     import ast
     import inspect
 
@@ -474,3 +598,16 @@ def test_presenter_never_imports_platform_runtime_directly():
         for alias in node.names
     }
     assert "PlatformRuntimeApplicationService" not in imported_names
+
+
+def test_quick_actions_never_check_role_names():
+    """Structural guard: no candidate/derivation logic may reference role
+    names -- visibility is permission- and module-driven only."""
+    import inspect
+
+    from src.ui_qml.shell.presenters import global_overview_presenter
+
+    source = inspect.getsource(global_overview_presenter._build_quick_actions)
+    assert "role_name" not in source
+    assert "role ==" not in source
+    assert "role_label" not in source

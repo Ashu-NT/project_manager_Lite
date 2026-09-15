@@ -134,6 +134,34 @@ def test_reload_loads_every_section_independently():
     assert controller.contextState == {"loading": False, "errorMessage": "", "empty": False}
 
 
+def test_attention_all_zero_counts_state_is_not_empty_and_cards_carry_interactive_flag():
+    presenter = _FakePresenter()
+    presenter.attention_result = SectionResult(
+        ok=True,
+        data=tuple(
+            AttentionCardViewModel(
+                key=key,
+                label=key,
+                value=0,
+                supporting_text="0 items",
+                route_id="",
+                filter_key=key,
+                interactive=False,
+            )
+            for key in ("all", "reviews_and_approvals", "assigned_work", "submissions")
+        ),
+        empty=False,
+    )
+    controller = _controller(presenter)
+
+    controller.reload()
+
+    assert controller.attentionState == {"loading": False, "errorMessage": "", "empty": False}
+    assert len(controller.attention) == 4
+    assert all(card["value"] == 0 for card in controller.attention)
+    assert all(card["interactive"] is False for card in controller.attention)
+
+
 def test_recent_activity_empty_state_is_reflected_without_being_an_error():
     controller = _controller()
     controller.reload()

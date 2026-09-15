@@ -48,6 +48,7 @@ def _serialize_attention_card(vm: AttentionCardViewModel) -> dict[str, object]:
         "supportingText": vm.supporting_text,
         "routeId": vm.route_id,
         "filterKey": vm.filter_key,
+        "interactive": vm.interactive,
     }
 
 

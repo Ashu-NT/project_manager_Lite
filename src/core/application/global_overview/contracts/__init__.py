@@ -6,7 +6,7 @@ from .action_center import (
     ActionCenterSummaryDto,
 )
 from .module_summary import ModuleSummaryContributor, ModuleSummaryDto
-from .overview import AttentionSummaryDto, GlobalOverviewContextDto
+from .overview import AttentionSummaryDto, GlobalOverviewCapabilitiesDto, GlobalOverviewContextDto
 
 __all__ = [
     "ActionCenterContext",
@@ -17,5 +17,6 @@ __all__ = [
     "ModuleSummaryContributor",
     "ModuleSummaryDto",
     "AttentionSummaryDto",
+    "GlobalOverviewCapabilitiesDto",
     "GlobalOverviewContextDto",
 ]

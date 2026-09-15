@@ -4,6 +4,7 @@ from src.core.application.global_overview.contracts.action_center import ActionC
 from src.core.application.global_overview.contracts.module_summary import ModuleSummaryDto
 from src.core.application.global_overview.contracts.overview import (
     AttentionSummaryDto,
+    GlobalOverviewCapabilitiesDto,
     GlobalOverviewContextDto,
 )
 from src.core.application.global_overview.services.global_overview_service import (
@@ -36,6 +37,9 @@ class GlobalOverviewDesktopApi:
 
     def list_module_summaries(self) -> DesktopApiResult[tuple[ModuleSummaryDto, ...]]:
         return execute_desktop_operation(self._global_overview_service.list_module_summaries)
+
+    def get_capabilities(self) -> DesktopApiResult[GlobalOverviewCapabilitiesDto]:
+        return execute_desktop_operation(self._global_overview_service.get_capabilities)
 
     def list_action_center(
         self,

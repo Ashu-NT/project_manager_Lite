@@ -18,4 +18,16 @@ class GlobalOverviewContextDto:
     role_label: str | None = None
 
 
-__all__ = ["AttentionSummaryDto", "GlobalOverviewContextDto"]
+@dataclass(frozen=True, slots=True)
+class GlobalOverviewCapabilitiesDto:
+    """Generic, cross-cutting session capability inputs for presentation
+    layers (e.g. deriving Quick Actions) -- never role names, and never a
+    module-specific or action-specific decision. Deciding which concrete
+    actions/cards to show from these inputs is a presentation concern, not
+    an application-layer one."""
+
+    effective_permissions: frozenset[str]
+    accessible_module_codes: tuple[str, ...]
+
+
+__all__ = ["AttentionSummaryDto", "GlobalOverviewContextDto", "GlobalOverviewCapabilitiesDto"]

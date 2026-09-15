@@ -28,12 +28,19 @@ class GlobalOverviewContextViewModel:
 
 @dataclass(frozen=True)
 class AttentionCardViewModel:
+    """`route_id` is currently always empty and `interactive` is always
+    False: no dedicated (filtered or full) Action Center destination exists
+    yet to navigate an Attention card to. This is a deferred capability --
+    "Filtered/full Action Center destination" -- not a bug; QML must not
+    show a click/hover/chevron affordance while interactive is False."""
+
     key: str
     label: str
     value: int
     supporting_text: str
     route_id: str
     filter_key: str
+    interactive: bool = False
 
 
 @dataclass(frozen=True)
@@ -52,9 +59,14 @@ class ActionCenterRowViewModel:
 
 @dataclass(frozen=True)
 class ActivityRowViewModel:
+    """`actor_label` is None until Activity actor display-name resolution
+    exists as a deferred read-model improvement -- ActivityEntryDto only
+    carries a raw actor_id today, and that id must never be shown to the
+    user as if it were a name. QML must omit the actor element when None."""
+
     id: str
     title: str
-    actor_label: str
+    actor_label: str | None
     module_label: str
     timestamp_label: str
     icon: str | None
