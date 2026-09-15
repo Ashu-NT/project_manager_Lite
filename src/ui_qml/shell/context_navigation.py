@@ -71,6 +71,49 @@ class ContextNavigationViewModel:
         ]
 
 
+def filter_context_navigation(
+    tree: ContextNavigationViewModel, accessible_ids: frozenset[str]
+) -> ContextNavigationViewModel:
+    """Return a copy of `tree` keeping only items whose id is in
+    `accessible_ids` (empty groups are dropped)."""
+    filtered_groups = []
+    for group in tree.groups:
+        kept_items = tuple(item for item in group.items if item.id in accessible_ids)
+        if kept_items:
+            filtered_groups.append(
+                ContextNavigationGroupViewModel(
+                    id=group.id,
+                    label=group.label,
+                    order=group.order,
+                    expanded_by_default=group.expanded_by_default,
+                    items=kept_items,
+                )
+            )
+    return ContextNavigationViewModel(
+        workspace_id=tree.workspace_id,
+        title=tree.title,
+        groups=tuple(filtered_groups),
+    )
+
+
+def resolve_breadcrumb(
+    *, workspace_title: str, tree: ContextNavigationViewModel, current_id: str
+) -> list[str]:
+    """Resolve a `[workspace, group?, destination]` breadcrumb trail for
+    `current_id` within `tree` (the group segment is omitted for ungrouped
+    root-level destinations). Falls back to `[workspace_title]` alone when
+    `current_id` isn't found in the tree (e.g. before it has loaded)."""
+    for group in tree.groups:
+        for item in group.items:
+            if item.id == current_id:
+                segments = [workspace_title]
+                if group.label:
+                    segments.append(group.label)
+                segments.append(item.label)
+                return segments
+    return [workspace_title]
+
+
 def resolve_safe_context_destination(
     current_id: str,
     tree: ContextNavigationViewModel,
@@ -109,5 +152,7 @@ __all__ = [
     "ContextNavigationGroupViewModel",
     "ContextNavigationViewModel",
     "build_context_navigation_view_model",
+    "filter_context_navigation",
+    "resolve_breadcrumb",
     "resolve_safe_context_destination",
 ]

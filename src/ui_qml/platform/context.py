@@ -6,7 +6,10 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 from src.ui_qml.platform.navigation.platform_context_navigation import (
     build_platform_context_navigation,
 )
-from src.ui_qml.shell.context_navigation import resolve_safe_context_destination
+from src.ui_qml.shell.context_navigation import (
+    resolve_breadcrumb,
+    resolve_safe_context_destination,
+)
 
 from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
 from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
@@ -95,6 +98,7 @@ QML_IMPORT_MAJOR_VERSION = 1
 class PlatformWorkspaceCatalog(QObject):
     contextNavigationChanged = Signal()
     currentDestinationIdChanged = Signal()
+    breadcrumbChanged = Signal()
 
     def __init__(
         self,
@@ -527,6 +531,7 @@ class PlatformWorkspaceCatalog(QObject):
         self._current_permissions = self._fetch_current_permissions()
         if self._current_permissions != previous:
             self.contextNavigationChanged.emit()
+            self.breadcrumbChanged.emit()
             self._redirect_if_current_destination_inaccessible()
 
     def _redirect_if_current_destination_inaccessible(self) -> None:
@@ -537,6 +542,7 @@ class PlatformWorkspaceCatalog(QObject):
         if safe_id != self._current_destination_id:
             self._current_destination_id = safe_id
             self.currentDestinationIdChanged.emit()
+            self.breadcrumbChanged.emit()
 
     def _fetch_current_permissions(self) -> frozenset[str]:
         if self._runtime_api is None:
@@ -556,6 +562,13 @@ class PlatformWorkspaceCatalog(QObject):
     def currentDestinationId(self) -> str:
         return self._current_destination_id
 
+    @Property("QVariantList", notify=breadcrumbChanged)
+    def breadcrumb(self) -> list[str]:
+        tree = build_platform_context_navigation(held_permissions=self._current_permissions)
+        return resolve_breadcrumb(
+            workspace_title="Platform", tree=tree, current_id=self._current_destination_id
+        )
+
     @Slot(str)
     def selectDestination(self, destination_id: str) -> None:
         normalized = str(destination_id or "").strip()
@@ -563,6 +576,7 @@ class PlatformWorkspaceCatalog(QObject):
             return
         self._current_destination_id = normalized
         self.currentDestinationIdChanged.emit()
+        self.breadcrumbChanged.emit()
 
     @Slot()
     def refreshCurrentPermissions(self) -> None:

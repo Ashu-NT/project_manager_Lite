@@ -12,6 +12,11 @@ from src.ui_qml.modules.project_management.navigation import (
     compatibility_route_intent,
     workspace_intent,
 )
+from src.ui_qml.shell.context_navigation import (
+    filter_context_navigation,
+    resolve_breadcrumb,
+    resolve_safe_context_destination,
+)
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -57,6 +62,32 @@ class PMWorkspaceNavigationController(QObject):
     @Property("QVariantList", constant=True)
     def contextNavigation(self) -> list[dict[str, object]]:
         return build_pm_context_navigation().to_qml_groups()
+
+    @Property("QVariantList", notify=selectionChanged)
+    def breadcrumb(self) -> list[str]:
+        return resolve_breadcrumb(
+            workspace_title="Project Management",
+            tree=build_pm_context_navigation(),
+            current_id=self._workspace_key,
+        )
+
+    @Slot("QVariantList")
+    def refreshContextAvailability(self, accessible_workspace_keys) -> None:
+        """Re-validate the current workspace selection against a filtered
+        set of accessible workspace keys, redirecting to a safe destination
+        when the current one is no longer present. PM's context navigation
+        is not filtered by permissions today, so nothing calls this yet --
+        it exists so a future Level-2 PM accessibility source can plug in
+        through the same redirect contract Platform already uses."""
+        accessible_ids = frozenset(str(key) for key in (accessible_workspace_keys or []))
+        if not accessible_ids:
+            return
+        filtered = filter_context_navigation(build_pm_context_navigation(), accessible_ids)
+        safe_key = resolve_safe_context_destination(
+            self._workspace_key, filtered, preferred_id="dashboard"
+        )
+        if safe_key != self._workspace_key:
+            self.selectWorkspace(safe_key)
 
     @Slot(str, result=bool)
     def applyRoute(self, route_id: str) -> bool:

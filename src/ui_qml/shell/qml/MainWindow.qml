@@ -45,6 +45,16 @@ Item {
         return ""
     }
 
+    readonly property var _breadcrumb: {
+        if (root._currentModuleCode === "platform" && root.platformCatalog) {
+            return root.platformCatalog.breadcrumb
+        }
+        if (root._currentModuleCode === "project_management" && root.pmCatalog) {
+            return root.pmCatalog.pmNavigation.breadcrumb
+        }
+        return []
+    }
+
     function _selectContextDestination(destinationId) {
         if (root._currentModuleCode === "platform" && root.platformCatalog) {
             root.platformCatalog.selectDestination(destinationId)
@@ -72,6 +82,7 @@ Item {
             organizationSwitcherController: root.organizationSwitcherController
             notificationsController: root.notificationsController
             sidebarCollapsed: root._globalNavCollapsed
+            breadcrumb: root._breadcrumb
             onToggleSidebar: root._globalNavCollapsed = !root._globalNavCollapsed
             onNotificationsRequested: root._notificationsPanelOpen = true
         }

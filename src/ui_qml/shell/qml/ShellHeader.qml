@@ -18,9 +18,14 @@ Rectangle {
     // of platformCatalog and of each other.
     property var organizationSwitcherController: null
     property var notificationsController: null
+    // [workspace, group?, destination] -- empty on the global Overview
+    // route, where a breadcrumb adds nothing over the plain page title.
+    property var breadcrumb: []
 
     signal toggleSidebar()
     signal notificationsRequested()
+
+    readonly property string breadcrumbText: (header.breadcrumb || []).join("  /  ")
 
     readonly property string currentModuleLabel: {
         if (!header.shellModel) {
@@ -104,7 +109,9 @@ Rectangle {
 
                 AppControls.Label {
                     Layout.fillWidth: true
-                    text: header.shellModel ? (header.shellModel.currentRouteTitle || "") : ""
+                    text: header.breadcrumbText.length > 0
+                        ? header.breadcrumbText
+                        : (header.shellModel ? (header.shellModel.currentRouteTitle || "") : "")
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.bodySize
@@ -113,7 +120,7 @@ Rectangle {
                 }
 
                 Rectangle {
-                    visible: header.currentModuleLabel.length > 0
+                    visible: header.breadcrumbText.length === 0 && header.currentModuleLabel.length > 0
                     radius: Theme.AppTheme.radiusSm
                     color: Theme.AppTheme.surfaceOverlay
                     implicitWidth: moduleText.implicitWidth + 14
