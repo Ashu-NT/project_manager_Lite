@@ -17,7 +17,7 @@ def _canonical_activity_item(**overrides) -> dict[str, object]:
         "iconKey": "collaboration",
         "tone": "neutral",
         "subjectDisplay": "Project Apollo",
-        "statusLabel": "",
+        "badgeLabel": "",
         "activationState": {
             "routeId": "project_management.tasks",
             "projectId": "project-1",

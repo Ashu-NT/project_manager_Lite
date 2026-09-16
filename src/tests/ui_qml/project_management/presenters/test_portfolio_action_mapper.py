@@ -19,11 +19,11 @@ def _recent_action(**overrides) -> SimpleNamespace:
     return SimpleNamespace(**fields)
 
 
-def test_project_name_is_carried_as_subject_display_not_status_label() -> None:
+def test_project_name_is_carried_as_subject_display_not_badge_label() -> None:
     item = to_recent_action_activity_item(_recent_action())
 
     assert item.subject_display == "Project Apollo"
-    assert item.status_label == ""
+    assert item.badge_label == ""
 
 
 def test_maps_title_description_actor_and_timestamp_label() -> None:

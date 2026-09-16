@@ -106,7 +106,7 @@ class PlatformControlQueuePresenter:
             occurred_at_label=PlatformControlQueuePresenter._format_timestamp(row.requested_at),
             icon_key="approve",
             tone=_APPROVAL_STATUS_TONE.get(row.status, "neutral"),
-            status_label=row.status.value.title() if row.status != ApprovalStatus.PENDING else "",
+            badge_label=row.status.value.title() if row.status != ApprovalStatus.PENDING else "",
         )
 
     def build_audit_feed(
@@ -187,7 +187,7 @@ class PlatformControlQueuePresenter:
             occurred_at_label=PlatformControlQueuePresenter._format_timestamp(row.timestamp),
             icon_key=icon_key_for_entity_type(row.entity_type),
             tone=_AUDIT_SEVERITY_TONE.get(severity, "neutral"),
-            status_label=row.severity.capitalize() if severity in ("critical", "high") else "",
+            badge_label=row.severity.capitalize() if severity in ("critical", "high") else "",
         )
 
     def approve_request(self, request_id: str, note: str | None = None) -> DesktopApiResult[object]:

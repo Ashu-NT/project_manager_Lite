@@ -35,7 +35,7 @@ def test_log_entries_map_status_label_to_an_explicit_tone() -> None:
 
     item = result["items"][0]
     assert item["tone"] == "info"
-    assert item["statusLabel"] == "Info"
+    assert item["badgeLabel"] == "Info"
     assert item["occurredAtLabel"] == "Just now"
 
 
@@ -61,7 +61,7 @@ def test_top_delayed_task_gets_a_warning_tone_row() -> None:
     item = result["items"][0]
     assert item["title"] == "Cable Pull is late"
     assert item["tone"] == "warning"
-    assert item["statusLabel"] == "Warning"
+    assert item["badgeLabel"] == "Warning"
 
 
 def test_overloaded_resource_gets_a_danger_tone_row() -> None:
@@ -75,7 +75,7 @@ def test_overloaded_resource_gets_a_danger_tone_row() -> None:
     item = result["items"][0]
     assert item["title"] == "Ada exceeds capacity"
     assert item["tone"] == "danger"
-    assert item["statusLabel"] == "Danger"
+    assert item["badgeLabel"] == "Danger"
 
 
 def test_does_not_fabricate_actor_or_raw_timestamp_data() -> None:

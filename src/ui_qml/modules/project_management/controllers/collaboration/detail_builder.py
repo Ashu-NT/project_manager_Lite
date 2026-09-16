@@ -123,7 +123,7 @@ def build_detail_payload(
     detail = CollaborationDetailViewModel(
         id=item_id,
         title=str(item.get("title") or ""),
-        status_label=str(item.get("statusLabel") or ""),
+        status_label=str(item.get("statusLabel") or item.get("badgeLabel") or ""),
         subtitle=str(item.get("subtitle") or item.get("subjectDisplay") or ""),
         description=str(item.get("supportingText") or item.get("description") or ""),
         state={

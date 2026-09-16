@@ -88,7 +88,7 @@ def _to_activity_item(entry) -> ActivityItemViewModel:
         icon_key=icon_key_for_entity_type(str(entry.entity_type or "")),
         tone=_SEVERITY_TONE.get(severity, "neutral"),
         subject_display=entity_label,
-        status_label=entry.severity.capitalize() if severity in ("critical", "high") else "",
+        badge_label=entry.severity.capitalize() if severity in ("critical", "high") else "",
     )
 
 

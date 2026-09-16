@@ -55,7 +55,7 @@ def _to_audit_preview_item(entry: AuditEntryDto) -> ActivityItemViewModel:
         occurred_at_label=entry.timestamp.strftime("%Y-%m-%d %H:%M UTC"),
         icon_key=icon_key_for_entity_type(entry.entity_type),
         tone=_SEVERITY_TONE.get(severity, "neutral"),
-        status_label=entry.severity.capitalize() if severity in ("critical", "high") else "",
+        badge_label=entry.severity.capitalize() if severity in ("critical", "high") else "",
     )
 
 

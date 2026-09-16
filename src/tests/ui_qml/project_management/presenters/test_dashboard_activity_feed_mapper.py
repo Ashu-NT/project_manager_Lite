@@ -49,7 +49,7 @@ def test_mention_gets_info_tone_and_badge() -> None:
     item = to_activity_feed(feed)["items"][0]
 
     assert item["tone"] == "info"
-    assert item["statusLabel"] == "Mention"
+    assert item["badgeLabel"] == "Mention"
 
 
 def test_ordinary_comment_has_no_badge_and_neutral_tone() -> None:
@@ -58,7 +58,7 @@ def test_ordinary_comment_has_no_badge_and_neutral_tone() -> None:
     item = to_activity_feed(feed)["items"][0]
 
     assert item["tone"] == "neutral"
-    assert item["statusLabel"] == ""
+    assert item["badgeLabel"] == ""
 
 
 def test_activation_state_carries_route_and_raw_ids() -> None:

@@ -61,7 +61,7 @@ def test_build_approval_activity_preview_produces_the_canonical_shape() -> None:
     assert item.actor_display == "ada"
     assert item.subject_display == "Project Apollo"
     assert item.tone == "warning"
-    assert item.status_label == ""  # pending is the ordinary state -- no badge
+    assert item.badge_label == ""  # pending is the ordinary state -- no badge
     assert item.occurred_at == datetime(2026, 3, 5, 14, 30, tzinfo=timezone.utc)
 
 
@@ -73,7 +73,7 @@ def test_build_approval_activity_preview_tone_reflects_real_status_not_text() ->
     items = presenter.build_approval_activity_preview()
 
     assert items[0].tone == "success"
-    assert items[0].status_label == "Approved"
+    assert items[0].badge_label == "Approved"
 
 
 def test_build_approval_activity_preview_respects_limit() -> None:
@@ -102,7 +102,7 @@ def test_build_audit_activity_preview_produces_the_canonical_shape() -> None:
     assert item.subject_display == "Role"
     assert item.icon_key == "history"  # "role" has no dedicated icon registry mapping
     assert item.tone == "neutral"
-    assert item.status_label == ""
+    assert item.badge_label == ""
 
 
 def test_build_audit_activity_preview_high_severity_gets_a_badge_and_danger_tone() -> None:
@@ -113,7 +113,7 @@ def test_build_audit_activity_preview_high_severity_gets_a_badge_and_danger_tone
     items = presenter.build_audit_activity_preview()
 
     assert items[0].tone == "danger"
-    assert items[0].status_label == "Critical"
+    assert items[0].badge_label == "Critical"
 
 
 def test_build_audit_activity_preview_empty_without_api() -> None:

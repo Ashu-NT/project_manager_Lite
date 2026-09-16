@@ -26,7 +26,7 @@ def _to_activity_item(item) -> ActivityItemViewModel:
         icon_key="collaboration",
         tone="info" if is_mention else "neutral",
         subject_display=item.project_name,
-        status_label="Mention" if is_mention else "",
+        badge_label="Mention" if is_mention else "",
         activation_state={
             "routeId": "project_management.tasks",
             "projectId": item.project_id,

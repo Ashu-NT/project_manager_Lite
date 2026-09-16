@@ -347,7 +347,7 @@ class TestBuildProjectActivityPage:
         # No user_api/employee_api match for "user-1" -> falls back to "System".
         assert item["actorDisplay"] == "System"
         assert item["tone"] == "warning"
-        assert item["statusLabel"] == ""
+        assert item["badgeLabel"] == ""
         assert item["occurredAtLabel"] == "05 Mar 2026 14:45"
         projects_api.list_project_activity_page.assert_called_once_with(
             "proj-1", search_text="", category="all", page=1, page_size=25,
@@ -452,14 +452,14 @@ class TestBuildProjectActivityPage:
         result = p.build_project_activity_page(project_id="p-1")
         item = result["items"][0]
         assert item["tone"] == "success"
-        assert item["statusLabel"] == ""
+        assert item["badgeLabel"] == ""
 
     def test_deletion_action_gets_danger_tone_and_no_badge(self):
         p, _, __, ___ = _presenter(activity_entries=[_activity_entry(action="project.delete")])
         result = p.build_project_activity_page(project_id="p-1")
         item = result["items"][0]
         assert item["tone"] == "danger"
-        assert item["statusLabel"] == ""
+        assert item["badgeLabel"] == ""
 
     def test_subject_display_reflects_entity_type(self):
         entry = _activity_entry(entity_type="project_resource")

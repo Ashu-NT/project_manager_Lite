@@ -69,7 +69,7 @@ class TestBuildTaskActivityPage:
         assert item["title"] == "Marked in progress"
         assert item["actorDisplay"] == "System"
         assert item["tone"] == "neutral"  # "set_status" matches no danger/warning/success verb keyword
-        assert item["statusLabel"] == ""
+        assert item["badgeLabel"] == ""
         assert item["occurredAtLabel"] == "05 Mar 2026 14:45"
         tasks_api.list_task_activity_page.assert_called_once_with(
             "task-1", search_text="", category="all", page=1, page_size=25,
@@ -95,13 +95,13 @@ class TestBuildTaskActivityPage:
         p, _ = _presenter(activity_entries=[_activity_entry(action="task.create")])
         item = p.build_task_activity_page(task_id="task-1")["items"][0]
         assert item["tone"] == "success"
-        assert item["statusLabel"] == ""
+        assert item["badgeLabel"] == ""
 
     def test_deletion_action_gets_danger_tone_and_no_badge(self):
         p, _ = _presenter(activity_entries=[_activity_entry(action="task.delete")])
         item = p.build_task_activity_page(task_id="task-1")["items"][0]
         assert item["tone"] == "danger"
-        assert item["statusLabel"] == ""
+        assert item["badgeLabel"] == ""
 
     def test_subject_display_reflects_entity_type(self):
         entry = _activity_entry(entity_type="task_assignment")

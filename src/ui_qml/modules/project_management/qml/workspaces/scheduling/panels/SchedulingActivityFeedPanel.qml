@@ -54,7 +54,7 @@ Item {
                             const haystack = (
                                 String(item.title || "") + " " +
                                 String(item.subjectDisplay || "") + " " +
-                                String(item.statusLabel || "")
+                                String(item.badgeLabel || "")
                             ).toLowerCase()
                             if (haystack.indexOf(term) >= 0) filtered.push(item)
                         }

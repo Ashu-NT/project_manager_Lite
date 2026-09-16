@@ -40,27 +40,27 @@ def test_explicit_tone_is_preserved_for_every_valid_value() -> None:
 
 
 def test_invalid_tone_fails_safe_to_neutral_regardless_of_text_content() -> None:
-    """Changing title/description/status_label text must never change the
+    """Changing title/description/badge_label text must never change the
     resolved tone -- only an explicit, valid tone value can."""
-    item_a = _item(title="Catastrophic failure", description="Everything broke", status_label="Failed", tone="not-a-real-tone")
-    item_b = _item(title="Routine update", description="Nothing happened", status_label="", tone="not-a-real-tone")
+    item_a = _item(title="Catastrophic failure", description="Everything broke", badge_label="Failed", tone="not-a-real-tone")
+    item_b = _item(title="Routine update", description="Nothing happened", badge_label="", tone="not-a-real-tone")
     assert item_a.tone == item_b.tone == "neutral"
 
-    item_c = _item(title="Approved", status_label="Approved", tone="danger")
-    item_d = _item(title="Approved", status_label="Approved", tone="success")
+    item_c = _item(title="Approved", badge_label="Approved", tone="danger")
+    item_d = _item(title="Approved", badge_label="Approved", tone="success")
     assert item_c.tone == "danger"
     assert item_d.tone == "success"
 
 
-def test_status_label_is_optional_and_empty_by_default() -> None:
+def test_badge_label_is_optional_and_empty_by_default() -> None:
     item = _item()
-    assert item.status_label == ""
-    assert serialize_activity_item(item)["statusLabel"] == ""
+    assert item.badge_label == ""
+    assert serialize_activity_item(item)["badgeLabel"] == ""
 
 
-def test_status_label_can_carry_a_real_outcome_when_supplied() -> None:
-    item = _item(status_label="Rejected", tone="danger")
-    assert serialize_activity_item(item)["statusLabel"] == "Rejected"
+def test_badge_label_can_carry_a_real_outcome_when_supplied() -> None:
+    item = _item(badge_label="Rejected", tone="danger")
+    assert serialize_activity_item(item)["badgeLabel"] == "Rejected"
 
 
 def test_raw_and_formatted_timestamp_are_both_available_independently() -> None:

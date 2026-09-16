@@ -173,7 +173,7 @@ def _to_activity_item(item, actor_lookup: dict[str, str]) -> ActivityItemViewMod
         icon_key=icon_key_for_entity_type(item.source_type),
         tone=tone_for_action(item.event_type),
         subject_display=item.source_type.replace("_", " ").title(),
-        status_label=_label(item.category),
+        badge_label=_label(item.category),
         activation_state=activation_state,
     )
 

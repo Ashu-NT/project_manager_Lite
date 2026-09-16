@@ -32,6 +32,12 @@ def build_actor_lookup(user_result, employee_result) -> dict[str, str]:
     name rather than a login-oriented username/display_name -- so an
     Employee match, when one exists, wins over the User account's own
     fields.
+
+    Builds the lookup from the full user and employee lists once per page
+    load (bounded, no per-row query). At current data volumes this is
+    cheaper than a page-scoped fetch; if user/employee counts grow large
+    enough for that to change, this should resolve only the actor ids
+    present on the current page rather than listing every user/employee.
     """
     lookup = build_user_lookup(user_result)
     if employee_result is not None and employee_result.ok and employee_result.data is not None:
@@ -146,10 +152,4 @@ __all__ = [
     "build_activity_records",
     "build_actor_lookup",
     "build_id_lookup",
-    "build_user_lookup",
-    "format_changes_summary",
-    "humanize_action",
-    "icon_key_for_entity_type",
-    "resolve_change_value",
-    "tone_for_action",
 ]

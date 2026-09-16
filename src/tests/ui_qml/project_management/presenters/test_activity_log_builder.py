@@ -5,6 +5,8 @@ from types import SimpleNamespace
 
 from src.ui_qml.modules.project_management.presenters.common.activity_log_builder import (
     build_activity_records,
+)
+from src.ui_qml.shared.models.activity_item import (
     humanize_action,
     icon_key_for_entity_type,
     tone_for_action,

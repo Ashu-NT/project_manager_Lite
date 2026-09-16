@@ -85,13 +85,15 @@ class ActivityItemViewModel:
     occurred_at_label: str = ""
     # Domain-neutral App.Icons.AppIcon registry key.
     icon_key: str = _DEFAULT_ICON_KEY
-    # Explicit semantic tone -- never derived from title/description/statusLabel text.
+    # Explicit semantic tone -- never derived from title/description/badgeLabel text.
+    # Colors both the row's icon accent and its badge chip.
     tone: str = _DEFAULT_TONE
     # Optional related-object display value (e.g. a project/task name this event is about).
     subject_display: str = ""
-    # Optional -- only for a real state/outcome. Ordinary create/update/assign/upload
-    # events do not need a badge; leave "" and ActivityFeed reserves no space for it.
-    status_label: str = ""
+    # Optional short badge -- a real state/outcome (Approved, Critical) or a stable
+    # display category (Mention, Comment). Leave "" for an ordinary event with
+    # neither, and ActivityFeed reserves no space for it.
+    badge_label: str = ""
     # Optional opaque activation/navigation payload. ActivityFeed treats a non-None
     # value as "this row is clickable" and hands it back unmodified via itemActivated
     # -- it never interprets the contents. None/omitted means not independently
@@ -116,7 +118,7 @@ def serialize_activity_item(item: ActivityItemViewModel) -> dict[str, Any]:
         "iconKey": item.icon_key,
         "tone": item.tone,
         "subjectDisplay": item.subject_display,
-        "statusLabel": item.status_label,
+        "badgeLabel": item.badge_label,
         "activationState": item.activation_state,
     }
 

@@ -13,15 +13,15 @@ _TONE_BY_LABEL: dict[str, str] = {
 }
 
 
-def _item(*, id: str, title: str, status_label: str, subtitle: str, description: str, occurred_at_label: str) -> ActivityItemViewModel:
+def _item(*, id: str, title: str, badge_label: str, subtitle: str, description: str, occurred_at_label: str) -> ActivityItemViewModel:
     return ActivityItemViewModel(
         id=id,
         title=title,
         description=description,
         occurred_at_label=occurred_at_label,
-        tone=_TONE_BY_LABEL.get(status_label, "neutral"),
+        tone=_TONE_BY_LABEL.get(badge_label, "neutral"),
         subject_display=subtitle,
-        status_label=status_label,
+        badge_label=badge_label,
     )
 
 
@@ -36,7 +36,7 @@ def build_activity_feed_collection(
         _item(
             id=f"log:{index}",
             title=str(entry.get("title", "") or ""),
-            status_label=str(entry.get("statusLabel", "") or "Info"),
+            badge_label=str(entry.get("statusLabel", "") or "Info"),
             subtitle=str(entry.get("subtitle", "") or ""),
             description="",
             occurred_at_label=str(entry.get("metaText", "") or ""),
@@ -50,7 +50,7 @@ def build_activity_feed_collection(
             _item(
                 id=f"delay:{top_delay.task_id}",
                 title=f"{top_delay.name} is late",
-                status_label="Warning",
+                badge_label="Warning",
                 subtitle=f"Late by {int_label(top_delay.late_by_days)} day(s)",
                 description="Review deadline protection and downstream impact.",
                 occurred_at_label=format_date(top_delay.finish_date),
@@ -65,7 +65,7 @@ def build_activity_feed_collection(
             _item(
                 id=f"resource:{overloaded.resource_id}",
                 title=f"{overloaded.resource_name} exceeds capacity",
-                status_label="Danger",
+                badge_label="Danger",
                 subtitle=f"Utilization {overloaded.utilization_label}",
                 description="Resource leveling or reassignment may be required.",
                 occurred_at_label=f"{overloaded.tasks_count} task(s)",
@@ -76,7 +76,7 @@ def build_activity_feed_collection(
             _item(
                 id="feed:loaded",
                 title="Schedule snapshot loaded",
-                status_label="Info",
+                badge_label="Info",
                 subtitle=f"{len(schedule_items)} activities available",
                 description="Planner data is ready for review and recalculation.",
                 occurred_at_label="Current session",

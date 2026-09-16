@@ -56,7 +56,7 @@ def test_low_severity_has_no_badge_and_neutral_tone() -> None:
     item = build_finance_audit_collection(api, project_id="project-1")["items"][0]
 
     assert item["tone"] == "neutral"
-    assert item["statusLabel"] == ""
+    assert item["badgeLabel"] == ""
 
 
 def test_critical_severity_gets_danger_tone_and_badge() -> None:
@@ -65,7 +65,7 @@ def test_critical_severity_gets_danger_tone_and_badge() -> None:
     item = build_finance_audit_collection(api, project_id="project-1")["items"][0]
 
     assert item["tone"] == "danger"
-    assert item["statusLabel"] == "Critical"
+    assert item["badgeLabel"] == "Critical"
 
 
 def test_falls_back_to_system_when_actor_is_missing() -> None:

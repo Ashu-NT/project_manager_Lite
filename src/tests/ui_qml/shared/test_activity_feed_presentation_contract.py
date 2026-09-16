@@ -47,6 +47,10 @@ def _is_clickable(root, item: dict) -> bool:
     return QMetaObject.invokeMethod(root, "isRowClickable", Q_RETURN_ARG("QVariant"), Q_ARG("QVariant", item))
 
 
+def _format_footer(root, item: dict) -> str:
+    return QMetaObject.invokeMethod(root, "formatFooterText", Q_RETURN_ARG("QVariant"), Q_ARG("QVariant", item))
+
+
 # ---------------------------------------------------------------------------
 # Tone: explicit only, never inferred from text
 # ---------------------------------------------------------------------------
@@ -66,18 +70,18 @@ def test_missing_or_invalid_tone_fails_safe_to_neutral(qapp) -> None:
 
 
 def test_changing_title_or_description_text_cannot_alter_tone(qapp) -> None:
-    """Two items with wildly different title/description/statusLabel text but
+    """Two items with wildly different title/description/badgeLabel text but
     the same explicit tone must resolve identically -- proving tone is never
     derived from any display text. And the same text with two different
     explicit tones must resolve differently, proving the text has zero
     residual influence."""
     feed = _make_feed(qapp)
-    item_a = {"title": "Project deleted", "description": "This looks catastrophic", "statusLabel": "Failed", "tone": "success"}
-    item_b = {"title": "Note added", "description": "Nothing much happened", "statusLabel": "", "tone": "success"}
+    item_a = {"title": "Project deleted", "description": "This looks catastrophic", "badgeLabel": "Failed", "tone": "success"}
+    item_b = {"title": "Note added", "description": "Nothing much happened", "badgeLabel": "", "tone": "success"}
     assert _resolve_tone(feed, item_a) == _resolve_tone(feed, item_b) == "success"
 
-    item_c = {"title": "Approved", "description": "Approved", "statusLabel": "Approved", "tone": "danger"}
-    item_d = {"title": "Approved", "description": "Approved", "statusLabel": "Approved", "tone": "success"}
+    item_c = {"title": "Approved", "description": "Approved", "badgeLabel": "Approved", "tone": "danger"}
+    item_d = {"title": "Approved", "description": "Approved", "badgeLabel": "Approved", "tone": "success"}
     assert _resolve_tone(feed, item_c) == "danger"
     assert _resolve_tone(feed, item_d) == "success"
     assert _resolve_tone(feed, item_c) != _resolve_tone(feed, item_d)
@@ -85,10 +89,10 @@ def test_changing_title_or_description_text_cannot_alter_tone(qapp) -> None:
 
 def test_no_keyword_based_tone_or_color_inference_remains_in_source() -> None:
     """ActivityFeed must never derive tone or color by lowercasing and
-    keyword-matching statusLabel/title/description text. The only permitted
+    keyword-matching badgeLabel/title/description text. The only permitted
     text search is the fixed-vocabulary tone membership check in
     `resolveTone()`, which validates an explicit tone value and never
-    inspects title/description/statusLabel."""
+    inspects title/description/badgeLabel."""
     from src.tests.path_rewrites import REPO_ROOT
 
     source = (
@@ -137,24 +141,87 @@ def test_no_title_or_meta_text_equality_matching_remains_in_source() -> None:
     ).read_text(encoding="utf-8")
     assert "routeId" not in source, "widget must not read a routeId field directly -- use activationState"
     assert "metaText" not in source
-    assert "statusLabel ===" not in source
+    assert "badgeLabel ===" not in source
 
 
 # ---------------------------------------------------------------------------
-# statusLabel: optional, reserves no layout space when absent
+# badgeLabel: optional, reserves no layout space when absent
 # ---------------------------------------------------------------------------
 
 
-def test_status_chip_visibility_is_bound_to_status_label_presence() -> None:
-    """StatusChip sits in a RowLayout with `visible: statusLabel.length > 0`
+def test_status_chip_visibility_is_bound_to_badge_label_presence() -> None:
+    """StatusChip sits in a RowLayout with `visible: badgeLabel.length > 0`
     -- QtQuick Layouts exclude invisible children from space allocation, so
-    an absent statusLabel reserves zero width/height by construction."""
+    an absent badgeLabel reserves zero width/height by construction."""
     from src.tests.path_rewrites import REPO_ROOT
 
     source = (
         REPO_ROOT / "src" / "ui_qml" / "shared" / "qml" / "App" / "Widgets" / "ActivityFeed.qml"
     ).read_text(encoding="utf-8")
-    assert 'visible: _row._statusLabel.length > 0' in source
+    assert 'visible: _row._badgeLabel.length > 0' in source
+
+
+# ---------------------------------------------------------------------------
+# Footer composition: subjectDisplay + actorDisplay + occurredAtLabel
+# ---------------------------------------------------------------------------
+
+
+def test_footer_orders_subject_actor_timestamp_with_separators(qapp) -> None:
+    feed = _make_feed(qapp)
+    footer = _format_footer(feed, {
+        "subjectDisplay": "Project Apollo", "actorDisplay": "ada", "occurredAtLabel": "05 Mar 2026 14:30",
+    })
+    assert footer == "Project Apollo · ada · 05 Mar 2026 14:30"
+
+
+def test_footer_omits_empty_parts_without_stray_separators(qapp) -> None:
+    feed = _make_feed(qapp)
+    assert _format_footer(feed, {"actorDisplay": "System", "occurredAtLabel": "05 Mar 2026 14:30"}) == "System · 05 Mar 2026 14:30"
+    assert _format_footer(feed, {"subjectDisplay": "Project Apollo", "occurredAtLabel": "05 Mar 2026 14:30"}) == "Project Apollo · 05 Mar 2026 14:30"
+    assert _format_footer(feed, {}) == ""
+
+
+def test_footer_handles_a_long_subject_with_a_short_actor(qapp) -> None:
+    feed = _make_feed(qapp)
+    footer = _format_footer(feed, {
+        "subjectDisplay": "Enterprise Resource Planning Rollout Program Apollo Phase Two",
+        "actorDisplay": "ada", "occurredAtLabel": "05 Mar 2026 14:30",
+    })
+    assert footer.startswith("Enterprise Resource Planning Rollout Program Apollo Phase Two · ada")
+
+
+def test_footer_handles_a_short_subject_with_a_long_actor(qapp) -> None:
+    feed = _make_feed(qapp)
+    footer = _format_footer(feed, {
+        "subjectDisplay": "Apollo", "actorDisplay": "A Very Long Employee Full Name For Testing",
+        "occurredAtLabel": "05 Mar 2026 14:30",
+    })
+    assert footer == "Apollo · A Very Long Employee Full Name For Testing · 05 Mar 2026 14:30"
+
+
+def test_footer_does_not_duplicate_a_subject_that_matches_the_actor(qapp) -> None:
+    """A presenter that (by domain accident) sets the same text for both
+    subject and actor still gets a footer with the text repeated verbatim --
+    ActivityFeed composes fields mechanically and never reasons about
+    whether two fields happen to carry equal text."""
+    feed = _make_feed(qapp)
+    footer = _format_footer(feed, {"subjectDisplay": "Ada Lovelace", "actorDisplay": "Ada Lovelace"})
+    assert footer == "Ada Lovelace · Ada Lovelace"
+
+
+def test_row_label_wraps_the_full_row_width_and_elides_long_footer_text() -> None:
+    """The footer Label sits in a Layout.fillWidth column and elides on the
+    right, so a long combined subject/actor/timestamp string is clipped with
+    an ellipsis rather than overflowing the row or wrapping onto a new line."""
+    from src.tests.path_rewrites import REPO_ROOT
+
+    source = (
+        REPO_ROOT / "src" / "ui_qml" / "shared" / "qml" / "App" / "Widgets" / "ActivityFeed.qml"
+    ).read_text(encoding="utf-8")
+    before, after = source.split("_footerText.length > 0")
+    footer_label_block = before.rsplit("AppControls.Label {", 1)[1] + after.split("}")[0]
+    assert "elide:" in footer_label_block
+    assert "Layout.fillWidth: true" in footer_label_block
 
 
 # ---------------------------------------------------------------------------

@@ -8,7 +8,7 @@ import App.Icons 1.0 as AppIcons
 
 // Reusable timeline activity feed -- renderer + interaction emitter ONLY.
 // It never parses action text, never infers tone/meaning from title,
-// description, or statusLabel, and never understands any caller's domain
+// description, or badgeLabel, and never understands any caller's domain
 // (project/task/organization/...). Every presentation decision -- title,
 // description, icon, tone, actor display, timestamp formatting -- is made
 // by the presenter/builder that owns the domain and handed to this widget
@@ -18,13 +18,16 @@ import App.Icons 1.0 as AppIcons
 // items: [{
 //   id, title, description, supportingText, actorDisplay,
 //   occurredAt, occurredAtLabel, iconKey, tone, subjectDisplay,
-//   statusLabel, activationState
+//   badgeLabel, activationState
 // }]
 //
 // - tone: one of "neutral" | "info" | "success" | "warning" | "danger",
 //   supplied explicitly. Unrecognized/missing values fail safe to "neutral".
-// - statusLabel is optional: leave "" for an ordinary event -- the badge is
-//   omitted and reserves no layout space.
+//   Colors both the row's icon accent and its badge chip.
+// - badgeLabel is optional: a real state/outcome (Approved, Critical) or a
+//   stable display category (Mention, Comment) -- never a project/task name,
+//   filter key, entity id, or route. Leave "" for an ordinary event with
+//   neither -- the badge is omitted and reserves no layout space.
 // - activationState: optional opaque navigation payload. A row is
 //   clickable when this is present (non-null/undefined) or when the
 //   feed-level `rowsActivatable` is set. This widget never inspects its
@@ -43,7 +46,7 @@ Item {
 
     // Single source of truth for tone normalization -- an item's `tone` is
     // taken as-is when it's one of the five valid values, and forced to
-    // "neutral" otherwise. Never consults title/description/statusLabel.
+    // "neutral" otherwise. Never consults title/description/badgeLabel.
     function resolveTone(item) {
         const t = String((item && item.tone) || "")
         return ["neutral", "info", "success", "warning", "danger"].indexOf(t) >= 0 ? t : "neutral"
@@ -55,6 +58,16 @@ Item {
     function isRowClickable(item) {
         const activation = item ? item.activationState : undefined
         return (activation !== undefined && activation !== null) || root.rowsActivatable
+    }
+
+    // Footer line: subject, actor, and timestamp, in that order, joined with
+    // " · " -- any part left empty by the presenter is simply omitted rather
+    // than leaving a stray separator.
+    function formatFooterText(item) {
+        const subject = String((item && item.subjectDisplay) || "")
+        const actor = String((item && item.actorDisplay) || "")
+        const occurredAtLabel = String((item && item.occurredAtLabel) || "")
+        return [subject, actor, occurredAtLabel].filter(part => part.length > 0).join(" · ")
     }
 
     function _toneBackground(tone) {
@@ -111,22 +124,17 @@ Item {
             readonly property string _title:           String(_row.modelData.title || "")
             readonly property string _description:     String(_row.modelData.description || "")
             readonly property string _supportingText:  String(_row.modelData.supportingText || "")
-            readonly property string _actorDisplay:    String(_row.modelData.actorDisplay || "")
-            readonly property string _occurredAtLabel: String(_row.modelData.occurredAtLabel || "")
-            readonly property string _statusLabel:     String(_row.modelData.statusLabel || "")
-            readonly property string _subjectDisplay:  String(_row.modelData.subjectDisplay || "")
+            readonly property string _badgeLabel:      String(_row.modelData.badgeLabel || "")
             readonly property string _iconKey:         String(_row.modelData.iconKey || "history")
             readonly property string _tone:            root.resolveTone(_row.modelData)
             readonly property bool   _clickable:       root.isRowClickable(_row.modelData)
 
-            readonly property string _footerText: [_row._subjectDisplay, _row._actorDisplay, _row._occurredAtLabel]
-                .filter(part => part.length > 0)
-                .join(" · ")
+            readonly property string _footerText: root.formatFooterText(_row.modelData)
 
             activeFocusOnTab: _row._clickable
             Accessible.role: _row._clickable ? Accessible.Button : Accessible.StaticText
             Accessible.name: _row._clickable
-                ? (_row._title + (_row._statusLabel.length > 0 ? ", " + _row._statusLabel : ""))
+                ? (_row._title + (_row._badgeLabel.length > 0 ? ", " + _row._badgeLabel : ""))
                 : ""
             Accessible.onPressAction: if (_row._clickable) root.itemActivated(_row.modelData)
 
@@ -198,11 +206,11 @@ Item {
                     }
 
                     AppWidgets.StatusChip {
-                        // Reserves zero layout space when there is no real
-                        // status/outcome to show -- ordinary events never
-                        // get a badge just to fill this slot.
-                        visible: _row._statusLabel.length > 0
-                        status:  _row._statusLabel
+                        // Reserves zero layout space when there is no badge
+                        // to show -- ordinary events never get one just to
+                        // fill this slot.
+                        visible: _row._badgeLabel.length > 0
+                        status:  _row._badgeLabel
                         tone:    _row._tone
                     }
                 }

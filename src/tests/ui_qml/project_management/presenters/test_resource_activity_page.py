@@ -48,7 +48,7 @@ class TestBuildResourceActivityPage:
         assert mapped["id"] == "act-1"
         assert mapped["title"] == "Added Planning skill"
         assert mapped["occurredAtLabel"] == "05 Mar 2026 14:30"
-        assert mapped["statusLabel"] == "Capability"
+        assert mapped["badgeLabel"] == "Capability"
 
     def test_actor_resolved_from_employee_full_name(self):
         item = _activity_item(actor_id="user-1")

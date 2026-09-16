@@ -28,6 +28,6 @@ def _to_activity_item(item) -> ActivityItemViewModel:
         icon_key="collaboration",
         tone="info" if is_mention else "neutral",
         subject_display=item.subject_display,
-        status_label=item.status_label,
+        badge_label=item.status_label,
         activation_state={"routeId": item.route_id, **item.state} if item.route_id else None,
     )
