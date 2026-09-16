@@ -114,11 +114,12 @@ Item {
             readonly property string _actorDisplay:    String(_row.modelData.actorDisplay || "")
             readonly property string _occurredAtLabel: String(_row.modelData.occurredAtLabel || "")
             readonly property string _statusLabel:     String(_row.modelData.statusLabel || "")
+            readonly property string _subjectDisplay:  String(_row.modelData.subjectDisplay || "")
             readonly property string _iconKey:         String(_row.modelData.iconKey || "history")
             readonly property string _tone:            root.resolveTone(_row.modelData)
             readonly property bool   _clickable:       root.isRowClickable(_row.modelData)
 
-            readonly property string _footerText: [_row._actorDisplay, _row._occurredAtLabel]
+            readonly property string _footerText: [_row._subjectDisplay, _row._actorDisplay, _row._occurredAtLabel]
                 .filter(part => part.length > 0)
                 .join(" · ")
 

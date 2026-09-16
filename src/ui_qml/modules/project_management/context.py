@@ -348,7 +348,9 @@ class ProjectManagementWorkspaceCatalog(QObject):
         if self._resources_workspace is None:
             self._resources_workspace = ProjectManagementResourcesWorkspaceController(
                 resources_workspace_presenter=ProjectResourcesWorkspacePresenter(
-                    desktop_api=self._resources_api
+                    desktop_api=self._resources_api,
+                    user_api=getattr(self._desktop_api_registry, "platform_user", None),
+                    employee_api=getattr(self._desktop_api_registry, "platform_employee", None),
                 ),
                 parent=self,
             )

@@ -1,9 +1,21 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
 
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementResourcesDesktopApi,
+)
+from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
+from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+from src.ui_qml.modules.project_management.presenters.common.activity_log_builder import (
+    build_actor_lookup,
+)
+from src.ui_qml.shared.models.activity_item import (
+    ActivityItemViewModel,
+    icon_key_for_entity_type,
+    serialize_activity_items,
+    tone_for_action,
 )
 
 
@@ -121,41 +133,49 @@ def build_resource_assignments_page(
 def build_resource_activity_page(
     desktop_api: ProjectManagementResourcesDesktopApi,
     resource_id: str,
+    *,
+    user_api: PlatformUserDesktopApi | None = None,
+    employee_api: PlatformEmployeeDesktopApi | None = None,
     **query,
 ) -> dict[str, object]:
     page = desktop_api.list_resource_activity_page(resource_id, **query)
-    rows = []
-    for item in page.items:
-        try:
-            occurred = datetime.fromisoformat(item.occurred_at).strftime("%d %b %Y %H:%M")
-        except (TypeError, ValueError):
-            occurred = item.occurred_at
-        rows.append(
-            {
-                "id": item.id,
-                "title": item.summary,
-                "metaText": f"{item.actor_label} | {occurred}",
-                "statusLabel": _label(item.category),
-                "routeId": item.source_type if item.can_open_source else "",
-                "state": {
-                    "resourceId": item.resource_id,
-                    "eventType": item.event_type,
-                    "sourceType": item.source_type,
-                    "sourceId": item.source_id or "",
-                    "projectId": item.project_id or "",
-                    "taskId": item.task_id or "",
-                    "canOpenSource": item.can_open_source,
-                },
-            }
-        )
+    actor_lookup = build_actor_lookup(
+        user_api.list_users() if user_api is not None else DesktopApiResult(ok=False),
+        employee_api.list_employees() if employee_api is not None else None,
+    )
     return {
-        "items": rows,
+        "items": serialize_activity_items(
+            _to_activity_item(item, actor_lookup) for item in page.items
+        ),
         "total": page.filtered_total,
         "page": page.page,
         "pageSize": page.page_size,
         "sortKey": page.sort_key,
         "sortDirection": page.sort_direction,
     }
+
+
+def _to_activity_item(item, actor_lookup: dict[str, str]) -> ActivityItemViewModel:
+    activation_state = None
+    if item.can_open_source:
+        activation_state = {
+            "sourceType": item.source_type,
+            "sourceId": item.source_id or "",
+            "projectId": item.project_id or "",
+            "taskId": item.task_id or "",
+        }
+    return ActivityItemViewModel(
+        id=item.id,
+        title=item.summary,
+        actor_display=actor_lookup.get(item.actor_id or "", "") or "System",
+        occurred_at=item.occurred_at,
+        occurred_at_label=item.occurred_at.strftime("%d %b %Y %H:%M") if item.occurred_at else "",
+        icon_key=icon_key_for_entity_type(item.source_type),
+        tone=tone_for_action(item.event_type),
+        subject_display=item.source_type.replace("_", " ").title(),
+        status_label=_label(item.category),
+        activation_state=activation_state,
+    )
 
 
 __all__ = [

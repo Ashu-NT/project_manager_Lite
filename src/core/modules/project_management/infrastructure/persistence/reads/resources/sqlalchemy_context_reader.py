@@ -740,7 +740,7 @@ class SqlAlchemyResourceContextReader:
                     occurred_at=row[1],
                     event_type=str(row[2] or "activity"),
                     category=category_value,
-                    actor_label="System" if not row[3] else "Authorized user",
+                    actor_id=str(row[3]) if row[3] else None,
                     summary=str(row[4] or row[2] or "Activity recorded"),
                     source_type=source_type,
                     source_id=source_id,

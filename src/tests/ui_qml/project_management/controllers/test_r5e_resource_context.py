@@ -464,8 +464,7 @@ def test_r5e_qml_uses_canonical_navigation_shared_activity_and_read_only_section
     assert 'sortingMode: "server"' in assignments
     assert 'openEntity("projects", projectId, "overview")' in projects
     assert 'openEntity("tasks", taskId, "details")' in assignments
-    assert "PMWidgets.ActivityLogSection" in activity
-    assert "clientSideSearch: false" in activity
+    assert "AppWidgets.ActivityFeed" in activity
     assert "createAssignment" not in assignments
     assert "deleteAssignment" not in assignments
     assert '"Details", "Assignments", "Skills", "Dependencies", "Time"' in task_state

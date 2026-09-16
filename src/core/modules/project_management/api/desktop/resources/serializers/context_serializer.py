@@ -60,10 +60,10 @@ def serialize_resource_activity(fact: ResourceActivityFact) -> ResourceActivityD
     return ResourceActivityDesktopDto(
         id=fact.activity_id,
         resource_id=fact.resource_id,
-        occurred_at=fact.occurred_at.isoformat(),
+        occurred_at=fact.occurred_at,
         event_type=fact.event_type,
         category=fact.category,
-        actor_label=fact.actor_label,
+        actor_id=fact.actor_id,
         summary=fact.summary,
         source_type=fact.source_type,
         source_id=fact.source_id,

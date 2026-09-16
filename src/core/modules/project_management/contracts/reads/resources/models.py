@@ -170,7 +170,7 @@ class ResourceActivityFact:
     occurred_at: datetime
     event_type: str
     category: str
-    actor_label: str
+    actor_id: str | None
     summary: str
     source_type: str
     source_id: str | None
