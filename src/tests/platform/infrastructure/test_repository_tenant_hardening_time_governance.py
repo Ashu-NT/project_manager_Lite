@@ -143,7 +143,7 @@ def _seed_time_governance_scope_rows(services) -> dict[str, str]:
         module="platform",
         source="api",
         severity="low",
-        compliance_tag="none",
+        category="COMPLIANCE",
         metadata_json="{}",
     )
     other_audit = AuditEntryORM(
@@ -157,7 +157,7 @@ def _seed_time_governance_scope_rows(services) -> dict[str, str]:
         module="platform",
         source="api",
         severity="low",
-        compliance_tag="none",
+        category="COMPLIANCE",
         metadata_json="{}",
     )
 

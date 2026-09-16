@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 
 from src.core.platform.common.ids import generate_id
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import ValidationError
 from src.core.shared.events.domain_event_context import DomainEventContext
@@ -55,6 +56,7 @@ def _stage_task_assignment_hours_audit_and_record_event(
         entity_id=work_allocation.id,
         module="project_management",
         organization_id=scope.organization_id,
+        category="COMPLIANCE",
         severity="low",
         metadata={
             "action": "assignment.hours_logged_from_time_entry",
@@ -102,6 +104,7 @@ class TimesheetEntriesMixin:
                     entity_type="time_entry",
                     entity_id=seeded_entry.id,
                     module="platform",
+                    category="COMPLIANCE",
                     severity="low",
                     metadata={
                         "action": "time_entry.bootstrap_legacy_hours",
@@ -178,6 +181,7 @@ class TimesheetEntriesMixin:
                     entity_type="time_entry",
                     entity_id=seeded_entry.id,
                     module="platform",
+                    category="COMPLIANCE",
                     severity="low",
                     metadata={
                         "action": "time_entry.bootstrap_legacy_hours",
@@ -199,6 +203,7 @@ class TimesheetEntriesMixin:
                 entity_type="time_entry",
                 entity_id=entry.id,
                 module="platform",
+                category="COMPLIANCE",
                 severity="low",
                 metadata={
                     "action": "time_entry.add",
@@ -212,6 +217,17 @@ class TimesheetEntriesMixin:
                 },
                 commit=False,
                 fail_closed=True,
+            )
+            record_activity(
+                self,
+                action="time_entry.add",
+                entity_type="time_entry",
+                entity_id=entry.id,
+                parent_entity_id=work_allocation.id,
+                module="platform",
+                workspace_id=project_id,
+                details={"project_id": project_id, "hours": entry.hours},
+                commit=False,
             )
             self._session.flush()
             uow.commit()
@@ -284,6 +300,7 @@ class TimesheetEntriesMixin:
                 entity_type="time_entry",
                 entity_id=entry.id,
                 module="platform",
+                category="COMPLIANCE",
                 severity="low",
                 metadata={
                     "action": "time_entry.update",
@@ -297,6 +314,17 @@ class TimesheetEntriesMixin:
                 },
                 commit=False,
                 fail_closed=True,
+            )
+            record_activity(
+                self,
+                action="time_entry.update",
+                entity_type="time_entry",
+                entity_id=entry.id,
+                parent_entity_id=work_allocation.id,
+                module="platform",
+                workspace_id=project_id,
+                details={"project_id": project_id, "hours": entry.hours},
+                commit=False,
             )
             self._session.flush()
             uow.commit()
@@ -332,6 +360,7 @@ class TimesheetEntriesMixin:
                 entity_type="time_entry",
                 entity_id=entry.id,
                 module="platform",
+                category="COMPLIANCE",
                 severity="low",
                 metadata={
                     "action": "time_entry.delete",
@@ -345,6 +374,17 @@ class TimesheetEntriesMixin:
                 },
                 commit=False,
                 fail_closed=True,
+            )
+            record_activity(
+                self,
+                action="time_entry.delete",
+                entity_type="time_entry",
+                entity_id=entry.id,
+                parent_entity_id=work_allocation.id,
+                module="platform",
+                workspace_id=project_id,
+                details={"project_id": project_id},
+                commit=False,
             )
             self._session.flush()
             uow.commit()

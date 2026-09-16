@@ -97,20 +97,24 @@ def _build_record(entry) -> FinancialsRecordViewModel:
         state={
             "operation": operation,
             "source": str(entry.source or ""),
-            "complianceTag": str(entry.compliance_tag or ""),
+            "category": str(entry.category or ""),
         },
     )
 
 
 def _evidence_text(entry) -> str:
-    old_value = str(entry.old_value or "").strip()
-    new_value = str(entry.new_value or "").strip()
-    if old_value or new_value:
-        return f"Recorded change: {old_value or '-'} -> {new_value or '-'}"
+    changed_fields = entry.changed_fields or {}
+    if changed_fields:
+        parts = []
+        for field_name, change in changed_fields.items():
+            before = change.get("before") if isinstance(change, dict) else None
+            after = change.get("after") if isinstance(change, dict) else None
+            parts.append(f"{field_name}: {before or '-'} -> {after or '-'}")
+        return f"Recorded change: {'; '.join(parts)}"
     labels = tuple(
         label
         for label in (
-            str(entry.compliance_tag or "").strip(),
+            str(entry.category or "").strip(),
             str(entry.source or "").strip(),
         )
         if label and label != "none"

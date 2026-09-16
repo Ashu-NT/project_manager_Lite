@@ -202,11 +202,11 @@ class PlatformOrganizationController(QObject):
         return self._presenter.build_detail_context(normalized_id)
 
     @Slot(str, result="QVariantList")
-    def organizationAuditActivity(self, organization_id: str) -> list[dict[str, object]]:
+    def organizationActivity(self, organization_id: str) -> list[dict[str, object]]:
         normalized_id = organization_id.strip()
         if not normalized_id:
             return []
-        return self._presenter.build_audit_activity(normalized_id)
+        return self._presenter.build_recent_activity(normalized_id)
 
     @Slot("QVariantMap", result=str)
     def generateCode(self, payload: dict[str, object]) -> str:

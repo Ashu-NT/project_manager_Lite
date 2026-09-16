@@ -151,6 +151,7 @@ class TaskSchedulingConstraintMixin:
                 entity_id=candidate.id,
                 module="project_management",
                 organization_id=scope.organization_id,
+                category="APPROVAL",
                 severity="low",
                 metadata={
                     "action": "task.constraint.update",

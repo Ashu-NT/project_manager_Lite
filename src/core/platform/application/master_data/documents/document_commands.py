@@ -82,16 +82,24 @@ def create_document_structure(
                 entity_type="document_structure",
                 entity_id=structure.id,
                 module="platform",
+                organization_id=organization.id,
+                category="MASTER_DATA",
                 severity="low",
-                metadata={
-                    "action": "document_structure.create",
-                    "organization_id": organization.id,
-                    "structure_code": structure.structure_code,
-                    "object_scope": structure.object_scope,
-                    "default_document_type": structure.default_document_type.value,
-                },
+                after_data={"structure_code": structure.structure_code, "name": structure.name},
+                metadata={"action": "document_structure.create"},
                 commit=False,
                 fail_closed=True,
+            )
+            record_activity(
+                uow,
+                action="document_structure.create",
+                entity_type="document_structure",
+                entity_id=structure.id,
+                module="platform",
+                organization_id=organization.id,
+                message=f"Document structure created — {structure.structure_code}",
+                icon="document",
+                commit=False,
             )
             uow.record_event(
                 DocumentStructureCreated(
@@ -188,23 +196,16 @@ def update_document_structure(
                 )
         try:
             uow.structures.update(updated)
-            record_audit_entry(
+            record_activity(
                 uow,
-                operation="update",
+                action="document_structure.update",
                 entity_type="document_structure",
                 entity_id=updated.id,
                 module="platform",
-                severity="low",
-                metadata={
-                    "action": "document_structure.update",
-                    "organization_id": organization.id,
-                    "structure_code": updated.structure_code,
-                    "object_scope": updated.object_scope,
-                    "default_document_type": updated.default_document_type.value,
-                    "is_active": str(updated.is_active),
-                },
+                organization_id=organization.id,
+                message=f"Document structure updated — {updated.structure_code}",
+                icon="document",
                 commit=False,
-                fail_closed=True,
             )
             uow.record_event(
                 DocumentStructureProfileUpdated(
@@ -292,16 +293,11 @@ def create_document(
                 entity_type="document",
                 entity_id=document.id,
                 module="platform",
+                organization_id=organization.id,
+                category="MASTER_DATA",
                 severity="low",
-                metadata={
-                    "action": "document.create",
-                    "organization_id": organization.id,
-                    "document_code": document.document_code,
-                    "title": document.title,
-                    "document_type": document.document_type.value,
-                    "document_structure_id": document.document_structure_id,
-                    "storage_kind": document.storage_kind.value,
-                },
+                after_data={"document_code": document.document_code, "title": document.title},
+                metadata={"action": "document.create"},
                 commit=False,
                 fail_closed=True,
             )
@@ -461,46 +457,27 @@ def update_document(
                 document_audit_action = "document.activate" if updated.is_active else "document.deactivate"
             else:
                 document_audit_action = "document.update"
-            record_audit_entry(
+            # Ordinary master-data lifecycle -- business timeline (Activity)
+            # only, for every update including active-state transitions, no
+            # compliance/security significance.
+            record_activity(
                 uow,
-                operation="update",
+                action=document_audit_action,
                 entity_type="document",
                 entity_id=updated.id,
                 module="platform",
-                severity="low",
-                metadata={
-                    "action": document_audit_action,
-                    "organization_id": organization.id,
-                    "document_code": updated.document_code,
-                    "title": updated.title,
-                    "document_type": updated.document_type.value,
-                    "document_structure_id": updated.document_structure_id,
-                    "storage_kind": updated.storage_kind.value,
-                    "is_active": str(updated.is_active),
-                },
+                organization_id=organization.id,
+                message=(
+                    f"Document removed — {updated.title}"
+                    if document_audit_action == "document.deactivate"
+                    else f"Document restored — {updated.title}"
+                    if document_audit_action == "document.activate"
+                    else f"Document updated — {updated.title}"
+                ),
+                icon="documents",
+                type="warning" if document_audit_action == "document.deactivate" else "info",
                 commit=False,
-                fail_closed=True,
             )
-            # Only the active-state transition is curated Organization
-            # Activity -- an ordinary profile edit (title/storage/etc.) is
-            # real audit history but not shown as activity.
-            if document_audit_action in ("document.activate", "document.deactivate"):
-                record_activity(
-                    uow,
-                    action=document_audit_action,
-                    entity_type="document",
-                    entity_id=updated.id,
-                    module="platform",
-                    organization_id=organization.id,
-                    message=(
-                        f"Document removed — {updated.title}"
-                        if document_audit_action == "document.deactivate"
-                        else f"Document restored — {updated.title}"
-                    ),
-                    icon="documents",
-                    type="warning" if document_audit_action == "document.deactivate" else "info",
-                    commit=False,
-                )
             uow.record_event(
                 DocumentProfileUpdated(
                     tenant_id=tenant_id,
@@ -554,16 +531,34 @@ def add_link(
                 entity_type="document",
                 entity_id=document.id,
                 module="platform",
+                organization_id=organization.id,
+                category="MASTER_DATA",
                 severity="low",
-                metadata={
-                    "action": "document.link",
+                after_data={
+                    "module_code": link.module_code,
+                    "entity_type": link.entity_type,
+                    "entity_id": link.entity_id,
+                },
+                metadata={"action": "document.link"},
+                commit=False,
+                fail_closed=True,
+            )
+            record_activity(
+                uow,
+                action="document.link",
+                entity_type="document",
+                entity_id=document.id,
+                module="platform",
+                organization_id=organization.id,
+                message=f"Document linked — {document.title} to {link.entity_type}",
+                icon="documents",
+                details={
                     "module_code": link.module_code,
                     "entity_type": link.entity_type,
                     "entity_id": link.entity_id,
                     "link_role": link.link_role,
                 },
                 commit=False,
-                fail_closed=True,
             )
             uow.record_event(
                 DocumentReferenceLinked(
@@ -595,20 +590,38 @@ def remove_link(service: DocumentService, link_id: str) -> None:
         uow.links.delete(link.id)
         record_audit_entry(
             uow,
-            operation="delete",
+            operation="update",
             entity_type="document",
             entity_id=document.id,
             module="platform",
+            organization_id=organization.id,
+            category="MASTER_DATA",
             severity="low",
-            metadata={
-                "action": "document.unlink",
+            before_data={
+                "module_code": link.module_code,
+                "entity_type": link.entity_type,
+                "entity_id": link.entity_id,
+            },
+            metadata={"action": "document.unlink"},
+            commit=False,
+            fail_closed=True,
+        )
+        record_activity(
+            uow,
+            action="document.unlink",
+            entity_type="document",
+            entity_id=document.id,
+            module="platform",
+            organization_id=organization.id,
+            message=f"Document unlinked — {document.title} from {link.entity_type}",
+            icon="documents",
+            details={
                 "module_code": link.module_code,
                 "entity_type": link.entity_type,
                 "entity_id": link.entity_id,
                 "link_role": link.link_role,
             },
             commit=False,
-            fail_closed=True,
         )
         uow.record_event(
             DocumentReferenceUnlinked(

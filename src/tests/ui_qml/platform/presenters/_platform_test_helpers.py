@@ -1375,8 +1375,8 @@ def build_connected_platform_registry() -> SimpleNamespace:
         ApprovalRequestDto(id="approval-3", request_type="scope_change", entity_type="task", entity_id="task-1", project_id="project-1", status=ApprovalStatus.REJECTED, module_label="Project Management", context_label="Project Apollo", display_label="Scope Change", requested_by_username="grace", requested_at=datetime(2026, 4, 24, 8, 30, 0)),
     )
     audit_rows = (
-        AuditEntryDto(id="audit-1", timestamp=datetime(2026, 4, 24, 8, 0, 0), actor_id="user-1", actor_username="ada", actor_type="user", operation="approve", entity_type="project", entity_id="project-1", module="platform", source="api", severity="medium", compliance_tag="none"),
-        AuditEntryDto(id="audit-2", timestamp=datetime(2026, 4, 24, 9, 0, 0), actor_id="user-2", actor_username="grace", actor_type="user", operation="update", entity_type="task", entity_id="task-1", module="platform", source="api", severity="high", compliance_tag="none"),
+        AuditEntryDto(id="audit-1", timestamp=datetime(2026, 4, 24, 8, 0, 0), actor_id="user-1", actor_username="ada", actor_type="user", operation="approve", entity_type="project", entity_id="project-1", module="platform", source="api", severity="medium", category="COMPLIANCE", result="SUCCESS"),
+        AuditEntryDto(id="audit-2", timestamp=datetime(2026, 4, 24, 9, 0, 0), actor_id="user-2", actor_username="grace", actor_type="user", operation="update", entity_type="task", entity_id="task-1", module="platform", source="api", severity="high", category="COMPLIANCE", result="SUCCESS"),
     )
     return SimpleNamespace(
         platform_runtime=runtime_api,

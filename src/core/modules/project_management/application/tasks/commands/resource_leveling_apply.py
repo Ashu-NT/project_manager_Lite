@@ -179,12 +179,15 @@ class ResourceLevelingApplyMixin:
                     entity_id=task_id,
                     module="project_management",
                     organization_id=scope.organization_id,
+                    category="APPROVAL",
                     severity="low",
-                    metadata={
-                        "action": "scheduling.leveling.apply",
-                        "old_start": old_start.isoformat() if old_start else None,
-                        "new_start": new_start.isoformat(),
+                    changed_fields={
+                        "start_date": {
+                            "before": old_start.isoformat() if old_start else None,
+                            "after": new_start.isoformat(),
+                        },
                     },
+                    metadata={"action": "scheduling.leveling.apply"},
                     commit=False,
                     fail_closed=True,
                 )

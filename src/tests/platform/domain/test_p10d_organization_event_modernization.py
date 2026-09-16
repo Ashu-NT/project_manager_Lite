@@ -492,6 +492,9 @@ def test_new_events_use_the_canonical_organization_uow_record_event_pattern():
     import src.core.platform.application.master_data.org.organization_service as org_service_module
 
     update_source = inspect.getsource(org_service_module.OrganizationService.update_organization)
-    set_enabled_source = inspect.getsource(org_service_module.OrganizationService._set_organization_enabled)
+    # `_set_organization_enabled` delegates to `_apply_organization_enabled`, the single
+    # unit of work shared with the bulk enable/disable path -- that's where the event
+    # recording actually lives now, not in the thin single-record wrapper.
+    apply_enabled_source = inspect.getsource(org_service_module.OrganizationService._apply_organization_enabled)
     assert "uow.record_event(" in update_source
-    assert "uow.record_event(" in set_enabled_source
+    assert "uow.record_event(" in apply_enabled_source

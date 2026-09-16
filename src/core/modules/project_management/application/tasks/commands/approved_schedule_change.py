@@ -79,7 +79,12 @@ class ApprovedScheduleChangeMixin:
                     entity_id=applied.id,
                     module="project_management",
                     organization_id=scope.organization_id,
+                    category="APPROVAL",
                     severity="low",
+                    changed_fields={
+                        "start_date": {"before": None, "after": applied.start_date.isoformat()},
+                        "end_date": {"before": None, "after": applied.end_date.isoformat()},
+                    },
                     metadata={
                         "action": "task.apply_financial_change_schedule",
                         "financial_change_impact_id": change.reference_id,

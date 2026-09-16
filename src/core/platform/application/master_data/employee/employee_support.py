@@ -14,19 +14,6 @@ from src.core.platform.contract.repositories.master_data.site.contracts import S
 from src.core.platform.domain.master_data.site import Site
 
 
-def build_employee_audit_details(employee: Employee) -> dict[str, str]:
-    return {
-        "employee_code": employee.employee_code,
-        "full_name": employee.full_name,
-        "department_id": employee.department_id or "",
-        "department": employee.department,
-        "site_id": employee.site_id or "",
-        "site_name": employee.site_name,
-        "title": employee.title,
-        "is_active": str(employee.is_active),
-    }
-
-
 def sync_linked_employee_resources(
     employee: Employee,
     resource_repo: LinkedEmployeeResourceRepository | None,
@@ -188,7 +175,6 @@ def _belongs_to_active_organization(
 
 
 __all__ = [
-    "build_employee_audit_details",
     "resolve_employee_department_reference",
     "resolve_employee_site_reference",
     "sync_linked_employee_resources",

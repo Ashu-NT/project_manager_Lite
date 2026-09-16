@@ -120,8 +120,8 @@ Item {
     // Fetched once per organization id, not per section activation, since
     // it backs Overview which is always the first section shown.
     property var _detailContext: ({ "statistics": ({}), "recentActivity": [] })
-    property var _auditActivity: []
-    property bool _auditLoaded: false
+    property var _recentActivity: []
+    property bool _recentActivityLoaded: false
 
     function _reloadDetailContext() {
         if (!detailRoot.workspaceController || detailRoot._orgId.length === 0) {
@@ -130,21 +130,21 @@ Item {
         detailRoot._detailContext = detailRoot.workspaceController.organizationDetailContext(detailRoot._orgId)
     }
 
-    function _ensureAuditLoaded() {
-        if (detailRoot._auditLoaded || !detailRoot.workspaceController || detailRoot._orgId.length === 0) {
+    function _ensureRecentActivityLoaded() {
+        if (detailRoot._recentActivityLoaded || !detailRoot.workspaceController || detailRoot._orgId.length === 0) {
             return
         }
-        detailRoot._auditActivity = detailRoot.workspaceController.organizationAuditActivity(detailRoot._orgId)
-        detailRoot._auditLoaded = true
+        detailRoot._recentActivity = detailRoot.workspaceController.organizationActivity(detailRoot._orgId)
+        detailRoot._recentActivityLoaded = true
     }
 
     onOrganizationChanged: {
-        detailRoot._auditLoaded = false
+        detailRoot._recentActivityLoaded = false
         detailRoot._reloadDetailContext()
     }
     onActiveSectionIndexChanged: {
         if (detailRoot._activeSectionLabel === "Activity") {
-            detailRoot._ensureAuditLoaded()
+            detailRoot._ensureRecentActivityLoaded()
         }
     }
     Component.onCompleted: detailRoot._reloadDetailContext()
@@ -759,7 +759,7 @@ Item {
 
                                 AppWidgets.ActivityFeed {
                                     Layout.fillWidth: true
-                                    items: detailRoot._auditActivity
+                                    items: detailRoot._recentActivity
                                     emptyText: "No activity recorded for this organization yet."
                                 }
                             }

@@ -172,10 +172,8 @@ def _add_context_switch_audit(
         request_id=_current_request_id(service),
         source="auth",
         severity="medium",
-        compliance_tag="SOC2",
-        field=field,
-        old_value=old_value,
-        new_value=new_value,
+        category="SECURITY",
+        changed_fields={field: {"before": old_value, "after": new_value}},
         metadata={
             "action": action,
             "outcome": "success",

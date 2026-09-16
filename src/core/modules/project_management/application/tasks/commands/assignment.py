@@ -36,7 +36,6 @@ from src.core.platform.common.exceptions import (
     OperationNotPermittedError,
     ValidationError,
 )
-from src.core.shared.audit import record_audit_entry
 from src.core.shared.notifications import safe_dispatch_notification
 
 
@@ -90,18 +89,6 @@ class TaskAssignmentMixin:
                 time_entry_repo.delete_by_assignment(assignment.id)
             uow.assignments.delete_with_version_check(
                 assignment_id, expected_version=assignment.version
-            )
-            record_audit_entry(
-                uow,
-                operation="delete",
-                entity_type="task_assignment",
-                entity_id=assignment.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={"action": "assignment.remove", "resource_id": assignment.resource_id},
-                commit=False,
-                fail_closed=True,
             )
             record_assignment_action(
                 uow,
@@ -209,18 +196,6 @@ class TaskAssignmentMixin:
             updated = uow.assignments.update_hours_logged_with_version_check(
                 candidate, expected_version=assignment.version
             )
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="task_assignment",
-                entity_id=updated.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={"action": "assignment.log_hours", "hours_logged": str(updated.hours_logged)},
-                commit=False,
-                fail_closed=True,
-            )
             record_assignment_action(
                 uow,
                 action="assignment.log_hours",
@@ -278,21 +253,6 @@ class TaskAssignmentMixin:
         with self._task_uow() as uow:
             updated = uow.assignments.update_allocation_with_version_check(
                 candidate, expected_version=expected_version
-            )
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="task_assignment",
-                entity_id=updated.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={
-                    "action": "assignment.set_allocation",
-                    "allocation_percent": updated.allocation_percent,
-                },
-                commit=False,
-                fail_closed=True,
             )
             record_assignment_action(
                 uow,
@@ -380,21 +340,6 @@ class TaskAssignmentMixin:
             self._project_resource_repo.touch_version_with_check(
                 project_resource.id,
                 expected_version=expected_project_resource_version,
-            )
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="task_assignment",
-                entity_id=updated.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={
-                    "action": "assignment.update_planned_hours",
-                    "allocated_planned_hours": str(updated.allocated_planned_hours),
-                },
-                commit=False,
-                fail_closed=True,
             )
             record_assignment_action(
                 uow,
@@ -547,18 +492,6 @@ class TaskAssignmentMixin:
 
         with self._task_uow() as uow:
             uow.assignments.add(assignment)
-            record_audit_entry(
-                uow,
-                operation="create",
-                entity_type="task_assignment",
-                entity_id=assignment.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={"action": "assignment.add", "resource_id": assignment.resource_id},
-                commit=False,
-                fail_closed=True,
-            )
             record_assignment_action(
                 uow,
                 action="assignment.add",
@@ -763,18 +696,6 @@ class TaskAssignmentMixin:
             updated = uow.assignments.update_response_status_with_version_check(
                 candidate, expected_version=assignment.version
             )
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="task_assignment",
-                entity_id=updated.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={"action": "assignment.accept"},
-                commit=False,
-                fail_closed=True,
-            )
             record_assignment_action(
                 uow,
                 action="assignment.accept",
@@ -823,18 +744,6 @@ class TaskAssignmentMixin:
         with self._task_uow() as uow:
             updated = uow.assignments.update_response_status_with_version_check(
                 candidate, expected_version=assignment.version
-            )
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="task_assignment",
-                entity_id=updated.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={"action": "assignment.decline", "reason": reason},
-                commit=False,
-                fail_closed=True,
             )
             record_assignment_action(
                 uow,

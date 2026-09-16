@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -58,6 +58,7 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
 )
 from src.core.platform.domain.approval.policy import is_governance_required
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 _UNSET = object()
@@ -1042,67 +1043,83 @@ class BudgetService(ProjectManagementModuleGuardMixin):
             )
 
     def _record_budget_audit(self, *, operation: str, budget: ProjectBudget) -> None:
+        full_operation = f"project_budget.{operation}"
         record_audit_entry(
             self,
-            operation=f"project_budget.{operation}",
+            operation=full_operation,
             entity_type="project_budget",
             entity_id=budget.id,
             entity_parent_id=budget.project_id,
             module="project_management",
-            old_value=None,
-            new_value=self._budget_audit_value(budget),
+            category="FINANCIAL",
+            after_data=self._budget_audit_value(budget),
             workspace_id=budget.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
         )
+        record_activity(
+            self,
+            action=full_operation,
+            entity_type="project_budget",
+            entity_id=budget.id,
+            parent_entity_id=budget.project_id,
+            module="project_management",
+            workspace_id=budget.project_id,
+            details={"action": operation},
+            commit=False,
+        )
 
     def _record_line_audit(self, *, operation: str, line: BudgetLine, budget: ProjectBudget) -> None:
+        full_operation = f"project_budget_line.{operation}"
         record_audit_entry(
             self,
-            operation=f"project_budget_line.{operation}",
+            operation=full_operation,
             entity_type="project_budget_line",
             entity_id=line.id,
             entity_parent_id=budget.id,
             module="project_management",
-            old_value=None,
-            new_value=self._line_audit_value(line),
+            category="FINANCIAL",
+            after_data=self._line_audit_value(line),
             workspace_id=budget.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
         )
-
-    @staticmethod
-    def _budget_audit_value(budget: ProjectBudget) -> str:
-        return json.dumps(
-            {
-                "name": budget.name,
-                "status": budget.status.value,
-                "revision": budget.revision,
-                "currency_code": budget.currency_code,
-                "row_version": budget.row_version,
-            },
-            sort_keys=True,
+        record_activity(
+            self,
+            action=full_operation,
+            entity_type="project_budget_line",
+            entity_id=line.id,
+            parent_entity_id=budget.id,
+            module="project_management",
+            workspace_id=budget.project_id,
+            details={"action": operation},
+            commit=False,
         )
 
     @staticmethod
-    def _line_audit_value(line: BudgetLine) -> str:
-        return json.dumps(
-            {
-                "cost_code_id": line.cost_code_id,
-                "task_id": line.task_id,
-                "amount": str(line.amount),
-                "currency_code": line.currency_code,
-                "row_version": line.row_version,
-            },
-            sort_keys=True,
-        )
+    def _budget_audit_value(budget: ProjectBudget) -> dict[str, Any]:
+        return {
+            "name": budget.name,
+            "status": budget.status.value,
+            "revision": budget.revision,
+            "currency_code": budget.currency_code,
+            "row_version": budget.row_version,
+        }
+
+    @staticmethod
+    def _line_audit_value(line: BudgetLine) -> dict[str, Any]:
+        return {
+            "cost_code_id": line.cost_code_id,
+            "task_id": line.task_id,
+            "amount": str(line.amount),
+            "currency_code": line.currency_code,
+            "row_version": line.row_version,
+        }
 
 __all__ = ["BudgetService"]

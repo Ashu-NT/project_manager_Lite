@@ -18,11 +18,12 @@ class AuditEntryDto:
     actor_type: str
     source: str
     severity: str
-    compliance_tag: str
+    category: str
+    result: str
     tenant_id: str | None = None
     organization_id: str | None = None
     entity_parent_id: str | None = None
-    changed_field: str | None = None
-    old_value: str | None = None
-    new_value: str | None = None
+    before_data: dict[str, Any] | None = None
+    after_data: dict[str, Any] | None = None
+    changed_fields: dict[str, Any] | None = None
     metadata: dict[str, Any] = field(default_factory=dict)

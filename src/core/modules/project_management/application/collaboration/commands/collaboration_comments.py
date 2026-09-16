@@ -31,6 +31,7 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from src.core.platform.common.pydantic import normalize_optional_text
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.notifications import safe_dispatch_notification
 from src.infra.time.system_clock import SystemClock
@@ -112,10 +113,24 @@ class CollaborationCommentCommandMixin:
                 entity_id=comment.id,
                 module="project_management",
                 organization_id=scope.organization_id,
+                category="MASTER_DATA",
                 severity="low",
+                workspace_id=task.project_id,
+                entity_parent_id=task_id,
                 metadata={"action": "collaboration.comment.create", "task_id": task_id},
                 commit=False,
                 fail_closed=True,
+            )
+            record_activity(
+                uow,
+                action="collaboration.comment.create",
+                entity_type="task_comment",
+                entity_id=comment.id,
+                module="project_management",
+                workspace_id=task.project_id,
+                parent_entity_id=task_id,
+                details={"task_id": task_id},
+                commit=False,
             )
             uow.record_event(
                 TaskCommentChanged(
@@ -218,7 +233,10 @@ class CollaborationCommentCommandMixin:
                     entity_id=comment.id,
                     module="project_management",
                     organization_id=scope.organization_id,
+                    category="MASTER_DATA",
                     severity="low",
+                    workspace_id=task.project_id,
+                    entity_parent_id=task_id,
                     metadata={"action": "collaboration.comment.mark_read", "task_id": task_id},
                     commit=False,
                     fail_closed=True,
@@ -289,10 +307,24 @@ class CollaborationCommentCommandMixin:
                 entity_id=comment.id,
                 module="project_management",
                 organization_id=scope.organization_id,
+                category="MASTER_DATA",
                 severity="low",
+                workspace_id=task.project_id,
+                entity_parent_id=task.id,
                 metadata={"action": "collaboration.comment.edit", "task_id": task.id},
                 commit=False,
                 fail_closed=True,
+            )
+            record_activity(
+                uow,
+                action="collaboration.comment.edit",
+                entity_type="task_comment",
+                entity_id=comment.id,
+                module="project_management",
+                workspace_id=task.project_id,
+                parent_entity_id=task.id,
+                details={"task_id": task.id},
+                commit=False,
             )
             uow.record_event(
                 TaskCommentChanged(
@@ -344,10 +376,24 @@ class CollaborationCommentCommandMixin:
                     entity_id=comment.id,
                     module="project_management",
                     organization_id=scope.organization_id,
+                    category="MASTER_DATA",
                     severity="low",
+                    workspace_id=task.project_id,
+                    entity_parent_id=task.id,
                     metadata={"action": "collaboration.comment.delete", "task_id": task.id},
                     commit=False,
                     fail_closed=True,
+                )
+                record_activity(
+                    uow,
+                    action="collaboration.comment.delete",
+                    entity_type="task_comment",
+                    entity_id=comment.id,
+                    module="project_management",
+                    workspace_id=task.project_id,
+                    parent_entity_id=task.id,
+                    details={"task_id": task.id},
+                    commit=False,
                 )
                 uow.record_event(
                     TaskCommentChanged(
@@ -407,18 +453,6 @@ class CollaborationCommentCommandMixin:
         )
         with self._require_collaboration_uow_factory().create(context=self._new_context()) as uow:
             uow.comments.update(comment)
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="task_comment",
-                entity_id=comment.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={"action": "collaboration.comment.react", "task_id": task.id},
-                commit=False,
-                fail_closed=True,
-            )
             uow.record_event(
                 TaskCommentReactionChanged(
                     tenant_id=scope.tenant_id,
@@ -452,18 +486,6 @@ class CollaborationCommentCommandMixin:
         )
         with self._require_collaboration_uow_factory().create(context=self._new_context()) as uow:
             uow.comments.update(comment)
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="task_comment",
-                entity_id=comment.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={"action": "collaboration.comment.unreact", "task_id": task.id},
-                commit=False,
-                fail_closed=True,
-            )
             uow.record_event(
                 TaskCommentReactionChanged(
                     tenant_id=scope.tenant_id,

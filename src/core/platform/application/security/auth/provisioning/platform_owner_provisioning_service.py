@@ -157,7 +157,7 @@ def provision_platform_owner(
                         actor_username=normalized_actor,
                         source="provisioning_cli",
                         severity="critical",
-                        compliance_tag="SOC2",
+                        category="SECURITY",
                         metadata={
                             "username": owner.username,
                             "role_name": PLATFORM_OWNER_ROLE,

@@ -11,6 +11,7 @@ from src.core.modules.project_management.domain.portfolio import (
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.modules.project_management.application.portfolio.portfolio_events import (
     PortfolioIntakeItemChangeType,
@@ -72,10 +73,22 @@ class PortfolioIntakeCommandMixin:
                     entity_id=item.id,
                     module="project_management",
                     organization_id=scope.organization_id,
+                    category="MASTER_DATA",
                     severity="low",
-                    metadata={"action": "portfolio.intake.create", "title": item.title},
+                    after_data={"title": item.title},
+                    metadata={"action": "portfolio.intake.create"},
                     commit=False,
                     fail_closed=True,
+                )
+                record_activity(
+                    uow,
+                    action="portfolio.intake.create",
+                    entity_type="portfolio_intake_item",
+                    entity_id=item.id,
+                    module="project_management",
+                    organization_id=scope.organization_id,
+                    details={"title": item.title},
+                    commit=False,
                 )
                 events.append(
                     PortfolioIntakeItemChanged(
@@ -157,17 +170,15 @@ class PortfolioIntakeCommandMixin:
                     )
                 candidate = self._apply_scoring_template(candidate, scoring_template)
             uow.intake.update(candidate)
-            record_audit_entry(
+            record_activity(
                 uow,
-                operation="update",
+                action="portfolio.intake.update",
                 entity_type="portfolio_intake_item",
                 entity_id=candidate.id,
                 module="project_management",
                 organization_id=scope.organization_id,
-                severity="low",
-                metadata={"action": "portfolio.intake.update", "title": candidate.title},
+                details={"title": candidate.title},
                 commit=False,
-                fail_closed=True,
             )
             events.append(
                 PortfolioIntakeItemChanged(

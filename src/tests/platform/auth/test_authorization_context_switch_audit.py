@@ -224,10 +224,10 @@ def test_tenant_switch_success_is_audited_and_idempotent(services) -> None:
     assert len(rows) == 1
     row = rows[0]
     metadata = json.loads(row.metadata_json)
+    changed_fields = json.loads(row.changed_fields_json)
     assert row.tenant_id == target.id
-    assert row.field == "tenant_id"
-    assert row.old_value == old_tenant_id
-    assert row.new_value == target.id
+    assert changed_fields["tenant_id"]["before"] == old_tenant_id
+    assert changed_fields["tenant_id"]["after"] == target.id
     assert metadata["outcome"] == "success"
 
     tenant_context.switch_to_tenant(target.id)
@@ -265,11 +265,11 @@ def test_organization_switch_success_is_tenant_scoped(services) -> None:
     assert len(rows) == 1
     row = rows[0]
     metadata = json.loads(row.metadata_json)
+    changed_fields = json.loads(row.changed_fields_json)
     assert row.tenant_id == user_session.active_tenant_id()
     assert row.organization_id == target.id
-    assert row.field == "organization_id"
-    assert row.old_value == old_organization_id
-    assert row.new_value == target.id
+    assert changed_fields["organization_id"]["before"] == old_organization_id
+    assert changed_fields["organization_id"]["after"] == target.id
     assert metadata["switch_type"] == "organization"
     assert metadata["outcome"] == "success"
 

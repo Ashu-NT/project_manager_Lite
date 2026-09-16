@@ -29,6 +29,20 @@ class SkillCommandMixin:
     _skill_repo: ResourceSkillRepository | None
     _cert_repo: ResourceCertificationRepository | None
 
+    def _stage_capability_audit(self, uow, child, *, operation: str, action: str) -> None:
+        record_audit_entry(
+            uow,
+            operation=operation,
+            entity_type="resource",
+            entity_id=child.resource_id,
+            module="project_management",
+            category="MASTER_DATA",
+            severity="low",
+            metadata={"action": action, "child_id": child.id, "capability_type": type(child).__name__},
+            commit=False,
+            fail_closed=True,
+        )
+
     def _stage_capability_activity(self, uow, child, *, action: str) -> None:
         record_activity(
             uow,
@@ -90,22 +104,8 @@ class SkillCommandMixin:
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             created = uow.skills.add(skill)
+            self._stage_capability_audit(uow, created, operation="create", action="resource.skill.added")
             self._stage_capability_activity(uow, created, action="resource.skill.added")
-            record_audit_entry(
-                uow,
-                operation="create",
-                entity_type="resource_skill",
-                entity_id=created.id,
-                module="project_management",
-                severity="low",
-                metadata={
-                    "action": "resource.skill.added",
-                    "resource_id": created.resource_id,
-                    "skill_code": created.skill_code,
-                },
-                commit=False,
-                fail_closed=True,
-            )
             self._record_resource_capability_event(
                 uow, created, change_type=ResourceCapabilityChangeType.ADDED
             )
@@ -154,22 +154,8 @@ class SkillCommandMixin:
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             updated = uow.skills.update(candidate, expected_version=expected_version)
+            self._stage_capability_audit(uow, updated, operation="update", action="resource.skill.updated")
             self._stage_capability_activity(uow, updated, action="resource.skill.updated")
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="resource_skill",
-                entity_id=updated.id,
-                module="project_management",
-                severity="low",
-                metadata={
-                    "action": "resource.skill.updated",
-                    "resource_id": updated.resource_id,
-                    "skill_code": updated.skill_code,
-                },
-                commit=False,
-                fail_closed=True,
-            )
             self._record_resource_capability_event(
                 uow, updated, change_type=ResourceCapabilityChangeType.UPDATED
             )
@@ -192,22 +178,8 @@ class SkillCommandMixin:
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             uow.skills.delete(skill_id, expected_version=expected_version)
+            self._stage_capability_audit(uow, existing, operation="delete", action="resource.skill.removed")
             self._stage_capability_activity(uow, existing, action="resource.skill.removed")
-            record_audit_entry(
-                uow,
-                operation="delete",
-                entity_type="resource_skill",
-                entity_id=existing.id,
-                module="project_management",
-                severity="low",
-                metadata={
-                    "action": "resource.skill.removed",
-                    "resource_id": existing.resource_id,
-                    "skill_code": existing.skill_code,
-                },
-                commit=False,
-                fail_closed=True,
-            )
             self._record_resource_capability_event(
                 uow, existing, change_type=ResourceCapabilityChangeType.REMOVED
             )
@@ -250,22 +222,8 @@ class SkillCommandMixin:
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             created = uow.certifications.add(cert)
+            self._stage_capability_audit(uow, created, operation="create", action="resource.certification.added")
             self._stage_capability_activity(uow, created, action="resource.certification.added")
-            record_audit_entry(
-                uow,
-                operation="create",
-                entity_type="resource_certification",
-                entity_id=created.id,
-                module="project_management",
-                severity="low",
-                metadata={
-                    "action": "resource.certification.added",
-                    "resource_id": created.resource_id,
-                    "certification_code": created.certification_code,
-                },
-                commit=False,
-                fail_closed=True,
-            )
             self._record_resource_capability_event(
                 uow, created, change_type=ResourceCapabilityChangeType.ADDED
             )
@@ -324,22 +282,8 @@ class SkillCommandMixin:
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             updated = uow.certifications.update(candidate, expected_version=expected_version)
+            self._stage_capability_audit(uow, updated, operation="update", action="resource.certification.updated")
             self._stage_capability_activity(uow, updated, action="resource.certification.updated")
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="resource_certification",
-                entity_id=updated.id,
-                module="project_management",
-                severity="low",
-                metadata={
-                    "action": "resource.certification.updated",
-                    "resource_id": updated.resource_id,
-                    "certification_code": updated.certification_code,
-                },
-                commit=False,
-                fail_closed=True,
-            )
             self._record_resource_capability_event(
                 uow, updated, change_type=ResourceCapabilityChangeType.UPDATED
             )
@@ -366,22 +310,8 @@ class SkillCommandMixin:
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             uow.certifications.delete(cert_id, expected_version=expected_version)
+            self._stage_capability_audit(uow, existing, operation="delete", action="resource.certification.removed")
             self._stage_capability_activity(uow, existing, action="resource.certification.removed")
-            record_audit_entry(
-                uow,
-                operation="delete",
-                entity_type="resource_certification",
-                entity_id=existing.id,
-                module="project_management",
-                severity="low",
-                metadata={
-                    "action": "resource.certification.removed",
-                    "resource_id": existing.resource_id,
-                    "certification_code": existing.certification_code,
-                },
-                commit=False,
-                fail_closed=True,
-            )
             self._record_resource_capability_event(
                 uow, existing, change_type=ResourceCapabilityChangeType.REMOVED
             )

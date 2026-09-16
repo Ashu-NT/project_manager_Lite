@@ -75,6 +75,7 @@ from src.core.platform.finance import (
     MoneyPayload,
 )
 from src.core.platform.integration.canonical_json import canonical_json_sha256
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 if TYPE_CHECKING:
@@ -734,9 +735,24 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         execution: ProcurementExecutionContext,
     ) -> None:
         principal = execution.service_principal
+        full_operation = f"project_commitment.{operation}"
+        snapshot = {
+            "state": line.state.value,
+            "amount": MoneyPayload.from_domain(line.money).amount,
+            "currency_code": line.currency_code,
+            "base_amount": MoneyPayload.from_domain(
+                Money.of(line.base_amount, line.base_currency_code)
+            ).amount,
+            "base_currency_code": line.base_currency_code,
+            "matched_amount": MoneyPayload.from_domain(line.matched_money).amount,
+            "remaining_amount": MoneyPayload.from_domain(line.remaining_money).amount,
+            "source_revision": line.source_revision,
+            "source_content_hash": line.source_content_hash,
+            "row_version": line.row_version,
+        }
         record_audit_entry(
             self,
-            operation=f"project_commitment.{operation}",
+            operation=full_operation,
             entity_type="project_commitment_line",
             entity_id=line.id,
             entity_parent_id=line.project_id,
@@ -744,35 +760,29 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             actor_id=principal.id,
             actor_type="service_principal",
             actor_username=principal.name,
-            old_value=None,
-            new_value=json.dumps(
-                {
-                    "state": line.state.value,
-                    "amount": MoneyPayload.from_domain(line.money).amount,
-                    "currency_code": line.currency_code,
-                    "base_amount": MoneyPayload.from_domain(
-                        Money.of(line.base_amount, line.base_currency_code)
-                    ).amount,
-                    "base_currency_code": line.base_currency_code,
-                    "matched_amount": MoneyPayload.from_domain(line.matched_money).amount,
-                    "remaining_amount": MoneyPayload.from_domain(line.remaining_money).amount,
-                    "source_revision": line.source_revision,
-                    "source_content_hash": line.source_content_hash,
-                    "row_version": line.row_version,
-                },
-                sort_keys=True,
-            ),
+            category="FINANCIAL",
+            after_data=snapshot,
             workspace_id=line.project_id,
             request_id=execution.correlation_id or execution.source_event_id,
             source="integration_worker",
             severity="high",
-            compliance_tag="financial",
             metadata={
                 "action": operation,
                 **self._execution_audit_metadata(execution),
             },
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            self,
+            action=full_operation,
+            entity_type="project_commitment_line",
+            entity_id=line.id,
+            parent_entity_id=line.project_id,
+            module="project_management",
+            workspace_id=line.project_id,
+            details={"action": operation},
+            commit=False,
         )
 
     def _record_match_audit(
@@ -784,9 +794,18 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         execution: ProcurementExecutionContext,
     ) -> None:
         principal = execution.service_principal
+        full_operation = f"project_commitment.{operation}"
+        snapshot = {
+            "kind": match.kind.value,
+            "commitment_line_id": match.commitment_line_id,
+            "cost_entry_id": match.cost_entry_id,
+            "amount": str(match.amount),
+            "currency_code": match.currency_code,
+            "reverses_match_id": match.reverses_match_id,
+        }
         record_audit_entry(
             self,
-            operation=f"project_commitment.{operation}",
+            operation=full_operation,
             entity_type="project_commitment_match",
             entity_id=match.id,
             entity_parent_id=line.project_id,
@@ -794,29 +813,29 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             actor_id=principal.id,
             actor_type="service_principal",
             actor_username=principal.name,
-            old_value=None,
-            new_value=json.dumps(
-                {
-                    "kind": match.kind.value,
-                    "commitment_line_id": match.commitment_line_id,
-                    "cost_entry_id": match.cost_entry_id,
-                    "amount": str(match.amount),
-                    "currency_code": match.currency_code,
-                    "reverses_match_id": match.reverses_match_id,
-                },
-                sort_keys=True,
-            ),
+            category="FINANCIAL",
+            after_data=snapshot,
             workspace_id=line.project_id,
             request_id=execution.correlation_id or execution.source_event_id,
             source="integration_worker",
             severity="high",
-            compliance_tag="financial",
             metadata={
                 "action": operation,
                 **self._execution_audit_metadata(execution),
             },
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            self,
+            action=full_operation,
+            entity_type="project_commitment_match",
+            entity_id=match.id,
+            parent_entity_id=line.project_id,
+            module="project_management",
+            workspace_id=line.project_id,
+            details={"action": operation},
+            commit=False,
         )
 
     @staticmethod

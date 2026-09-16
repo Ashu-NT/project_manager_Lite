@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import date, datetime, timezone
+from typing import Any
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -44,6 +44,7 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 
@@ -608,8 +609,8 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
             entity_type="project_financial_profile",
             entity_id=profile.id,
             project_id=profile.project_id,
-            old_value=self._profile_audit_value(old),
-            new_value=self._profile_audit_value(profile),
+            before_data=self._profile_audit_value(old),
+            after_data=self._profile_audit_value(profile),
         )
 
     def _record_cost_code_audit(
@@ -624,8 +625,8 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
             entity_type="project_cost_code",
             entity_id=cost_code.id,
             project_id=None,
-            old_value=self._cost_code_audit_value(old),
-            new_value=self._cost_code_audit_value(cost_code),
+            before_data=self._cost_code_audit_value(old),
+            after_data=self._cost_code_audit_value(cost_code),
         )
 
     def _record_restriction_audit(
@@ -638,11 +639,11 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
             entity_type="project_cost_code_restriction",
             entity_id=restriction.id,
             project_id=restriction.project_id,
-            old_value=None,
-            new_value=(
+            before_data=None,
+            after_data=(
                 None
                 if operation == "delete"
-                else json.dumps({"cost_code_id": restriction.cost_code_id}, sort_keys=True)
+                else {"cost_code_id": restriction.cost_code_id}
             ),
         )
 
@@ -653,8 +654,8 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
         entity_type: str,
         entity_id: str,
         project_id: str | None,
-        old_value: str | None,
-        new_value: str | None,
+        before_data: dict[str, Any] | None,
+        after_data: dict[str, Any] | None,
     ) -> None:
         record_audit_entry(
             self,
@@ -663,68 +664,73 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
             entity_id=entity_id,
             entity_parent_id=project_id,
             module="project_management",
-            old_value=old_value,
-            new_value=new_value,
+            category="FINANCIAL",
+            before_data=before_data,
+            after_data=after_data,
             workspace_id=project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
         )
+        record_activity(
+            self,
+            action=operation,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            parent_entity_id=project_id,
+            module="project_management",
+            workspace_id=project_id,
+            details={"action": operation},
+            commit=False,
+        )
 
     @staticmethod
-    def _profile_audit_value(profile: ProjectFinancialProfile | None) -> str | None:
+    def _profile_audit_value(profile: ProjectFinancialProfile | None) -> dict[str, Any] | None:
         if profile is None:
             return None
-        return json.dumps(
-            {
-                "billing_method": profile.billing_method.value,
-                "budget_control_mode": profile.budget_control_mode.value,
-                "cost_code_policy": profile.cost_code_policy.value,
-                "currency_code": profile.currency_code,
-                "default_cost_code_id": profile.default_cost_code_id,
-                "financial_end_date": (
-                    profile.financial_end_date.isoformat()
-                    if profile.financial_end_date
-                    else None
-                ),
-                "financial_start_date": (
-                    profile.financial_start_date.isoformat()
-                    if profile.financial_start_date
-                    else None
-                ),
-                "is_billable": profile.is_billable,
-                "is_funded": profile.is_funded,
-                "status": profile.status.value,
-                "version": profile.version,
-            },
-            sort_keys=True,
-        )
+        return {
+            "billing_method": profile.billing_method.value,
+            "budget_control_mode": profile.budget_control_mode.value,
+            "cost_code_policy": profile.cost_code_policy.value,
+            "currency_code": profile.currency_code,
+            "default_cost_code_id": profile.default_cost_code_id,
+            "financial_end_date": (
+                profile.financial_end_date.isoformat()
+                if profile.financial_end_date
+                else None
+            ),
+            "financial_start_date": (
+                profile.financial_start_date.isoformat()
+                if profile.financial_start_date
+                else None
+            ),
+            "is_billable": profile.is_billable,
+            "is_funded": profile.is_funded,
+            "status": profile.status.value,
+            "version": profile.version,
+        }
 
     @staticmethod
-    def _cost_code_audit_value(cost_code: ProjectCostCode | None) -> str | None:
+    def _cost_code_audit_value(cost_code: ProjectCostCode | None) -> dict[str, Any] | None:
         if cost_code is None:
             return None
-        return json.dumps(
-            {
-                "code": cost_code.code,
-                "effective_from": (
-                    cost_code.effective_from.isoformat() if cost_code.effective_from else None
-                ),
-                "effective_to": (
-                    cost_code.effective_to.isoformat() if cost_code.effective_to else None
-                ),
-                "external_reference": cost_code.external_reference,
-                "external_system": cost_code.external_system,
-                "is_active": cost_code.is_active,
-                "name": cost_code.name,
-                "parent_id": cost_code.parent_id,
-                "version": cost_code.version,
-            },
-            sort_keys=True,
-        )
+        return {
+            "code": cost_code.code,
+            "effective_from": (
+                cost_code.effective_from.isoformat() if cost_code.effective_from else None
+            ),
+            "effective_to": (
+                cost_code.effective_to.isoformat() if cost_code.effective_to else None
+            ),
+            "external_reference": cost_code.external_reference,
+            "external_system": cost_code.external_system,
+            "is_active": cost_code.is_active,
+            "name": cost_code.name,
+            "parent_id": cost_code.parent_id,
+            "version": cost_code.version,
+        }
 
     def _flush(self, *, duplicate_message: str | None = None) -> None:
         try:

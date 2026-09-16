@@ -8,7 +8,9 @@ from sqlalchemy.orm import Session
 from src.core.platform.contract.repositories.history.activity.contracts import ActivityRepository
 from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_any_permission,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContext, TenantContextService
 
 
@@ -104,6 +106,11 @@ class ActivityService:
         parent_entity_id: str | None = None,
         action_prefix: str | None = None,
     ) -> list[ActivityEntry]:
+        require_any_permission(
+            self._user_session,
+            ("settings.manage", "activity.read"),
+            operation_label="view activity entries",
+        )
         scope = self._require_scope(operation_label="list activity")
         return self._activity_repo.list_recent(
             limit=limit,
@@ -133,7 +140,11 @@ class ActivityService:
         organization is currently active in the caller's session -- used by
         Organization Detail, which may be viewing an organization the user
         hasn't switched their active context to."""
-        require_permission(self._user_session, "audit.read", operation_label="view activity entries")
+        require_any_permission(
+            self._user_session,
+            ("settings.manage", "activity.read"),
+            operation_label="view activity entries",
+        )
         scope = self._require_scope(operation_label="list activity for organization")
         return self._activity_repo.list_recent(
             limit=limit,

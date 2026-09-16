@@ -23,7 +23,6 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from src.core.shared.activity import record_activity
-from src.core.shared.audit import record_audit_entry
 
 
 class TaskHierarchyMixin:
@@ -162,22 +161,6 @@ class TaskHierarchyMixin:
                 # Deepest-first subtree writes avoid transient unique-code conflicts.
                 for candidate in ordered_updates:
                     uow.tasks.update(candidate)
-                record_audit_entry(
-                    uow,
-                    operation="update",
-                    entity_type="task",
-                    entity_id=task.id,
-                    module="project_management",
-                    organization_id=scope.organization_id,
-                    severity="low",
-                    metadata={
-                        "action": "task.wbs_move",
-                        "parent_task_id": parent_task_id,
-                        "wbs_code": resolved_wbs,
-                    },
-                    commit=False,
-                    fail_closed=True,
-                )
                 record_activity(
                     uow,
                     action="task.wbs_move",

@@ -1097,7 +1097,8 @@ def test_controls_activity_uses_project_scoped_enterprise_audit_only() -> None:
                 actor_type="user",
                 source="desktop",
                 severity="low",
-                compliance_tag="financial_control",
+                category="FINANCIAL",
+                result="SUCCESS",
             ),
         ),
     )

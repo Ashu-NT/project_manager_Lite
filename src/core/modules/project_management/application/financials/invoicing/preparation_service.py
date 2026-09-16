@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
@@ -78,6 +77,7 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.finance import DecimalQuantity, Money
 from src.core.platform.integration.canonical_json import canonical_json_sha256
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 
@@ -842,22 +842,33 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
 
     @staticmethod
     def _audit_using(owner, operation: str, entity) -> None:
+        full_operation = f"project_billing_preparation.{operation}"
         record_audit_entry(
             owner,
-            operation=f"project_billing_preparation.{operation}",
+            operation=full_operation,
             entity_type=type(entity).__name__,
             entity_id=entity.id,
             entity_parent_id=entity.project_id,
             module="project_management",
-            old_value=None,
-            new_value=json.dumps({"project_id": entity.project_id}, sort_keys=True),
+            category="FINANCIAL",
+            after_data={"project_id": entity.project_id},
             workspace_id=entity.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            owner,
+            action=full_operation,
+            entity_type=type(entity).__name__,
+            entity_id=entity.id,
+            parent_entity_id=entity.project_id,
+            module="project_management",
+            workspace_id=entity.project_id,
+            details={"action": operation},
+            commit=False,
         )
 
     def _write(self, operation: str, entity, write, events: object):

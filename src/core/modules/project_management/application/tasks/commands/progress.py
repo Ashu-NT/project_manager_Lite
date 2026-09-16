@@ -18,7 +18,6 @@ from src.core.modules.project_management.access.scope_permissions import require
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError
 from src.core.shared.activity import record_activity
-from src.core.shared.audit import record_audit_entry
 
 
 class TaskProgressMixin:
@@ -88,18 +87,6 @@ class TaskProgressMixin:
         with self._task_uow() as uow:
             for candidate in candidates:
                 uow.tasks.update(candidate)
-                record_audit_entry(
-                    uow,
-                    operation="update",
-                    entity_type="task",
-                    entity_id=candidate.id,
-                    module="project_management",
-                    organization_id=scope.organization_id,
-                    severity="low",
-                    metadata={"action": "task.set_status", "status": candidate.status.value},
-                    commit=False,
-                    fail_closed=True,
-                )
                 record_activity(
                     uow,
                     action="task.set_status",
@@ -178,22 +165,6 @@ class TaskProgressMixin:
         scope = self._active_task_scope(operation_label="update task progress")
         with self._task_uow() as uow:
             uow.tasks.update(candidate)
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="task",
-                entity_id=candidate.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={
-                    "action": "task.update_progress",
-                    "percent_complete": candidate.percent_complete,
-                    "status": candidate.status.value,
-                },
-                commit=False,
-                fail_closed=True,
-            )
             record_activity(
                 uow,
                 action="task.update_progress",

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Callable, Iterable
 
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
@@ -236,8 +237,25 @@ class ModuleCatalogMutationMixin:
             entity_type="module_entitlement",
             entity_id=module.code,
             module="platform",
+            category="PRIVILEGED_OPERATION",
             severity="low",
+            organization_id=organization_id,
+            changed_fields={
+                "licensed": {"before": current.licensed, "after": next_licensed},
+                "enabled": {"before": current.enabled, "after": next_enabled},
+                "lifecycle_status": {"before": current.lifecycle_status, "after": next_status},
+            },
             metadata=metadata,
+            commit=False,
+        )
+        record_activity(
+            uow,
+            action=audit_action,
+            entity_type="module_entitlement",
+            entity_id=module.code,
+            module="platform",
+            organization_id=organization_id,
+            details=metadata,
             commit=False,
         )
         if changed:
@@ -427,15 +445,29 @@ class ModuleCatalogMutationMixin:
             entity_type="organization",
             entity_id=normalized_organization_id,
             module="platform",
+            category="PRIVILEGED_OPERATION",
             severity="low",
-            metadata={
-                "action": "organization.modules.provision",
-                "organization_id": normalized_organization_id,
-                "licensed_modules": ",".join(sorted(licensed_codes)),
-                "enabled_modules": ",".join(sorted(enabled_codes)),
+            organization_id=normalized_organization_id,
+            after_data={
+                "licensed_modules": sorted(licensed_codes),
+                "enabled_modules": sorted(enabled_codes),
             },
+            metadata={"action": "organization.modules.provision"},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            self,
+            action="organization.modules.provision",
+            entity_type="organization",
+            entity_id=normalized_organization_id,
+            module="platform",
+            organization_id=normalized_organization_id,
+            details={
+                "licensed_modules": sorted(licensed_codes),
+                "enabled_modules": sorted(enabled_codes),
+            },
+            commit=False,
         )
         if self._session is not None:
             if commit:

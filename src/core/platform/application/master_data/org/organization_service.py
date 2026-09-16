@@ -430,19 +430,25 @@ class OrganizationService:
                     # active one (Organization Detail can edit any org).
                     organization_id=candidate.id,
                     module="platform",
+                    category="PRIVILEGED_OPERATION" if audit_action != "organization.update" else "MASTER_DATA",
                     severity="low",
-                    metadata={
-                        "action": audit_action,
+                    changed_fields=(
+                        {"is_enabled": {"before": str(organization.is_enabled), "after": str(candidate.is_enabled)}}
+                        if availability_changed
+                        else None
+                    ),
+                    after_data={
                         "organization_code": candidate.organization_code,
                         "display_name": candidate.display_name,
                         "timezone_name": candidate.timezone_name,
                         "base_currency": candidate.base_currency,
-                        "is_enabled": str(candidate.is_enabled),
+                        "is_enabled": candidate.is_enabled,
                         "legal_name": candidate.legal_name,
                         "registration_number": candidate.registration_number,
                         "country_code": candidate.country_code,
                         "email": candidate.email,
                     },
+                    metadata={"action": audit_action},
                     commit=False,
                     fail_closed=True,
                 )
@@ -574,13 +580,15 @@ class OrganizationService:
             entity_id=candidate.id,
             organization_id=candidate.id,
             module="platform",
-            severity="low",
-            metadata={
-                "action": action,
+            category="PRIVILEGED_OPERATION",
+            severity="medium",
+            changed_fields={"is_enabled": {"before": str(organization.is_enabled), "after": str(candidate.is_enabled)}},
+            after_data={
                 "organization_code": candidate.organization_code,
                 "display_name": candidate.display_name,
-                "is_enabled": str(candidate.is_enabled),
+                "is_enabled": candidate.is_enabled,
             },
+            metadata={"action": action},
             commit=False,
             fail_closed=True,
         )
@@ -664,13 +672,10 @@ class OrganizationService:
                     entity_id=candidate.id,
                     organization_id=candidate.id,
                     module="platform",
+                    category="MASTER_DATA",
                     severity="low",
-                    metadata={
-                        "action": "organization.update",
-                        "organization_code": candidate.organization_code,
-                        "display_name": candidate.display_name,
-                        field_name: value,
-                    },
+                    changed_fields={field_name: {"before": getattr(organization, field_name), "after": value}},
+                    metadata={"action": "organization.update"},
                     commit=False,
                     fail_closed=True,
                 )
@@ -763,19 +768,20 @@ class OrganizationService:
             # context (which is a different organization entirely, if any).
             organization_id=organization.id,
             module="platform",
+            category="MASTER_DATA",
             severity="low",
-            metadata={
-                "action": "organization.create",
+            after_data={
                 "organization_code": organization.organization_code,
                 "display_name": organization.display_name,
                 "timezone_name": organization.timezone_name,
                 "base_currency": organization.base_currency,
-                "is_enabled": str(organization.is_enabled),
+                "is_enabled": organization.is_enabled,
                 "legal_name": organization.legal_name,
                 "registration_number": organization.registration_number,
                 "country_code": organization.country_code,
                 "email": organization.email,
             },
+            metadata={"action": "organization.create"},
             commit=False,
             fail_closed=True,
         )
@@ -800,37 +806,6 @@ class OrganizationService:
             )
         )
         return organization
-
-    def _enable_organization_using(
-        self,
-        organization_repo: OrganizationRepository,
-        audit_owner: object,
-        *,
-        organization_id: str,
-        tenant_id: str,
-    ) -> Organization:
-        organization = organization_repo.get_for_tenant(organization_id, tenant_id)
-        if organization is None:
-            raise NotFoundError("Organization not found.", code="ORGANIZATION_NOT_FOUND")
-        candidate = replace(organization, is_enabled=True, tenant_id=tenant_id)
-        organization_repo.update(candidate)
-        record_audit_entry(
-            audit_owner,
-            operation="update",
-            entity_type="organization",
-            entity_id=candidate.id,
-            organization_id=candidate.id,
-            module="platform",
-            severity="low",
-            metadata={
-                "action": "organization.enable",
-                "organization_code": candidate.organization_code,
-                "display_name": candidate.display_name,
-            },
-            commit=False,
-            fail_closed=True,
-        )
-        return candidate
 
 
 __all__ = [

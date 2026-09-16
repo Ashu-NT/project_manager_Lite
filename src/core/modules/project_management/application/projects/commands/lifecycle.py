@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import logging
-import json
 from collections.abc import Sequence
 from dataclasses import replace
 from datetime import date, datetime, timezone
+from typing import Any
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -279,8 +279,11 @@ class ProjectLifecycleMixin:
                     entity_id=project.id,
                     module="project_management",
                     organization_id=scope.organization_id,
+                    category="MASTER_DATA",
                     severity="low",
-                    metadata={"action": "project.create", "name": project.name},
+                    after_data={"name": project.name, "status": project.status.value},
+                    workspace_id=project.id,
+                    metadata={"action": "project.create"},
                     commit=False,
                     fail_closed=True,
                 )
@@ -369,12 +372,13 @@ class ProjectLifecycleMixin:
             entity_id=project.id,
             module="project_management",
             organization_id=scope.organization_id,
+            category="MASTER_DATA",
             severity="low",
-            metadata={
-                "action": "project.set_status",
-                "status": project.status.value,
-                "from": old_status.value,
+            changed_fields={
+                "status": {"before": old_status.value, "after": project.status.value},
             },
+            workspace_id=project.id,
+            metadata={"action": "project.set_status"},
             commit=False,
             fail_closed=True,
         )
@@ -509,6 +513,7 @@ class ProjectLifecycleMixin:
                         project_repo=uow.projects,
                     )
                 uow.projects.update(candidate)
+                field_diff = _diff_project_fields(original_project, candidate)
                 record_audit_entry(
                     uow,
                     operation="update",
@@ -516,8 +521,14 @@ class ProjectLifecycleMixin:
                     entity_id=candidate.id,
                     module="project_management",
                     organization_id=scope.organization_id,
+                    category="MASTER_DATA",
                     severity="low",
-                    metadata={"action": "project.update", "name": candidate.name},
+                    changed_fields={
+                        field_name: {"before": diff["from"], "after": diff["to"]}
+                        for field_name, diff in field_diff.items()
+                    },
+                    workspace_id=candidate.id,
+                    metadata={"action": "project.update"},
                     commit=False,
                     fail_closed=True,
                 )
@@ -532,7 +543,7 @@ class ProjectLifecycleMixin:
                     details={
                         "name": candidate.name,
                         "status": candidate.status.value,
-                        "changes": _diff_project_fields(original_project, candidate),
+                        "changes": field_diff,
                     },
                     commit=False,
                 )
@@ -570,20 +581,27 @@ class ProjectLifecycleMixin:
         *,
         old: ProjectFinancialProfile | None = None,
     ) -> None:
-        def _value(item: ProjectFinancialProfile | None) -> str | None:
+        def _snapshot(item: ProjectFinancialProfile | None) -> dict[str, Any] | None:
             if item is None:
                 return None
-            return json.dumps(
-                {
-                    "billing_method": item.billing_method.value,
-                    "budget_control_mode": item.budget_control_mode.value,
-                    "cost_code_policy": item.cost_code_policy.value,
-                    "currency_code": item.currency_code,
-                    "status": item.status.value,
-                    "version": item.version,
-                },
-                sort_keys=True,
-            )
+            return {
+                "billing_method": item.billing_method.value,
+                "budget_control_mode": item.budget_control_mode.value,
+                "cost_code_policy": item.cost_code_policy.value,
+                "currency_code": item.currency_code,
+                "status": item.status.value,
+                "version": item.version,
+            }
+
+        before = _snapshot(old)
+        after = _snapshot(profile)
+        changed_fields = None
+        if before is not None and after is not None:
+            changed_fields = {
+                key: {"before": before[key], "after": after[key]}
+                for key in after
+                if before.get(key) != after[key]
+            }
 
         record_audit_entry(
             owner,
@@ -592,12 +610,13 @@ class ProjectLifecycleMixin:
             entity_id=profile.id,
             entity_parent_id=profile.project_id,
             module="project_management",
-            old_value=_value(old),
-            new_value=_value(profile),
+            category="FINANCIAL",
+            before_data=before,
+            after_data=after,
+            changed_fields=changed_fields,
             workspace_id=profile.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": f"financial_profile.{operation}"},
             commit=False,
             fail_closed=True,
@@ -655,8 +674,11 @@ class ProjectLifecycleMixin:
                 entity_id=project.id,
                 module="project_management",
                 organization_id=scope.organization_id,
-                severity="low",
-                metadata={"action": "project.delete", "name": project.name},
+                category="MASTER_DATA",
+                severity="medium",
+                before_data={"name": project.name, "status": project.status.value},
+                workspace_id=project.id,
+                metadata={"action": "project.delete"},
                 commit=False,
                 fail_closed=True,
             )

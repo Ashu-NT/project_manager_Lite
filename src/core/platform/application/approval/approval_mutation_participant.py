@@ -130,6 +130,7 @@ def request_approval_using(
         entity_type="approval_request",
         entity_id=request.id,
         module="platform",
+        category="APPROVAL",
         severity="medium",
         metadata={"action": "governance.request", **build_request_audit_details(request)},
         commit=False,

@@ -140,6 +140,21 @@ class RegisterLifecycleMixin:
                     code, project_id, entry.title, register_repo=uow.entries
                 )
                 uow.entries.add(entry)
+                record_audit_entry(
+                    uow,
+                    operation="create",
+                    entity_type="register_entry",
+                    entity_id=entry.id,
+                    module="project_management",
+                    organization_id=scope.organization_id,
+                    category="MASTER_DATA",
+                    severity="low",
+                    after_data={"title": entry.title, "entry_type": entry.entry_type.value},
+                    workspace_id=entry.project_id,
+                    metadata={"action": "register.create"},
+                    commit=False,
+                    fail_closed=True,
+                )
                 record_activity(
                     uow,
                     action="register.create",
@@ -149,18 +164,6 @@ class RegisterLifecycleMixin:
                     workspace_id=entry.project_id,
                     details=self._audit_details(entry),
                     commit=False,
-                )
-                record_audit_entry(
-                    uow,
-                    operation="create",
-                    entity_type="register_entry",
-                    entity_id=entry.id,
-                    module="project_management",
-                    organization_id=scope.organization_id,
-                    severity="low",
-                    metadata={"action": "register.create", **self._audit_details(entry)},
-                    commit=False,
-                    fail_closed=True,
                 )
                 uow.record_event(
                     RegisterEntryChanged(
@@ -241,6 +244,20 @@ class RegisterLifecycleMixin:
                         ),
                     )
                 uow.entries.update(candidate)
+                record_audit_entry(
+                    uow,
+                    operation="update",
+                    entity_type="register_entry",
+                    entity_id=candidate.id,
+                    module="project_management",
+                    organization_id=scope.organization_id,
+                    category="MASTER_DATA",
+                    severity="low",
+                    workspace_id=candidate.project_id,
+                    metadata={"action": "register.update"},
+                    commit=False,
+                    fail_closed=True,
+                )
                 record_activity(
                     uow,
                     action="register.update",
@@ -250,18 +267,6 @@ class RegisterLifecycleMixin:
                     workspace_id=candidate.project_id,
                     details=self._audit_details(candidate),
                     commit=False,
-                )
-                record_audit_entry(
-                    uow,
-                    operation="update",
-                    entity_type="register_entry",
-                    entity_id=candidate.id,
-                    module="project_management",
-                    organization_id=scope.organization_id,
-                    severity="low",
-                    metadata={"action": "register.update", **self._audit_details(candidate)},
-                    commit=False,
-                    fail_closed=True,
                 )
                 uow.record_event(
                     RegisterEntryChanged(
@@ -311,6 +316,20 @@ class RegisterLifecycleMixin:
                     continue
                 candidate = replace(entry, status=status, updated_at=datetime.now(timezone.utc))
                 uow.entries.update(candidate)
+                record_audit_entry(
+                    uow,
+                    operation="update",
+                    entity_type="register_entry",
+                    entity_id=candidate.id,
+                    module="project_management",
+                    organization_id=scope.organization_id,
+                    category="MASTER_DATA",
+                    severity="low",
+                    workspace_id=candidate.project_id,
+                    metadata={"action": "register.update"},
+                    commit=False,
+                    fail_closed=True,
+                )
                 record_activity(
                     uow,
                     action="register.update",
@@ -320,18 +339,6 @@ class RegisterLifecycleMixin:
                     workspace_id=candidate.project_id,
                     details=self._audit_details(candidate),
                     commit=False,
-                )
-                record_audit_entry(
-                    uow,
-                    operation="update",
-                    entity_type="register_entry",
-                    entity_id=candidate.id,
-                    module="project_management",
-                    organization_id=scope.organization_id,
-                    severity="low",
-                    metadata={"action": "register.update", **self._audit_details(candidate)},
-                    commit=False,
-                    fail_closed=True,
                 )
                 uow.record_event(
                     RegisterEntryChanged(
@@ -364,6 +371,21 @@ class RegisterLifecycleMixin:
         )
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             uow.entries.delete(entry_id)
+            record_audit_entry(
+                uow,
+                operation="delete",
+                entity_type="register_entry",
+                entity_id=entry.id,
+                module="project_management",
+                organization_id=scope.organization_id,
+                category="MASTER_DATA",
+                severity="low",
+                before_data={"title": entry.title},
+                workspace_id=entry.project_id,
+                metadata={"action": "register.delete"},
+                commit=False,
+                fail_closed=True,
+            )
             record_activity(
                 uow,
                 action="register.delete",
@@ -373,18 +395,6 @@ class RegisterLifecycleMixin:
                 workspace_id=entry.project_id,
                 details=self._audit_details(entry),
                 commit=False,
-            )
-            record_audit_entry(
-                uow,
-                operation="delete",
-                entity_type="register_entry",
-                entity_id=entry.id,
-                module="project_management",
-                organization_id=scope.organization_id,
-                severity="low",
-                metadata={"action": "register.delete", **self._audit_details(entry)},
-                commit=False,
-                fail_closed=True,
             )
             uow.record_event(
                 RegisterEntryChanged(

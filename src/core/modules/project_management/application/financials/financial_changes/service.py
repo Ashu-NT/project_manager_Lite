@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from datetime import date, datetime
 from decimal import Decimal
@@ -68,6 +67,7 @@ from src.core.platform.common.exceptions import (
     ConcurrencyError,
     NotFoundError,
 )
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 
@@ -927,63 +927,81 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
     @staticmethod
     def _audit_change_using(owner, operation: str, change: FinancialChangeRequest) -> None:
         """Record the change audit through the current transaction-bound owner."""
+        full_operation = f"financial_change.{operation}"
+        snapshot = {
+            "revision": change.revision,
+            "status": change.status.value,
+            "base_budget_id": change.base_budget_id,
+            "base_forecast_id": change.base_forecast_id,
+            "applied_budget_id": change.applied_budget_id,
+            "applied_forecast_id": change.applied_forecast_id,
+            "applied_schedule_count": change.applied_schedule_count,
+        }
         record_audit_entry(
             owner,
-            operation=f"financial_change.{operation}",
+            operation=full_operation,
             entity_type="financial_change_request",
             entity_id=change.id,
             entity_parent_id=change.project_id,
             module="project_management",
-            old_value=None,
-            new_value=json.dumps(
-                {
-                    "revision": change.revision,
-                    "status": change.status.value,
-                    "base_budget_id": change.base_budget_id,
-                    "base_forecast_id": change.base_forecast_id,
-                    "applied_budget_id": change.applied_budget_id,
-                    "applied_forecast_id": change.applied_forecast_id,
-                    "applied_schedule_count": change.applied_schedule_count,
-                },
-                sort_keys=True,
-            ),
+            category="APPROVAL",
+            after_data=snapshot,
             workspace_id=change.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            owner,
+            action=full_operation,
+            entity_type="financial_change_request",
+            entity_id=change.id,
+            parent_entity_id=change.project_id,
+            module="project_management",
+            workspace_id=change.project_id,
+            details={"action": operation},
+            commit=False,
         )
 
     def _audit_impact(
         self, operation: str, change: FinancialChangeRequest, impact: FinancialChangeImpact
     ) -> None:
+        full_operation = f"financial_change_impact.{operation}"
+        snapshot = {
+            "impact_type": impact.impact_type.value,
+            "amount": str(impact.amount),
+            "currency_code": impact.currency_code,
+            "target_line_id": impact.target_line_id,
+            "target_task_version": impact.target_task_version,
+        }
         record_audit_entry(
             self,
-            operation=f"financial_change_impact.{operation}",
+            operation=full_operation,
             entity_type="financial_change_impact",
             entity_id=impact.id,
             entity_parent_id=change.id,
             module="project_management",
-            old_value=None,
-            new_value=json.dumps(
-                {
-                    "impact_type": impact.impact_type.value,
-                    "amount": str(impact.amount),
-                    "currency_code": impact.currency_code,
-                    "target_line_id": impact.target_line_id,
-                    "target_task_version": impact.target_task_version,
-                },
-                sort_keys=True,
-            ),
+            category="FINANCIAL",
+            after_data=snapshot,
             workspace_id=change.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            self,
+            action=full_operation,
+            entity_type="financial_change_impact",
+            entity_id=impact.id,
+            parent_entity_id=change.id,
+            module="project_management",
+            workspace_id=change.project_id,
+            details={"action": operation},
+            commit=False,
         )
 
     def _audit_version(
@@ -993,25 +1011,33 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         change: FinancialChangeRequest,
         occurred_at: datetime,
     ) -> None:
+        full_operation = f"{entity_type}.apply_financial_change"
         record_audit_entry(
             self,
-            operation=f"{entity_type}.apply_financial_change",
+            operation=full_operation,
             entity_type=entity_type,
             entity_id=entity_id,
             entity_parent_id=change.project_id,
             module="project_management",
-            old_value=None,
-            new_value=json.dumps(
-                {"financial_change_id": change.id, "applied_at": occurred_at.isoformat()},
-                sort_keys=True,
-            ),
+            category="FINANCIAL",
+            after_data={"financial_change_id": change.id, "applied_at": occurred_at.isoformat()},
             workspace_id=change.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": "apply_financial_change"},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            self,
+            action=full_operation,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            parent_entity_id=change.project_id,
+            module="project_management",
+            workspace_id=change.project_id,
+            details={"action": "apply_financial_change"},
+            commit=False,
         )
 
 __all__ = ["FinancialChangeService"]

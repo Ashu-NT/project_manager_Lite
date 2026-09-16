@@ -73,7 +73,8 @@ class DurableSecurityDenialRecorder:
                 request_id=_safe_trace_id(self._trace_id_provider),
                 source="authorization",
                 severity="high",
-                compliance_tag="SOC2",
+                category="ACCESS",
+                result="DENIED",
                 metadata={
                     "action": _clean_text(
                         event.operation,

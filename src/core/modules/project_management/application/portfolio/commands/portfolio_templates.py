@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from src.core.modules.project_management.domain.portfolio import PortfolioScoringTemplate
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.modules.project_management.application.portfolio.portfolio_events import (
     PortfolioScoringTemplateChangeType,
@@ -56,10 +57,23 @@ class PortfolioTemplateCommandMixin:
                     entity_type="portfolio_scoring_template",
                     entity_id=template.id,
                     module="project_management",
+                    organization_id=organization_id,
+                    category="MASTER_DATA",
                     severity="low",
-                    metadata={"action": "portfolio.scoring_template.create", "name": template.name},
+                    after_data={"name": template.name},
+                    metadata={"action": "portfolio.scoring_template.create"},
                     commit=False,
                     fail_closed=True,
+                )
+                record_activity(
+                    uow,
+                    action="portfolio.scoring_template.create",
+                    entity_type="portfolio_scoring_template",
+                    entity_id=template.id,
+                    module="project_management",
+                    organization_id=organization_id,
+                    details={"name": template.name},
+                    commit=False,
                 )
                 events.append(
                     self._scoring_template_event(template, PortfolioScoringTemplateChangeType.CREATED)
@@ -97,10 +111,20 @@ class PortfolioTemplateCommandMixin:
                     entity_type="portfolio_scoring_template",
                     entity_id=candidate.id,
                     module="project_management",
+                    category="MASTER_DATA",
                     severity="low",
-                    metadata={"action": "portfolio.scoring_template.activate", "name": candidate.name},
+                    metadata={"action": "portfolio.scoring_template.activate"},
                     commit=False,
                     fail_closed=True,
+                )
+                record_activity(
+                    uow,
+                    action="portfolio.scoring_template.activate",
+                    entity_type="portfolio_scoring_template",
+                    entity_id=candidate.id,
+                    module="project_management",
+                    details={"name": candidate.name},
+                    commit=False,
                 )
                 events.append(
                     self._scoring_template_event(candidate, PortfolioScoringTemplateChangeType.ACTIVATED)

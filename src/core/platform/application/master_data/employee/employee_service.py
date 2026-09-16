@@ -11,7 +11,6 @@ from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError,
 from src.core.platform.contract.uow.employee_unit_of_work import EmployeeUnitOfWorkFactory
 from src.core.platform.contract.repositories.master_data.department.contracts import DepartmentRepository
 from src.core.platform.application.master_data.employee.employee_support import (
-    build_employee_audit_details,
     resolve_employee_department_reference,
     resolve_employee_site_reference,
     sync_linked_employee_resources,
@@ -144,8 +143,11 @@ class EmployeeService:
                     entity_type="employee",
                     entity_id=employee.id,
                     module="platform",
+                    organization_id=organization_id,
+                    category="MASTER_DATA",
                     severity="low",
-                    metadata={"action": "employee.create", **build_employee_audit_details(employee)},
+                    after_data={"employee_code": employee.employee_code, "full_name": employee.full_name},
+                    metadata={"action": "employee.create"},
                     commit=False,
                     fail_closed=True,
                 )
@@ -284,31 +286,31 @@ class EmployeeService:
                     entity_type="employee",
                     entity_id=candidate.id,
                     module="platform",
+                    organization_id=organization_id,
+                    category="MASTER_DATA",
                     severity="low",
-                    metadata={"action": audit_action, **build_employee_audit_details(candidate)},
+                    metadata={"action": audit_action},
                     commit=False,
                     fail_closed=True,
                 )
-                # Only the active-state transition is curated Organization
-                # Activity -- an ordinary profile edit (title/email/phone/
-                # etc.) is real audit history but not shown as activity.
-                if audit_action in ("employee.activate", "employee.deactivate"):
-                    record_activity(
-                        uow,
-                        action=audit_action,
-                        entity_type="employee",
-                        entity_id=candidate.id,
-                        module="platform",
-                        organization_id=organization_id,
-                        message=(
-                            f"Employee removed — {candidate.full_name}"
-                            if audit_action == "employee.deactivate"
-                            else f"Employee reinstated — {candidate.full_name}"
-                        ),
-                        icon="employee",
-                        type="warning" if audit_action == "employee.deactivate" else "info",
-                        commit=False,
-                    )
+                record_activity(
+                    uow,
+                    action=audit_action,
+                    entity_type="employee",
+                    entity_id=candidate.id,
+                    module="platform",
+                    organization_id=organization_id,
+                    message=(
+                        f"Employee removed — {candidate.full_name}"
+                        if audit_action == "employee.deactivate"
+                        else f"Employee reinstated — {candidate.full_name}"
+                        if audit_action == "employee.activate"
+                        else f"Employee updated — {candidate.full_name}"
+                    ),
+                    icon="employee",
+                    type="warning" if audit_action == "employee.deactivate" else "info",
+                    commit=False,
+                )
                 uow.record_event(
                     EmployeeProfileUpdated(
                         tenant_id=tenant_id,

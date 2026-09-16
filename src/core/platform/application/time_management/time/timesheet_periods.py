@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 import logging
 
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, ValidationError
@@ -303,8 +304,10 @@ class TimesheetPeriodsMixin:
                 actor_id=getattr(principal, "user_id", None),
                 actor_username=getattr(principal, "username", None),
                 organization_id=period.organization_id,
-                old_value=expected_status.value,
-                new_value=period.status.value,
+                category="APPROVAL",
+                changed_fields={
+                    "status": {"before": expected_status.value, "after": period.status.value},
+                },
                 severity=severity,
                 metadata={
                     "action": action,
@@ -324,6 +327,19 @@ class TimesheetPeriodsMixin:
                 },
                 commit=False,
                 fail_closed=True,
+            )
+            record_activity(
+                self,
+                action=f"timesheet_period.{action}",
+                entity_type="timesheet_period",
+                entity_id=period.id,
+                module="platform",
+                organization_id=period.organization_id,
+                details={
+                    "transition": f"{expected_status.value}->{period.status.value}",
+                    "project_id": project_ids[0] if len(project_ids) == 1 else None,
+                },
+                commit=False,
             )
             uow.record_event(
                 TimesheetPeriodStatusChanged(

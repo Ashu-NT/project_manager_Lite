@@ -163,6 +163,20 @@ class ResourceCommandMixin:
                 code="STALE_WRITE",
             )
 
+    def _stage_audit(self, uow, resource: Resource, *, operation: str, action: str) -> None:
+        record_audit_entry(
+            uow,
+            operation=operation,
+            entity_type="resource",
+            entity_id=resource.id,
+            module="project_management",
+            category="MASTER_DATA",
+            severity="low",
+            metadata={"action": action},
+            commit=False,
+            fail_closed=True,
+        )
+
     def _stage_activity(self, uow, resource: Resource, *, action: str) -> None:
         record_activity(
             uow,
@@ -257,24 +271,8 @@ class ResourceCommandMixin:
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             resource.code = self._resolve_resource_code(code, resource.name, resource_repo=uow.resources)
             uow.resources.add(resource)
+            self._stage_audit(uow, resource, operation="create", action="resource.created")
             self._stage_activity(uow, resource, action="resource.created")
-            record_audit_entry(
-                uow,
-                operation="create",
-                entity_type="resource",
-                entity_id=resource.id,
-                module="project_management",
-                severity="low",
-                metadata={
-                    "action": "resource.created",
-                    "name": resource.name,
-                    "kind": resource.kind.value,
-                    "worker_type": resource.worker_type.value,
-                    "employee_id": resource.employee_id or "",
-                },
-                commit=False,
-                fail_closed=True,
-            )
             self._record_resource_master_event(uow, resource, change_type=ResourceMasterChangeType.CREATED)
             uow.commit()
         return resource
@@ -353,24 +351,8 @@ class ResourceCommandMixin:
                 # True no-op: no write, audit, event, or version bump.
                 return resource
             uow.resources.update(candidate)
+            self._stage_audit(uow, candidate, operation="update", action="resource.updated")
             self._stage_activity(uow, candidate, action="resource.updated")
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="resource",
-                entity_id=candidate.id,
-                module="project_management",
-                severity="low",
-                metadata={
-                    "action": "resource.updated",
-                    "name": candidate.name,
-                    "kind": candidate.kind.value,
-                    "worker_type": candidate.worker_type.value,
-                    "employee_id": candidate.employee_id or "",
-                },
-                commit=False,
-                fail_closed=True,
-            )
             self._record_resource_master_event(uow, candidate, change_type=ResourceMasterChangeType.UPDATED)
             uow.commit()
         return candidate
@@ -405,18 +387,8 @@ class ResourceCommandMixin:
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             uow.resources.update(candidate)
+            self._stage_audit(uow, candidate, operation="update", action=f"resource.{operation}d")
             self._stage_activity(uow, candidate, action=f"resource.{operation}d")
-            record_audit_entry(
-                uow,
-                operation=operation,
-                entity_type="resource",
-                entity_id=candidate.id,
-                module="project_management",
-                severity="low",
-                metadata={"action": f"resource.{operation}d", "name": candidate.name},
-                commit=False,
-                fail_closed=True,
-            )
             self._record_resource_master_event(uow, candidate, change_type=change_type)
             uow.commit()
         return candidate
@@ -450,18 +422,8 @@ class ResourceCommandMixin:
 
         with self._require_uow_factory().create(context=self._new_context()) as uow:
             uow.resources.delete(resource.id)
+            self._stage_audit(uow, resource, operation="delete", action="resource.purged")
             self._stage_activity(uow, resource, action="resource.purged")
-            record_audit_entry(
-                uow,
-                operation="purge",
-                entity_type="resource",
-                entity_id=resource.id,
-                module="project_management",
-                severity="low",
-                metadata={"action": "resource.purged", "name": resource.name},
-                commit=False,
-                fail_closed=True,
-            )
             self._record_resource_master_event(uow, resource, change_type=ResourceMasterChangeType.PURGED)
             uow.commit()
         return resource

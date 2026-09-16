@@ -51,7 +51,7 @@ def add_atomic_auth_event(
         organization_id=normalized_organization_id,
         source="auth",
         severity=_severity_for_action(action),
-        compliance_tag="SOC2",
+        category="SECURITY",
         metadata={
             **dict(details),
             "action": action,

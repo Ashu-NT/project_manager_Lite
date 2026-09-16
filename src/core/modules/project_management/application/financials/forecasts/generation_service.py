@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
@@ -82,6 +81,7 @@ from src.core.platform.common.exceptions import (
     ConcurrencyError,
     NotFoundError,
 )
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 
@@ -780,6 +780,14 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
         line_count: int,
         decision_count: int,
     ) -> None:
+        snapshot = {
+            "revision": forecast.revision,
+            "as_of_date": forecast.as_of_date.isoformat(),
+            "generation_mode": forecast.generation_mode.value,
+            "line_count": line_count,
+            "decision_count": decision_count,
+            **{key: str(value) for key, value in totals.items()},
+        }
         record_audit_entry(
             self,
             operation="project_forecast.generate",
@@ -787,25 +795,25 @@ class ForecastGenerationService(ProjectManagementModuleGuardMixin):
             entity_id=forecast.id,
             entity_parent_id=forecast.project_id,
             module="project_management",
-            old_value=None,
-            new_value=json.dumps(
-                {
-                    "revision": forecast.revision,
-                    "as_of_date": forecast.as_of_date.isoformat(),
-                    "generation_mode": forecast.generation_mode.value,
-                    "line_count": line_count,
-                    "decision_count": decision_count,
-                    **{key: str(value) for key, value in totals.items()},
-                },
-                sort_keys=True,
-            ),
+            category="FINANCIAL",
+            after_data=snapshot,
             workspace_id=forecast.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": "generate"},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            self,
+            action="project_forecast.generate",
+            entity_type="project_forecast",
+            entity_id=forecast.id,
+            parent_entity_id=forecast.project_id,
+            module="project_management",
+            workspace_id=forecast.project_id,
+            details={"action": "generate"},
+            commit=False,
         )
 
 

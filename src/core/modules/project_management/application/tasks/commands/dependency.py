@@ -210,6 +210,7 @@ class TaskDependencyMixin:
                 entity_id=dependency.id,
                 module="project_management",
                 organization_id=scope.organization_id,
+                category="APPROVAL",
                 severity="low",
                 metadata={
                     "action": "dependency.add",
@@ -321,6 +322,7 @@ class TaskDependencyMixin:
                 entity_id=dependency_id,
                 module="project_management",
                 organization_id=scope.organization_id,
+                category="APPROVAL",
                 severity="low",
                 metadata={
                     "action": "dependency.remove",
@@ -529,6 +531,7 @@ class TaskDependencyMixin:
                 entity_id=candidate.id,
                 module="project_management",
                 organization_id=scope.organization_id,
+                category="APPROVAL",
                 severity="low",
                 metadata={
                     "action": "dependency.update",

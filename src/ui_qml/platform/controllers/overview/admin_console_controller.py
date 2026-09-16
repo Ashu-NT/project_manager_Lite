@@ -431,8 +431,8 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         return self._organization_controller.organizationDetailContext(organization_id)
 
     @Slot(str, result="QVariantList")
-    def organizationAuditActivity(self, organization_id: str) -> list[dict[str, object]]:
-        return self._organization_controller.organizationAuditActivity(organization_id)
+    def organizationActivity(self, organization_id: str) -> list[dict[str, object]]:
+        return self._organization_controller.organizationActivity(organization_id)
 
     # ── Calendar slots ────────────────────────────────────────────────────
 

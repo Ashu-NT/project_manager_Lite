@@ -79,13 +79,14 @@ class PlatformEnterpriseAuditDesktopApi:
             actor_type=entry.actor_type,
             source=entry.source,
             severity=entry.severity,
-            compliance_tag=entry.compliance_tag,
+            category=entry.category,
+            result=entry.result,
             tenant_id=entry.tenant_id,
             organization_id=entry.organization_id,
             entity_parent_id=entry.entity_parent_id,
-            changed_field=entry.field,
-            old_value=entry.old_value,
-            new_value=entry.new_value,
+            before_data=entry.before_data,
+            after_data=entry.after_data,
+            changed_fields=entry.changed_fields,
             metadata=dict(entry.metadata),
         )
 
@@ -93,7 +94,7 @@ class PlatformEnterpriseAuditDesktopApi:
         actor_label = entry.actor_username or entry.actor_id or "System"
         entity_label = _ENTITY_TYPE_LABEL.get(entry.entity_type, entry.entity_type.replace("_", " ").title())
         ts = entry.timestamp.strftime("%Y-%m-%d %H:%M UTC")
-        tag_parts = [p for p in (entry.compliance_tag, entry.source) if p and p != "none"]
+        tag_parts = [p for p in (entry.category, entry.source) if p and p != "none"]
         supporting = " · ".join(tag_parts) if tag_parts else ""
         return {
             "id": entry.id,

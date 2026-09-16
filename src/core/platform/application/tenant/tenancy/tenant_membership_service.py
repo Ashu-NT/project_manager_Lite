@@ -857,12 +857,10 @@ class TenantMembershipService:
             module="platform",
             actor_id=actor.user_id,
             actor_username=actor.username,
-            field="status",
-            old_value=old_status,
-            new_value=new_status,
+            changed_fields={"status": {"before": old_status, "after": new_status}},
             tenant_id=tenant_id,
             severity="high",
-            compliance_tag="SOC2",
+            category="SECURITY",
             metadata={"action": action, **metadata},
         )
         audit_repo.add_for_tenant(entry, tenant_id)

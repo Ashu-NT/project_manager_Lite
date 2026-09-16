@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from datetime import date, datetime
 from decimal import Decimal
@@ -56,6 +55,7 @@ from src.core.platform.common.exceptions import (
     ConcurrencyError,
     NotFoundError,
 )
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 
@@ -834,64 +834,82 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         raise
 
     def _record_forecast_audit(self, operation: str, forecast: ProjectForecast) -> None:
+        full_operation = f"project_forecast.{operation}"
+        snapshot = {
+            "status": forecast.status.value,
+            "revision": forecast.revision,
+            "as_of_date": forecast.as_of_date.isoformat(),
+            "generation_mode": forecast.generation_mode.value,
+            "currency_code": forecast.currency_code,
+        }
         record_audit_entry(
             self,
-            operation=f"project_forecast.{operation}",
+            operation=full_operation,
             entity_type="project_forecast",
             entity_id=forecast.id,
             entity_parent_id=forecast.project_id,
             module="project_management",
-            old_value=None,
-            new_value=json.dumps(
-                {
-                    "status": forecast.status.value,
-                    "revision": forecast.revision,
-                    "as_of_date": forecast.as_of_date.isoformat(),
-                    "generation_mode": forecast.generation_mode.value,
-                    "currency_code": forecast.currency_code,
-                },
-                sort_keys=True,
-            ),
+            category="FINANCIAL",
+            after_data=snapshot,
             workspace_id=forecast.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            self,
+            action=full_operation,
+            entity_type="project_forecast",
+            entity_id=forecast.id,
+            parent_entity_id=forecast.project_id,
+            module="project_management",
+            workspace_id=forecast.project_id,
+            details={"action": operation},
+            commit=False,
         )
 
     def _record_line_audit(
         self, operation: str, line: ForecastLine, forecast: ProjectForecast
     ) -> None:
+        full_operation = f"project_forecast_line.{operation}"
+        snapshot = {
+            "amount": str(line.amount),
+            "currency_code": line.currency_code,
+            "cost_code_id": line.cost_code_id,
+            "task_id": line.task_id,
+            "source_kind": line.source_kind.value,
+            "source_type": line.source_type.value,
+            "source_reference_type": line.source_reference_type,
+            "source_reference_id": line.source_reference_id,
+        }
         record_audit_entry(
             self,
-            operation=f"project_forecast_line.{operation}",
+            operation=full_operation,
             entity_type="project_forecast_line",
             entity_id=line.id,
             entity_parent_id=forecast.id,
             module="project_management",
-            old_value=None,
-            new_value=json.dumps(
-                {
-                    "amount": str(line.amount),
-                    "currency_code": line.currency_code,
-                    "cost_code_id": line.cost_code_id,
-                    "task_id": line.task_id,
-                    "source_kind": line.source_kind.value,
-                    "source_type": line.source_type.value,
-                    "source_reference_type": line.source_reference_type,
-                    "source_reference_id": line.source_reference_id,
-                },
-                sort_keys=True,
-            ),
+            category="FINANCIAL",
+            after_data=snapshot,
             workspace_id=forecast.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            self,
+            action=full_operation,
+            entity_type="project_forecast_line",
+            entity_id=line.id,
+            parent_entity_id=forecast.id,
+            module="project_management",
+            workspace_id=forecast.project_id,
+            details={"action": operation},
+            commit=False,
         )
 
 __all__ = ["ForecastVersionService"]

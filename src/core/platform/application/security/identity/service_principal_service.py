@@ -511,7 +511,7 @@ class ServicePrincipalService:
             organization_id=principal.organization_id,
             source="identity",
             severity="high",
-            compliance_tag="SOC2",
+            category="SECURITY",
             metadata={"action": action, **metadata},
         )
         self._audit_repo.add_for_tenant(entry, principal.tenant_id)

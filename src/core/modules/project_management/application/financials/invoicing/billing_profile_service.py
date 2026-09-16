@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
@@ -28,6 +27,7 @@ from src.core.modules.project_management.domain.financials.configuration import 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 
@@ -265,22 +265,33 @@ class ProjectBillingProfileService(ProjectManagementModuleGuardMixin):
     def _persist(self, operation: str, entity, write, event: object):
         write()
         self._billing_repo.flush()
+        full_operation = f"project_billing.{operation}"
         record_audit_entry(
             self,
-            operation=f"project_billing.{operation}",
+            operation=full_operation,
             entity_type=type(entity).__name__,
             entity_id=entity.id,
             entity_parent_id=entity.project_id,
             module="project_management",
-            old_value=None,
-            new_value=json.dumps({"project_id": entity.project_id}, sort_keys=True),
+            category="FINANCIAL",
+            after_data={"project_id": entity.project_id},
             workspace_id=entity.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            self,
+            action=full_operation,
+            entity_type=type(entity).__name__,
+            entity_id=entity.id,
+            parent_entity_id=entity.project_id,
+            module="project_management",
+            workspace_id=entity.project_id,
+            details={"action": operation},
+            commit=False,
         )
         if self._record_event is not None:
             self._record_event(event)

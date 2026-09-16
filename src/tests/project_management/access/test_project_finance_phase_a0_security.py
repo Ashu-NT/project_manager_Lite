@@ -233,13 +233,13 @@ def test_cost_entry_mutation_records_scoped_enterprise_audit(services):
         operation="project_cost_entry.create",
     )
     audit = next(candidate for candidate in entries if candidate.entity_id == entry.id)
-    payload = json.loads(audit.new_value)
+    payload = audit.after_data
 
     assert audit.tenant_id
     assert audit.organization_id
     assert audit.entity_parent_id == project.id
-    assert audit.compliance_tag == "financial"
-    assert audit.old_value is None
+    assert audit.category == "FINANCIAL"
+    assert audit.before_data is None
     assert Decimal(payload["amount"]) == Decimal("25.00")
     assert payload["currency_code"] == entry.currency_code
 

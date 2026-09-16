@@ -26,6 +26,7 @@ from src.core.platform.domain.master_data.party import (
 )
 from src.core.platform.domain.master_data.party.events import PartyCreated, PartyProfileUpdated
 from src.core.platform.application.tenant.tenancy import TenantContextService
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.time.clock import Clock
@@ -194,17 +195,24 @@ class PartyService:
                     entity_type="party",
                     entity_id=party.id,
                     module="platform",
+                    organization_id=organization.id,
+                    category="MASTER_DATA",
                     severity="low",
-                    metadata={
-                        "action": "party.create",
-                        "organization_id": organization.id,
-                        "party_code": party.party_code,
-                        "party_name": party.party_name,
-                        "party_type": party.party_type.value,
-                        "is_active": str(party.is_active),
-                    },
+                    after_data={"party_code": party.party_code, "party_name": party.party_name},
+                    metadata={"action": "party.create"},
                     commit=False,
                     fail_closed=True,
+                )
+                record_activity(
+                    uow,
+                    action="party.create",
+                    entity_type="party",
+                    entity_id=party.id,
+                    module="platform",
+                    organization_id=organization.id,
+                    message=f"Party created — {party.party_name}",
+                    icon="party",
+                    commit=False,
                 )
                 uow.record_event(
                     PartyCreated(
@@ -323,17 +331,23 @@ class PartyService:
                     entity_type="party",
                     entity_id=candidate.id,
                     module="platform",
+                    organization_id=organization.id,
+                    category="MASTER_DATA",
                     severity="low",
-                    metadata={
-                        "action": "party.update",
-                        "organization_id": organization.id,
-                        "party_code": candidate.party_code,
-                        "party_name": candidate.party_name,
-                        "party_type": candidate.party_type.value,
-                        "is_active": str(candidate.is_active),
-                    },
+                    metadata={"action": "party.update"},
                     commit=False,
                     fail_closed=True,
+                )
+                record_activity(
+                    uow,
+                    action="party.update",
+                    entity_type="party",
+                    entity_id=candidate.id,
+                    module="platform",
+                    organization_id=organization.id,
+                    message=f"Party updated — {candidate.party_name}",
+                    icon="party",
+                    commit=False,
                 )
                 uow.record_event(
                     PartyProfileUpdated(

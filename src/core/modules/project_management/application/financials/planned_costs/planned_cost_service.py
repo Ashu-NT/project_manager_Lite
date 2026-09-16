@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -57,6 +56,7 @@ from src.core.platform.common.exceptions import (
     ConcurrencyError,
     NotFoundError,
 )
+from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 
 _REVISION_CONSTRAINT = "uq_pf_planned_cost_versions_project_revision"
@@ -421,37 +421,46 @@ class PlannedCostService(ProjectManagementModuleGuardMixin):
         version: ProjectPlannedCostVersion,
         diagnostics: list[ResourceAllocationDiagnostic],
     ) -> None:
+        full_operation = f"project_planned_cost_version.{operation}"
+        snapshot = {
+            "revision": version.revision,
+            "status": version.status.value,
+            "currency_code": version.currency_code,
+            "as_of": version.as_of.isoformat(),
+            "rates_complete": version.rates_complete,
+            "allocations_complete": version.allocations_complete,
+            "cost_codes_complete": version.cost_codes_complete,
+            "unresolved_rate_count": version.unresolved_rate_count,
+            "partially_allocated_resource_count": version.partially_allocated_resource_count,
+            "unclassified_line_count": version.unclassified_line_count,
+            "diagnostic_reason_codes": [d.reason_code for d in diagnostics],
+        }
         record_audit_entry(
             self,
-            operation=f"project_planned_cost_version.{operation}",
+            operation=full_operation,
             entity_type="project_planned_cost_version",
             entity_id=version.id,
             entity_parent_id=version.project_id,
             module="project_management",
-            old_value=None,
-            new_value=json.dumps(
-                {
-                    "revision": version.revision,
-                    "status": version.status.value,
-                    "currency_code": version.currency_code,
-                    "as_of": version.as_of.isoformat(),
-                    "rates_complete": version.rates_complete,
-                    "allocations_complete": version.allocations_complete,
-                    "cost_codes_complete": version.cost_codes_complete,
-                    "unresolved_rate_count": version.unresolved_rate_count,
-                    "partially_allocated_resource_count": version.partially_allocated_resource_count,
-                    "unclassified_line_count": version.unclassified_line_count,
-                    "diagnostic_reason_codes": [d.reason_code for d in diagnostics],
-                },
-                sort_keys=True,
-            ),
+            category="FINANCIAL",
+            after_data=snapshot,
             workspace_id=version.project_id,
             source="application",
             severity="high",
-            compliance_tag="financial",
             metadata={"action": operation},
             commit=False,
             fail_closed=True,
+        )
+        record_activity(
+            self,
+            action=full_operation,
+            entity_type="project_planned_cost_version",
+            entity_id=version.id,
+            parent_entity_id=version.project_id,
+            module="project_management",
+            workspace_id=version.project_id,
+            details={"action": operation},
+            commit=False,
         )
 
 

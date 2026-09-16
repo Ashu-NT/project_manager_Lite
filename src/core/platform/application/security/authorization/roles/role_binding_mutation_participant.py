@@ -94,7 +94,7 @@ def record_role_binding_audit_entry(
         actor_username=actor.username,
         tenant_id=tenant_id,
         severity="high",
-        compliance_tag="SOC2",
+        category="SECURITY",
         metadata={"action": action, **metadata},
     )
     if tenant_id is None:

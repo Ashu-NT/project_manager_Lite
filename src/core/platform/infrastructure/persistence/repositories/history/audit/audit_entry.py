@@ -52,7 +52,9 @@ class SqlAlchemyAuditRepository(TenantScopedRepositorySupport, AuditRepository):
         entity_type: str | None = None,
         operation: str | None = None,
         severity: str | None = None,
-        compliance_tag: str | None = None,
+        category: str | None = None,
+        result: str | None = None,
+        project_id: str | None = None,
         module: str | None = None,
         workspace_id: str | None = None,
         operation_prefixes: Sequence[str] | None = None,
@@ -68,8 +70,12 @@ class SqlAlchemyAuditRepository(TenantScopedRepositorySupport, AuditRepository):
             stmt = stmt.where(AuditEntryORM.operation == operation)
         if severity is not None:
             stmt = stmt.where(AuditEntryORM.severity == severity)
-        if compliance_tag is not None:
-            stmt = stmt.where(AuditEntryORM.compliance_tag == compliance_tag)
+        if category is not None:
+            stmt = stmt.where(AuditEntryORM.category == category)
+        if result is not None:
+            stmt = stmt.where(AuditEntryORM.result == result)
+        if project_id is not None:
+            stmt = stmt.where(AuditEntryORM.project_id == project_id)
         stmt = self._apply_projection_filters(
             stmt,
             module=module,
@@ -89,6 +95,9 @@ class SqlAlchemyAuditRepository(TenantScopedRepositorySupport, AuditRepository):
         entity_types: Sequence[str] | None = None,
         operation: str | None = None,
         severity: str | None = None,
+        category: str | None = None,
+        result: str | None = None,
+        project_id: str | None = None,
         module: str | None = None,
         workspace_id: str | None = None,
         operation_prefixes: Sequence[str] | None = None,
@@ -114,6 +123,12 @@ class SqlAlchemyAuditRepository(TenantScopedRepositorySupport, AuditRepository):
             stmt = stmt.where(AuditEntryORM.operation == operation)
         if severity is not None:
             stmt = stmt.where(AuditEntryORM.severity == severity)
+        if category is not None:
+            stmt = stmt.where(AuditEntryORM.category == category)
+        if result is not None:
+            stmt = stmt.where(AuditEntryORM.result == result)
+        if project_id is not None:
+            stmt = stmt.where(AuditEntryORM.project_id == project_id)
         stmt = self._apply_projection_filters(
             stmt,
             module=module,

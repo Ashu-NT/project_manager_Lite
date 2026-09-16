@@ -57,7 +57,7 @@ class PlatformOrganizationCatalogPresenter:
             recent_activity = self._activity_api.list_for_organization_overview(organization_id, limit=5)
         return {"statistics": statistics, "recentActivity": recent_activity}
 
-    def build_audit_activity(self, organization_id: str, *, limit: int = 25) -> list[dict[str, Any]]:
+    def build_recent_activity(self, organization_id: str, *, limit: int = 25) -> list[dict[str, Any]]:
         if self._activity_api is None:
             return []
         return self._activity_api.list_for_organization_overview(organization_id, limit=limit)
