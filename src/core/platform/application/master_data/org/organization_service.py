@@ -157,7 +157,15 @@ class OrganizationService:
     def list_organizations(self, *, enabled_only: bool | None = None) -> list[Organization]:
         require_permission(self._user_session, "settings.manage", operation_label="list organizations")
         tenant_id = self._require_current_tenant_id(operation_label="list organizations")
-        return self._organization_repo.list_for_tenant(tenant_id, enabled_only=enabled_only)
+        result = self._organization_repo.list_for_tenant(tenant_id, enabled_only=enabled_only)
+        # This service's session is shared/long-lived (not a per-call
+        # UnitOfWork session) -- a read-only call still opens an implicit
+        # SQLite transaction on first use and never closes it on its own.
+        # Left open, it blocks WAL checkpointing indefinitely and eventually
+        # causes unrelated writers to fail with "database is locked". This
+        # commit has no data to persist; it only ends that transaction.
+        self._session.commit()
+        return result
 
     def list_organizations_page(
         self,
@@ -178,6 +186,9 @@ class OrganizationService:
             search=search,
             enabled_only=enabled_only,
         )
+        # See list_organizations() -- releases the implicit read transaction
+        # on this shared session so it never blocks WAL checkpointing.
+        self._session.commit()
         return OrganizationPage(
             items=items,
             total=total,
@@ -210,6 +221,9 @@ class OrganizationService:
             employee_count = self._employee_headcount_reader.get_summary(
                 tenant_id=tenant_id, organization_id=organization_id
             ).total
+        # See list_organizations() -- releases the implicit read transaction
+        # on this shared session so it never blocks WAL checkpointing.
+        self._session.commit()
         return OrganizationStatistics(
             site_count=site_summary.total,
             department_count=department_summary.total,
@@ -224,16 +238,24 @@ class OrganizationService:
         self._require_current_tenant_id(operation_label="view organization activity")
         if self._enterprise_audit_service is None:
             return []
-        return self._enterprise_audit_service.list_recent_for_organization_id(
+        result = self._enterprise_audit_service.list_recent_for_organization_id(
             organization_id, limit=limit
         )
+        # See list_organizations() -- releases the implicit read transaction
+        # on this shared session so it never blocks WAL checkpointing.
+        self._session.commit()
+        return result
 
     def get_organization_count(self) -> int:
         require_permission(self._user_session, "settings.manage", operation_label="view organization count")
         tenant_id = self._require_current_tenant_id(operation_label="view organization count")
         if self._overview_rollup_reader is None:
             raise RuntimeError("Platform overview rollup reader is not configured.")
-        return self._overview_rollup_reader.get_organization_count(tenant_id=tenant_id)
+        result = self._overview_rollup_reader.get_organization_count(tenant_id=tenant_id)
+        # See list_organizations() -- releases the implicit read transaction
+        # on this shared session so it never blocks WAL checkpointing.
+        self._session.commit()
+        return result
 
     # ------------------------------------------------------------------
     # Runtime write operations — all tenant-scoped, fail-fast.
@@ -596,11 +618,15 @@ class OrganizationService:
         if organization_repo.get_by_code_for_tenant(organization.organization_code, tenant_id) is not None:
             raise ValidationError("Organization code already exists.", code="ORGANIZATION_CODE_EXISTS")
         organization_repo.add(organization)
-        # Flush so the new organization row exists before the audit entry
-        # below references it via organization_id -- both would otherwise
-        # land in the same flush batch with no ORM relationship() to tell
-        # SQLAlchemy the audit_entries.organization_id FK must go second.
-        uow._session.flush()
+        # Flush so the new organization row exists before the audit/activity
+        # entries below reference it via organization_id -- both would
+        # otherwise land in the same flush batch with no ORM relationship()
+        # to tell SQLAlchemy the FK must go second. Some callers (unit tests)
+        # use a fully in-memory UnitOfWork fake with no real Session at all,
+        # where this is a correct no-op.
+        session = getattr(uow, "_session", None)
+        if session is not None:
+            session.flush()
         record_audit_entry(
             uow,
             operation="create",

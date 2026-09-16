@@ -36,6 +36,16 @@ Rectangle {
         return ""
     }
 
+    // Modules whose canonical route hosts its own internal sub-navigation
+    // (e.g. Project Management) never change currentRouteId as the user
+    // clicks around inside -- currentRouteTitle stays equal to
+    // currentModuleLabel for the whole visit. Showing the module badge
+    // next to the title in that case repeats the title verbatim, so the
+    // badge is only useful when it adds information the title doesn't
+    // already carry.
+    readonly property bool showModuleBadge: header.currentModuleLabel.length > 0
+        && header.currentModuleLabel !== (header.shellModel ? (header.shellModel.currentRouteTitle || "") : "")
+
     height: Theme.AppTheme.headerHeight
     color: Theme.AppTheme.surfaceRaised
 
@@ -113,7 +123,7 @@ Rectangle {
                 }
 
                 Rectangle {
-                    visible: header.currentModuleLabel.length > 0
+                    visible: header.showModuleBadge
                     radius: Theme.AppTheme.radiusSm
                     color: Theme.AppTheme.surfaceOverlay
                     implicitWidth: moduleText.implicitWidth + 14

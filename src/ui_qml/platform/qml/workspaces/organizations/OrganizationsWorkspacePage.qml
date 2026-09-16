@@ -27,11 +27,15 @@ AppLayouts.WorkspaceFrame {
         ? root.workspaceController.organizations
         : ({ "title": "Organizations", "subtitle": "", "emptyState": "", "items": [] })
 
+    // organizationCode/city/countryCode are real Organization fields, auto-
+    // flattened onto each row's top level from `state` by serialize_action_item
+    // (see serializers.py) -- referenced here directly, not invented.
     readonly property var _columns: [
-        { key: "title",       label: "Name",            flex: 3, minWidth: 160, sortable: true,  visible: true },
-        { key: "subtitle",    label: "Code / Timezone", flex: 3, minWidth: 160, sortable: false, visible: true },
-        { key: "statusLabel", label: "Status",          flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
-        { key: "metaText",    label: "Version",         flex: 1, minWidth: 80,  sortable: false, visible: true, hideBelow: Theme.AppTheme.compactContentBreakpoint }
+        { key: "title",          label: "Name",    flex: 3, minWidth: 160, sortable: true,  visible: true },
+        { key: "organizationCode", label: "Code",  flex: 1, minWidth: 110, sortable: false, visible: true },
+        { key: "statusLabel",    label: "Status",  flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
+        { key: "city",           label: "City",    flex: 2, minWidth: 120, sortable: false, visible: true, hideBelow: Theme.AppTheme.compactContentBreakpoint },
+        { key: "countryCode",    label: "Country", flex: 1, minWidth: 90,  sortable: false, visible: true, hideBelow: Theme.AppTheme.compactContentBreakpoint }
     ]
 
     property string selectedRowId: ""
@@ -59,12 +63,59 @@ AppLayouts.WorkspaceFrame {
         return null
     }
 
+    // Real per-organization aggregate counts (one aggregate query each, via
+    // the same backend Organization Detail's Overview uses) -- fetched once
+    // per selection, not per row, so this stays cheap regardless of how
+    // many rows the table has.
+    property var _detailContext: ({ "statistics": ({}) })
+    function _reloadDetailContext() {
+        if (!root.workspaceController || root.selectedRowId.length === 0) {
+            root._detailContext = ({ "statistics": ({}) })
+            return
+        }
+        root._detailContext = root.workspaceController.organizationDetailContext(root.selectedRowId)
+    }
+    onSelectedRowIdChanged: root._reloadDetailContext()
+    readonly property var _statistics: root._detailContext.statistics || ({})
+
+    // Rows with an empty value are hidden automatically by InspectorPanel --
+    // an organization that hasn't filled in legal/address/contact fields yet
+    // simply shows fewer rows, never a blank label or a placeholder.
+    function _joinNonEmpty(parts, sep) {
+        return parts.filter(function(p) { return String(p || "").trim().length > 0 }).join(sep)
+    }
+
     readonly property var _inspectorSections: {
         const item = root._selectedItem
         if (!item) return []
+        const streetLine = root._joinNonEmpty([item.addressLine1, item.addressLine2], ", ")
+        const localityLine = root._joinNonEmpty(
+            [item.postalCode, item.city, item.stateRegion, item.countryCode],
+            ", "
+        )
+        const stats = root._statistics
         return [
-            { "label": "Details", "value": String(item.subtitle || "") },
-            { "label": "Info", "value": String(item.metaText || "") }
+            // -- Always-populated identity/config fields ------------------
+            { "label": "Code", "value": String(item.organizationCode || "") },
+            // -- Legal identity (blank until filled in) --------------------
+            { "label": "Legal Name", "value": String(item.legalName || "") },
+            { "label": "Registration Number", "value": String(item.registrationNumber || "") },
+            { "label": "Tax / VAT ID", "value": String(item.taxId || "") },
+            { "label": "Timezone", "value": String(item.timezoneName || "") },
+            { "label": "Base Currency", "value": String(item.baseCurrency || "") },
+            // -- Real aggregate counts (one query each; never hidden --
+            // "0" is real information, not a blank field) ------------------
+            { "label": "Sites", "value": stats.siteCount !== undefined ? String(stats.siteCount) : "" },
+            { "label": "Departments", "value": stats.departmentCount !== undefined ? String(stats.departmentCount) : "" },
+            { "label": "Employees", "value": stats.employeeCount !== undefined ? String(stats.employeeCount) : "" },
+            { "label": "Documents", "value": stats.documentCount !== undefined ? String(stats.documentCount) : "" },
+            // -- Registered address (blank until filled in) ----------------
+            { "label": "Address", "value": streetLine },
+            { "label": "City / Postal / Country", "value": localityLine },
+            // -- Contact (blank until filled in) ---------------------------
+            { "label": "Email", "value": String(item.email || "") },
+            { "label": "Phone", "value": String(item.phone || "") },
+            { "label": "Website", "value": String(item.website || "") }
         ]
     }
 
@@ -149,12 +200,15 @@ AppLayouts.WorkspaceFrame {
                 showEditAction: root._canWrite
                 secondaryActionLabel: "Enable"
                 showSecondaryAction: root._canWrite
+                viewDetailsLabel: "View Details"
+                showViewDetailsAction: true
 
                 onCloseRequested: root.selectedRowId = ""
                 onEditRequested: root.openEdit(root.selectedRowId)
                 onSecondaryActionRequested: {
                     if (root.workspaceController) root.workspaceController.enableOrganization(root.selectedRowId)
                 }
+                onViewDetailsRequested: root.detailOpen = true
             }
         }
 

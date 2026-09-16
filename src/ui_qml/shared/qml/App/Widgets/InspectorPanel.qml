@@ -28,6 +28,12 @@ Rectangle {
     property bool showEditAction: true
     property string secondaryActionLabel: ""
     property bool showSecondaryAction: false
+    // A distinct third action, rendered as its own full-width row below
+    // Edit/Secondary -- e.g. "View Details" to open the record's full
+    // detail page. Generic, not organization-specific: any consumer that
+    // has a real detail page destination may opt in.
+    property string viewDetailsLabel: "View Details"
+    property bool showViewDetailsAction: false
 
     // -- Extra content slot (e.g. a document preview, entity-specific
     // panel) rendered between the metadata sections and the action row.
@@ -36,6 +42,7 @@ Rectangle {
     signal closeRequested()
     signal editRequested()
     signal secondaryActionRequested()
+    signal viewDetailsRequested()
 
     color: Theme.AppTheme.surface
     implicitWidth: Theme.AppTheme.inspectorWidth
@@ -200,6 +207,15 @@ Rectangle {
                         enabled: !root.busy
                         onClicked: root.secondaryActionRequested()
                     }
+                }
+
+                AppControls.SecondaryButton {
+                    Layout.fillWidth: true
+                    visible: root.showViewDetailsAction
+                    text: root.viewDetailsLabel
+                    iconName: "chevron_right"
+                    enabled: !root.busy
+                    onClicked: root.viewDetailsRequested()
                 }
             }
         }
