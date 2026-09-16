@@ -1,10 +1,18 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Sequence
+from typing import Any, Sequence
 
-# Keyword classification kept local rather than imported from another
-# module's presenter layer -- PM must not import Inventory/Procurement
-# packages, and this is a small, self-contained rule, not a shared contract.
+from src.ui_qml.shared.models.activity_item import (
+    ActivityItemViewModel,
+    humanize_action,
+    icon_key_for_entity_type,
+    tone_for_action,
+)
+
+# This module's own success/danger/warning keyword buckets, kept for
+# `status_label_for_action` -- the Financials Audit-preview builder's display
+# label needs the same classification `tone_for_action` produces, expressed
+# as a badge string instead of a tone value.
 _SUCCESS_KEYWORDS = ("creat", "add", "open", "approv", "complet")
 _DANGER_KEYWORDS = ("delet", "cancel", "reject", "close", "remov")
 _WARNING_KEYWORDS = ("updat", "edit", "modif", "submit", "post", "transfer", "issue", "return", "adjust")
@@ -157,40 +165,43 @@ def fetch_entity_activity_entries(
 def build_activity_records(
     entries: Sequence[Any],
     *,
-    record_factory: Callable[..., Any],
     actor_lookup: dict[str, str],
     lookups: dict[str, dict[str, str]] | None = None,
     field_labels: dict[str, str],
     field_lookup: dict[str, str] | None = None,
     boolean_fields: frozenset[str] = frozenset(),
-) -> tuple[Any, ...]:
-    """Map raw `ActivityEntry` rows into whatever record type the caller's
-    own view-model module needs (`record_factory`, e.g.
-    `ProjectRecordViewModel`/`TaskRecordViewModel`), with actor name
-    resolution, action-based status classification, and a diff-summary
-    supporting line built from the same `{field: {from, to}}` shape every
+) -> tuple[ActivityItemViewModel, ...]:
+    """Map raw `ActivityEntry` rows into the canonical `ActivityItemViewModel`
+    shape: an entry's own `human_message` (or a humanized fallback of its
+    action code) becomes the headline, actor name resolution and an
+    action/entity-derived icon/tone are applied, and a diff-summary
+    supporting line is built from the same `{field: {from, to}}` shape every
     `record_activity(..., details={"changes": ...})` call in this codebase
     already uses.
     """
     resolved_lookups = dict(lookups or {})
     resolved_lookups["user"] = actor_lookup
-    return tuple(
-        record_factory(
-            id=entry.id,
-            title=actor_lookup.get(entry.actor_id or "", "") or "System",
-            status_label=status_label_for_action(entry.action),
-            subtitle=entry.human_message or entry.action,
-            supporting_text=format_changes_summary(
-                entry.details.get("changes"),
-                resolved_lookups,
-                field_labels=field_labels,
-                field_lookup=field_lookup,
-                boolean_fields=boolean_fields,
-            ),
-            meta_text=entry.timestamp.strftime("%d %b %Y %H:%M") if entry.timestamp else "",
+    records = []
+    for entry in entries:
+        records.append(
+            ActivityItemViewModel(
+                id=entry.id,
+                title=entry.human_message or humanize_action(entry.action),
+                actor_display=actor_lookup.get(entry.actor_id or "", "") or "System",
+                supporting_text=format_changes_summary(
+                    entry.details.get("changes"),
+                    resolved_lookups,
+                    field_labels=field_labels,
+                    field_lookup=field_lookup,
+                    boolean_fields=boolean_fields,
+                ),
+                occurred_at=entry.timestamp,
+                occurred_at_label=entry.timestamp.strftime("%d %b %Y %H:%M") if entry.timestamp else "",
+                icon_key=icon_key_for_entity_type(entry.entity_type),
+                tone=tone_for_action(entry.action),
+            )
         )
-        for entry in entries
-    )
+    return tuple(records)
 
 
 __all__ = [
@@ -200,6 +211,9 @@ __all__ = [
     "build_user_lookup",
     "fetch_entity_activity_entries",
     "format_changes_summary",
+    "humanize_action",
+    "icon_key_for_entity_type",
     "resolve_change_value",
     "status_label_for_action",
+    "tone_for_action",
 ]

@@ -395,7 +395,7 @@ def test_recent_activity_maps_dto_fields():
         timestamp=datetime(2026, 9, 15, 14, 30, tzinfo=timezone.utc),
         type="info",
         human_message="Task created",
-        icon="task",
+        icon="tasks",
         color="blue",
     )
     api.recent_activity_result = DesktopApiResult(ok=True, data=(entry,))
@@ -405,15 +405,15 @@ def test_recent_activity_maps_dto_fields():
     assert result.ok is True
     row = result.data[0]
     assert row.title == "Task created"
-    # actor_id is a raw internal id, never a resolved display name -- must
-    # never be shown to the user as if it were one (deferred: "Activity
-    # actor display-name resolution").
-    assert row.actor_label is None
-    assert row.module_label == "Project Management"
-    assert row.icon == "task"
-    assert row.color == "blue"
-    assert row.activity_type == "info"
-    assert "15 Sep 2026" in row.timestamp_label
+    # actor_id is a raw internal id, never a resolved display name -- this
+    # layer has no lookup to resolve one, so the canonical "System" default
+    # applies rather than showing a raw id to the user.
+    assert row.actor_display == "System"
+    assert row.subject_display == "Project Management"
+    assert row.icon_key == "tasks"
+    assert row.tone == "success"
+    assert row.occurred_at == entry.timestamp
+    assert "15 Sep 2026" in row.occurred_at_label
 
 
 def test_recent_activity_empty_is_not_an_error():

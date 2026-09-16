@@ -246,7 +246,7 @@ AppLayouts.WorkspaceFrame {
                                 leftMargin:  Theme.AppTheme.marginMd
                                 rightMargin: Theme.AppTheme.marginMd
                             }
-                            items:     root.workspaceController ? (root.workspaceController.auditFeed.items || []) : []
+                            items:     root.workspaceController ? (root.workspaceController.auditActivityPreview || []) : []
                             emptyText: root.workspaceController
                                 ? (root.workspaceController.auditFeed.emptyState || "No recent activity")
                                 : "No recent activity"

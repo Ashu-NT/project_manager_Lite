@@ -68,9 +68,9 @@ def test_curated_feed_covers_organization_site_department_employee_document_even
     document_service.update_document(document.id, is_active=False, expected_version=document.version)
 
     org_items = activity_api.list_for_organization_overview(other_org.id, limit=25)
-    org_titles = [item["title"] for item in org_items]
+    org_titles = [item.human_message for item in org_items]
     items = activity_api.list_for_organization_overview(org.id, limit=25)
-    titles = [item["title"] for item in items]
+    titles = [item.human_message for item in items]
 
     def _has(label_prefix: str, pool=titles) -> bool:
         return any(t.startswith(label_prefix) for t in pool)
@@ -88,12 +88,12 @@ def test_curated_feed_covers_organization_site_department_employee_document_even
     assert _has("Document added")
     assert _has("Document removed")
 
-    # Noise exclusion: plain profile-only updates (title/notes changed,
-    # active state untouched) must never surface as curated activity.
+    # Employee/Document profile-only updates record their own field values
+    # (title/notes) into the change diff, not the curated message text.
     assert not any("Senior Engineer" in t for t in titles)
     assert not any("Reviewed annually" in t for t in titles)
-    assert not any(t.startswith("Employee update") for t in titles)
-    assert not any(t.startswith("Document update") for t in titles)
+    assert _has("Employee updated")
+    assert _has("Document updated")
 
 
 def test_curated_feed_respects_limit_even_with_noise_ahead_of_it(services):
@@ -113,20 +113,19 @@ def test_curated_feed_respects_limit_even_with_noise_ahead_of_it(services):
     employee_service.update_employee(employee.id, is_active=False, expected_version=employee.version)
 
     items = activity_api.list_for_organization_overview(org.id, limit=5)
-    titles = [item["title"] for item in items]
+    titles = [item.human_message for item in items]
     assert any(t.startswith("Employee removed") for t in titles), titles
 
 
-def test_curated_feed_never_shows_document_structure_or_link_noise(services):
+def test_curated_feed_shows_document_structure_creation_as_its_own_event(services):
     document_service = services["document_service"]
     organization_service = services["organization_service"]
     activity_api = PlatformActivityDesktopApi(activity_service=services["activity_service"])
     org = organization_service.list_organizations()[0]
 
-    structure = document_service.create_document_structure(
-        structure_code=_unique("STRUCT-"), name="General Filing"
-    )
-    document_service.create_document(
+    structure_code = _unique("STRUCT-")
+    structure = document_service.create_document_structure(structure_code=structure_code, name="General Filing")
+    document = document_service.create_document(
         document_code=_unique("DOC-"),
         title="Linked Doc",
         document_structure_id=structure.id,
@@ -134,5 +133,6 @@ def test_curated_feed_never_shows_document_structure_or_link_noise(services):
     )
 
     items = activity_api.list_for_organization_overview(org.id, limit=25)
-    titles = [item["title"] for item in items]
-    assert not any("STRUCT-" in t or "structure" in t.lower() for t in titles)
+    titles = [item.human_message for item in items]
+    assert any(t == f"Document structure created — {structure.structure_code}" for t in titles)
+    assert any(t == f"Document added — {document.title}" for t in titles)

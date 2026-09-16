@@ -99,11 +99,11 @@ def test_approval_actions_never_invent_priority_or_due_date() -> None:
     ).build_overview()
 
     assert overview.approval_actions is not None
-    for item in overview.approval_actions.items:
-        # PlatformWorkspaceActionItemViewModel has no priority/due_at field
+    for item in overview.approval_actions["items"]:
+        # The canonical ActivityFeed item shape has no priority/due_at field
         # at all for this source -- nothing to accidentally populate.
-        assert not hasattr(item, "priority")
-        assert not hasattr(item, "due_at")
+        assert "priority" not in item
+        assert "due_at" not in item
 
 
 def test_runtime_error_reports_error_status_without_partial_metrics() -> None:

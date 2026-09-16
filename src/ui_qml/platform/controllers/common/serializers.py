@@ -38,7 +38,7 @@ def serialize_workspace_overview(overview) -> dict[str, object]:
         "breakdownCards": list(getattr(overview, "breakdown_cards", ())),
         "recentActivity": list(getattr(overview, "recent_activity", ())),
         "approvalActions": (
-            serialize_action_list(overview.approval_actions)
+            dict(overview.approval_actions)
             if getattr(overview, "approval_actions", None) is not None
             else {"title": "", "subtitle": "", "emptyState": "", "items": []}
         ),

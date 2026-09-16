@@ -58,23 +58,6 @@ class ActionCenterRowViewModel:
 
 
 @dataclass(frozen=True)
-class ActivityRowViewModel:
-    """`actor_label` is None until Activity actor display-name resolution
-    exists as a deferred read-model improvement -- ActivityEntryDto only
-    carries a raw actor_id today, and that id must never be shown to the
-    user as if it were a name. QML must omit the actor element when None."""
-
-    id: str
-    title: str
-    actor_label: str | None
-    module_label: str
-    timestamp_label: str
-    icon: str | None
-    color: str | None
-    activity_type: str
-
-
-@dataclass(frozen=True)
 class ModuleCardViewModel:
     module_code: str
     title: str

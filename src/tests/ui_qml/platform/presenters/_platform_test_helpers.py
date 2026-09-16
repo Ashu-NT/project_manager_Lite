@@ -1187,8 +1187,8 @@ class FakePlatformEnterpriseAuditApi:
     def list_recent(self, *, limit: int = 25, **kwargs) -> DesktopApiResult[tuple[AuditEntryDto, ...]]:
         return DesktopApiResult(ok=True, data=self._rows[:limit])
 
-    def list_for_overview(self, *, limit: int = 50) -> list[dict]:
-        return []
+    def list_for_overview(self, *, limit: int = 50) -> tuple[AuditEntryDto, ...]:
+        return ()
 
 
 class FakePlatformSupportApi:

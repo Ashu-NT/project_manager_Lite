@@ -15,9 +15,14 @@ from src.core.application.global_overview.contracts.overview import (
     GlobalOverviewContextDto,
 )
 from src.core.platform.api.desktop.history.activity.models.activity import ActivityEntryDto
+from src.ui_qml.shared.models.activity_item import (
+    ActivityItemViewModel,
+    humanize_action,
+    icon_key_for_entity_type,
+    tone_for_action,
+)
 from src.ui_qml.shell.view_models.global_overview import (
     ActionCenterRowViewModel,
-    ActivityRowViewModel,
     AttentionCardViewModel,
     GlobalOverviewContextViewModel,
     ModuleCardViewModel,
@@ -171,7 +176,7 @@ class GlobalOverviewPresenter:
         cards = tuple(_build_module_card(dto) for dto in result.data)
         return SectionResult(ok=True, data=cards, empty=not cards)
 
-    def load_recent_activity(self, *, limit: int = 50) -> SectionResult:
+    def load_recent_activity(self, *, limit: int = 10) -> SectionResult:
         result = self._api.list_recent_activity(limit=limit)
         if not result.ok or result.data is None:
             self._log_failure("recent_activity", result)
@@ -179,7 +184,7 @@ class GlobalOverviewPresenter:
         rows = tuple(_build_activity_row(entry) for entry in result.data)
         return SectionResult(ok=True, data=rows, empty=not rows)
 
-    def load_action_center(self, *, limit: int = 50) -> SectionResult:
+    def load_action_center(self, *, limit: int = 10) -> SectionResult:
         result = self._api.list_action_center(limit=limit)
         if not result.ok or result.data is None:
             self._log_failure("action_center", result)
@@ -265,20 +270,18 @@ def _build_quick_actions(
     return tuple(actions[:_MAX_QUICK_ACTIONS])
 
 
-def _build_activity_row(entry: ActivityEntryDto) -> ActivityRowViewModel:
-    return ActivityRowViewModel(
+def _build_activity_row(entry: ActivityEntryDto) -> ActivityItemViewModel:
+    return ActivityItemViewModel(
         id=entry.id,
-        title=entry.human_message,
+        title=entry.human_message or humanize_action(entry.action),
         # ActivityEntryDto only carries a raw actor_id, never a resolved
-        # display name -- showing it as if it were a name would be
-        # misleading, and this layer has no user-lookup input to resolve a
-        # real one. Deferred: "Activity actor display-name resolution".
-        actor_label=None,
-        module_label=_MODULE_LABELS.get(entry.module, entry.module.replace("_", " ").title()),
-        timestamp_label=entry.timestamp.strftime("%d %b %Y · %H:%M"),
-        icon=entry.icon,
-        color=entry.color,
-        activity_type=entry.type,
+        # display name; this layer has no user-lookup input to resolve one,
+        # so actor_display keeps its "System" default.
+        subject_display=_MODULE_LABELS.get(entry.module, entry.module.replace("_", " ").title()),
+        occurred_at=entry.timestamp,
+        occurred_at_label=entry.timestamp.strftime("%d %b %Y · %H:%M"),
+        icon_key=entry.icon or icon_key_for_entity_type(entry.entity_type),
+        tone=tone_for_action(entry.action),
     )
 
 

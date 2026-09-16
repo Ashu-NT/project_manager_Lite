@@ -280,21 +280,7 @@ AppLayouts.WorkspaceFrame {
                             visible: !root._recentActivityState.loading
                                 && String(root._recentActivityState.errorMessage || "").length === 0
                                 && root._recentActivity.length > 0
-                            // ActivityRowViewModel has no route -- these entries
-                            // are never clickable (routeId intentionally omitted
-                            // from every mapped item below).
-                            items: root._recentActivity.map(function (row) {
-                                const metaParts = [String(row.moduleLabel || "")]
-                                if (row.actorLabel) {
-                                    metaParts.push(String(row.actorLabel))
-                                }
-                                metaParts.push(String(row.timestampLabel || ""))
-                                return {
-                                    "title": String(row.title || ""),
-                                    "metaText": metaParts.filter(function (part) { return part.length > 0 }).join(" · "),
-                                    "statusLabel": ""
-                                }
-                            })
+                            items: root._recentActivity
                         }
                     }
                 }

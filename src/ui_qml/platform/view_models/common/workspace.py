@@ -31,7 +31,11 @@ class PlatformWorkspaceOverviewViewModel:
     sections: tuple[PlatformWorkspaceSectionViewModel, ...] = field(default_factory=tuple)
     breakdown_cards: tuple[dict, ...] = field(default_factory=tuple)
     recent_activity: tuple[dict, ...] = field(default_factory=tuple)
-    approval_actions: PlatformWorkspaceActionListViewModel | None = None
+    # Pre-composed {"title", "subtitle", "emptyState", "items"} dict -- items
+    # are already-serialized canonical ActivityFeed shapes, not a
+    # PlatformWorkspaceActionListViewModel (that shape backs the full
+    # Approval Queue table separately; this is a compact preview).
+    approval_actions: dict[str, object] | None = None
 
 @dataclass(frozen=True)
 class PlatformWorkspaceActionItemViewModel:

@@ -82,7 +82,7 @@ class _FakeGlobalOverviewApi:
                     timestamp=datetime.now(timezone.utc),
                     type="info",
                     human_message="Task created",
-                    icon="task",
+                    icon="tasks",
                     color="blue",
                 ),
             ),

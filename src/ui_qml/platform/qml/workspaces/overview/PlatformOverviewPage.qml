@@ -270,25 +270,11 @@ AppLayouts.WorkspaceFrame {
                                 Layout.fillWidth: true
                                 rowsActivatable: true
                                 emptyText: String(root.approvalActions.emptyState || "No approvals are awaiting a decision.")
-                                items: {
-                                    const source = root.approvalActions.items || []
-                                    const mapped = []
-                                    for (let i = 0; i < source.length; i += 1) {
-                                        const item = source[i]
-                                        const metaParts = [item.subtitle, item.metaText].filter(p => String(p || "").length > 0)
-                                        mapped.push({
-                                            title: item.title,
-                                            statusLabel: item.statusLabel,
-                                            metaText: metaParts.join(" · "),
-                                            tone: String(item.statusLabel || "").toLowerCase() === "pending" ? "warning" : "neutral"
-                                        })
-                                    }
-                                    return mapped
-                                }
+                                items: root.approvalActions.items || []
                                 onItemActivated: function(item) {
                                     const source = root.approvalActions.items || []
                                     for (let i = 0; i < source.length; i += 1) {
-                                        if (source[i].title === item.title && source[i].metaText === item.metaText) {
+                                        if (source[i].id === item.id) {
                                             root.approvalActionActivated(i)
                                             return
                                         }

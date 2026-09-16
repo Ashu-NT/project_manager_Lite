@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
 from src.core.platform.api.desktop.history.audit.audit_enterprise import PlatformEnterpriseAuditDesktopApi
+from src.core.platform.api.desktop.history.audit.models.audit_entry import AuditEntryDto
 from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
 from src.core.platform.api.desktop.master_data.documents.document import PlatformDocumentDesktopApi
 from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
@@ -18,6 +19,12 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceRowViewModel,
     PlatformWorkspaceSectionViewModel,
 )
+from src.ui_qml.shared.models.activity_item import (
+    ActivityItemViewModel,
+    humanize_action,
+    icon_key_for_entity_type,
+    serialize_activity_items,
+)
 
 _SEVERITY_TONE: dict[str, str] = {
     "critical": "danger",
@@ -25,6 +32,31 @@ _SEVERITY_TONE: dict[str, str] = {
     "medium": "warning",
     "low": "neutral",
 }
+
+_ENTITY_TYPE_LABEL: dict[str, str] = {
+    "auth_session": "Auth Session",
+    "user_account": "User Account",
+    "organization": "Organization",
+    "role": "Role",
+    "permission": "Permission",
+    "tenant": "Tenant",
+    "approval": "Approval",
+}
+
+
+def _to_audit_preview_item(entry: AuditEntryDto) -> ActivityItemViewModel:
+    severity = str(entry.severity or "").lower()
+    return ActivityItemViewModel(
+        id=entry.id,
+        title=humanize_action(entry.operation),
+        actor_display=entry.actor_username or entry.actor_id or "System",
+        subject_display=_ENTITY_TYPE_LABEL.get(entry.entity_type, entry.entity_type.replace("_", " ").title()),
+        occurred_at=entry.timestamp,
+        occurred_at_label=entry.timestamp.strftime("%Y-%m-%d %H:%M UTC"),
+        icon_key=icon_key_for_entity_type(entry.entity_type),
+        tone=_SEVERITY_TONE.get(severity, "neutral"),
+        status_label=entry.severity.capitalize() if severity in ("critical", "high") else "",
+    )
 
 
 class _HeadcountSummary:
@@ -154,8 +186,16 @@ class PlatformAdminWorkspacePresenter:
             self._party_api.get_party_rollup_summary() if self._party_api is not None else None
         )
 
-        approval_actions = self._queue_presenter.build_approval_queue(status=ApprovalStatus.PENDING)
-        pending_approval_count = len(approval_actions.items)
+        pending_approvals = self._queue_presenter.build_approval_queue(status=ApprovalStatus.PENDING)
+        pending_approval_count = len(pending_approvals.items)
+        approval_actions = {
+            "title": "Approvals & Actions",
+            "subtitle": "Governed changes awaiting a decision.",
+            "emptyState": "No approvals are awaiting a decision.",
+            "items": serialize_activity_items(
+                self._queue_presenter.build_approval_activity_preview(status=ApprovalStatus.PENDING, limit=5)
+            ),
+        }
         recent_activity = self._recent_activity()
         active_tenant = self._active_tenant()
 
@@ -238,11 +278,8 @@ class PlatformAdminWorkspacePresenter:
     def _recent_activity(self) -> tuple[dict, ...]:
         if self._audit_api is None:
             return ()
-        items = self._audit_api.list_for_overview(limit=5)
-        return tuple(
-            {**item, "tone": _SEVERITY_TONE.get(str(item.get("statusLabel", "")).lower(), "neutral")}
-            for item in items
-        )
+        entries = self._audit_api.list_for_overview(limit=5)
+        return tuple(serialize_activity_items(_to_audit_preview_item(entry) for entry in entries))
 
     def _active_tenant(self) -> object | None:
         if self._tenant_api is None:

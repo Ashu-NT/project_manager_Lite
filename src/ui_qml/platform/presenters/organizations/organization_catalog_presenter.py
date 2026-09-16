@@ -9,6 +9,7 @@ from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationUpdateCommand,
 )
 from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
+from src.core.platform.api.desktop.history.activity.models.activity import ActivityEntryDto
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.shared.reference_data import country_name_for_code
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
@@ -23,7 +24,25 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionItemViewModel,
     PlatformWorkspaceActionListViewModel,
 )
+from src.ui_qml.shared.models.activity_item import (
+    ActivityItemViewModel,
+    humanize_action,
+    icon_key_for_entity_type,
+    serialize_activity_items,
+    tone_for_action,
+)
 from src.ui_qml.shared.models.currency_options import CURRENCY_OPTIONS
+
+
+def _to_activity_item(entry: ActivityEntryDto) -> ActivityItemViewModel:
+    return ActivityItemViewModel(
+        id=entry.id,
+        title=entry.human_message or humanize_action(entry.action),
+        occurred_at=entry.timestamp,
+        occurred_at_label=entry.timestamp.strftime("%Y-%m-%d %H:%M UTC") if entry.timestamp else "",
+        icon_key=entry.icon or icon_key_for_entity_type(entry.entity_type),
+        tone=tone_for_action(entry.action),
+    )
 
 class PlatformOrganizationCatalogPresenter:
     def __init__(
@@ -38,10 +57,10 @@ class PlatformOrganizationCatalogPresenter:
     def build_detail_context(self, organization_id: str) -> dict[str, Any]:
         """Real composed data for Organization Detail's Overview section:
         per-organization statistics (site/department/employee/document
-        counts, one aggregate query each) and recent curated business
-        activity scoped to this organization specifically -- never the
-        caller's currently active organization, and never the raw
-        compliance audit trail (see terminology-glossary.md)."""
+        counts, one aggregate query each) and the 5 most recent business
+        activity items scoped to this organization -- never the caller's
+        currently active organization, and never the raw compliance audit
+        trail."""
         statistics = {"siteCount": 0, "departmentCount": 0, "employeeCount": 0, "documentCount": 0}
         if self._runtime_api is not None:
             result = self._runtime_api.get_organization_statistics(organization_id)
@@ -52,15 +71,13 @@ class PlatformOrganizationCatalogPresenter:
                     "employeeCount": result.data.employee_count,
                     "documentCount": result.data.document_count,
                 }
-        recent_activity: list[dict[str, Any]] = []
-        if self._activity_api is not None:
-            recent_activity = self._activity_api.list_for_organization_overview(organization_id, limit=5)
-        return {"statistics": statistics, "recentActivity": recent_activity}
+        return {"statistics": statistics, "recentActivity": self.build_recent_activity(organization_id, limit=5)}
 
     def build_recent_activity(self, organization_id: str, *, limit: int = 25) -> list[dict[str, Any]]:
         if self._activity_api is None:
             return []
-        return self._activity_api.list_for_organization_overview(organization_id, limit=limit)
+        entries = self._activity_api.list_for_organization_overview(organization_id, limit=limit)
+        return serialize_activity_items(_to_activity_item(entry) for entry in entries)
 
     def build_catalog_page(
         self,

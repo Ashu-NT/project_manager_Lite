@@ -6,11 +6,11 @@ from typing import Callable
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.shared.models.activity_item import ActivityItemViewModel, serialize_activity_item
 from src.ui_qml.shell.context import ShellContext
 from src.ui_qml.shell.presenters.global_overview_presenter import GlobalOverviewPresenter, SectionResult
 from src.ui_qml.shell.view_models.global_overview import (
     ActionCenterRowViewModel,
-    ActivityRowViewModel,
     AttentionCardViewModel,
     GlobalOverviewContextViewModel,
     ModuleCardViewModel,
@@ -63,17 +63,8 @@ def _serialize_module_card(vm: ModuleCardViewModel) -> dict[str, object]:
     }
 
 
-def _serialize_activity_row(vm: ActivityRowViewModel) -> dict[str, object]:
-    return {
-        "id": vm.id,
-        "title": vm.title,
-        "actorLabel": vm.actor_label,
-        "moduleLabel": vm.module_label,
-        "timestampLabel": vm.timestamp_label,
-        "icon": vm.icon or "",
-        "color": vm.color or "",
-        "activityType": vm.activity_type,
-    }
+def _serialize_activity_row(vm: ActivityItemViewModel) -> dict[str, object]:
+    return serialize_activity_item(vm)
 
 
 def _serialize_action_center_row(vm: ActionCenterRowViewModel) -> dict[str, object]:
