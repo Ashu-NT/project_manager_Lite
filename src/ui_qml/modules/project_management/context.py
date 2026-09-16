@@ -326,7 +326,6 @@ class ProjectManagementWorkspaceCatalog(QObject):
                     department_api=getattr(self._desktop_api_registry, "platform_department", None),
                     user_api=getattr(self._desktop_api_registry, "platform_user", None),
                     employee_api=getattr(self._desktop_api_registry, "platform_employee", None),
-                    activity_api=getattr(self._desktop_api_registry, "platform_activity", None),
                 ),
                 parent=self,
             )
@@ -688,7 +687,6 @@ class ProjectManagementWorkspaceCatalog(QObject):
                     timesheets_desktop_api=self._timesheets_api,
                     user_api=getattr(self._desktop_api_registry, "platform_user", None),
                     employee_api=getattr(self._desktop_api_registry, "platform_employee", None),
-                    activity_api=getattr(self._desktop_api_registry, "platform_activity", None),
                     projects_desktop_api=self._projects_api,
                 ),
                 parent=self,

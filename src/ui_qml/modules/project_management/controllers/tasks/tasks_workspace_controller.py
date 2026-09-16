@@ -29,7 +29,6 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectManagementWorkspacePresenter,
     ProjectTasksWorkspacePresenter,
 )
-from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 from . import task_bulk_selection_actions as _bulk
 from . import task_filter_actions as _filter
@@ -179,7 +178,6 @@ class ProjectManagementTasksWorkspaceController(
             "items": [], "searchText": "", "category": "all", "page": 1,
             "pageSize": 25, "total": 0, "sortKey": "occurredAt", "sortDirection": "desc",
         }
-        self._task_activity_table_model = DynamicTableModel(self)
         # ── Sub-controllers ────────────────────────────────────────────
         create_subcontrollers(self)
         self.refresh()
@@ -460,10 +458,6 @@ class ProjectManagementTasksWorkspaceController(
     @Property("QVariantMap", notify=taskActivityChanged)
     def taskActivity(self) -> dict[str, object]:
         return self._task_activity
-
-    @Property(QObject, constant=True)
-    def taskActivityTableModel(self) -> QObject:
-        return self._task_activity_table_model
 
     @Property(bool, notify=taskActivitySectionLoadedChanged)
     def isTaskActivitySectionLoaded(self) -> bool:

@@ -747,7 +747,7 @@ class ProjectManagementTasksDesktopApi:
         result = self._require_task_service().query_task_activity_page(
             task_id, search_text=search_text, category=category, page=page, page_size=page_size)
         return DetailActivityPageDesktopDto(items=tuple(DetailActivityDesktopDto(
-            id=item.activity_id, occurred_at=item.occurred_at.isoformat(), actor_id=item.actor_id,
+            id=item.activity_id, occurred_at=item.occurred_at, actor_id=item.actor_id,
             action=item.action, entity_type=item.entity_type, summary=item.summary,
             details=item.details,
         ) for item in result.items), filtered_total=result.filtered_total,

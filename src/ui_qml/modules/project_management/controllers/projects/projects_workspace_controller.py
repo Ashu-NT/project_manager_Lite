@@ -343,10 +343,6 @@ class ProjectManagementProjectsWorkspaceController(
     def projectActivity(self) -> dict[str, object]:
         return self._project_activity
 
-    @Property(QObject, constant=True)
-    def projectActivityTableModel(self) -> DynamicTableModel:
-        return self._table_models.project_activity
-
     @Property("QVariantMap", notify=importPreviewChanged)
     def importPreview(self) -> dict[str, object]:
         return self._import_preview

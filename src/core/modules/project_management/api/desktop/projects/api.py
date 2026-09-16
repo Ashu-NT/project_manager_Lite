@@ -382,7 +382,7 @@ class ProjectManagementProjectsDesktopApi:
             page=page, page_size=page_size)
         return DetailActivityPageDesktopDto(
             items=tuple(DetailActivityDesktopDto(
-                id=item.activity_id, occurred_at=item.occurred_at.isoformat(),
+                id=item.activity_id, occurred_at=item.occurred_at,
                 actor_id=item.actor_id, action=item.action, entity_type=item.entity_type,
                 summary=item.summary, details=item.details,
             ) for item in result.items), filtered_total=result.filtered_total,

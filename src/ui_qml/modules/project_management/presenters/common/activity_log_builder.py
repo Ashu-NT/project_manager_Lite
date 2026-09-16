@@ -92,56 +92,6 @@ def format_changes_summary(
     return "; ".join(parts)
 
 
-def fetch_entity_activity_entries(
-    activity_api,
-    *,
-    entity_type: str,
-    entity_id: str,
-    child_specs: Sequence[tuple[str, str]] = (),
-    limit: int = 50,
-) -> tuple[Any, ...]:
-    """Fetch and merge activity for one primary entity plus any child entity
-    types, sorted newest first and capped at `limit`.
-
-    `child_specs` is a sequence of `(child_entity_type, parent_entity_id)`
-    pairs, queried via `parent_entity_id` (a real, indexed column on the
-    activity record) -- e.g. a task's assignments record their own
-    `task_assignment` activity with `parent_entity_id=<task_id>`. This is a
-    tighter scope than `workspace_id`, which is shared by *every* entity
-    type recorded against the same workspace and would silently pull in
-    unrelated activity (e.g. a project's tasks and its resources both use
-    `workspace_id=<project_id>`).
-
-    Each separate query is deliberate, not a workaround: merging via one
-    broad filter (workspace_id or otherwise) would expand a feed meant for
-    "this entity and its direct children" into "everything that happens to
-    share this workspace," which is a real scope violation, not a
-    convenience.
-    """
-    if activity_api is None or not entity_id:
-        return ()
-    primary_result = activity_api.list_recent(
-        entity_type=entity_type,
-        entity_id=entity_id,
-        limit=limit,
-    )
-    all_entries = list(primary_result.data or ())
-    any_ok = primary_result.ok
-    for child_entity_type, parent_entity_id in child_specs:
-        if not parent_entity_id:
-            continue
-        child_result = activity_api.list_recent(
-            entity_type=child_entity_type,
-            parent_entity_id=parent_entity_id,
-            limit=limit,
-        )
-        any_ok = any_ok or child_result.ok
-        all_entries.extend(child_result.data or ())
-    if not any_ok:
-        return ()
-    return tuple(sorted(all_entries, key=lambda e: e.timestamp, reverse=True)[:limit])
-
-
 def build_activity_records(
     entries: Sequence[Any],
     *,
@@ -151,10 +101,12 @@ def build_activity_records(
     field_lookup: dict[str, str] | None = None,
     boolean_fields: frozenset[str] = frozenset(),
 ) -> tuple[ActivityItemViewModel, ...]:
-    """Map raw `ActivityEntry` rows into the canonical `ActivityItemViewModel`
-    shape: an entry's own `human_message` (or a humanized fallback of its
-    action code) becomes the headline, actor name resolution and an
-    action/entity-derived icon/tone are applied, and a diff-summary
+    """Map one entity's paged activity rows (`id`/`occurred_at`/`actor_id`/
+    `action`/`entity_type`/`summary`/`details`, as returned by a bounded,
+    server-paged activity reader) into the canonical `ActivityItemViewModel`
+    shape: a row's own `summary` becomes the headline unless it is just the
+    raw action code, in which case it is humanized; actor name resolution
+    and an action/entity-derived icon/tone are applied; and a diff-summary
     supporting line is built from the same `{field: {from, to}}` shape every
     `record_activity(..., details={"changes": ...})` call in this codebase
     already uses.
@@ -163,10 +115,15 @@ def build_activity_records(
     resolved_lookups["user"] = actor_lookup
     records = []
     for entry in entries:
+        title = (
+            entry.summary
+            if entry.summary and entry.summary != entry.action
+            else humanize_action(entry.action)
+        )
         records.append(
             ActivityItemViewModel(
                 id=entry.id,
-                title=entry.human_message or humanize_action(entry.action),
+                title=title,
                 actor_display=actor_lookup.get(entry.actor_id or "", "") or "System",
                 supporting_text=format_changes_summary(
                     entry.details.get("changes"),
@@ -175,10 +132,11 @@ def build_activity_records(
                     field_lookup=field_lookup,
                     boolean_fields=boolean_fields,
                 ),
-                occurred_at=entry.timestamp,
-                occurred_at_label=entry.timestamp.strftime("%d %b %Y %H:%M") if entry.timestamp else "",
+                occurred_at=entry.occurred_at,
+                occurred_at_label=entry.occurred_at.strftime("%d %b %Y %H:%M") if entry.occurred_at else "",
                 icon_key=icon_key_for_entity_type(entry.entity_type),
                 tone=tone_for_action(entry.action),
+                subject_display=entry.entity_type.replace("_", " ").title(),
             )
         )
     return tuple(records)
@@ -189,7 +147,6 @@ __all__ = [
     "build_actor_lookup",
     "build_id_lookup",
     "build_user_lookup",
-    "fetch_entity_activity_entries",
     "format_changes_summary",
     "humanize_action",
     "icon_key_for_entity_type",

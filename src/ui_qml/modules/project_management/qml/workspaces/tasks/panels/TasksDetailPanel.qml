@@ -55,7 +55,6 @@ Item {
     property var taskActivityModel: ({
         "title": "Activity", "subtitle": "", "emptyState": "No activity has been recorded for this task yet.", "items": []
     })
-    property var taskActivityTableModel: null
     property var sectionErrors: ({})
     property var scheduleImpactModel: ({
         "isAvailable": false, "taskId": "", "currentStartLabel": "--", "currentFinishLabel": "--",
@@ -438,7 +437,6 @@ Item {
                     width: parent ? parent.width : 0
                     availableHeight: root._tableSectionAvailableHeight
                     activityModel: root.taskActivityModel
-                    activityTableModel: root.taskActivityTableModel
                     workspaceController: root.pmCatalog ? root.pmCatalog.tasksWorkspace : null
                     errorText: String(root.sectionErrors["activity"] || "")
                     isBusy: root.isBusy

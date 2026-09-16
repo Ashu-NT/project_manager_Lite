@@ -17,9 +17,9 @@ def _entry(**overrides):
         action="project.create",
         entity_type="project",
         actor_id="u1",
-        human_message="",
+        summary="",
         details={},
-        timestamp=datetime(2026, 3, 5, 14, 30, tzinfo=timezone.utc),
+        occurred_at=datetime(2026, 3, 5, 14, 30, tzinfo=timezone.utc),
     )
     fields.update(overrides)
     return SimpleNamespace(**fields)
@@ -48,7 +48,7 @@ def test_humanize_action_produces_a_readable_fallback_title() -> None:
 
 
 def test_build_activity_records_produces_the_canonical_shape() -> None:
-    entry = _entry(human_message="Project created — Apollo")
+    entry = _entry(summary="Project created — Apollo")
     actor_lookup = {"u1": "Ada Lovelace"}
     records = build_activity_records(
         [entry],
@@ -60,14 +60,20 @@ def test_build_activity_records_produces_the_canonical_shape() -> None:
     assert record.id == "e1"
     assert record.title == "Project created — Apollo"
     assert record.actor_display == "Ada Lovelace"
-    assert record.occurred_at == entry.timestamp
+    assert record.occurred_at == entry.occurred_at
     assert record.occurred_at_label == "05 Mar 2026 14:30"
     assert record.icon_key == "project"
     assert record.tone == "success"
 
 
-def test_build_activity_records_falls_back_to_humanized_action_when_no_human_message() -> None:
-    entry = _entry(human_message="", action="task.set_status", entity_type="task")
+def test_build_activity_records_falls_back_to_humanized_action_when_no_summary() -> None:
+    entry = _entry(summary="", action="task.set_status", entity_type="task")
+    records = build_activity_records([entry], actor_lookup={}, field_labels={})
+    assert records[0].title == "Task Set Status"
+
+
+def test_build_activity_records_falls_back_to_humanized_action_when_summary_equals_action() -> None:
+    entry = _entry(summary="task.set_status", action="task.set_status", entity_type="task")
     records = build_activity_records([entry], actor_lookup={}, field_labels={})
     assert records[0].title == "Task Set Status"
 
