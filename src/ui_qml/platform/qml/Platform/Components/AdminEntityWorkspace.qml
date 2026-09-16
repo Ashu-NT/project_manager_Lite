@@ -25,6 +25,10 @@ ColumnLayout {
     // populate those fields keep today's non-paginated behavior exactly.
     property var    catalog:         ({ items: [], emptyState: "No records" })
     property var    columns:         []
+    // Forwarded straight to DataTable's own tableId/columnsStateChanged --
+    // callers persist the customizer's result via their workspace
+    // controller's loadTableColumnState/saveTableColumnState.
+    property string tableId:         ""
     property bool   isBusy:          false
     property bool   isLoading:       false
     property string errorMessage:    ""
@@ -47,6 +51,7 @@ ColumnLayout {
     signal pageRequested(int page)
     signal pageSizeRequested(int pageSize)
     signal clearFiltersRequested()
+    signal columnsStateChanged(var columns)
 
     readonly property bool _paginated: root.catalog.paginated === true
     readonly property int _totalCount: root._paginated
@@ -180,6 +185,7 @@ ColumnLayout {
             anchors.bottom: root._paginated ? _paginationBar.top : parent.bottom
 
             sourceModel: root.catalogModel
+            tableId: root.tableId
             columns: root.columns
             emptyText: root._emptyText
             emptyActionLabel: root._emptyActionLabel
@@ -189,6 +195,7 @@ ColumnLayout {
             onRowSelected: function(rowId) { root.rowSelected(rowId) }
             onRowActivated: function(rowId) { root.rowActivated(rowId) }
             onEmptyActionRequested: root._onEmptyActionRequested()
+            onColumnsStateChanged: function(cols) { root.columnsStateChanged(cols) }
         }
 
         AppWidgets.TablePaginationBar {

@@ -5,6 +5,8 @@ import logging
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.infra.platform.app_settings import AppSettingsStore
+
 QML_IMPORT_NAME = "Platform.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
 
@@ -24,6 +26,7 @@ class PlatformWorkspaceControllerBase(QObject):
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
+        self._app_settings = AppSettingsStore()
         self._overview: dict[str, object] = {"title": "", "subtitle": "", "statusLabel": "", "metrics": [], "sections": []}
         self._is_loading = False
         self._is_busy = False
@@ -77,6 +80,18 @@ class PlatformWorkspaceControllerBase(QObject):
     def clearMessages(self) -> None:
         self._set_error_message("")
         self._set_feedback_message("")
+
+    @Slot(str, result="QVariantMap")
+    def loadTableColumnState(self, table_id: str) -> dict[str, object]:
+        """Platform admin tables (Organizations, Sites, Users, ...) are tenant-wide
+        catalogs, not scoped to whichever organization the header switcher currently
+        has active, so column preferences are stored unscoped here -- unlike Project
+        Management's per-organization table state."""
+        return self._app_settings.load_table_column_state(table_id)
+
+    @Slot(str, "QVariantMap")
+    def saveTableColumnState(self, table_id: str, state: "dict[str, object]") -> None:
+        self._app_settings.save_table_column_state(table_id, state)
 
     @Slot()
     def ensureLoaded(self) -> None:

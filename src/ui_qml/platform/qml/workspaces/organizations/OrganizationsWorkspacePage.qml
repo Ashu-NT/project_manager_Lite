@@ -8,6 +8,7 @@ import App.Widgets 1.0 as AppWidgets
 import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Components 1.0 as PlatformComponents
 import Platform.Dialogs 1.0 as AdminDialogs
+import "OrganizationsColumnConfig.js" as ColumnConfig
 
 
 AppLayouts.WorkspaceFrame {
@@ -27,16 +28,28 @@ AppLayouts.WorkspaceFrame {
         ? root.workspaceController.organizations
         : ({ "title": "Organizations", "subtitle": "", "emptyState": "", "items": [] })
 
-    // organizationCode/city/countryCode are real Organization fields, auto-
-    // flattened onto each row's top level from `state` by serialize_action_item
-    // (see serializers.py) -- referenced here directly, not invented.
-    readonly property var _columns: [
-        { key: "title",          label: "Name",    flex: 3, minWidth: 160, sortable: true,  visible: true },
-        { key: "organizationCode", label: "Code",  flex: 1, minWidth: 110, sortable: false, visible: true },
-        { key: "statusLabel",    label: "Status",  flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
-        { key: "city",           label: "City",    flex: 2, minWidth: 120, sortable: false, visible: true, hideBelow: Theme.AppTheme.compactContentBreakpoint },
-        { key: "countryCode",    label: "Country", flex: 1, minWidth: 90,  sortable: false, visible: true, hideBelow: Theme.AppTheme.compactContentBreakpoint }
-    ]
+    readonly property string _tableId: "platform.organizations.table"
+    property var _columns: []
+
+    function _initializeColumns() {
+        const base = ColumnConfig.baseColumns(Theme.AppTheme.compactContentBreakpoint)
+        const saved = root.workspaceController !== null
+            ? root.workspaceController.loadTableColumnState(root._tableId)
+            : ({})
+        root._columns = ColumnConfig.applyColumnState(base, saved)
+    }
+
+    function _saveColumnState(newColumns) {
+        if (root.workspaceController !== null) {
+            root.workspaceController.saveTableColumnState(
+                root._tableId,
+                ColumnConfig.buildColumnState(newColumns)
+            )
+        }
+        root._columns = newColumns
+    }
+
+    Component.onCompleted: root._initializeColumns()
 
     property string selectedRowId: ""
     property bool detailOpen: false
@@ -160,6 +173,7 @@ AppLayouts.WorkspaceFrame {
                 entityLabel: "Organization"
                 catalog: root.organizationCatalog
                 catalogModel: root.workspaceController ? root.workspaceController.organizationsTableModel : null
+                tableId: root._tableId
                 columns: root._columns
                 canCreate: root._canWrite
                 isBusy: root.busy
@@ -187,6 +201,7 @@ AppLayouts.WorkspaceFrame {
                 onClearFiltersRequested: {
                     if (root.workspaceController) root.workspaceController.setOrganizationSearchText("")
                 }
+                onColumnsStateChanged: function(cols) { root._saveColumnState(cols) }
             }
 
             AppWidgets.InspectorPanel {
