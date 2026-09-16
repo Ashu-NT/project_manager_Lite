@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from src.ui_qml.modules.project_management.view_models.dashboard import (
-    ProjectDashboardActivityFeedViewModel,
     ProjectDashboardChartViewModel,
     ProjectDashboardHealthCardViewModel,
     ProjectDashboardOperationalTableViewModel,
@@ -127,7 +126,7 @@ def serialize_dashboard_operational_table_view_models(
 
 
 def serialize_dashboard_activity_feed_view_model(
-    view_model: ProjectDashboardActivityFeedViewModel | None,
+    view_model: dict[str, object] | None,
 ) -> dict[str, object]:
     if view_model is None:
         return {
@@ -136,22 +135,7 @@ def serialize_dashboard_activity_feed_view_model(
             "emptyState": "No recent activity is available yet.",
             "items": [],
         }
-    return {
-        "title": view_model.title,
-        "subtitle": view_model.subtitle,
-        "emptyState": view_model.empty_state,
-        "items": [
-            {
-                "id": item.id,
-                "title": item.title,
-                "statusLabel": item.status_label,
-                "metaText": item.meta_text,
-                "routeId": item.route_id,
-                "state": dict(item.state),
-            }
-            for item in view_model.items
-        ],
-    }
+    return dict(view_model)
 
 
 def serialize_dashboard_panel_view_models(

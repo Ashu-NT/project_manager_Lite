@@ -45,11 +45,13 @@ def build_workspace_empty_state(
     inbox: CollaborationCollectionViewModel,
     mentions: CollaborationCollectionViewModel,
     approvals: CollaborationCollectionViewModel,
-    activity_feed: CollaborationCollectionViewModel,
+    activity_feed: dict[str, object],
 ) -> str:
-    if any(
-        collection.items
-        for collection in (inbox, mentions, approvals, activity_feed)
+    if (
+        inbox.items
+        or mentions.items
+        or approvals.items
+        or activity_feed["items"]
     ):
         return ""
     return "No collaboration or workflow activity is available for the accessible project scope yet."

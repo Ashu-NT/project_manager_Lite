@@ -599,24 +599,10 @@ Item {
                                 ? String(root.heatmapItem.title || "")
                                 : ""
                             const all = root.recentActionsModel.items || []
-                            if (!projectName) return all.map(function(item) {
-                                return {
-                                    "title": String(item.title || ""),
-                                    "metaText": String(item.metaText || item.subtitle || ""),
-                                    "statusLabel": String(item.statusLabel || "")
-                                }
+                            if (!projectName) return all
+                            return all.filter(function(item) {
+                                return String(item.subjectDisplay || "") === projectName
                             })
-                            return all
-                                .filter(function(item) {
-                                    return String(item.statusLabel || "") === projectName
-                                })
-                                .map(function(item) {
-                                    return {
-                                        "title": String(item.title || ""),
-                                        "metaText": String(item.metaText || item.subtitle || ""),
-                                        "statusLabel": String(item.statusLabel || "")
-                                    }
-                                })
                         }
                         emptyText: "No recent activity found for this project."
                     }

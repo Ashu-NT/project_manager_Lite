@@ -9,26 +9,6 @@ from src.ui_qml.shared.models.activity_item import (
     tone_for_action,
 )
 
-# This module's own success/danger/warning keyword buckets, kept for
-# `status_label_for_action` -- the Financials Audit-preview builder's display
-# label needs the same classification `tone_for_action` produces, expressed
-# as a badge string instead of a tone value.
-_SUCCESS_KEYWORDS = ("creat", "add", "open", "approv", "complet")
-_DANGER_KEYWORDS = ("delet", "cancel", "reject", "close", "remov")
-_WARNING_KEYWORDS = ("updat", "edit", "modif", "submit", "post", "transfer", "issue", "return", "adjust")
-
-
-def status_label_for_action(action: str) -> str:
-    normalized = (action or "").lower()
-    if any(keyword in normalized for keyword in _SUCCESS_KEYWORDS):
-        return "Success"
-    if any(keyword in normalized for keyword in _DANGER_KEYWORDS):
-        return "Danger"
-    if any(keyword in normalized for keyword in _WARNING_KEYWORDS):
-        return "Warning"
-    return ""
-
-
 def build_id_lookup(list_result) -> dict[str, str]:
     if not list_result.ok or list_result.data is None:
         return {}
@@ -214,6 +194,5 @@ __all__ = [
     "humanize_action",
     "icon_key_for_entity_type",
     "resolve_change_value",
-    "status_label_for_action",
     "tone_for_action",
 ]

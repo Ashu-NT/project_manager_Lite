@@ -1,7 +1,5 @@
 """Project management QML view models."""
 from src.ui_qml.modules.project_management.view_models.dashboard import (
-    ProjectDashboardActivityFeedViewModel,
-    ProjectDashboardActivityItemViewModel,
     ProjectDashboardHealthCardViewModel,
     ProjectDashboardMetricViewModel,
     ProjectDashboardOperationalTableViewModel,
@@ -115,8 +113,6 @@ __all__ = [
     "ProjectCatalogMetricViewModel",
     "ProjectCatalogOverviewViewModel",
     "ProjectCatalogWorkspaceViewModel",
-    "ProjectDashboardActivityFeedViewModel",
-    "ProjectDashboardActivityItemViewModel",
     "ProjectDashboardHealthCardViewModel",
     "ProjectDashboardMetricViewModel",
     "ProjectDashboardOperationalTableViewModel",

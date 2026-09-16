@@ -3,14 +3,12 @@ from __future__ import annotations
 from src.core.platform.api.desktop.history.audit.audit_enterprise import (
     PlatformEnterpriseAuditDesktopApi,
 )
-from src.ui_qml.modules.project_management.presenters.common.activity_log_builder import (
-    status_label_for_action,
+from src.ui_qml.shared.models.activity_item import (
+    ActivityItemViewModel,
+    humanize_action,
+    icon_key_for_entity_type,
+    serialize_activity_items,
 )
-from src.ui_qml.modules.project_management.view_models.financials import (
-    FinancialsCollectionViewModel,
-    FinancialsRecordViewModel,
-)
-
 
 _FINANCE_OPERATION_PREFIXES = (
     "financial_profile.",
@@ -31,16 +29,23 @@ _FINANCE_OPERATION_PREFIXES = (
     "project_billing_preparation.",
 )
 
+_SEVERITY_TONE: dict[str, str] = {
+    "critical": "danger",
+    "high": "danger",
+    "medium": "warning",
+    "low": "neutral",
+}
+
 
 def build_finance_audit_collection(
     audit_api: PlatformEnterpriseAuditDesktopApi | None,
     *,
     project_id: str,
     limit: int = 100,
-) -> FinancialsCollectionViewModel:
+) -> dict[str, object]:
     bounded_limit = max(1, min(int(limit), 200))
     if audit_api is None:
-        return _unavailable_collection(bounded_limit)
+        return _unavailable_collection()
 
     result = audit_api.list_recent(
         limit=bounded_limit,
@@ -49,56 +54,41 @@ def build_finance_audit_collection(
         operation_prefixes=_FINANCE_OPERATION_PREFIXES,
     )
     if not result.ok or result.data is None:
-        return _unavailable_collection(bounded_limit)
+        return _unavailable_collection()
 
-    items = tuple(_build_record(entry) for entry in result.data)
-    return FinancialsCollectionViewModel(
-        title="Finance Audit",
-        subtitle=f"Latest {bounded_limit} immutable Finance audit events for this project.",
-        empty_state="No Finance audit events have been recorded for this project.",
-        items=items,
-        page=1,
-        page_size=bounded_limit,
-        total=len(items),
-    )
+    return {
+        "title": "Finance Audit",
+        "subtitle": f"Latest {bounded_limit} immutable Finance audit events for this project.",
+        "emptyState": "No Finance audit events have been recorded for this project.",
+        "items": serialize_activity_items(_to_activity_item(entry) for entry in result.data),
+    }
 
 
-def _unavailable_collection(limit: int) -> FinancialsCollectionViewModel:
-    return FinancialsCollectionViewModel(
-        title="Finance Audit",
-        subtitle="Immutable Finance audit evidence is permission protected.",
-        empty_state="Finance audit events are unavailable for this project.",
-        page=1,
-        page_size=limit,
-        total=0,
-    )
+def _unavailable_collection() -> dict[str, object]:
+    return {
+        "title": "Finance Audit",
+        "subtitle": "Immutable Finance audit evidence is permission protected.",
+        "emptyState": "Finance audit events are unavailable for this project.",
+        "items": [],
+    }
 
 
-def _build_record(entry) -> FinancialsRecordViewModel:
+def _to_activity_item(entry) -> ActivityItemViewModel:
     operation = str(entry.operation or "")
-    operation_label = operation.replace(".", " ").replace("_", " ").title()
+    actor_display = str(entry.actor_username or "").strip() or "System"
     entity_label = str(entry.entity_type or "Finance record").replace("_", " ").title()
-    actor_label = str(entry.actor_username or "").strip() or "System"
-    evidence = _evidence_text(entry)
-    return FinancialsRecordViewModel(
+    severity = str(entry.severity or "").lower()
+    return ActivityItemViewModel(
         id=str(entry.id),
-        title=f"{actor_label} - {operation_label}",
-        status_label=(
-            str(entry.severity or "").capitalize()
-            or status_label_for_action(operation)
-        ),
-        subtitle=entity_label,
-        supporting_text=evidence,
-        meta_text=(
-            entry.timestamp.strftime("%d %b %Y %H:%M") if entry.timestamp else ""
-        ),
-        can_primary_action=False,
-        can_secondary_action=False,
-        state={
-            "operation": operation,
-            "source": str(entry.source or ""),
-            "category": str(entry.category or ""),
-        },
+        title=humanize_action(operation),
+        description=_evidence_text(entry),
+        actor_display=actor_display,
+        occurred_at=entry.timestamp,
+        occurred_at_label=entry.timestamp.strftime("%d %b %Y %H:%M") if entry.timestamp else "",
+        icon_key=icon_key_for_entity_type(str(entry.entity_type or "")),
+        tone=_SEVERITY_TONE.get(severity, "neutral"),
+        subject_display=entity_label,
+        status_label=entry.severity.capitalize() if severity in ("critical", "high") else "",
     )
 
 

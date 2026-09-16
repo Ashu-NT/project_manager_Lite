@@ -285,7 +285,7 @@ AppLayouts.WorkspaceFrame {
                                     items: state._activityFeedItems
                                     emptyText: state._currentPanelModel.emptyState || "No collaboration activity is available."
                                     onItemActivated: function(itemData) {
-                                        const st = itemData && itemData.state ? itemData.state : {}
+                                        const st = itemData && itemData.activationState ? itemData.activationState : {}
                                         state._navigateRoute(String(st.routeId || ""))
                                     }
                                 }
@@ -352,7 +352,7 @@ AppLayouts.WorkspaceFrame {
                                 state._navigateRoute(String(st.routeId || ""))
                             }
                             onActivityItemActivated: function(itemData) {
-                                const st = itemData && itemData.state ? itemData.state : {}
+                                const st = itemData && itemData.activationState ? itemData.activationState : {}
                                 state._navigateRoute(String(st.routeId || ""))
                             }
                         }

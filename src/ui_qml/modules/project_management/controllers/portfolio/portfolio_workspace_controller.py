@@ -381,9 +381,7 @@ class ProjectManagementPortfolioWorkspaceController(
             )
             self._dependency_page.page = ws.dependencies.page
             self._dependency_page.total_count = ws.dependencies.total
-            self._set_recent_actions(
-                serialize_portfolio_collection_view_model(ws.recent_actions)
-            )
+            self._set_recent_actions(dict(ws.recent_actions))
             self._set_capacity_pool(
                 serialize_portfolio_collection_view_model(ws.capacity_pool)
             )

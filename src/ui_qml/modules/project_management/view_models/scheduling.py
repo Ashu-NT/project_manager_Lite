@@ -135,11 +135,13 @@ class SchedulingWorkspaceViewModel:
             subtitle="",
         )
     )
-    activity_feed: SchedulingCollectionViewModel = field(
-        default_factory=lambda: SchedulingCollectionViewModel(
-            title="Planning Activity",
-            subtitle="",
-        )
+    activity_feed: dict[str, object] = field(
+        default_factory=lambda: {
+            "title": "Planning Activity",
+            "subtitle": "",
+            "emptyState": "",
+            "items": [],
+        }
     )
 __all__ = [
     "SchedulingBaselineCompareViewModel",

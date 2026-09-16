@@ -543,9 +543,7 @@ class FinancialsRefreshMixin:
                 )
             )
         else:
-            self._set_activity(
-                serialize_financials_collection_view_model(state.activity)
-            )
+            self._set_activity(dict(state.activity))
 
     def _reset_destination_state(self) -> None:
         self._set_overview(default_overview())

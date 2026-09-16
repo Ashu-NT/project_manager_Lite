@@ -103,7 +103,9 @@ class FinancialsWorkspaceViewModel:
     posting_failure_sort_key: str = "metaText"
     posting_failure_sort_direction: str = "desc"
     posting_failure_status: str = ""
-    activity: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    activity: dict[str, object] = field(
+        default_factory=lambda: {"title": "", "subtitle": "", "emptyState": "", "items": []}
+    )
     actual_sort_key: str = "metaText"
     actual_sort_direction: str = "desc"
     can_create_manual_actual: bool = False

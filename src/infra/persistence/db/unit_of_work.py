@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import logging
 import threading
-from collections.abc import Callable
-from contextlib import AbstractContextManager, nullcontext
+from collections.abc import Callable, Generator
+from contextlib import contextmanager
 from typing import Self
 
 from sqlalchemy.orm import Session
@@ -26,31 +26,40 @@ logger = logging.getLogger(__name__)
 
 MAX_DISPATCH_ROUNDS = 20
 
-# SQLite allows only one writer at a time for the whole database file, even in
-# WAL mode. This app opens a fresh, independent Session/connection per
-# UnitOfWork (see SqlAlchemyUnitOfWorkFactoryBase.create()), so two commands
-# issued close together -- e.g. an Organization update and an Employee
-# create, each recording its own activity entry in the same transaction --
-# race for that single writer slot. `PRAGMA busy_timeout` (engine.py) makes
-# the loser wait rather than fail outright, but only up to its window, and
-# provides no ordering guarantee. Serializing writes in-process removes the
-# race entirely: at most one UnitOfWork ever holds the write transaction at a
-# time, so the busy_timeout becomes a true "should never happen" safety net
-# instead of the primary defense. Reentrant so a domain-event handler that
-# opens and commits another UnitOfWork from within this thread's own
-# transactional dispatch doesn't deadlock on itself. Postgres (also
-# supported -- see requirements-postgresql.txt) handles concurrent writers
-# natively and must not pay this serialization cost.
+# SQLite permits only one writer at a time per database file.
+#
+# Each UnitOfWork owns an independent SQLAlchemy Session/connection. Concurrent
+# write transactions within this process can therefore contend for SQLite's
+# Serializing transactional dispatch and commit processing reduces
+# in-process commit-time contention.
+#
+# This lock does not cover writes that may occur earlier through an explicit
+# flush or SQLAlchemy autoflush, and it is process-local, so busy_timeout
+# remains necessary for those cases and for writers in other processes.
+#
+# This lock is process-local; it does not serialize writers from other
+# processes.
+#
+# Transactional event handlers must use the UnitOfWork supplied to them rather
+# than opening an independent nested write UnitOfWork. A nested Session would
+# still contend with the outer SQLite transaction at the database level.
+#
+# PostgreSQL supports concurrent writers and therefore bypasses this lock.
 _SQLITE_WRITE_LOCK = threading.RLock()
 
 
-def _write_lock_for(session: Session) -> AbstractContextManager[None]:
+@contextmanager
+def _write_lock_for(session: Session) -> Generator[None, None, None]:
     try:
         is_sqlite = session.get_bind().dialect.name == "sqlite"
     except Exception:
         is_sqlite = False
-    return _SQLITE_WRITE_LOCK if is_sqlite else nullcontext()
 
+    if is_sqlite:
+        with _SQLITE_WRITE_LOCK:
+            yield
+    else:
+        yield
 
 class SqlAlchemyUnitOfWorkBase(UnitOfWork):
     def __init__(
@@ -76,21 +85,19 @@ class SqlAlchemyUnitOfWorkBase(UnitOfWork):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        if self._closed:
+            return None
+
         if exc_type is not None:
-            if not self._committed:
-                self._rollback_and_close()
-            return None  # never suppress the exception
-        if not self._committed:
-
-            logger.warning(
-                "UnitOfWork exited its 'with' block without commit() ever being called; "
-                "closing without committing."
-            )
             self._rollback_and_close()
-        # else: commit() already ran to completion and closed everything -- do nothing
-        # further, per ADR-005 §9 ("on a clean exit it does nothing further").
-        return None
+            return None
 
+        logger.warning(
+            "UnitOfWork exited its 'with' block without commit() ever being called; "
+            "closing without committing."
+        )
+        self._rollback_and_close()
+        return None
     # -- aggregate tracking -------------------------------------------------------------
 
     def register_touched(self, aggregate: RecordsDomainEvents) -> None:
@@ -99,11 +106,11 @@ class SqlAlchemyUnitOfWorkBase(UnitOfWork):
 
     def tracked_aggregates(self) -> tuple[RecordsDomainEvents, ...]:
         # Deliberately not closed-checked -- pending events may remain available for
-        # inspection after a rollback (ADR-005 §9's rollback-safety rule).
+        # inspection after a rollback
         return tuple(self._tracked_aggregates.values())
 
     def record_event(self, event: DomainEvent) -> None:
-        """ADR-005 §6's orchestration escape hatch -- reserved for a fact with no natural
+        """ orchestration escape hatch -- reserved for a fact with no natural
         aggregate owner. Never a substitute for an aggregate recording its own event."""
         self._check_not_closed()
         self._manually_recorded_events.append(event)
@@ -112,14 +119,31 @@ class SqlAlchemyUnitOfWorkBase(UnitOfWork):
 
     def commit(self) -> None:
         self._check_not_closed()
-        with _write_lock_for(self._session):
-            collected_events = self._drain_and_dispatch()
-            self._session.commit()
-            self._committed = True
-        self._session.close()
-        self._closed = True
+
+        collected_events: list[DomainEvent] = []
+
+        try:
+            with _write_lock_for(self._session):
+                collected_events = self._drain_and_dispatch()
+                self._session.commit()
+                self._committed = True
+
+        except Exception:
+            try:
+                self._session.rollback()
+            except Exception:
+                logger.exception(
+                    "Rollback failed while handling UnitOfWork commit failure."
+                )
+            raise
+
+        finally:
+            self._session.close()
+            self._closed = True
+
         for aggregate in self._tracked_aggregates.values():
             aggregate.clear_domain_events()
+
         for event in collected_events:
             self._post_commit_bus.publish(event, self.context)
 

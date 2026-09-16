@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 
@@ -8,7 +9,9 @@ class ProjectDashboardActivityItemDescriptor:
     id: str
     title: str
     status_label: str = ""
-    meta_text: str = ""
+    occurred_at: datetime | None = None
+    actor_display: str = ""
+    subject_display: str = ""
     route_id: str = ""
     state: dict[str, Any] = field(default_factory=dict)
 

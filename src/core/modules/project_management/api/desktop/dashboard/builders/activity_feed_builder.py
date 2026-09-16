@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 
 from src.core.modules.project_management.api.desktop.dashboard.formatters.date_formatter import (
     coerce_utc_datetime,
-    fmt_utc_datetime,
 )
 from src.core.modules.project_management.api.desktop.dashboard.formatters.period_formatter import (
     period_cutoff_datetime,
@@ -57,14 +56,10 @@ def build_activity_feed(
                 ProjectDashboardActivityItemDescriptor(
                     id=f"comment-{getattr(activity, 'comment_id', '')}",
                     title=f"{getattr(activity, 'task_name', '') or 'Task'} update",
-                    status_label="Mention" if bool(getattr(activity, "mentions", ())) else "Comment",
-                    meta_text=" | ".join(
-                        (
-                            getattr(activity, "project_name", "") or "Project",
-                            getattr(activity, "author_username", "") or "unknown",
-                            fmt_utc_datetime(created_at),
-                        )
-                    ),
+                    status_label="Mention" if bool(getattr(activity, "mentions", ())) else "",
+                    occurred_at=created_at,
+                    actor_display=getattr(activity, "author_username", "") or "",
+                    subject_display=getattr(activity, "project_name", "") or "",
                     route_id="project_management.tasks",
                     state={
                         "taskId": getattr(activity, "task_id", ""),

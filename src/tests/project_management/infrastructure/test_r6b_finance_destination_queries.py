@@ -1118,8 +1118,10 @@ def test_controls_activity_uses_project_scoped_enterprise_audit_only() -> None:
     assert query["module"] == "project_management"
     assert query["workspace_id"] == "project-1"
     assert "project_budget." in query["operation_prefixes"]
-    assert state.activity.total == 1
-    assert state.activity.items[0].title == "Finance Manager - Project Budget Approve"
+    assert len(state.activity["items"]) == 1
+    item = state.activity["items"][0]
+    assert item["title"] == "Project Budget Approve"
+    assert item["actorDisplay"] == "Finance Manager"
 
 
 def test_controls_changes_uses_bounded_master_detail_facade_only() -> None:

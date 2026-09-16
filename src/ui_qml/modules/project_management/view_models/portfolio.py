@@ -85,7 +85,9 @@ class PortfolioWorkspaceViewModel:
     comparison: PortfolioSummaryViewModel = field(default_factory=PortfolioSummaryViewModel)
     heatmap: PortfolioPagedCollectionViewModel = field(default_factory=lambda: PortfolioPagedCollectionViewModel("", "", ""))
     dependencies: PortfolioPagedCollectionViewModel = field(default_factory=lambda: PortfolioPagedCollectionViewModel("", "", ""))
-    recent_actions: PortfolioCollectionViewModel = field(default_factory=lambda: PortfolioCollectionViewModel("", "", ""))
+    recent_actions: dict[str, object] = field(
+        default_factory=lambda: {"title": "", "subtitle": "", "emptyState": "", "items": []}
+    )
     capacity_pool: PortfolioCollectionViewModel = field(default_factory=lambda: PortfolioCollectionViewModel("", "", ""))
     top_at_risk_projects: PortfolioCollectionViewModel = field(default_factory=lambda: PortfolioCollectionViewModel("", "", ""))
     hot_project_count: int = 0

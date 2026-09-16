@@ -27,7 +27,7 @@ def serialize_workspace_panels(workspace_state) -> dict[str, dict[str, object]]:
         "resource_loading": serialize_scheduling_collection_view_model(workspace_state.resource_loading),
         "baseline_register": serialize_scheduling_collection_view_model(workspace_state.baseline_register),
         "constraint_violations": serialize_scheduling_collection_view_model(workspace_state.constraint_violations),
-        "activity_feed": serialize_scheduling_collection_view_model(workspace_state.activity_feed),
+        "activity_feed": dict(workspace_state.activity_feed),
     }
 
 

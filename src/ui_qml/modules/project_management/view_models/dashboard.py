@@ -129,24 +129,6 @@ class ProjectDashboardOperationalTableViewModel:
     search_text: str = ""
 
 @dataclass(frozen=True)
-class ProjectDashboardActivityItemViewModel:
-    id: str
-    title: str
-    status_label: str = ""
-    meta_text: str = ""
-    route_id: str = ""
-    state: dict[str, Any] = field(default_factory=dict)
-
-@dataclass(frozen=True)
-class ProjectDashboardActivityFeedViewModel:
-    title: str
-    subtitle: str = ""
-    empty_state: str = ""
-    items: tuple[ProjectDashboardActivityItemViewModel, ...] = field(
-        default_factory=tuple
-    )
-
-@dataclass(frozen=True)
 class ProjectDashboardWorkspaceViewModel:
     overview: ProjectDashboardOverviewViewModel
     project_options: tuple[ProjectDashboardSelectorOptionViewModel, ...] = field(
@@ -174,7 +156,7 @@ class ProjectDashboardWorkspaceViewModel:
     operational_tables: tuple[ProjectDashboardOperationalTableViewModel, ...] = field(
         default_factory=tuple
     )
-    activity_feed: ProjectDashboardActivityFeedViewModel | None = None
+    activity_feed: dict[str, object] | None = None
     panels: tuple[ProjectDashboardPanelViewModel, ...] = field(default_factory=tuple)
     charts: tuple[ProjectDashboardChartViewModel, ...] = field(default_factory=tuple)
     sections: tuple[ProjectDashboardSectionViewModel, ...] = field(default_factory=tuple)
@@ -183,8 +165,6 @@ class ProjectDashboardWorkspaceViewModel:
 __all__ = [
     "ProjectDashboardChartPointViewModel",
     "ProjectDashboardChartViewModel",
-    "ProjectDashboardActivityFeedViewModel",
-    "ProjectDashboardActivityItemViewModel",
     "ProjectDashboardHealthCardViewModel",
     "ProjectDashboardMetricViewModel",
     "ProjectDashboardOverviewViewModel",

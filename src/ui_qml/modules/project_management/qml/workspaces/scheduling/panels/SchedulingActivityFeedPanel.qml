@@ -53,7 +53,7 @@ Item {
                             const item = sourceItems[i]
                             const haystack = (
                                 String(item.title || "") + " " +
-                                String(item.metaText || "") + " " +
+                                String(item.subjectDisplay || "") + " " +
                                 String(item.statusLabel || "")
                             ).toLowerCase()
                             if (haystack.indexOf(term) >= 0) filtered.push(item)

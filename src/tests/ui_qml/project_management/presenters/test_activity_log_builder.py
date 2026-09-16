@@ -7,7 +7,6 @@ from src.ui_qml.modules.project_management.presenters.common.activity_log_builde
     build_activity_records,
     humanize_action,
     icon_key_for_entity_type,
-    status_label_for_action,
     tone_for_action,
 )
 
@@ -46,15 +45,6 @@ def test_humanize_action_produces_a_readable_fallback_title() -> None:
     assert humanize_action("project.create") == "Project Create"
     assert humanize_action("task.set_status") == "Task Set Status"
     assert humanize_action("") == ""
-
-
-def test_status_label_for_action_is_unchanged_for_existing_consumers() -> None:
-    """This classifier still backs the Audit-sourced Financials preview
-    builder; its bucket membership and output strings must not shift."""
-    assert status_label_for_action("project.create") == "Success"
-    assert status_label_for_action("project.delete") == "Danger"
-    assert status_label_for_action("project.update") == "Warning"
-    assert status_label_for_action("project.list") == ""
 
 
 def test_build_activity_records_produces_the_canonical_shape() -> None:
