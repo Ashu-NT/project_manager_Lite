@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+import threading
 from collections.abc import Callable
+from contextlib import AbstractContextManager, nullcontext
 from typing import Self
 
 from sqlalchemy.orm import Session
@@ -23,6 +25,31 @@ from src.core.shared.persistence.unit_of_work import (
 logger = logging.getLogger(__name__)
 
 MAX_DISPATCH_ROUNDS = 20
+
+# SQLite allows only one writer at a time for the whole database file, even in
+# WAL mode. This app opens a fresh, independent Session/connection per
+# UnitOfWork (see SqlAlchemyUnitOfWorkFactoryBase.create()), so two commands
+# issued close together -- e.g. an Organization update and an Employee
+# create, each recording its own activity entry in the same transaction --
+# race for that single writer slot. `PRAGMA busy_timeout` (engine.py) makes
+# the loser wait rather than fail outright, but only up to its window, and
+# provides no ordering guarantee. Serializing writes in-process removes the
+# race entirely: at most one UnitOfWork ever holds the write transaction at a
+# time, so the busy_timeout becomes a true "should never happen" safety net
+# instead of the primary defense. Reentrant so a domain-event handler that
+# opens and commits another UnitOfWork from within this thread's own
+# transactional dispatch doesn't deadlock on itself. Postgres (also
+# supported -- see requirements-postgresql.txt) handles concurrent writers
+# natively and must not pay this serialization cost.
+_SQLITE_WRITE_LOCK = threading.RLock()
+
+
+def _write_lock_for(session: Session) -> AbstractContextManager[None]:
+    try:
+        is_sqlite = session.get_bind().dialect.name == "sqlite"
+    except Exception:
+        is_sqlite = False
+    return _SQLITE_WRITE_LOCK if is_sqlite else nullcontext()
 
 
 class SqlAlchemyUnitOfWorkBase(UnitOfWork):
@@ -85,9 +112,10 @@ class SqlAlchemyUnitOfWorkBase(UnitOfWork):
 
     def commit(self) -> None:
         self._check_not_closed()
-        collected_events = self._drain_and_dispatch()
-        self._session.commit()
-        self._committed = True
+        with _write_lock_for(self._session):
+            collected_events = self._drain_and_dispatch()
+            self._session.commit()
+            self._committed = True
         self._session.close()
         self._closed = True
         for aggregate in self._tracked_aggregates.values():
