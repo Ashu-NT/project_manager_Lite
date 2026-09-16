@@ -31,4 +31,55 @@ def enable_organization(controller, organization_id: str) -> dict[str, object]:
     )
 
 
-__all__ = ["create_organization", "enable_organization", "update_organization"]
+def disable_organization(controller, organization_id: str) -> dict[str, object]:
+    return run_admin_action(
+        controller,
+        action=lambda: controller._organization_controller.disableOrganization(
+            organization_id
+        ),
+        on_success=lambda: refresh_after_organization_change(controller),
+    )
+
+
+def apply_bulk_organization_status(controller, payload: dict) -> dict[str, object]:
+    return run_admin_action(
+        controller,
+        action=lambda: controller._organization_controller.applyBulkOrganizationStatus(payload),
+        on_success=lambda: refresh_after_organization_change(controller),
+    )
+
+
+def apply_bulk_organization_currency(controller, payload: dict) -> dict[str, object]:
+    return run_admin_action(
+        controller,
+        action=lambda: controller._organization_controller.applyBulkOrganizationCurrency(payload),
+        on_success=lambda: refresh_after_organization_change(controller),
+    )
+
+
+def apply_bulk_organization_timezone(controller, payload: dict) -> dict[str, object]:
+    return run_admin_action(
+        controller,
+        action=lambda: controller._organization_controller.applyBulkOrganizationTimezone(payload),
+        on_success=lambda: refresh_after_organization_change(controller),
+    )
+
+
+def apply_bulk_organization_modules(controller, payload: dict) -> dict[str, object]:
+    return run_admin_action(
+        controller,
+        action=lambda: controller._organization_controller.applyBulkOrganizationModules(payload),
+        on_success=lambda: refresh_after_organization_change(controller),
+    )
+
+
+__all__ = [
+    "apply_bulk_organization_currency",
+    "apply_bulk_organization_modules",
+    "apply_bulk_organization_status",
+    "apply_bulk_organization_timezone",
+    "create_organization",
+    "disable_organization",
+    "enable_organization",
+    "update_organization",
+]

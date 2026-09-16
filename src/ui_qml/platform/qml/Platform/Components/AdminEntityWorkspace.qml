@@ -43,6 +43,17 @@ ColumnLayout {
     property string searchText:      ""
     property var    pageSizeOptions: [25, 50, 100]
 
+    // Row-selection checkboxes + a floating bulk-action bar are opt-in
+    // (multiSelect defaults false) so every other admin entity page reusing
+    // this component keeps today's single-select-only behavior unchanged.
+    // selectedRowIds is caller-owned (the workspace controller's selection
+    // state); bulkActions is the same {id,label,icon,danger,enabled} shape
+    // BulkActionBar already takes.
+    property bool   multiSelect:     false
+    property var    selectedRowIds:  []
+    property var    bulkActions:     []
+    readonly property var bulkActionBar: _bulkActionBar
+
     signal createRequested()
     signal rowSelected(string rowId)
     signal rowActivated(string rowId)
@@ -52,6 +63,10 @@ ColumnLayout {
     signal pageSizeRequested(int pageSize)
     signal clearFiltersRequested()
     signal columnsStateChanged(var columns)
+    signal rowSelectionToggled(string rowId, bool selected)
+    signal selectAllToggled(bool allSelected)
+    signal bulkActionRequested(string actionId)
+    signal bulkCancelRequested()
 
     readonly property bool _paginated: root.catalog.paginated === true
     readonly property int _totalCount: root._paginated
@@ -191,11 +206,15 @@ ColumnLayout {
             emptyActionLabel: root._emptyActionLabel
             loading: root.isLoading
             selectedRowId: root.selectedRowId
+            multiSelect: root.multiSelect
+            selectedRowIds: root.selectedRowIds
 
             onRowSelected: function(rowId) { root.rowSelected(rowId) }
             onRowActivated: function(rowId) { root.rowActivated(rowId) }
             onEmptyActionRequested: root._onEmptyActionRequested()
             onColumnsStateChanged: function(cols) { root.columnsStateChanged(cols) }
+            onRowSelectionToggled: function(rowId, selected) { root.rowSelectionToggled(rowId, selected) }
+            onSelectAllToggled: function(allSelected) { root.selectAllToggled(allSelected) }
         }
 
         AppWidgets.TablePaginationBar {
@@ -212,6 +231,21 @@ ColumnLayout {
 
             onPageRequested: function(page) { root.pageRequested(page) }
             onPageSizeRequested: function(pageSize) { root.pageSizeRequested(pageSize) }
+        }
+
+        AppWidgets.BulkActionBar {
+            id: _bulkActionBar
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: root._paginated ? _paginationBar.top : parent.bottom
+            anchors.bottomMargin: Theme.AppTheme.spacingMd
+            z: 10
+            active: root.multiSelect
+            selectedCount: (root.selectedRowIds || []).length
+            busy: root.isBusy
+            actions: root.bulkActions
+
+            onCancelRequested: root.bulkCancelRequested()
+            onActionTriggered: function(actionId) { root.bulkActionRequested(actionId) }
         }
     }
 

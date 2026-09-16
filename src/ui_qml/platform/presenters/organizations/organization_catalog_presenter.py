@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable, Sequence
 
 from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
 from src.core.platform.api.desktop.master_data.org.models.organization import (
@@ -9,7 +9,7 @@ from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationUpdateCommand,
 )
 from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
-from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
 from src.core.shared.reference_data import country_name_for_code
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     bool_value,
@@ -228,6 +228,127 @@ class PlatformOrganizationCatalogPresenter:
         if self._runtime_api is None:
             return preview_error_result("Platform runtime API is not connected in this QML preview.")
         return self._runtime_api.enable_organization(organization_id)
+
+    def disable_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+        if self._runtime_api is None:
+            return preview_error_result("Platform runtime API is not connected in this QML preview.")
+        return self._runtime_api.disable_organization(organization_id)
+
+    def update_organization_currency(
+        self, organization_id: str, base_currency: str
+    ) -> DesktopApiResult[OrganizationDto]:
+        """Narrow single-field update for the bulk currency action -- unlike
+        update_organization() above, sends only organization_id + base_currency
+        (every other OrganizationUpdateCommand field stays None/untouched),
+        since a bulk action never has the rest of each selected organization's
+        current form data to send."""
+        if self._runtime_api is None:
+            return preview_error_result("Platform runtime API is not connected in this QML preview.")
+        return self._runtime_api.update_organization(
+            OrganizationUpdateCommand(
+                organization_id=organization_id,
+                base_currency=base_currency.strip().upper(),
+            )
+        )
+
+    def update_organization_timezone(
+        self, organization_id: str, timezone_name: str
+    ) -> DesktopApiResult[OrganizationDto]:
+        if self._runtime_api is None:
+            return preview_error_result("Platform runtime API is not connected in this QML preview.")
+        return self._runtime_api.update_organization(
+            OrganizationUpdateCommand(
+                organization_id=organization_id,
+                timezone_name=timezone_name.strip(),
+            )
+        )
+
+    def license_module_for_organization(self, organization_id: str, module_code: str) -> DesktopApiResult[Any]:
+        if self._runtime_api is None:
+            return preview_error_result("Platform runtime API is not connected in this QML preview.")
+        return self._runtime_api.license_module_for_organization(organization_id, module_code)
+
+    def revoke_module_license_for_organization(
+        self, organization_id: str, module_code: str
+    ) -> DesktopApiResult[Any]:
+        if self._runtime_api is None:
+            return preview_error_result("Platform runtime API is not connected in this QML preview.")
+        return self._runtime_api.revoke_module_license_for_organization(organization_id, module_code)
+
+    # ------------------------------------------------------------------
+    # Bulk actions -- table row selection. Status/currency/timezone each
+    # apply to every selected organization inside ONE backend transaction
+    # (OrganizationService.bulk_*, one UnitOfWork/commit for the whole
+    # selection) rather than one transaction per organization -- see that
+    # module for why. Module grant/revoke still loops per (org, module)
+    # pair through the single-record desktop API below; batching that one
+    # into a single transaction too would mean a matching bulk method on
+    # ModuleCatalogMutationService, not yet worth it at today's realistic
+    # module-catalog sizes (a handful of modules per organization).
+    # ------------------------------------------------------------------
+
+    def bulk_set_organization_status(
+        self, organization_ids: Sequence[str], *, is_enabled: bool
+    ) -> DesktopApiResult[Any]:
+        if self._runtime_api is None:
+            return preview_error_result("Platform runtime API is not connected in this QML preview.")
+        return self._runtime_api.bulk_set_organization_enabled(tuple(organization_ids), is_enabled=is_enabled)
+
+    def bulk_update_organization_currency(
+        self, organization_ids: Sequence[str], base_currency: str
+    ) -> DesktopApiResult[Any]:
+        if self._runtime_api is None:
+            return preview_error_result("Platform runtime API is not connected in this QML preview.")
+        return self._runtime_api.bulk_update_organization_currency(
+            tuple(organization_ids), base_currency.strip().upper()
+        )
+
+    def bulk_update_organization_timezone(
+        self, organization_ids: Sequence[str], timezone_name: str
+    ) -> DesktopApiResult[Any]:
+        if self._runtime_api is None:
+            return preview_error_result("Platform runtime API is not connected in this QML preview.")
+        return self._runtime_api.bulk_update_organization_timezone(tuple(organization_ids), timezone_name.strip())
+
+    def bulk_assign_modules(
+        self, organization_ids: Sequence[str], module_codes: Sequence[str], *, grant: bool
+    ) -> DesktopApiResult[None]:
+        mutate_one = (
+            self.license_module_for_organization if grant else self.revoke_module_license_for_organization
+        )
+        pairs = [(org_id, module_code) for org_id in organization_ids for module_code in module_codes]
+        return self._run_bulk(
+            pairs,
+            lambda pair: mutate_one(pair[0], pair[1]),
+            describe=lambda pair: f"{pair[0]}/{pair[1]}",
+        )
+
+    @staticmethod
+    def _run_bulk(
+        items: Sequence[Any],
+        mutate: Callable[[Any], DesktopApiResult[Any]],
+        *,
+        describe: Callable[[Any], str],
+    ) -> DesktopApiResult[None]:
+        failures: list[str] = []
+        for item in items:
+            result = mutate(item)
+            if not result.ok:
+                message = result.error.message if result.error is not None else "Unknown error"
+                failures.append(f"{describe(item)}: {message}")
+        if failures:
+            summary = "; ".join(failures[:3])
+            if len(failures) > 3:
+                summary += f" (+{len(failures) - 3} more)"
+            return DesktopApiResult(
+                ok=False,
+                error=DesktopApiError(
+                    code="BULK_PARTIAL_FAILURE",
+                    message=f"{len(failures)} of {len(items)} failed: {summary}",
+                    category="domain",
+                ),
+            )
+        return DesktopApiResult(ok=True, data=None)
 
     @staticmethod
     def _serialize_organization(row: OrganizationDto) -> PlatformWorkspaceActionItemViewModel:

@@ -7,6 +7,7 @@ AnchoredPopup 1.0 AnchoredPopup.qml
 AppDivider 1.0 AppDivider.qml
 BulkActionBar 1.0 BulkActionBar.qml
 BulkChangePropertyPopup 1.0 BulkChangePropertyPopup.qml
+BulkModuleAssignmentPopup 1.0 BulkModuleAssignmentPopup.qml
 CodeFieldRow 1.0 CodeFieldRow.qml
 ContextBar 1.0 ContextBar.qml
 ContextualActionToolbar 1.0 ContextualActionToolbar.qml

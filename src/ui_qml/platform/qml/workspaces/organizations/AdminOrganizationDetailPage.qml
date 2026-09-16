@@ -64,7 +64,9 @@ Item {
             return [{ "id": "refresh", "label": "Refresh", "icon": "refresh" }]
         }
         const actions = [{ "id": "edit", "label": "Edit", "icon": "edit", "enabled": detailRoot.canWrite }]
-        if (!detailRoot._isEnabledOrganization) {
+        if (detailRoot._isEnabledOrganization) {
+            actions.push({ "id": "disable", "label": "Disable", "icon": "approve", "enabled": detailRoot.canWrite })
+        } else {
             actions.push({ "id": "enable", "label": "Enable", "icon": "approve", "enabled": detailRoot.canWrite })
         }
         actions.push({ "id": "refresh", "label": "Refresh", "icon": "refresh" })

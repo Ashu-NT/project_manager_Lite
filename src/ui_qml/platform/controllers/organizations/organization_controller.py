@@ -22,6 +22,7 @@ class PlatformOrganizationController(QObject):
     operationResultChanged = Signal()
     feedbackMessageChanged = Signal()
     organizationSearchTextChanged = Signal()
+    selectedOrganizationIdsChanged = Signal()
 
     def __init__(self, presenter: PlatformOrganizationCatalogPresenter, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -43,6 +44,7 @@ class PlatformOrganizationController(QObject):
         self._page = 1
         self._page_size = _DEFAULT_ORGANIZATION_PAGE_SIZE
         self._search_text = ""
+        self._selected_organization_ids: list[str] = []
 
     @Property("QVariantMap", notify=organizationsChanged)
     def organizations(self) -> dict[str, object]:
@@ -80,6 +82,10 @@ class PlatformOrganizationController(QObject):
     def feedbackMessage(self) -> str:
         return self._feedback_message
 
+    @Property("QVariantList", notify=selectedOrganizationIdsChanged)
+    def selectedOrganizationIds(self) -> list[str]:
+        return list(self._selected_organization_ids)
+
     def _set_organizations(self, value: dict[str, object]) -> None:
         if self._organizations != value:
             self._organizations = value
@@ -110,6 +116,11 @@ class PlatformOrganizationController(QObject):
         if self._feedback_message != value:
             self._feedback_message = value
             self.feedbackMessageChanged.emit()
+
+    def _set_selected_organization_ids(self, value: list[str]) -> None:
+        if value != self._selected_organization_ids:
+            self._selected_organization_ids = value
+            self.selectedOrganizationIdsChanged.emit()
 
     @Slot()
     def refresh(self) -> None:
@@ -215,6 +226,117 @@ class PlatformOrganizationController(QObject):
             operation=lambda: self._presenter.enable_organization(normalized_id),
             success_message="Organization enabled.",
             on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_operation_result=self._set_operation_result,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def disableOrganization(self, organization_id: str) -> dict[str, object]:
+        normalized_id = organization_id.strip()
+        if not normalized_id:
+            return dict(self.operationResult)
+        return run_mutation(
+            operation=lambda: self._presenter.disable_organization(normalized_id),
+            success_message="Organization disabled.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_operation_result=self._set_operation_result,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    # ------------------------------------------------------------------
+    # Row-selection state (bulk actions) -- selection persists across page/
+    # search changes so a multi-page selection survives paging; it's only
+    # cleared once a bulk action actually applies.
+    # ------------------------------------------------------------------
+
+    @Slot(str, bool)
+    def setOrganizationBulkSelection(self, organization_id: str, selected: bool) -> None:
+        normalized_id = organization_id.strip()
+        if not normalized_id:
+            return
+        current = list(self._selected_organization_ids)
+        if selected:
+            if normalized_id not in current:
+                current.append(normalized_id)
+        elif normalized_id in current:
+            current.remove(normalized_id)
+        self._set_selected_organization_ids(current)
+
+    @Slot()
+    def clearOrganizationBulkSelection(self) -> None:
+        self._set_selected_organization_ids([])
+
+    @Slot()
+    def selectVisibleOrganizations(self) -> None:
+        items = self._organizations.get("items", [])
+        self._set_selected_organization_ids([str(item.get("id", "")) for item in items if item.get("id")])
+
+    def _clear_selection_and_refresh(self) -> None:
+        self._set_selected_organization_ids([])
+        self.refresh()
+
+    # ------------------------------------------------------------------
+    # Bulk actions -- each applies to every currently-selected organization.
+    # ------------------------------------------------------------------
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def applyBulkOrganizationStatus(self, payload: dict[str, object]) -> dict[str, object]:
+        is_enabled = str(payload.get("value", "")).strip().lower() == "enabled"
+        ids = list(self._selected_organization_ids)
+        return run_mutation(
+            operation=lambda: self._presenter.bulk_set_organization_status(ids, is_enabled=is_enabled),
+            success_message=f"{len(ids)} organization(s) {'enabled' if is_enabled else 'disabled'}.",
+            on_success=self._clear_selection_and_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_operation_result=self._set_operation_result,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def applyBulkOrganizationCurrency(self, payload: dict[str, object]) -> dict[str, object]:
+        base_currency = str(payload.get("value", "")).strip()
+        ids = list(self._selected_organization_ids)
+        return run_mutation(
+            operation=lambda: self._presenter.bulk_update_organization_currency(ids, base_currency),
+            success_message=f"Currency updated for {len(ids)} organization(s).",
+            on_success=self._clear_selection_and_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_operation_result=self._set_operation_result,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def applyBulkOrganizationTimezone(self, payload: dict[str, object]) -> dict[str, object]:
+        timezone_name = str(payload.get("value", "")).strip()
+        ids = list(self._selected_organization_ids)
+        return run_mutation(
+            operation=lambda: self._presenter.bulk_update_organization_timezone(ids, timezone_name),
+            success_message=f"Timezone updated for {len(ids)} organization(s).",
+            on_success=self._clear_selection_and_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_operation_result=self._set_operation_result,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def applyBulkOrganizationModules(self, payload: dict[str, object]) -> dict[str, object]:
+        module_codes = [str(code) for code in (payload.get("moduleCodes") or []) if str(code).strip()]
+        grant = bool(payload.get("grant", True))
+        ids = list(self._selected_organization_ids)
+        return run_mutation(
+            operation=lambda: self._presenter.bulk_assign_modules(ids, module_codes, grant=grant),
+            success_message=(
+                f"{'Granted' if grant else 'Revoked'} {len(module_codes)} module(s) "
+                f"for {len(ids)} organization(s)."
+            ),
+            on_success=self._clear_selection_and_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_operation_result=self._set_operation_result,

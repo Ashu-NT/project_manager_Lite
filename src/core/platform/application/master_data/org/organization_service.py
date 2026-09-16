@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING
 
@@ -515,60 +516,186 @@ class OrganizationService:
             organization = uow.organizations.get_for_tenant(organization_id, tenant_id)
             if organization is None:
                 raise NotFoundError("Organization not found.", code="ORGANIZATION_NOT_FOUND")
-            if organization.is_enabled == is_enabled:
-                # No-op: a state-transition event must represent an actual transition.
-                return organization
-            candidate = replace(organization, is_enabled=is_enabled, tenant_id=tenant_id)
-            uow.organizations.update(candidate)
-            record_audit_entry(
-                uow,
-                operation="update",
-                entity_type="organization",
-                entity_id=candidate.id,
-                organization_id=candidate.id,
-                module="platform",
-                severity="low",
-                metadata={
-                    "action": action,
-                    "organization_code": candidate.organization_code,
-                    "display_name": candidate.display_name,
-                    "is_enabled": str(candidate.is_enabled),
-                },
-                commit=False,
-                fail_closed=True,
-            )
-            record_activity(
-                uow,
-                action=action,
-                entity_type="organization",
-                entity_id=candidate.id,
-                module="platform",
-                organization_id=candidate.id,
-                message=(
-                    f"Organization enabled — {candidate.display_name}"
-                    if is_enabled
-                    else f"Organization deactivated — {candidate.display_name}"
-                ),
-                icon="organization",
-                type="info" if is_enabled else "warning",
-                commit=False,
-            )
-            availability_event_cls = OrganizationEnabled if is_enabled else OrganizationDisabled
-            uow.record_event(
-                availability_event_cls(
-                    tenant_id=tenant_id,
-                    organization_id=candidate.id,
-                    occurred_at=self._clock.now(),
-                )
+            candidate = self._apply_organization_enabled(
+                uow, organization, tenant_id=tenant_id, is_enabled=is_enabled, action=action
             )
             uow.commit()
+        self._clear_active_organization_if_disabled(candidate, is_enabled)
+        return candidate
+
+    def bulk_set_organization_enabled(
+        self, organization_ids: Sequence[str], *, is_enabled: bool
+    ) -> list[Organization]:
+        """Same per-record work as enable_organization()/disable_organization() (own
+        audit entry + activity entry + domain event per organization -- that's the
+        audit trail's actual granularity, not something a single bulk SQL statement
+        could replace), but all of it runs inside ONE UnitOfWork/commit instead of
+        one per organization. For N selected rows this turns N SQLite write
+        transactions (N fsyncs, N lock acquisitions) into 1, which is the dominant
+        cost at any real bulk-selection size -- not the row updates themselves."""
+        require_permission(
+            self._user_session, "settings.manage", operation_label="change organization availability"
+        )
+        tenant_id = self._require_current_tenant_id(operation_label="change organization availability")
+        action = "organization.enable" if is_enabled else "organization.disable"
+        results: list[Organization] = []
+        with self._uow_factory.create(context=self._new_context()) as uow:
+            for organization_id in organization_ids:
+                organization = uow.organizations.get_for_tenant(organization_id, tenant_id)
+                if organization is None:
+                    raise NotFoundError(
+                        f"Organization not found: {organization_id}", code="ORGANIZATION_NOT_FOUND"
+                    )
+                results.append(
+                    self._apply_organization_enabled(
+                        uow, organization, tenant_id=tenant_id, is_enabled=is_enabled, action=action
+                    )
+                )
+            uow.commit()
+        for candidate in results:
+            self._clear_active_organization_if_disabled(candidate, is_enabled)
+        return results
+
+    def _apply_organization_enabled(
+        self, uow, organization: Organization, *, tenant_id: str, is_enabled: bool, action: str
+    ) -> Organization:
+        """Mutates one organization's availability inside an already-open uow
+        (no commit) -- the single unit of work shared by the single-record and
+        bulk paths above."""
+        if organization.is_enabled == is_enabled:
+            # No-op: a state-transition event must represent an actual transition.
+            return organization
+        candidate = replace(organization, is_enabled=is_enabled, tenant_id=tenant_id)
+        uow.organizations.update(candidate)
+        record_audit_entry(
+            uow,
+            operation="update",
+            entity_type="organization",
+            entity_id=candidate.id,
+            organization_id=candidate.id,
+            module="platform",
+            severity="low",
+            metadata={
+                "action": action,
+                "organization_code": candidate.organization_code,
+                "display_name": candidate.display_name,
+                "is_enabled": str(candidate.is_enabled),
+            },
+            commit=False,
+            fail_closed=True,
+        )
+        record_activity(
+            uow,
+            action=action,
+            entity_type="organization",
+            entity_id=candidate.id,
+            module="platform",
+            organization_id=candidate.id,
+            message=(
+                f"Organization enabled — {candidate.display_name}"
+                if is_enabled
+                else f"Organization deactivated — {candidate.display_name}"
+            ),
+            icon="organization",
+            type="info" if is_enabled else "warning",
+            commit=False,
+        )
+        availability_event_cls = OrganizationEnabled if is_enabled else OrganizationDisabled
+        uow.record_event(
+            availability_event_cls(
+                tenant_id=tenant_id,
+                organization_id=candidate.id,
+                occurred_at=self._clock.now(),
+            )
+        )
+        return candidate
+
+    def _clear_active_organization_if_disabled(self, candidate: Organization, is_enabled: bool) -> None:
         if (
             not is_enabled
             and self._user_session is not None
             and self._user_session.active_organization_id() == candidate.id
         ):
+            # Don't leave the session pointed at an organization it just disabled.
             self._user_session.set_active_organization_id(None)
-        return candidate
+
+    def bulk_update_organization_currency(
+        self, organization_ids: Sequence[str], base_currency: str
+    ) -> list[Organization]:
+        return self._bulk_update_organization_field(
+            organization_ids, field_name="base_currency", value=base_currency.strip().upper()
+        )
+
+    def bulk_update_organization_timezone(
+        self, organization_ids: Sequence[str], timezone_name: str
+    ) -> list[Organization]:
+        return self._bulk_update_organization_field(
+            organization_ids, field_name="timezone_name", value=timezone_name.strip()
+        )
+
+    def _bulk_update_organization_field(
+        self, organization_ids: Sequence[str], *, field_name: str, value: str
+    ) -> list[Organization]:
+        """Narrow single-field bulk update (currency or timezone) -- deliberately
+        not update_organization()'s full-record path, which needs the caller to
+        already have every other field's current value in hand (the single-org
+        edit form does; a bulk action across N rows never does). One UnitOfWork/
+        commit for the whole selection, same reasoning as bulk_set_organization_
+        enabled() above."""
+        require_permission(self._user_session, "settings.manage", operation_label="update organization")
+        tenant_id = self._require_current_tenant_id(operation_label="update organization")
+        results: list[Organization] = []
+        with self._uow_factory.create(context=self._new_context()) as uow:
+            for organization_id in organization_ids:
+                organization = uow.organizations.get_for_tenant(organization_id, tenant_id)
+                if organization is None:
+                    raise NotFoundError(
+                        f"Organization not found: {organization_id}", code="ORGANIZATION_NOT_FOUND"
+                    )
+                if getattr(organization, field_name) == value:
+                    results.append(organization)
+                    continue
+                candidate = replace(organization, tenant_id=tenant_id, **{field_name: value})
+                uow.organizations.update(candidate)
+                record_audit_entry(
+                    uow,
+                    operation="update",
+                    entity_type="organization",
+                    entity_id=candidate.id,
+                    organization_id=candidate.id,
+                    module="platform",
+                    severity="low",
+                    metadata={
+                        "action": "organization.update",
+                        "organization_code": candidate.organization_code,
+                        "display_name": candidate.display_name,
+                        field_name: value,
+                    },
+                    commit=False,
+                    fail_closed=True,
+                )
+                record_activity(
+                    uow,
+                    action="organization.update",
+                    entity_type="organization",
+                    entity_id=candidate.id,
+                    module="platform",
+                    organization_id=candidate.id,
+                    message=f"Organization updated — {candidate.display_name}",
+                    icon="organization",
+                    type="info",
+                    commit=False,
+                )
+                uow.record_event(
+                    OrganizationProfileUpdated(
+                        tenant_id=tenant_id,
+                        organization_id=candidate.id,
+                        occurred_at=self._clock.now(),
+                    )
+                )
+                results.append(candidate)
+            uow.commit()
+        return results
 
 
     def _create_organization_using(

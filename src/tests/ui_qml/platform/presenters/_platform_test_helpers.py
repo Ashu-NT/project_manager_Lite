@@ -37,6 +37,7 @@ from src.core.platform.api.desktop.platform_runtime.models.runtime import (
     ModuleEntitlementDto,
     PlatformCapabilityDto,
     PlatformRuntimeContextDto,
+    TimezoneDto,
 )
 from src.core.platform.api.desktop.security.auth.models.user import RoleDto, UserDto, UserRollupSummaryDto
 from src.core.platform.api.desktop.support.models.support import (
@@ -169,6 +170,15 @@ class FakePlatformRuntimeApi:
             data=(
                 CountryDto(code="US", name="United States of America"),
                 CountryDto(code="NL", name="Netherlands"),
+            ),
+        )
+
+    def list_timezones(self) -> DesktopApiResult[tuple[TimezoneDto, ...]]:
+        return DesktopApiResult(
+            ok=True,
+            data=(
+                TimezoneDto(name="UTC"),
+                TimezoneDto(name="Europe/Amsterdam"),
             ),
         )
 
@@ -330,10 +340,40 @@ class FakePlatformRuntimeApi:
             ),
         )
 
+    def disable_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+        for index, row in enumerate(self._organizations):
+            if row.id != organization_id:
+                continue
+            updated = replace(row, is_enabled=False, version=row.version + 1)
+            self._organizations[index] = updated
+            self._rebuild_runtime_context()
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(
+                code="organization_not_found",
+                message=f"Organization '{organization_id}' was not found.",
+                category="not_found",
+            ),
+        )
+
     def license_module(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
         return self._apply_module_transition(module_code, licensed=True)
 
     def revoke_module_license(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
+        return self._apply_module_transition(module_code, licensed=False)
+
+    def license_module_for_organization(
+        self, organization_id: str, module_code: str
+    ) -> DesktopApiResult[ModuleEntitlementDto]:
+        # Organization-scoping isn't modeled in this fake's single shared
+        # entitlement list -- callers that need a real per-organization
+        # distinction should assert against the real service tests instead.
+        return self._apply_module_transition(module_code, licensed=True)
+
+    def revoke_module_license_for_organization(
+        self, organization_id: str, module_code: str
+    ) -> DesktopApiResult[ModuleEntitlementDto]:
         return self._apply_module_transition(module_code, licensed=False)
 
     def enable_module(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:

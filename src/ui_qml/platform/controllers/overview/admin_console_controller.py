@@ -87,7 +87,12 @@ from src.ui_qml.platform.controllers.organizations.organization_controller impor
     PlatformOrganizationController,
 )
 from src.ui_qml.platform.controllers.organizations.actions import (
+    apply_bulk_organization_currency,
+    apply_bulk_organization_modules,
+    apply_bulk_organization_status,
+    apply_bulk_organization_timezone,
     create_organization,
+    disable_organization,
     enable_organization,
     update_organization,
 )
@@ -140,6 +145,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     documentStructuresChanged = Signal()
     organizationEditorOptionsChanged = Signal()
     organizationSearchTextChanged = Signal()
+    selectedOrganizationIdsChanged = Signal()
     departmentEditorOptionsChanged = Signal()
     employeeEditorOptionsChanged = Signal()
     userEditorOptionsChanged = Signal()
@@ -200,6 +206,10 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Property("QVariantList", constant=True)
     def organizationPageSizeOptions(self) -> list[int]:
         return self._organization_controller.organizationPageSizeOptions
+
+    @Property("QVariantList", notify=selectedOrganizationIdsChanged)
+    def selectedOrganizationIds(self) -> list[str]:
+        return self._organization_controller.selectedOrganizationIds
 
     @Property("QVariantMap", notify=calendarsChanged)
     def calendars(self) -> dict[str, object]:
@@ -371,6 +381,38 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     @Slot(str, result="QVariantMap")
     def enableOrganization(self, organization_id: str) -> dict[str, object]:
         return enable_organization(self, organization_id)
+
+    @Slot(str, result="QVariantMap")
+    def disableOrganization(self, organization_id: str) -> dict[str, object]:
+        return disable_organization(self, organization_id)
+
+    @Slot(str, bool)
+    def setOrganizationBulkSelection(self, organization_id: str, selected: bool) -> None:
+        self._organization_controller.setOrganizationBulkSelection(organization_id, selected)
+
+    @Slot()
+    def clearOrganizationBulkSelection(self) -> None:
+        self._organization_controller.clearOrganizationBulkSelection()
+
+    @Slot()
+    def selectVisibleOrganizations(self) -> None:
+        self._organization_controller.selectVisibleOrganizations()
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def applyBulkOrganizationStatus(self, payload: dict[str, object]) -> dict[str, object]:
+        return apply_bulk_organization_status(self, payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def applyBulkOrganizationCurrency(self, payload: dict[str, object]) -> dict[str, object]:
+        return apply_bulk_organization_currency(self, payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def applyBulkOrganizationTimezone(self, payload: dict[str, object]) -> dict[str, object]:
+        return apply_bulk_organization_timezone(self, payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def applyBulkOrganizationModules(self, payload: dict[str, object]) -> dict[str, object]:
+        return apply_bulk_organization_modules(self, payload)
 
     @Slot(int)
     def setOrganizationPage(self, page: int) -> None:

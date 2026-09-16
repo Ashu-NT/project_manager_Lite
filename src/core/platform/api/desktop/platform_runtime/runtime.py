@@ -139,6 +139,28 @@ class PlatformRuntimeDesktopApi:
             )
         )
 
+    def license_module_for_organization(
+        self, organization_id: str, module_code: str
+    ) -> DesktopApiResult[ModuleEntitlementDto]:
+        return self._execute(
+            lambda: self._serialize_entitlement(
+                self._platform_runtime_application_service.license_module_for_organization(
+                    organization_id, module_code
+                )
+            )
+        )
+
+    def revoke_module_license_for_organization(
+        self, organization_id: str, module_code: str
+    ) -> DesktopApiResult[ModuleEntitlementDto]:
+        return self._execute(
+            lambda: self._serialize_entitlement(
+                self._platform_runtime_application_service.revoke_module_license_for_organization(
+                    organization_id, module_code
+                )
+            )
+        )
+
     def enable_module(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
         return self._execute(
             lambda: self._serialize_entitlement(
@@ -229,6 +251,49 @@ class PlatformRuntimeDesktopApi:
         return self._execute(
             lambda: self._serialize_organization(
                 self._platform_runtime_application_service.enable_organization(organization_id)
+            )
+        )
+
+    def disable_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+        return self._execute(
+            lambda: self._serialize_organization(
+                self._platform_runtime_application_service.disable_organization(organization_id)
+            )
+        )
+
+    def bulk_set_organization_enabled(
+        self, organization_ids: tuple[str, ...], *, is_enabled: bool
+    ) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
+        return self._execute(
+            lambda: tuple(
+                self._serialize_organization(row)
+                for row in self._platform_runtime_application_service.bulk_set_organization_enabled(
+                    organization_ids, is_enabled=is_enabled
+                )
+            )
+        )
+
+    def bulk_update_organization_currency(
+        self, organization_ids: tuple[str, ...], base_currency: str
+    ) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
+        return self._execute(
+            lambda: tuple(
+                self._serialize_organization(row)
+                for row in self._platform_runtime_application_service.bulk_update_organization_currency(
+                    organization_ids, base_currency
+                )
+            )
+        )
+
+    def bulk_update_organization_timezone(
+        self, organization_ids: tuple[str, ...], timezone_name: str
+    ) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
+        return self._execute(
+            lambda: tuple(
+                self._serialize_organization(row)
+                for row in self._platform_runtime_application_service.bulk_update_organization_timezone(
+                    organization_ids, timezone_name
+                )
             )
         )
 

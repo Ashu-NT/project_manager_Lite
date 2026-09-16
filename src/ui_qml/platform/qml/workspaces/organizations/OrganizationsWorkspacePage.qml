@@ -144,6 +144,34 @@ AppLayouts.WorkspaceFrame {
         if (root.workspaceController) root.workspaceController.clearMessages()
     }
 
+    // -- Bulk actions (row-selection checkboxes + BulkActionBar) ------------
+    readonly property var _editorOptions: root.workspaceController
+        ? root.workspaceController.organizationEditorOptions
+        : ({})
+    readonly property var _bulkChangeProperties: [
+        {
+            "id": "status", "label": "Status",
+            "values": [{ "value": "enabled", "label": "Enabled" }, { "value": "disabled", "label": "Disabled" }]
+        },
+        { "id": "currency", "label": "Base Currency", "values": root._editorOptions.currencyOptions || [] },
+        { "id": "timezone", "label": "Timezone", "values": root._editorOptions.timezoneOptions || [] }
+    ]
+    readonly property var _bulkModuleOptions: root._editorOptions.moduleOptions || []
+    readonly property int _selectedCount: root.workspaceController
+        ? (root.workspaceController.selectedOrganizationIds || []).length
+        : 0
+
+    function _applyBulkProperty(payload) {
+        if (!root.workspaceController) return
+        if (payload.propertyId === "status") {
+            root.workspaceController.applyBulkOrganizationStatus(payload)
+        } else if (payload.propertyId === "currency") {
+            root.workspaceController.applyBulkOrganizationCurrency(payload)
+        } else if (payload.propertyId === "timezone") {
+            root.workspaceController.applyBulkOrganizationTimezone(payload)
+        }
+    }
+
     function openEdit(itemId) {
         const item = root._itemById(itemId)
         if (item !== null) dialogHostLoader.invoke("openOrganizationEdit", item.state || {})
@@ -167,6 +195,7 @@ AppLayouts.WorkspaceFrame {
             visible: !root.detailOpen
 
             PlatformComponents.AdminEntityWorkspace {
+                id: _adminWorkspace
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 sectionTitle: "Organizations"
@@ -184,6 +213,12 @@ AppLayouts.WorkspaceFrame {
                 showSearch: true
                 searchText: root.workspaceController ? root.workspaceController.organizationSearchText : ""
                 pageSizeOptions: root.workspaceController ? root.workspaceController.organizationPageSizeOptions : [25, 50, 100]
+                multiSelect: root._canWrite
+                selectedRowIds: root.workspaceController ? (root.workspaceController.selectedOrganizationIds || []) : []
+                bulkActions: [
+                    { "id": "change_property", "label": "Change Property", "icon": "edit", "danger": false, "enabled": true },
+                    { "id": "assign_modules", "label": "Assign Modules", "icon": "module", "danger": false, "enabled": true }
+                ]
 
                 onCreateRequested: dialogHostLoader.invoke("openOrganizationCreate")
                 onRowSelected: function(id) { root.selectedRowId = id }
@@ -202,6 +237,47 @@ AppLayouts.WorkspaceFrame {
                     if (root.workspaceController) root.workspaceController.setOrganizationSearchText("")
                 }
                 onColumnsStateChanged: function(cols) { root._saveColumnState(cols) }
+                onRowSelectionToggled: function(id, selected) {
+                    if (root.workspaceController) root.workspaceController.setOrganizationBulkSelection(id, selected)
+                }
+                onSelectAllToggled: function(allSelected) {
+                    if (!root.workspaceController) return
+                    if (allSelected) root.workspaceController.selectVisibleOrganizations()
+                    else root.workspaceController.clearOrganizationBulkSelection()
+                }
+                onBulkCancelRequested: {
+                    if (root.workspaceController) root.workspaceController.clearOrganizationBulkSelection()
+                }
+                onBulkActionRequested: function(actionId) {
+                    if (actionId === "change_property") {
+                        _bulkChangePopup.anchorItem = _adminWorkspace.bulkActionBar.actionButtonForId("change_property")
+                        _bulkChangePopup.open()
+                    } else if (actionId === "assign_modules") {
+                        _bulkModulePopup.anchorItem = _adminWorkspace.bulkActionBar.actionButtonForId("assign_modules")
+                        _bulkModulePopup.open()
+                    }
+                }
+            }
+
+            AppWidgets.BulkChangePropertyPopup {
+                id: _bulkChangePopup
+                title: "Bulk Update Organizations"
+                selectedCount: root._selectedCount
+                busy: root.busy
+                properties: root._bulkChangeProperties
+
+                onApplyRequested: function(payload) { root._applyBulkProperty(payload) }
+            }
+
+            AppWidgets.BulkModuleAssignmentPopup {
+                id: _bulkModulePopup
+                selectedCount: root._selectedCount
+                busy: root.busy
+                moduleOptions: root._bulkModuleOptions
+
+                onApplyRequested: function(payload) {
+                    if (root.workspaceController) root.workspaceController.applyBulkOrganizationModules(payload)
+                }
             }
 
             AppWidgets.InspectorPanel {
@@ -213,7 +289,7 @@ AppLayouts.WorkspaceFrame {
                 busy: root.busy
                 editActionLabel: "Edit"
                 showEditAction: root._canWrite
-                secondaryActionLabel: "Enable"
+                secondaryActionLabel: root._selectedItem && root._selectedItem.statusLabel === "Enabled" ? "Disable" : "Enable"
                 showSecondaryAction: root._canWrite
                 viewDetailsLabel: "View Details"
                 showViewDetailsAction: true
@@ -221,7 +297,12 @@ AppLayouts.WorkspaceFrame {
                 onCloseRequested: root.selectedRowId = ""
                 onEditRequested: root.openEdit(root.selectedRowId)
                 onSecondaryActionRequested: {
-                    if (root.workspaceController) root.workspaceController.enableOrganization(root.selectedRowId)
+                    if (!root.workspaceController) return
+                    if (root._selectedItem && root._selectedItem.statusLabel === "Enabled") {
+                        root.workspaceController.disableOrganization(root.selectedRowId)
+                    } else {
+                        root.workspaceController.enableOrganization(root.selectedRowId)
+                    }
                 }
                 onViewDetailsRequested: root.detailOpen = true
             }
@@ -258,6 +339,9 @@ AppLayouts.WorkspaceFrame {
                         } else if (actionId === "enable") {
                             if (root.workspaceController)
                                 root.workspaceController.enableOrganization(root.selectedRowId)
+                        } else if (actionId === "disable") {
+                            if (root.workspaceController)
+                                root.workspaceController.disableOrganization(root.selectedRowId)
                         } else if (actionId === "refresh") {
                             if (root.workspaceController)
                                 root.workspaceController.refresh()

@@ -405,6 +405,42 @@ class PlatformRuntimeApplicationService:
             raise RuntimeError("Organization service is not configured.")
         return self._organization_service.enable_organization(organization_id)
 
+    def disable_organization(self, organization_id: str) -> Organization:
+        if self._organization_service is None:
+            raise RuntimeError("Organization service is not configured.")
+        return self._organization_service.disable_organization(organization_id)
+
+    def bulk_set_organization_enabled(
+        self, organization_ids: list[str] | tuple[str, ...], *, is_enabled: bool
+    ) -> list[Organization]:
+        if self._organization_service is None:
+            raise RuntimeError("Organization service is not configured.")
+        return self._organization_service.bulk_set_organization_enabled(organization_ids, is_enabled=is_enabled)
+
+    def bulk_update_organization_currency(
+        self, organization_ids: list[str] | tuple[str, ...], base_currency: str
+    ) -> list[Organization]:
+        if self._organization_service is None:
+            raise RuntimeError("Organization service is not configured.")
+        return self._organization_service.bulk_update_organization_currency(organization_ids, base_currency)
+
+    def bulk_update_organization_timezone(
+        self, organization_ids: list[str] | tuple[str, ...], timezone_name: str
+    ) -> list[Organization]:
+        if self._organization_service is None:
+            raise RuntimeError("Organization service is not configured.")
+        return self._organization_service.bulk_update_organization_timezone(organization_ids, timezone_name)
+
+    def license_module_for_organization(self, organization_id: str, module_code: str):
+        """Grants a module license for an explicit organization -- unlike license_module()
+        above, not limited to the caller's currently active organization. Needed for admin
+        flows (e.g. Organizations bulk module assignment) that act on organizations other
+        than whichever one the acting user happens to have selected."""
+        return self._module_catalog_service.license_module(organization_id, module_code)
+
+    def revoke_module_license_for_organization(self, organization_id: str, module_code: str):
+        return self._module_catalog_service.revoke_module_license(organization_id, module_code)
+
     def _require_settings_manage(self, operation_label: str) -> None:
         require_permission(
             self._user_session,
