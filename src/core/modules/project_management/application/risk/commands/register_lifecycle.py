@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any
@@ -279,6 +280,73 @@ class RegisterLifecycleMixin:
                 self._raise_register_code_duplicate(candidate.code, exc)
             raise
         return candidate
+
+    def bulk_set_entry_status(
+        self, entry_ids: Sequence[str], status: RegisterEntryStatus
+    ) -> list[RegisterEntry]:
+        """Narrow single-field bulk update (status only) for the bulk "Change
+        Property" action -- deliberately not update_entry()'s full-record
+        path, which needs every other field's current value (a bulk action
+        across N rows never has that). One UnitOfWork/commit for the whole
+        selection instead of one per entry, same reasoning as
+        OrganizationService.bulk_update_organization_currency()."""
+        require_permission(self._user_session, "register.manage", operation_label="update register entry")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="update register entry"
+        )
+        results: list[RegisterEntry] = []
+        with self._require_uow_factory().create(context=self._new_context()) as uow:
+            for entry_id in entry_ids:
+                entry = self._register_repo.get(entry_id)
+                if entry is None:
+                    raise NotFoundError("Register entry not found.", code="REGISTER_ENTRY_NOT_FOUND")
+                require_project_permission(
+                    self._user_session,
+                    entry.project_id,
+                    "register.manage",
+                    operation_label="update register entry",
+                )
+                if entry.status == status:
+                    results.append(entry)
+                    continue
+                candidate = replace(entry, status=status, updated_at=datetime.now(timezone.utc))
+                uow.entries.update(candidate)
+                record_activity(
+                    uow,
+                    action="register.update",
+                    entity_type="register_entry",
+                    entity_id=candidate.id,
+                    module="project_management",
+                    workspace_id=candidate.project_id,
+                    details=self._audit_details(candidate),
+                    commit=False,
+                )
+                record_audit_entry(
+                    uow,
+                    operation="update",
+                    entity_type="register_entry",
+                    entity_id=candidate.id,
+                    module="project_management",
+                    organization_id=scope.organization_id,
+                    severity="low",
+                    metadata={"action": "register.update", **self._audit_details(candidate)},
+                    commit=False,
+                    fail_closed=True,
+                )
+                uow.record_event(
+                    RegisterEntryChanged(
+                        tenant_id=scope.tenant_id,
+                        organization_id=scope.organization_id,
+                        project_id=candidate.project_id,
+                        register_entry_id=candidate.id,
+                        entry_type=as_register_entry_type(candidate.entry_type),
+                        change_type=RegisterEntryChangeType.UPDATED,
+                        occurred_at=datetime.now(timezone.utc),
+                    )
+                )
+                results.append(candidate)
+            uow.commit()
+        return results
 
     def delete_entry(self, entry_id: str) -> None:
         require_permission(self._user_session, "register.manage", operation_label="delete register entry")

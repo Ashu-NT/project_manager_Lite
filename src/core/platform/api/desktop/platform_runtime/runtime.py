@@ -161,6 +161,18 @@ class PlatformRuntimeDesktopApi:
             )
         )
 
+    def bulk_set_module_license(
+        self, organization_module_pairs: tuple[tuple[str, str], ...], *, licensed: bool
+    ) -> DesktopApiResult[tuple[ModuleEntitlementDto, ...]]:
+        return self._execute(
+            lambda: tuple(
+                self._serialize_entitlement(entitlement)
+                for entitlement in self._platform_runtime_application_service.bulk_set_module_license(
+                    organization_module_pairs, licensed=licensed
+                )
+            )
+        )
+
     def enable_module(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
         return self._execute(
             lambda: self._serialize_entitlement(

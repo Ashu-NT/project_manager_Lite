@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Sequence
+from typing import Any, Sequence
 
 from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
 from src.core.platform.api.desktop.master_data.org.models.organization import (
@@ -9,7 +9,7 @@ from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationUpdateCommand,
 )
 from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
-from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
+from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.shared.reference_data import country_name_for_code
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     bool_value,
@@ -275,17 +275,6 @@ class PlatformOrganizationCatalogPresenter:
             return preview_error_result("Platform runtime API is not connected in this QML preview.")
         return self._runtime_api.revoke_module_license_for_organization(organization_id, module_code)
 
-    # ------------------------------------------------------------------
-    # Bulk actions -- table row selection. Status/currency/timezone each
-    # apply to every selected organization inside ONE backend transaction
-    # (OrganizationService.bulk_*, one UnitOfWork/commit for the whole
-    # selection) rather than one transaction per organization -- see that
-    # module for why. Module grant/revoke still loops per (org, module)
-    # pair through the single-record desktop API below; batching that one
-    # into a single transaction too would mean a matching bulk method on
-    # ModuleCatalogMutationService, not yet worth it at today's realistic
-    # module-catalog sizes (a handful of modules per organization).
-    # ------------------------------------------------------------------
 
     def bulk_set_organization_status(
         self, organization_ids: Sequence[str], *, is_enabled: bool
@@ -312,43 +301,11 @@ class PlatformOrganizationCatalogPresenter:
 
     def bulk_assign_modules(
         self, organization_ids: Sequence[str], module_codes: Sequence[str], *, grant: bool
-    ) -> DesktopApiResult[None]:
-        mutate_one = (
-            self.license_module_for_organization if grant else self.revoke_module_license_for_organization
-        )
-        pairs = [(org_id, module_code) for org_id in organization_ids for module_code in module_codes]
-        return self._run_bulk(
-            pairs,
-            lambda pair: mutate_one(pair[0], pair[1]),
-            describe=lambda pair: f"{pair[0]}/{pair[1]}",
-        )
-
-    @staticmethod
-    def _run_bulk(
-        items: Sequence[Any],
-        mutate: Callable[[Any], DesktopApiResult[Any]],
-        *,
-        describe: Callable[[Any], str],
-    ) -> DesktopApiResult[None]:
-        failures: list[str] = []
-        for item in items:
-            result = mutate(item)
-            if not result.ok:
-                message = result.error.message if result.error is not None else "Unknown error"
-                failures.append(f"{describe(item)}: {message}")
-        if failures:
-            summary = "; ".join(failures[:3])
-            if len(failures) > 3:
-                summary += f" (+{len(failures) - 3} more)"
-            return DesktopApiResult(
-                ok=False,
-                error=DesktopApiError(
-                    code="BULK_PARTIAL_FAILURE",
-                    message=f"{len(failures)} of {len(items)} failed: {summary}",
-                    category="domain",
-                ),
-            )
-        return DesktopApiResult(ok=True, data=None)
+    ) -> DesktopApiResult[Any]:
+        if self._runtime_api is None:
+            return preview_error_result("Platform runtime API is not connected in this QML preview.")
+        pairs = tuple((org_id, module_code) for org_id in organization_ids for module_code in module_codes)
+        return self._runtime_api.bulk_set_module_license(pairs, licensed=grant)
 
     @staticmethod
     def _serialize_organization(row: OrganizationDto) -> PlatformWorkspaceActionItemViewModel:

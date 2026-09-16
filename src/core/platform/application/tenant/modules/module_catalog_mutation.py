@@ -56,6 +56,50 @@ class ModuleCatalogMutationMixin:
             event_factory=self._revoke_module_license_event,
         )
 
+    def bulk_set_module_license(
+        self, organization_module_pairs: Iterable[tuple[str, str]], *, licensed: bool
+    ) -> list[ModuleEntitlement]:
+        """Grants or revokes a module license across many (organization_id,
+        module_code) pairs -- e.g. Organizations' bulk "Assign Modules" action
+        applying N modules to M selected organizations. One UnitOfWork/commit
+        for every pair instead of one per pair, same reasoning as
+        OrganizationService.bulk_set_organization_enabled()."""
+        require_permission(
+            self._user_session,
+            "settings.manage",
+            operation_label="manage module entitlements",
+        )
+        if self._uow_factory is None:
+            raise RuntimeError("Module entitlement UnitOfWork factory is not configured.")
+        transition = self._license_module_transition if licensed else self._revoke_module_license_transition
+        audit_action = (
+            "module.entitlement.license_granted" if licensed else "module.entitlement.license_revoked"
+        )
+        event_factory = self._license_module_event if licensed else self._revoke_module_license_event
+        results: list[ModuleEntitlement] = []
+        with self._uow_factory.create(context=self._new_context()) as uow:
+            for organization_id, module_code in organization_module_pairs:
+                normalized_organization_id = str(organization_id or "").strip()
+                if not normalized_organization_id:
+                    raise ValidationError(
+                        "Organization context is required to manage module entitlements.",
+                        code="ORGANIZATION_REQUIRED",
+                    )
+                results.append(
+                    self._apply_module_transition_using(
+                        uow.entitlements,
+                        uow,
+                        organization_id=normalized_organization_id,
+                        module_code=module_code,
+                        transition=transition,
+                        audit_action=audit_action,
+                        audit_extra=None,
+                        event_factory=event_factory,
+                    )
+                )
+            uow.commit()
+        return results
+
     def enable_module(self, organization_id: str, module_code: str) -> ModuleEntitlement:
         """ENABLE_MODULE: pure runtime activation. Requires an existing license and a
         runtime-access lifecycle status (`active`/`trial`) -- never changes either itself."""

@@ -27,6 +27,7 @@ from src.ui_qml.modules.project_management.view_models.projects import (
 from .activity_builder import build_project_activity_state
 from .import_handler import execute_import, preview_import
 from .project_command_handler import (
+    bulk_set_project_status,
     create_project,
     delete_project,
     set_project_status,
@@ -296,6 +297,9 @@ class ProjectProjectsWorkspacePresenter:
 
     def set_project_status(self, project_id: str, status: str) -> None:
         set_project_status(self._desktop_api, project_id, status)
+
+    def bulk_set_project_status(self, project_ids: list[str], status: str) -> None:
+        bulk_set_project_status(self._desktop_api, project_ids, status)
 
     def delete_project(self, project_id: str) -> None:
         delete_project(self._desktop_api, project_id)

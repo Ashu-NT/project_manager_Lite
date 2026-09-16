@@ -8,25 +8,28 @@ from src.application.runtime import build_desktop_api_registry
 from src.core.platform.infrastructure.persistence.uow.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWorkFactory,
 )
+from src.core.platform.infrastructure.persistence.uow.module_entitlement_unit_of_work import (
+    SqlAlchemyModuleEntitlementUnitOfWorkFactory,
+)
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 
 
-def _count_uow_creations():
-    """Instruments OrganizationService's concrete UnitOfWork factory (it
-    overrides create() directly rather than inheriting the shared base) so a
-    test can assert how many separate transactions a call actually opened.
+def _count_uow_creations(factory_cls=SqlAlchemyOrganizationUnitOfWorkFactory):
+    """Instruments a concrete UnitOfWork factory (each overrides create()
+    directly rather than inheriting the shared base) so a test can assert how
+    many separate transactions a call actually opened.
     Returns (counts_dict, restore_fn)."""
     counts = {"create": 0}
-    real_create = SqlAlchemyOrganizationUnitOfWorkFactory.create
+    real_create = factory_cls.create
 
     def counting_create(self, *args, **kwargs):
         counts["create"] += 1
         return real_create(self, *args, **kwargs)
 
-    SqlAlchemyOrganizationUnitOfWorkFactory.create = counting_create
+    factory_cls.create = counting_create
 
     def restore():
-        SqlAlchemyOrganizationUnitOfWorkFactory.create = real_create
+        factory_cls.create = real_create
 
     return counts, restore
 
@@ -146,8 +149,17 @@ def test_bulk_assign_modules_grants_and_revokes_across_every_selected_organizati
 
     admin.setOrganizationBulkSelection(org_a, True)
     admin.setOrganizationBulkSelection(org_b, True)
-    result = admin.applyBulkOrganizationModules({"moduleCodes": [module_code], "grant": True})
+    counts, restore = _count_uow_creations(SqlAlchemyModuleEntitlementUnitOfWorkFactory)
+    try:
+        result = admin.applyBulkOrganizationModules({"moduleCodes": [module_code], "grant": True})
+    finally:
+        restore()
     assert result["ok"] is True, result
+    # 2 organizations x 1 module = 2 pairs -- must still cost exactly one
+    # UnitOfWork/commit, not one per pair.
+    assert counts["create"] == 1, (
+        f"bulk module grant across 2 pairs opened {counts['create']} UnitOfWork(s) instead of exactly 1"
+    )
 
     for org_id in (org_a, org_b):
         entitlement = module_catalog_service.license_module(org_id, module_code)

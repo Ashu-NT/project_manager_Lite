@@ -441,6 +441,13 @@ class PlatformRuntimeApplicationService:
     def revoke_module_license_for_organization(self, organization_id: str, module_code: str):
         return self._module_catalog_service.revoke_module_license(organization_id, module_code)
 
+    def bulk_set_module_license(
+        self, organization_module_pairs: list[tuple[str, str]] | tuple[tuple[str, str], ...], *, licensed: bool
+    ):
+        return self._module_catalog_service.bulk_set_module_license(
+            organization_module_pairs, licensed=licensed
+        )
+
     def _require_settings_manage(self, operation_label: str) -> None:
         require_permission(
             self._user_session,

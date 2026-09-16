@@ -306,6 +306,21 @@ class ProjectManagementProjectsDesktopApi:
             department_lookup=self._department_lookup(),
         )
 
+    def bulk_set_project_status(
+        self, project_ids: tuple[str, ...], status: str
+    ) -> tuple[ProjectDesktopDto, ...]:
+        service = self._require_project_service()
+        service.bulk_set_status(project_ids, coerce_project_status(status))
+        site_lookup = self._site_lookup()
+        department_lookup = self._department_lookup()
+        results = []
+        for project_id in project_ids:
+            project = service.get_project(project_id)
+            if project is None:
+                raise RuntimeError("Project status updated but the project could not be reloaded.")
+            results.append(serialize_project(project, site_lookup=site_lookup, department_lookup=department_lookup))
+        return tuple(results)
+
     def delete_project(self, project_id: str) -> None:
         self._require_project_service().delete_project(project_id)
 
