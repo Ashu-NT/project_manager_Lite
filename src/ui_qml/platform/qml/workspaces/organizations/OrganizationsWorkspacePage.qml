@@ -103,7 +103,7 @@ AppLayouts.WorkspaceFrame {
         if (!item) return []
         const streetLine = root._joinNonEmpty([item.addressLine1, item.addressLine2], ", ")
         const localityLine = root._joinNonEmpty(
-            [item.postalCode, item.city, item.stateRegion, item.countryCode],
+            [item.postalCode, item.city, item.stateRegion, item.countryName || item.countryCode],
             ", "
         )
         const stats = root._statistics

@@ -10,6 +10,7 @@ from src.core.platform.api.desktop.master_data.org.models.organization import (
 )
 from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
 from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.shared.reference_data import country_name_for_code
 from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     bool_value,
     int_value,
@@ -257,6 +258,7 @@ class PlatformOrganizationCatalogPresenter:
                 "city": row.city,
                 "stateRegion": row.state_region,
                 "countryCode": row.country_code,
+                "countryName": country_name_for_code(row.country_code) or row.country_code,
                 "email": row.email,
                 "phone": row.phone,
                 "website": row.website,
