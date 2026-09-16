@@ -95,7 +95,12 @@ def test_organization_editor_dialog_submit_button_emits_save_requested() -> None
         "isActive": True,
         "initialModuleCodes": ["pm"],
     }
-    options = {"moduleOptions": [{"value": "pm", "label": "Project Management"}], "countryOptions": []}
+    options = {
+        "moduleOptions": [{"value": "pm", "label": "Project Management"}],
+        "countryOptions": [],
+        "timezoneOptions": [{"value": "UTC", "label": "UTC"}],
+        "currencyOptions": [{"value": "EUR", "label": "EUR"}],
+    }
     assert QMetaObject.invokeMethod(
         root, "openForEdit", Q_ARG("QVariant", draft), Q_ARG("QVariant", options)
     )

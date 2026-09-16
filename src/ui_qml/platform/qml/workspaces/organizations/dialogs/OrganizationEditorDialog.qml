@@ -12,6 +12,8 @@ AppWidgets.EntityDialog {
     property var draft: ({})
     property var moduleOptions: []
     property var countryOptions: []
+    property var timezoneOptions: []
+    property var currencyOptions: []
     property var workspaceController: null
     property string organizationCode: ""
 
@@ -53,8 +55,8 @@ AppWidgets.EntityDialog {
         expectedVersion: root.draft.version || 0,
         organizationCode: root.organizationCode.trim(),
         displayName: displayNameField.text.trim(),
-        timezoneName: timezoneField.text.trim(),
-        baseCurrency: currencyField.text.trim().toUpperCase(),
+        timezoneName: _currentValue(timezoneModel, timezoneCombo),
+        baseCurrency: _currentValue(currencyModel, currencyCombo).toUpperCase(),
         isEnabled: enabledCheck.checked,
         initialModuleCodes: _selectedModuleCodes(),
         legalName: legalNameField.text.trim(),
@@ -76,6 +78,8 @@ AppWidgets.EntityDialog {
         root.draft = ({})
         root.moduleOptions = (options && options.moduleOptions) || []
         root.countryOptions = (options && options.countryOptions) || []
+        root.timezoneOptions = (options && options.timezoneOptions) || []
+        root.currencyOptions = (options && options.currencyOptions) || []
         _loadDraft()
         open()
     }
@@ -86,6 +90,8 @@ AppWidgets.EntityDialog {
         if (options) {
             root.moduleOptions = options.moduleOptions || []
             root.countryOptions = options.countryOptions || []
+            root.timezoneOptions = options.timezoneOptions || []
+            root.currencyOptions = options.currencyOptions || []
         }
         _loadDraft()
         open()
@@ -94,8 +100,6 @@ AppWidgets.EntityDialog {
     function _loadDraft() {
         root.organizationCode = root.draft.organizationCode || ""
         displayNameField.text = root.draft.displayName || ""
-        timezoneField.text = root.draft.timezoneName || "UTC"
-        currencyField.text = root.draft.baseCurrency || "USD"
         enabledCheck.checked = root.draft.isEnabled !== undefined ? root.draft.isEnabled : true
         legalNameField.text = root.draft.legalName || ""
         registrationNumberField.text = root.draft.registrationNumber || ""
@@ -111,6 +115,10 @@ AppWidgets.EntityDialog {
         _reloadModules()
         _reloadOptionModel(countryModel, root.countryOptions)
         _setCurrentIndex(countryModel, countryCombo, root.draft.countryCode || "")
+        _reloadOptionModel(timezoneModel, root.timezoneOptions)
+        _setCurrentIndex(timezoneModel, timezoneCombo, root.draft.timezoneName || "UTC")
+        _reloadOptionModel(currencyModel, root.currencyOptions)
+        _setCurrentIndex(currencyModel, currencyCombo, (root.draft.baseCurrency || "USD").toUpperCase())
     }
 
     function _reloadModules() {
@@ -166,6 +174,8 @@ AppWidgets.EntityDialog {
 
     ListModel { id: moduleModel }
     ListModel { id: countryModel }
+    ListModel { id: timezoneModel }
+    ListModel { id: currencyModel }
 
     GridLayout {
         id: formGrid
@@ -229,10 +239,11 @@ AppWidgets.EntityDialog {
             Layout.fillWidth: true
             label: "Timezone"
 
-            AppControls.TextField {
-                id: timezoneField
+            AppControls.ComboBox {
+                id: timezoneCombo
                 Layout.fillWidth: true
-                placeholderText: "e.g. Europe/Amsterdam"
+                model: timezoneModel
+                textRole: "label"
             }
         }
 
@@ -240,10 +251,11 @@ AppWidgets.EntityDialog {
             Layout.fillWidth: true
             label: "Base Currency"
 
-            AppControls.TextField {
-                id: currencyField
+            AppControls.ComboBox {
+                id: currencyCombo
                 Layout.fillWidth: true
-                placeholderText: "e.g. EUR"
+                model: currencyModel
+                textRole: "label"
             }
         }
 

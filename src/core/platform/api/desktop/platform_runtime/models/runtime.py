@@ -12,6 +12,11 @@ class CountryDto:
 
 
 @dataclass(frozen=True)
+class TimezoneDto:
+    name: str
+
+
+@dataclass(frozen=True)
 class PlatformCapabilityDto:
     code: str
     label: str

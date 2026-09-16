@@ -22,6 +22,7 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionItemViewModel,
     PlatformWorkspaceActionListViewModel,
 )
+from src.ui_qml.shared.models.currency_options import CURRENCY_OPTIONS
 
 class PlatformOrganizationCatalogPresenter:
     def __init__(
@@ -115,6 +116,23 @@ class PlatformOrganizationCatalogPresenter:
             option_item(label=country.name, value=country.code)
             for country in result.data
         )
+
+    def build_timezone_options(self) -> tuple[dict[str, str], ...]:
+        if self._runtime_api is None:
+            return ()
+        result = self._runtime_api.list_timezones()
+        if not result.ok or result.data is None:
+            return ()
+        return tuple(
+            option_item(label=timezone.name, value=timezone.name)
+            for timezone in result.data
+        )
+
+    def build_currency_options(self) -> tuple[dict[str, str], ...]:
+        """CURRENCY_OPTIONS is the same shared ISO 4217 reference list Financials
+        already uses (src.ui_qml.shared.models.currency_options) -- no separate
+        currency reference data lives here."""
+        return tuple(CURRENCY_OPTIONS)
 
     def build_module_options(self) -> tuple[dict[str, str], ...]:
         if self._runtime_api is None:

@@ -23,9 +23,10 @@ from src.core.platform.api.desktop.platform_runtime.models.runtime import (
     ModuleEntitlementDto,
     PlatformCapabilityDto,
     PlatformRuntimeContextDto,
+    TimezoneDto,
 )
 from src.core.platform.application.platform_runtime import PlatformRuntimeApplicationService
-from src.core.platform.common.reference_data import COUNTRY_OPTIONS
+from src.core.shared.reference_data import COUNTRY_OPTIONS, TIMEZONE_OPTIONS
 
 _ResultT = TypeVar("_ResultT")
 
@@ -85,6 +86,13 @@ class PlatformRuntimeDesktopApi:
         country picker -- no session/tenant scoping needed, never persisted."""
         return self._execute(
             lambda: tuple(CountryDto(code=code, name=name) for code, name in COUNTRY_OPTIONS)
+        )
+
+    def list_timezones(self) -> DesktopApiResult[tuple[TimezoneDto, ...]]:
+        """Static IANA time zone reference data for the Organization timezone
+        picker -- no session/tenant scoping needed, never persisted."""
+        return self._execute(
+            lambda: tuple(TimezoneDto(name=name) for name, _label in TIMEZONE_OPTIONS)
         )
 
     def get_organization_count(self) -> DesktopApiResult[int]:
