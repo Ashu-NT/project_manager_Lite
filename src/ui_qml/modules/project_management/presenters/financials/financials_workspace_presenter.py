@@ -6,58 +6,69 @@ from src.core.modules.project_management.api.desktop import (
     ProjectManagementFinancialsDesktopApi,
     build_project_management_financials_desktop_api,
 )
+from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
 from src.core.platform.api.desktop.history.audit.audit_enterprise import (
     PlatformEnterpriseAuditDesktopApi,
 )
-from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
-from src.ui_qml.modules.project_management.view_models.financials import FinancialsWorkspaceViewModel
+from src.ui_qml.modules.project_management.view_models.financials import (
+    FinancialsWorkspaceViewModel,
+)
 
 from .command_handler import (
-    add_cost_code_restriction,
+    activate_billing_profile,
+    add_billing_schedule_line,
+    add_billing_source,
     add_budget_line,
+    add_cost_code_restriction,
     add_financial_change_impact,
     add_rate_line,
     approve_actual,
+    change_cost_code_status,
     close_budget,
+    create_billing_preparation,
+    create_billing_profile,
     create_budget_successor,
     create_budget_version,
     create_cost_code,
-    change_cost_code_status,
+    create_financial_change,
     create_manual_actual,
     create_rate_card,
-    create_financial_change,
+    deactivate_rate_card,
+    deactivate_rate_line,
     decide_budget_approval,
-    decide_forecast_approval,
     decide_financial_change_approval,
+    decide_forecast_approval,
     delete_actual_draft,
     delete_budget,
     delete_budget_line,
-    deactivate_rate_card,
-    deactivate_rate_line,
     generate_forecast,
+    mark_billing_schedule_line_ready,
     post_actual,
-    remove_financial_change_impact,
-    remove_cost_code_restriction,
     reject_actual,
+    remove_billing_line,
+    remove_cost_code_restriction,
+    remove_financial_change_impact,
+    request_budget_approval,
+    request_forecast_approval,
     reverse_actual,
     submit_actual,
     submit_budget,
-    submit_forecast,
     submit_financial_change,
-    request_budget_approval,
-    request_forecast_approval,
-    update_budget,
+    submit_forecast,
+    transition_financial_profile,
     update_actual_draft,
+    update_budget,
     update_budget_line,
+    update_cost_code,
     update_financial_change,
     update_financial_change_impact,
-    transition_financial_profile,
-    update_cost_code,
     update_financial_profile,
     update_rate_card,
     update_rate_line,
+    version_billing_preparation,
 )
 from .destination_builder import build_destination_state, build_shell_state
+
 
 class ProjectFinancialsWorkspacePresenter:
     def __init__(
@@ -171,6 +182,9 @@ class ProjectFinancialsWorkspacePresenter:
 
     def search_setup_cost_codes(self, project_id: str, **query: Any):
         return self._desktop_api.search_setup_cost_codes(project_id, **query)
+
+    def list_eligible_billing_sources(self, project_id: str, **query: Any):
+        return self._desktop_api.list_eligible_billing_sources(project_id, **query)
 
     def create_budget_version(self, project_id: str, name: str, currency: str):
         return create_budget_version(self._desktop_api, project_id, name, currency)
@@ -299,6 +313,42 @@ class ProjectFinancialsWorkspacePresenter:
 
     def remove_cost_code_restriction(self, payload: dict[str, Any]) -> None:
         remove_cost_code_restriction(self._desktop_api, payload)
+
+    def create_billing_profile(self, payload: dict[str, Any]):
+        return create_billing_profile(self._desktop_api, payload)
+
+    def activate_billing_profile(self, payload: dict[str, Any]):
+        return activate_billing_profile(self._desktop_api, payload)
+
+    def add_billing_schedule_line(self, payload: dict[str, Any]):
+        return add_billing_schedule_line(self._desktop_api, payload)
+
+    def mark_billing_schedule_line_ready(self, payload: dict[str, Any]):
+        return mark_billing_schedule_line_ready(self._desktop_api, payload)
+
+    def create_billing_preparation(self, payload: dict[str, Any]):
+        return create_billing_preparation(self._desktop_api, payload)
+
+    def add_billing_source(self, payload: dict[str, Any]):
+        return add_billing_source(self._desktop_api, payload)
+
+    def remove_billing_line(self, payload: dict[str, Any]):
+        return remove_billing_line(self._desktop_api, payload)
+
+    def cancel_billing_preparation(self, payload: dict[str, Any]):
+        return version_billing_preparation(
+            self._desktop_api, payload, "cancel_draft_billing_preparation"
+        )
+
+    def submit_billing_preparation(self, payload: dict[str, Any]):
+        return version_billing_preparation(
+            self._desktop_api, payload, "submit_billing_preparation"
+        )
+
+    def request_billing_delivery(self, payload: dict[str, Any]):
+        return version_billing_preparation(
+            self._desktop_api, payload, "request_billing_delivery"
+        )
 
     def submit_actual(self, payload: dict[str, Any]) -> None:
         submit_actual(self._desktop_api, payload)

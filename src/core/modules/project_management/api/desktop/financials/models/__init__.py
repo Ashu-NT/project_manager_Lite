@@ -13,6 +13,8 @@ from src.core.modules.project_management.api.desktop.financials.models.billing i
     FinancialBillingPreparationLineDto,
     FinancialBillingProfileDto,
     FinancialBillingScheduleLineDto,
+    FinancialBillingSourceOptionDto,
+    FinancialBillingSourcePageDto,
     FinancialCommercialProjectionDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.commitments import (
@@ -81,6 +83,8 @@ __all__ = [
     "FinancialBillingPreparationLineDto",
     "FinancialBillingProfileDto",
     "FinancialBillingScheduleLineDto",
+    "FinancialBillingSourceOptionDto",
+    "FinancialBillingSourcePageDto",
     "FinancialBillingDetailDto",
     "FinancialBillingReadWorkspaceDto",
     "FinancialBillingTableRecordDto",

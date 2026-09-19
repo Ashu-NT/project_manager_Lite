@@ -1,7 +1,7 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
 Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F-A COMPLETE; R6F-B COMPLETE; R6F-C IN PROGRESS (NOT CLOSED)
-Last updated: 2026-09-14
+Last updated: 2026-09-19
 Scope: Project Management finance plus reusable platform financial foundations
 
 ## R6F-C Governed Billing Preparation Progress (2026-09-14)
@@ -62,6 +62,20 @@ source-picker presentation, five viewport and keyboard/focus evidence,
 PostgreSQL runtime-role RLS matrix, and independent-session concurrency matrix
 are not yet complete. Do not report closure until those gates are implemented
 and green.
+
+The desktop facade now exports the Billing source page DTO and draft-line
+removal command, and the Finance presenter/controller uses the existing
+validated command boundary for profile creation/activation, schedule creation
+and readiness, preparation creation, bounded source selection/addition, line
+removal, cancellation, submission, and delivery request. Successful commands
+invalidate only the Commercial destination; stale versions force a Commercial
+refresh. The source selector is available to QML through
+`searchEligibleBillingSources`, returning source type/date/amount/currency
+metadata from the server query rather than deriving eligibility in QML.
+This is boundary wiring only: no QML dialog, visual, or lifecycle-control
+closure is claimed yet. Focused billing command/reader/controller tests are
+**46 passed**; targeted Ruff F/I and Python compilation pass for the modified
+files.
 
 ## R6F-B Commercial Read Truth and Setup Closure (2026-09-14)
 
