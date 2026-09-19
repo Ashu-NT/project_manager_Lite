@@ -840,6 +840,9 @@ AppLayouts.WorkspaceFrame {
                         const state = preparation ? (preparation.state || {}) : ({})
                         root.workspaceController.decideBillingApproval(String(state.approvalRequestId || ""), approve)
                     }
+                    onBillingPreparationCorrectionRequested: function(preparation) {
+                        dialogHostLoader.invoke("openBillingPreparationDialog", preparation ? preparation.id : "")
+                    }
                     onVarianceBaselineSelected: function(baselineId) {
                         if (root.workspaceController !== null)
                             root.workspaceController.selectVarianceBaseline(baselineId)

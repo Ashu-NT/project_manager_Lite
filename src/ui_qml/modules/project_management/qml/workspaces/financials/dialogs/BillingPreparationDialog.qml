@@ -9,8 +9,9 @@ AppWidgets.EntityDialog {
     objectName: "billingPreparationDialog"
     property string projectId: ""
     property string commandId: ""
+    property string correctionOfPreparationId: ""
     signal submitted(var payload)
-    title: "Create Billing Preparation"
+    title: root.correctionOfPreparationId.length > 0 ? "Create Billing Correction" : "Create Billing Preparation"
     subtitle: "Creates a PM commercial handoff package. It does not create an invoice or receivable."
     primaryText: "Create Preparation"
     primaryIcon: "add"
@@ -21,7 +22,7 @@ AppWidgets.EntityDialog {
             numberField.forceActiveFocus()
             return
         }
-        root.submitted({ "projectId": root.projectId, "preparationNumber": numberField.text.trim(), "periodStart": periodStartField.text.trim(), "periodEnd": periodEndField.text.trim(), "idempotencyKey": root.commandId })
+        root.submitted({ "projectId": root.projectId, "preparationNumber": numberField.text.trim(), "periodStart": periodStartField.text.trim(), "periodEnd": periodEndField.text.trim(), "idempotencyKey": root.commandId, "correctionOfPreparationId": root.correctionOfPreparationId })
     }
     onOpened: numberField.forceActiveFocus()
     AppWidgets.FormField { Layout.fillWidth: true; label: "Preparation number"; required: true; AppControls.TextField { id: numberField; Layout.fillWidth: true } }

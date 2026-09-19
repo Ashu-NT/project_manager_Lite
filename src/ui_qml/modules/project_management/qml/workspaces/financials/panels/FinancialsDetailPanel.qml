@@ -245,6 +245,7 @@ Item {
     signal billingPreparationCreateRequested()
     signal billingPreparationSourceAddRequested(var preparation)
     signal billingPreparationDecisionRequested(bool approve, var preparation)
+    signal billingPreparationCorrectionRequested(var preparation)
     signal actualEntrySelected(string entryId)
     signal actualPageRequested(int page)
     signal actualPageSizeRequested(int pageSize)
@@ -697,6 +698,7 @@ Item {
             onPreparationCreateRequested: root.billingPreparationCreateRequested()
             onPreparationSourceAddRequested: function(preparation) { root.billingPreparationSourceAddRequested(preparation) }
             onPreparationDecisionRequested: function(approve, preparation) { root.billingPreparationDecisionRequested(approve, preparation) }
+            onPreparationCorrectionRequested: function(preparation) { root.billingPreparationCorrectionRequested(preparation) }
         }
     }
 

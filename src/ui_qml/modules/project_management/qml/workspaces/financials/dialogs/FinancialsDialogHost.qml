@@ -88,8 +88,9 @@ Item {
         root._openSetupDialog(billingScheduleLineDialog)
     }
 
-    function openBillingPreparationDialog() {
+    function openBillingPreparationDialog(correctionOfPreparationId) {
         billingPreparationDialog.projectId = root.selectedProjectId
+        billingPreparationDialog.correctionOfPreparationId = String(correctionOfPreparationId || "")
         billingPreparationDialog.commandId = root.workspaceController
             ? root.workspaceController.newFinancialCommandId() : ""
         billingPreparationDialog.errorMessage = ""

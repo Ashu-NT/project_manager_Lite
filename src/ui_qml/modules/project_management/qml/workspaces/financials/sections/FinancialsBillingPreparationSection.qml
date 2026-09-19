@@ -54,6 +54,7 @@ Item {
     signal preparationCreateRequested()
     signal preparationSourceAddRequested(var preparation)
     signal preparationDecisionRequested(bool approve, var preparation)
+    signal preparationCorrectionRequested(var preparation)
 
     readonly property var _scheduleColumns: [
         { "key": "title", "label": "Schedule line", "flex": 1.7, "sortable": true },
@@ -168,6 +169,13 @@ Item {
             Layout.fillWidth: true
             visible: root.selectedPreparationId.length > 0
             spacing: Theme.AppTheme.spacingSm
+            AppControls.SecondaryButton {
+                visible: Boolean((root.selectedPreparation.state || {}).canCreateCorrection)
+                enabled: !root.busy
+                text: "Create Correction"
+                iconName: "add"
+                onClicked: root.preparationCorrectionRequested(root.selectedPreparation)
+            }
             AppControls.SecondaryButton {
                 visible: Boolean((root.selectedPreparation.state || {}).canApprove)
                 enabled: !root.busy
