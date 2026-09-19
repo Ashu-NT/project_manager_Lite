@@ -127,6 +127,7 @@ def _schedule_record(item: BillingScheduleFact) -> FinancialBillingTableRecordDt
             "acceptanceReference": item.acceptance_reference or "",
             "sourceState": item.source_state,
             "version": item.row_version,
+            "canMarkReady": item.can_mark_ready,
         },
     )
 

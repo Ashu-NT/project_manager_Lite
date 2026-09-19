@@ -119,6 +119,14 @@ Item {
         }
         return 0
     }
+    function _canMarkScheduleReady(lineId) {
+        const rows = root.schedule.items || []
+        for (let index = 0; index < rows.length; index += 1) {
+            if (String(rows[index].id || "") === String(lineId || ""))
+                return Boolean((rows[index].state || {}).canMarkReady)
+        }
+        return false
+    }
     function _emitPreparationFilters(search) {
         root.preparationFiltersRequested(
             search,
@@ -179,8 +187,8 @@ Item {
         }
         AppControls.SecondaryButton {
             Layout.alignment: Qt.AlignLeft
-            visible: Boolean((root.profile.state || {}).canAddScheduleLine)
-                && root.selectedScheduleLineId.length > 0
+            visible: root.selectedScheduleLineId.length > 0
+                && root._canMarkScheduleReady(root.selectedScheduleLineId)
             enabled: !root.busy
             text: "Mark Selected Line Ready"
             iconName: "approve"

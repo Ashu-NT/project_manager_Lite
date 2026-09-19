@@ -170,6 +170,7 @@ class BillingScheduleFact:
     acceptance_reference: str | None
     source_state: str
     row_version: int
+    can_mark_ready: bool = False
 
 
 @dataclass(frozen=True, slots=True)

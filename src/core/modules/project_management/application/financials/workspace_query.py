@@ -1282,6 +1282,19 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             **arguments,
             request=schedule_request or BillingScheduleQuery(),
         )
+        schedule = replace(
+            schedule,
+            items=tuple(
+                replace(
+                    item,
+                    can_mark_ready=(
+                        self._has_project_permission(project_id, "finance.manage")
+                        and item.status == "planned"
+                    ),
+                )
+                for item in schedule.items
+            ),
+        )
         preparations = self._billing_reader.list_preparations(
             **arguments,
             request=preparation_request or BillingPreparationQuery(),
