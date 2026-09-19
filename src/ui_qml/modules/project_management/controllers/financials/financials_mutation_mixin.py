@@ -490,6 +490,15 @@ class FinancialsMutationMixin:
             "Billing preparation queued for Accounting delivery.",
         )
 
+    def _decide_billing_approval(self, request_id: str, approve: bool) -> dict[str, object]:
+        action = "approved" if approve else "rejected"
+        return self._run_billing_mutation(
+            lambda: self._financials_workspace_presenter.decide_billing_approval(
+                request_id, approve
+            ),
+            f"Billing preparation {action}.",
+        )
+
     def _submit_actual(self, payload: dict[str, object]) -> dict[str, object]:
         return self._run_finance_mutation(
             lambda: self._financials_workspace_presenter.submit_actual(

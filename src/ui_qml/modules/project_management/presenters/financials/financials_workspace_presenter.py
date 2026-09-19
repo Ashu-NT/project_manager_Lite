@@ -35,6 +35,7 @@ from .command_handler import (
     create_rate_card,
     deactivate_rate_card,
     deactivate_rate_line,
+    decide_billing_approval,
     decide_budget_approval,
     decide_financial_change_approval,
     decide_forecast_approval,
@@ -240,6 +241,9 @@ class ProjectFinancialsWorkspacePresenter:
         decide_forecast_approval(
             self._approval_api, request_id, approve=approve, note=note
         )
+
+    def decide_billing_approval(self, request_id: str, approve: bool) -> None:
+        decide_billing_approval(self._approval_api, request_id, approve=approve)
 
     def create_financial_change(self, payload: dict[str, Any]):
         return create_financial_change(self._desktop_api, payload)

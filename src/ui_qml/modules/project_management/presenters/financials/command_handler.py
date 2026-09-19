@@ -504,6 +504,17 @@ def decide_forecast_approval(
         )
 
 
+def decide_billing_approval(
+    approval_api: PlatformApprovalDesktopApi | None, request_id: str, *, approve: bool
+) -> None:
+    if approval_api is None:
+        raise RuntimeError("Platform approval API is not connected.")
+    command = ApprovalDecisionCommand(request_id=str(request_id or "").strip())
+    result = approval_api.approve_and_apply(command) if approve else approval_api.reject(command)
+    if not result.ok:
+        raise RuntimeError(result.error.message if result.error else "Billing decision failed.")
+
+
 def create_financial_change(desktop_api, payload: dict[str, Any]):
     return desktop_api.create_financial_change(
         FinancialCreateChangeCommand(
