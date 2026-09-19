@@ -151,6 +151,7 @@ class BillingProfileFact:
     retention_years: int
     legal_hold: bool
     row_version: int
+    can_activate: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -301,6 +302,7 @@ class FinanceBillingWorkspaceFacts:
     schedule: FinancePageFacts[BillingScheduleFact]
     preparations: FinancePageFacts[BillingPreparationSummaryFact]
     lines: FinancePageFacts[BillingPreparationLineFact]
+    can_manage_billing: bool = False
 
 
 __all__ = [

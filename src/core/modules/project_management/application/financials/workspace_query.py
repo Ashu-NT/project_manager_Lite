@@ -1262,6 +1262,14 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             "project_id": project_id,
         }
         profile = self._billing_reader.get_profile(**arguments)
+        if profile is not None:
+            profile = replace(
+                profile,
+                can_activate=(
+                    self._has_project_permission(project_id, "finance.manage")
+                    and profile.status == "draft"
+                ),
+            )
         schedule = self._billing_reader.list_schedule(
             **arguments,
             request=schedule_request or BillingScheduleQuery(),
@@ -1323,6 +1331,7 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             schedule=schedule,
             preparations=preparations,
             lines=lines,
+            can_manage_billing=self._has_project_permission(project_id, "finance.manage"),
         )
 
     def get_accounting_statuses(

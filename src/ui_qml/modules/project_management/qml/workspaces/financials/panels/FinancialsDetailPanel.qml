@@ -239,6 +239,7 @@ Item {
     signal billingScheduleFiltersRequested(string search, string status, string sourceState)
     signal billingPreparationFiltersRequested(string search, string status, string method, string approvalStatus, string deliveryState, string correctionState)
     signal billingLineFiltersRequested(string search, string sourceType, string sourceState)
+    signal billingPreparationLifecycleRequested(string action, var preparation)
     signal actualEntrySelected(string entryId)
     signal actualPageRequested(int page)
     signal actualPageSizeRequested(int pageSize)
@@ -685,6 +686,7 @@ Item {
             onScheduleFiltersRequested: function(search, status, sourceState) { root.billingScheduleFiltersRequested(search, status, sourceState) }
             onPreparationFiltersRequested: function(search, status, method, approvalStatus, deliveryState, correctionState) { root.billingPreparationFiltersRequested(search, status, method, approvalStatus, deliveryState, correctionState) }
             onLineFiltersRequested: function(search, sourceType, sourceState) { root.billingLineFiltersRequested(search, sourceType, sourceState) }
+            onPreparationLifecycleRequested: function(action, preparation) { root.billingPreparationLifecycleRequested(action, preparation) }
         }
     }
 

@@ -48,6 +48,7 @@ Item {
     signal scheduleFiltersRequested(string search, string status, string sourceState)
     signal preparationFiltersRequested(string search, string status, string method, string approvalStatus, string deliveryState, string correctionState)
     signal lineFiltersRequested(string search, string sourceType, string sourceState)
+    signal preparationLifecycleRequested(string action, var preparation)
 
     readonly property var _scheduleColumns: [
         { "key": "title", "label": "Schedule line", "flex": 1.7, "sortable": true },
@@ -146,6 +147,34 @@ Item {
                         }
                     }
                 }
+            }
+        }
+
+        Flow {
+            Layout.fillWidth: true
+            visible: root.selectedPreparationId.length > 0
+            spacing: Theme.AppTheme.spacingSm
+            AppControls.SecondaryButton {
+                visible: Boolean((root.selectedPreparation.state || {}).canSubmit)
+                enabled: !root.busy
+                text: "Submit"
+                iconName: "approve"
+                onClicked: root.preparationLifecycleRequested("submit", root.selectedPreparation)
+            }
+            AppControls.SecondaryButton {
+                visible: Boolean((root.selectedPreparation.state || {}).canCancel)
+                enabled: !root.busy
+                text: "Cancel Draft"
+                iconName: "close"
+                danger: true
+                onClicked: root.preparationLifecycleRequested("cancel", root.selectedPreparation)
+            }
+            AppControls.SecondaryButton {
+                visible: Boolean((root.selectedPreparation.state || {}).canRequestDelivery)
+                enabled: !root.busy
+                text: "Request Accounting Handoff"
+                iconName: "send"
+                onClicked: root.preparationLifecycleRequested("request_delivery", root.selectedPreparation)
             }
         }
 

@@ -38,7 +38,7 @@ def serialize_finance_billing_workspace(
 ) -> FinancialBillingReadWorkspaceDto:
     selected = source.selected_preparation
     return FinancialBillingReadWorkspaceDto(
-        profile=_profile_detail(source.profile),
+        profile=_profile_detail(source.profile, can_create=source.can_manage_billing),
         selected_preparation_id=source.selected_preparation_id,
         selected_preparation=(
             _preparation_detail(selected) if selected else FinancialBillingDetailDto()
@@ -76,11 +76,14 @@ def serialize_finance_billing_workspace(
     )
 
 
-def _profile_detail(item: BillingProfileFact | None) -> FinancialBillingDetailDto:
+def _profile_detail(
+    item: BillingProfileFact | None, *, can_create: bool
+) -> FinancialBillingDetailDto:
     if item is None:
         return FinancialBillingDetailDto(
             title="Billing Profile",
             description="No PM commercial Billing Profile exists for this Project.",
+            state={"canCreate": can_create},
         )
     return FinancialBillingDetailDto(
         id=item.id,
@@ -97,7 +100,12 @@ def _profile_detail(item: BillingProfileFact | None) -> FinancialBillingDetailDt
             ("Retention", f"{item.retention_years} years", "Legal hold active" if item.legal_hold else "No legal hold"),
             ("Row version", str(item.row_version), item.currency_code),
         ),
-        state={"currency": item.currency_code, "version": item.row_version},
+        state={
+            "currency": item.currency_code,
+            "version": item.row_version,
+            "canActivate": item.can_activate,
+            "canCreate": False,
+        },
     )
 
 

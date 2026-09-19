@@ -823,6 +823,14 @@ AppLayouts.WorkspaceFrame {
                     onBillingLineFiltersRequested: function(search, sourceType, sourceState) {
                         if (root.workspaceController !== null) root.workspaceController.setBillingLineFilters(search, sourceType, sourceState)
                     }
+                    onBillingPreparationLifecycleRequested: function(action, preparation) {
+                        if (root.workspaceController === null) return
+                        const state = preparation ? (preparation.state || {}) : ({})
+                        const payload = { "preparationId": String(preparation ? preparation.id : ""), "version": Number(state.version || 0) }
+                        if (action === "submit") root.workspaceController.submitBillingPreparation(payload)
+                        else if (action === "cancel") root.workspaceController.cancelBillingPreparation(payload)
+                        else if (action === "request_delivery") root.workspaceController.requestBillingDelivery(payload)
+                    }
                     onVarianceBaselineSelected: function(baselineId) {
                         if (root.workspaceController !== null)
                             root.workspaceController.selectVarianceBaseline(baselineId)
