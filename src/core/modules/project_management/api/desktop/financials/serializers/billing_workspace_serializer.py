@@ -104,6 +104,8 @@ def _profile_detail(
             "currency": item.currency_code,
             "version": item.row_version,
             "canActivate": item.can_activate,
+            "canAddScheduleLine": item.can_add_schedule_line,
+            "canCreatePreparation": item.can_create_preparation,
             "canCreate": False,
         },
     )

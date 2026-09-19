@@ -82,6 +82,20 @@ Item {
         root._openSetupDialog(billingProfileDialog)
     }
 
+    function openBillingScheduleLineDialog() {
+        billingScheduleLineDialog.projectId = root.selectedProjectId
+        billingScheduleLineDialog.errorMessage = ""
+        root._openSetupDialog(billingScheduleLineDialog)
+    }
+
+    function openBillingPreparationDialog() {
+        billingPreparationDialog.projectId = root.selectedProjectId
+        billingPreparationDialog.commandId = root.workspaceController
+            ? root.workspaceController.newFinancialCommandId() : ""
+        billingPreparationDialog.errorMessage = ""
+        root._openSetupDialog(billingPreparationDialog)
+    }
+
     function openBudgetLineDialog(mode, budget, line) {
         budgetLineEditorDialog.mode = String(mode || "create")
         budgetLineEditorDialog.projectId = root.selectedProjectId
@@ -224,6 +238,30 @@ Item {
             root._handleResult(
                 billingProfileDialog,
                 root.workspaceController.createBillingProfile(payload)
+            )
+        }
+    }
+
+    BillingScheduleLineDialog {
+        id: billingScheduleLineDialog
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onSubmitted: function(payload) {
+            if (!root.workspaceController) return
+            root._handleResult(
+                billingScheduleLineDialog,
+                root.workspaceController.addBillingScheduleLine(payload)
+            )
+        }
+    }
+
+    BillingPreparationDialog {
+        id: billingPreparationDialog
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onSubmitted: function(payload) {
+            if (!root.workspaceController) return
+            root._handleResult(
+                billingPreparationDialog,
+                root.workspaceController.createBillingPreparation(payload)
             )
         }
     }

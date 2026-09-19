@@ -152,6 +152,8 @@ class BillingProfileFact:
     legal_hold: bool
     row_version: int
     can_activate: bool = False
+    can_add_schedule_line: bool = False
+    can_create_preparation: bool = False
 
 
 @dataclass(frozen=True, slots=True)

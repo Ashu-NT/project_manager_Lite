@@ -1269,6 +1269,14 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
                     self._has_project_permission(project_id, "finance.manage")
                     and profile.status == "draft"
                 ),
+                can_add_schedule_line=(
+                    self._has_project_permission(project_id, "finance.manage")
+                    and profile.status == "active"
+                ),
+                can_create_preparation=(
+                    self._has_project_permission(project_id, "finance.manage")
+                    and profile.status == "active"
+                ),
             )
         schedule = self._billing_reader.list_schedule(
             **arguments,

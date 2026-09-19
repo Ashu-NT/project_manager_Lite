@@ -50,6 +50,8 @@ Item {
     signal lineFiltersRequested(string search, string sourceType, string sourceState)
     signal preparationLifecycleRequested(string action, var preparation)
     signal profileCreateRequested()
+    signal scheduleLineCreateRequested()
+    signal preparationCreateRequested()
 
     readonly property var _scheduleColumns: [
         { "key": "title", "label": "Schedule line", "flex": 1.7, "sortable": true },
@@ -189,6 +191,14 @@ Item {
         }
 
         AppWidgets.SectionHeading { Layout.fillWidth: true; label: "Billing Schedule" }
+        AppControls.SecondaryButton {
+            Layout.alignment: Qt.AlignLeft
+            visible: Boolean((root.profile.state || {}).canAddScheduleLine)
+            enabled: !root.busy
+            text: "Add Schedule Line"
+            iconName: "add"
+            onClicked: root.scheduleLineCreateRequested()
+        }
         AppWidgets.TableToolbar {
             Layout.fillWidth: true
             searchText: root.scheduleSearch
@@ -249,6 +259,14 @@ Item {
         }
 
         AppWidgets.SectionHeading { Layout.fillWidth: true; label: "Billing Preparations" }
+        AppControls.SecondaryButton {
+            Layout.alignment: Qt.AlignLeft
+            visible: Boolean((root.profile.state || {}).canCreatePreparation)
+            enabled: !root.busy
+            text: "Create Preparation"
+            iconName: "add"
+            onClicked: root.preparationCreateRequested()
+        }
         AppWidgets.TableToolbar {
             Layout.fillWidth: true
             searchText: root.preparationSearch
