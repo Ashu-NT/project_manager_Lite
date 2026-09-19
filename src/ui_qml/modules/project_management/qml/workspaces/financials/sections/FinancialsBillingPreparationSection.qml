@@ -50,6 +50,7 @@ Item {
     signal lineFiltersRequested(string search, string sourceType, string sourceState)
     signal preparationLifecycleRequested(string action, var preparation)
     signal profileCreateRequested()
+    signal profileActivateRequested(var profile)
     signal scheduleLineCreateRequested()
     signal preparationCreateRequested()
     signal preparationSourceAddRequested(var preparation)
@@ -163,6 +164,14 @@ Item {
             text: "Create Billing Profile"
             iconName: "add"
             onClicked: root.profileCreateRequested()
+        }
+        AppControls.SecondaryButton {
+            Layout.alignment: Qt.AlignLeft
+            visible: Boolean((root.profile.state || {}).canActivate)
+            enabled: !root.busy
+            text: "Activate Billing Profile"
+            iconName: "approve"
+            onClicked: root.profileActivateRequested(root.profile)
         }
 
         Flow {

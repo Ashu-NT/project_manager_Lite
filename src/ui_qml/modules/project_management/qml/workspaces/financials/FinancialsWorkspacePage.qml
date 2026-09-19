@@ -832,6 +832,11 @@ AppLayouts.WorkspaceFrame {
                         else if (action === "request_delivery") root.workspaceController.requestBillingDelivery(payload)
                     }
                     onBillingProfileCreateRequested: dialogHostLoader.invoke("openBillingProfileDialog")
+                    onBillingProfileActivateRequested: function(profile) {
+                        if (root.workspaceController === null) return
+                        const state = profile ? (profile.state || {}) : ({})
+                        root.workspaceController.activateBillingProfile({ "projectId": root.workspaceController.selectedProjectId, "version": Number(state.version || 0) })
+                    }
                     onBillingScheduleLineCreateRequested: dialogHostLoader.invoke("openBillingScheduleLineDialog")
                     onBillingPreparationCreateRequested: dialogHostLoader.invoke("openBillingPreparationDialog")
                     onBillingPreparationSourceAddRequested: function(preparation) { dialogHostLoader.invoke("openBillingSourcePickerDialog", preparation) }

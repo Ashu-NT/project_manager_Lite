@@ -220,6 +220,10 @@ Item {
     onSelectedProjectIdChanged: {
         if (editorDialog.opened) editorDialog.close()
         if (actualLifecycleDialog.opened) actualLifecycleDialog.close()
+        if (billingProfileDialog.opened) billingProfileDialog.close()
+        if (billingScheduleLineDialog.opened) billingScheduleLineDialog.close()
+        if (billingPreparationDialog.opened) billingPreparationDialog.close()
+        if (billingSourcePickerDialog.opened) billingSourcePickerDialog.close()
     }
 
     ManualActualEditorDialog {

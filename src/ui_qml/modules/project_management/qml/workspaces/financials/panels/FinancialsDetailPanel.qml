@@ -241,6 +241,7 @@ Item {
     signal billingLineFiltersRequested(string search, string sourceType, string sourceState)
     signal billingPreparationLifecycleRequested(string action, var preparation)
     signal billingProfileCreateRequested()
+    signal billingProfileActivateRequested(var profile)
     signal billingScheduleLineCreateRequested()
     signal billingPreparationCreateRequested()
     signal billingPreparationSourceAddRequested(var preparation)
@@ -694,6 +695,7 @@ Item {
             onLineFiltersRequested: function(search, sourceType, sourceState) { root.billingLineFiltersRequested(search, sourceType, sourceState) }
             onPreparationLifecycleRequested: function(action, preparation) { root.billingPreparationLifecycleRequested(action, preparation) }
             onProfileCreateRequested: root.billingProfileCreateRequested()
+            onProfileActivateRequested: function(profile) { root.billingProfileActivateRequested(profile) }
             onScheduleLineCreateRequested: root.billingScheduleLineCreateRequested()
             onPreparationCreateRequested: root.billingPreparationCreateRequested()
             onPreparationSourceAddRequested: function(preparation) { root.billingPreparationSourceAddRequested(preparation) }
