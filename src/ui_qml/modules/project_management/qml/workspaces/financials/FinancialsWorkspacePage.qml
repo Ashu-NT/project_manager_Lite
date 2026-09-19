@@ -831,6 +831,7 @@ AppLayouts.WorkspaceFrame {
                         else if (action === "cancel") root.workspaceController.cancelBillingPreparation(payload)
                         else if (action === "request_delivery") root.workspaceController.requestBillingDelivery(payload)
                     }
+                    onBillingProfileCreateRequested: dialogHostLoader.invoke("openBillingProfileDialog")
                     onVarianceBaselineSelected: function(baselineId) {
                         if (root.workspaceController !== null)
                             root.workspaceController.selectVarianceBaseline(baselineId)

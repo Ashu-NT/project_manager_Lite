@@ -49,6 +49,7 @@ Item {
     signal preparationFiltersRequested(string search, string status, string method, string approvalStatus, string deliveryState, string correctionState)
     signal lineFiltersRequested(string search, string sourceType, string sourceState)
     signal preparationLifecycleRequested(string action, var preparation)
+    signal profileCreateRequested()
 
     readonly property var _scheduleColumns: [
         { "key": "title", "label": "Schedule line", "flex": 1.7, "sortable": true },
@@ -148,6 +149,15 @@ Item {
                     }
                 }
             }
+        }
+
+        AppControls.SecondaryButton {
+            Layout.alignment: Qt.AlignLeft
+            visible: Boolean((root.profile.state || {}).canCreate)
+            enabled: !root.busy
+            text: "Create Billing Profile"
+            iconName: "add"
+            onClicked: root.profileCreateRequested()
         }
 
         Flow {

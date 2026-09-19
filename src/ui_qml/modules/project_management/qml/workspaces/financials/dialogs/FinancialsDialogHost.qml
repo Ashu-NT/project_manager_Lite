@@ -76,6 +76,12 @@ Item {
         budgetVersionEditorDialog.open()
     }
 
+    function openBillingProfileDialog() {
+        billingProfileDialog.projectId = root.selectedProjectId
+        billingProfileDialog.errorMessage = ""
+        root._openSetupDialog(billingProfileDialog)
+    }
+
     function openBudgetLineDialog(mode, budget, line) {
         budgetLineEditorDialog.mode = String(mode || "create")
         budgetLineEditorDialog.projectId = root.selectedProjectId
@@ -207,6 +213,18 @@ Item {
                 ? root.workspaceController.updateActualDraft(payload)
                 : root.workspaceController.createManualActual(payload)
             root._handleResult(editorDialog, result)
+        }
+    }
+
+    BillingProfileDialog {
+        id: billingProfileDialog
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onSubmitted: function(payload) {
+            if (!root.workspaceController) return
+            root._handleResult(
+                billingProfileDialog,
+                root.workspaceController.createBillingProfile(payload)
+            )
         }
     }
 
