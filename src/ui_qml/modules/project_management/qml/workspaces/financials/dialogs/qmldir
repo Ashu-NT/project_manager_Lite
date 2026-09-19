@@ -6,6 +6,7 @@ BudgetVersionEditorDialog 1.0 BudgetVersionEditorDialog.qml
 BillingProfileDialog 1.0 BillingProfileDialog.qml
 BillingScheduleLineDialog 1.0 BillingScheduleLineDialog.qml
 BillingPreparationDialog 1.0 BillingPreparationDialog.qml
+BillingSourcePickerDialog 1.0 BillingSourcePickerDialog.qml
 CostCodeEditorDialog 1.0 CostCodeEditorDialog.qml
 CostCodeRestrictionDialog 1.0 CostCodeRestrictionDialog.qml
 FinancialProfileEditorDialog 1.0 FinancialProfileEditorDialog.qml

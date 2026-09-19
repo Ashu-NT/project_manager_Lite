@@ -96,6 +96,15 @@ Item {
         root._openSetupDialog(billingPreparationDialog)
     }
 
+    function openBillingSourcePickerDialog(preparation) {
+        const state = preparation ? (preparation.state || {}) : ({})
+        billingSourcePickerDialog.projectId = root.selectedProjectId
+        billingSourcePickerDialog.preparationId = String(preparation ? preparation.id : "")
+        billingSourcePickerDialog.preparationVersion = Number(state.version || 0)
+        billingSourcePickerDialog.errorMessage = ""
+        root._openSetupDialog(billingSourcePickerDialog)
+    }
+
     function openBudgetLineDialog(mode, budget, line) {
         budgetLineEditorDialog.mode = String(mode || "create")
         budgetLineEditorDialog.projectId = root.selectedProjectId
@@ -262,6 +271,19 @@ Item {
             root._handleResult(
                 billingPreparationDialog,
                 root.workspaceController.createBillingPreparation(payload)
+            )
+        }
+    }
+
+    BillingSourcePickerDialog {
+        id: billingSourcePickerDialog
+        workspaceController: root.workspaceController
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onSubmitted: function(payload) {
+            if (!root.workspaceController) return
+            root._handleResult(
+                billingSourcePickerDialog,
+                root.workspaceController.addBillingSource(payload)
             )
         }
     }

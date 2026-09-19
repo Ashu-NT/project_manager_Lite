@@ -341,8 +341,10 @@ def test_billing_qml_contract_is_server_read_only():
     assert text.count('sortingMode: "server"') == 3
     assert "preparationSelected" in text
     assert "Local handoff" not in text
-    for forbidden in ('text: "Create Preparation"', 'text: "Approve Preparation"', 'text: "Deliver"', 'text: "Edit Profile"'):
+    for forbidden in ('text: "Approve Preparation"', 'text: "Deliver"', 'text: "Edit Profile"'):
         assert forbidden not in text
+    assert 'text: "Create Preparation"' in text
+    assert "canCreatePreparation" in text
 
 
 def test_billing_filter_helpers_are_safe_during_qml_initialization():

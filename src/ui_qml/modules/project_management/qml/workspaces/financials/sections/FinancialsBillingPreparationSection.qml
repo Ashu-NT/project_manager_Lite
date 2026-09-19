@@ -52,6 +52,7 @@ Item {
     signal profileCreateRequested()
     signal scheduleLineCreateRequested()
     signal preparationCreateRequested()
+    signal preparationSourceAddRequested(var preparation)
 
     readonly property var _scheduleColumns: [
         { "key": "title", "label": "Schedule line", "flex": 1.7, "sortable": true },
@@ -166,6 +167,13 @@ Item {
             Layout.fillWidth: true
             visible: root.selectedPreparationId.length > 0
             spacing: Theme.AppTheme.spacingSm
+            AppControls.SecondaryButton {
+                visible: Boolean((root.selectedPreparation.state || {}).canAddSource)
+                enabled: !root.busy
+                text: "Add Source"
+                iconName: "add"
+                onClicked: root.preparationSourceAddRequested(root.selectedPreparation)
+            }
             AppControls.SecondaryButton {
                 visible: Boolean((root.selectedPreparation.state || {}).canSubmit)
                 enabled: !root.busy

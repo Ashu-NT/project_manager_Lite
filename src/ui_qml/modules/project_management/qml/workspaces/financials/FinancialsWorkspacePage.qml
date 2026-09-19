@@ -834,6 +834,7 @@ AppLayouts.WorkspaceFrame {
                     onBillingProfileCreateRequested: dialogHostLoader.invoke("openBillingProfileDialog")
                     onBillingScheduleLineCreateRequested: dialogHostLoader.invoke("openBillingScheduleLineDialog")
                     onBillingPreparationCreateRequested: dialogHostLoader.invoke("openBillingPreparationDialog")
+                    onBillingPreparationSourceAddRequested: function(preparation) { dialogHostLoader.invoke("openBillingSourcePickerDialog", preparation) }
                     onVarianceBaselineSelected: function(baselineId) {
                         if (root.workspaceController !== null)
                             root.workspaceController.selectVarianceBaseline(baselineId)

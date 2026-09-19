@@ -243,6 +243,7 @@ Item {
     signal billingProfileCreateRequested()
     signal billingScheduleLineCreateRequested()
     signal billingPreparationCreateRequested()
+    signal billingPreparationSourceAddRequested(var preparation)
     signal actualEntrySelected(string entryId)
     signal actualPageRequested(int page)
     signal actualPageSizeRequested(int pageSize)
@@ -693,6 +694,7 @@ Item {
             onProfileCreateRequested: root.billingProfileCreateRequested()
             onScheduleLineCreateRequested: root.billingScheduleLineCreateRequested()
             onPreparationCreateRequested: root.billingPreparationCreateRequested()
+            onPreparationSourceAddRequested: function(preparation) { root.billingPreparationSourceAddRequested(preparation) }
         }
     }
 
