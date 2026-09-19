@@ -30,7 +30,19 @@ AppWidgets.EntityDialog {
         root.submitted({ "preparationId": root.preparationId, "version": root.preparationVersion, "sourceId": root.selectedSourceId, "sourceType": root.selectedSourceType })
     }
     onOpened: { searchField.text = ""; root.selectedSourceId = ""; root.selectedSourceType = ""; root.loadSources(); searchField.forceActiveFocus() }
-    AppControls.TextField { id: searchField; Layout.fillWidth: true; placeholderText: "Search eligible sources..."; onAccepted: root.loadSources() }
+    Timer {
+        id: searchDebounce
+        interval: 280
+        repeat: false
+        onTriggered: root.loadSources()
+    }
+    AppControls.TextField {
+        id: searchField
+        Layout.fillWidth: true
+        placeholderText: "Search eligible sources..."
+        onAccepted: root.loadSources()
+        onTextChanged: if (root.opened) searchDebounce.restart()
+    }
     ListView {
         Layout.fillWidth: true; Layout.preferredHeight: 260; clip: true; model: root.options
         delegate: AppControls.SecondaryButton {

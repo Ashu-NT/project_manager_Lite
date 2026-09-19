@@ -18,6 +18,8 @@ Item {
     property var preparationsTableModel: null
     property var linesTableModel: null
     property string selectedPreparationId: ""
+    property string selectedLineId: ""
+    property string selectedScheduleLineId: ""
     property string scheduleSortKey: "supportingText"
     property int scheduleSortDirection: Qt.AscendingOrder
     property string preparationSortKey: "metaText"
@@ -56,6 +58,8 @@ Item {
     signal preparationSourceAddRequested(var preparation)
     signal preparationDecisionRequested(bool approve, var preparation)
     signal preparationCorrectionRequested(var preparation)
+    signal preparationLineRemoveRequested(var preparation, string lineId)
+    signal scheduleLineReadyRequested(string lineId, int version)
 
     readonly property var _scheduleColumns: [
         { "key": "title", "label": "Schedule line", "flex": 1.7, "sortable": true },
@@ -106,6 +110,14 @@ Item {
     function _value(combo, model) {
         const option = model[combo.currentIndex]
         return option ? String(option.value) : ""
+    }
+    function _scheduleVersion(lineId) {
+        const rows = root.schedule.items || []
+        for (let index = 0; index < rows.length; index += 1) {
+            if (String(rows[index].id || "") === String(lineId || ""))
+                return Number((rows[index].state || {}).version || 0)
+        }
+        return 0
     }
     function _emitPreparationFilters(search) {
         root.preparationFiltersRequested(
@@ -167,6 +179,15 @@ Item {
         }
         AppControls.SecondaryButton {
             Layout.alignment: Qt.AlignLeft
+            visible: Boolean((root.profile.state || {}).canAddScheduleLine)
+                && root.selectedScheduleLineId.length > 0
+            enabled: !root.busy
+            text: "Mark Selected Line Ready"
+            iconName: "approve"
+            onClicked: root.scheduleLineReadyRequested(root.selectedScheduleLineId, root._scheduleVersion(root.selectedScheduleLineId))
+        }
+        AppControls.SecondaryButton {
+            Layout.alignment: Qt.AlignLeft
             visible: Boolean((root.profile.state || {}).canActivate)
             enabled: !root.busy
             text: "Activate Billing Profile"
@@ -178,6 +199,15 @@ Item {
             Layout.fillWidth: true
             visible: root.selectedPreparationId.length > 0
             spacing: Theme.AppTheme.spacingSm
+            AppControls.SecondaryButton {
+                visible: Boolean((root.selectedPreparation.state || {}).canRemoveSource)
+                    && root.selectedLineId.length > 0
+                enabled: !root.busy
+                text: "Remove Selected Source"
+                iconName: "delete"
+                danger: true
+                onClicked: root.preparationLineRemoveRequested(root.selectedPreparation, root.selectedLineId)
+            }
             AppControls.SecondaryButton {
                 visible: Boolean((root.selectedPreparation.state || {}).canCreateCorrection)
                 enabled: !root.busy
@@ -286,6 +316,8 @@ Item {
                 sortKey: root.scheduleSortKey
                 sortDirection: root.scheduleSortDirection
                 loading: root.busy
+                selectedRowId: root.selectedScheduleLineId
+                onRowSelected: function(rowId) { root.selectedScheduleLineId = String(rowId || "") }
                 onSortRequested: function(key, direction) { root.scheduleSortRequested(key, direction) }
             }
         }
@@ -454,6 +486,8 @@ Item {
                 sortKey: root.lineSortKey
                 sortDirection: root.lineSortDirection
                 loading: root.busy
+                selectedRowId: root.selectedLineId
+                onRowSelected: function(rowId) { root.selectedLineId = String(rowId || "") }
                 onSortRequested: function(key, direction) { root.lineSortRequested(key, direction) }
             }
         }

@@ -848,6 +848,15 @@ AppLayouts.WorkspaceFrame {
                     onBillingPreparationCorrectionRequested: function(preparation) {
                         dialogHostLoader.invoke("openBillingPreparationDialog", preparation ? preparation.id : "")
                     }
+                    onBillingPreparationLineRemoveRequested: function(preparation, lineId) {
+                        if (root.workspaceController === null) return
+                        const state = preparation ? (preparation.state || {}) : ({})
+                        root.workspaceController.removeBillingLine({ "preparationId": String(preparation ? preparation.id : ""), "lineId": String(lineId || ""), "version": Number(state.version || 0) })
+                    }
+                    onBillingScheduleLineReadyRequested: function(lineId, version) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.markBillingScheduleLineReady({ "lineId": String(lineId || ""), "version": Number(version || 0) })
+                    }
                     onVarianceBaselineSelected: function(baselineId) {
                         if (root.workspaceController !== null)
                             root.workspaceController.selectVarianceBaseline(baselineId)

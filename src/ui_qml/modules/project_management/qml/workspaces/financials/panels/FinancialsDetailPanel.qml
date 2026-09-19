@@ -247,6 +247,8 @@ Item {
     signal billingPreparationSourceAddRequested(var preparation)
     signal billingPreparationDecisionRequested(bool approve, var preparation)
     signal billingPreparationCorrectionRequested(var preparation)
+    signal billingPreparationLineRemoveRequested(var preparation, string lineId)
+    signal billingScheduleLineReadyRequested(string lineId, int version)
     signal actualEntrySelected(string entryId)
     signal actualPageRequested(int page)
     signal actualPageSizeRequested(int pageSize)
@@ -701,6 +703,8 @@ Item {
             onPreparationSourceAddRequested: function(preparation) { root.billingPreparationSourceAddRequested(preparation) }
             onPreparationDecisionRequested: function(approve, preparation) { root.billingPreparationDecisionRequested(approve, preparation) }
             onPreparationCorrectionRequested: function(preparation) { root.billingPreparationCorrectionRequested(preparation) }
+            onPreparationLineRemoveRequested: function(preparation, lineId) { root.billingPreparationLineRemoveRequested(preparation, lineId) }
+            onScheduleLineReadyRequested: function(lineId, version) { root.billingScheduleLineReadyRequested(lineId, version) }
         }
     }
 
