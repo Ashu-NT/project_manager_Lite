@@ -137,6 +137,8 @@ Item {
             _value(correctionFilter, root._correctionStates)
         )
     }
+    onSelectedPreparationIdChanged: root.selectedLineId = ""
+    onScheduleChanged: root.selectedScheduleLineId = ""
 
     implicitHeight: contentColumn.implicitHeight
 
