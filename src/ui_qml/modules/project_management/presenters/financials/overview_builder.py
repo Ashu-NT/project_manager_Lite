@@ -7,6 +7,7 @@ from src.ui_qml.modules.project_management.view_models.financials import (
     FinancialsOverviewViewModel,
 )
 
+
 def build_overview(
     *,
     project_options: Any,

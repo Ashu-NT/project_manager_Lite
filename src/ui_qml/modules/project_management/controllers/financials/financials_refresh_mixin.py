@@ -25,7 +25,6 @@ from src.ui_qml.modules.project_management.controllers.financials.financials_typ
     default_overview,
 )
 
-
 logger = logging.getLogger(__name__)
 
 

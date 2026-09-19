@@ -5,7 +5,6 @@ from PySide6.QtCore import Qt
 from src.ui_qml.modules.project_management.controllers.common import (
     serialize_financials_collection_view_model,
 )
-
 from src.ui_qml.modules.project_management.controllers.financials.financials_types import (
     FinancialsMap,
     FinancialsObjectList,

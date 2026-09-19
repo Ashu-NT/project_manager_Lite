@@ -5,6 +5,7 @@ from src.ui_qml.modules.project_management.view_models.financials import (
     FinancialsRecordViewModel,
 )
 
+
 def build_ledger_collection(page) -> FinancialsCollectionViewModel:
     return FinancialsCollectionViewModel(
         title="Ledger Trail",

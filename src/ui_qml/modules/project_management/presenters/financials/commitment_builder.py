@@ -8,6 +8,7 @@ from src.ui_qml.modules.project_management.view_models.financials import (
     FinancialsRecordViewModel,
 )
 
+
 def build_commitment_summary(summary_dto: Any) -> FinancialsCommitmentSummaryViewModel:
     return FinancialsCommitmentSummaryViewModel(
         approved_budget_label=summary_dto.approved_budget_label,
