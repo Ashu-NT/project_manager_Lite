@@ -53,6 +53,7 @@ Item {
     signal scheduleLineCreateRequested()
     signal preparationCreateRequested()
     signal preparationSourceAddRequested(var preparation)
+    signal preparationDecisionRequested(bool approve, var preparation)
 
     readonly property var _scheduleColumns: [
         { "key": "title", "label": "Schedule line", "flex": 1.7, "sortable": true },
@@ -167,6 +168,21 @@ Item {
             Layout.fillWidth: true
             visible: root.selectedPreparationId.length > 0
             spacing: Theme.AppTheme.spacingSm
+            AppControls.SecondaryButton {
+                visible: Boolean((root.selectedPreparation.state || {}).canApprove)
+                enabled: !root.busy
+                text: "Approve"
+                iconName: "approve"
+                onClicked: root.preparationDecisionRequested(true, root.selectedPreparation)
+            }
+            AppControls.SecondaryButton {
+                visible: Boolean((root.selectedPreparation.state || {}).canReject)
+                enabled: !root.busy
+                text: "Reject"
+                iconName: "reject"
+                danger: true
+                onClicked: root.preparationDecisionRequested(false, root.selectedPreparation)
+            }
             AppControls.SecondaryButton {
                 visible: Boolean((root.selectedPreparation.state || {}).canAddSource)
                 enabled: !root.busy
