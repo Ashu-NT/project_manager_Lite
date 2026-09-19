@@ -474,6 +474,11 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         self, preparation_id: str, *, approved_by: str, expected_version: int
     ) -> tuple[ProjectBillingPreparation, object]:
         preparation = self._require_preparation(preparation_id)
+        self._require(
+            preparation.project_id,
+            "approval.decide",
+            "approve billing preparation",
+        )
         now = self._clock.now()
         preparation.approve(approved_by=approved_by, approved_at=now)
         locks = self._billing_repo.list_source_locks(preparation.id)
@@ -504,6 +509,11 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
         notes: str,
     ) -> tuple[ProjectBillingPreparation, object]:
         preparation = self._require_preparation(preparation_id)
+        self._require(
+            preparation.project_id,
+            "approval.decide",
+            "reject billing preparation",
+        )
         now = self._clock.now()
         preparation.reject(rejected_by=rejected_by, rejected_at=now, notes=notes)
         for lock in self._billing_repo.list_source_locks(preparation.id):

@@ -179,6 +179,15 @@ def _preparation_detail(item: BillingPreparationDetailFact) -> FinancialBillingD
             "latestExternalEventType": item.latest_external_event_type,
             "externalInvoiceReference": item.latest_external_invoice_reference,
             "reconciliationReference": item.latest_reconciliation_reference,
+            "canEditDraft": item.can_edit_draft,
+            "canAddSource": item.can_add_source,
+            "canRemoveSource": item.can_remove_source,
+            "canSubmit": item.can_submit,
+            "canApprove": item.can_approve,
+            "canReject": item.can_reject,
+            "canCancel": item.can_cancel,
+            "canCreateCorrection": item.can_create_correction,
+            "canRequestDelivery": item.can_request_delivery,
         },
     )
 

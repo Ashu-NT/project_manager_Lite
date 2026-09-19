@@ -43,6 +43,26 @@ responsive and keyboard checks, and the full regression matrix. Do not mark
 R6F-C complete or begin R6F-D based on the SoD fix alone. No Accounting
 publisher or invoice/payment authority was added.
 
+Continuation update (2026-09-19): the Billing Reader now exposes one bounded,
+method-specific eligible-source query for fixed-price schedule evidence,
+approved-Time evidence, and positive posted cost evidence. It applies
+tenant/org/project and preparation-period scope, stable server sorting,
+search/count/page with a 200-row cap, latest approved-Time revision selection,
+and exclusion of reserved/finalized sources. The desktop API preserves source
+type/date/amount/currency metadata. Preparation details now carry server-
+authored action capabilities for draft editing/source mutation/submission,
+approval/rejection, cancellation, correction, and local delivery request;
+capabilities combine project permission, lifecycle, line availability, and
+creator/submitter independence. Approval participants now also enforce
+project-scoped `approval.decide` through the application service. Focused
+Billing/Reader/command/approval/migration verification is **51 passed**.
+
+R6F-C remains open: the capability-driven Profile/Schedule/Preparation dialogs,
+source-picker presentation, five viewport and keyboard/focus evidence,
+PostgreSQL runtime-role RLS matrix, and independent-session concurrency matrix
+are not yet complete. Do not report closure until those gates are implemented
+and green.
+
 ## R6F-B Commercial Read Truth and Setup Closure (2026-09-14)
 
 **R6F-B COMPLETE.** The Commercial projection now uses one tenant/org/project-

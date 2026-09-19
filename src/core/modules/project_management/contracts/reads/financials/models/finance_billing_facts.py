@@ -240,6 +240,15 @@ class BillingPreparationDetailFact:
     created_at: datetime
     updated_at: datetime
     row_version: int
+    can_edit_draft: bool = False
+    can_add_source: bool = False
+    can_remove_source: bool = False
+    can_submit: bool = False
+    can_approve: bool = False
+    can_reject: bool = False
+    can_cancel: bool = False
+    can_create_correction: bool = False
+    can_request_delivery: bool = False
 
 
 @dataclass(frozen=True, slots=True)

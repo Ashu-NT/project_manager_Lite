@@ -22,6 +22,9 @@ from src.core.modules.project_management.application.financials.invoicing.event_
     BILLING_COMMERCIAL_SCOPE_CODE,
     build_billing_view_invalidation_handler,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
+    BillingSourceQuery,
+)
 from src.core.modules.project_management.domain.financials.billing_preparation import (
     BillableSourceType,
     BillingExternalEventType,
@@ -386,6 +389,12 @@ def test_governed_approval_produces_status_changed_approved(services):
     submitted = _submitted_preparation(services, project, line)
     request = services["approval_service"].list_pending(project_id=project.id)[0]
 
+    creator_view = services["finance_workspace_query"].get_billing_read_workspace(
+        project.id, selected_preparation_id=submitted.id
+    ).selected_preparation
+    assert creator_view is not None
+    assert creator_view.can_approve is False
+
     reviewer = _unique("p39-billing-reviewer")
     services["auth_service"].register_user(reviewer, "StrongPass123", role_names=["approver"])
     _login(services, reviewer, "StrongPass123")
@@ -429,6 +438,13 @@ def test_rejected_preparation_releases_source_for_new_draft(services):
         reviewer, "StrongPass123", role_names=["approver"]
     )
     _login(services, reviewer, "StrongPass123")
+
+    reviewer_view = services["finance_workspace_query"].get_billing_read_workspace(
+        project.id, selected_preparation_id=submitted.id
+    ).selected_preparation
+    assert reviewer_view is not None
+    assert reviewer_view.can_approve is False
+    assert reviewer_view.can_reject is False
     services["approval_service"].reject(request.id, note="Revise the claim")
 
     _login(services, "admin", "ChangeMe123!")
@@ -532,6 +548,38 @@ def test_cancel_draft_preserves_history_and_releases_source(services):
         schedule_line_id=schedule_line.id,
         expected_row_version=replacement.row_version,
     ).source_id == schedule_line.id
+
+
+def test_fixed_price_source_selector_is_bounded_and_excludes_reservations(services):
+    _login(services, "admin", "ChangeMe123!")
+    _, project, _cost_code = _setup_billable_project(services)
+    _, schedule_line = _ready_schedule_line(services, project)
+    service = services["billing_preparation_service"]
+    preparation = service.create_preparation(
+        project.id,
+        preparation_number=_unique("BP"),
+        period_start=date(2026, 8, 1),
+        period_end=date(2026, 8, 31),
+        idempotency_key=_unique("bp-key"),
+    )
+    request = BillingSourceQuery(page_size=500, search="Milestone")
+    query = services["finance_workspace_query"]
+    eligible = query.list_eligible_billing_sources(
+        project.id, preparation.id, request=request
+    )
+    assert eligible.page_size == 200
+    assert eligible.total == 1
+    assert eligible.items[0].source_id == schedule_line.id
+    assert eligible.items[0].source_type == "schedule_line"
+
+    service.add_fixed_price_source(
+        preparation.id,
+        schedule_line_id=schedule_line.id,
+        expected_row_version=preparation.row_version,
+    )
+    assert query.list_eligible_billing_sources(
+        project.id, preparation.id, request=request
+    ).total == 0
 
 
 def test_request_delivery_produces_status_changed_delivery_pending(services):

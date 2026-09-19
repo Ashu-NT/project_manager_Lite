@@ -65,6 +65,26 @@ class FinancialBillingPreparationLineDto:
 
 
 @dataclass(frozen=True, slots=True)
+class FinancialBillingSourceOptionDto:
+    source_id: str
+    source_type: str
+    label: str
+    source_date: str
+    amount: str
+    currency_code: str
+
+
+@dataclass(frozen=True, slots=True)
+class FinancialBillingSourcePageDto:
+    items: tuple[FinancialBillingSourceOptionDto, ...] = ()
+    total: int = 0
+    page: int = 1
+    page_size: int = 50
+    sort_key: str = "source_date"
+    sort_direction: str = "asc"
+
+
+@dataclass(frozen=True, slots=True)
 class FinancialCommercialProjectionDto:
 
     project_id: str = ""
@@ -83,5 +103,7 @@ __all__ = [
     "FinancialBillingPreparationLineDto",
     "FinancialBillingProfileDto",
     "FinancialBillingScheduleLineDto",
+    "FinancialBillingSourceOptionDto",
+    "FinancialBillingSourcePageDto",
     "FinancialCommercialProjectionDto",
 ]

@@ -71,6 +71,8 @@ from src.core.modules.project_management.api.desktop.financials.models.billing i
     FinancialBillingPreparationLineDto,
     FinancialBillingProfileDto,
     FinancialBillingScheduleLineDto,
+    FinancialBillingSourceOptionDto,
+    FinancialBillingSourcePageDto,
     FinancialCommercialProjectionDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.billing_workspace import (
@@ -184,6 +186,7 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     BillingPreparationLineQuery,
     BillingPreparationQuery,
     BillingScheduleQuery,
+    BillingSourceQuery,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_budget_facts import (
     FinancePageRequest,
@@ -1299,6 +1302,40 @@ class ProjectManagementFinancialsDesktopApi:
             line_search=line_search,
             line_source_type=line_source_type,
             line_source_state=line_source_state,
+        )
+
+    def list_eligible_billing_sources(
+        self, project_id: str, preparation_id: str, *, page: int = 1,
+        page_size: int = 50, sort_key: str = "source_date",
+        sort_direction: str = "asc", search: str = "",
+    ) -> FinancialBillingSourcePageDto:
+        if not project_id or not preparation_id or self._finance_workspace_query is None:
+            return FinancialBillingSourcePageDto()
+        facts = self._finance_workspace_query.list_eligible_billing_sources(
+            project_id,
+            preparation_id,
+            request=BillingSourceQuery(
+                page=page, page_size=page_size, sort_key=sort_key,
+                sort_direction=sort_direction, search=search,
+            ),
+        )
+        return FinancialBillingSourcePageDto(
+            items=tuple(
+                FinancialBillingSourceOptionDto(
+                    source_id=item.source_id,
+                    source_type=item.source_type,
+                    label=item.label,
+                    source_date=item.source_date.isoformat(),
+                    amount=str(item.amount),
+                    currency_code=item.currency_code,
+                )
+                for item in facts.items
+            ),
+            total=facts.total,
+            page=facts.page,
+            page_size=facts.page_size,
+            sort_key=facts.sort_key,
+            sort_direction=facts.sort_direction,
         )
 
     def get_change_workspace(

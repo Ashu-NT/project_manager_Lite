@@ -916,6 +916,31 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
             else None
         )
         resolved_id = selected.id if selected is not None else ""
+        if selected is not None:
+            can_manage = self._has_project_permission(project_id, "finance.manage")
+            can_decide = self._has_project_permission(project_id, "approval.decide")
+            actor_id = str(
+                getattr(getattr(self._user_session, "principal", None), "user_id", "")
+                or ""
+            )
+            is_draft = selected.status == "draft"
+            independent_decider = bool(
+                actor_id
+                and actor_id != selected.created_by
+                and actor_id != (selected.submitted_by or "")
+            )
+            selected = replace(
+                selected,
+                can_edit_draft=can_manage and is_draft,
+                can_add_source=can_manage and is_draft,
+                can_remove_source=can_manage and is_draft and selected.line_count > 0,
+                can_submit=can_manage and is_draft and selected.line_count > 0,
+                can_approve=can_decide and selected.status == "submitted" and independent_decider,
+                can_reject=can_decide and selected.status == "submitted" and independent_decider,
+                can_cancel=can_manage and is_draft,
+                can_create_correction=can_manage and selected.status == "reconciled",
+                can_request_delivery=can_manage and selected.status == "approved",
+            )
         requested_lines = line_request or ForecastLineRequest()
         lines = (
             self._forecast_reader.list_lines(
