@@ -31,7 +31,7 @@ from src.core.modules.project_management.infrastructure.persistence.reads.financ
     SqlAlchemyFinancePerformanceReader,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.ui_qml.modules.project_management.presenters.financials.destination_builder import (
+from src.ui_qml.modules.project_management.presenters.financials.shared.destination_builder import (
     build_destination_state,
 )
 from src.ui_qml.shell.qml_engine import create_qml_engine
@@ -397,7 +397,9 @@ def test_performance_sections_load_at_supported_viewports(
     component.setData(
         f"""
 import QtQuick
-import workspaces.financials.sections 1.0
+import workspaces.financials.cost_phasing.sections 1.0
+import workspaces.financials.earned_value.sections 1.0
+import workspaces.financials.reporting.sections 1.0
 Window {{
     visible: true
     {section_type} {{

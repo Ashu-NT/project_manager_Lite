@@ -39,7 +39,8 @@ def test_source_picker_pages_failure_escape_and_viewport(qapp, width, height):
     component.setData(b'''
 import QtQuick
 import QtQuick.Controls
-import workspaces.financials.dialogs 1.0
+import workspaces.financials.invoicing.dialogs 1.0
+import workspaces.financials.shared.dialogs 1.0
 Window {
     visible: true
     Button { id: opener; objectName: "opener"; text: "Open sources" }
@@ -110,7 +111,8 @@ def test_billing_dialog_host_closes_context_bound_dialogs(qapp):
     component = QQmlComponent(engine)
     component.setData(b'''
 import QtQuick
-import workspaces.financials.dialogs 1.0
+import workspaces.financials.invoicing.dialogs 1.0
+import workspaces.financials.shared.dialogs 1.0
 Window {
     width: 1024; height: 640; visible: true
     FinancialsDialogHost {
@@ -171,7 +173,8 @@ def test_billing_forms_viewport_keyboard_validation_reset(qapp, width, height, d
     component.setData(f'''
 import QtQuick
 import QtQuick.Controls
-import workspaces.financials.dialogs 1.0
+import workspaces.financials.invoicing.dialogs 1.0
+import workspaces.financials.shared.dialogs 1.0
 Window {{
     visible: true
     Button {{ id: opener; objectName: "opener"; text: "Open" }}

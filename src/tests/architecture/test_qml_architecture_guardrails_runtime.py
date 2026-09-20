@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import shutil
 import subprocess
@@ -46,9 +46,9 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         / "modules/project_management/qml/workspaces/projects/dialogs"
         / "ProjectStatusDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "financials" / "FinancialsWorkspacePage.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "financials" / "panels" / "FinancialsDetailPanel.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "financials" / "sections" / "FinancialsActualsSection.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "financials" / "dialogs" / "FinancialsDialogHost.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "financials" / "shared" / "panels" / "FinancialsDetailPanel.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "financials" / "cost" / "sections" / "FinancialsActualsSection.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "financials" / "shared" / "dialogs" / "FinancialsDialogHost.qml",
         UI_QML_ROOT
         / "modules/project_management/qml/workspaces/financials/dialogs"
         / "ManualActualEditorDialog.qml",
@@ -193,9 +193,7 @@ def test_financials_dialog_host_checks_the_real_mutation_result_contract() -> No
         / "project_management"
         / "qml"
         / "workspaces"
-        / "financials"
-        / "dialogs"
-        / "FinancialsDialogHost.qml"
+        / "financials" / "shared" / "dialogs" / "FinancialsDialogHost.qml"
     )
     text = host_path.read_text(encoding="utf-8", errors="ignore")
 

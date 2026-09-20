@@ -304,7 +304,7 @@ def test_billing_master_detail_loads_at_supported_viewports(qapp, width: int, he
     component.setData(
         b'''
 import QtQuick
-import workspaces.financials.sections 1.0
+import workspaces.financials.invoicing.sections 1.0
 Window {
     visible: true
     FinancialsBillingPreparationSection {
@@ -336,7 +336,7 @@ Window {
 
 
 def test_billing_qml_contract_is_server_read_only():
-    source = "src/ui_qml/modules/project_management/qml/workspaces/financials/sections/FinancialsBillingPreparationSection.qml"
+    source = "src/ui_qml/modules/project_management/qml/workspaces/financials/invoicing/sections/FinancialsBillingPreparationSection.qml"
     text = open(source, encoding="utf-8").read()
     assert text.count('sortingMode: "server"') == 3
     assert "preparationSelected" in text
@@ -348,7 +348,7 @@ def test_billing_qml_contract_is_server_read_only():
 
 
 def test_billing_filter_helpers_are_safe_during_qml_initialization():
-    source = "src/ui_qml/modules/project_management/qml/workspaces/financials/sections/FinancialsBillingPreparationSection.qml"
+    source = "src/ui_qml/modules/project_management/qml/workspaces/financials/invoicing/sections/FinancialsBillingPreparationSection.qml"
     text = open(source, encoding="utf-8").read()
     assert "replaceAll" not in text
     assert "if (!model || model.length === undefined) return 0" in text

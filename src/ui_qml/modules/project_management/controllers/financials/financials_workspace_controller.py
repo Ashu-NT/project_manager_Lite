@@ -10,44 +10,56 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
 )
-from src.ui_qml.modules.project_management.controllers.financials.billing_domain_event_binder import (
-    on_billing_commercial_stale,
-)
-from src.ui_qml.modules.project_management.controllers.financials.budget_domain_event_binder import (
+from src.ui_qml.modules.project_management.controllers.financials.budgets.budget_domain_event_binder import (
     on_budget_planning_stale,
 )
-from src.ui_qml.modules.project_management.controllers.financials.commitment_domain_event_binder import (
+from src.ui_qml.modules.project_management.controllers.financials.commitments.commitment_domain_event_binder import (
     on_commitment_stale,
 )
-from src.ui_qml.modules.project_management.controllers.financials.cost_entry_domain_event_binder import (
+from src.ui_qml.modules.project_management.controllers.financials.cost.cost_entry_domain_event_binder import (
     on_cost_entry_actuals_stale,
     on_cost_entry_list_stale,
 )
-from src.ui_qml.modules.project_management.controllers.financials.financial_change_domain_event_binder import (
+from src.ui_qml.modules.project_management.controllers.financials.financial_changes.financial_change_domain_event_binder import (
     on_financial_change_budget_stale,
     on_financial_change_forecast_stale,
     on_financial_change_schedule_stale,
     on_financial_change_workspace_stale,
 )
-from src.ui_qml.modules.project_management.controllers.financials.financial_setup_domain_event_binder import (
+from src.ui_qml.modules.project_management.controllers.financials.forecasts.forecast_domain_event_binder import (
+    on_forecast_approved_basis_stale,
+    on_forecast_planning_stale,
+)
+from src.ui_qml.modules.project_management.controllers.financials.governance.financial_setup_domain_event_binder import (
     on_financial_profile_stale,
 )
-from src.ui_qml.modules.project_management.controllers.financials.financials_lookup_mixin import (
+from src.ui_qml.modules.project_management.controllers.financials.invoicing.billing_domain_event_binder import (
+    on_billing_commercial_stale,
+)
+from src.ui_qml.modules.project_management.controllers.financials.planned_costs.planned_cost_domain_event_binder import (
+    on_planned_cost_snapshot_stale,
+)
+from src.ui_qml.modules.project_management.controllers.financials.rate_cards.rate_card_domain_event_binder import (
+    on_rate_card_detail_stale,
+    on_rate_card_list_stale,
+    on_rate_card_list_stale_for_project,
+)
+from src.ui_qml.modules.project_management.controllers.financials.shared.financials_lookup_mixin import (
     FinancialsLookupMixin,
 )
-from src.ui_qml.modules.project_management.controllers.financials.financials_mutation_mixin import (
+from src.ui_qml.modules.project_management.controllers.financials.shared.financials_mutation_mixin import (
     FinancialsMutationMixin,
 )
-from src.ui_qml.modules.project_management.controllers.financials.financials_refresh_mixin import (
+from src.ui_qml.modules.project_management.controllers.financials.shared.financials_refresh_mixin import (
     FinancialsRefreshMixin,
 )
-from src.ui_qml.modules.project_management.controllers.financials.financials_selection_mixin import (
+from src.ui_qml.modules.project_management.controllers.financials.shared.financials_selection_mixin import (
     FinancialsSelectionMixin,
 )
-from src.ui_qml.modules.project_management.controllers.financials.financials_state_mixin import (
+from src.ui_qml.modules.project_management.controllers.financials.shared.financials_state_mixin import (
     FinancialsStateMixin,
 )
-from src.ui_qml.modules.project_management.controllers.financials.financials_types import (
+from src.ui_qml.modules.project_management.controllers.financials.shared.financials_types import (
     FinancialsMap,
     FinancialsObjectList,
     default_collection,
@@ -55,23 +67,11 @@ from src.ui_qml.modules.project_management.controllers.financials.financials_typ
     default_detail,
     default_overview,
 )
-from src.ui_qml.modules.project_management.controllers.financials.forecast_domain_event_binder import (
-    on_forecast_approved_basis_stale,
-    on_forecast_planning_stale,
-)
-from src.ui_qml.modules.project_management.controllers.financials.planned_cost_domain_event_binder import (
-    on_planned_cost_snapshot_stale,
-)
-from src.ui_qml.modules.project_management.controllers.financials.rate_card_domain_event_binder import (
-    on_rate_card_detail_stale,
-    on_rate_card_list_stale,
-    on_rate_card_list_stale_for_project,
-)
 from src.ui_qml.modules.project_management.presenters import (
     ProjectFinancialsWorkspacePresenter,
     ProjectManagementWorkspacePresenter,
 )
-from src.ui_qml.modules.project_management.presenters.financials.destination_builder import (
+from src.ui_qml.modules.project_management.presenters.financials.shared.destination_builder import (
     FINANCE_DESTINATIONS,
     FINANCE_SUBSECTIONS,
 )

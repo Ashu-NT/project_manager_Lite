@@ -1,0 +1,4 @@
+module workspaces.financials.rate_cards.dialogs
+RateCardEditorDialog 1.0 RateCardEditorDialog.qml
+RateLifecycleDialog 1.0 RateLifecycleDialog.qml
+RateLineEditorDialog 1.0 RateLineEditorDialog.qml

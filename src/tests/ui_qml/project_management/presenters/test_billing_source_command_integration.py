@@ -7,7 +7,7 @@ from src.core.modules.project_management.api.desktop.financials import (
     FinancialBillingSourceOptionDto,
     FinancialBillingSourcePageDto,
 )
-from src.ui_qml.modules.project_management.controllers.financials.financials_lookup_mixin import (
+from src.ui_qml.modules.project_management.controllers.financials.shared.financials_lookup_mixin import (
     FinancialsLookupMixin,
 )
 from src.ui_qml.modules.project_management.presenters.financials.financials_workspace_presenter import (

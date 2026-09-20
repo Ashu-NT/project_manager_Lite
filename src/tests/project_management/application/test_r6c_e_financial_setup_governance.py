@@ -32,7 +32,7 @@ from src.core.modules.project_management.domain.financials.configuration import 
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.ui_qml.modules.project_management.controllers.financials.financials_mutation_mixin import (
+from src.ui_qml.modules.project_management.controllers.financials.shared.financials_mutation_mixin import (
     FinancialsMutationMixin,
 )
 from src.ui_qml.shell.qml_engine import create_qml_engine
@@ -49,7 +49,7 @@ DIALOG_ROOT = Path(
     "src/ui_qml/modules/project_management/qml/workspaces/financials/dialogs"
 ).resolve()
 SECTION_PATH = Path(
-    "src/ui_qml/modules/project_management/qml/workspaces/financials/sections/FinancialsProfileSection.qml"
+    "src/ui_qml/modules/project_management/qml/workspaces/financials/governance/sections/FinancialsProfileSection.qml"
 ).resolve()
 
 
@@ -400,10 +400,10 @@ def test_setup_dialogs_preserve_keyboard_escape_and_focus_return(
 
 def test_setup_qml_uses_authoritative_tables_and_central_dialog_host() -> None:
     section = Path(
-        "src/ui_qml/modules/project_management/qml/workspaces/financials/sections/FinancialsProfileSection.qml"
+        "src/ui_qml/modules/project_management/qml/workspaces/financials/governance/sections/FinancialsProfileSection.qml"
     ).read_text(encoding="utf-8")
     host = Path(
-        "src/ui_qml/modules/project_management/qml/workspaces/financials/dialogs/FinancialsDialogHost.qml"
+        "src/ui_qml/modules/project_management/qml/workspaces/financials/shared/dialogs/FinancialsDialogHost.qml"
     ).read_text(encoding="utf-8")
     assert section.count('sortingMode:"server"') == 2
     assert "TablePaginationBar" in section

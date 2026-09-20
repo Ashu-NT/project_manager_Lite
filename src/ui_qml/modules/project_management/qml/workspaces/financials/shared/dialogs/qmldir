@@ -1,0 +1,2 @@
+module workspaces.financials.shared.dialogs
+FinancialsDialogHost 1.0 FinancialsDialogHost.qml

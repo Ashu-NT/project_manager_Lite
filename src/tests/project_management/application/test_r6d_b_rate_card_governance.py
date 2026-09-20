@@ -20,7 +20,7 @@ from src.core.modules.project_management.api.desktop.financials.commands.rates i
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
 from src.ui_qml.shell.qml_engine import create_qml_engine
-from src.ui_qml.modules.project_management.presenters.financials.command_handler import (
+from src.ui_qml.modules.project_management.presenters.financials.shared.command_handler import (
     add_rate_line,
     create_rate_card,
 )

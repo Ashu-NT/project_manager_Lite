@@ -35,7 +35,7 @@ from src.core.modules.project_management.api.desktop.financials.models.options i
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
     FinancialOverviewDto,
 )
-from src.ui_qml.modules.project_management.presenters.financials.destination_builder import (
+from src.ui_qml.modules.project_management.presenters.financials.shared.destination_builder import (
     build_destination_state,
     build_shell_state,
 )
@@ -622,7 +622,7 @@ def test_forecast_master_detail_loads_at_supported_viewports(
     component.setData(
         b"""
 import QtQuick
-import workspaces.financials.sections 1.0
+import workspaces.financials.forecasts.sections 1.0
 Window {
     visible: true
     FinancialsForecastSection {
@@ -674,7 +674,7 @@ def test_financials_overview_loader_keeps_loaded_content_height(qapp) -> None:
     component.setData(
         b"""
 import QtQuick
-import workspaces.financials.panels 1.0
+import workspaces.financials.shared.panels 1.0
 Window {
     visible: true
     width: 1024
@@ -728,7 +728,8 @@ def test_manual_actual_dialog_opens_and_explains_missing_cost_code(qapp) -> None
     component.setData(
         b"""
 import QtQuick
-import workspaces.financials.dialogs 1.0
+import workspaces.financials.cost.dialogs 1.0
+import workspaces.financials.shared.dialogs 1.0
 Window {
     visible: true
     width: 900
@@ -895,8 +896,9 @@ def test_manual_actual_and_accounting_fit_supported_viewports(
     component.setData(
         b"""
 import QtQuick
-import workspaces.financials.dialogs 1.0
-import workspaces.financials.panels 1.0
+import workspaces.financials.cost.dialogs 1.0
+import workspaces.financials.shared.dialogs 1.0
+import workspaces.financials.shared.panels 1.0
 Window {
     visible: true
     FinancialsDetailPanel {
@@ -980,7 +982,8 @@ def test_financial_setup_can_open_cost_code_editor(qapp) -> None:
     component.setData(
         b"""
 import QtQuick
-import workspaces.financials.dialogs 1.0
+import workspaces.financials.cost.dialogs 1.0
+import workspaces.financials.shared.dialogs 1.0
 Window {
     visible: true
     width: 900

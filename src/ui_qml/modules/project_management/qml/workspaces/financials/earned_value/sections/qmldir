@@ -1,0 +1,3 @@
+module workspaces.financials.earned_value.sections
+FinancialsEvmSection 1.0 FinancialsEvmSection.qml
+FinancialsVarianceSection 1.0 FinancialsVarianceSection.qml

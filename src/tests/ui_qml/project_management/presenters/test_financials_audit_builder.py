@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.ui_qml.modules.project_management.presenters.financials.audit_builder import (
+from src.ui_qml.modules.project_management.presenters.financials.governance.audit_builder import (
     build_finance_audit_collection,
 )
 

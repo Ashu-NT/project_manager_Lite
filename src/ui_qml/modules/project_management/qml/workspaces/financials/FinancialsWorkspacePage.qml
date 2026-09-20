@@ -8,8 +8,8 @@ import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
-import "dialogs" as Dialogs
-import "panels" as Panels
+import "shared/dialogs" as Dialogs
+import "shared/panels" as Panels
 
 AppLayouts.WorkspaceFrame {
     id: root

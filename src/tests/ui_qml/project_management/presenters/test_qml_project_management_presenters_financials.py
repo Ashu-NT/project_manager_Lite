@@ -22,7 +22,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 from src.ui_qml.modules.project_management.controllers.financials.financials_workspace_controller import (
     ProjectManagementFinancialsWorkspaceController,
 )
-from src.ui_qml.modules.project_management.presenters.financials.command_handler import (
+from src.ui_qml.modules.project_management.presenters.financials.shared.command_handler import (
     approve_actual,
     create_cost_code,
     delete_actual_draft,
@@ -958,7 +958,7 @@ def test_financials_refresh_logs_exception_context(controller, caplog) -> None:
 
     with caplog.at_level(
         logging.INFO,
-        logger="src.ui_qml.modules.project_management.controllers.financials.financials_refresh_mixin",
+        logger="src.ui_qml.modules.project_management.controllers.financials.shared.financials_refresh_mixin",
     ):
         controller.refresh()
 

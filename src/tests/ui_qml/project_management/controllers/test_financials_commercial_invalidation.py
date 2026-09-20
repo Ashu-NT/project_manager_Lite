@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.ui_qml.modules.project_management.controllers.financials.financial_setup_domain_event_binder import (
+from src.ui_qml.modules.project_management.controllers.financials.governance.financial_setup_domain_event_binder import (
     on_financial_profile_stale,
 )
 

@@ -9,7 +9,7 @@ from src.ui_qml.shell.qml_engine import create_qml_engine
 
 
 SECTION = Path(
-    "src/ui_qml/modules/project_management/qml/workspaces/financials/sections/FinancialsCommitmentsSection.qml"
+    "src/ui_qml/modules/project_management/qml/workspaces/financials/commitments/sections/FinancialsCommitmentsSection.qml"
 ).resolve()
 
 

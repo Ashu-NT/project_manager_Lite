@@ -234,7 +234,7 @@ def test_rate_master_detail_loads_at_supported_viewports(qapp, width: int, heigh
     component.setData(
         b"""
 import QtQuick
-import workspaces.financials.sections 1.0
+import workspaces.financials.rate_cards.sections 1.0
 Window {
     visible: true
     FinancialsRateCardsSection {

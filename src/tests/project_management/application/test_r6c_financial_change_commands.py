@@ -34,7 +34,7 @@ from src.core.modules.project_management.domain.financials.financial_change impo
 )
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.ui_qml.shell.qml_engine import create_qml_engine
-from src.ui_qml.modules.project_management.presenters.financials.command_handler import (
+from src.ui_qml.modules.project_management.presenters.financials.shared.command_handler import (
     _impact_fields,
 )
 

@@ -18,14 +18,14 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
     FinancialPostingFailurePageDto,
 )
 from src.infra.integration.approved_time_dispatcher import ApprovedTimeFinancialDispatcher
-from src.ui_qml.modules.project_management.presenters.financials.destination_builder import (
+from src.ui_qml.modules.project_management.presenters.financials.shared.destination_builder import (
     build_destination_state,
 )
 from src.ui_qml.shell.qml_engine import create_qml_engine
 
 
 SECTION = Path(
-    "src/ui_qml/modules/project_management/qml/workspaces/financials/sections/FinancialsPostingFailuresSection.qml"
+    "src/ui_qml/modules/project_management/qml/workspaces/financials/cost/sections/FinancialsPostingFailuresSection.qml"
 ).resolve()
 
 

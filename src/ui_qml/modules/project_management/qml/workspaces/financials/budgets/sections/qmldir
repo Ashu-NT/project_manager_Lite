@@ -1,0 +1,3 @@
+module workspaces.financials.budgets.sections
+FinancialsBudgetLinesSection 1.0 FinancialsBudgetLinesSection.qml
+FinancialsBudgetVersionsSection 1.0 FinancialsBudgetVersionsSection.qml

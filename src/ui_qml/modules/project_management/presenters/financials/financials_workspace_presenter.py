@@ -10,11 +10,7 @@ from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesk
 from src.core.platform.api.desktop.history.audit.audit_enterprise import (
     PlatformEnterpriseAuditDesktopApi,
 )
-from src.ui_qml.modules.project_management.view_models.financials import (
-    FinancialsWorkspaceViewModel,
-)
-
-from .command_handler import (
+from src.ui_qml.modules.project_management.presenters.financials.shared.command_handler import (
     activate_billing_profile,
     add_billing_schedule_line,
     add_billing_source,
@@ -68,7 +64,13 @@ from .command_handler import (
     update_rate_line,
     version_billing_preparation,
 )
-from .destination_builder import build_destination_state, build_shell_state
+from src.ui_qml.modules.project_management.presenters.financials.shared.destination_builder import (
+    build_destination_state,
+    build_shell_state,
+)
+from src.ui_qml.modules.project_management.view_models.financials import (
+    FinancialsWorkspaceViewModel,
+)
 
 
 class ProjectFinancialsWorkspacePresenter:

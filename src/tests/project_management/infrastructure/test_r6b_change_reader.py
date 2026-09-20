@@ -333,7 +333,7 @@ def test_change_master_detail_loads_at_supported_viewports(
     component.setData(
         b"""
 import QtQuick
-import workspaces.financials.sections 1.0
+import workspaces.financials.financial_changes.sections 1.0
 Window {
     visible: true
     FinancialsChangeSection {

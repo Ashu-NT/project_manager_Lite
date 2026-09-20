@@ -1,0 +1,3 @@
+module workspaces.financials.shared.sections
+FinancialsCollectionBlock 1.0 FinancialsCollectionBlock.qml
+FinancialsOverviewSection 1.0 FinancialsOverviewSection.qml
