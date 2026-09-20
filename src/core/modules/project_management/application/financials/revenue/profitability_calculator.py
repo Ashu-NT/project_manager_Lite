@@ -34,22 +34,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
-from src.core.modules.project_management.contracts.reads.financials.models.commercial_metric_availability import (
+from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
     CommercialMetricAvailability as Availability,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.commercial_metric_availability import (
+from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
     CommercialMetricUnavailableReason as Reason,
 )
 from src.core.modules.project_management.domain.financials.configuration import (
     BillingMethod,
 )
 from src.core.platform.finance.money.money import Money
-
-_UNAVAILABLE_REVENUE_BASIS: dict[BillingMethod, str] = {
-    BillingMethod.TIME_AND_MATERIALS: "unavailable_time_and_materials_forecast_billing",
-    BillingMethod.COST_PLUS: "unavailable_cost_plus_recoverability",
-    BillingMethod.NON_BILLABLE: "unavailable_non_billable",
-}
 
 
 @dataclass(frozen=True)
@@ -80,13 +74,17 @@ class ProjectProfitabilityCalculator:
     """Computes forecast_revenue_at_completion and projected_margin. Never
     recomposes cost -- forecast_cost_at_completion must already be
     CostPolicyEngine's canonical estimate_at_completion. Returns
-    an explicit "unavailable" result (revenue_basis names the reason) for
+    an explicit typed availability and reason for
     any billing method other than fixed-price."""
 
     @staticmethod
     def calculate(inputs: ProfitabilityInputs) -> ProfitabilityResult:
         if inputs.billing_method is not BillingMethod.FIXED_PRICE:
-            state = Availability.NOT_APPLICABLE if inputs.billing_method is BillingMethod.NON_BILLABLE else Availability.UNSUPPORTED
+            state = (
+                Availability.NOT_APPLICABLE
+                if inputs.billing_method is BillingMethod.NON_BILLABLE
+                else Availability.UNSUPPORTED
+            )
             reason = {
                 BillingMethod.NON_BILLABLE: Reason.NON_BILLABLE,
                 BillingMethod.TIME_AND_MATERIALS: Reason.T_AND_M_FORECAST_AUTHORITY_MISSING,
@@ -94,23 +92,46 @@ class ProjectProfitabilityCalculator:
             }[inputs.billing_method]
             return ProfitabilityResult(
                 forecast_revenue_at_completion=None,
-                revenue_basis=_UNAVAILABLE_REVENUE_BASIS.get(
-                    inputs.billing_method, "unavailable"
-                ),
+                revenue_basis="",
                 projected_margin_amount=None,
                 projected_margin_percent=None,
-                revenue_availability=state, margin_availability=state, percent_availability=state,
-                revenue_reason=reason, margin_reason=reason, percent_reason=reason,
+                revenue_availability=state,
+                margin_availability=state,
+                percent_availability=state,
+                revenue_reason=reason,
+                margin_reason=reason,
+                percent_reason=reason,
             )
 
         if inputs.contract_value is None:
-            return ProfitabilityResult(None, "contract_value_missing", None, None,
-                                       Availability.NOT_CONFIGURED, Availability.NOT_CONFIGURED, Availability.NOT_CONFIGURED,
-                                       Reason.CONTRACT_VALUE_MISSING, Reason.CONTRACT_VALUE_MISSING, Reason.CONTRACT_VALUE_MISSING)
-        if not inputs.project_currency or inputs.contract_currency != inputs.project_currency:
-            return ProfitabilityResult(None, "currency_mismatch", None, None,
-                                       Availability.UNAVAILABLE, Availability.UNAVAILABLE, Availability.UNAVAILABLE,
-                                       Reason.CURRENCY_MISMATCH, Reason.CURRENCY_MISMATCH, Reason.CURRENCY_MISMATCH)
+            return ProfitabilityResult(
+                None,
+                "contract_value_missing",
+                None,
+                None,
+                Availability.NOT_CONFIGURED,
+                Availability.NOT_CONFIGURED,
+                Availability.NOT_CONFIGURED,
+                Reason.CONTRACT_VALUE_MISSING,
+                Reason.CONTRACT_VALUE_MISSING,
+                Reason.CONTRACT_VALUE_MISSING,
+            )
+        if (
+            not inputs.project_currency
+            or inputs.contract_currency != inputs.project_currency
+        ):
+            return ProfitabilityResult(
+                None,
+                "currency_mismatch",
+                None,
+                None,
+                Availability.UNAVAILABLE,
+                Availability.UNAVAILABLE,
+                Availability.UNAVAILABLE,
+                Reason.CURRENCY_MISMATCH,
+                Reason.CURRENCY_MISMATCH,
+                Reason.CURRENCY_MISMATCH,
+            )
         eac = inputs.forecast_cost_at_completion
         revenue = Money.of(inputs.contract_value, inputs.project_currency).amount
         if eac is None:
@@ -122,14 +143,28 @@ class ProjectProfitabilityCalculator:
                 revenue_availability=Availability.AVAILABLE,
                 margin_availability=Availability.UNAVAILABLE,
                 percent_availability=Availability.UNAVAILABLE,
-                revenue_reason=None, margin_reason=Reason.EAC_UNAVAILABLE, percent_reason=Reason.EAC_UNAVAILABLE,
+                revenue_reason=None,
+                margin_reason=Reason.EAC_UNAVAILABLE,
+                percent_reason=Reason.EAC_UNAVAILABLE,
             )
 
         if inputs.cost_currency != inputs.project_currency:
-            return ProfitabilityResult(revenue, "contract_value", None, None,
-                                       Availability.AVAILABLE, Availability.UNAVAILABLE, Availability.UNAVAILABLE,
-                                       None, Reason.CURRENCY_MISMATCH, Reason.CURRENCY_MISMATCH)
-        margin = (Money.of(revenue, inputs.project_currency) - Money.of(eac, inputs.cost_currency)).amount
+            return ProfitabilityResult(
+                revenue,
+                "contract_value",
+                None,
+                None,
+                Availability.AVAILABLE,
+                Availability.UNAVAILABLE,
+                Availability.UNAVAILABLE,
+                None,
+                Reason.CURRENCY_MISMATCH,
+                Reason.CURRENCY_MISMATCH,
+            )
+        margin = (
+            Money.of(revenue, inputs.project_currency)
+            - Money.of(eac, inputs.cost_currency)
+        ).amount
         percent = None if revenue == 0 else (margin / revenue) * Decimal("100")
         return ProfitabilityResult(
             forecast_revenue_at_completion=revenue,
@@ -138,10 +173,17 @@ class ProjectProfitabilityCalculator:
             projected_margin_percent=percent,
             revenue_availability=Availability.AVAILABLE,
             margin_availability=Availability.AVAILABLE,
-            percent_availability=Availability.NOT_APPLICABLE if revenue == 0 else Availability.AVAILABLE,
-            revenue_reason=None, margin_reason=None,
+            percent_availability=Availability.NOT_APPLICABLE
+            if revenue == 0
+            else Availability.AVAILABLE,
+            revenue_reason=None,
+            margin_reason=None,
             percent_reason=Reason.ZERO_DENOMINATOR if revenue == 0 else None,
         )
 
 
-__all__ = ["ProfitabilityInputs", "ProfitabilityResult", "ProjectProfitabilityCalculator"]
+__all__ = [
+    "ProfitabilityInputs",
+    "ProfitabilityResult",
+    "ProjectProfitabilityCalculator",
+]

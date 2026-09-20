@@ -1,4 +1,4 @@
-"""Shared commercial analytical availability, separate from dependency reasons."""
+"""Commercial read-contract enums, separate from immutable fact dataclasses."""
 
 from enum import StrEnum
 

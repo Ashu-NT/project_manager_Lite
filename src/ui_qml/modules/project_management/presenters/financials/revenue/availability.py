@@ -1,11 +1,15 @@
 """Presentation labels for server-authored commercial availability."""
-from src.core.modules.project_management.contracts.reads.financials.models.commercial_metric_availability import (
+
+from src.core.modules.project_management.api.desktop.financials.models.billing import (
     CommercialMetricAvailability,
     CommercialMetricUnavailableReason,
 )
 
 
-def availability_label(value: CommercialMetricAvailability, reason: CommercialMetricUnavailableReason | None = None) -> str:
+def availability_label(
+    value: CommercialMetricAvailability,
+    reason: CommercialMetricUnavailableReason | None = None,
+) -> str:
     if value is CommercialMetricAvailability.UNAVAILABLE:
         return {
             CommercialMetricUnavailableReason.EAC_UNAVAILABLE: "Canonical EAC unavailable",

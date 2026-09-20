@@ -9,11 +9,16 @@ from PySide6.QtTest import QTest
 from src.ui_qml.shell.qml_engine import create_qml_engine
 
 
-@pytest.mark.parametrize("width,height", [(1024, 640), (1280, 720), (1366, 768), (1440, 900), (1920, 1080)])
-def test_commercial_section_preserves_zero_and_availability_at_viewports(qapp, width, height):
+@pytest.mark.parametrize(
+    "width,height", [(1024, 640), (1280, 720), (1366, 768), (1440, 900), (1920, 1080)]
+)
+def test_commercial_section_preserves_zero_and_availability_at_viewports(
+    qapp, width, height
+):
     engine = create_qml_engine()
     component = QQmlComponent(engine)
-    component.setData(f'''
+    component.setData(
+        f"""
         import QtQuick
         import QtQuick.Controls
         import workspaces.financials.revenue.sections 1.0
@@ -32,13 +37,16 @@ def test_commercial_section_preserves_zero_and_availability_at_viewports(qapp, w
                 ]}})
             }}
         }}
-    '''.encode(), QUrl("r6fd-commercial.qml"))
+    """.encode(),
+        QUrl("r6fd-commercial.qml"),
+    )
     window = component.create()
     assert window is not None, [error.toString() for error in component.errors()]
     try:
         QTest.qWait(100)
         qapp.processEvents()
         section = window.findChild(QObject, "commercialSection")
+
         def visual_items(item):
             yield item
             for child in item.childItems():
@@ -46,7 +54,14 @@ def test_commercial_section_preserves_zero_and_availability_at_viewports(qapp, w
 
         assert isinstance(section, QQuickItem)
         texts = [obj.property("text") for obj in visual_items(section)]
-        for value in ("0", "0.00", "Canonical EAC unavailable", "Restricted", "Projection unavailable for this billing method", "Not applicable"):
+        for value in (
+            "0",
+            "0.00",
+            "Canonical EAC unavailable",
+            "Restricted",
+            "Projection unavailable for this billing method",
+            "Not applicable",
+        ):
             assert value in texts
         assert section.property("width") == width
         assert section.property("implicitHeight") <= height

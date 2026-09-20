@@ -1,8 +1,89 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F-A COMPLETE; R6F-B COMPLETE; R6F-C COMPLETE; R6F-D NOT STARTED
+Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F-A COMPLETE; R6F-B COMPLETE; R6F-C COMPLETE; R6F-D COMPLETE; R6F-E NOT STARTED
 Last updated: 2026-09-20
 Scope: Project Management finance plus reusable platform financial foundations
+
+## R6F-D Commercial Projection and Typed Availability
+
+**R6F-D COMPLETE.** This section supersedes earlier pre-R6F-D checkpoints below.
+
+The canonical application query is `application/financials/revenue/commercial_projection_query.py`.
+Reporting performs authorization and resolves an omitted date once, then delegates
+to this query. The query requires tenant, organization, project, date and the
+authorized profitability inclusion decision, returns one immutable scoped fact,
+and consumes canonical CostPolicyEngine EAC without recomputing cost.
+
+`contracts/reads/financials/commercial_metric_availability.py` defines the single
+commercial availability enum and separate reason enum. Existing EVM and Cost
+Phasing use strings plus separate reasons; no suitable shared six-state enum
+existed. All three commercial metric availability fields are required, without
+defaults, on calculator results, read facts and desktop DTOs. The desktop API
+exposes the same enum objects, not a duplicate UI enum. The QML layer imports
+only the desktop boundary and renders labels, never monetary formulas.
+
+Fixed-price revenue remains entered contract value, independent of schedule or
+preparation totals. T&M and Cost-Plus remain UNSUPPORTED: R6F-C added historical
+preparation evidence, not governed future billable volume or recoverable-cost
+forecast authority. Non-billable is NOT_APPLICABLE. Missing configuration,
+missing EAC, currency mismatch and permission restrictions are separate states
+and reasons. Decimal zero is AVAILABLE; zero denominator is NOT_APPLICABLE;
+negative margin remains a value. Detailed causes are not availability members.
+
+Reporting, desktop DTO and the Commercial presenter consume the same fact.
+The cross-consumer test found and fixed Commercial's use of an uninitialized
+Performance-local as-of variable. No current Dashboard, export, chart or
+disposable Finance snapshot consumes commercial revenue/margin; their existing
+cost/EVM semantics were not replaced with commercial revenue. No new report or
+export product surface was invented just to add a consumer.
+
+Dates retain R6F-B semantics: the cutoff applies to canonical cost/EAC; commercial
+terms and signed approved preparation progress are the current governed state.
+This is not a reconstructed historical contract or historical approval ledger.
+Corrected preparations remain signed deltas, not replacement gross revenue.
+
+Measured full projection statement count remains 13: preparation growth from
+4 to 124, and separate growth by 120 draft costs, schedule lines and unposted
+Time rows, leave the statement count unchanged. Time rows are not queried to
+manufacture projected revenue. Aggregate SQL was not changed; no new EXPLAIN
+exercise, migration or speculative index is warranted for this refactor.
+
+Typed, project-scoped post-commit invalidation is preserved. Profile changes
+affect commercial terms; approved Forecast and posted/reversed Actual affect
+EAC; Commitment targets continue to include Commercial. Preparation changes
+refresh the displayed approved-preparation progress, not a second revenue
+formula. Budget/planned cost do not independently alter Actual + approved ETC.
+No global refresh, Accounting publisher, invoice/payment outcome, statutory
+recognition or FX was introduced. R6F-E and R6G remain unstarted.
+
+### Final Evidence
+
+| Gate | Executed evidence |
+| --- | --- |
+| Typed availability | 32 R6F-D tests cover required fields with no defaults, all six states, separate reasons, exact Decimal golden scenarios, missing EAC, zero denominator, zero margin/percentage, negative margin, non-billable and unsupported methods, redaction, scope rejection, immutable facts and serialization/presentation. |
+| Application/consumer integration | 18 profitability integration tests cover fixed-price authority, explicit cutoff/repeatability, project permission isolation, creator/reviewer separation, signed correction aggregation, sensitive source redaction, Reporting/desktop/presenter equivalence and both bounded-growth scenarios. |
+| Live PostgreSQL | 51 tests passed in 13.67s: Billing Reader RLS plus the new canonical-query runtime-role/scope-spoofing test; Billing concurrency/UoW atomicity; historical BILLING-rate snapshot race; Performance Reader regressions. Actual execution uses app_runtime and real runtime session context, not the schema owner. |
+| QML | Five Commercial viewport tests passed at 1024x640, 1280x720, 1366x768, 1440x900 and 1920x1080, inspecting rendered visual children for numeric zero and distinct availability text. |
+| Invalidation | Selected-project tests cover financial profile, approved Forecast, Actual, Commitment and Billing changes; the existing committed-event/coalescing regressions remain green. |
+| Broad focused regression | 724 passed in 108.02s: R6F-D plus R6F-C/B Billing, relevant R6E/D/C application tests, PM presenters/controllers and architecture guards. This is not the full repository suite. |
+| Quality | Targeted Ruff F/I, Python compilation, Finance QML lint, architecture guards, retired-authority/monetary-truthiness searches and git diff --check passed. |
+
+Monetary values retain canonical Decimal/Money precision; ratios retain the
+existing Decimal division representation, with no binary float or display
+rounding promoted to authority. Incompatible contract/project or EAC/project
+currencies return UNAVAILABLE with CURRENCY_MISMATCH, never an FX conversion.
+
+Production additions are the canonical commercial query, one shared enum/reason
+contract and the revenue presentation-label helper. Calculator, immutable fact,
+Reporting delegate, desktop DTO/serializer, Commercial presenter and QML were
+updated. Superseded Reporting composition and the old unavailable-revenue-basis
+mapping were removed; no parallel query, compatibility adapter or duplicate
+formula remains. Enum definitions live beside Reader contracts, not in the
+fact-only models directory, preserving the architecture guards unchanged.
+
+No Accounting publishing, invoice/payment/AR/GL/tax ingestion, statutory
+recognition or FX was implemented. R6D/R6E stay closed; R6F-E and R6G were not
+started. No commit was made by the agent.
 
 ## Pre-R6F-D UI Package Restructure
 

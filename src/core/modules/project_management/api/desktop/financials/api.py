@@ -181,7 +181,7 @@ from src.core.modules.project_management.application.financials.governance impor
     FinanceGovernanceCommandBoundary,
     FinanceGovernedServicePort,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.commercial_metric_availability import (
+from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
     CommercialMetricAvailability,
     CommercialMetricUnavailableReason,
 )

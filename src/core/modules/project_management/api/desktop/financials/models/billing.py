@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.core.modules.project_management.contracts.reads.financials.models.commercial_metric_availability import (
+from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
     CommercialMetricAvailability,
     CommercialMetricUnavailableReason,
 )
@@ -111,6 +111,8 @@ class FinancialCommercialProjectionDto:
 
 
 __all__ = [
+    "CommercialMetricAvailability",
+    "CommercialMetricUnavailableReason",
     "FinancialBillingPreparationDto",
     "FinancialBillingPreparationLineDto",
     "FinancialBillingProfileDto",

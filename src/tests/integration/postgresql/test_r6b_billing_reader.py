@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -20,6 +21,49 @@ from src.core.modules.project_management.infrastructure.persistence.reads.financ
 from src.infra.persistence.db.postgresql_rls import validate_postgresql_execution_role
 
 pytestmark = pytest.mark.postgresql_integration
+
+
+def test_commercial_query_uses_runtime_rls_and_rejects_scope_spoofing(postgres_test_environment):
+    from src.core.modules.project_management.application.financials.revenue.commercial_projection_query import (
+        CommercialProjectionQuery,
+    )
+    from src.core.modules.project_management.contracts.reads.financials.commercial_metric_availability import (
+        CommercialMetricAvailability,
+    )
+    from src.core.modules.project_management.infrastructure.persistence.repositories.finance.configuration.financial_configuration import (
+        SqlAlchemyProjectFinancialProfileRepository,
+    )
+    from src.core.modules.project_management.infrastructure.persistence.repositories.finance.invoicing.billing import (
+        SqlAlchemyProjectBillingRepository,
+    )
+    from src.core.platform.common.exceptions import NotFoundError
+
+    with postgres_test_environment.runtime_session(tenant_id=TENANT_A, organization_id=ORG_A) as session:
+        validate_postgresql_execution_role(session)
+        context = SimpleNamespace(require_active_scope_ids=lambda **_: SimpleNamespace(tenant_id=TENANT_A, organization_id=ORG_A))
+        billing = SqlAlchemyProjectBillingRepository(session)
+        financial = SqlAlchemyProjectFinancialProfileRepository(session)
+        billing._tenant_context_service = financial._tenant_context_service = context
+
+        def forbidden_cost(*_):
+            raise AssertionError("Restricted commercial request must not read EAC")
+
+        query = CommercialProjectionQuery(
+            billing_repo=billing, financial_profile_repo=financial,
+            billing_reader=SqlAlchemyFinanceBillingReader(session=session), cost_totals=forbidden_cost,
+        )
+        request = dict(tenant_id=TENANT_A, organization_id=ORG_A, project_id=PROJECT_A,
+                       as_of_date=date(2026, 8, 31), include_profitability=False)
+        visible = query.read(**request)
+        assert visible.contract_value == Decimal("125000.25")
+        assert visible.revenue_availability is CommercialMetricAvailability.RESTRICTED
+        assert visible.projected_margin_amount is None
+        for foreign_project in (PROJECT_B, "r6b-billing-project-c"):
+            hidden = query.read(**dict(request, project_id=foreign_project))
+            assert hidden.contract_value is None
+            assert hidden.approved_preparation_amount == Decimal(0)
+        with pytest.raises(NotFoundError):
+            query.read(**dict(request, tenant_id=TENANT_B, organization_id=ORG_B))
 
 TENANT_A = "r6b-billing-tenant-a"
 TENANT_B = "r6b-billing-tenant-b"

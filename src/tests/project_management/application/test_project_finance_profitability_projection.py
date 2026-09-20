@@ -223,7 +223,8 @@ def test_time_and_materials_profitability_explicitly_unavailable(services) -> No
     projection = reporting.get_project_commercial_projection(project.id)
 
     assert projection.profitability_detail_included is True
-    assert projection.revenue_basis == "unavailable_time_and_materials_forecast_billing"
+    assert projection.revenue_reason.value == "t_and_m_forecast_authority_missing"
+    assert projection.revenue_availability.value == "unsupported"
     assert projection.forecast_revenue_at_completion is None
     assert projection.projected_margin_amount is None
     assert projection.projected_margin_percent is None
@@ -241,7 +242,8 @@ def test_cost_plus_profitability_explicitly_unavailable(services) -> None:
     reporting = services["reporting_service"]
     projection = reporting.get_project_commercial_projection(project.id)
 
-    assert projection.revenue_basis == "unavailable_cost_plus_recoverability"
+    assert projection.revenue_reason.value == "recoverable_cost_authority_missing"
+    assert projection.revenue_availability.value == "unsupported"
     assert projection.forecast_revenue_at_completion is None
     assert projection.projected_margin_amount is None
     assert projection.projected_margin_percent is None
@@ -539,6 +541,8 @@ def test_commercial_aggregate_is_bounded_and_nets_correction_history(services) -
     assert large.approved_preparation_amount == Decimal(200)
     assert large_count == small_count
     assert large_count <= 15
+    assert small.forecast_revenue_at_completion == large.forecast_revenue_at_completion == Decimal(100)
+    print(f"Commercial projection statements: preparations=4:{small_count}, preparations=124:{large_count}")
 
 
 def test_billing_line_rate_evidence_is_redacted_without_sensitive_read(services) -> None:
@@ -585,3 +589,83 @@ def test_billing_line_rate_evidence_is_redacted_without_sensitive_read(services)
     row = serialize_finance_billing_workspace(redacted).lines[0]
     assert row.state["unitRate"] == ""
     assert row.state["rateLineId"] == ""
+
+
+def test_commercial_report_desktop_and_presenter_consume_identical_facts(services):
+    from src.core.modules.project_management.api.desktop.financials.serializers.billing_serializer import (
+        serialize_commercial_projection,
+    )
+    from src.ui_qml.modules.project_management.presenters.financials.shared.destination_builder import (
+        build_destination_state,
+    )
+
+    _, project, code = _setup_billable_project(services)
+    _create_billing_profile(services, project.id, contract_value=Decimal("1000000"))
+    _approve_forecast_with_etc(services, project.id, code, etc_amount="750000")
+    reporting = services["reporting_service"]
+    cutoff = date(2026, 8, 31)
+    fact = reporting.get_project_commercial_projection(project.id, as_of_date=cutoff)
+    api = ProjectManagementFinancialsDesktopApi(reporting_service=reporting)
+    assert api.get_commercial_projection(project.id, as_of_date=cutoff) == serialize_commercial_projection(fact)
+    model = build_destination_state(api, destination="commercial", subsection="profitability",
+                                    selected_project_id=project.id, performance_as_of_date=cutoff)
+    assert model.commercial_projection.fields[2].value == f"{fact.forecast_revenue_at_completion} {fact.project_currency}"
+    assert model.commercial_projection.fields[3].value == f"{fact.projected_margin_amount} {fact.project_currency}"
+    assert model.commercial_projection.fields[3].supporting_text == f"{fact.projected_margin_percent}%"
+
+
+def test_commercial_statement_shape_ignores_growing_cost_schedule_and_time_collections(services):
+    from src.core.modules.project_management.infrastructure.persistence.orm.billing import (
+        ProjectBillingScheduleLineORM,
+    )
+    from src.core.modules.project_management.infrastructure.persistence.orm.cost_entry import (
+        ProjectCostEntryORM,
+    )
+    from src.core.platform.infrastructure.persistence.orm.time_management.time.time import (
+        TimeEntryORM,
+    )
+
+    organization, project, code = _setup_billable_project(services)
+    _create_billing_profile(services, project.id, contract_value=Decimal("1000"))
+    schedule = services["billing_profile_service"].add_schedule_line(
+        project.id, name="Scale", amount=Decimal(1), due_date=date(2026, 8, 31))
+    draft = services["cost_entry_service"].create_manual_entry(
+        project_id=project.id, command_id="scale-cost", description="Scale cost",
+        amount=Decimal(1), currency_code=organization.base_currency,
+        transaction_date=date(2026, 8, 1), cost_code_id=code.id)
+    session = services["session"]
+    reporting = services["reporting_service"]
+
+    def measured():
+        statements = []
+        def count(_conn, _cursor, sql, *_):
+            statements.append(sql)
+        event.listen(session.bind, "before_cursor_execute", count)
+        try:
+            result = reporting.get_project_commercial_projection(project.id, as_of_date=date(2026, 8, 31))
+        finally:
+            event.remove(session.bind, "before_cursor_execute", count)
+        return result, statements
+
+    first, before = measured()
+    for orm, identity in ((ProjectCostEntryORM, draft.id), (ProjectBillingScheduleLineORM, schedule.id)):
+        seed = session.get(orm, identity)
+        values = {column.key: getattr(seed, column.key) for column in orm.__table__.columns}
+        for _ in range(120):
+            clone = dict(values, id=str(uuid4()))
+            if "idempotency_key" in clone:
+                clone["idempotency_key"] = str(uuid4())
+            session.add(orm(**clone))
+    for index in range(120):
+        session.add(TimeEntryORM(id=str(uuid4()), tenant_id=organization.tenant_id,
+            organization_id=organization.id, work_allocation_id=f"scale-{index}",
+            scope_type="project", scope_id=project.id, entry_date=date(2026, 8, 1), hours=1,
+            created_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 8, 1, tzinfo=timezone.utc)))
+    session.commit()
+    second, after = measured()
+    assert first == second  # Draft costs/unposted time and billing timing are not revenue.
+    assert len(before) == len(after)
+    assert len(after) <= 15
+    assert not any("FROM time_entries" in sql for sql in after)
+    print(f"Commercial costs/schedules/time scale: {len(before)} -> {len(after)} statements")

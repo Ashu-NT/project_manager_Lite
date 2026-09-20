@@ -36,3 +36,11 @@ def test_billable_time_uses_billing_rate_and_canonical_decimal_margin() -> None:
     assert "hourly_rate" not in time_source
     assert "float(" not in margin_source
     assert "forecast_cost_at_completion" in margin_source
+
+
+def test_commercial_application_authority_has_no_clock_orm_or_rate_revaluation():
+    source = inspect.getsource(CommercialProjectionQuery)
+    for forbidden in ("sqlalchemy", "date.today(", "datetime.now(", "float(", "hourly_rate", "RateType.", "list_preparations("):
+        assert forbidden not in source
+    assert "ProjectProfitabilityCalculator.calculate(" in source
+    assert "estimate_at_completion" in source

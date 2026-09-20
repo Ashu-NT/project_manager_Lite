@@ -6,7 +6,7 @@ from datetime import date, datetime, timezone
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementFinancialsDesktopApi,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.commercial_metric_availability import (
+from src.core.modules.project_management.api.desktop.financials.models.billing import (
     CommercialMetricAvailability,
 )
 from src.core.platform.api.desktop.history.audit.audit_enterprise import (
@@ -573,6 +573,7 @@ def build_destination_state(
         )
 
     if destination == "commercial":
+        as_of_date = performance_as_of_date or datetime.now(timezone.utc).astimezone().date()
         if subsection == "profitability":
             projection = desktop_api.get_commercial_projection(project_id, as_of_date=as_of_date)
             fields = (
