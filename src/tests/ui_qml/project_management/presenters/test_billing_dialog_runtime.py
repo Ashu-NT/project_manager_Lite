@@ -38,15 +38,18 @@ def test_source_picker_pages_failure_escape_and_viewport(qapp, width, height):
     component = QQmlComponent(engine)
     component.setData(b'''
 import QtQuick
+import QtQuick.Controls
 import workspaces.financials.dialogs 1.0
 Window {
     visible: true
+    Button { id: opener; objectName: "opener"; text: "Open sources" }
     BillingSourcePickerDialog {
         objectName: "picker"
         projectId: "project"
         preparationId: "preparation"
         preparationVersion: 7
         workspaceController: sourceController
+        focusFallbackTarget: opener
     }
 }
 ''', QUrl())
@@ -57,7 +60,10 @@ Window {
         window.setWidth(width)
         window.setHeight(height)
         window.show()
+        opener = window.findChild(QObject, "opener")
+        opener.forceActiveFocus()
         picker = window.findChild(QObject, "picker")
+        submitted = QSignalSpy(picker.submitted)
         picker.open()
         QTest.qWait(100)
         assert picker.property("opened")
@@ -65,6 +71,13 @@ Window {
         assert 0 < picker.property("height") <= height
         assert 0 <= picker.property("y") <= height - picker.property("height")
         assert 0 <= picker.property("x") <= width - picker.property("width")
+        initial = window.property("activeFocusItem")
+        QTest.keyClick(window, Qt.Key_Tab)
+        assert window.property("activeFocusItem") != initial
+        QTest.keyClick(window, Qt.Key_Backtab)
+        assert window.property("activeFocusItem") == initial
+        QTest.keyClick(window, Qt.Key_Return)
+        assert submitted.count() == 0
         picker.setProperty("sourcePage", 2)
         picker.loadSources()
         assert controller.requests[-1][3] == 2
@@ -80,6 +93,7 @@ Window {
         QTest.keyClick(window, Qt.Key_Escape)
         QTest.qWait(100)
         assert not picker.property("opened")
+        assert window.property("activeFocusItem") == opener
         count = len(controller.requests)
         QTest.qWait(350)
         assert len(controller.requests) == count
@@ -105,6 +119,7 @@ Window {
         selectedBillingPreparationId: "prep"
         workspaceController: sourceController
         function openSource() { openBillingSourcePickerDialog({id: "prep", state: {version: 1}}) }
+        function openPreparation() { openBillingPreparationDialog("") }
         function openDecision() { openBillingDecisionDialog("reject", {id: "prep", state: {canReject: true}}, "") }
     }
 }
@@ -117,6 +132,7 @@ Window {
         for method, name in [
             ("openBillingProfileDialog", "billingProfileDialog"),
             ("openBillingScheduleLineDialog", "billingScheduleLineDialog"),
+            ("openPreparation", "billingPreparationDialog"),
             ("openSource", "billingSourcePickerDialog"),
             ("openDecision", "billingDecisionDialog"),
         ]:

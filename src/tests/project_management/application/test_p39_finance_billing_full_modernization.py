@@ -647,6 +647,60 @@ def test_external_outcome_delivery_accepted_produces_outcome_and_two_status_fact
     assert len(_billing_hints(hints)) == 1
 
 
+def test_correction_uses_reconciled_parent_without_mutating_its_evidence(services):
+    _login(services, "admin", "ChangeMe123!")
+    organization, project, cost_code = _setup_billable_project(services)
+    _, line = _ready_schedule_line(services, project)
+    parent = _submitted_preparation(services, project, line)
+    billing = services["billing_preparation_service"]
+
+    def correction(parent_id, target_project=project):
+        return billing.create_preparation(
+            target_project.id, preparation_number=_unique("CORRECTION"),
+            period_start=date(2026, 8, 1), period_end=date(2026, 8, 31),
+            idempotency_key=_unique("correction-key"), correction_of_preparation_id=parent_id,
+        )
+
+    with pytest.raises(BusinessRuleError, match="reconciled"):
+        correction(parent.id)
+    request = services["approval_service"].list_pending(project_id=project.id)[0]
+    reviewer = _unique("correction-reviewer")
+    services["auth_service"].register_user(reviewer, "StrongPass123", role_names=["approver"])
+    _login(services, reviewer, "StrongPass123")
+    services["approval_service"].approve_and_apply(request.id)
+    _login(services, "admin", "ChangeMe123!")
+    approved = billing.get_preparation(parent.id)
+    billing.request_delivery(parent.id, expected_row_version=approved.row_version)
+    for event_type in (BillingExternalEventType.DELIVERY_ACCEPTED, BillingExternalEventType.RECONCILED):
+        billing.record_external_outcome(
+            parent.id, event_type=event_type, external_system="external-accounting",
+            external_status=event_type.value, idempotency_key=_unique("outcome"),
+            occurred_at=datetime(2026, 8, 25, tzinfo=timezone.utc),
+            reconciliation_reference="external-confirmation",
+        )
+    reconciled = billing.get_preparation(parent.id)
+    draft = correction(parent.id)
+    assert draft.correction_of_preparation_id == parent.id
+    assert draft.status is BillingPreparationStatus.DRAFT
+    assert draft.total_amount == Decimal("0")
+    assert billing.get_preparation(parent.id) == reconciled
+    billing.cancel_draft_preparation(draft.id, expected_row_version=draft.row_version)
+    replacement = correction(parent.id)
+    assert replacement.id != draft.id
+    assert replacement.correction_of_preparation_id == parent.id
+    other_project = services["project_service"].create_project(
+        _unique("Other correction project"), financial_currency_code=organization.base_currency,
+    )
+    profile = services["financial_configuration_service"].get_profile(other_project.id)
+    services["financial_configuration_service"].configure_profile(
+        other_project.id, expected_version=profile.version, default_cost_code_id=cost_code.id,
+        billing_method=BillingMethod.FIXED_PRICE, is_billable=True,
+    )
+    _ready_schedule_line(services, other_project)
+    with pytest.raises(BusinessRuleError, match="same Project"):
+        correction(parent.id, other_project)
+
+
 def test_external_outcome_replay_produces_zero_hints(services):
     _login(services, "admin", "ChangeMe123!")
     _, project, _cost_code = _setup_billable_project(services)

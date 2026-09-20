@@ -65,3 +65,16 @@ def test_failed_lookup_is_safe_and_contains_no_stale_items():
     assert result["ok"] is False
     assert "private SQL" not in result["message"]
     assert not result.get("items")
+
+
+@pytest.mark.parametrize("approve", [True, False])
+def test_billing_decision_reason_reaches_platform_approval(approve):
+    approval = Mock()
+    approval.approve_and_apply.return_value = SimpleNamespace(ok=True)
+    approval.reject.return_value = SimpleNamespace(ok=True)
+    presenter = ProjectFinancialsWorkspacePresenter(desktop_api=Mock(), approval_api=approval)
+    presenter.decide_billing_approval("request-id", approve, "  Reviewed evidence  ")
+    method = approval.approve_and_apply if approve else approval.reject
+    command = method.call_args.args[0]
+    assert command.request_id == "request-id"
+    assert command.note == "Reviewed evidence"

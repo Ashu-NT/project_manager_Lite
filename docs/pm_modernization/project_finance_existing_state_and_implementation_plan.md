@@ -1,93 +1,77 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F-A COMPLETE; R6F-B COMPLETE; R6F-C IN PROGRESS (NOT CLOSED)
-Last updated: 2026-09-19
+Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F-A COMPLETE; R6F-B COMPLETE; R6F-C COMPLETE; R6F-D NOT STARTED
+Last updated: 2026-09-20
 Scope: Project Management finance plus reusable platform financial foundations
 
-## R6F-C Governed Billing Preparation Progress (2026-09-14)
+## R6F-C Governed Billing Preparation Closure (2026-09-20)
 
-R6F-C is **not closed**. The existing domain already makes draft the only
-mutable state, submission creates a Platform Approval request, approval
-finalizes source locks, rejection releases them, and approved preparation
-lines remain immutable. A domain-level creator-versus-approver check now
-rejects self-approval even when another user submitted the request; the
-distinct-actor regression passes. Existing success fixtures now use a truly
-independent reviewer rather than the creator.
+**R6F-C COMPLETE.** This closure supersedes the earlier September 14/19
+checkpoints. R6F-D has not started. Accounting publishing, invoices, payments,
+GL, AR, tax, and FX remain outside this phase.
 
-The coupled source-lock defect was resolved with a forward migration and
-active-only partial unique index on tenant/org/source identity. A released
-lock remains historical evidence but no longer blocks reuse; a reserved or
-finalized lock still blocks a duplicate. The repository's active-lock lookup
-excludes released history. Draft-line removal atomically deletes the
-unapproved line/reservation, recalculates Decimal totals and version, audits,
-and emits a typed Commercial event. Draft cancellation retains the preparation
-and its lines, releases reserved locks in the governed UoW, and emits a typed
-status event. Both reject stale versions or non-draft state. Tests prove source
-reuse after rejection, removal, and cancellation. A database partial unique
-index also prohibits two non-rejected/non-cancelled corrections from the same
-predecessor, permitting a rejected/cancelled attempt to be retried. The
-fresh-schema Alembic index test passes. PostgreSQL RLS/concurrency and
-correction-chain application tests remain pending; these indexes alone do not
-close those gates.
+### Production Outcome
 
-Focused verification at this checkpoint: 43 Billing domain/application/
-desktop/approval/migration tests passed. Targeted Ruff F/I, Python compilation,
-and `git diff --check` passed. No QML changed in this slice, so visual,
-viewport, keyboard, and QML workflow gates remain open. PostgreSQL runtime
-role/RLS and concurrent-writer integration remain unverified.
+- Profile, Schedule, Preparation/Correction, and bounded method-specific
+  Source Picker dialogs use the shared EntityDialog shell. Required fields,
+  validation focus, fresh form state, shared date controls, and a scoped
+  server-backed Task selector replace free-form Task IDs.
+- Approval/rejection and preparation lifecycle actions use a capability-bound
+  confirmation dialog. Rejection requires a reason; decision notes reach
+  Platform Approval. QML never grants permissions or changes accounting truth.
+- The Billing action-capability calculation was moved out of the Forecast
+  read path into the authoritative Billing query. Independent reviewers can
+  approve/reject; creators/submitters cannot self-approve.
+- Source lookup preserves both project and preparation identity across the
+  controller/presenter/desktop boundary. Reader source types approved_time,
+  posted_cost, and schedule_line dispatch to the matching governed commands.
+  Search and page changes clear selection; failed lookups clear stale options.
+- Project/selection switches close context-bound dialogs. Page changes clear
+  selected preparation lines. Successful commands invalidate Commercial;
+  stale query generations cannot overwrite newer project/selection/filter state.
+- Migration e7b2a9c4f613 replaces the unscoped reservation-line foreign key
+  with a tenant/org/project/preparation/line key. A reproduced app_runtime
+  foreign-line attachment is now rejected, including a different preparation
+  within the same project. Released-source history and active-only uniqueness
+  remain intact.
+- The authoritative implementation remains singular: no compatibility reader,
+  duplicate command authority, or temporary production scaffold was introduced.
+  The pre-existing Cost Entry size-guard breach was fixed by extracting receipt
+  posting into procurement_receipt.py; the existing service delegates to that
+  single implementation with unchanged UoW ownership. Stale architecture-test
+  paths now reference current Platform locations, not retired paths or caches.
 
-Remaining R6F-C work includes any required draft metadata/replacement editing,
-bounded source selectors, profile/schedule/preparation write UX with server
-capabilities, correction-chain application/race proofs, PostgreSQL RLS tests,
-responsive and keyboard checks, and the full regression matrix. Do not mark
-R6F-C complete or begin R6F-D based on the SoD fix alone. No Accounting
-publisher or invoice/payment authority was added.
+### Closure Evidence
 
-Continuation update (2026-09-19): the Billing Reader now exposes one bounded,
-method-specific eligible-source query for fixed-price schedule evidence,
-approved-Time evidence, and positive posted cost evidence. It applies
-tenant/org/project and preparation-period scope, stable server sorting,
-search/count/page with a 200-row cap, latest approved-Time revision selection,
-and exclusion of reserved/finalized sources. The desktop API preserves source
-type/date/amount/currency metadata. Preparation details now carry server-
-authored action capabilities for draft editing/source mutation/submission,
-approval/rejection, cancellation, correction, and local delivery request;
-capabilities combine project permission, lifecycle, line availability, and
-creator/submitter independence. Approval participants now also enforce
-project-scoped `approval.decide` through the application service. Focused
-Billing/Reader/command/approval/migration verification is **51 passed**.
+| Gate | Executed evidence |
+| --- | --- |
+| Runtime-role RLS | test_r6b_billing_reader.py: six protected tables, foreign tenant and same-tenant foreign organization CRUD denial, scoped parent attachment denial. Tests validate app_runtime is NOSUPERUSER/NOBYPASSRLS and use the real runtime session context. |
+| Parent/line integrity | test_r6f_billing_concurrency.py: a reservation cannot attach a line belonging to another preparation in the same project. SQLite fresh-schema checks assert the composite FK; PostgreSQL starts from Alembic head. |
+| Concurrent writes | Independent runtime sessions: Profile, Schedule, Preparation versions; two preparations competing for one source; active correction branch uniqueness; application-level Submit and Approve/Reject races. Exactly one writer succeeds; loser state rolls back. |
+| BILLING snapshot race | test_r6f_billing_rate_snapshot.py uses a real approved-Time posting and Billing application service while another runtime session edits Rate amount/card/line versions. Persisted quantity 2.375, rate 120, amount 285, and versions 1/1 remain coherent and immutable while the current rate becomes 240/version 2. |
+| UoW atomicity | Injected audit, transactional-event, and post-write failures roll back preparation lines, reservations, totals, versions, and audit rows, with no post-commit success event. Submit races leave one Approval request; decision races leave source locks consistent with the winning lifecycle. |
+| Correction lifecycle | Reconciled-parent requirement, immutable predecessor evidence, linked draft creation, cancellation/retry, and cross-project rejection through the real governed service. |
+| UI and keyboard | 26 real QML-engine tests cover the dialogs/source picker at 1024x640, 1280x720, 1366x768, 1440x900, and 1920x1080: bounds, Tab/Shift+Tab, safe Enter, Escape, initial/validation/restored focus, fresh forms, paging errors, project/selection cleanup. |
+| Boundary/invalidation | Source DTO-to-command identity and Decimal text preservation, decision-note forwarding, Commercial event deduplication, and existing A/B/C stale selection/filter response tests. |
+| Ownership | Existing Accounting gateway remains a preparation-only contract. Local handoff request is not proof of external publication or Accounting acceptance. |
 
-R6F-C remains open: the capability-driven Profile/Schedule/Preparation dialogs,
-source-picker presentation, five viewport and keyboard/focus evidence,
-PostgreSQL runtime-role RLS matrix, and independent-session concurrency matrix
-are not yet complete. Do not report closure until those gates are implemented
-and green.
+Final focused regression: **724 passed** (138.85s), comprising Billing
+domain/application/desktop/approval/Reader/schema tests, PM presenter tests,
+architecture guards, and relevant R6C/R6D/R6E and Platform Approval regressions.
+This is a selected regression matrix, not a claim that the entire repository
+test suite was run.
 
-Current execution evidence (2026-09-19): Billing Profile, Schedule, Preparation,
-and bounded eligible-source picker dialogs are now wired through the existing
-desktop/controller/application command boundary. Profile creation/activation,
-schedule creation/readiness, preparation creation/correction, source addition,
-draft-line removal, submit/cancel, approval/rejection, and local handoff are
-shown only from server-authored capability fields. New dialogs close on project
-switch and the source picker debounces server search. Live PostgreSQL Billing
-RLS and hostile-scope suites ran through `app_runtime`; relevant R6C/R6D live
-Finance suites and the Billing/R6E application regression group are green.
-This evidence does not close R6F-C: full hostile write and independent-session
-Billing-specific concurrency coverage still requires dedicated test fixtures.
+Final combined live PostgreSQL matrix: **83 passed** (23.03s), including Billing
+RLS/concurrency/rate snapshot plus R6C/R6D and Performance Reader regressions.
+After strengthening the two-preparation reservation race, its complete
+Billing concurrency/atomicity file was rerun: **14 passed**. The final
+QML dialog/keyboard file was also rerun: **26 passed**.
 
-The desktop facade now exports the Billing source page DTO and draft-line
-removal command, and the Finance presenter/controller uses the existing
-validated command boundary for profile creation/activation, schedule creation
-and readiness, preparation creation, bounded source selection/addition, line
-removal, cancellation, submission, and delivery request. Successful commands
-invalidate only the Commercial destination; stale versions force a Commercial
-refresh. The source selector is available to QML through
-`searchEligibleBillingSources`, returning source type/date/amount/currency
-metadata from the server query rather than deriving eligibility in QML.
-This is boundary wiring only: no QML dialog, visual, or lifecycle-control
-closure is claimed yet. Focused billing command/reader/controller tests are
-**46 passed**; targeted Ruff F/I and Python compilation pass for the modified
-files.
+Targeted Ruff F/I, Python compilation, Finance QML lint (no diagnostics),
+architecture guards, migration/schema tests, retired-path search, and
+git diff --check pass. Controller QML metadata includes the Billing commands
+and decision-note signature without removing other PM controller metadata.
+No commit was made by the agent.
 
 ## R6F-B Commercial Read Truth and Setup Closure (2026-09-14)
 

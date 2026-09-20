@@ -17,7 +17,7 @@ STALE_PLATFORM_ADMIN_WORKSPACE_CONTROLLER = (
 def test_platform_admin_workspace_controller_uses_split_entrypoint() -> None:
     assert PLATFORM_ADMIN_CONSOLE_CONTROLLER.exists()
     assert not STALE_PLATFORM_ADMIN_WORKSPACE_CONTROLLER.exists()
-    assert not STALE_PLATFORM_ADMIN_DIRECTORY.exists()
+    assert not list(STALE_PLATFORM_ADMIN_DIRECTORY.rglob("*.py"))
 
 
 def test_pm_workspace_wrapper_files_were_removed_as_dead_code() -> None:

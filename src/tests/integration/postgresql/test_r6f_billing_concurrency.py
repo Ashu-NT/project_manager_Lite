@@ -155,13 +155,20 @@ def test_live_billing_source_reservation_race_is_atomic(postgres_test_environmen
     def writer(_):
         with postgres_test_environment.runtime_session(tenant_id=scope.tenant, organization_id=scope.org) as session:
             repo = _repository(session, scope)
+            preparation = deepcopy(repo.get_preparation(scope.preparation))
+            preparation.id = str(uuid4())
+            preparation.preparation_number = preparation.id
+            preparation.idempotency_key = preparation.id
+            preparation.status = BillingPreparationStatus.DRAFT
             line = deepcopy(repo.list_preparation_lines(scope.preparation)[0])
             lock = deepcopy(repo.list_source_locks(scope.preparation)[0])
             line.id, lock.id = str(uuid4()), str(uuid4())
+            line.preparation_id = lock.preparation_id = preparation.id
             line.source_id = lock.source_id = source
             lock.preparation_line_id = line.id
             barrier.wait(timeout=10)
             try:
+                repo.add_preparation(preparation)
                 repo.reserve_source(line, lock)
                 session.commit()
                 return "committed"
@@ -173,9 +180,10 @@ def test_live_billing_source_reservation_race_is_atomic(postgres_test_environmen
     with ThreadPoolExecutor(max_workers=2) as executor:
         assert sorted(executor.map(writer, [0, 1])) == ["committed", "duplicate"]
     with postgres_test_environment.runtime_session(tenant_id=scope.tenant, organization_id=scope.org) as session:
-        repo = _repository(session, scope)
-        assert len([row for row in repo.list_preparation_lines(scope.preparation) if row.source_id == source]) == 1
-        assert len([row for row in repo.list_source_locks(scope.preparation) if row.source_id == source]) == 1
+        validate_postgresql_execution_role(session)
+        assert session.scalar(text("SELECT count(*) FROM project_billing_preparation_lines WHERE source_id=:source"), {"source": source}) == 1
+        assert session.scalar(text("SELECT count(*) FROM project_billing_source_locks WHERE source_id=:source"), {"source": source}) == 1
+        assert session.scalar(text("SELECT count(*) FROM project_billing_preparations WHERE project_id=:project"), {"project": scope.project}) == 2
 
 
 @pytest.mark.parametrize("failure", ["none", "audit", "event", "after_write"])
