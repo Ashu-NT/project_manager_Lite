@@ -184,8 +184,12 @@ class ProjectFinancialsWorkspacePresenter:
     def search_setup_cost_codes(self, project_id: str, **query: Any):
         return self._desktop_api.search_setup_cost_codes(project_id, **query)
 
-    def list_eligible_billing_sources(self, project_id: str, **query: Any):
-        return self._desktop_api.list_eligible_billing_sources(project_id, **query)
+    def list_eligible_billing_sources(
+        self, project_id: str, preparation_id: str, **query: Any
+    ):
+        return self._desktop_api.list_eligible_billing_sources(
+            project_id, preparation_id, **query
+        )
 
     def create_budget_version(self, project_id: str, name: str, currency: str):
         return create_budget_version(self._desktop_api, project_id, name, currency)
@@ -242,8 +246,8 @@ class ProjectFinancialsWorkspacePresenter:
             self._approval_api, request_id, approve=approve, note=note
         )
 
-    def decide_billing_approval(self, request_id: str, approve: bool) -> None:
-        decide_billing_approval(self._approval_api, request_id, approve=approve)
+    def decide_billing_approval(self, request_id: str, approve: bool, note: str = "") -> None:
+        decide_billing_approval(self._approval_api, request_id, approve=approve, note=note)
 
     def create_financial_change(self, payload: dict[str, Any]):
         return create_financial_change(self._desktop_api, payload)

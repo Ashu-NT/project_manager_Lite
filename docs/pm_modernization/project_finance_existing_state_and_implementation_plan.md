@@ -63,6 +63,18 @@ PostgreSQL runtime-role RLS matrix, and independent-session concurrency matrix
 are not yet complete. Do not report closure until those gates are implemented
 and green.
 
+Current execution evidence (2026-09-19): Billing Profile, Schedule, Preparation,
+and bounded eligible-source picker dialogs are now wired through the existing
+desktop/controller/application command boundary. Profile creation/activation,
+schedule creation/readiness, preparation creation/correction, source addition,
+draft-line removal, submit/cancel, approval/rejection, and local handoff are
+shown only from server-authored capability fields. New dialogs close on project
+switch and the source picker debounces server search. Live PostgreSQL Billing
+RLS and hostile-scope suites ran through `app_runtime`; relevant R6C/R6D live
+Finance suites and the Billing/R6E application regression group are green.
+This evidence does not close R6F-C: full hostile write and independent-session
+Billing-specific concurrency coverage still requires dedicated test fixtures.
+
 The desktop facade now exports the Billing source page DTO and draft-line
 removal command, and the Finance presenter/controller uses the existing
 validated command boundary for profile creation/activation, schedule creation

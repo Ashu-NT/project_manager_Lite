@@ -16,16 +16,32 @@ AppWidgets.EntityDialog {
     primaryText: "Create Preparation"
     primaryIcon: "add"
     primaryEnabled: !root.busy && root.projectId.length > 0 && root.commandId.length > 0
+    initialFocusTarget: numberField
     function submitDialog() {
+        if (!root.primaryEnabled) return
         if (!numberField.text.trim() || !periodStartField.text.trim() || !periodEndField.text.trim()) {
             root.errorMessage = "Preparation number, period start, and period end are required."
-            numberField.forceActiveFocus()
+            const missing = !numberField.text.trim() ? numberField
+                : !periodStartField.text.trim() ? periodStartField.focusTarget : periodEndField.focusTarget
+            missing.forceActiveFocus()
+            return
+        }
+        if (!periodStartField.selectedDate || !periodEndField.selectedDate
+                || periodStartField.text > periodEndField.text) {
+            root.errorMessage = "Enter valid period dates with the end on or after the start."
+            const invalid = !periodStartField.selectedDate ? periodStartField : periodEndField
+            invalid.focusTarget.forceActiveFocus()
             return
         }
         root.submitted({ "projectId": root.projectId, "preparationNumber": numberField.text.trim(), "periodStart": periodStartField.text.trim(), "periodEnd": periodEndField.text.trim(), "idempotencyKey": root.commandId, "correctionOfPreparationId": root.correctionOfPreparationId })
     }
-    onOpened: numberField.forceActiveFocus()
+    onOpened: {
+        root.errorMessage = ""
+        numberField.text = ""
+        periodStartField.text = ""
+        periodEndField.text = ""
+    }
     AppWidgets.FormField { Layout.fillWidth: true; label: "Preparation number"; required: true; AppControls.TextField { id: numberField; Layout.fillWidth: true } }
-    AppWidgets.FormField { Layout.fillWidth: true; label: "Period start"; required: true; AppControls.TextField { id: periodStartField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" } }
-    AppWidgets.FormField { Layout.fillWidth: true; label: "Period end"; required: true; AppControls.TextField { id: periodEndField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" } }
+    AppWidgets.FormField { Layout.fillWidth: true; label: "Period start"; required: true; AppControls.DateField { id: periodStartField; Layout.fillWidth: true; popupBoundaryItem: root.contentItem; placeholderText: "YYYY-MM-DD" } }
+    AppWidgets.FormField { Layout.fillWidth: true; label: "Period end"; required: true; AppControls.DateField { id: periodEndField; Layout.fillWidth: true; popupBoundaryItem: root.contentItem; placeholderText: "YYYY-MM-DD" } }
 }

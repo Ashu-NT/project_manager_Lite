@@ -342,9 +342,9 @@ def test_financials_controller_financial_profile_stale_invalidates_only_controls
     controller._request_domain_refresh = lambda: None
 
     controller.onFinancialProfileStale("proj-a")
-    assert controller._invalidated_destinations == {"controls"}, (
-        "narrower than the legacy {planning, costs, controls} -- no cached cost-code or "
-        "planning/costs projection actually depends on Financial Setup facts"
+    assert controller._invalidated_destinations == {"controls", "commercial"}, (
+        "Billing method and currency are Finance Profile facts consumed by the commercial "
+        "projection; Planning and Costs remain independent."
     )
 
     controller._invalidated_destinations.clear()

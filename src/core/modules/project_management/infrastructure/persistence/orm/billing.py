@@ -336,6 +336,10 @@ Index(
 class ProjectBillingPreparationLineORM(Base):
     __tablename__ = "project_billing_preparation_lines"
     __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "organization_id", "project_id", "preparation_id", "id",
+            name="uq_billing_lines_scoped_preparation_id",
+        ),
         ForeignKeyConstraint(
             ["tenant_id", "organization_id"],
             ["organizations.tenant_id", "organizations.id"],
@@ -474,9 +478,15 @@ class ProjectBillingSourceLockORM(Base):
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
-            ["preparation_line_id"],
-            ["project_billing_preparation_lines.id"],
-            name="fk_billing_locks_line",
+            ["tenant_id", "organization_id", "project_id", "preparation_id", "preparation_line_id"],
+            [
+                "project_billing_preparation_lines.tenant_id",
+                "project_billing_preparation_lines.organization_id",
+                "project_billing_preparation_lines.project_id",
+                "project_billing_preparation_lines.preparation_id",
+                "project_billing_preparation_lines.id",
+            ],
+            name="fk_billing_locks_scoped_line",
             ondelete="CASCADE",
         ),
         CheckConstraint(

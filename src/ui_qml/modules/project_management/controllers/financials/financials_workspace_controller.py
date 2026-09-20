@@ -1195,9 +1195,9 @@ class ProjectManagementFinancialsWorkspaceController(
     def requestBillingDelivery(self, payload: FinancialsMap) -> FinancialsMap:
         return self._request_billing_delivery(payload)
 
-    @Slot(str, bool, result="QVariantMap")
-    def decideBillingApproval(self, request_id: str, approve: bool) -> FinancialsMap:
-        return self._decide_billing_approval(request_id, approve)
+    @Slot(str, bool, str, result="QVariantMap")
+    def decideBillingApproval(self, request_id: str, approve: bool, note: str = "") -> FinancialsMap:
+        return self._decide_billing_approval(request_id, approve, note)
 
     @Slot("QVariantMap", result="QVariantMap")
     def createManualActual(self, payload: FinancialsMap) -> FinancialsMap: return self._create_manual_actual(payload)

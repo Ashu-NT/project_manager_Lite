@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
-from sqlalchemy import event, text
+from sqlalchemy import MetaData, Table, event, insert, select, text, update
+from sqlalchemy.exc import DBAPIError
 
 from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
     AccountingStatusQuery,
@@ -85,6 +87,7 @@ def seeded_billing_scopes(postgres_test_environment):
             ), {"id": tenant_id, "code": code})
         _seed_scope(connection, suffix="a", tenant_id=TENANT_A, organization_id=ORG_A)
         _seed_scope(connection, suffix="b", tenant_id=TENANT_B, organization_id=ORG_B)
+        _seed_scope(connection, suffix="c", tenant_id=TENANT_A, organization_id="r6b-billing-org-c")
         connection.execute(text("ANALYZE"))
 
 
@@ -187,3 +190,62 @@ def test_billing_postgresql_material_plans_are_bounded(postgres_test_environment
             assert "Execution Time" in plan
     finally:
         session.close()
+
+
+_BILLING_TABLES = (
+    "project_billing_profiles", "project_billing_schedule_lines",
+    "project_billing_preparations", "project_billing_preparation_lines",
+    "project_billing_source_locks", "project_billing_external_events",
+)
+
+
+@pytest.mark.parametrize("table_name", _BILLING_TABLES)
+@pytest.mark.parametrize("suffix", ["b", "c"])
+def test_runtime_denies_foreign_billing_crud(postgres_test_environment, table_name, suffix):
+    environment = postgres_test_environment
+    table = Table(table_name, MetaData(), autoload_with=environment.admin_engine)
+    with environment.admin_engine.connect() as connection:
+        foreign = dict(connection.execute(select(table).where(
+            table.c.project_id == f"r6b-billing-project-{suffix}"
+        )).mappings().one())
+    with environment.runtime_session(tenant_id=TENANT_A, organization_id=ORG_A) as session:
+        validate_postgresql_execution_role(session)
+        assert session.execute(select(table).where(table.c.id == foreign["id"])).first() is None
+        assert session.execute(update(table).where(table.c.id == foreign["id"]).values(
+            project_id=foreign["project_id"]
+        )).rowcount == 0
+        assert session.execute(table.delete().where(table.c.id == foreign["id"])).rowcount == 0
+        session.rollback()
+        foreign["id"] = str(uuid4())
+        with pytest.raises(DBAPIError) as error:
+            session.execute(insert(table).values(**foreign))
+        assert error.value.orig.sqlstate == "42501"
+        session.rollback()
+
+
+@pytest.mark.parametrize("table_name,parent_column,parent_prefix", [
+    ("project_billing_profiles", "project_id", "project"),
+    ("project_billing_schedule_lines", "billing_profile_id", "profile"),
+    ("project_billing_preparations", "billing_profile_id", "profile"),
+    ("project_billing_preparations", "correction_of_preparation_id", "preparation"),
+    ("project_billing_preparation_lines", "preparation_id", "preparation"),
+    ("project_billing_source_locks", "preparation_id", "preparation"),
+    ("project_billing_source_locks", "preparation_line_id", "line"),
+    ("project_billing_external_events", "preparation_id", "preparation"),
+])
+@pytest.mark.parametrize("suffix", ["b", "c"])
+def test_local_billing_child_cannot_attach_foreign_parent(
+    postgres_test_environment, table_name, parent_column, parent_prefix, suffix,
+):
+    environment = postgres_test_environment
+    table = Table(table_name, MetaData(), autoload_with=environment.admin_engine)
+    with environment.admin_engine.connect() as connection:
+        row_id = connection.scalar(select(table.c.id).where(table.c.project_id == PROJECT_A))
+    with environment.runtime_session(tenant_id=TENANT_A, organization_id=ORG_A) as session:
+        validate_postgresql_execution_role(session)
+        with pytest.raises(DBAPIError) as error:
+            session.execute(update(table).where(table.c.id == row_id).values({
+                parent_column: f"r6b-billing-{parent_prefix}-{suffix}",
+            }))
+        assert error.value.orig.sqlstate == "23503"
+        session.rollback()

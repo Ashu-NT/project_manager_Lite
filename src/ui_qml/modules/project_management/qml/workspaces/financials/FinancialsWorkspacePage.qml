@@ -214,6 +214,7 @@ AppLayouts.WorkspaceFrame {
                 selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
                 selectedProjectLabel: root._selectedProjectLabel()
                 selectedActualEntryId: root._selectedActualEntryId
+                selectedBillingPreparationId: root.workspaceController ? root.workspaceController.selectedBillingPreparationId : ""
                 focusFallbackTarget: root.detailPage
                     ? root.detailPage.actualDialogFocusFallback : null
                 manualActualDefaults: root.workspaceController
@@ -824,12 +825,7 @@ AppLayouts.WorkspaceFrame {
                         if (root.workspaceController !== null) root.workspaceController.setBillingLineFilters(search, sourceType, sourceState)
                     }
                     onBillingPreparationLifecycleRequested: function(action, preparation) {
-                        if (root.workspaceController === null) return
-                        const state = preparation ? (preparation.state || {}) : ({})
-                        const payload = { "preparationId": String(preparation ? preparation.id : ""), "version": Number(state.version || 0) }
-                        if (action === "submit") root.workspaceController.submitBillingPreparation(payload)
-                        else if (action === "cancel") root.workspaceController.cancelBillingPreparation(payload)
-                        else if (action === "request_delivery") root.workspaceController.requestBillingDelivery(payload)
+                        dialogHostLoader.invoke("openBillingDecisionDialog", action, preparation, "")
                     }
                     onBillingProfileCreateRequested: dialogHostLoader.invoke("openBillingProfileDialog")
                     onBillingProfileActivateRequested: function(profile) {
@@ -841,17 +837,13 @@ AppLayouts.WorkspaceFrame {
                     onBillingPreparationCreateRequested: dialogHostLoader.invoke("openBillingPreparationDialog")
                     onBillingPreparationSourceAddRequested: function(preparation) { dialogHostLoader.invoke("openBillingSourcePickerDialog", preparation) }
                     onBillingPreparationDecisionRequested: function(approve, preparation) {
-                        if (root.workspaceController === null) return
-                        const state = preparation ? (preparation.state || {}) : ({})
-                        root.workspaceController.decideBillingApproval(String(state.approvalRequestId || ""), approve)
+                        dialogHostLoader.invoke("openBillingDecisionDialog", approve ? "approve" : "reject", preparation, "")
                     }
                     onBillingPreparationCorrectionRequested: function(preparation) {
                         dialogHostLoader.invoke("openBillingPreparationDialog", preparation ? preparation.id : "")
                     }
                     onBillingPreparationLineRemoveRequested: function(preparation, lineId) {
-                        if (root.workspaceController === null) return
-                        const state = preparation ? (preparation.state || {}) : ({})
-                        root.workspaceController.removeBillingLine({ "preparationId": String(preparation ? preparation.id : ""), "lineId": String(lineId || ""), "version": Number(state.version || 0) })
+                        dialogHostLoader.invoke("openBillingDecisionDialog", "remove", preparation, lineId)
                     }
                     onBillingScheduleLineReadyRequested: function(lineId, version) {
                         if (root.workspaceController !== null)

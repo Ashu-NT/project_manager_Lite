@@ -7,6 +7,7 @@ Item {
     property string selectedProjectId: ""
     property string selectedProjectLabel: ""
     property string selectedActualEntryId: ""
+    property string selectedBillingPreparationId: ""
     property Item focusFallbackTarget: null
     property var manualActualDefaults: ({ "currencyCode": "", "entryKinds": [] })
 
@@ -104,6 +105,13 @@ Item {
         billingSourcePickerDialog.preparationVersion = Number(state.version || 0)
         billingSourcePickerDialog.errorMessage = ""
         root._openSetupDialog(billingSourcePickerDialog)
+    }
+
+    function openBillingDecisionDialog(action, preparation, lineId) {
+        billingDecisionDialog.action = action
+        billingDecisionDialog.preparation = preparation || ({})
+        billingDecisionDialog.lineId = String(lineId || "")
+        root._openSetupDialog(billingDecisionDialog)
     }
 
     function openBudgetLineDialog(mode, budget, line) {
@@ -217,6 +225,12 @@ Item {
     }
 
     onSelectedActualEntryIdChanged: root._closeEntryBoundActualDialogs()
+    onSelectedBillingPreparationIdChanged: {
+        if (billingSourcePickerDialog.opened) billingSourcePickerDialog.close()
+        if (billingDecisionDialog.opened) billingDecisionDialog.close()
+        if (billingPreparationDialog.opened && billingPreparationDialog.correctionOfPreparationId.length > 0)
+            billingPreparationDialog.close()
+    }
     onSelectedProjectIdChanged: {
         if (editorDialog.opened) editorDialog.close()
         if (actualLifecycleDialog.opened) actualLifecycleDialog.close()
@@ -224,6 +238,7 @@ Item {
         if (billingScheduleLineDialog.opened) billingScheduleLineDialog.close()
         if (billingPreparationDialog.opened) billingPreparationDialog.close()
         if (billingSourcePickerDialog.opened) billingSourcePickerDialog.close()
+        if (billingDecisionDialog.opened) billingDecisionDialog.close()
     }
 
     ManualActualEditorDialog {
@@ -246,6 +261,7 @@ Item {
 
     BillingProfileDialog {
         id: billingProfileDialog
+        focusFallbackTarget: root.focusFallbackTarget
         busy: root.workspaceController ? root.workspaceController.isBusy : false
         onSubmitted: function(payload) {
             if (!root.workspaceController) return
@@ -258,6 +274,8 @@ Item {
 
     BillingScheduleLineDialog {
         id: billingScheduleLineDialog
+        workspaceController: root.workspaceController
+        focusFallbackTarget: root.focusFallbackTarget
         busy: root.workspaceController ? root.workspaceController.isBusy : false
         onSubmitted: function(payload) {
             if (!root.workspaceController) return
@@ -270,6 +288,7 @@ Item {
 
     BillingPreparationDialog {
         id: billingPreparationDialog
+        focusFallbackTarget: root.focusFallbackTarget
         busy: root.workspaceController ? root.workspaceController.isBusy : false
         onSubmitted: function(payload) {
             if (!root.workspaceController) return
@@ -282,6 +301,7 @@ Item {
 
     BillingSourcePickerDialog {
         id: billingSourcePickerDialog
+        focusFallbackTarget: root.focusFallbackTarget
         workspaceController: root.workspaceController
         busy: root.workspaceController ? root.workspaceController.isBusy : false
         onSubmitted: function(payload) {
@@ -290,6 +310,25 @@ Item {
                 billingSourcePickerDialog,
                 root.workspaceController.addBillingSource(payload)
             )
+        }
+    }
+
+    BillingDecisionDialog {
+        id: billingDecisionDialog
+        focusFallbackTarget: root.focusFallbackTarget
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+        onSubmitted: function(action, preparation, lineId, note) {
+            if (!root.workspaceController) return
+            const state = preparation.state || ({})
+            const payload = { "preparationId": String(preparation.id || ""), "version": Number(state.version || 0), "lineId": lineId }
+            let result
+            if (action === "approve" || action === "reject")
+                result = root.workspaceController.decideBillingApproval(String(state.approvalRequestId || ""), action === "approve", note)
+            else if (action === "submit") result = root.workspaceController.submitBillingPreparation(payload)
+            else if (action === "cancel") result = root.workspaceController.cancelBillingPreparation(payload)
+            else if (action === "remove") result = root.workspaceController.removeBillingLine(payload)
+            else if (action === "request_delivery") result = root.workspaceController.requestBillingDelivery(payload)
+            root._handleResult(billingDecisionDialog, result)
         }
     }
 

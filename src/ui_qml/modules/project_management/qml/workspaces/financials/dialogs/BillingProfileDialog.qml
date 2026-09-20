@@ -8,18 +8,20 @@ AppWidgets.EntityDialog {
     id: root
     objectName: "billingProfileDialog"
     property string projectId: ""
-    property var profile: ({})
     signal submitted(var payload)
     title: "Create Billing Profile"
     subtitle: "PM commercial setup only. Accounting customer and receivables truth remain external."
     primaryText: "Create Billing Profile"
     primaryIcon: "add"
     primaryEnabled: !root.busy && root.projectId.length > 0
+    initialFocusTarget: contractReference
 
     function submitDialog() {
+        if (!root.primaryEnabled) return
         if (!contractReference.text.trim() || !contractValue.text.trim()) {
             root.errorMessage = "Contract reference and value are required."
-            contractReference.forceActiveFocus()
+            const missing = !contractReference.text.trim() ? contractReference : contractValue
+            missing.forceActiveFocus()
             return
         }
         root.submitted({
@@ -34,7 +36,17 @@ AppWidgets.EntityDialog {
             "retentionYears": retentionYears.text.trim() || "7"
         })
     }
-    onOpened: contractReference.forceActiveFocus()
+    onOpened: {
+        root.errorMessage = ""
+        contractReference.text = ""
+        contractValue.text = ""
+        customerParty.text = ""
+        externalReference.text = ""
+        purchaseOrder.text = ""
+        markup.text = "0"
+        paymentTerms.text = "30"
+        retentionYears.text = "7"
+    }
 
     AppWidgets.FormField {
         Layout.fillWidth: true

@@ -443,8 +443,8 @@ def test_rejected_preparation_releases_source_for_new_draft(services):
         project.id, selected_preparation_id=submitted.id
     ).selected_preparation
     assert reviewer_view is not None
-    assert reviewer_view.can_approve is False
-    assert reviewer_view.can_reject is False
+    assert reviewer_view.can_approve is True
+    assert reviewer_view.can_reject is True
     services["approval_service"].reject(request.id, note="Revise the claim")
 
     _login(services, "admin", "ChangeMe123!")

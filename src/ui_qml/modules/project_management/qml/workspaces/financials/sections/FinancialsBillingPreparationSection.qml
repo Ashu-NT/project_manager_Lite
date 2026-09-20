@@ -139,6 +139,7 @@ Item {
     }
     onSelectedPreparationIdChanged: root.selectedLineId = ""
     onScheduleChanged: root.selectedScheduleLineId = ""
+    onLinesChanged: root.selectedLineId = ""
 
     implicitHeight: contentColumn.implicitHeight
 

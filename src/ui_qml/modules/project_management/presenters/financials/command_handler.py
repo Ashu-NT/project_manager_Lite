@@ -168,11 +168,11 @@ def add_billing_source(desktop_api, payload: dict[str, Any]):
         return desktop_api.add_fixed_price_billing_source(
             FinancialAddFixedPriceBillingSourceCommand(preparation_id, expected_version, source_id)
         )
-    if source_type == "time_entry":
+    if source_type == "approved_time":
         return desktop_api.add_approved_time_billing_source(
             FinancialAddApprovedTimeBillingSourceCommand(preparation_id, expected_version, source_id)
         )
-    if source_type == "cost_entry":
+    if source_type == "posted_cost":
         return desktop_api.add_cost_plus_billing_source(
             FinancialAddCostPlusBillingSourceCommand(preparation_id, expected_version, source_id)
         )
@@ -505,11 +505,11 @@ def decide_forecast_approval(
 
 
 def decide_billing_approval(
-    approval_api: PlatformApprovalDesktopApi | None, request_id: str, *, approve: bool
+    approval_api: PlatformApprovalDesktopApi | None, request_id: str, *, approve: bool, note: str = ""
 ) -> None:
     if approval_api is None:
         raise RuntimeError("Platform approval API is not connected.")
-    command = ApprovalDecisionCommand(request_id=str(request_id or "").strip())
+    command = ApprovalDecisionCommand(request_id=str(request_id or "").strip(), note=note.strip() or None)
     result = approval_api.approve_and_apply(command) if approve else approval_api.reject(command)
     if not result.ok:
         raise RuntimeError(result.error.message if result.error else "Billing decision failed.")
