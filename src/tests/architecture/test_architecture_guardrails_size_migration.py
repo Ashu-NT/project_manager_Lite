@@ -206,7 +206,7 @@ def test_shared_access_platform_layers_do_not_import_pm_access_code():
     )
     checked_files = (
         ROOT / "src" / "core" / "platform" / "access" / "application" / "access_control_service.py",
-        ROOT / "src" / "ui_qml" / "platform" / "controllers" / "identity_access" / "access" / "access_workspace_controller.py",
+        ROOT / "src" / "ui_qml" / "platform" / "controllers" / "access" / "access_workspace_controller.py",
     )
     violations: list[tuple[str, str]] = []
 

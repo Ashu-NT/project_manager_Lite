@@ -2,10 +2,8 @@
 
 import shutil
 import subprocess
-from pathlib import Path
 
 from src.tests.path_rewrites import REPO_ROOT
-
 
 ROOT = REPO_ROOT
 SRC_ROOT = ROOT / "src"
@@ -36,10 +34,10 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
 
     targets = [
         UI_QML_ROOT / "platform" / "qml" / "workspace" / "PlatformWorkspacePage.qml",
-        UI_QML_ROOT / "platform" / "qml" / "identity_access" / "access" / "AccessSecurityPanel.qml",
-        UI_QML_ROOT / "platform" / "qml" / "documents" / "DocumentDetailPanel.qml",
-        UI_QML_ROOT / "platform" / "qml" / "documents" / "dialogs" / "DocumentLinkEditorDialog.qml",
-        UI_QML_ROOT / "platform" / "qml" / "documents" / "dialogs" / "DocumentStructureEditorDialog.qml",
+        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "access" / "AccessSecurityPanel.qml",
+        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "documents" / "DocumentDetailPanel.qml",
+        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "documents" / "dialogs" / "DocumentLinkEditorDialog.qml",
+        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "documents" / "dialogs" / "DocumentStructureEditorDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "projects" / "ProjectsWorkspacePage.qml",
         UI_QML_ROOT
         / "modules/project_management/qml/workspaces/projects/dialogs"
@@ -166,16 +164,16 @@ def test_platform_standalone_pages_clear_workspace_messages_on_context_switch() 
     # view, which is the same underlying behavior this test always
     # verified, just no longer countable in one file.
     page_paths = [
-        UI_QML_ROOT / "platform" / "qml" / "organization" / "organizations" / "OrganizationsWorkspacePage.qml",
-        UI_QML_ROOT / "platform" / "qml" / "organization" / "sites" / "SitesWorkspacePage.qml",
-        UI_QML_ROOT / "platform" / "qml" / "organization" / "departments" / "DepartmentsWorkspacePage.qml",
-        UI_QML_ROOT / "platform" / "qml" / "organization" / "employees" / "EmployeesWorkspacePage.qml",
-        UI_QML_ROOT / "platform" / "qml" / "organization" / "parties" / "PartiesWorkspacePage.qml",
-        UI_QML_ROOT / "platform" / "qml" / "calendars" / "CalendarsWorkspacePage.qml",
-        UI_QML_ROOT / "platform" / "qml" / "identity_access" / "users" / "UsersWorkspacePage.qml",
-        UI_QML_ROOT / "platform" / "qml" / "documents" / "DocumentsWorkspacePage.qml",
-        UI_QML_ROOT / "platform" / "qml" / "documents" / "DocumentStructuresWorkspacePage.qml",
-        UI_QML_ROOT / "platform" / "qml" / "identity_access" / "access" / "AccessWorkspacePage.qml",
+        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "organizations" / "OrganizationsWorkspacePage.qml",
+        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "sites" / "SitesWorkspacePage.qml",
+        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "departments" / "DepartmentsWorkspacePage.qml",
+        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "employees" / "EmployeesWorkspacePage.qml",
+        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "parties" / "PartiesWorkspacePage.qml",
+        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "calendars" / "CalendarsWorkspacePage.qml",
+        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "users" / "UsersWorkspacePage.qml",
+        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "documents" / "DocumentsWorkspacePage.qml",
+        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "documents" / "DocumentStructuresWorkspacePage.qml",
+        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "access" / "AccessWorkspacePage.qml",
     ]
 
     for page_path in page_paths:

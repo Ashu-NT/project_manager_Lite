@@ -39,5 +39,13 @@ def test_fresh_schema_uses_active_only_billing_source_uniqueness(tmp_path) -> No
             ]["sqlite_where"]
         )
         assert "rejected" in predicate and "cancelled" in predicate
+        keys = {item["name"]: item for item in sa.inspect(engine).get_foreign_keys("project_billing_source_locks")}
+        assert "fk_billing_locks_line" not in keys
+        assert keys["fk_billing_locks_scoped_line"]["constrained_columns"] == [
+            "tenant_id", "organization_id", "project_id", "preparation_id", "preparation_line_id",
+        ]
+        assert keys["fk_billing_locks_scoped_line"]["referred_columns"] == [
+            "tenant_id", "organization_id", "project_id", "preparation_id", "id",
+        ]
     finally:
         engine.dispose()

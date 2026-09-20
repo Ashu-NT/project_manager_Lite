@@ -1,5 +1,5 @@
 import pytest
-from PySide6.QtCore import QObject, Qt, QUrl, Slot
+from PySide6.QtCore import Property, QObject, Qt, QUrl, Slot
 from PySide6.QtQml import QQmlComponent
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QSignalSpy, QTest
@@ -8,10 +8,16 @@ from src.ui_qml.shell.qml_engine import create_qml_engine
 
 
 class SourceController(QObject):
+    isBusy = Property(bool, lambda self: False, constant=True)
+
     def __init__(self):
         super().__init__()
         self.requests = []
         self.fail = False
+
+    @Slot(result=str)
+    def newFinancialCommandId(self):
+        return "command"
 
     @Slot(str, str, str, int, int, result="QVariantMap")
     def searchEligibleBillingSources(self, project, preparation, search, page, size):
@@ -77,6 +83,60 @@ Window {
         count = len(controller.requests)
         QTest.qWait(350)
         assert len(controller.requests) == count
+    finally:
+        window.close()
+        window.deleteLater()
+        qapp.processEvents()
+
+
+def test_billing_dialog_host_closes_context_bound_dialogs(qapp):
+    engine = create_qml_engine()
+    controller = SourceController()
+    engine.rootContext().setContextProperty("sourceController", controller)
+    component = QQmlComponent(engine)
+    component.setData(b'''
+import QtQuick
+import workspaces.financials.dialogs 1.0
+Window {
+    width: 1024; height: 640; visible: true
+    FinancialsDialogHost {
+        objectName: "host"
+        selectedProjectId: "project"
+        selectedBillingPreparationId: "prep"
+        workspaceController: sourceController
+        function openSource() { openBillingSourcePickerDialog({id: "prep", state: {version: 1}}) }
+        function openDecision() { openBillingDecisionDialog("reject", {id: "prep", state: {canReject: true}}, "") }
+    }
+}
+''', QUrl())
+    assert component.isReady(), [error.toString() for error in component.errors()]
+    window = component.create()
+    assert window is not None
+    try:
+        host = window.findChild(QObject, "host")
+        for method, name in [
+            ("openBillingProfileDialog", "billingProfileDialog"),
+            ("openBillingScheduleLineDialog", "billingScheduleLineDialog"),
+            ("openSource", "billingSourcePickerDialog"),
+            ("openDecision", "billingDecisionDialog"),
+        ]:
+            host.setProperty("selectedProjectId", "project")
+            getattr(host, method)()
+            QTest.qWait(50)
+            dialog = host.findChild(QObject, name)
+            assert dialog is not None and dialog.property("opened")
+            host.setProperty("selectedProjectId", "other-project")
+            QTest.qWait(50)
+            assert not dialog.property("opened")
+        for method, name in [("openSource", "billingSourcePickerDialog"), ("openDecision", "billingDecisionDialog")]:
+            host.setProperty("selectedBillingPreparationId", "prep")
+            getattr(host, method)()
+            QTest.qWait(50)
+            dialog = host.findChild(QObject, name)
+            assert dialog.property("opened")
+            host.setProperty("selectedBillingPreparationId", "other-preparation")
+            QTest.qWait(50)
+            assert not dialog.property("opened")
     finally:
         window.close()
         window.deleteLater()

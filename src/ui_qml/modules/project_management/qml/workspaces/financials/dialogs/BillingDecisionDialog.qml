@@ -6,6 +6,7 @@ import App.Widgets 1.0 as AppWidgets
 
 AppWidgets.EntityDialog {
     id: root
+    objectName: "billingDecisionDialog"
     property string action: ""
     property var preparation: ({})
     property string lineId: ""

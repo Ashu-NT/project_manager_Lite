@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from src.tests.path_rewrites import REPO_ROOT
 
 ROOT = REPO_ROOT
 SRC_ROOT = ROOT / "src"
 UI_QML_ROOT = SRC_ROOT / "ui_qml"
 PLATFORM_ADMIN_CONSOLE_CONTROLLER = (
-    UI_QML_ROOT / "platform" / "controllers" / "admin_console" / "admin_console_controller.py"
+    UI_QML_ROOT / "platform" / "controllers" / "overview" / "admin_console_controller.py"
 )
 STALE_PLATFORM_ADMIN_DIRECTORY = UI_QML_ROOT / "platform" / "controllers" / "admin"
 STALE_PLATFORM_ADMIN_WORKSPACE_CONTROLLER = (

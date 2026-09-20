@@ -19,7 +19,6 @@ from src.core.modules.project_management.infrastructure.persistence.reads.financ
 )
 from src.infra.persistence.db.postgresql_rls import validate_postgresql_execution_role
 
-
 pytestmark = pytest.mark.postgresql_integration
 
 TENANT_A = "r6b-billing-tenant-a"
@@ -64,12 +63,12 @@ def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str
         "INSERT INTO project_billing_preparation_lines "
         "(id, tenant_id, organization_id, project_id, preparation_id, source_type, source_id, source_revision, source_content_hash, description, source_date, quantity, unit, unit_rate, net_amount, currency_code, source_amount, created_at) "
         "VALUES (:id, :tenant, :organization, :project, :preparation, 'schedule_line', :source, '1', :hash, :description, '2026-09-01', 1, 'milestone', 5000.25, 5000.25, 'USD', 5000.25, :now)"
-    ), {"id": line_id, "tenant": tenant_id, "organization": organization_id, "project": project_id, "preparation": preparation_id, "source": schedule_id, "hash": suffix * 64, "description": f"Accepted milestone {suffix.upper()}", "now": now})
+    ), {"id": line_id, "tenant": tenant_id, "organization": organization_id, "project": project_id, "preparation": preparation_id, "source": schedule_id, "hash": (suffix * 64)[:64], "description": f"Accepted milestone {suffix.upper()}", "now": now})
     connection.execute(text(
         "INSERT INTO project_billing_source_locks "
         "(id, tenant_id, organization_id, project_id, source_type, source_id, source_revision, source_content_hash, preparation_id, preparation_line_id, status, reserved_at, finalized_at) "
         "VALUES (:id, :tenant, :organization, :project, 'schedule_line', :source, '1', :hash, :preparation, :line, 'finalized', :now, :now)"
-    ), {"id": f"r6b-billing-lock-{suffix}", "tenant": tenant_id, "organization": organization_id, "project": project_id, "source": schedule_id, "hash": suffix * 64, "preparation": preparation_id, "line": line_id, "now": now})
+    ), {"id": f"r6b-billing-lock-{suffix}", "tenant": tenant_id, "organization": organization_id, "project": project_id, "source": schedule_id, "hash": (suffix * 64)[:64], "preparation": preparation_id, "line": line_id, "now": now})
     connection.execute(text(
         "INSERT INTO project_billing_external_events "
         "(id, tenant_id, organization_id, project_id, preparation_id, event_type, external_system, external_status, idempotency_key, occurred_at, external_invoice_reference, message, recorded_at) "

@@ -454,6 +454,72 @@ Component {
     Method { name: "setCommitmentPageSize"; Parameter { name: "pageSize"; type: "int" } }
     Method { name: "setCommitmentSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
     Method { name: "setCommitmentExposure"; Parameter { name: "exposure"; type: "QString" } }
+    Method {
+        name: "createBillingProfile"
+        type: "QVariantMap"
+        Parameter { name: "payload"; type: "QVariantMap" }
+    }
+    Method {
+        name: "activateBillingProfile"
+        type: "QVariantMap"
+        Parameter { name: "payload"; type: "QVariantMap" }
+    }
+    Method {
+        name: "addBillingScheduleLine"
+        type: "QVariantMap"
+        Parameter { name: "payload"; type: "QVariantMap" }
+    }
+    Method {
+        name: "markBillingScheduleLineReady"
+        type: "QVariantMap"
+        Parameter { name: "payload"; type: "QVariantMap" }
+    }
+    Method {
+        name: "createBillingPreparation"
+        type: "QVariantMap"
+        Parameter { name: "payload"; type: "QVariantMap" }
+    }
+    Method {
+        name: "addBillingSource"
+        type: "QVariantMap"
+        Parameter { name: "payload"; type: "QVariantMap" }
+    }
+    Method {
+        name: "removeBillingLine"
+        type: "QVariantMap"
+        Parameter { name: "payload"; type: "QVariantMap" }
+    }
+    Method {
+        name: "cancelBillingPreparation"
+        type: "QVariantMap"
+        Parameter { name: "payload"; type: "QVariantMap" }
+    }
+    Method {
+        name: "submitBillingPreparation"
+        type: "QVariantMap"
+        Parameter { name: "payload"; type: "QVariantMap" }
+    }
+    Method {
+        name: "requestBillingDelivery"
+        type: "QVariantMap"
+        Parameter { name: "payload"; type: "QVariantMap" }
+    }
+    Method {
+        name: "decideBillingApproval"
+        type: "QVariantMap"
+        Parameter { name: "request_id"; type: "QString" }
+        Parameter { name: "approve"; type: "bool" }
+        Parameter { name: "note"; type: "QString" }
+    }
+    Method {
+        name: "searchEligibleBillingSources"
+        type: "QVariantMap"
+        Parameter { name: "project_id"; type: "QString" }
+        Parameter { name: "preparation_id"; type: "QString" }
+        Parameter { name: "search"; type: "QString" }
+        Parameter { name: "page"; type: "int" }
+        Parameter { name: "page_size"; type: "int" }
+    }
 }
 Component {
     name: "ProjectManagementPortfolioWorkspaceController"

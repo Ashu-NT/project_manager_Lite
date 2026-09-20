@@ -18,9 +18,10 @@ AppWidgets.EntityDialog {
 
     function submitDialog() {
         if (!root.primaryEnabled) return
-        if (!contractReference.text.trim() || !contractValue.text.trim()) {
-            root.errorMessage = "Contract reference and value are required."
-            const missing = !contractReference.text.trim() ? contractReference : contractValue
+        if (!contractReference.text.trim() || !contractValue.text.trim() || !customerParty.text.trim()) {
+            root.errorMessage = "Contract reference, value, and customer party reference are required."
+            const missing = !contractReference.text.trim() ? contractReference
+                : !contractValue.text.trim() ? contractValue : customerParty
             missing.forceActiveFocus()
             return
         }
@@ -60,7 +61,7 @@ AppWidgets.EntityDialog {
         required: true
         AppControls.TextField { id: contractValue; Layout.fillWidth: true; inputMethodHints: Qt.ImhFormattedNumbersOnly }
     }
-    AppWidgets.FormField { Layout.fillWidth: true; label: "Customer party reference"; AppControls.TextField { id: customerParty; Layout.fillWidth: true } }
+    AppWidgets.FormField { Layout.fillWidth: true; label: "Customer party reference"; required: true; AppControls.TextField { id: customerParty; Layout.fillWidth: true } }
     AppWidgets.FormField { Layout.fillWidth: true; label: "External customer reference"; AppControls.TextField { id: externalReference; Layout.fillWidth: true } }
     AppWidgets.FormField { Layout.fillWidth: true; label: "Purchase order reference"; AppControls.TextField { id: purchaseOrder; Layout.fillWidth: true } }
     AppWidgets.FormField { Layout.fillWidth: true; label: "Cost-plus markup (%)"; AppControls.TextField { id: markup; Layout.fillWidth: true; text: "0"; inputMethodHints: Qt.ImhFormattedNumbersOnly } }
