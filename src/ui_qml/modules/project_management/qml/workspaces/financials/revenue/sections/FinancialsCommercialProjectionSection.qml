@@ -62,7 +62,10 @@ Item {
                         }
                         AppControls.Label {
                             Layout.fillWidth: true
-                            text: String(projectionCard.modelData.value || "-")
+                            text: projectionCard.modelData.value === null
+                                  || projectionCard.modelData.value === undefined
+                                  || projectionCard.modelData.value === ""
+                                  ? "-" : String(projectionCard.modelData.value)
                             color: Theme.AppTheme.textPrimary
                             font.pixelSize: Theme.AppTheme.sectionTitleSize
                             font.bold: true

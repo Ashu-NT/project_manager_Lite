@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from src.core.modules.project_management.contracts.reads.financials.models.commercial_metric_availability import (
+    CommercialMetricAvailability,
+    CommercialMetricUnavailableReason,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class FinancialBillingProfileDto:
@@ -86,6 +91,12 @@ class FinancialBillingSourcePageDto:
 
 @dataclass(frozen=True, slots=True)
 class FinancialCommercialProjectionDto:
+    revenue_availability: CommercialMetricAvailability
+    margin_availability: CommercialMetricAvailability
+    percent_availability: CommercialMetricAvailability
+    revenue_reason: CommercialMetricUnavailableReason | None
+    margin_reason: CommercialMetricUnavailableReason | None
+    percent_reason: CommercialMetricUnavailableReason | None
 
     project_id: str = ""
     project_currency: str = ""
@@ -96,6 +107,7 @@ class FinancialCommercialProjectionDto:
     projected_margin_amount: str = ""
     projected_margin_percent: str = ""
     profitability_detail_included: bool = True
+    as_of_date: str = ""
 
 
 __all__ = [

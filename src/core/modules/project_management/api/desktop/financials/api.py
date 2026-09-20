@@ -181,6 +181,10 @@ from src.core.modules.project_management.application.financials.governance impor
     FinanceGovernanceCommandBoundary,
     FinanceGovernedServicePort,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.commercial_metric_availability import (
+    CommercialMetricAvailability,
+    CommercialMetricUnavailableReason,
+)
 from src.core.modules.project_management.contracts.reads.financials.models.finance_billing_facts import (
     AccountingStatusQuery,
     BillingPreparationLineQuery,
@@ -2113,7 +2117,13 @@ class ProjectManagementFinancialsDesktopApi:
         self, project_id: str, *, as_of_date: date | None = None
     ) -> FinancialCommercialProjectionDto:
         if not project_id or self._reporting_service is None:
-            return FinancialCommercialProjectionDto()
+            reason = CommercialMetricUnavailableReason.PROJECT_NOT_SELECTED if not project_id else CommercialMetricUnavailableReason.QUERY_NOT_CONNECTED
+            return FinancialCommercialProjectionDto(
+                revenue_availability=CommercialMetricAvailability.UNAVAILABLE,
+                margin_availability=CommercialMetricAvailability.UNAVAILABLE,
+                percent_availability=CommercialMetricAvailability.UNAVAILABLE,
+                revenue_reason=reason, margin_reason=reason, percent_reason=reason,
+            )
         resolved_as_of = as_of_date or datetime.now(timezone.utc).astimezone().date()
         return serialize_commercial_projection(
             self._reporting_service.get_project_commercial_projection(

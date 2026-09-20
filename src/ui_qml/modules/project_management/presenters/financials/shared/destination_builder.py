@@ -6,6 +6,9 @@ from datetime import date, datetime, timezone
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementFinancialsDesktopApi,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.commercial_metric_availability import (
+    CommercialMetricAvailability,
+)
 from src.core.platform.api.desktop.history.audit.audit_enterprise import (
     PlatformEnterpriseAuditDesktopApi,
 )
@@ -43,6 +46,10 @@ from src.ui_qml.modules.project_management.presenters.financials.reporting.perfo
     build_evm_views,
     build_reports_views,
     build_variance_views,
+)
+from src.ui_qml.modules.project_management.presenters.financials.revenue.availability import (
+    availability_label,
+    reason_label,
 )
 from src.ui_qml.modules.project_management.presenters.financials.shared.overview_builder import (
     build_overview,
@@ -581,22 +588,22 @@ def build_destination_state(
                     "Projected commercial revenue at completion",
                     (
                         f"{projection.forecast_revenue_at_completion} {projection.project_currency}".strip()
-                        if projection.forecast_revenue_at_completion != ""
-                        else "Restricted or unavailable"
+                        if projection.revenue_availability is CommercialMetricAvailability.AVAILABLE and projection.forecast_revenue_at_completion != ""
+                        else availability_label(projection.revenue_availability, projection.revenue_reason)
                     ),
-                    projection.revenue_basis,
+                    reason_label(projection.revenue_reason) if projection.revenue_reason is not None else "Contract value",
                 ),
                 FinancialsDetailFieldViewModel(
                     "Projected commercial margin",
                     (
                         f"{projection.projected_margin_amount} {projection.project_currency}"
-                        if projection.projected_margin_amount != ""
-                        else "Restricted or unavailable"
+                        if projection.margin_availability is CommercialMetricAvailability.AVAILABLE and projection.projected_margin_amount != ""
+                        else availability_label(projection.margin_availability, projection.margin_reason)
                     ),
                     (
                         f"{projection.projected_margin_percent}%"
-                        if projection.projected_margin_percent != ""
-                        else ""
+                        if projection.percent_availability is CommercialMetricAvailability.AVAILABLE and projection.projected_margin_percent != ""
+                        else reason_label(projection.percent_reason)
                     ),
                 ),
             )
@@ -607,9 +614,7 @@ def build_destination_state(
                     id=project_id,
                     title="Projected Commercial Revenue/Margin",
                     status_label=(
-                        "Profitability detail available"
-                        if projection.profitability_detail_included
-                        else "Profitability detail restricted"
+                        availability_label(projection.margin_availability, projection.margin_reason)
                     ),
                     subtitle=(
                         "Managerial projection only; Accounting remains authoritative "

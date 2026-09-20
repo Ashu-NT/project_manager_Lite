@@ -348,6 +348,7 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(services)
     )
 
     preparation_service = services["billing_preparation_service"]
+    _register_and_login(services, "profit-billing-requester", role_names=["finance_controller"])
     preparation = preparation_service.create_preparation(
         project.id,
         preparation_number="BP-PROFIT-0001",
@@ -363,7 +364,6 @@ def test_external_events_do_not_manufacture_invoice_or_payment_amounts(services)
     # Submit as a distinct requester, then decide as the default admin
     # session -- approve_and_apply forbids a principal deciding its own
     # governance request.
-    _register_and_login(services, "profit-billing-requester", role_names=["finance_controller"])
     preparation_service.submit_preparation(
         preparation.id, expected_row_version=preparation.row_version
     )

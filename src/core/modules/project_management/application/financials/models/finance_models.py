@@ -4,6 +4,10 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from src.core.modules.project_management.contracts.reads.financials.models.commercial_metric_availability import (
+    CommercialMetricAvailability,
+    CommercialMetricUnavailableReason,
+)
 from src.core.modules.project_management.contracts.reads.financials.models.finance_performance_facts import (
     CostPhasingSeriesAvailabilityFact,
 )
@@ -189,7 +193,16 @@ class ProjectCommercialProjection:
     revenue_basis: str
     projected_margin_amount: Decimal | None
     projected_margin_percent: Decimal | None
+    revenue_availability: CommercialMetricAvailability
+    margin_availability: CommercialMetricAvailability
+    percent_availability: CommercialMetricAvailability
+    revenue_reason: CommercialMetricUnavailableReason | None
+    margin_reason: CommercialMetricUnavailableReason | None
+    percent_reason: CommercialMetricUnavailableReason | None
     profitability_detail_included: bool = True
+    tenant_id: str = ""
+    organization_id: str = ""
+    as_of_date: date | None = None
 
 
 # ── Labor DTOs ────────────────────────────────────────────────────────────────
