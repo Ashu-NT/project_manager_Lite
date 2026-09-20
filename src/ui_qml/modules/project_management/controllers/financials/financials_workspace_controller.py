@@ -13,6 +13,9 @@ from src.ui_qml.modules.project_management.controllers.common import (
 from src.ui_qml.modules.project_management.controllers.financials.budgets.budget_domain_event_binder import (
     on_budget_planning_stale,
 )
+from src.ui_qml.modules.project_management.controllers.financials.budgets.mutation_mixin import (
+    FinancialsBudgetsMutationMixin,
+)
 from src.ui_qml.modules.project_management.controllers.financials.commitments.commitment_domain_event_binder import (
     on_commitment_stale,
 )
@@ -20,29 +23,50 @@ from src.ui_qml.modules.project_management.controllers.financials.cost.cost_entr
     on_cost_entry_actuals_stale,
     on_cost_entry_list_stale,
 )
+from src.ui_qml.modules.project_management.controllers.financials.cost.mutation_mixin import (
+    FinancialsCostMutationMixin,
+)
 from src.ui_qml.modules.project_management.controllers.financials.financial_changes.financial_change_domain_event_binder import (
     on_financial_change_budget_stale,
     on_financial_change_forecast_stale,
     on_financial_change_schedule_stale,
     on_financial_change_workspace_stale,
 )
+from src.ui_qml.modules.project_management.controllers.financials.financial_changes.mutation_mixin import (
+    FinancialsFinancialChangesMutationMixin,
+)
 from src.ui_qml.modules.project_management.controllers.financials.forecasts.forecast_domain_event_binder import (
     on_forecast_approved_basis_stale,
     on_forecast_planning_stale,
 )
+from src.ui_qml.modules.project_management.controllers.financials.forecasts.mutation_mixin import (
+    FinancialsForecastsMutationMixin,
+)
 from src.ui_qml.modules.project_management.controllers.financials.governance.financial_setup_domain_event_binder import (
     on_financial_profile_stale,
+)
+from src.ui_qml.modules.project_management.controllers.financials.governance.mutation_mixin import (
+    FinancialsGovernanceMutationMixin,
 )
 from src.ui_qml.modules.project_management.controllers.financials.invoicing.billing_domain_event_binder import (
     on_billing_commercial_stale,
 )
+from src.ui_qml.modules.project_management.controllers.financials.invoicing.mutation_mixin import (
+    FinancialsInvoicingMutationMixin,
+)
 from src.ui_qml.modules.project_management.controllers.financials.planned_costs.planned_cost_domain_event_binder import (
     on_planned_cost_snapshot_stale,
+)
+from src.ui_qml.modules.project_management.controllers.financials.rate_cards.mutation_mixin import (
+    FinancialsRateCardsMutationMixin,
 )
 from src.ui_qml.modules.project_management.controllers.financials.rate_cards.rate_card_domain_event_binder import (
     on_rate_card_detail_stale,
     on_rate_card_list_stale,
     on_rate_card_list_stale_for_project,
+)
+from src.ui_qml.modules.project_management.controllers.financials.reporting.mutation_mixin import (
+    FinancialsReportingMutationMixin,
 )
 from src.ui_qml.modules.project_management.controllers.financials.shared.financials_lookup_mixin import (
     FinancialsLookupMixin,
@@ -92,6 +116,14 @@ class ProjectManagementFinancialsWorkspaceController(
     FinancialsRefreshMixin,
     FinancialsSelectionMixin,
     FinancialsMutationMixin,
+    FinancialsBudgetsMutationMixin,
+    FinancialsCostMutationMixin,
+    FinancialsFinancialChangesMutationMixin,
+    FinancialsForecastsMutationMixin,
+    FinancialsGovernanceMutationMixin,
+    FinancialsInvoicingMutationMixin,
+    FinancialsRateCardsMutationMixin,
+    FinancialsReportingMutationMixin,
     FinancialsLookupMixin,
     FinancialsStateMixin,
 ):

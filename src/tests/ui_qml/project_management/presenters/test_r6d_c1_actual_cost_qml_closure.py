@@ -4,12 +4,11 @@ from pathlib import Path
 from textwrap import dedent
 
 import pytest
-from PySide6.QtCore import QObject, QMetaObject, Qt, QUrl, qInstallMessageHandler
+from PySide6.QtCore import QMetaObject, QObject, Qt, QUrl, qInstallMessageHandler
 from PySide6.QtQml import QQmlComponent
 from PySide6.QtTest import QTest
 
 from src.ui_qml.shell.qml_engine import create_qml_engine
-
 
 VIEWPORTS = (
     (1024, 640),
@@ -19,11 +18,11 @@ VIEWPORTS = (
     (1920, 1080),
 )
 DIALOG_ROOT = Path(
-    "src/ui_qml/modules/project_management/qml/workspaces/financials/dialogs"
+    "src/ui_qml/modules/project_management/qml/workspaces/financials/cost/dialogs"
 ).resolve()
 MANUAL_DIALOG = (DIALOG_ROOT / "ManualActualEditorDialog.qml").as_uri()
 LIFECYCLE_DIALOG = (DIALOG_ROOT / "ActualLifecycleDialog.qml").as_uri()
-HOST_DIALOG = (DIALOG_ROOT / "FinancialsDialogHost.qml").as_uri()
+HOST_DIALOG = (DIALOG_ROOT.parent.parent / "shared/dialogs/FinancialsDialogHost.qml").as_uri()
 ACTUALS_SECTION = (
     DIALOG_ROOT.parent / "sections" / "FinancialsActualsSection.qml"
 ).as_uri()

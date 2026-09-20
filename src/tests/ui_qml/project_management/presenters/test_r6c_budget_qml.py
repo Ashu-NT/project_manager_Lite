@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import os
-from textwrap import dedent
 from pathlib import Path
+from textwrap import dedent
 
 import pytest
 from PySide6.QtCore import QObject, Qt
@@ -11,7 +11,6 @@ from PySide6.QtQml import QQmlComponent
 from PySide6.QtTest import QTest
 
 from src.ui_qml.shell.qml_engine import create_qml_engine
-
 
 VIEWPORTS = (
     (1024, 640),
@@ -26,7 +25,7 @@ DIALOGS = (
     "BudgetLifecycleDialog",
 )
 DIALOG_ROOT = Path(
-    "src/ui_qml/modules/project_management/qml/workspaces/financials/dialogs"
+    "src/ui_qml/modules/project_management/qml/workspaces/financials/budgets/dialogs"
 ).resolve()
 
 

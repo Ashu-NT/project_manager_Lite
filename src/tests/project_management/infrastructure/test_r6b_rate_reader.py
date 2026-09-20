@@ -268,7 +268,7 @@ Window {
 
 def test_rate_qml_contract_keeps_server_reads_and_governed_actions():
     source = (
-        "src/ui_qml/modules/project_management/qml/workspaces/financials/sections/"
+        "src/ui_qml/modules/project_management/qml/workspaces/financials/rate_cards/sections/"
         "FinancialsRateCardsSection.qml"
     )
     text = open(source, encoding="utf-8").read()

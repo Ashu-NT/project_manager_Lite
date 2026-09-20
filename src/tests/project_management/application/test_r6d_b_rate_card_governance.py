@@ -19,18 +19,17 @@ from src.core.modules.project_management.api.desktop.financials.commands.rates i
 )
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
-from src.ui_qml.shell.qml_engine import create_qml_engine
-from src.ui_qml.modules.project_management.presenters.financials.shared.command_handler import (
+from src.ui_qml.modules.project_management.presenters.financials.rate_cards.commands import (
     add_rate_line,
     create_rate_card,
 )
-
+from src.ui_qml.shell.qml_engine import create_qml_engine
 
 ROOT = Path(__file__).resolve().parents[3]
 VIEWPORTS = ((1024, 640), (1280, 720), (1366, 768), (1440, 900), (1920, 1080))
 RATE_DIALOGS = ("RateCardEditorDialog", "RateLineEditorDialog", "RateLifecycleDialog")
 RATE_DIALOG_ROOT = Path(
-    "src/ui_qml/modules/project_management/qml/workspaces/financials/dialogs"
+    "src/ui_qml/modules/project_management/qml/workspaces/financials/rate_cards/dialogs"
 ).resolve()
 
 

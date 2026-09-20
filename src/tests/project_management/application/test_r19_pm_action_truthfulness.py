@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-
 PM_ROOT = Path("src/ui_qml/modules/project_management")
 WORKSPACES = PM_ROOT / "qml/workspaces"
 CONTROLLERS = PM_ROOT / "controllers"
@@ -23,7 +22,7 @@ def test_active_pm_qml_has_no_empty_handlers_or_unsupported_export_calls() -> No
     source = _qml_sources()
 
     assert not re.search(
-        r"on[A-Za-z]+\s*:\s*(?:function\([^)]*\)\s*)?\{\s*\}",
+        r"\bon[A-Z][A-Za-z]*\s*:\s*(?:function\([^)]*\)\s*)?\{\s*\}",
         source,
     )
     for method_name in (
@@ -82,8 +81,8 @@ def test_portfolio_compare_presents_authoritative_analysis() -> None:
         WORKSPACES / "portfolio/sections/PortfolioGovernanceToolbar.qml"
     )
 
-    assert "evaluationModel: root.workspaceController" in scenarios_tab
-    assert "comparisonModel: root.workspaceController" in scenarios_tab
+    assert "item.evaluationModel = Qt.binding(function() { return root.workspaceController" in scenarios_tab
+    assert "item.comparisonModel = Qt.binding(function() { return root.workspaceController" in scenarios_tab
     assert "onClicked: analysisPopup.open()" in toolbar
     assert toolbar.count("PortfolioSummaryCard {") == 2
     assert "bottomTab" not in page
@@ -106,21 +105,20 @@ def test_scheduling_comparison_is_selector_driven_not_refresh_backed() -> None:
 
 def test_future_purchase_order_placeholder_is_not_reachable() -> None:
     page = _read(WORKSPACES / "financials/FinancialsWorkspacePage.qml")
-    panel = _read(WORKSPACES / "financials/panels/FinancialsDetailPanel.qml")
-    qmldir = _read(WORKSPACES / "financials/sections/qmldir")
-    placeholder = WORKSPACES / "financials/sections/FinancialsPurchaseOrdersSection.qml"
+    panel = _read(WORKSPACES / "financials/shared/panels/FinancialsDetailPanel.qml")
+    qmldir = "\n".join(_read(path) for path in (WORKSPACES / "financials").rglob("qmldir"))
 
     assert "Purchase Orders" not in page
     assert "Purchase Orders" not in panel
     assert "FinancialsPurchaseOrdersSection" not in qmldir
-    assert not placeholder.exists()
+    assert not list((WORKSPACES / "financials").rglob("FinancialsPurchaseOrdersSection.qml"))
 
 
 def test_lifecycle_and_capability_restrictions_remain_on_real_actions() -> None:
     baselines = _read(
         WORKSPACES / "scheduling/panels/SchedulingBaselinesPanel.qml"
     )
-    timesheets = _read(WORKSPACES / "timesheets/TimesheetsWorkspaceState.qml")
+    timesheets = _read(WORKSPACES / "review_queue/TimesheetsWorkspaceState.qml")
 
     assert "pmCapabilityController.canApproveBaseline" in baselines
     assert "st.canApprove === true" in timesheets

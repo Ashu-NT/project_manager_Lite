@@ -50,10 +50,10 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "financials" / "cost" / "sections" / "FinancialsActualsSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "financials" / "shared" / "dialogs" / "FinancialsDialogHost.qml",
         UI_QML_ROOT
-        / "modules/project_management/qml/workspaces/financials/dialogs"
+        / "modules/project_management/qml/workspaces/financials/cost/dialogs"
         / "ManualActualEditorDialog.qml",
         UI_QML_ROOT
-        / "modules/project_management/qml/workspaces/financials/dialogs"
+        / "modules/project_management/qml/workspaces/financials/cost/dialogs"
         / "ActualLifecycleDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "resources" / "ResourcesWorkspacePage.qml",
         UI_QML_ROOT / "modules/project_management/qml/workspaces/projects/sections/ProjectsResourcesSection.qml",

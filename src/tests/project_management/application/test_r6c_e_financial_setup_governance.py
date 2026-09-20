@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from textwrap import dedent
 from types import SimpleNamespace
@@ -19,16 +19,18 @@ from src.core.modules.project_management.api.desktop.financials import (
     FinancialUpdateProfileCommand,
     ProjectManagementFinancialsDesktopApi,
 )
+from src.core.modules.project_management.application.financials.configuration_events import (
+    CostCodeProfileUpdated,
+    ProjectCostCodeRestrictionAdded,
+)
 from src.core.modules.project_management.application.financials.event_handlers.view_invalidation import (
     FINANCIAL_COST_CODE_CATALOG_SCOPE_CODE,
     FINANCIAL_COST_CODE_RESTRICTION_SCOPE_CODE,
     build_financial_profile_view_invalidation_handler,
 )
-from src.core.modules.project_management.application.financials.configuration_events import (
-    CostCodeProfileUpdated,
-    ProjectCostCodeRestrictionAdded,
+from src.core.modules.project_management.domain.financials.configuration import (
+    CostCodePolicy,
 )
-from src.core.modules.project_management.domain.financials.configuration import CostCodePolicy
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.shared.events.domain_event_context import DomainEventContext
@@ -36,7 +38,6 @@ from src.ui_qml.modules.project_management.controllers.financials.shared.financi
     FinancialsMutationMixin,
 )
 from src.ui_qml.shell.qml_engine import create_qml_engine
-
 
 VIEWPORTS = ((1024, 640), (1280, 720), (1366, 768), (1440, 900), (1920, 1080))
 DIALOGS = (
@@ -46,7 +47,7 @@ DIALOGS = (
     "FinancialSetupLifecycleDialog",
 )
 DIALOG_ROOT = Path(
-    "src/ui_qml/modules/project_management/qml/workspaces/financials/dialogs"
+    "src/ui_qml/modules/project_management/qml/workspaces/financials/governance/dialogs"
 ).resolve()
 SECTION_PATH = Path(
     "src/ui_qml/modules/project_management/qml/workspaces/financials/governance/sections/FinancialsProfileSection.qml"

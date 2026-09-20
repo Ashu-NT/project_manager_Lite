@@ -18,20 +18,6 @@ import QtQuick
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
-import workspaces.financials.budgets.sections 1.0
-import workspaces.financials.commitments.sections 1.0
-import workspaces.financials.cost.sections 1.0
-import workspaces.financials.cost_phasing.sections 1.0
-import workspaces.financials.earned_value.sections 1.0
-import workspaces.financials.financial_changes.sections 1.0
-import workspaces.financials.forecasts.sections 1.0
-import workspaces.financials.governance.sections 1.0
-import workspaces.financials.invoicing.sections 1.0
-import workspaces.financials.planned_costs.sections 1.0
-import workspaces.financials.rate_cards.sections 1.0
-import workspaces.financials.reporting.sections 1.0
-import workspaces.financials.revenue.sections 1.0
-import workspaces.financials.shared.sections 1.0
 
 Item {
     id: root

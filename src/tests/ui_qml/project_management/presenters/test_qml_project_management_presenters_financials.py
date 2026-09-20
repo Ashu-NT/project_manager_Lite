@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import logging
 from datetime import date
 from decimal import Decimal
-import logging
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,7 +10,6 @@ from PySide6.QtCore import Qt
 
 from src.core.modules.project_management.api.desktop.financials import (
     FinancialCreateCostCodeCommand,
-    FinancialCreateManualActualCommand,
     FinancialDecideActualCommand,
     FinancialPostActualCommand,
     FinancialReverseActualCommand,
@@ -22,9 +21,8 @@ from src.core.platform.common.exceptions import BusinessRuleError
 from src.ui_qml.modules.project_management.controllers.financials.financials_workspace_controller import (
     ProjectManagementFinancialsWorkspaceController,
 )
-from src.ui_qml.modules.project_management.presenters.financials.shared.command_handler import (
+from src.ui_qml.modules.project_management.presenters.financials.cost.commands import (
     approve_actual,
-    create_cost_code,
     delete_actual_draft,
     post_actual,
     reject_actual,
@@ -32,7 +30,9 @@ from src.ui_qml.modules.project_management.presenters.financials.shared.command_
     submit_actual,
     update_actual_draft,
 )
-
+from src.ui_qml.modules.project_management.presenters.financials.governance.commands import (
+    create_cost_code,
+)
 
 # ---------------------------------------------------------------------------
 # Presenter / command_handler layer — payload -> desktop-API command mapping.

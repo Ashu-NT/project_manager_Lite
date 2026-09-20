@@ -4,6 +4,22 @@ Status: R6C closed; R6D CLOSED; R6E CLOSED; R6F-A COMPLETE; R6F-B COMPLETE; R6F-
 Last updated: 2026-09-20
 Scope: Project Management finance plus reusable platform financial foundations
 
+## Pre-R6F-D UI Package Restructure
+
+Finance QML, presenters and controllers now use backend-aligned capability
+folders. Presenter commands and controller mutations are separated by capability;
+shared code retains only common helpers and workspace coordination. Old flat
+QML modules and Python import paths are removed, with no compatibility layer.
+See [Finance UI package structure](finance_ui_package_structure.md) for ownership
+and maintenance rules. R6F-D has not started.
+
+Validation: 670 targeted tests passed across PM presenters, Finance controllers,
+architecture guards, shared module checks, and relevant Finance application/API/
+Reader regressions. A separate final package-registration and Billing dialog
+runtime run passed 36 tests. Finance QML lint, targeted Ruff F/I, Python
+compilation, retired-path search and `git diff --check` passed. The unused
+Finance column-config script and temporary relocation scripts were removed.
+
 ## R6F-C Governed Billing Preparation Closure (2026-09-20)
 
 **R6F-C COMPLETE.** This closure supersedes the earlier September 14/19

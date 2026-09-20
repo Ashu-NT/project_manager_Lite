@@ -12,7 +12,6 @@ from PySide6.QtTest import QTest
 
 from src.ui_qml.shell.qml_engine import create_qml_engine
 
-
 VIEWPORTS = (
     (1024, 640),
     (1280, 720),
@@ -22,7 +21,7 @@ VIEWPORTS = (
 )
 DIALOGS = ("ForecastGenerationDialog", "ForecastLifecycleDialog")
 DIALOG_ROOT = Path(
-    "src/ui_qml/modules/project_management/qml/workspaces/financials/dialogs"
+    "src/ui_qml/modules/project_management/qml/workspaces/financials/forecasts/dialogs"
 ).resolve()
 
 

@@ -367,7 +367,7 @@ Window {
 
 def test_change_qml_contract_keeps_authoritative_tables_and_governed_actions():
     source = (
-        "src/ui_qml/modules/project_management/qml/workspaces/financials/sections/"
+        "src/ui_qml/modules/project_management/qml/workspaces/financials/financial_changes/sections/"
         "FinancialsChangeSection.qml"
     )
     text = open(source, encoding="utf-8").read()

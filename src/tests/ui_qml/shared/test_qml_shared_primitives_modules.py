@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 UI_QML_ROOT = Path("src/ui_qml")
 QML_SHARED_ROOT = Path("src/ui_qml/shared/qml/App")
 QML_PLATFORM_CONTROLLERS = Path("src/ui_qml/platform/qml/Platform/Controllers")
@@ -56,7 +55,7 @@ def test_qml_project_management_modules_exist() -> None:
         QML_PM_CONTROLLERS / "typeinfo" / "dashboard.fragment",
         QML_PM_CONTROLLERS / "typeinfo" / "catalog.fragment",
         UI_QML_ROOT
-        / "modules/project_management/qml/workspaces/financials/dialogs"
+        / "modules/project_management/qml/workspaces/financials/cost/dialogs"
         / "ManualActualEditorDialog.qml",
         UI_QML_ROOT
         / "modules/project_management/qml/workspaces/projects/dialogs"
