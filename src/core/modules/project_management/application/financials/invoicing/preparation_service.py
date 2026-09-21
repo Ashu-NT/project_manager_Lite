@@ -640,6 +640,11 @@ class ProjectBillingPreparationService(ProjectManagementModuleGuardMixin):
             external_system=external_system, idempotency_key=idempotency_key
         )
         if existing is not None:
+            if existing.preparation_id != preparation.id or existing.project_id != preparation.project_id:
+                raise BusinessRuleError(
+                    "Accounting outcome idempotency key belongs to another Billing Preparation.",
+                    code="BILLING_EXTERNAL_OUTCOME_SCOPE_MISMATCH",
+                )
             return existing
         resolved_type = BillingExternalEventType(event_type)
         event = ProjectBillingExternalEvent.create(

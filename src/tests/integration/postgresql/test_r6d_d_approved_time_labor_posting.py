@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
-from threading import Event
-from time import monotonic, sleep
 from datetime import date, datetime, timezone
 from decimal import Decimal
+from threading import Event
+from time import monotonic, sleep
 from types import SimpleNamespace
 
 import pytest
@@ -20,48 +20,57 @@ from src.core.modules.project_management.application.financials.cost.entries.app
 from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
     ProjectCostEntryService,
 )
+from src.core.modules.project_management.application.financials.governance.command_boundary import (
+    FinanceGovernanceCommandBoundary,
+)
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import (
     RateCardResolver,
 )
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_service import (
     ProjectRateCardService,
 )
-from src.core.modules.project_management.application.financials.governance.command_boundary import (
-    FinanceGovernanceCommandBoundary,
+from src.core.modules.project_management.contracts.financial_sources.reference import (
+    FinancialSourceModule,
+    FinancialSourceReference,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.finance_integration_facts import (
+    ApprovedTimePostingFailureQuery,
+)
+from src.core.modules.project_management.domain.financials.cost_entry import (
+    ProjectCostEntryStatus,
+)
+from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.modules.project_management.infrastructure.persistence.orm.cost_entry import (
     ProjectCostEntryORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.labor_posting import (
     ApprovedTimeLaborPostingORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_resolution_reader import (
-    SqlAlchemyRateResolutionReader,
+from src.core.modules.project_management.infrastructure.persistence.reads.financials.sqlalchemy_finance_integration_reader import (
+    SqlAlchemyFinanceIntegrationReader,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.finance.cost_entries.cost_entry import (
     SqlAlchemyProjectCostEntryRepository,
 )
-from src.core.modules.project_management.infrastructure.persistence.reads.financials.sqlalchemy_finance_integration_reader import (
-    SqlAlchemyFinanceIntegrationReader,
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_resolution_reader import (
+    SqlAlchemyRateResolutionReader,
 )
-from src.core.modules.project_management.contracts.reads.financials.models.finance_integration_facts import (
-    ApprovedTimePostingFailureQuery,
-)
-from src.core.modules.project_management.contracts.financial_sources.reference import (
-    FinancialSourceModule,
-    FinancialSourceReference,
-)
-from src.core.modules.project_management.domain.financials.cost_entry import ProjectCostEntryStatus
-from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.modules.project_management.infrastructure.persistence.uow.finance.finance_governance_unit_of_work import (
     SqlAlchemyFinanceGovernanceUnitOfWorkFactory,
 )
-from src.core.platform.application.finance.financial_period_service import FinancialPeriodService
+from src.core.platform.application.finance.financial_period_service import (
+    FinancialPeriodService,
+)
 from src.core.platform.application.integration import IntegrationOutboxService
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds
-from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.domain.security.identity.service_principal import ServicePrincipal
+from src.core.platform.domain.security.auth.session import (
+    UserSessionContext,
+    UserSessionPrincipal,
+)
+from src.core.platform.domain.security.identity.service_principal import (
+    ServicePrincipal,
+)
 from src.core.platform.finance import DecimalQuantity, DecimalQuantityPayload
 from src.core.platform.infrastructure.persistence.repositories.time_management.time_financial_outbox import (
     SqlAlchemyTimeFinancialOutboxRepository,
@@ -72,13 +81,16 @@ from src.core.platform.integration import (
     IntegrationEventEnvelope,
 )
 from src.core.platform.integration.canonical_json import canonical_json_sha256
-from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+from src.infra.events.in_process_post_commit_event_bus import (
+    InProcessPostCommitEventBus,
+)
 from src.infra.events.in_process_transactional_event_dispatcher import (
     InProcessTransactionalEventDispatcher,
 )
-from src.infra.integration.approved_time_dispatcher import ApprovedTimeFinancialDispatcher
+from src.infra.integration.approved_time_dispatcher import (
+    ApprovedTimeFinancialDispatcher,
+)
 from src.infra.persistence.db.postgresql_rls import validate_postgresql_execution_role
-
 
 pytestmark = pytest.mark.postgresql_integration
 
@@ -753,7 +765,7 @@ def test_governed_rate_edit_races_labor_post_without_mixed_provenance(
                 RATE_LINE_RACE, expected_version=2, rate_amount=Decimal("60")
             ))
         boundary.rate_card(lambda service: service.update_line(
-            RATE_LINE_RACE, expected_version=2, effective_to=date(2026, 9, 20)
+            RATE_LINE_RACE, expected_version=2, effective_to=max(date.today(), date(2026, 9, 20))
         ))
         with postgres_test_environment.admin_engine.connect() as connection:
             persisted = connection.execute(text(

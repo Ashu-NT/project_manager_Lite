@@ -133,3 +133,28 @@ def test_billing_rate_race_preserves_complete_immutable_snapshot(postgres_test_e
         saved = repo.list_preparation_lines(preparation_id)[0]
         assert (saved.rate_card_version, saved.rate_line_version, saved.unit_rate, saved.net_amount) == (1, 1, Decimal("120"), Decimal("285"))
         assert session.scalar(text("SELECT rate_amount FROM project_finance_rate_card_lines WHERE id=:id"), {"id": line_id}) == Decimal("240")
+        preparation = repo.get_preparation(preparation_id)
+        version = preparation.row_version
+        preparation.submit(
+            submitted_by="billing-rate-user", submitted_at=now, approval_request_id="rate-evidence-review"
+        )
+        preparation.approve(approved_by="independent-reviewer", approved_at=now)
+        repo.update_preparation(preparation, expected_row_version=version)
+        session.commit()
+    # A later edit/deactivation must not revalue already approved billing evidence.
+    with env.runtime_session(tenant_id=labor.TENANT_A, organization_id=labor.ORG_A) as session:
+        validate_postgresql_execution_role(session)
+        session.execute(text(
+            "UPDATE project_finance_rate_card_lines SET rate_amount=360, is_active=false, version=3 WHERE id=:id"
+        ), {"id": line_id})
+        session.execute(text(
+            "UPDATE project_finance_rate_cards SET is_active=false, version=3 WHERE id=:id"
+        ), {"id": card_id})
+        session.commit()
+    with env.runtime_session(tenant_id=labor.TENANT_A, organization_id=labor.ORG_A) as session:
+        validate_postgresql_execution_role(session)
+        repo = SqlAlchemyProjectBillingRepository(session)
+        repo._tenant_context_service = scope
+        historical = repo.list_preparation_lines(preparation_id)[0]
+        assert historical == saved
+        assert repo.get_preparation(preparation_id).status.value == "approved"

@@ -895,6 +895,40 @@ def test_billing_refresh_rejects_stale_a_b_c_selection_responses(controller) -> 
     )
 
 
+@pytest.mark.parametrize("switch", ["project", "subsection"])
+def test_commercial_projection_discards_results_after_context_switch(controller, switch) -> None:
+    controller._workspace_loaded = True
+    controller._shell_loaded = True
+    controller._active_destination = "commercial"
+    controller._active_subsection = "profitability"
+    controller._set_selected_project_id("project-a")
+    stale, current = object(), object()
+    requests = []
+
+    def build_destination_state(**kwargs):
+        requests.append(kwargs)
+        if len(requests) == 1:
+            if switch == "project":
+                controller._set_selected_project_id("project-b")
+            else:
+                controller._active_subsection = "billing"
+            controller.refresh()
+            return stale
+        return current
+
+    controller._financials_workspace_presenter.build_destination_state = MagicMock(
+        side_effect=build_destination_state
+    )
+    controller._apply_destination_state = MagicMock()
+    controller.refresh()
+
+    assert len(requests) == 2
+    assert controller.selectedProjectId == ("project-b" if switch == "project" else "project-a")
+    controller._apply_destination_state.assert_called_once_with(
+        "commercial", "profitability" if switch == "project" else "billing", current
+    )
+
+
 def test_billing_project_switch_clears_master_detail_and_lines(controller) -> None:
     controller.refresh = MagicMock()
     controller._set_selected_project_id("project-a")
