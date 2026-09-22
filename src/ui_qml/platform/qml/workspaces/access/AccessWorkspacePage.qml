@@ -318,7 +318,7 @@ AppLayouts.WorkspaceFrame {
                 onCreateRequested: assignDialog.open()
                 onRowSelected: function(id) { root.selectedGrantId = id }
                 onRowActivated: function(id) { root.selectedGrantId = id; root.detailOpen = true }
-                onRefreshRequested: { if (root.controller) root.controller.refresh() }
+                onRefreshRequested: { if (root.controller) { root.controller.clearMessages(); root.controller.refresh() } }
             }
 
             AppWidgets.InspectorPanel {
@@ -352,7 +352,7 @@ AppLayouts.WorkspaceFrame {
                 showCustomize: true
                 showRefresh: true
                 isBusy: root.busy
-                onRefreshRequested: { if (root.controller) root.controller.refresh() }
+                onRefreshRequested: { if (root.controller) { root.controller.clearMessages(); root.controller.refresh() } }
                 onCustomizeClicked: _securityTable.openColumnCustomizer(_securityToolbar.customizeButtonItem)
             }
 

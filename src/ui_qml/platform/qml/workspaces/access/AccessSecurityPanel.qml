@@ -108,7 +108,7 @@ ColumnLayout {
         Layout.fillWidth: true
         showRefresh: true
         isBusy:      root.controller ? root.controller.isBusy : false
-        onRefreshRequested: { if (root.controller) root.controller.refresh() }
+        onRefreshRequested: { if (root.controller) { root.controller.clearMessages(); root.controller.refresh() } }
     }
 
     // ── Inline state banners ──────────────────────────────────────

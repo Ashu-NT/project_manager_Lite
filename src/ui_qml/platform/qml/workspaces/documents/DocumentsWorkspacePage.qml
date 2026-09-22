@@ -172,7 +172,7 @@ AppLayouts.WorkspaceFrame {
                 onCreateRequested: dialogHostLoader.invoke("openDocumentCreate")
                 onRowSelected: function(id) { root.selectedRowId = id; root.inspectDocument(id) }
                 onRowActivated: function(id) { root.selectedRowId = id; root.detailOpen = true; root.inspectDocument(id) }
-                onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
+                onRefreshRequested: { if (root.workspaceController) { root.workspaceController.clearMessages(); root.workspaceController.refresh() } }
             }
 
             AppWidgets.InspectorPanel {

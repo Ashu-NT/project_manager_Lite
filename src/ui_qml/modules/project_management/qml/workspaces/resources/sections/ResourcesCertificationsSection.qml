@@ -72,8 +72,10 @@ Item {
                     root.workspaceController.setResourceCertificationsSearch(text)
             }
             onRefreshRequested: {
-                if (root.workspaceController)
+                if (root.workspaceController) {
+                    root.workspaceController.clearMessages()
                     root.workspaceController.refreshResourceCertifications()
+                }
             }
 
             AppControls.ComboBox {

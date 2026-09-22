@@ -23,7 +23,7 @@ Item {
             searchText: String(root.projectActivityModel.searchText || "")
             searchPlaceholder: "Search event or summary..."
             onSearchChanged: function(text) { root.workspaceController.setProjectActivitySearch(text) }
-            onRefreshRequested: root.workspaceController.loadProjectActivity()
+            onRefreshRequested: { root.workspaceController.clearMessages(); root.workspaceController.loadProjectActivity() }
             AppControls.ComboBox {
                 implicitWidth: 145; textRole: "label"
                 model: [{"value":"all","label":"All activity"},{"value":"project","label":"Project changes"},

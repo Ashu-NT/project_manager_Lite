@@ -247,6 +247,7 @@ Item {
 
     function _refreshActivityPage() {
         if (!detailRoot.workspaceController || detailRoot._orgId.length === 0) return
+        detailRoot.workspaceController.clearMessages()
         detailRoot._activityCatalog = detailRoot.workspaceController.organizationActivityPage(
             detailRoot._orgId, detailRoot._activityPage, detailRoot._activityPageSize,
             detailRoot._activitySearch, detailRoot._activityTypeFilter, detailRoot._activityDateFilter
@@ -423,6 +424,7 @@ Item {
 
     function _refreshSites() {
         if (!detailRoot.workspaceController || detailRoot._orgId.length === 0) return
+        detailRoot.workspaceController.clearMessages()
         detailRoot._sitesCatalog = detailRoot.workspaceController.organizationSitesPage(
             detailRoot._orgId, detailRoot._sitesPage, detailRoot._sitesPageSize,
             detailRoot._sitesSearch, detailRoot._sitesStatusFilter
@@ -490,6 +492,7 @@ Item {
 
     function _refreshDepartments() {
         if (!detailRoot.workspaceController || detailRoot._orgId.length === 0) return
+        detailRoot.workspaceController.clearMessages()
         detailRoot._departmentsCatalog = detailRoot.workspaceController.organizationDepartmentsPage(
             detailRoot._orgId, detailRoot._departmentsPage, detailRoot._departmentsPageSize,
             detailRoot._departmentsSearch, detailRoot._departmentsStatusFilter
@@ -558,6 +561,7 @@ Item {
 
     function _refreshEmployees() {
         if (!detailRoot.workspaceController || detailRoot._orgId.length === 0) return
+        detailRoot.workspaceController.clearMessages()
         detailRoot._employeesCatalog = detailRoot.workspaceController.organizationEmployeesPage(
             detailRoot._orgId, detailRoot._employeesPage, detailRoot._employeesPageSize,
             detailRoot._employeesSearch, detailRoot._employeesStatusFilter
@@ -626,6 +630,7 @@ Item {
 
     function _refreshDocuments() {
         if (!detailRoot.workspaceController || detailRoot._orgId.length === 0) return
+        detailRoot.workspaceController.clearMessages()
         detailRoot._documentsCatalog = detailRoot.workspaceController.organizationDocumentsPage(
             detailRoot._orgId, detailRoot._documentsPage, detailRoot._documentsPageSize,
             detailRoot._documentsSearch, detailRoot._documentsStatusFilter

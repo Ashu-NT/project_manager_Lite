@@ -288,6 +288,7 @@ AppLayouts.WorkspaceFrame {
                 onFilterClicked: root._openFilterPopup()
                 onRefreshRequested: {
                     if (root.workspaceController !== null) {
+                        root.workspaceController.clearMessages()
                         root.workspaceController.refresh()
                     }
                 }
@@ -623,6 +624,7 @@ AppLayouts.WorkspaceFrame {
                     }
                     onCollaborationRefreshRequested: {
                         if (root.workspaceController !== null) {
+                            root.workspaceController.clearMessages()
                             root.workspaceController.loadSelectedTaskCollaboration()
                         }
                     }

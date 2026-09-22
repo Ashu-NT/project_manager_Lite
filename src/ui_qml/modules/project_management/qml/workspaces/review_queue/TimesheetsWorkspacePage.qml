@@ -91,8 +91,10 @@ AppLayouts.WorkspaceFrame {
             }
             onFilterClicked: filterPopup.open()
             onRefreshRequested: {
-                if (root.workspaceController !== null)
+                if (root.workspaceController !== null) {
+                    root.workspaceController.clearMessages()
                     root.workspaceController.refresh()
+                }
             }
         }
 

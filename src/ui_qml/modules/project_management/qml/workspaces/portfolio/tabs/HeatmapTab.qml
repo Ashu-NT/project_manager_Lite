@@ -34,7 +34,7 @@ Item {
             onSearchChanged: function(text) {
                 if (root.workspaceController !== null) root.workspaceController.setHeatmapSearchText(text)
             }
-            onRefreshRequested: { if (root.workspaceController !== null) root.workspaceController.refresh() }
+            onRefreshRequested: { if (root.workspaceController !== null) { root.workspaceController.clearMessages(); root.workspaceController.refresh() } }
         }
 
         Item {

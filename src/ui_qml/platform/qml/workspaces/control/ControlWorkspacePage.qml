@@ -186,7 +186,7 @@ AppLayouts.WorkspaceFrame {
                         isBusy:            root._busy
                         onSearchChanged:   function(text) { state.searchText = text }
                         onFilterClicked:   approvalFilterPopup.open()
-                        onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
+                        onRefreshRequested: { if (root.workspaceController) { root.workspaceController.clearMessages(); root.workspaceController.refresh() } }
                     }
 
                     AppWidgets.DataTable {
@@ -224,7 +224,7 @@ AppLayouts.WorkspaceFrame {
                         showRefresh: true
                         isBusy:      root._busy
                         onFilterClicked:    auditFilterPopup.open()
-                        onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
+                        onRefreshRequested: { if (root.workspaceController) { root.workspaceController.clearMessages(); root.workspaceController.refresh() } }
                     }
 
                     Flickable {

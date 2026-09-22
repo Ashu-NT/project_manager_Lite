@@ -42,7 +42,7 @@ Item {
             searchPlaceholder: "Search task name or description..."
             showFilter: false; showRefresh: true; isBusy: root.isBusy
             onSearchChanged: function(text) { if (root.workspaceController) root.workspaceController.setProjectTasksSearch(text) }
-            onRefreshRequested: { if (root.workspaceController) root.workspaceController.loadProjectTasks() }
+            onRefreshRequested: { if (root.workspaceController) { root.workspaceController.clearMessages(); root.workspaceController.loadProjectTasks() } }
             AppControls.ComboBox {
                 id: statusFilter; implicitWidth: 130; textRole: "label"
                 model: [{"value":"all","label":"All statuses"},{"value":"TODO","label":"To do"},

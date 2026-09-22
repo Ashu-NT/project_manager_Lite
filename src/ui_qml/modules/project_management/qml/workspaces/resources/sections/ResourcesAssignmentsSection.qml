@@ -83,7 +83,10 @@ Item {
                 if (root.workspaceController) root.workspaceController.setResourceAssignmentsSearch(text)
             }
             onRefreshRequested: {
-                if (root.workspaceController) root.workspaceController.refreshResourceAssignments()
+                if (root.workspaceController) {
+                    root.workspaceController.clearMessages()
+                    root.workspaceController.refreshResourceAssignments()
+                }
             }
 
             AppControls.ComboBox {

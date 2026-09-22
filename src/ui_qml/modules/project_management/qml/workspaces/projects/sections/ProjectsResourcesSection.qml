@@ -68,7 +68,10 @@ Item {
             }
             onRefreshRequested: {
                 const ctrl = root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
-                if (ctrl) ctrl.loadProjectResources()
+                if (ctrl) {
+                    ctrl.clearMessages()
+                    ctrl.loadProjectResources()
+                }
             }
             AppControls.ComboBox {
                 implicitWidth: 125

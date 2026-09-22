@@ -100,6 +100,7 @@ AppLayouts.WorkspaceFrame {
 
             onRefreshRequested: function() {
                 if (root.workspaceController !== null) {
+                    root.workspaceController.clearMessages()
                     root.workspaceController.refresh()
                 }
             }

@@ -32,7 +32,7 @@ Item {
             onSearchChanged: function(text) {
                 if (root.workspaceController !== null) root.workspaceController.setDependencySearchText(text)
             }
-            onRefreshRequested: { if (root.workspaceController !== null) root.workspaceController.refresh() }
+            onRefreshRequested: { if (root.workspaceController !== null) { root.workspaceController.clearMessages(); root.workspaceController.refresh() } }
         }
 
         Item {

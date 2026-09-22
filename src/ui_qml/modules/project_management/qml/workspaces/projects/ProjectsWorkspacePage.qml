@@ -205,7 +205,10 @@ AppLayouts.WorkspaceFrame {
                 }
                 onFilterClicked: filterPopup.open()
                 onRefreshRequested: {
-                    if (root.workspaceController !== null) root.workspaceController.refresh()
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.clearMessages()
+                        root.workspaceController.refresh()
+                    }
                 }
                 onImportRequested: {
                     if (root.pmCatalog ? root.pmCatalog.pmCapabilityController.canImport : false)

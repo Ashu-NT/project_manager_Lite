@@ -22,7 +22,7 @@ Item {
             Layout.fillWidth: true; showFilter: false; showRefresh: true; isBusy: root.isBusy
             searchText: String(root.activityModel.searchText || ""); searchPlaceholder: "Search event or summary..."
             onSearchChanged: function(text) { root.workspaceController.setTaskActivitySearch(text) }
-            onRefreshRequested: root.workspaceController.loadSelectedTaskActivity()
+            onRefreshRequested: { root.workspaceController.clearMessages(); root.workspaceController.loadSelectedTaskActivity() }
             AppControls.ComboBox {
                 implicitWidth: 145; textRole: "label"
                 model: [{"value":"all","label":"All activity"},{"value":"task","label":"Task changes"},

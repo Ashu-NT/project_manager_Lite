@@ -44,7 +44,7 @@ Item {
                 if (root.workspaceController !== null) root.workspaceController.setIntakeSearchText(text)
             }
             onFilterClicked: filterPopup.open()
-            onRefreshRequested: { if (root.workspaceController !== null) root.workspaceController.refresh() }
+            onRefreshRequested: { if (root.workspaceController !== null) { root.workspaceController.clearMessages(); root.workspaceController.refresh() } }
         }
 
         Item {

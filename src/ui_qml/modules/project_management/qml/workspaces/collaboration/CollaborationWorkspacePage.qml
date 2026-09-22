@@ -66,7 +66,7 @@ AppLayouts.WorkspaceFrame {
             onTeamChanged: function(value) { if (root.workspaceController) root.workspaceController.setSelectedTeamId(value) }
             onPeriodChanged: function(value) { if (root.workspaceController) root.workspaceController.setSelectedPeriodKey(value) }
             onUnreadChanged: function(value) { if (root.workspaceController) root.workspaceController.setSelectedUnreadKey(value) }
-            onRefreshRequested: { if (root.workspaceController !== null) root.workspaceController.refresh() }
+            onRefreshRequested: { if (root.workspaceController !== null) { root.workspaceController.clearMessages(); root.workspaceController.refresh() } }
         }
 
         AppWidgets.KpiStrip {
@@ -226,7 +226,7 @@ AppLayouts.WorkspaceFrame {
                             if (state.activePanelId !== "activity")
                                 panelTable.openColumnCustomizer(panelToolbar.customizeButtonItem)
                         }
-                        onRefreshRequested: { if (root.workspaceController !== null) root.workspaceController.refresh() }
+                        onRefreshRequested: { if (root.workspaceController !== null) { root.workspaceController.clearMessages(); root.workspaceController.refresh() } }
                     }
 
                     Item {

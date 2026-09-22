@@ -135,7 +135,7 @@ Item {
             onSearchChanged:   function(text) { if (root.workspaceController !== null) root.workspaceController.setSearchText(text) }
             onFilterClicked:   filterPopup.open()
             onCustomizeClicked: registerTable.openColumnCustomizer(tableToolbar.customizeButtonItem)
-            onRefreshRequested: { if (root.workspaceController !== null) root.workspaceController.refresh() }
+            onRefreshRequested: { if (root.workspaceController !== null) { root.workspaceController.clearMessages(); root.workspaceController.refresh() } }
             onCreateRequested: root.createRequested()
         }
 

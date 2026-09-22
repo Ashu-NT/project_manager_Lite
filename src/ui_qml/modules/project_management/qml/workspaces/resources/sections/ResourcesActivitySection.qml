@@ -65,7 +65,10 @@ Item {
             showRefresh: true
             isBusy: root.workspaceController ? root.workspaceController.resourceActivityLoading : false
             onRefreshRequested: {
-                if (root.workspaceController) root.workspaceController.refreshResourceActivity()
+                if (root.workspaceController) {
+                    root.workspaceController.clearMessages()
+                    root.workspaceController.refreshResourceActivity()
+                }
             }
 
             AppControls.ComboBox {
