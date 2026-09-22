@@ -604,16 +604,6 @@ Item {
         AppWidgets.ContextualActionToolbar {
             id: _sectionToolbar
             detailPagePinned: true
-            // Sites/Departments/Employees/Documents already have their own
-            // full header (title + count) and toolbar (search/filter/
-            // Columns/Refresh/+New) via AdminEntityWorkspace below, and
-            // Activity has its own search/type/date/Refresh toolbar --
-            // showing this generic per-section toolbar too would duplicate
-            // both the heading and the Refresh button. `visible: false`
-            // alone leaves a blank gap: the sticky header area sizes
-            // itself from `childrenRect`, which (unlike a Column's own
-            // layout pass) does NOT exclude invisible children -- the
-            // height must be collapsed explicitly.
             visible: detailRoot._activeSectionLabel !== "Sites"
                 && detailRoot._activeSectionLabel !== "Departments"
                 && detailRoot._activeSectionLabel !== "Employees"
@@ -965,11 +955,6 @@ Item {
                             detailRoot._documentsStatusFilter = value
                             detailRoot._documentsPage = 1
                             detailRoot._refreshDocuments()
-                        }
-                        onDocumentLinkCreateRequested: {
-                            if (detailRoot.workspaceController && detailRoot.workspaceController.selectedDocument.hasSelection) {
-                                detailRoot.actionRequested("create_document_link")
-                            }
                         }
                     }
                 }

@@ -4,14 +4,15 @@ import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Models 1.0 as AppModels
 import Platform.Components 1.0 as PlatformComponents
-import workspaces.departments 1.0 as DepartmentsWorkspace
 
 // Organization Detail's Departments tab: same tenant-scoped, paginated
-// pattern as OrganizationSitesSection. Row activation opens the same
-// AdminDepartmentDetailPage the standalone Departments workspace uses. All
-// state (catalog/page/search/filter/selection) is owned by the
-// orchestrator (AdminOrganizationDetailPage.qml); this section is
-// presentational and emits signals for every user action.
+// pattern as OrganizationSitesSection. Row activation navigates to the
+// standalone Departments workspace's own detail page (see
+// AdminOrganizationDetailPage.qml's relatedRecordRequested) rather than
+// nesting a second copy of that detail UI here. All state (catalog/page/
+// search/filter/selection) is owned by the orchestrator
+// (AdminOrganizationDetailPage.qml); this section is presentational and
+// emits signals for every user action.
 Item {
     id: root
 
@@ -30,8 +31,6 @@ Item {
     property string searchText: ""
     property var statusFilterOptions: []
     property string statusFilter: ""
-    property bool detailOpen: false
-    property var selectedDepartment: null
 
     signal createRequested()
     signal rowSelected(string id)
@@ -42,8 +41,6 @@ Item {
     signal pageSizeRequested(int pageSize)
     signal clearFiltersRequested()
     signal statusFilterRequested(string value)
-    signal detailBackRequested()
-    signal detailActionRequested(string actionId)
 
     width: parent ? parent.width : 0
     height: root.viewportHeight
@@ -56,7 +53,6 @@ Item {
     PlatformComponents.AdminEntityWorkspace {
         id: _workspace
         anchors.fill: parent
-        visible: !root.detailOpen
         sectionTitle: "Departments"
         entityLabel: "Department"
         catalog: root.catalog
@@ -96,29 +92,5 @@ Item {
         onPageRequested: function(page) { root.pageRequested(page) }
         onPageSizeRequested: function(pageSize) { root.pageSizeRequested(pageSize) }
         onClearFiltersRequested: root.clearFiltersRequested()
-    }
-
-    Loader {
-        anchors.fill: parent
-        active: root.detailOpen
-        visible: active
-        asynchronous: true
-
-        sourceComponent: Component {
-            DepartmentsWorkspace.AdminDepartmentDetailPage {
-                platformCatalog: root.platformCatalog
-                department: root.selectedDepartment || ({})
-                employeeCatalog: root.workspaceController
-                    ? root.workspaceController.employees
-                    : ({ "items": [] })
-                canWrite: root.canWrite
-                busy: root.busy
-                errorMessage: root.errorMessage
-                feedbackMessage: root.feedbackMessage
-
-                onBackRequested: root.detailBackRequested()
-                onActionRequested: function(actionId) { root.detailActionRequested(actionId) }
-            }
-        }
     }
 }

@@ -4,26 +4,24 @@ import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Models 1.0 as AppModels
 import Platform.Components 1.0 as PlatformComponents
-import workspaces.documents 1.0 as DocumentsWorkspace
 
 // Organization Detail's Documents tab: same tenant-scoped, paginated
-// pattern as Sites/Departments/Employees for the LIST itself. Row
-// activation to the full nested detail page is different, though: unlike
-// those entities' detail pages (which only need the row's own state),
-// AdminDocumentsDetailPage also needs `selectedDocument`/`documentPreview`/
-// `documentLinks`, which the shared workspaceController populates via
-// `selectDocument(id)` -- and that call is itself STILL active-organization
-// -scoped internally (DocumentService.list_documents()/_require_document_
-// in_context() both resolve the active org, not an explicit one). Opening
-// the nested detail for a document that belongs to a DIFFERENT
-// (non-active) organization would silently resolve the wrong document's
-// focus state. So row activation to the full detail page is gated to only
-// the organization the caller is actually viewing AND has switched into
-// (`isViewingActiveOrganization`, the same flag that already gates
-// "+ New") -- see the Phase K Documents report for the full reasoning.
-// All list state (catalog/page/search/filter/selection) is owned by the
-// orchestrator (AdminOrganizationDetailPage.qml); this section is
-// presentational and emits signals for every user action.
+// pattern as Sites/Departments/Employees for the LIST. Row activation
+// navigates to the standalone Documents workspace's own detail page (see
+// AdminOrganizationDetailPage.qml's relatedRecordRequested) rather than
+// nesting a second copy of that detail UI here. That navigation still needs
+// the same gate as before, though: the shared workspaceController's
+// selectDocument(id)/inspectDocument(id) calls resolve the ACTIVE
+// organization internally (DocumentService.list_documents()/_require_
+// document_in_context() both do), so activating a row for a document that
+// belongs to a DIFFERENT (non-active) organization would resolve the wrong
+// document. Row activation therefore stays gated to only the organization
+// the caller is actually viewing AND has switched into
+// (isViewingActiveOrganization, the same flag that already gates "+ New")
+// -- see the Phase K Documents report for the full reasoning. All list
+// state (catalog/page/search/filter/selection) is owned by the orchestrator
+// (AdminOrganizationDetailPage.qml); this section is presentational and
+// emits signals for every user action.
 Item {
     id: root
 
@@ -43,8 +41,6 @@ Item {
     property string searchText: ""
     property var statusFilterOptions: []
     property string statusFilter: ""
-    property bool detailOpen: false
-    property var selectedDocumentItem: null
 
     signal createRequested()
     signal rowSelected(string id)
@@ -55,9 +51,6 @@ Item {
     signal pageSizeRequested(int pageSize)
     signal clearFiltersRequested()
     signal statusFilterRequested(string value)
-    signal detailBackRequested()
-    signal detailActionRequested(string actionId)
-    signal documentLinkCreateRequested()
 
     width: parent ? parent.width : 0
     height: root.viewportHeight
@@ -70,7 +63,6 @@ Item {
     PlatformComponents.AdminEntityWorkspace {
         id: _workspace
         anchors.fill: parent
-        visible: !root.detailOpen
         sectionTitle: "Documents"
         entityLabel: "Document"
         catalog: root.catalog
@@ -115,30 +107,5 @@ Item {
         onPageRequested: function(page) { root.pageRequested(page) }
         onPageSizeRequested: function(pageSize) { root.pageSizeRequested(pageSize) }
         onClearFiltersRequested: root.clearFiltersRequested()
-    }
-
-    Loader {
-        anchors.fill: parent
-        active: root.detailOpen && root.isViewingActiveOrganization
-        visible: active
-        asynchronous: true
-
-        sourceComponent: Component {
-            DocumentsWorkspace.AdminDocumentsDetailPage {
-                document: root.selectedDocumentItem || ({})
-                canWrite: root.canWrite
-                selectedDocument: root.workspaceController ? root.workspaceController.selectedDocument : ({})
-                documentPreviewState: root.workspaceController ? root.workspaceController.documentPreview : ({})
-                documentLinkCatalog: root.workspaceController ? root.workspaceController.documentLinks : ({ "items": [] })
-                workspaceController: root.workspaceController
-                busy: root.busy
-                errorMessage: root.errorMessage
-                feedbackMessage: root.feedbackMessage
-
-                onBackRequested: root.detailBackRequested()
-                onActionRequested: function(actionId) { root.detailActionRequested(actionId) }
-                onDocumentLinkCreateRequested: root.documentLinkCreateRequested()
-            }
-        }
     }
 }

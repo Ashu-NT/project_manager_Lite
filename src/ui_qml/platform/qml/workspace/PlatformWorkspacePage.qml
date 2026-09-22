@@ -119,6 +119,7 @@ Item {
         else if (destinationId === "sites") _sitesLoader.item.openRecord(rowId)
         else if (destinationId === "departments") _departmentsLoader.item.openRecord(rowId)
         else if (destinationId === "employees") _employeesLoader.item.openRecord(rowId)
+        else if (destinationId === "documents") _documentsLoader.item.openRecord(rowId)
         else if (destinationId === "parties") _partiesLoader.item.openRecord(rowId)
         else if (destinationId === "calendars") _calendarsLoader.item.openRecord(rowId)
     }
@@ -501,6 +502,9 @@ Item {
                             platformCatalog: root.platformCatalog
                             breadcrumb: root.breadcrumb
                             onNavigateToDestination: function(destinationId) { root._selectDestination(destinationId) }
+                            onRelatedRecordRequested: function(destinationId, rowId) {
+                                root._onRelatedRecordRequested(destinationId, rowId)
+                            }
                         }
                     }
                 }

@@ -25,6 +25,12 @@ AppLayouts.WorkspaceFrame {
     // Platform destination (e.g. the merged Control -> Audit) without
     // depending on the Admin Console facade's own internal sections.
     signal navigateToDestination(string destinationId)
+    // Bubbled from AdminOrganizationDetailPage: a Sites/Departments/
+    // Employees/Documents row activated there opens on that entity's own
+    // standalone workspace detail page (see PlatformWorkspacePage's
+    // _onRelatedRecordRequested) -- same mechanism Sites/Departments already
+    // use for their own related-record links.
+    signal relatedRecordRequested(string destinationId, string rowId)
 
     property var organizationCatalog: root.workspaceController
         ? root.workspaceController.organizations
@@ -512,6 +518,9 @@ AppLayouts.WorkspaceFrame {
                     onBackRequested: root.closeDetail()
                     onNavigateToDestination: function(destinationId) {
                         root.navigateToDestination(destinationId)
+                    }
+                    onRelatedRecordRequested: function(destinationId, rowId) {
+                        root.relatedRecordRequested(destinationId, rowId)
                     }
 
                     onActionRequested: function(actionId) {

@@ -3,8 +3,9 @@ load of AdminOrganizationDetailPage.qml's Activity tab against a fully-wired
 PlatformWorkspaceCatalog -- proves the paginated/searchable read is wired
 correctly end-to-end, including while viewing a NON-active organization,
 and that activating a Site/Department/Employee/Document activity row
-switches this page's own tab and opens that entity's nested Detail (the
-scoped-routing principle applied to Activity row activation)."""
+requests navigation to that entity's own standalone workspace detail page
+(relatedRecordRequested) rather than switching this page's own tab and
+nesting a second copy of that detail UI inline."""
 
 from __future__ import annotations
 
@@ -105,7 +106,7 @@ def test_activity_tab_loads_real_paginated_data_for_a_non_active_organization(se
         qInstallMessageHandler(previous_handler)
 
 
-def test_activating_a_site_activity_row_switches_tab_and_opens_site_detail(services, qapp) -> None:
+def test_activating_a_site_activity_row_requests_navigation_to_site_detail(services, qapp) -> None:
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     site_service = services["site_service"]
@@ -136,14 +137,19 @@ def test_activating_a_site_activity_row_switches_tab_and_opens_site_detail(servi
         for _ in range(20):
             QCoreApplication.processEvents()
 
+        requests: list[tuple[str, str]] = []
+        root.relatedRecordRequested.connect(lambda destination_id, row_id: requests.append((destination_id, row_id)))
+
         assert QMetaObject.invokeMethod(
             root, "_openEntityFromActivity", Q_ARG("QVariant", "site"), Q_ARG("QVariant", site.id)
         )
         for _ in range(20):
             QCoreApplication.processEvents()
 
-        assert root.property("activeSectionIndex") == 1
-        assert root.property("_sitesDetailOpen") is True
+        # Navigates away to the Sites workspace's own detail page rather
+        # than switching this page's own tab and nesting a copy of it here.
+        assert requests == [("sites", site.id)]
+        assert root.property("activeSectionIndex") == 5
         assert root.property("_sitesSelectedRowId") == site.id
 
         relevant = [
