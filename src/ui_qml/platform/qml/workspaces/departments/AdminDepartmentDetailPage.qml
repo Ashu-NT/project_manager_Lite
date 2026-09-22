@@ -31,7 +31,10 @@ Item {
 
     readonly property var _state: (root.department && root.department.state) ? root.department.state : ({})
     readonly property string _title: String(root.department && root.department.title ? root.department.title : "Department")
-    readonly property string _status: String(root.department && root.department.statusLabel ? root.department.statusLabel : "")
+    readonly property var _statusLabelValue: root.department ? root.department.statusLabel : null
+    readonly property string _status: (root._statusLabelValue && typeof root._statusLabelValue === "object")
+        ? String(root._statusLabelValue.label || "")
+        : String(root._statusLabelValue || "")
     readonly property string _subtitle: String(root.department && root.department.subtitle ? root.department.subtitle : "")
     readonly property bool _isActive: root._state.isActive === true
     readonly property bool _pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false

@@ -551,6 +551,19 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     def toggleDepartmentActive(self, department_id: str) -> dict[str, object]:
         return toggle_department_active(self, department_id)
 
+    @Slot(str, int, int, str, str, result="QVariantMap")
+    def organizationDepartmentsPage(
+        self,
+        organization_id: str,
+        page: int,
+        page_size: int,
+        search: str,
+        status: str,
+    ) -> dict[str, object]:
+        return self._department_controller.organizationDepartmentsPage(
+            organization_id, page, page_size, search, status
+        )
+
     # ── Employee slots ────────────────────────────────────────────────────
 
     @Slot("QVariantMap", result="QVariantMap")

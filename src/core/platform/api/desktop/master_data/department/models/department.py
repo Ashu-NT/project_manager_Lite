@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 
 
 @dataclass(frozen=True)
@@ -18,6 +19,17 @@ class DepartmentDto:
     is_active: bool
     notes: str
     version: int
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+@dataclass(frozen=True)
+class DepartmentPageDto:
+    items: tuple[DepartmentDto, ...] = ()
+    total: int = 0
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = 25
 
 
 @dataclass(frozen=True)

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+
 from sqlalchemy.orm import Session
 
-from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.common.ids import generate_id
+from src.core.platform.access.authorization import filter_scope_rows
 from src.core.platform.contract.read.overview.platform_overview_rollup_reader import (
     DepartmentRollupSummary,
     PlatformOverviewRollupReader,
@@ -23,6 +26,19 @@ from .department_access import require_department_read_access
 from .department_context import active_organization
 from . import department_commands as _cmd
 from . import department_queries as _queries
+
+
+_DEFAULT_DEPARTMENT_PAGE_SIZE = 25
+DEPARTMENT_PAGE_SIZE_OPTIONS: tuple[int, ...] = (25, 50, 100)
+
+
+@dataclass(frozen=True)
+class DepartmentPage:
+    items: list[Department] = field(default_factory=list)
+    total: int = 0
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = _DEFAULT_DEPARTMENT_PAGE_SIZE
 
 
 class DepartmentService:
@@ -75,6 +91,69 @@ class DepartmentService:
         return self._overview_rollup_reader.get_department_summary(
             organization_id=organization.id,
             tenant_id=tenant_id,
+        )
+
+    def list_departments_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = _DEFAULT_DEPARTMENT_PAGE_SIZE,
+        search: str = "",
+        active_only: bool | None = None,
+    ) -> DepartmentPage:
+        """Tenant-scoped read for ANY organization in the caller's tenant --
+        unlike list_departments()/search_departments(), not limited to the
+        session's active organization. For Organization Detail's
+        Departments tab, where an admin may be viewing an organization they
+        haven't switched into.
+
+        Read-only: never used by create/update/delete, which keep using
+        active_organization(self) (the existing, unchanged domain rule).
+        Never gates on the organization's own lifecycle status -- inactive
+        and archived organizations' department history remains readable
+        here.
+        """
+        require_department_read_access(self, "list departments")
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "Tenant context is required to list departments.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="list departments for organization"
+        )
+        target_organization = self._organization_repo.get_for_tenant(organization_id, tenant_id)
+        if target_organization is None:
+            raise NotFoundError(
+                "Organization not found in the current tenant.",
+                code="ORGANIZATION_NOT_FOUND",
+            )
+        normalized_page = max(1, page)
+        normalized_page_size = (
+            page_size if page_size in DEPARTMENT_PAGE_SIZE_OPTIONS else _DEFAULT_DEPARTMENT_PAGE_SIZE
+        )
+        items, total, filtered_total = self._department_repo.list_page_for_organization_in_tenant(
+            organization_id,
+            tenant_id,
+            page=normalized_page,
+            page_size=normalized_page_size,
+            search=search,
+            active_only=active_only,
+        )
+        items = filter_scope_rows(
+            items,
+            self._user_session,
+            scope_type="department",
+            permission_code="department.read",
+            scope_id_getter=lambda row: getattr(row, "id", ""),
+        )
+        return DepartmentPage(
+            items=items,
+            total=total,
+            filtered_total=filtered_total,
+            page=normalized_page,
+            page_size=normalized_page_size,
         )
 
     def search_departments(
@@ -159,4 +238,4 @@ class DepartmentService:
         )
 
 
-__all__ = ["DepartmentService"]
+__all__ = ["DepartmentService", "DepartmentPage", "DEPARTMENT_PAGE_SIZE_OPTIONS"]

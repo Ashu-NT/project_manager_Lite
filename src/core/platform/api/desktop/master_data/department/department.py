@@ -6,6 +6,7 @@ from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.master_data.department.models.department import (
     DepartmentCreateCommand,
     DepartmentDto,
+    DepartmentPageDto,
     DepartmentRollupSummaryDto,
     DepartmentUpdateCommand,
 )
@@ -39,6 +40,27 @@ class PlatformDepartmentDesktopApi:
         return execute_desktop_operation(
             lambda: self._serialize_rollup_summary(
                 self._department_service.get_department_rollup_summary()
+            )
+        )
+
+    def list_departments_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        active_only: bool | None = None,
+    ) -> DesktopApiResult[DepartmentPageDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_department_page(
+                self._department_service.list_departments_page_for_organization(
+                    organization_id,
+                    page=page,
+                    page_size=page_size,
+                    search=search,
+                    active_only=active_only,
+                )
             )
         )
 
@@ -80,6 +102,15 @@ class PlatformDepartmentDesktopApi:
             )
         )
 
+    def _serialize_department_page(self, page) -> DepartmentPageDto:
+        return DepartmentPageDto(
+            items=tuple(self._serialize_department(department) for department in page.items),
+            total=page.total,
+            filtered_total=page.filtered_total,
+            page=page.page,
+            page_size=page.page_size,
+        )
+
     @staticmethod
     def _serialize_rollup_summary(summary) -> DepartmentRollupSummaryDto:
         return DepartmentRollupSummaryDto(total=summary.total, active=summary.active)
@@ -100,6 +131,8 @@ class PlatformDepartmentDesktopApi:
             is_active=department.is_active,
             notes=department.notes,
             version=department.version,
+            created_at=department.created_at,
+            updated_at=department.updated_at,
         )
 
 __all__ = ["PlatformDepartmentDesktopApi"]

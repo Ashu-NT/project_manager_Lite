@@ -26,5 +26,23 @@ class DepartmentRepository(ABC):
         active_only: bool | None = None,
     ) -> list[Department]: ...
 
+    @abstractmethod
+    def list_page_for_organization_in_tenant(
+        self,
+        organization_id: str,
+        tenant_id: str,
+        *,
+        page: int,
+        page_size: int,
+        search: str | None = None,
+        active_only: bool | None = None,
+    ) -> tuple[list[Department], int, int]:
+        """Tenant-scoped only -- NOT filtered to the ambient active
+        organization. For an admin viewing ANY organization's departments
+        (e.g. Organization Detail's Departments tab) regardless of which
+        organization is currently active in the caller's session. Returns
+        (page_items, total_count, filtered_total_count)."""
+        ...
+
 
 __all__ = ["DepartmentRepository"]

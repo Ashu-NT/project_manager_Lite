@@ -460,6 +460,8 @@ AppLayouts.WorkspaceFrame {
                             root.navigateToDestination("control_audit")
                         } else if (actionId === "create_site") {
                             dialogHostLoader.invoke("openSiteCreate")
+                        } else if (actionId === "create_department") {
+                            dialogHostLoader.invoke("openDepartmentCreate")
                         }
                     }
                 }

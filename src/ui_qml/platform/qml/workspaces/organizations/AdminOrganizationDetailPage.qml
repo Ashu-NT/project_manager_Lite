@@ -4,10 +4,13 @@ import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
-import App.Models 1.0 as AppModels
-import Platform.Components 1.0 as PlatformComponents
-import workspaces.sites 1.0 as SitesWorkspace
+import workspaces.organizations.sections 1.0 as OrgSections
 
+// Orchestrator only: owns organization identity/lifecycle, per-tab
+// state (page/search/filter/selection) and data fetching. Each tab's own
+// markup lives in workspaces/organizations/sections/ -- see that folder's
+// files for the Overview/Sites/Departments/Employees/Documents/Activity
+// presentational components this page wires up below.
 Item {
     id: detailRoot
 
@@ -25,14 +28,16 @@ Item {
     signal actionRequested(string actionId)
     signal navigateToDestination(string destinationId)
 
-    // Any site mutation anywhere (e.g. the "+ New Site" dialog, owned by
-    // the parent OrganizationsWorkspacePage's shared dialog host) re-fetches
-    // this tab's own organization-scoped page -- the same reactivity the
-    // old client-side-filtered tab had via a computed property, just
-    // sourced from the new paginated query instead of an in-memory list.
+    // Any site/department mutation anywhere (e.g. the "+ New Site"/"+ New
+    // Department" dialogs, owned by the parent OrganizationsWorkspacePage's
+    // shared dialog host) re-fetches this tab's own organization-scoped
+    // page -- the same reactivity the old client-side-filtered tab had via
+    // a computed property, just sourced from the new paginated query
+    // instead of an in-memory list.
     Connections {
         target: detailRoot.workspaceController
         function onSitesChanged() { detailRoot._refreshSites() }
+        function onDepartmentsChanged() { detailRoot._refreshDepartments() }
     }
 
     readonly property var _orgState: (detailRoot.organization && detailRoot.organization.state)
@@ -225,10 +230,14 @@ Item {
         if (detailRoot._activeSectionLabel === "Sites") {
             detailRoot._refreshSites()
         }
+        if (detailRoot._activeSectionLabel === "Departments") {
+            detailRoot._refreshDepartments()
+        }
     }
     Component.onCompleted: {
         detailRoot._reloadDetailContext()
         detailRoot._refreshSites()
+        detailRoot._refreshDepartments()
     }
 
     readonly property var _statistics: detailRoot._detailContext.statistics || ({})
@@ -274,11 +283,10 @@ Item {
     }
     // -- Sites tab: a real, tenant-scoped + paginated Organization-Detail-
     // owned query (SiteService.list_sites_page_for_organization) -- unlike
-    // Departments/Employees/Documents below, NOT a client-side filter of
-    // the global, session-active-organization-only catalog. Works
-    // correctly regardless of which organization is active in the
-    // caller's session, and remains readable for inactive/archived
-    // organizations (see Phase K report). ---------------------------------
+    // Employees/Documents below, NOT a client-side filter of the global,
+    // session-active-organization-only catalog. Works correctly regardless
+    // of which organization is active in the caller's session, and remains
+    // readable for inactive/archived organizations (see Phase K report). --
     property int _sitesPage: 1
     property int _sitesPageSize: 25
     property string _sitesSearch: ""
@@ -337,8 +345,68 @@ Item {
         }
         return null
     }
-    readonly property var _orgDepartments: detailRoot.workspaceController
-        ? detailRoot._filteredByOrg(detailRoot.workspaceController.departments) : []
+
+    // -- Departments tab: same tenant-scoped + paginated pattern as Sites
+    // (DepartmentService.list_departments_page_for_organization) -- works
+    // correctly regardless of which organization is active in the caller's
+    // session, and remains readable for inactive/archived organizations.
+    property int _departmentsPage: 1
+    property int _departmentsPageSize: 25
+    property string _departmentsSearch: ""
+    property string _departmentsStatusFilter: ""
+    property var _departmentsCatalog: ({
+        "title": "Departments", "subtitle": "", "emptyState": "", "items": [],
+        "paginated": true, "page": 1, "pageSize": 25, "totalCount": 0, "filteredTotal": 0
+    })
+    property string _departmentsSelectedRowId: ""
+    property bool _departmentsDetailOpen: false
+    readonly property var _departmentsStatusFilterOptions: [
+        { "value": "", "label": "All" },
+        { "value": "active", "label": "Active" },
+        { "value": "inactive", "label": "Inactive" }
+    ]
+    readonly property var _departmentsColumns: [
+        { "key": "title", "label": "Department", "flex": 3, "minWidth": 160, "sortable": true, "required": true, "visible": true },
+        { "key": "departmentCode", "label": "Code", "flex": 1, "minWidth": 110, "visible": true },
+        { "key": "siteName", "label": "Site", "flex": 2, "minWidth": 150, "visible": true },
+        { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 90, "type": "status", "required": true, "visible": true },
+        { "key": "departmentType", "label": "Type", "flex": 1, "minWidth": 120, "visible": false },
+        { "key": "parentDepartmentName", "label": "Parent Department", "flex": 1, "minWidth": 150, "visible": false },
+        { "key": "costCenterCode", "label": "Cost Center", "flex": 1, "minWidth": 120, "visible": false },
+        { "key": "createdAt", "label": "Created", "flex": 1, "minWidth": 140, "visible": false },
+        { "key": "updatedAt", "label": "Updated", "flex": 1, "minWidth": 140, "visible": false }
+    ]
+    // Only your own currently-active organization can receive new
+    // departments today (DepartmentService.create_department() -- an
+    // existing, unchanged domain rule; this read-only phase does not add
+    // an explicit-organization create path). Viewing another organization's
+    // departments stays fully supported; creating into it from here does not.
+    readonly property bool _canCreateDepartment: detailRoot.canWrite && detailRoot._isViewingActiveOrganization
+
+    function _refreshDepartments() {
+        if (!detailRoot.workspaceController || detailRoot._orgId.length === 0) return
+        detailRoot._departmentsCatalog = detailRoot.workspaceController.organizationDepartmentsPage(
+            detailRoot._orgId, detailRoot._departmentsPage, detailRoot._departmentsPageSize,
+            detailRoot._departmentsSearch, detailRoot._departmentsStatusFilter
+        )
+    }
+    function _openDepartmentDetail(departmentId) {
+        detailRoot._departmentsSelectedRowId = departmentId
+        detailRoot._departmentsDetailOpen = true
+    }
+    function _closeDepartmentDetail() {
+        detailRoot._departmentsDetailOpen = false
+    }
+    readonly property var _selectedDepartment: {
+        const id = detailRoot._departmentsSelectedRowId
+        if (!id) return null
+        const items = detailRoot._departmentsCatalog.items || []
+        for (let i = 0; i < items.length; i += 1) {
+            if (String(items[i].id) === String(id)) return items[i]
+        }
+        return null
+    }
+
     readonly property var _orgEmployees: detailRoot.workspaceController
         ? detailRoot._filteredByOrg(detailRoot.workspaceController.employees) : []
     readonly property var _orgDocuments: detailRoot.workspaceController
@@ -389,15 +457,15 @@ Item {
         AppWidgets.ContextualActionToolbar {
             id: _sectionToolbar
             detailPagePinned: true
-            // Sites already has its own full header (title + count) and
-            // toolbar (search/filter/Columns/Refresh/+New Site) via
+            // Sites/Departments already have their own full header (title +
+            // count) and toolbar (search/filter/Columns/Refresh/+New) via
             // AdminEntityWorkspace below -- showing this generic per-
-            // section toolbar too would duplicate both the "Sites" heading
-            // and the Refresh button. `visible: false` alone leaves a blank
-            // gap: the sticky header area sizes itself from `childrenRect`,
+            // section toolbar too would duplicate both the heading and the
+            // Refresh button. `visible: false` alone leaves a blank gap:
+            // the sticky header area sizes itself from `childrenRect`,
             // which (unlike a Column's own layout pass) does NOT exclude
             // invisible children -- the height must be collapsed explicitly.
-            visible: detailRoot._activeSectionLabel !== "Sites"
+            visible: detailRoot._activeSectionLabel !== "Sites" && detailRoot._activeSectionLabel !== "Departments"
             height: visible ? implicitHeight : 0
             width: parent ? parent.width : detailRoot.width
             title: detailRoot._activeSectionLabel
@@ -425,332 +493,24 @@ Item {
                 keepLoaded: true
                 loadingMessage: "Loading organization overview..."
                 sourceComponent: Component {
-                    Column {
-                        id: overviewRoot
+                    OrgSections.OrganizationOverviewSection {
                         width: parent ? parent.width : 0
-                        spacing: 0
+                        basicInfoFields: detailRoot._basicInfoFields
+                        addressFields: detailRoot._addressFields
+                        contactFields: detailRoot._contactFields
+                        statistics: detailRoot._statistics
+                        relatedActions: detailRoot._relatedActions
+                        recentActivity: detailRoot._detailContext.recentActivity || []
+                        isDestinationAccessible: detailRoot._isDestinationAccessible
 
-                        Item {
-                            width: overviewRoot.width
-                            implicitHeight: overviewGrid.implicitHeight + Theme.AppTheme.spacingMd * 2
-
-                            GridLayout {
-                                id: overviewGrid
-                                anchors.top: parent.top
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.margins: Theme.AppTheme.spacingMd
-                                // overviewRoot.width is the section CONTENT column, already net
-                                // of the shell/platform/detail-page nav rails -- not the window
-                                // width. 640 keeps both 1600x1000 and 1366x768 desktop breakpoints
-                                // two-column while a ~1000px window (content ~290px) still stacks.
-                                columns: overviewRoot.width < 640 ? 1 : 2
-                                columnSpacing: Theme.AppTheme.spacingMd
-                                rowSpacing: Theme.AppTheme.spacingMd
-
-                                // -- Main column: Basic Information / Registered Address / Contact
-                                // ~2/3 width on desktop; content-driven height only -- never a
-                                // fixed/computed override that can under-report a card's real
-                                // height and get clipped by SectionCard's own clip: true.
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    Layout.preferredWidth: overviewGrid.columns === 2
-                                        ? Math.round(overviewGrid.width * 0.66)
-                                        : overviewGrid.width
-                                    Layout.alignment: Qt.AlignTop
-                                    spacing: Theme.AppTheme.spacingMd
-
-                                    AppWidgets.SectionCard {
-                                        Layout.fillWidth: true
-                                        title: "Basic Information"
-                                        outlined: true
-
-                                        GridLayout {
-                                            id: basicInfoGrid
-                                            anchors.left: parent.left
-                                            anchors.right: parent.right
-                                            anchors.top: parent.top
-                                            anchors.margins: Theme.AppTheme.marginMd
-                                            columns: 2
-                                            columnSpacing: Theme.AppTheme.spacingLg
-                                            rowSpacing: Theme.AppTheme.spacingSm
-
-                                            Repeater {
-                                                model: detailRoot._basicInfoFields
-
-                                                delegate: ColumnLayout {
-                                                    required property var modelData
-                                                    Layout.fillWidth: true
-                                                    spacing: 2
-
-                                                    AppControls.Label {
-                                                        Layout.fillWidth: true
-                                                        text: String(modelData.label || "")
-                                                        color: Theme.AppTheme.textMuted
-                                                        font.pixelSize: Theme.AppTheme.captionSize
-                                                        font.bold: true
-                                                    }
-
-                                                    AppControls.Label {
-                                                        Layout.fillWidth: true
-                                                        text: String(modelData.value || "—")
-                                                        color: Theme.AppTheme.textPrimary
-                                                        font.pixelSize: Theme.AppTheme.smallSize
-                                                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    AppWidgets.SectionCard {
-                                        Layout.fillWidth: true
-                                        title: "Registered Address"
-                                        outlined: true
-
-                                        GridLayout {
-                                            id: addressGrid
-                                            anchors.left: parent.left
-                                            anchors.right: parent.right
-                                            anchors.top: parent.top
-                                            anchors.margins: Theme.AppTheme.marginMd
-                                            columns: 2
-                                            columnSpacing: Theme.AppTheme.spacingLg
-                                            rowSpacing: Theme.AppTheme.spacingSm
-
-                                            Repeater {
-                                                model: detailRoot._addressFields
-
-                                                delegate: ColumnLayout {
-                                                    required property var modelData
-                                                    Layout.fillWidth: true
-                                                    spacing: 2
-
-                                                    AppControls.Label {
-                                                        Layout.fillWidth: true
-                                                        text: String(modelData.label || "")
-                                                        color: Theme.AppTheme.textMuted
-                                                        font.pixelSize: Theme.AppTheme.captionSize
-                                                        font.bold: true
-                                                    }
-
-                                                    AppControls.Label {
-                                                        Layout.fillWidth: true
-                                                        text: String(modelData.value || "—")
-                                                        color: Theme.AppTheme.textPrimary
-                                                        font.pixelSize: Theme.AppTheme.smallSize
-                                                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    AppWidgets.SectionCard {
-                                        Layout.fillWidth: true
-                                        title: "Contact Information"
-                                        outlined: true
-
-                                        GridLayout {
-                                            id: contactGrid
-                                            anchors.left: parent.left
-                                            anchors.right: parent.right
-                                            anchors.top: parent.top
-                                            anchors.margins: Theme.AppTheme.marginMd
-                                            columns: 2
-                                            columnSpacing: Theme.AppTheme.spacingLg
-                                            rowSpacing: Theme.AppTheme.spacingSm
-
-                                            Repeater {
-                                                model: detailRoot._contactFields
-
-                                                delegate: ColumnLayout {
-                                                    required property var modelData
-                                                    Layout.fillWidth: true
-                                                    spacing: 2
-
-                                                    AppControls.Label {
-                                                        Layout.fillWidth: true
-                                                        text: String(modelData.label || "")
-                                                        color: Theme.AppTheme.textMuted
-                                                        font.pixelSize: Theme.AppTheme.captionSize
-                                                        font.bold: true
-                                                    }
-
-                                                    AppControls.Label {
-                                                        Layout.fillWidth: true
-                                                        text: String(modelData.value || "—")
-                                                        color: Theme.AppTheme.textPrimary
-                                                        font.pixelSize: Theme.AppTheme.smallSize
-                                                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // -- Summary rail: statistics + activity + actions (~1/3 width)
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    Layout.preferredWidth: overviewGrid.columns === 2
-                                        ? overviewGrid.width - Math.round(overviewGrid.width * 0.66) - overviewGrid.columnSpacing
-                                        : overviewGrid.width
-                                    Layout.alignment: Qt.AlignTop
-                                    spacing: Theme.AppTheme.spacingMd
-
-                                    AppWidgets.SectionCard {
-                                        Layout.fillWidth: true
-                                        title: "Key Statistics"
-                                        outlined: true
-
-                                        GridLayout {
-                                            id: statsGrid
-                                            anchors.left: parent.left
-                                            anchors.right: parent.right
-                                            anchors.top: parent.top
-                                            anchors.margins: Theme.AppTheme.marginMd
-                                            columns: 2
-                                            columnSpacing: Theme.AppTheme.spacingSm
-                                            rowSpacing: Theme.AppTheme.spacingSm
-
-                                            AppWidgets.OverviewMetricTile {
-                                                Layout.fillWidth: true
-                                                compact: true
-                                                label: "Sites"
-                                                value: String(detailRoot._statistics.siteCount !== undefined ? detailRoot._statistics.siteCount : "--")
-                                                clickable: detailRoot._isDestinationAccessible("sites")
-                                                onActivated: detailRoot.navigateToDestination("sites")
-                                            }
-                                            AppWidgets.OverviewMetricTile {
-                                                Layout.fillWidth: true
-                                                compact: true
-                                                label: "Departments"
-                                                value: String(detailRoot._statistics.departmentCount !== undefined ? detailRoot._statistics.departmentCount : "--")
-                                                clickable: detailRoot._isDestinationAccessible("departments")
-                                                onActivated: detailRoot.navigateToDestination("departments")
-                                            }
-                                            AppWidgets.OverviewMetricTile {
-                                                Layout.fillWidth: true
-                                                compact: true
-                                                label: "Employees"
-                                                value: String(detailRoot._statistics.employeeCount !== undefined ? detailRoot._statistics.employeeCount : "--")
-                                                clickable: detailRoot._isDestinationAccessible("employees")
-                                                onActivated: detailRoot.navigateToDestination("employees")
-                                            }
-                                            AppWidgets.OverviewMetricTile {
-                                                Layout.fillWidth: true
-                                                compact: true
-                                                label: "Documents"
-                                                value: String(detailRoot._statistics.documentCount !== undefined ? detailRoot._statistics.documentCount : "--")
-                                                clickable: detailRoot._isDestinationAccessible("documents")
-                                                onActivated: detailRoot.navigateToDestination("documents")
-                                            }
-                                        }
-                                    }
-
-                                    AppWidgets.SectionCard {
-                                        Layout.fillWidth: true
-                                        title: "Recent Activity"
-                                        outlined: true
-
-                                        ColumnLayout {
-                                            id: activityColumn
-                                            anchors.left: parent.left
-                                            anchors.right: parent.right
-                                            anchors.top: parent.top
-                                            anchors.margins: Theme.AppTheme.marginMd
-                                            spacing: Theme.AppTheme.spacingSm
-
-                                            AppControls.Label {
-                                                Layout.alignment: Qt.AlignRight
-                                                visible: (detailRoot._detailContext.recentActivity || []).length > 0
-                                                text: "View all"
-                                                color: Theme.AppTheme.accent
-                                                font.pixelSize: Theme.AppTheme.smallSize
-                                                font.bold: true
-
-                                                HoverHandler { cursorShape: Qt.PointingHandCursor }
-                                                // scrollToSection (not a direct activeSectionIndex
-                                                // assignment) so the nav rail's own highlighted
-                                                // item stays in sync -- it owns that state and only
-                                                // updates it through this call or a rail click.
-                                                TapHandler { onTapped: detailPage.scrollToSection(5) }
-                                            }
-
-                                            AppWidgets.ActivityFeed {
-                                                Layout.fillWidth: true
-                                                items: detailRoot._detailContext.recentActivity || []
-                                                emptyText: "No recent administrative activity for this organization."
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                        onNavigateToDestination: function(destinationId) {
+                            detailRoot.navigateToDestination(destinationId)
                         }
-
-                        // -- Related Actions: full content width (not confined to the
-                        // ~1/3 summary rail) so its tiles get real room to lay out
-                        // horizontally instead of always falling back to a stack.
-                        Item {
-                            width: overviewRoot.width
-                            implicitHeight: detailRoot._relatedActions.length > 0
-                                ? relatedActionsCard.implicitHeight + Theme.AppTheme.spacingMd * 2
-                                : 0
-                            visible: detailRoot._relatedActions.length > 0
-
-                            AppWidgets.SectionCard {
-                                id: relatedActionsCard
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.top: parent.top
-                                anchors.margins: Theme.AppTheme.spacingMd
-                                title: "Related Actions"
-                                outlined: true
-
-                                GridLayout {
-                                    id: actionsGrid
-                                    anchors.left: parent.left
-                                    anchors.right: parent.right
-                                    anchors.top: parent.top
-                                    anchors.margins: Theme.AppTheme.marginMd
-                                    columnSpacing: Theme.AppTheme.spacingSm
-                                    rowSpacing: Theme.AppTheme.spacingSm
-                                    // Responsive tiling driven by the card's own available
-                                    // width (a container query, not a window breakpoint):
-                                    // one row if every tile fits at its minimum readable
-                                    // width, else a 2-column wrap, else a single column.
-                                    readonly property int _minTileWidth: 150
-                                    readonly property int _actionCount: detailRoot._relatedActions.length
-                                    columns: {
-                                        if (actionsGrid._actionCount <= 1) return 1
-                                        const perRow = Math.max(
-                                            1,
-                                            Math.floor(
-                                                (actionsGrid.width + actionsGrid.columnSpacing)
-                                                / (actionsGrid._minTileWidth + actionsGrid.columnSpacing)
-                                            )
-                                        )
-                                        if (perRow >= actionsGrid._actionCount) return actionsGrid._actionCount
-                                        return perRow >= 2 ? 2 : 1
-                                    }
-
-                                    Repeater {
-                                        model: detailRoot._relatedActions
-
-                                        delegate: AppWidgets.ActionTile {
-                                            required property var modelData
-                                            Layout.fillWidth: true
-
-                                            label: String(modelData.label || "")
-                                            iconName: String(modelData.icon || "")
-
-                                            onActivated: detailRoot.navigateToDestination(String(modelData.id || ""))
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        // scrollToSection (not a direct activeSectionIndex
+                        // assignment) so the nav rail's own highlighted item
+                        // stays in sync -- it owns that state and only
+                        // updates it through this call or a rail click.
+                        onViewAllActivityRequested: detailPage.scrollToSection(5)
                     }
                 }
             }
@@ -787,120 +547,68 @@ Item {
                 loadingMessage: "Loading sites..."
                 fallbackLoadingHeight: Math.max(420, detailPage.contentViewportHeight)
                 sourceComponent: Component {
-                    Item {
-                        id: sitesSectionRoot
-                        width: parent ? parent.width : 0
-                        height: Math.max(420, detailPage.contentViewportHeight)
+                    OrgSections.OrganizationSitesSection {
+                        platformCatalog: detailRoot.platformCatalog
+                        workspaceController: detailRoot.workspaceController
+                        canWrite: detailRoot.canWrite
+                        busy: detailRoot.busy
+                        errorMessage: detailRoot.errorMessage
+                        feedbackMessage: detailRoot.feedbackMessage
+                        viewportHeight: Math.max(420, detailPage.contentViewportHeight)
 
-                        AppModels.DynamicTableModel {
-                            id: _sitesTableModel
-                            rows: detailRoot._sitesCatalog.items || []
+                        catalog: detailRoot._sitesCatalog
+                        columns: detailRoot._sitesColumns
+                        canCreate: detailRoot._canCreateSite
+                        selectedRowId: detailRoot._sitesSelectedRowId
+                        searchText: detailRoot._sitesSearch
+                        statusFilterOptions: detailRoot._sitesStatusFilterOptions
+                        statusFilter: detailRoot._sitesStatusFilter
+                        detailOpen: detailRoot._sitesDetailOpen
+                        selectedSite: detailRoot._selectedSite
+
+                        onCreateRequested: detailRoot.actionRequested("create_site")
+                        onRowSelected: function(id) { detailRoot._sitesSelectedRowId = id }
+                        onRowActivated: function(id) { detailRoot._openSiteDetail(id) }
+                        onRefreshRequested: detailRoot._refreshSites()
+                        onSearchChanged: function(text) {
+                            detailRoot._sitesSearch = text
+                            detailRoot._sitesPage = 1
+                            detailRoot._refreshSites()
                         }
-
-                        PlatformComponents.AdminEntityWorkspace {
-                            id: _sitesWorkspace
-                            anchors.fill: parent
-                            visible: !detailRoot._sitesDetailOpen
-                            sectionTitle: "Sites"
-                            entityLabel: "Site"
-                            catalog: detailRoot._sitesCatalog
-                            catalogModel: _sitesTableModel
-                            tableId: "organization.detail.sites.table"
-                            columns: detailRoot._sitesColumns
-                            canCreate: detailRoot._canCreateSite
-                            isBusy: detailRoot.busy
-                            isLoading: false
-                            errorMessage: detailRoot.errorMessage
-                            feedbackMessage: detailRoot.feedbackMessage
-                            selectedRowId: detailRoot._sitesSelectedRowId
-                            showSearch: true
-                            searchText: detailRoot._sitesSearch
-                            pageSizeOptions: [25, 50, 100]
-
-                            AppControls.ComboBox {
-                                id: _sitesStatusFilterCombo
-                                Layout.preferredWidth: 150
-                                model: detailRoot._sitesStatusFilterOptions
-                                textRole: "label"
-                                valueRole: "value"
-                                currentIndex: {
-                                    const filter = detailRoot._sitesStatusFilter
-                                    for (let i = 0; i < detailRoot._sitesStatusFilterOptions.length; i += 1) {
-                                        if (detailRoot._sitesStatusFilterOptions[i].value === filter) return i
-                                    }
-                                    return 0
-                                }
-                                onActivated: {
-                                    detailRoot._sitesStatusFilter = String(currentValue || "")
-                                    detailRoot._sitesPage = 1
-                                    detailRoot._refreshSites()
-                                }
-                            }
-
-                            onCreateRequested: detailRoot.actionRequested("create_site")
-                            onRowSelected: function(id) { detailRoot._sitesSelectedRowId = id }
-                            onRowActivated: function(id) { detailRoot._openSiteDetail(id) }
-                            onRefreshRequested: detailRoot._refreshSites()
-                            onSearchChanged: function(text) {
-                                detailRoot._sitesSearch = text
-                                detailRoot._sitesPage = 1
-                                detailRoot._refreshSites()
-                            }
-                            onPageRequested: function(page) {
-                                detailRoot._sitesPage = page
-                                detailRoot._refreshSites()
-                            }
-                            onPageSizeRequested: function(pageSize) {
-                                detailRoot._sitesPageSize = pageSize
-                                detailRoot._sitesPage = 1
-                                detailRoot._refreshSites()
-                            }
-                            onClearFiltersRequested: {
-                                detailRoot._sitesSearch = ""
-                                detailRoot._sitesStatusFilter = ""
-                                detailRoot._sitesPage = 1
-                                detailRoot._refreshSites()
-                            }
+                        onPageRequested: function(page) {
+                            detailRoot._sitesPage = page
+                            detailRoot._refreshSites()
                         }
-
-                        Loader {
-                            anchors.fill: parent
-                            active: detailRoot._sitesDetailOpen
-                            visible: active
-                            asynchronous: true
-
-                            sourceComponent: Component {
-                                SitesWorkspace.AdminSiteDetailPage {
-                                    platformCatalog: detailRoot.platformCatalog
-                                    site: detailRoot._selectedSite || ({})
-                                    departmentCatalog: detailRoot.workspaceController
-                                        ? detailRoot.workspaceController.departments
-                                        : ({ "items": [] })
-                                    employeeCatalog: detailRoot.workspaceController
-                                        ? detailRoot.workspaceController.employees
-                                        : ({ "items": [] })
-                                    canWrite: detailRoot.canWrite
-                                    busy: detailRoot.busy
-                                    errorMessage: detailRoot.errorMessage
-                                    feedbackMessage: detailRoot.feedbackMessage
-
-                                    onBackRequested: detailRoot._closeSiteDetail()
-                                    onActionRequested: function(actionId) {
-                                        // Only the site's own lifecycle/refresh are wired
-                                        // here -- cross-links to Departments/Employees/
-                                        // Calendar management from within a nested Site
-                                        // Detail are not yet re-routed to this
-                                        // organization's own scoped tabs (see Phase K
-                                        // report's known-limitations section).
-                                        if (actionId === "toggle_active") {
-                                            if (detailRoot.workspaceController && detailRoot._sitesSelectedRowId) {
-                                                detailRoot.workspaceController.toggleSiteActive(detailRoot._sitesSelectedRowId)
-                                            }
-                                        } else if (actionId === "refresh") {
-                                            detailRoot._refreshSites()
-                                        }
-                                    }
+                        onPageSizeRequested: function(pageSize) {
+                            detailRoot._sitesPageSize = pageSize
+                            detailRoot._sitesPage = 1
+                            detailRoot._refreshSites()
+                        }
+                        onClearFiltersRequested: {
+                            detailRoot._sitesSearch = ""
+                            detailRoot._sitesStatusFilter = ""
+                            detailRoot._sitesPage = 1
+                            detailRoot._refreshSites()
+                        }
+                        onStatusFilterRequested: function(value) {
+                            detailRoot._sitesStatusFilter = value
+                            detailRoot._sitesPage = 1
+                            detailRoot._refreshSites()
+                        }
+                        onDetailBackRequested: detailRoot._closeSiteDetail()
+                        onDetailActionRequested: function(actionId) {
+                            // Only the site's own lifecycle/refresh are wired
+                            // here -- cross-links to Departments/Employees/
+                            // Calendar management from within a nested Site
+                            // Detail are not yet re-routed to this
+                            // organization's own scoped tabs (see the
+                            // routing-correction phase).
+                            if (actionId === "toggle_active") {
+                                if (detailRoot.workspaceController && detailRoot._sitesSelectedRowId) {
+                                    detailRoot.workspaceController.toggleSiteActive(detailRoot._sitesSelectedRowId)
                                 }
+                            } else if (actionId === "refresh") {
+                                detailRoot._refreshSites()
                             }
                         }
                     }
@@ -908,9 +616,15 @@ Item {
             }
         }
 
+        // -- Departments: same tenant-scoped, paginated Organization-Detail-
+        // owned query pattern as Sites above. Row activation opens the same
+        // AdminDepartmentDetailPage the standalone Departments workspace
+        // uses. --------------------------------------------------------
         Item {
             width: parent ? parent.width : detailRoot.width
-            implicitHeight: detailRoot.activeSectionIndex === 2 ? departmentsLoader.implicitHeight : 0
+            implicitHeight: detailRoot.activeSectionIndex === 2
+                ? Math.max(420, detailPage.contentViewportHeight)
+                : 0
             height: implicitHeight
             visible: implicitHeight > 0
 
@@ -922,17 +636,71 @@ Item {
                 active: detailRoot.activeSectionIndex === 2
                 keepLoaded: true
                 loadingMessage: "Loading departments..."
-                fallbackLoadingHeight: 320
+                fallbackLoadingHeight: Math.max(420, detailPage.contentViewportHeight)
                 sourceComponent: Component {
-                    Column {
-                        width: parent ? parent.width : 0
-                        spacing: 0
-                        AppWidgets.DataTable {
-                            width: parent.width
-                            height: 320
-                            columns: detailRoot._simpleColumns
-                            rows: detailRoot._orgDepartments
-                            emptyText: "No departments recorded for this organization yet."
+                    OrgSections.OrganizationDepartmentsSection {
+                        platformCatalog: detailRoot.platformCatalog
+                        workspaceController: detailRoot.workspaceController
+                        canWrite: detailRoot.canWrite
+                        busy: detailRoot.busy
+                        errorMessage: detailRoot.errorMessage
+                        feedbackMessage: detailRoot.feedbackMessage
+                        viewportHeight: Math.max(420, detailPage.contentViewportHeight)
+
+                        catalog: detailRoot._departmentsCatalog
+                        columns: detailRoot._departmentsColumns
+                        canCreate: detailRoot._canCreateDepartment
+                        selectedRowId: detailRoot._departmentsSelectedRowId
+                        searchText: detailRoot._departmentsSearch
+                        statusFilterOptions: detailRoot._departmentsStatusFilterOptions
+                        statusFilter: detailRoot._departmentsStatusFilter
+                        detailOpen: detailRoot._departmentsDetailOpen
+                        selectedDepartment: detailRoot._selectedDepartment
+
+                        onCreateRequested: detailRoot.actionRequested("create_department")
+                        onRowSelected: function(id) { detailRoot._departmentsSelectedRowId = id }
+                        onRowActivated: function(id) { detailRoot._openDepartmentDetail(id) }
+                        onRefreshRequested: detailRoot._refreshDepartments()
+                        onSearchChanged: function(text) {
+                            detailRoot._departmentsSearch = text
+                            detailRoot._departmentsPage = 1
+                            detailRoot._refreshDepartments()
+                        }
+                        onPageRequested: function(page) {
+                            detailRoot._departmentsPage = page
+                            detailRoot._refreshDepartments()
+                        }
+                        onPageSizeRequested: function(pageSize) {
+                            detailRoot._departmentsPageSize = pageSize
+                            detailRoot._departmentsPage = 1
+                            detailRoot._refreshDepartments()
+                        }
+                        onClearFiltersRequested: {
+                            detailRoot._departmentsSearch = ""
+                            detailRoot._departmentsStatusFilter = ""
+                            detailRoot._departmentsPage = 1
+                            detailRoot._refreshDepartments()
+                        }
+                        onStatusFilterRequested: function(value) {
+                            detailRoot._departmentsStatusFilter = value
+                            detailRoot._departmentsPage = 1
+                            detailRoot._refreshDepartments()
+                        }
+                        onDetailBackRequested: detailRoot._closeDepartmentDetail()
+                        onDetailActionRequested: function(actionId) {
+                            // Only the department's own lifecycle/refresh are
+                            // wired here -- cross-links to Employees/
+                            // Calendar/Documents/Audit from within a nested
+                            // Department Detail are not yet re-routed to
+                            // this organization's own scoped tabs (see the
+                            // routing-correction phase).
+                            if (actionId === "toggle_active") {
+                                if (detailRoot.workspaceController && detailRoot._departmentsSelectedRowId) {
+                                    detailRoot.workspaceController.toggleDepartmentActive(detailRoot._departmentsSelectedRowId)
+                                }
+                            } else if (actionId === "refresh") {
+                                detailRoot._refreshDepartments()
+                            }
                         }
                     }
                 }
@@ -955,16 +723,11 @@ Item {
                 loadingMessage: "Loading employees..."
                 fallbackLoadingHeight: 320
                 sourceComponent: Component {
-                    Column {
+                    OrgSections.OrganizationSimpleListSection {
                         width: parent ? parent.width : 0
-                        spacing: 0
-                        AppWidgets.DataTable {
-                            width: parent.width
-                            height: 320
-                            columns: detailRoot._simpleColumns
-                            rows: detailRoot._orgEmployees
-                            emptyText: "No employees recorded for this organization yet."
-                        }
+                        columns: detailRoot._simpleColumns
+                        rows: detailRoot._orgEmployees
+                        emptyText: "No employees recorded for this organization yet."
                     }
                 }
             }
@@ -986,16 +749,11 @@ Item {
                 loadingMessage: "Loading documents..."
                 fallbackLoadingHeight: 320
                 sourceComponent: Component {
-                    Column {
+                    OrgSections.OrganizationSimpleListSection {
                         width: parent ? parent.width : 0
-                        spacing: 0
-                        AppWidgets.DataTable {
-                            width: parent.width
-                            height: 320
-                            columns: detailRoot._simpleColumns
-                            rows: detailRoot._orgDocuments
-                            emptyText: "No documents recorded for this organization yet."
-                        }
+                        columns: detailRoot._simpleColumns
+                        rows: detailRoot._orgDocuments
+                        emptyText: "No documents recorded for this organization yet."
                     }
                 }
             }
@@ -1021,31 +779,9 @@ Item {
                 keepLoaded: true
                 loadingMessage: "Loading organization activity..."
                 sourceComponent: Component {
-                    Column {
-                        id: auditRoot
+                    OrgSections.OrganizationActivitySection {
                         width: parent ? parent.width : 0
-                        spacing: 0
-
-
-                        Item {
-                            width: auditRoot.width
-                            implicitHeight: auditColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
-
-                            ColumnLayout {
-                                id: auditColumn
-                                anchors.top: parent.top
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.margins: Theme.AppTheme.spacingMd
-                                spacing: Theme.AppTheme.spacingMd
-
-                                AppWidgets.ActivityFeed {
-                                    Layout.fillWidth: true
-                                    items: detailRoot._recentActivity
-                                    emptyText: "No activity recorded for this organization yet."
-                                }
-                            }
-                        }
+                        items: detailRoot._recentActivity
                     }
                 }
             }

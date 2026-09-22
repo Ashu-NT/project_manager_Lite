@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.platform.infrastructure.persistence.mappers.master_data.department.departments import (
@@ -99,6 +99,55 @@ class SqlAlchemyDepartmentRepository(TenantScopedRepositorySupport, DepartmentRe
             stmt = stmt.where(DepartmentORM.is_active == bool(active_only))
         rows = self.session.execute(stmt.order_by(DepartmentORM.name.asc())).scalars().all()
         return [department_from_orm(row) for row in rows]
+
+    def list_page_for_organization_in_tenant(
+        self,
+        organization_id: str,
+        tenant_id: str,
+        *,
+        page: int,
+        page_size: int,
+        search: str | None = None,
+        active_only: bool | None = None,
+    ) -> tuple[list[Department], int, int]:
+        # Deliberately bypasses self._context()/_organization_in_scope() --
+        # both organization_id and tenant_id are caller-supplied and trusted
+        # (the service layer verifies the organization actually belongs to
+        # this tenant before calling here), not the session's ambient active
+        # organization. See SqlAlchemySiteRepository.list_page_for_organization_in_tenant
+        # for the same pattern.
+        base_condition = (
+            DepartmentORM.organization_id == organization_id,
+            DepartmentORM.tenant_id == tenant_id,
+        )
+        total = self.session.execute(
+            select(func.count()).select_from(DepartmentORM).where(*base_condition)
+        ).scalar_one()
+
+        filtered_stmt = select(DepartmentORM).where(*base_condition)
+        filtered_count_stmt = select(func.count()).select_from(DepartmentORM).where(*base_condition)
+        if active_only is not None:
+            condition = DepartmentORM.is_active == bool(active_only)
+            filtered_stmt = filtered_stmt.where(condition)
+            filtered_count_stmt = filtered_count_stmt.where(condition)
+        normalized_search = (search or "").strip()
+        if normalized_search:
+            pattern = f"%{normalized_search}%"
+            condition = or_(
+                DepartmentORM.name.ilike(pattern),
+                DepartmentORM.department_code.ilike(pattern),
+                DepartmentORM.department_type.ilike(pattern),
+                DepartmentORM.cost_center_code.ilike(pattern),
+            )
+            filtered_stmt = filtered_stmt.where(condition)
+            filtered_count_stmt = filtered_count_stmt.where(condition)
+
+        filtered_total = self.session.execute(filtered_count_stmt).scalar_one()
+        offset = max(0, (page - 1) * page_size)
+        rows = self.session.execute(
+            filtered_stmt.order_by(DepartmentORM.name.asc()).offset(offset).limit(page_size)
+        ).scalars().all()
+        return [department_from_orm(row) for row in rows], total, filtered_total
 
 
 __all__ = [

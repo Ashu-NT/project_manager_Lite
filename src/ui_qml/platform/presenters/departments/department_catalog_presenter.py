@@ -23,6 +23,16 @@ from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionListViewModel,
 )
 
+# Department lifecycle is a plain boolean (is_active) -- a 2-state
+# Active/Inactive model, structurally different from Organization's 3-state
+# ACTIVE/INACTIVE/ARCHIVED enum. Do not conflate the two tone maps.
+_DEPARTMENT_STATUS_TONE = {True: "success", False: "neutral"}
+
+
+def _department_status_label(is_active: bool) -> dict[str, str]:
+    return {"label": "Active" if is_active else "Inactive", "tone": _DEPARTMENT_STATUS_TONE[is_active]}
+
+
 class PlatformDepartmentCatalogPresenter:
     def __init__(
         self,
@@ -72,6 +82,78 @@ class PlatformDepartmentCatalogPresenter:
                 )
                 for row in departments_result.data
             ),
+        )
+
+    def build_catalog_page_for_organization(
+        self,
+        organization_id: str,
+        *,
+        page: int = 1,
+        page_size: int = 25,
+        search: str = "",
+        status: str = "",
+    ) -> PlatformWorkspaceActionListViewModel:
+        """Tenant-scoped (not active-organization-scoped) paginated
+        Departments page for Organization Detail's Departments tab -- works
+        regardless of which organization is currently active in the
+        caller's session."""
+        if self._department_api is None:
+            return PlatformWorkspaceActionListViewModel(
+                title="Departments",
+                subtitle="Departments appear here once the platform department API is connected.",
+                empty_state="Platform department API is not connected in this QML preview.",
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+
+        active_only: bool | None
+        if status == "active":
+            active_only = True
+        elif status == "inactive":
+            active_only = False
+        else:
+            active_only = None
+
+        result = self._department_api.list_departments_page_for_organization(
+            organization_id,
+            page=page,
+            page_size=page_size,
+            search=search.strip(),
+            active_only=active_only,
+        )
+        if not result.ok or result.data is None:
+            message = result.error.message if result.error is not None else "Unable to load departments."
+            return PlatformWorkspaceActionListViewModel(
+                title="Departments",
+                subtitle=message,
+                empty_state=message,
+                paginated=True,
+                page=page,
+                page_size=page_size,
+            )
+
+        department_page = result.data
+        site_lookup = self._site_lookup_for_organization(organization_id)
+        department_lookup = self._department_lookup_for_organization(organization_id)
+        return PlatformWorkspaceActionListViewModel(
+            title="Departments",
+            subtitle="Operational departments for this organization.",
+            empty_state="No departments yet. Add the first department for this organization.",
+            no_results_state="No departments match your current filters.",
+            items=tuple(
+                self._serialize_department(
+                    row,
+                    site_lookup=site_lookup,
+                    department_lookup=department_lookup,
+                )
+                for row in department_page.items
+            ),
+            paginated=True,
+            page=department_page.page,
+            page_size=department_page.page_size,
+            total_count=department_page.total,
+            filtered_total=department_page.filtered_total,
         )
 
     def build_site_options(self) -> tuple[dict[str, str], ...]:
@@ -185,17 +267,62 @@ class PlatformDepartmentCatalogPresenter:
             for row in result.data
         }
 
+    def _site_lookup_for_organization(self, organization_id: str, *, max_pages: int = 20) -> dict[str, str]:
+        """Same purpose as _site_lookup(), but tenant-scoped to a specific
+        (possibly non-active) organization, for the Organization Detail
+        Departments tab. Paginates through every site page (capped at
+        max_pages * 100 records) rather than a single page, so large site
+        catalogs still resolve every department's site name correctly."""
+        if self._site_api is None:
+            return {}
+        lookup: dict[str, str] = {}
+        page = 1
+        while page <= max_pages:
+            result = self._site_api.list_sites_page_for_organization(
+                organization_id, page=page, page_size=100, active_only=None,
+            )
+            if not result.ok or result.data is None:
+                break
+            for row in result.data.items:
+                lookup[row.id] = row.name
+            if page * 100 >= result.data.total:
+                break
+            page += 1
+        return lookup
+
+    def _department_lookup_for_organization(self, organization_id: str, *, max_pages: int = 20) -> dict[str, str]:
+        """Resolves parent_department_id -> parent department name,
+        tenant-scoped to a specific (possibly non-active) organization."""
+        if self._department_api is None:
+            return {}
+        lookup: dict[str, str] = {}
+        page = 1
+        while page <= max_pages:
+            result = self._department_api.list_departments_page_for_organization(
+                organization_id, page=page, page_size=100, active_only=None,
+            )
+            if not result.ok or result.data is None:
+                break
+            for row in result.data.items:
+                lookup[row.id] = row.name
+            if page * 100 >= result.data.total:
+                break
+            page += 1
+        return lookup
+
     @staticmethod
     def _serialize_department(
         row: DepartmentDto,
         *,
         site_lookup: dict[str, str],
+        department_lookup: dict[str, str] | None = None,
     ) -> PlatformWorkspaceActionItemViewModel:
         site_label = site_lookup.get(row.site_id or "", "No site")
+        parent_label = (department_lookup or {}).get(row.parent_department_id or "", "")
         return PlatformWorkspaceActionItemViewModel(
             id=row.id,
             title=row.name,
-            status_label="Active" if row.is_active else "Inactive",
+            status_label=_department_status_label(row.is_active),
             subtitle=f"{row.department_code} | {row.department_type or 'Department'}",
             supporting_text=f"Site: {site_label}",
             meta_text=f"Cost center: {row.cost_center_code or '-'}",
@@ -211,11 +338,14 @@ class PlatformDepartmentCatalogPresenter:
                 "siteId": row.site_id or "",
                 "siteName": site_label,
                 "parentDepartmentId": row.parent_department_id or "",
+                "parentDepartmentName": parent_label,
                 "departmentType": row.department_type,
                 "costCenterCode": row.cost_center_code,
                 "notes": row.notes,
                 "isActive": row.is_active,
                 "version": row.version,
+                "createdAt": row.created_at.isoformat() if row.created_at else "",
+                "updatedAt": row.updated_at.isoformat() if row.updated_at else "",
             },
         )
 

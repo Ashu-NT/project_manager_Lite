@@ -170,7 +170,7 @@ def test_platform_workspace_catalog_runs_admin_actions() -> None:
     assert catalog.adminWorkspace.organizations["items"][1]["statusLabel"] == {"label": "Active", "tone": "success"}
     assert "Hamburg Hub" in site_titles
     assert catalog.adminWorkspace.sites["items"][-1]["organizationName"] == "TechAsh"
-    assert department_by_id["dep-2"]["statusLabel"] == "Active"
+    assert department_by_id["dep-2"]["statusLabel"] == {"label": "Active", "tone": "success"}
     assert "Katherine Johnson" in employee_titles
     assert "Katherine Johnson" in user_titles
     created_user = next(
