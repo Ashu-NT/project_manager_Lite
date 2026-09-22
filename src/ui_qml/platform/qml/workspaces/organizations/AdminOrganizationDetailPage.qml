@@ -431,9 +431,15 @@ Item {
     function _openSiteDetail(siteId) {
         detailRoot._sitesSelectedRowId = siteId
         detailRoot._sitesDetailOpen = true
+        // errorMessage/feedbackMessage are forwarded into both the Sites
+        // list AND this nested detail view -- clear them on this
+        // transition so a stale list-scoped message doesn't leak in as if
+        // it were about this specific site.
+        if (detailRoot.workspaceController) detailRoot.workspaceController.clearMessages()
     }
     function _closeSiteDetail() {
         detailRoot._sitesDetailOpen = false
+        if (detailRoot.workspaceController) detailRoot.workspaceController.clearMessages()
     }
     readonly property var _selectedSite: {
         const id = detailRoot._sitesSelectedRowId
@@ -492,9 +498,15 @@ Item {
     function _openDepartmentDetail(departmentId) {
         detailRoot._departmentsSelectedRowId = departmentId
         detailRoot._departmentsDetailOpen = true
+        // errorMessage/feedbackMessage are forwarded into both the
+        // Departments list AND this nested detail view -- clear them on
+        // this transition so a stale list-scoped message doesn't leak in
+        // as if it were about this specific department.
+        if (detailRoot.workspaceController) detailRoot.workspaceController.clearMessages()
     }
     function _closeDepartmentDetail() {
         detailRoot._departmentsDetailOpen = false
+        if (detailRoot.workspaceController) detailRoot.workspaceController.clearMessages()
     }
     readonly property var _selectedDepartment: {
         const id = detailRoot._departmentsSelectedRowId
@@ -554,9 +566,15 @@ Item {
     function _openEmployeeDetail(employeeId) {
         detailRoot._employeesSelectedRowId = employeeId
         detailRoot._employeesDetailOpen = true
+        // errorMessage/feedbackMessage are forwarded into both the
+        // Employees list AND this nested detail view -- clear them on
+        // this transition so a stale list-scoped message doesn't leak in
+        // as if it were about this specific employee.
+        if (detailRoot.workspaceController) detailRoot.workspaceController.clearMessages()
     }
     function _closeEmployeeDetail() {
         detailRoot._employeesDetailOpen = false
+        if (detailRoot.workspaceController) detailRoot.workspaceController.clearMessages()
     }
     readonly property var _selectedEmployee: {
         const id = detailRoot._employeesSelectedRowId
@@ -617,9 +635,15 @@ Item {
         detailRoot._documentsSelectedRowId = documentId
         if (detailRoot.workspaceController) detailRoot.workspaceController.selectDocument(documentId)
         detailRoot._documentsDetailOpen = true
+        // errorMessage/feedbackMessage are forwarded into both the
+        // Documents list AND this nested detail view -- clear them on
+        // this transition so a stale list-scoped message doesn't leak in
+        // as if it were about this specific document.
+        if (detailRoot.workspaceController) detailRoot.workspaceController.clearMessages()
     }
     function _closeDocumentDetail() {
         detailRoot._documentsDetailOpen = false
+        if (detailRoot.workspaceController) detailRoot.workspaceController.clearMessages()
     }
     readonly property var _selectedDocumentItem: {
         const id = detailRoot._documentsSelectedRowId

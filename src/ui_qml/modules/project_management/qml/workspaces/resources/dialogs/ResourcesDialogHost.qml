@@ -30,6 +30,10 @@ Item {
                 ? result.message : "The resource could not be saved.")
                 + (result && result.conflict === true
                     ? " Close this dialog, reload the resource, and apply your changes again." : "")
+            // Already shown above, inside the dialog -- clear it on the
+            // controller so it doesn't also leak onto the page behind this
+            // modal, or linger there after the user cancels out.
+            if (root.workspaceController) root.workspaceController.clearMessages()
         }
     }
 

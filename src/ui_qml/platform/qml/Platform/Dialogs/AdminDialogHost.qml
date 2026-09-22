@@ -37,9 +37,17 @@ Item {
     // Keeps the dialog open and shows the backend error inside it on failure;
     // clears and closes only on success. Mirrors the dialog-result handling in
     // the other modules' dialog hosts.
+    //
+    // The mutation already wrote this same failure text into the workspace
+    // controller's shared errorMessage -- the same property the list/detail
+    // InlineMessage behind this dialog reads. Once it's copied into the
+    // dialog's own local errorMessage above, clear it on the controller so
+    // it doesn't also show behind the modal, and doesn't linger there and
+    // leak onto the page after the user cancels out of this dialog.
     function _handleResult(dialog, result) {
         if (!result || result.ok === false) {
             dialog.errorMessage = String((result && result.message) || "Operation failed. Please try again.")
+            if (root.workspaceController) root.workspaceController.clearMessages()
         } else {
             dialog.errorMessage = ""
             dialog.close()

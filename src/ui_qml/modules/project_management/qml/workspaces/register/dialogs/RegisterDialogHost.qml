@@ -23,6 +23,10 @@ Item {
             dialog.close()
         } else {
             dialog.errorMessage = result.error || "An unexpected error occurred."
+            // Already shown above, inside the dialog -- clear it on the
+            // controller so it doesn't also leak onto the page behind this
+            // modal, or linger there after the user cancels out.
+            if (root.workspaceController) root.workspaceController.clearMessages()
         }
     }
 

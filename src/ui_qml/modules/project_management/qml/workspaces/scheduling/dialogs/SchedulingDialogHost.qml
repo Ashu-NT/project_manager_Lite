@@ -22,6 +22,10 @@ Item {
     function _handleResult(dialog, result) {
         if (!result || result.ok === false) {
             dialog.errorMessage = String((result && (result.error || result.message)) || "Operation failed. Please try again.")
+            // Already shown above, inside the dialog -- clear it on the
+            // controller so it doesn't also leak onto the page behind this
+            // modal, or linger there after the user cancels out.
+            if (root.workspaceController) root.workspaceController.clearMessages()
         } else {
             dialog.errorMessage = ""
             dialog.close()
