@@ -733,7 +733,6 @@ def build_platform_service_bundle(
         overview_rollup_reader=overview_rollup_reader,
         employee_headcount_reader=SqlAlchemyEmployeeHeadcountReader(session),
     )
-
     if security_configuration.tenancy_mode is TenancyMode.LOCAL_SINGLE_TENANT:
         logger.debug("Bootstrapping explicit local single-tenant defaults")
         _bootstrap_local_single_tenant_context(
@@ -1152,8 +1151,19 @@ def build_platform_service_bundle(
         user_session=user_session,
     )
     global_calendar_shim = GlobalCalendarShim(resolver=enterprise_calendar_resolver)
-    # Bootstrap global calendar. After the Alembic migration drops legacy tables,
-    # working_calendar_repo will not be passed — the enterprise tables already hold the data.
+    # Bootstrap global calendar for the currently-active organization only --
+    # PlatformCalendarRepository.get_global()/most calendar repo methods are
+    # deliberately scoped to the caller's active organization (the same
+    # tenant-scoping boundary used throughout this app's repositories), so
+    # this cannot safely be widened into a loop over every organization
+    # without first switching the active organization for each one (real
+    # side effects: audit logging, principal rebuilding). New organizations
+    # get their default calendar automatically at creation time instead --
+    # see OrganizationService._ensure_default_calendar -- so this startup
+    # step now only matters for organizations that already existed before
+    # that existed. After the Alembic migration drops the legacy
+    # working_calendar tables, working_calendar_repo will not be passed —
+    # the enterprise tables already hold the data.
     try:
         org = tenant_context_service.get_active_organization()
         if org:

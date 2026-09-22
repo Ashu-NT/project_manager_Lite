@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
+from datetime import datetime, time, timezone
 from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
@@ -16,6 +18,11 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from src.core.platform.common.ids import generate_id
+from src.core.platform.domain.time_management.calendar.enterprise_calendar import CalendarType
+from src.core.platform.infrastructure.persistence.orm.time_management.calendar.enterprise_calendar import (
+    CalendarWorkingRuleORM,
+    PlatformCalendarORM,
+)
 from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.contract.uow.organization_unit_of_work import (
@@ -53,6 +60,8 @@ if TYPE_CHECKING:
     from src.core.platform.domain.security.auth.session import UserSessionContext
     from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
+logger = logging.getLogger(__name__)
+
 ORGANIZATION_PAGE_SIZE_OPTIONS: tuple[int, ...] = (25, 50, 100)
 _DEFAULT_ORGANIZATION_PAGE_SIZE = 25
 
@@ -71,6 +80,72 @@ _ORGANIZATION_STATUS_EVENT_CLASS: dict[str, type] = {
     "organization.deactivate": OrganizationDeactivated,
     "organization.archive": OrganizationArchived,
 }
+
+# Mon-Fri 08:00-17:00 with a 60-minute break -- the same fresh-install
+# default EnterpriseCalendarService.ensure_global_calendar() seeds when no
+# legacy working_calendar data exists to migrate.
+_DEFAULT_WORKING_WEEKDAYS = frozenset({0, 1, 2, 3, 4})
+
+
+def _add_default_calendar_rows(session: Session, organization: Organization) -> None:
+    """Every organization gets exactly one default (Global-tier) calendar,
+    created in the SAME transaction as the organization itself -- the
+    invariant is "an organization cannot exist without its required
+    calendar", not "an organization gets one shortly after, best-effort".
+
+    Written directly as ORM rows (not through PlatformCalendarRepository/
+    CalendarWorkingRuleRepository) because those repositories are
+    TenantScopedRepositorySupport-scoped to the CALLER's ACTIVE organization
+    -- they silently redirect organization_id/tenant_id to the active
+    scope regardless of what's passed in, which would write the calendar
+    under the wrong organization for every organization created while a
+    DIFFERENT one happens to be active (the normal case). This service
+    already knows the exact, just-validated organization/tenant scope from
+    `organization` itself, so that ambient scoping doesn't apply here.
+
+    The client can edit this calendar afterward from the Calendars
+    workspace -- this only guarantees it exists to begin with.
+    """
+    now = datetime.now(timezone.utc)
+    calendar_id = f"global-{organization.id[:8]}"
+    session.add(
+        PlatformCalendarORM(
+            id=calendar_id,
+            tenant_id=organization.tenant_id,
+            organization_id=organization.id,
+            code="GLOBAL",
+            name="Global Calendar",
+            description="Organization-wide default working calendar.",
+            calendar_type=CalendarType.GLOBAL.value,
+            timezone="UTC",
+            is_default=True,
+            is_active=True,
+            priority=0,
+            version=1,
+            created_at=now,
+            updated_at=now,
+        )
+    )
+    # Flush so the calendar row (and the organization row it -- and every
+    # working rule row below -- has a foreign key to) physically exists
+    # before the dependent inserts below are sent, regardless of how this
+    # session's autoflush/dependency-sort settings are configured.
+    session.flush()
+    for weekday in range(7):
+        is_working = weekday in _DEFAULT_WORKING_WEEKDAYS
+        session.add(
+            CalendarWorkingRuleORM(
+                id=generate_id(),
+                calendar_id=calendar_id,
+                weekday=weekday,
+                is_working_day=is_working,
+                start_time=time(8, 0) if is_working else None,
+                end_time=time(17, 0) if is_working else None,
+                break_minutes=60 if is_working else 0,
+                hours_override=8.0 if is_working else None,
+                priority=0,
+            )
+        )
 
 
 @dataclass(frozen=True)
@@ -329,6 +404,7 @@ class OrganizationService:
                 phone=phone,
                 website=website,
             )
+            _add_default_calendar_rows(uow.session, organization)
             try:
                 uow.commit()
             except IntegrityError as exc:

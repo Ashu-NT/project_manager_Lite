@@ -68,6 +68,18 @@ class SqlAlchemyOrganizationUnitOfWork(SqlAlchemyUnitOfWorkBase, OrganizationUni
             tenant_context_service=tenant_context_service,
         )
 
+    @property
+    def session(self) -> Session:
+        """Direct access to this UnitOfWork's own Session, for a service
+        that already knows the exact tenant/organization scope of a write
+        (e.g. seeding a new organization's own default calendar in the same
+        transaction) and so has no need for a TenantScopedRepositorySupport
+        repository's ambient-active-context scoping -- which writes to the
+        CALLER's active organization regardless of what a domain object's
+        own fields say, and would silently redirect a cross-scope write to
+        the wrong organization."""
+        return self._session
+
 
 class SqlAlchemyOrganizationUnitOfWorkFactory(SqlAlchemyUnitOfWorkFactoryBase):
     """Closes over a session factory (never an already-created `Session`) plus the ambient
