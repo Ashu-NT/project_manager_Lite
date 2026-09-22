@@ -129,7 +129,7 @@ def test_build_desktop_api_registry_exposes_platform_control_adapters(services):
 def test_build_desktop_api_registry_exposes_organization_as_an_access_scope_type(services):
     organization_service = services["organization_service"]
     other_org = organization_service.create_organization(
-        organization_code="DESKTOP-ORG-B", display_name="Desktop Access Org B", is_enabled=True,
+        organization_code="DESKTOP-ORG-B", display_name="Desktop Access Org B",
     )
     registry = build_desktop_api_registry(services)
 

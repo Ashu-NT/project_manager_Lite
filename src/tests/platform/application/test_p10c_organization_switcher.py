@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.domain.master_data.org import ORGANIZATION_STATUS_ACTIVE
 from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.tests.ui_runtime_helpers import login_as
@@ -38,14 +39,15 @@ def test_list_accessible_organizations_includes_only_enabled_and_authorized_orgs
     default_org = services["tenant_context_service"].get_active_organization()
 
     org_granted = organization_service.create_organization(
-        organization_code="SWITCH-GRANTED", display_name="Switcher Granted Org", is_enabled=True
+        organization_code="SWITCH-GRANTED", display_name="Switcher Granted Org"
     )
     org_ungranted = organization_service.create_organization(
-        organization_code="SWITCH-UNGRANTED", display_name="Switcher Ungranted Org", is_enabled=True
+        organization_code="SWITCH-UNGRANTED", display_name="Switcher Ungranted Org"
     )
     org_disabled = organization_service.create_organization(
-        organization_code="SWITCH-DISABLED", display_name="Switcher Disabled Org", is_enabled=False
+        organization_code="SWITCH-DISABLED", display_name="Switcher Disabled Org"
     )
+    org_disabled = organization_service.deactivate_organization(org_disabled.id)
     user = _register_active_tenant_user(services, "switcher-list-user", role_names=["viewer"])
     _grant_organization_access(services, user_id=user.id, organization_id=org_granted.id)
     # Also grant the disabled org -- authorization and availability are independent, so a grant
@@ -92,7 +94,7 @@ def test_list_accessible_organizations_returns_empty_for_a_user_with_zero_org_gr
     single-org-tenant users) -- never every enabled org in the tenant blindly."""
     organization_service = services["organization_service"]
     organization_service.create_organization(
-        organization_code="SWITCH-ZERO-GRANT-OTHER", display_name="Switcher Zero Grant Other", is_enabled=True
+        organization_code="SWITCH-ZERO-GRANT-OTHER", display_name="Switcher Zero Grant Other"
     )
     user = _register_active_tenant_user(services, "switcher-zero-grant-user", role_names=["viewer"])
     login_as(services, "switcher-zero-grant-user", "StrongPass123")
@@ -112,12 +114,12 @@ def test_get_active_organization_self_heals_when_the_current_organization_is_dis
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     org = organization_service.create_organization(
-        organization_code="SWITCH-DISABLE-CURRENT", display_name="Switcher Disable Current", is_enabled=True
+        organization_code="SWITCH-DISABLE-CURRENT", display_name="Switcher Disable Current"
     )
     tenant_context_service.set_active_organization(org.id)
     assert tenant_context_service.get_active_organization_id() == org.id
 
-    organization_service.disable_organization(org.id)
+    organization_service.deactivate_organization(org.id)
 
     assert tenant_context_service.get_active_organization() is None
     assert tenant_context_service.get_active_organization_id() is None
@@ -129,10 +131,10 @@ def test_disabling_a_non_active_organization_does_not_disturb_the_current_contex
     tenant_context_service = services["tenant_context_service"]
     default_org = tenant_context_service.get_active_organization()
     other = organization_service.create_organization(
-        organization_code="SWITCH-DISABLE-OTHER", display_name="Switcher Disable Other", is_enabled=True
+        organization_code="SWITCH-DISABLE-OTHER", display_name="Switcher Disable Other"
     )
 
-    organization_service.disable_organization(other.id)
+    organization_service.deactivate_organization(other.id)
 
     assert tenant_context_service.get_active_organization_id() == default_org.id
 
@@ -150,7 +152,7 @@ def test_revoking_a_users_only_organization_grant_clears_their_active_organizati
     access = services["access_service"]
     organization_service = services["organization_service"]
     org = organization_service.create_organization(
-        organization_code="SWITCH-REVOKE-ONLY", display_name="Switcher Revoke Only", is_enabled=True
+        organization_code="SWITCH-REVOKE-ONLY", display_name="Switcher Revoke Only"
     )
     user = _register_active_tenant_user(services, "switcher-revoke-user", role_names=["viewer"])
     _grant_organization_access(services, user_id=user.id, organization_id=org.id)
@@ -169,7 +171,7 @@ def test_revoked_organization_access_is_not_restored_on_the_next_login(services)
     access = services["access_service"]
     organization_service = services["organization_service"]
     org = organization_service.create_organization(
-        organization_code="SWITCH-REVOKE-RELOGIN", display_name="Switcher Revoke Relogin", is_enabled=True
+        organization_code="SWITCH-REVOKE-RELOGIN", display_name="Switcher Revoke Relogin"
     )
     user = _register_active_tenant_user(services, "switcher-revoke-relogin-user", role_names=["viewer"])
     _grant_organization_access(services, user_id=user.id, organization_id=org.id)
@@ -195,7 +197,7 @@ def test_revoking_a_grant_for_a_different_currently_active_user_session_is_a_noo
     organization_service = services["organization_service"]
     default_org = services["tenant_context_service"].get_active_organization()
     org = organization_service.create_organization(
-        organization_code="SWITCH-REVOKE-OTHER-USER", display_name="Switcher Revoke Other User", is_enabled=True
+        organization_code="SWITCH-REVOKE-OTHER-USER", display_name="Switcher Revoke Other User"
     )
     other_user = _register_active_tenant_user(services, "switcher-revoke-bystander", role_names=["viewer"])
     _grant_organization_access(services, user_id=other_user.id, organization_id=org.id)
@@ -225,7 +227,7 @@ def test_desktop_api_lists_gets_and_switches_organizations(services):
     organization_service = services["organization_service"]
     default_org = services["tenant_context_service"].get_active_organization()
     other = organization_service.create_organization(
-        organization_code="SWITCH-DESKTOP-API", display_name="Switcher Desktop Api Org", is_enabled=True
+        organization_code="SWITCH-DESKTOP-API", display_name="Switcher Desktop Api Org"
     )
     user = _register_active_tenant_user(services, "switcher-desktop-api-user", role_names=["viewer"])
     _grant_organization_access(services, user_id=user.id, organization_id=default_org.id)
@@ -261,7 +263,7 @@ def test_desktop_api_switch_rejects_an_unauthorized_organization(services):
     organization_service = services["organization_service"]
     default_org = services["tenant_context_service"].get_active_organization()
     unauthorized = organization_service.create_organization(
-        organization_code="SWITCH-DESKTOP-UNAUTH", display_name="Switcher Desktop Unauthorized", is_enabled=True
+        organization_code="SWITCH-DESKTOP-UNAUTH", display_name="Switcher Desktop Unauthorized"
     )
     user = _register_active_tenant_user(services, "switcher-desktop-unauth-user", role_names=["viewer"])
     _grant_organization_access(services, user_id=user.id, organization_id=default_org.id)
@@ -283,8 +285,9 @@ def test_desktop_api_switch_rejects_a_disabled_organization(services):
     organization_service = services["organization_service"]
     default_org = services["tenant_context_service"].get_active_organization()
     disabled = organization_service.create_organization(
-        organization_code="SWITCH-DESKTOP-DISABLED", display_name="Switcher Desktop Disabled", is_enabled=False
+        organization_code="SWITCH-DESKTOP-DISABLED", display_name="Switcher Desktop Disabled"
     )
+    disabled = organization_service.deactivate_organization(disabled.id)
     user = _register_active_tenant_user(services, "switcher-desktop-disabled-user", role_names=["viewer"])
     _grant_organization_access(services, user_id=user.id, organization_id=default_org.id)
     _grant_organization_access(services, user_id=user.id, organization_id=disabled.id)
@@ -303,16 +306,16 @@ def test_desktop_api_switch_rejects_a_disabled_organization(services):
 def test_switch_to_organization_never_mutates_the_organization_row(services):
     organization_service = services["organization_service"]
     org = organization_service.create_organization(
-        organization_code="SWITCH-NO-MUTATE", display_name="Switcher No Mutate", is_enabled=True
+        organization_code="SWITCH-NO-MUTATE", display_name="Switcher No Mutate"
     )
     version_before = org.version
 
     services["tenant_context_service"].set_active_organization(org.id)
 
-    reloaded = organization_service.list_organizations(enabled_only=None)
+    reloaded = organization_service.list_organizations(status=None)
     matching = next(o for o in reloaded if o.id == org.id)
     assert matching.version == version_before
-    assert matching.is_enabled is True
+    assert matching.status == ORGANIZATION_STATUS_ACTIVE
 
 
 # ----------------------------------------------------------------------
@@ -329,7 +332,7 @@ def test_independent_sessions_switch_organizations_without_affecting_each_other(
     tenant_id = real_tenant_context_service.get_active_tenant_id()
     default_org = real_tenant_context_service.get_active_organization()
     org_b = organization_service.create_organization(
-        organization_code="SWITCH-INDEP-B", display_name="Switcher Independent B", is_enabled=True
+        organization_code="SWITCH-INDEP-B", display_name="Switcher Independent B"
     )
 
     def _build_session_for(user_id: str) -> tuple[UserSessionContext, TenantContextService]:
@@ -373,8 +376,11 @@ def test_independent_sessions_switch_organizations_without_affecting_each_other(
 
 
 def test_no_new_organization_or_legacy_signal_domain_event_was_introduced():
-    """No production source may introduce `OrganizationSelected`/`OrganizationActivated`/
-    `ActiveOrganizationChanged` -- organization-switching stays event-free."""
+    """No production source may introduce `OrganizationSelected`/`ActiveOrganizationChanged` --
+    organization-switching (session selection) stays event-free. `OrganizationActivated` is a
+    legitimate, unrelated lifecycle-status event (Organization.status ACTIVE/INACTIVE/ARCHIVED)
+    and is intentionally excluded from this guard -- it fires on `activate_organization()`, never
+    on session-scoped `set_active_organization()`."""
     import glob
     import re
 
@@ -385,7 +391,7 @@ def test_no_new_organization_or_legacy_signal_domain_event_was_introduced():
             continue
         with open(path, "r", encoding="utf-8", errors="ignore") as fh:
             source = fh.read()
-        for forbidden in ("OrganizationSelected", "OrganizationActivated", "ActiveOrganizationChanged"):
+        for forbidden in ("OrganizationSelected", "ActiveOrganizationChanged"):
             # Word-boundary on both sides (not just \b, which doesn't separate two letters) --
             # excludes false positives like a docstring's `onOrganizationSelected` QML handler
             # name, which is a different, pre-existing, unrelated identifier.
@@ -413,9 +419,10 @@ def test_switch_organization_does_not_call_organization_availability_mutation():
     import src.core.platform.application.tenant.tenancy.tenant_context as tenant_context_module
 
     source = inspect.getsource(tenant_context_module.TenantContextService._set_active_organization)
-    assert "enable_organization" not in source
-    assert "disable_organization" not in source
-    assert ".is_enabled = " not in source
+    assert "activate_organization" not in source
+    assert "deactivate_organization" not in source
+    assert "archive_organization" not in source
+    assert ".status = " not in source
 
 
 def test_tenant_membership_alone_is_insufficient_organization_authorization(services):
@@ -436,7 +443,7 @@ def test_manual_switch_to_an_unauthorized_organization_id_is_rejected_even_bypas
     organization_service = services["organization_service"]
     default_org = services["tenant_context_service"].get_active_organization()
     never_offered = organization_service.create_organization(
-        organization_code="SWITCH-MANUAL-BYPASS", display_name="Switcher Manual Bypass", is_enabled=True
+        organization_code="SWITCH-MANUAL-BYPASS", display_name="Switcher Manual Bypass"
     )
     user = _register_active_tenant_user(services, "switcher-manual-bypass-user", role_names=["viewer"])
     _grant_organization_access(services, user_id=user.id, organization_id=default_org.id)

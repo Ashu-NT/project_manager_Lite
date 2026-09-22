@@ -148,9 +148,7 @@ def test_employee_headcount_is_isolated_per_organization(services):
         display_name="Second Org",
         timezone_name="UTC",
         base_currency="USD",
-        is_enabled=False,
     )
-    organization_service.enable_organization(second_organization.id)
     services["tenant_context_service"].set_active_organization(second_organization.id)
 
     fresh_org_summary = employee_service.get_headcount_summary()
@@ -159,7 +157,6 @@ def test_employee_headcount_is_isolated_per_organization(services):
     employee_service.create_employee(employee_code="P6-SEC-1", full_name="Second Org Employee", is_active=True)
     assert employee_service.get_headcount_summary().total == 1
 
-    organization_service.enable_organization(default_organization.id)
     services["tenant_context_service"].set_active_organization(default_organization.id)
     assert employee_service.get_headcount_summary().total == default_summary.total
 

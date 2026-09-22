@@ -27,7 +27,6 @@ def _seed_time_governance_scope_rows(services) -> dict[str, str]:
         display_name="Operations Hub",
         timezone_name="UTC",
         base_currency="USD",
-        is_enabled=False,
     )
     assert default_org is not None
     assert other_org is not None

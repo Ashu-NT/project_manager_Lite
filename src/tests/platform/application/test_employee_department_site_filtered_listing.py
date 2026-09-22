@@ -119,9 +119,7 @@ def test_department_filter_from_foreign_organization_yields_no_rows(services):
         display_name="Cross Org",
         timezone_name="UTC",
         base_currency="USD",
-        is_enabled=False,
     )
-    organization_service.enable_organization(second_organization.id)
     services["tenant_context_service"].set_active_organization(second_organization.id)
 
     # Same department_id, but now scoped to a different active organization
@@ -129,7 +127,6 @@ def test_department_filter_from_foreign_organization_yields_no_rows(services):
     rows = employee_service.list_employees(department_id=dept_in_default_org.id)
     assert rows == []
 
-    organization_service.enable_organization(default_organization.id)
     services["tenant_context_service"].set_active_organization(default_organization.id)
 
 

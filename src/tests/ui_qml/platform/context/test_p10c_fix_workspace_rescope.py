@@ -25,7 +25,7 @@ def test_pm_projects_workspace_no_longer_shows_org_a_data_after_switching_to_org
     organization_service = services["organization_service"]
     default_org = services["tenant_context_service"].get_active_organization()
     org_b = organization_service.create_organization(
-        organization_code="RESCOPE-PM-B", display_name="Rescope PM Org B", is_enabled=True
+        organization_code="RESCOPE-PM-B", display_name="Rescope PM Org B"
     )
     project_a = services["project_service"].create_project(
         "Rescope PM Project A", financial_currency_code="USD"
@@ -53,7 +53,7 @@ def test_platform_sites_workspace_no_longer_shows_org_a_data_after_switching_to_
     organization_service = services["organization_service"]
     default_org = services["tenant_context_service"].get_active_organization()
     org_b = organization_service.create_organization(
-        organization_code="RESCOPE-PLAT-B", display_name="Rescope Platform Org B", is_enabled=True
+        organization_code="RESCOPE-PLAT-B", display_name="Rescope Platform Org B"
     )
     site_a = services["site_service"].create_site(
         site_code="RESCOPE-SITE-A", name="Rescope Site A", city="Berlin", currency_code="EUR"
@@ -124,7 +124,7 @@ def test_pm_workspace_does_not_keep_serving_org_a_data_after_current_org_access_
     organization_service = services["organization_service"]
     access = services["access_service"]
     org = organization_service.create_organization(
-        organization_code="RESCOPE-REVOKE-ORG", display_name="Rescope Revoke Org", is_enabled=True
+        organization_code="RESCOPE-REVOKE-ORG", display_name="Rescope Revoke Org"
     )
     tenant_id = services["tenant_context_service"].require_active_tenant_id(operation_label="test")
     user = services["auth_service"].register_user(
@@ -155,7 +155,7 @@ def test_pm_workspace_does_not_keep_serving_org_a_data_after_current_org_is_disa
     organization_service = services["organization_service"]
     tenant_context_service = services["tenant_context_service"]
     org = organization_service.create_organization(
-        organization_code="RESCOPE-DISABLE-ORG", display_name="Rescope Disable Org", is_enabled=True
+        organization_code="RESCOPE-DISABLE-ORG", display_name="Rescope Disable Org"
     )
     tenant_context_service.set_active_organization(org.id)
     project_a = services["project_service"].create_project(
@@ -166,7 +166,7 @@ def test_pm_workspace_does_not_keep_serving_org_a_data_after_current_org_is_disa
     pm_catalog.projectsWorkspace.refresh()
     assert project_a.id in str(pm_catalog.projectsWorkspace.projects)
 
-    organization_service.disable_organization(org.id)
+    organization_service.deactivate_organization(org.id)
     assert tenant_context_service.get_active_organization_id() is None
 
     pm_catalog.projectsWorkspace.refresh()

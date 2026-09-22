@@ -670,14 +670,11 @@ def test_add_line_rejects_cross_organization_cost_code(services) -> None:
         organization_code="PF-BUDGET-OTHER",
         display_name="Budget Other Org",
         base_currency="USD",
-        is_enabled=False,
     )
-    organization_service.enable_organization(other_organization.id)
     services["tenant_context_service"].set_active_organization(other_organization.id)
     try:
         other_org_code = _make_cost_code(services, code="CC-OTHER-ORG")
     finally:
-        organization_service.enable_organization(original_organization.id)
         services["tenant_context_service"].set_active_organization(original_organization.id)
 
     with pytest.raises(NotFoundError):
@@ -1239,15 +1236,12 @@ def test_tenant_isolation_across_organizations(services) -> None:
         organization_code="PF-BUDGET-ISOLATION",
         display_name="Budget Isolation Org",
         base_currency="USD",
-        is_enabled=False,
     )
-    organization_service.enable_organization(other_organization.id)
     services["tenant_context_service"].set_active_organization(other_organization.id)
     try:
         assert budget_service._budget_repo.get(budget.id) is None
         assert budget_service._budget_repo.list_for_project(project.id) == []
     finally:
-        organization_service.enable_organization(original_organization.id)
         services["tenant_context_service"].set_active_organization(original_organization.id)
 
     assert budget_service._budget_repo.get(budget.id).id == budget.id

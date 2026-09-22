@@ -81,8 +81,8 @@ def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str
     preparation_id = f"r6b-billing-preparation-{suffix}"
     line_id = f"r6b-billing-line-{suffix}"
     connection.execute(text(
-        "INSERT INTO organizations (id, tenant_id, organization_code, display_name, timezone_name, base_currency, is_enabled, version) "
-        "VALUES (:id, :tenant, :code, :name, 'UTC', 'USD', true, 1)"
+        "INSERT INTO organizations (id, tenant_id, organization_code, display_name, timezone_name, base_currency, status, version) "
+        "VALUES (:id, :tenant, :code, :name, 'UTC', 'USD', 'active', 1)"
     ), {"id": organization_id, "tenant": tenant_id, "code": f"R6B-BILL-{suffix.upper()}", "name": f"R6B Billing {suffix.upper()}"})
     connection.execute(text(
         "INSERT INTO projects (id, tenant_id, project_code, name, description, status, organization_id, version) "

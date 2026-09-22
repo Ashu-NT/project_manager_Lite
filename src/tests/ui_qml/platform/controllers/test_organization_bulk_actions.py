@@ -1,5 +1,5 @@
 """End-to-end (real SQLite-backed services, real controller chain) tests for
-the Organizations table's row-selection + bulk actions: bulk enable/disable,
+the Organizations table's row-selection + bulk actions: bulk activate/deactivate,
 bulk currency, bulk timezone, and bulk module grant/revoke."""
 
 from __future__ import annotations
@@ -41,7 +41,6 @@ def _create_org(services, code: str, name: str) -> str:
         display_name=name,
         timezone_name="UTC",
         base_currency="USD",
-        is_enabled=True,
     )
     return organization.id
 
@@ -58,7 +57,7 @@ def _build_admin_workspace(services):
     return catalog, catalog.adminWorkspace
 
 
-def test_bulk_enable_disable_applies_to_every_selected_organization(services, qapp) -> None:
+def test_bulk_activate_deactivate_applies_to_every_selected_organization(services, qapp) -> None:
     _catalog, admin = _build_admin_workspace(services)
     org_a = _create_org(services, "BULK-A", "Bulk Org A")
     org_b = _create_org(services, "BULK-B", "Bulk Org B")
@@ -68,29 +67,29 @@ def test_bulk_enable_disable_applies_to_every_selected_organization(services, qa
     admin.setOrganizationBulkSelection(org_b, True)
     assert set(admin.selectedOrganizationIds) == {org_a, org_b}
 
-    result = admin.applyBulkOrganizationStatus({"value": "disabled"})
+    result = admin.applyBulkOrganizationStatus({"value": "inactive"})
     assert result["ok"] is True, result
     assert admin.selectedOrganizationIds == []
 
     org_service = services["organization_service"]
-    all_orgs = {o.id: o for o in org_service.list_organizations(enabled_only=None)}
-    assert all_orgs[org_a].is_enabled is False
-    assert all_orgs[org_b].is_enabled is False
+    all_orgs = {o.id: o for o in org_service.list_organizations(status=None)}
+    assert all_orgs[org_a].status == "inactive"
+    assert all_orgs[org_b].status == "inactive"
 
     admin.setOrganizationBulkSelection(org_a, True)
     admin.setOrganizationBulkSelection(org_b, True)
-    result = admin.applyBulkOrganizationStatus({"value": "enabled"})
+    result = admin.applyBulkOrganizationStatus({"value": "active"})
     assert result["ok"] is True, result
-    all_orgs = {o.id: o for o in org_service.list_organizations(enabled_only=None)}
-    assert all_orgs[org_a].is_enabled is True
-    assert all_orgs[org_b].is_enabled is True
+    all_orgs = {o.id: o for o in org_service.list_organizations(status=None)}
+    assert all_orgs[org_a].status == "active"
+    assert all_orgs[org_b].status == "active"
 
 
 def test_bulk_status_change_opens_exactly_one_transaction_for_the_whole_selection(services, qapp) -> None:
     """The whole point of routing bulk actions through OrganizationService.
-    bulk_set_organization_enabled() instead of looping N calls to enable_
-    organization()/disable_organization(): N selected rows must cost ONE
-    UnitOfWork/commit, not N. This is the regression test for that."""
+    bulk_deactivate_organizations() instead of looping N calls to
+    deactivate_organization(): N selected rows must cost ONE UnitOfWork/commit,
+    not N. This is the regression test for that."""
     _catalog, admin = _build_admin_workspace(services)
     org_ids = [_create_org(services, f"BULK-TX-{i}", f"Bulk TX Org {i}") for i in range(5)]
     admin.refresh()
@@ -100,7 +99,7 @@ def test_bulk_status_change_opens_exactly_one_transaction_for_the_whole_selectio
 
     counts, restore = _count_uow_creations()
     try:
-        result = admin.applyBulkOrganizationStatus({"value": "disabled"})
+        result = admin.applyBulkOrganizationStatus({"value": "inactive"})
     finally:
         restore()
 
@@ -128,7 +127,7 @@ def test_bulk_currency_and_timezone_update_every_selected_organization(services,
     assert result["ok"] is True, result
 
     org_service = services["organization_service"]
-    all_orgs = {o.id: o for o in org_service.list_organizations(enabled_only=None)}
+    all_orgs = {o.id: o for o in org_service.list_organizations(status=None)}
     for org_id in (org_a, org_b):
         assert all_orgs[org_id].base_currency == "EUR"
         assert all_orgs[org_id].timezone_name == "Europe/Amsterdam"

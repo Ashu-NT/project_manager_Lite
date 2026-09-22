@@ -1,7 +1,8 @@
-"""End-to-end proof that Organization creation, profile updates, and enable/disable ALL reach
-the two real UI consumers (admin console organization list, settings organization profiles list)
-through `OrganizationCreated`/`OrganizationProfileUpdated`/`OrganizationEnabled`/
-`OrganizationDisabled` -> `ViewInvalidationHint` -> `OrganizationViewInvalidationAdapter`.
+"""End-to-end proof that Organization creation, profile updates, and lifecycle transitions ALL
+reach the two real UI consumers (admin console organization list, settings organization profiles
+list) through `OrganizationCreated`/`OrganizationProfileUpdated`/`OrganizationActivated`/
+`OrganizationDeactivated`/`OrganizationArchived` -> `ViewInvalidationHint` ->
+`OrganizationViewInvalidationAdapter`.
 
 Uses the real `services` fixture (real Session, real UnitOfWorks, real composition-owned
 `ViewInvalidationChannel`) plus the real `build_desktop_api_registry`/`PlatformWorkspaceCatalog`
@@ -51,7 +52,7 @@ def test_provisioning_create_organization_refreshes_both_ui_consumers_identicall
     code = _unique_code("QTCUT-PROV")
     app_service.provision_organization(
         organization_code=code, display_name="Qt Cutover Provisioned Org",
-        timezone_name="UTC", base_currency="EUR", is_enabled=False, initial_module_codes=[],
+        timezone_name="UTC", base_currency="EUR", initial_module_codes=[],
     )
 
     admin_titles = [row["title"] for row in catalog.adminWorkspace.organizations["items"]]
@@ -82,15 +83,16 @@ def test_no_refresh_signal_before_commit_and_none_on_rollback(services):
     assert refresh_calls == ["admin"]
 
 
-def test_update_and_enable_now_also_use_the_typed_view_invalidation_path(services):
-    """`update_organization`/`enable_organization` record `OrganizationProfileUpdated`/
-    `OrganizationEnabled`, which reach the SAME real Qt consumers `OrganizationCreated` already
+def test_update_and_activate_now_also_use_the_typed_view_invalidation_path(services):
+    """`update_organization`/`activate_organization` record `OrganizationProfileUpdated`/
+    `OrganizationActivated`, which reach the SAME real Qt consumers `OrganizationCreated` already
     does, through the identical adapter path."""
     catalog = _catalog(services)
     organization_service = services["organization_service"]
     organization = organization_service.create_organization(
-        organization_code=_unique_code("QTCUT-UPDATE"), display_name="Before Update", is_enabled=False
+        organization_code=_unique_code("QTCUT-UPDATE"), display_name="Before Update"
     )
+    organization = organization_service.deactivate_organization(organization.id)
     catalog.adminWorkspace.organizations  # establish baseline read, post-creation
     catalog.settingsWorkspace.refresh()
 
@@ -109,14 +111,14 @@ def test_update_and_enable_now_also_use_the_typed_view_invalidation_path(service
 
     refresh_calls.clear()
     catalog.adminWorkspace._organization_controller.refresh_organizations = (
-        lambda: refresh_calls.append("admin-enable") or None
+        lambda: refresh_calls.append("admin-activate") or None
     )
     catalog.settingsWorkspace.refresh_organization_profiles = (
-        lambda: refresh_calls.append("settings-enable") or None
+        lambda: refresh_calls.append("settings-activate") or None
     )
 
-    organization_service.enable_organization(organization.id)
-    assert refresh_calls == ["admin-enable", "settings-enable"]
+    organization_service.activate_organization(organization.id)
+    assert refresh_calls == ["admin-activate", "settings-activate"]
 
 
 def test_adapter_only_reacts_to_the_currently_active_tenant(services):
@@ -307,7 +309,6 @@ def test_admin_console_own_mutation_still_self_refreshes_via_existing_direct_pat
             "displayName": "Self Refresh Org",
             "timezoneName": "UTC",
             "baseCurrency": "USD",
-            "isEnabled": False,
             "initialModuleCodes": [],
         }
     )

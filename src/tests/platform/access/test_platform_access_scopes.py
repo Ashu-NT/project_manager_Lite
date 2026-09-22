@@ -95,10 +95,10 @@ def test_access_service_supports_organization_scope_grants_and_principal_hydrati
     organization_service = services["organization_service"]
 
     org_a = organization_service.create_organization(
-        organization_code="ACCESS-ORG-A", display_name="Access Scope Org A", is_enabled=True,
+        organization_code="ACCESS-ORG-A", display_name="Access Scope Org A",
     )
     org_b = organization_service.create_organization(
-        organization_code="ACCESS-ORG-B", display_name="Access Scope Org B", is_enabled=True,
+        organization_code="ACCESS-ORG-B", display_name="Access Scope Org B",
     )
     user = _register_active_tenant_user(
         services,
@@ -185,8 +185,8 @@ def test_access_service_allows_organization_scope_grant_to_a_disabled_organizati
     disabled_org = organization_service.create_organization(
         organization_code="ACCESS-ORG-DISABLED",
         display_name="Access Scope Disabled Org",
-        is_enabled=False,
     )
+    disabled_org = organization_service.deactivate_organization(disabled_org.id)
     user = _register_active_tenant_user(
         services,
         "organization-scope-disabled-org-user",

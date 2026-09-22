@@ -38,7 +38,6 @@ def test_provision_organization_carries_new_fields_through_the_dto(services):
             display_name="Legal Desk Org",
             timezone_name="UTC",
             base_currency="USD",
-            is_enabled=False,
             legal_name="Legal Desk Org Holdings",
             registration_number="87654321",
             tax_id="US-TAX-1",
@@ -73,7 +72,6 @@ def test_update_organization_carries_new_fields_through_the_dto(services):
             display_name="Update Desk Org",
             timezone_name="UTC",
             base_currency="USD",
-            is_enabled=False,
         )
     ).data
 

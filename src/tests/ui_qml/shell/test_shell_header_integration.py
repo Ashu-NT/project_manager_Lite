@@ -14,6 +14,7 @@ from PySide6.QtTest import QTest
 from src.core.platform.api.desktop.events.notifications.models.notification import NotificationDto
 from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
 from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.domain.master_data.org import ORGANIZATION_STATUS_ACTIVE
 from src.ui_qml.shell.controllers.notifications.notifications_controller import (
     NotificationsController,
 )
@@ -61,7 +62,7 @@ def test_shell_header_uses_real_organization_switcher_and_notification_bell():
 def _org(id_: str, name: str) -> OrganizationDto:
     return OrganizationDto(
         id=id_, organization_code=id_.upper(), display_name=name,
-        timezone_name="UTC", base_currency="USD", is_enabled=True, version=1,
+        timezone_name="UTC", base_currency="USD", status=ORGANIZATION_STATUS_ACTIVE, version=1,
     )
 
 

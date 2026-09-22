@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
 from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
+from src.core.platform.domain.master_data.org import (
+    ORGANIZATION_STATUS_ACTIVE,
+    ORGANIZATION_STATUS_INACTIVE,
+)
 from src.ui_qml.shell.controllers.organization.organization_switcher_controller import (
     OrganizationSwitcherController,
 )
@@ -17,7 +21,7 @@ def _org(id_: str, *, name: str, enabled: bool = True) -> OrganizationDto:
         display_name=name,
         timezone_name="UTC",
         base_currency="USD",
-        is_enabled=enabled,
+        status=ORGANIZATION_STATUS_ACTIVE if enabled else ORGANIZATION_STATUS_INACTIVE,
         version=1,
     )
 

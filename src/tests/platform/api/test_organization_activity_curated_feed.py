@@ -36,8 +36,8 @@ def test_curated_feed_covers_organization_site_department_employee_document_even
     organization_service.update_organization(
         other_org.id, display_name="Secondary Org Renamed", expected_version=other_org.version
     )
-    organization_service.disable_organization(other_org.id)
-    organization_service.enable_organization(other_org.id)
+    organization_service.deactivate_organization(other_org.id)
+    organization_service.activate_organization(other_org.id)
 
     # Site: create + update.
     site = site_service.create_site(site_code=_unique("SITE-"), name="Main Warehouse")
@@ -78,7 +78,7 @@ def test_curated_feed_covers_organization_site_department_employee_document_even
     assert _has("Organization created", org_titles)
     assert _has("Organization updated", org_titles)
     assert _has("Organization deactivated", org_titles)
-    assert _has("Organization enabled", org_titles)
+    assert _has("Organization activated", org_titles)
     assert _has("Site created")
     assert _has("Site updated")
     assert _has("Department created")

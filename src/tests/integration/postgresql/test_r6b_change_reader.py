@@ -34,8 +34,8 @@ def _seed_scope(connection, *, suffix: str, tenant_id: str, organization_id: str
         text(
             "INSERT INTO organizations "
             "(id, tenant_id, organization_code, display_name, timezone_name, "
-            "base_currency, is_enabled, version) "
-            "VALUES (:id, :tenant, :code, :name, 'UTC', 'USD', true, 1)"
+            "base_currency, status, version) "
+            "VALUES (:id, :tenant, :code, :name, 'UTC', 'USD', 'active', 1)"
         ),
         {
             "id": organization_id,

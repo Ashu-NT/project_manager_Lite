@@ -27,6 +27,9 @@ def test_platform_runtime_desktop_api_returns_runtime_context_dto(services):
 
 
 def test_platform_runtime_desktop_api_provisions_organization_with_initial_module_mix(services):
+    """New organizations are always created ACTIVE, and `provision_organization` always switches
+    the caller's session into the just-created organization -- there is no longer a separate
+    "provision quietly, activate and switch later" path."""
     api = PlatformRuntimeDesktopApi(
         platform_runtime_application_service=services["platform_runtime_application_service"]
     )
@@ -37,7 +40,6 @@ def test_platform_runtime_desktop_api_provisions_organization_with_initial_modul
             display_name="Operations Hub",
             timezone_name="Africa/Lagos",
             base_currency="USD",
-            is_enabled=False,
             initial_module_codes=(),
         )
     )
@@ -45,11 +47,6 @@ def test_platform_runtime_desktop_api_provisions_organization_with_initial_modul
     assert result.ok is True
     assert result.data is not None
     assert result.data.organization_code == "OPS"
-    assert services["module_catalog_service"].current_context_label() == "Default Organization"
-    assert services["module_catalog_service"].is_enabled("project_management") is True
-
-    services["organization_service"].enable_organization(result.data.id)
-    services["tenant_context_service"].set_active_organization(result.data.id)
     assert services["module_catalog_service"].current_context_label() == "Operations Hub"
     assert services["module_catalog_service"].is_enabled("project_management") is False
 
@@ -68,8 +65,8 @@ def test_platform_runtime_desktop_api_maps_validation_errors(services):
     assert result.error.code == "MODULE_NOT_AVAILABLE"
 
 
-def test_platform_runtime_desktop_api_maps_permission_denied_enable_organization(services):
-    """`enable_organization` is the desktop API's organization-scoped write, gated by
+def test_platform_runtime_desktop_api_maps_permission_denied_activate_organization(services):
+    """`activate_organization` is the desktop API's organization-scoped write, gated by
     `settings.manage` -- proves that gate's desktop-API error mapping."""
     api = PlatformRuntimeDesktopApi(
         platform_runtime_application_service=services["platform_runtime_application_service"]
@@ -84,7 +81,6 @@ def test_platform_runtime_desktop_api_maps_permission_denied_enable_organization
         display_name="East Division",
         timezone_name="Asia/Dubai",
         base_currency="AED",
-        is_enabled=False,
     )
     user_session.set_principal(
         UserSessionPrincipal(
@@ -104,7 +100,7 @@ def test_platform_runtime_desktop_api_maps_permission_denied_enable_organization
     )
     user_session.set_active_organization_id(default_organization.id)
 
-    result = api.enable_organization(second.id)
+    result = api.activate_organization(second.id)
 
     assert result.ok is False
     assert result.data is None

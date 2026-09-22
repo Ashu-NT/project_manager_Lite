@@ -119,7 +119,7 @@ def _org_switcher_harness_source(*, organizations: str, active_id: str) -> str:
 
 def test_single_organization_switcher_is_not_keyboard_reachable(qapp) -> None:
     source = _org_switcher_harness_source(
-        organizations='[{"id": "org-1", "displayName": "Only Org", "organizationCode": "ORG1", "isEnabled": true}]',
+        organizations='[{"id": "org-1", "displayName": "Only Org", "organizationCode": "ORG1", "status": "active"}]',
         active_id="org-1",
     )
     previous_handler, messages, engine, component, root = _create_harness(qapp, source)
@@ -133,8 +133,8 @@ def test_single_organization_switcher_is_not_keyboard_reachable(qapp) -> None:
 def test_multi_organization_switcher_is_keyboard_reachable(qapp) -> None:
     source = _org_switcher_harness_source(
         organizations=(
-            '[{"id": "org-1", "displayName": "Org One", "organizationCode": "ORG1", "isEnabled": true},'
-            '{"id": "org-2", "displayName": "Org Two", "organizationCode": "ORG2", "isEnabled": true}]'
+            '[{"id": "org-1", "displayName": "Org One", "organizationCode": "ORG1", "status": "active"},'
+            '{"id": "org-2", "displayName": "Org Two", "organizationCode": "ORG2", "status": "active"}]'
         ),
         active_id="org-1",
     )
@@ -149,8 +149,8 @@ def test_multi_organization_switcher_is_keyboard_reachable(qapp) -> None:
 def test_multi_organization_switcher_opens_menu_on_keyboard_return(qapp) -> None:
     source = _org_switcher_harness_source(
         organizations=(
-            '[{"id": "org-1", "displayName": "Org One", "organizationCode": "ORG1", "isEnabled": true},'
-            '{"id": "org-2", "displayName": "Org Two", "organizationCode": "ORG2", "isEnabled": true}]'
+            '[{"id": "org-1", "displayName": "Org One", "organizationCode": "ORG1", "status": "active"},'
+            '{"id": "org-2", "displayName": "Org Two", "organizationCode": "ORG2", "status": "active"}]'
         ),
         active_id="org-1",
     )

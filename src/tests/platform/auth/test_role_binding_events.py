@@ -378,7 +378,7 @@ def test_resource_scope_assignment_in_a_non_active_organization_carries_the_auth
     )
     org_a1_id = site_a1.organization_id
     org_a2 = services["organization_service"].create_organization(
-        organization_code=_unique_code("P5C2-A2"), display_name="P5C-2 Org A2", is_enabled=True
+        organization_code=_unique_code("P5C2-A2"), display_name="P5C-2 Org A2"
     )
     tenant_context_service.set_active_organization(org_a2.id)
 
@@ -414,7 +414,7 @@ def test_resource_scope_revocation_preserves_the_same_authoritative_binding_scop
     )
     org_a1_id = site_a1.organization_id
     org_a2 = services["organization_service"].create_organization(
-        organization_code=_unique_code("P5C2-REV-A2"), display_name="P5C-2 Revoke Org A2", is_enabled=True
+        organization_code=_unique_code("P5C2-REV-A2"), display_name="P5C-2 Revoke Org A2"
     )
     tenant_context_service.set_active_organization(org_a2.id)
 
@@ -519,7 +519,7 @@ def test_cross_tenant_site_assignment_attempt_emits_zero_events(services, monkey
     foreign_org_id = _unique_code("p5c2-foreign-org")
     session.add(OrganizationORM(
         id=foreign_org_id, tenant_id=foreign_tenant_id, organization_code=_unique_code("P5C2FORG"),
-        display_name="Foreign Org", is_enabled=True, version=1,
+        display_name="Foreign Org", version=1,
     ))
     session.commit()
     foreign_site_id = _unique_code("p5c2-foreign-site")

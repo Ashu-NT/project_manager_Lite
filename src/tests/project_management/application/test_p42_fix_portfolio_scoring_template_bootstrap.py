@@ -285,20 +285,17 @@ def test_active_template_uniqueness_is_scoped_per_organization_not_global(servic
         display_name="P42-FIX2 Ops",
         timezone_name="UTC",
         base_currency="USD",
-        is_enabled=False,
     )
 
     active_default = portfolio.get_active_scoring_template()
     assert active_default.organization_id == default_org.id
 
-    organization_service.enable_organization(other_org.id)
     tenant_context_service.set_active_organization(other_org.id)
 
     active_other = portfolio.get_active_scoring_template()
     assert active_other.organization_id == other_org.id
     assert active_other.id != active_default.id
 
-    organization_service.enable_organization(default_org.id)
     tenant_context_service.set_active_organization(default_org.id)
 
     final_default = portfolio.get_active_scoring_template()

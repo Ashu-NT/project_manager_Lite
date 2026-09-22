@@ -18,6 +18,7 @@ from src.core.platform.api.desktop.master_data.department.department import Plat
 from src.core.platform.api.desktop.master_data.documents.document import PlatformDocumentDesktopApi
 from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
 from src.core.platform.api.desktop.master_data.party.party import PlatformPartyDesktopApi
+from src.core.platform.domain.master_data.org import ORGANIZATION_STATUS_ACTIVE
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
@@ -190,11 +191,11 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         access_scope_option_loaders["organization"] = lambda: [
             (
                 organization.display_name
-                if organization.is_enabled
-                else f"{organization.display_name} (disabled)",
+                if organization.status == ORGANIZATION_STATUS_ACTIVE
+                else f"{organization.display_name} ({organization.status})",
                 organization.id,
             )
-            for organization in organization_service.list_organizations(enabled_only=None)
+            for organization in organization_service.list_organizations(status=None)
         ]
     if project_service is not None and hasattr(project_service, "list_projects"):
         access_scope_type_choices.append(("Project", "project"))

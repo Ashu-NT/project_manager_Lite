@@ -1,7 +1,7 @@
 """ProjectService.bulk_set_status() must persist the same per-project audit/
 activity/event work as set_status(), but for every selected project inside
 ONE UnitOfWork/commit instead of one per project (same reasoning as
-OrganizationService.bulk_set_organization_enabled())."""
+OrganizationService.bulk_activate_organizations())."""
 
 from __future__ import annotations
 

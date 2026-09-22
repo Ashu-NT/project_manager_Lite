@@ -102,8 +102,8 @@ def seeded_actual_scopes(postgres_test_environment):
                 text(
                     "INSERT INTO organizations "
                     "(id, tenant_id, organization_code, display_name, timezone_name, "
-                    "base_currency, is_enabled, version) "
-                    "VALUES (:org, :tenant, :code, :code, 'UTC', 'USD', true, 1)"
+                    "base_currency, status, version) "
+                    "VALUES (:org, :tenant, :code, :code, 'UTC', 'USD', 'active', 1)"
                 ),
                 {"org": org_id, "tenant": tenant_id, "code": code},
             )

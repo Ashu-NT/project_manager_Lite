@@ -52,14 +52,14 @@ def _populated_organization():
     return {
         "id": "org-1",
         "title": "Acme Corp",
-        "statusLabel": "Enabled",
+        "statusLabel": "Active",
         "subtitle": "ACME | UTC",
         "state": {
             "organizationCode": "ACME",
             "displayName": "Acme Corp",
             "timezoneName": "UTC",
             "baseCurrency": "USD",
-            "isEnabled": True,
+            "status": "active",
             "legalName": "Acme Corp Holdings",
             "registrationNumber": "12345678",
             "taxId": "US-TAX-1",

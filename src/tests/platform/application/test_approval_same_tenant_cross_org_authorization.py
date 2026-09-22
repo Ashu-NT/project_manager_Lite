@@ -47,15 +47,16 @@ def _session_active_organization_id(services) -> str | None:
 
 
 def _create_second_org_in_same_tenant(services):
-    """Org A2, created disabled so it never touches the DB "business-active org" flag -- the
-    session's real active organization (Org A1) must stay untouched by mere creation."""
+    """Org A2's mere creation never touches the session's real active organization (Org A1) --
+    `create_organization` has no session side effect at all; only an explicit
+    `set_active_organization` call changes it."""
     organization_service = services["organization_service"]
     org_a1_session_id = _session_active_organization_id(services)
     assert org_a1_session_id is not None
     org_a1 = services["tenant_context_service"].get_active_organization()
     assert org_a1.id == org_a1_session_id
     org_a2 = organization_service.create_organization(
-        organization_code=_unique("XORG-A2"), display_name="Same-Tenant Org A2", is_enabled=False
+        organization_code=_unique("XORG-A2"), display_name="Same-Tenant Org A2"
     )
     assert _session_active_organization_id(services) == org_a1_session_id
     return org_a1, org_a2
@@ -65,6 +66,12 @@ def _request_pending_approval_in_org_a1(services, *, org_a1_id: str):
     """Requests a standalone-path Approval while Org A1 is the session's active organization --
     `ApprovalRequest.organization_id`/`tenant_id` are stamped from that active context at creation
     time, never re-derived afterward."""
+    if _session_active_organization_id(services) != org_a1_id:
+        # Both Org A1 and Org A2 are ACTIVE by the time this fresh login happens (organizations
+        # are always created ACTIVE now), so a brand-new login's ambient auto-select is
+        # ambiguous -- pin it explicitly, the same way every other ambiguous login in this
+        # module already does.
+        services["user_session"].set_active_organization_id(org_a1_id)
     assert _session_active_organization_id(services) == org_a1_id
     approvals = services["approval_service"]
     request = approvals.request_change(
@@ -98,7 +105,6 @@ def test_actor_with_decide_permission_cannot_reach_org_a1_approval_while_org_a2_
 
     # Org A2 becomes -- and stays -- the session's active organization for the remainder of this
     # test (`set_active_organization` is the ONLY production path that changes this).
-    services["organization_service"].enable_organization(org_a2.id)
     services["tenant_context_service"].set_active_organization(org_a2.id)
     assert _session_active_organization_id(services) == org_a2.id
 
@@ -116,7 +122,6 @@ def test_actor_with_decide_permission_cannot_reach_org_a1_approval_while_org_a2_
     # Switch back to Org A1 (the same coarse-grained `settings.manage` capability every actor in
     # this test already exercised) to read the request's true, unaffected state.
     _login(services, "admin", "ChangeMe123!")
-    services["organization_service"].enable_organization(org_a1.id)
     services["tenant_context_service"].set_active_organization(org_a1.id)
     still_pending = approvals.list_pending()
     matching = [row for row in still_pending if row.id == request.id]
@@ -173,7 +178,6 @@ def test_actor_gains_authority_only_after_switching_active_organization_to_the_t
 
     approver_username = _unique("xorg2-approver")
     services["auth_service"].register_user(approver_username, "StrongPass123", role_names=["approver"])
-    services["organization_service"].enable_organization(org_a2.id)
     services["tenant_context_service"].set_active_organization(org_a2.id)
 
     _login(services, approver_username, "StrongPass123")
@@ -184,7 +188,6 @@ def test_actor_gains_authority_only_after_switching_active_organization_to_the_t
         approvals.approve_and_apply(request.id)
 
     _login(services, "admin", "ChangeMe123!")
-    services["organization_service"].enable_organization(org_a1.id)
     services["tenant_context_service"].set_active_organization(org_a1.id)
     _login(services, approver_username, "StrongPass123")
     services["user_session"].set_active_organization_id(org_a1.id)

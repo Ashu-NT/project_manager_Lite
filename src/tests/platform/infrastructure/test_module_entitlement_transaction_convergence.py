@@ -133,7 +133,7 @@ def test_non_active_organization_mutation_affects_only_that_organization(service
 
     org_a1 = services["tenant_context_service"].get_active_organization()
     org_a2 = organization_service.create_organization(
-        organization_code=_unique_code("NONACTIVE"), display_name="Non-Active Org A2", is_enabled=False
+        organization_code=_unique_code("NONACTIVE"), display_name="Non-Active Org A2"
     )
     assert services["tenant_context_service"].get_active_organization().id == org_a1.id
 

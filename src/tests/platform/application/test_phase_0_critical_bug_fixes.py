@@ -77,8 +77,8 @@ def test_list_organizations_is_scoped_to_active_tenant(services):
     tenant_b = "tenant-fix2-b"
     _add_tenant_row(session, tenant_b, "FIX2-B")
 
-    org_a = Organization.create("FIX2-A", "Tenant A Org", tenant_id=tenant_a, is_enabled=False)
-    org_b = Organization.create("FIX2-B", "Tenant B Org", tenant_id=tenant_b, is_enabled=False)
+    org_a = Organization.create("FIX2-A", "Tenant A Org", tenant_id=tenant_a)
+    org_b = Organization.create("FIX2-B", "Tenant B Org", tenant_id=tenant_b)
     repo.add(org_a)
     repo.add(org_b)
     session.flush()

@@ -19,7 +19,7 @@ def _organization_row(**overrides):
         display_name="Acme Corp",
         timezone_name="UTC",
         base_currency="USD",
-        is_enabled=True,
+        status="active",
         version=1,
         legal_name="Acme Corp Holdings",
         registration_number="12345678",
@@ -43,7 +43,7 @@ class _FakeRuntimeApi:
         self._rows = rows
         self._countries = countries
 
-    def list_organizations_page(self, *, page=1, page_size=25, search=None, enabled_only=None):
+    def list_organizations_page(self, *, page=1, page_size=25, search=None, status=None):
         return SimpleNamespace(
             ok=True,
             data=SimpleNamespace(

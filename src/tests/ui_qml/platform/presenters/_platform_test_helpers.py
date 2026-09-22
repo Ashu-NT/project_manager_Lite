@@ -49,6 +49,10 @@ from src.core.platform.api.desktop.support.models.support import (
     SupportUpdateStatusDto,
 )
 from src.core.platform.domain.approval import ApprovalStatus
+from src.core.platform.domain.master_data.org import (
+    ORGANIZATION_STATUS_ACTIVE,
+    ORGANIZATION_STATUS_INACTIVE,
+)
 
 
 def _organization(*, organization_id: str, code: str, display_name: str, is_active: bool = True) -> OrganizationDto:
@@ -58,7 +62,7 @@ def _organization(*, organization_id: str, code: str, display_name: str, is_acti
         display_name=display_name,
         timezone_name="UTC",
         base_currency="EUR",
-        is_enabled=is_active,
+        status=ORGANIZATION_STATUS_ACTIVE if is_active else ORGANIZATION_STATUS_INACTIVE,
         version=1,
     )
 
@@ -132,7 +136,9 @@ class FakePlatformRuntimeApi:
         self._rebuild_runtime_context()
 
     def _rebuild_runtime_context(self) -> None:
-        active_organization = next((row for row in self._organizations if row.is_enabled), None)
+        active_organization = next(
+            (row for row in self._organizations if row.status == ORGANIZATION_STATUS_ACTIVE), None
+        )
         self._runtime_context = PlatformRuntimeContextDto(
             context_label="Enterprise Runtime",
             shell_summary="2 modules licensed",
@@ -155,10 +161,10 @@ class FakePlatformRuntimeApi:
     def get_runtime_context(self) -> DesktopApiResult[PlatformRuntimeContextDto]:
         return DesktopApiResult(ok=True, data=self._runtime_context)
 
-    def list_organizations(self, *, enabled_only: bool | None = None) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
+    def list_organizations(self, *, status: str | None = None) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
         rows = self._organizations
-        if enabled_only is not None:
-            rows = [row for row in rows if row.is_enabled == enabled_only]
+        if status is not None:
+            rows = [row for row in rows if row.status == status]
         return DesktopApiResult(ok=True, data=tuple(rows))
 
     def get_organization_count(self) -> DesktopApiResult[int]:
@@ -188,15 +194,15 @@ class FakePlatformRuntimeApi:
         page: int = 1,
         page_size: int = 25,
         search: str | None = None,
-        enabled_only: bool | None = None,
+        status: str | None = None,
     ) -> DesktopApiResult[object]:
         from src.core.platform.api.desktop.master_data.org.models.organization import (
             OrganizationCatalogPageDto,
         )
 
         rows = self._organizations
-        if enabled_only is not None:
-            rows = [row for row in rows if row.is_enabled == enabled_only]
+        if status is not None:
+            rows = [row for row in rows if row.status == status]
         total = len(self._organizations)
         if search:
             needle = search.strip().lower()
@@ -256,15 +262,15 @@ class FakePlatformRuntimeApi:
                     category="conflict",
                 ),
             )
-        # No mutual-exclusion sibling deactivation -- multiple organizations may be
-        # is_enabled=True simultaneously.
+        # New organizations are always created ACTIVE -- lifecycle transitions
+        # happen via a separate activate/deactivate/archive call.
         organization = OrganizationDto(
             id=f"org-{len(self._organizations) + 1}",
             organization_code=command.organization_code,
             display_name=command.display_name,
             timezone_name=command.timezone_name,
             base_currency=command.base_currency,
-            is_enabled=command.is_enabled,
+            status=ORGANIZATION_STATUS_ACTIVE,
             version=1,
             legal_name=command.legal_name,
             registration_number=command.registration_number,
@@ -293,7 +299,6 @@ class FakePlatformRuntimeApi:
                 display_name=command.display_name or row.display_name,
                 timezone_name=command.timezone_name or row.timezone_name,
                 base_currency=command.base_currency or row.base_currency,
-                is_enabled=row.is_enabled if command.is_enabled is None else command.is_enabled,
                 version=row.version + 1,
                 legal_name=row.legal_name if command.legal_name is None else command.legal_name,
                 registration_number=(
@@ -322,12 +327,21 @@ class FakePlatformRuntimeApi:
             ),
         )
 
-    def enable_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
-        # Availability mutation only -- never touches any other organization row.
+    def activate_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+        # Lifecycle mutation only -- never touches any other organization row.
+        return self._transition_organization_status(organization_id, ORGANIZATION_STATUS_ACTIVE)
+
+    def deactivate_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+        return self._transition_organization_status(organization_id, ORGANIZATION_STATUS_INACTIVE)
+
+    def archive_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+        return self._transition_organization_status(organization_id, "archived")
+
+    def _transition_organization_status(self, organization_id: str, status: str) -> DesktopApiResult[OrganizationDto]:
         for index, row in enumerate(self._organizations):
             if row.id != organization_id:
                 continue
-            updated = replace(row, is_enabled=True, version=row.version + 1)
+            updated = replace(row, status=status, version=row.version + 1)
             self._organizations[index] = updated
             self._rebuild_runtime_context()
             return DesktopApiResult(ok=True, data=updated)
@@ -340,22 +354,28 @@ class FakePlatformRuntimeApi:
             ),
         )
 
-    def disable_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+    def bulk_activate_organizations(self, organization_ids) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
+        return self._bulk_transition_organization_status(organization_ids, ORGANIZATION_STATUS_ACTIVE)
+
+    def bulk_deactivate_organizations(self, organization_ids) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
+        return self._bulk_transition_organization_status(organization_ids, ORGANIZATION_STATUS_INACTIVE)
+
+    def bulk_archive_organizations(self, organization_ids) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
+        return self._bulk_transition_organization_status(organization_ids, "archived")
+
+    def _bulk_transition_organization_status(
+        self, organization_ids, status: str
+    ) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
+        updated_rows: list[OrganizationDto] = []
+        ids = set(organization_ids)
         for index, row in enumerate(self._organizations):
-            if row.id != organization_id:
+            if row.id not in ids:
                 continue
-            updated = replace(row, is_enabled=False, version=row.version + 1)
+            updated = replace(row, status=status, version=row.version + 1)
             self._organizations[index] = updated
-            self._rebuild_runtime_context()
-            return DesktopApiResult(ok=True, data=updated)
-        return DesktopApiResult(
-            ok=False,
-            error=DesktopApiError(
-                code="organization_not_found",
-                message=f"Organization '{organization_id}' was not found.",
-                category="not_found",
-            ),
-        )
+            updated_rows.append(updated)
+        self._rebuild_runtime_context()
+        return DesktopApiResult(ok=True, data=tuple(updated_rows))
 
     def license_module(self, module_code: str) -> DesktopApiResult[ModuleEntitlementDto]:
         return self._apply_module_transition(module_code, licensed=True)

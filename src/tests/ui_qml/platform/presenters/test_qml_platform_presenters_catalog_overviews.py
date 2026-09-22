@@ -137,7 +137,7 @@ def test_platform_workspace_catalog_exposes_control_and_settings_action_lists() 
 
     assert organization_profiles["title"] == "Organization Profiles"
     assert organization_profiles["items"][0]["title"] == "TechAsh"
-    assert organization_profiles["items"][0]["statusLabel"] == "Enabled"
+    assert organization_profiles["items"][0]["statusLabel"] == "Active"
 
 
 def test_platform_workspace_controllers_hold_common_state_fields() -> None:

@@ -95,8 +95,8 @@ def seed_procurement_scope(postgres_test_environment):
             ), {"id": tenant, "code": f"R6DE-{suffix}"})
             connection.execute(text(
                 "INSERT INTO organizations (id, tenant_id, organization_code, display_name, "
-                "timezone_name, base_currency, is_enabled, version) "
-                "VALUES (:id, :tenant, :code, :code, 'UTC', 'USD', true, 1)"
+                "timezone_name, base_currency, status, version) "
+                "VALUES (:id, :tenant, :code, :code, 'UTC', 'USD', 'active', 1)"
             ), {"id": org, "tenant": tenant, "code": f"R6DE-ORG-{suffix}"})
             connection.execute(text(
                 "INSERT INTO projects (id, tenant_id, project_code, name, description, status, "

@@ -174,8 +174,8 @@ def seeded_security_scopes(postgres_test_environment):
             connection.execute(
                 text(
                     "INSERT INTO organizations "
-                    "(id, tenant_id, organization_code, display_name, timezone_name, base_currency, is_enabled, version) "
-                    "VALUES (:id, :tenant, :code, :name, 'UTC', 'XAF', true, 1)"
+                    "(id, tenant_id, organization_code, display_name, timezone_name, base_currency, status, version) "
+                    "VALUES (:id, :tenant, :code, :name, 'UTC', 'XAF', 'active', 1)"
                 ),
                 {
                     "id": organization_id,

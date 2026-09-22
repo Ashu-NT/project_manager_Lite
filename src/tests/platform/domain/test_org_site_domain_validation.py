@@ -33,13 +33,16 @@ class _FakeEnterpriseAuditService:
 class _FakeUserSession:
     def __init__(self, tenant_id: str = "tenant-1") -> None:
         self._tenant_id = tenant_id
-        self.active_organization_id = ""
+        self._active_organization_id = ""
 
     def active_tenant_id(self) -> str:
         return self._tenant_id
 
+    def active_organization_id(self) -> str:
+        return self._active_organization_id
+
     def set_active_organization_id(self, organization_id: str) -> None:
-        self.active_organization_id = organization_id
+        self._active_organization_id = organization_id
 
 
 class _FakeOrganizationRepo:
@@ -64,10 +67,10 @@ class _FakeOrganizationRepo:
                 return row
         return None
 
-    def list_all(self, *, enabled_only: bool | None = None) -> list[Organization]:
+    def list_all(self, *, status: str | None = None) -> list[Organization]:
         rows = list(self._rows.values())
-        if enabled_only is not None:
-            rows = [row for row in rows if row.is_enabled is bool(enabled_only)]
+        if status is not None:
+            rows = [row for row in rows if row.status == status]
         return sorted(rows, key=lambda row: row.display_name)
 
     def get_for_tenant(self, organization_id: str, tenant_id: str) -> Organization | None:
@@ -86,15 +89,15 @@ class _FakeOrganizationRepo:
         self,
         tenant_id: str,
         *,
-        enabled_only: bool | None = None,
+        status: str | None = None,
     ) -> list[Organization]:
         rows = [
             row
             for row in self._rows.values()
             if row.tenant_id == tenant_id
         ]
-        if enabled_only is not None:
-            rows = [row for row in rows if row.is_enabled is bool(enabled_only)]
+        if status is not None:
+            rows = [row for row in rows if row.status == status]
         return sorted(rows, key=lambda row: row.display_name)
 
 
@@ -321,35 +324,34 @@ def test_organization_service_uses_entity_validation_and_final_state(monkeypatch
         display_name="  Default Organization  ",
         timezone_name="  UTC  ",
         base_currency=" eur ",
-        is_enabled=True,
     )
     second = service.create_organization(
         organization_code=" north ",
         display_name="  North Division  ",
         timezone_name=" Europe/Berlin ",
         base_currency=" usd ",
-        is_enabled=False,
     )
+    second = service.deactivate_organization(second.id)
 
     assert created.organization_code == "DEFAULT"
     assert second.organization_code == "NORTH"
     assert second.display_name == "North Division"
     assert second.base_currency == "USD"
 
-    activated = service.update_organization(
+    renamed = service.update_organization(
         second.id,
         expected_version=second.version,
         display_name="  North Ops  ",
-        is_enabled=True,
     )
+    activated = service.activate_organization(renamed.id)
 
     assert activated.display_name == "North Ops"
-    assert activated.is_enabled is True
-    assert activated.version == 2
-    # Enabling `second` never disables `created` -- no mutual exclusion.
+    assert activated.status == "active"
+    assert activated.version == 4
+    # Activating `second` never deactivates `created` -- no mutual exclusion.
     reloaded_first = service._organization_repo.get(created.id)
     assert reloaded_first is not None
-    assert reloaded_first.is_enabled is True
+    assert reloaded_first.status == "active"
 
     with pytest.raises(ValidationError) as exc_name:
         service.update_organization(

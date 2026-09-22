@@ -1,9 +1,9 @@
 """`OrganizationService`'s transaction-owning commands (`create_organization`,
-`update_organization`, `enable_organization`, `bootstrap_defaults`) use a fresh-session
+`update_organization`, `activate_organization`, `bootstrap_defaults`) use a fresh-session
 `OrganizationUnitOfWork`. `create_organization` records `OrganizationCreated`;
-`update_organization`/`enable_organization`/`disable_organization` record
-`OrganizationProfileUpdated`/`OrganizationEnabled`/`OrganizationDisabled` -- each organization is
-enabled/disabled independently, with no sibling side effects."""
+`update_organization`/`activate_organization`/`deactivate_organization` record
+`OrganizationProfileUpdated`/`OrganizationActivated`/`OrganizationDeactivated` -- each
+organization's lifecycle status changes independently, with no sibling side effects."""
 
 from __future__ import annotations
 
@@ -217,11 +217,12 @@ def test_update_organization_stale_version_raises_and_does_not_mutate(services):
     assert reloaded.display_name == "Stale Org"
 
 
-def test_enable_organization_default_mode_uses_a_fresh_uow(services, monkeypatch):
+def test_activate_organization_default_mode_uses_a_fresh_uow(services, monkeypatch):
     organization_service = services["organization_service"]
     organization = organization_service.create_organization(
-        organization_code=_unique_code("ACTIVATE"), display_name="Activate Org", is_enabled=False
+        organization_code=_unique_code("ACTIVATE"), display_name="Activate Org"
     )
+    organization_service.deactivate_organization(organization.id)
 
     seen_sessions = []
     original_create = type(organization_service._uow_factory).create
@@ -233,25 +234,25 @@ def test_enable_organization_default_mode_uses_a_fresh_uow(services, monkeypatch
 
     monkeypatch.setattr(type(organization_service._uow_factory), "create", _spy_create)
 
-    enabled = organization_service.enable_organization(organization.id)
+    activated = organization_service.activate_organization(organization.id)
 
     assert len(seen_sessions) == 1
     assert seen_sessions[0] is not organization_service._session
-    assert enabled.is_enabled is True
+    assert activated.status == "active"
     reloaded = organization_service._organization_repo.get(organization.id)
-    assert reloaded.is_enabled is True
+    assert reloaded.status == "active"
 
 
-def test_enable_organization_is_a_noop_when_already_enabled_and_opens_no_uow(services, monkeypatch):
-    """A past-tense state-transition write must represent an actual transition -- enabling an
-    already-enabled organization performs no write, no audit, and no `OrganizationEnabled`
-    event."""
+def test_activate_organization_is_rejected_when_already_active_and_stages_no_write(services, monkeypatch):
+    """A past-tense state-transition write must represent an actual transition -- activating an
+    already-active organization is rejected outright (not silently no-op'd), performs no write,
+    no audit, and no `OrganizationActivated` event."""
     organization_service = services["organization_service"]
     channel = services["platform_view_invalidation_channel"]
     organization = organization_service.create_organization(
-        organization_code=_unique_code("NOOP-ENABLE"), display_name="Already Enabled Org"
+        organization_code=_unique_code("NOOP-ACTIVATE"), display_name="Already Active Org"
     )
-    assert organization.is_enabled is True
+    assert organization.status == "active"
 
     seen_sessions = []
     original_create = type(organization_service._uow_factory).create
@@ -266,15 +267,17 @@ def test_enable_organization_is_a_noop_when_already_enabled_and_opens_no_uow(ser
     hints = []
     channel.subscribe(AllTenants(), lambda hint: hints.append(hint))
 
-    result = organization_service.enable_organization(organization.id)
+    from src.core.platform.common.exceptions import BusinessRuleError
 
-    assert result.version == organization.version
+    with pytest.raises(BusinessRuleError, match="already active"):
+        organization_service.activate_organization(organization.id)
+
     assert len(seen_sessions) == 1, "a UoW still opens (to look the organization up), but stages no write"
     assert hints == []
 
 
-def test_disable_organization_does_not_touch_sibling_organizations(services):
-    """Disabling one organization must never change any other organization's row."""
+def test_deactivate_organization_does_not_touch_sibling_organizations(services):
+    """Deactivating one organization must never change any other organization's row."""
     organization_service = services["organization_service"]
     organization_a = organization_service.create_organization(
         organization_code=_unique_code("SIBLING-A"), display_name="Sibling A"
@@ -282,18 +285,18 @@ def test_disable_organization_does_not_touch_sibling_organizations(services):
     organization_b = organization_service.create_organization(
         organization_code=_unique_code("SIBLING-B"), display_name="Sibling B"
     )
-    assert organization_a.is_enabled is True
-    assert organization_b.is_enabled is True
+    assert organization_a.status == "active"
+    assert organization_b.status == "active"
 
-    organization_service.disable_organization(organization_a.id)
+    organization_service.deactivate_organization(organization_a.id)
 
     reloaded_a = organization_service._organization_repo.get(organization_a.id)
     reloaded_b = organization_service._organization_repo.get(organization_b.id)
-    assert reloaded_a.is_enabled is False
-    assert reloaded_b.is_enabled is True
+    assert reloaded_a.status == "inactive"
+    assert reloaded_b.status == "active"
 
 
-def test_create_and_enable_organization_no_longer_accept_a_commit_argument(services):
+def test_create_and_activate_organization_no_longer_accept_a_commit_argument(services):
     """Neither method accepts a `commit=False` transaction switch -- `provision_organization`
     expresses its own transaction participation structurally via a
     `PlatformProvisioningUnitOfWork`, never a boolean."""
@@ -306,12 +309,13 @@ def test_create_and_enable_organization_no_longer_accept_a_commit_argument(servi
             organization_code=_unique_code("NOCOMMITARG2"), display_name="x", commit=False
         )
     with pytest.raises(TypeError):
-        organization_service.enable_organization(organization.id, commit=False)
+        organization_service.activate_organization(organization.id, commit=False)
 
 
 def test_provision_organization_still_commits_organization_and_entitlements_atomically(services):
     """`provision_organization` composes Organization creation, module entitlement provisioning,
-    and (optionally) activation into one `PlatformProvisioningUnitOfWork` transaction."""
+    and activation (new organizations are always created ACTIVE) into one
+    `PlatformProvisioningUnitOfWork` transaction."""
     app_service = services["platform_runtime_application_service"]
 
     created = app_service.provision_organization(
@@ -319,7 +323,6 @@ def test_provision_organization_still_commits_organization_and_entitlements_atom
         display_name="Provisioned Org",
         timezone_name="UTC",
         base_currency="EUR",
-        is_enabled=False,
         initial_module_codes=[],
     )
 
